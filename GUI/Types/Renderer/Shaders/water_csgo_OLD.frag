@@ -5,8 +5,6 @@
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
 
-#define renderMode_Cubemaps 1
-
 in vec3 vFragPosition;
 in vec2 vTexCoordOut;
 in vec3 vNormalOut;
@@ -193,7 +191,7 @@ void main()
 
 
     float waterdepth_at_distortion;
-    
+
 
     float red_ior = 0.8; //multipliers, not true IOR, hence < 1 doesn't mean "negative" refraction
     float green_ior = 1.0;
@@ -294,7 +292,7 @@ void main()
 //semi hardcoded, just for this shader, DO NOT BLINDLY COPY
 vec3 refraction_func(float IOR) //still fake IOR, physical accuracy be damned
 {
-    
+
     float water_depth = world_depth - local_depth;
     vec2 distortion_direction = normal.xy * IOR;
     distortion_direction *= 1 / max(local_depth, 10) * fade_out *     clamp(water_depth / 20, 0, 1 );
@@ -345,7 +343,7 @@ float water_height(vec2 coords)
 
     float term_a = (sin(       float(dModulo(   double(x * term_a_freq * 1.5) + double(flTime * term_a_speed), TAU))     )    +    sin(     float(dModulo(   double(y * term_a_freq) + double(flTime * term_a_speed), TAU))   )   ) / 4 + 0.5; //low freq
     term_a = pow(term_a, term_a_exp) * term_a_weight;
-        
+
     float term_b = (sin(            float(dModulo(   double((x - y) * term_b_freq) + double(flTime * term_b_speed)    , TAU))    ) + sin(    float(dModulo(   double((x + y) * term_b_freq) + double(flTime * term_b_speed)    , TAU))    )) / 4 + 0.5; //med freq
     term_b = pow(term_b, term_b_exp) * term_b_weight;
 

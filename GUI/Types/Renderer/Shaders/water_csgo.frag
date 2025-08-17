@@ -5,10 +5,6 @@
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
 
-#define renderMode_Irradiance 0
-#define renderMode_LightmapShadows 0
-#define renderMode_Cubemaps 0
-
 in vec3 vFragPosition;
 in vec2 vTexCoordOut;
 in vec3 vNormalOut;
@@ -574,7 +570,7 @@ void main()
 
     float weirdMixVal = debrisEdgeFactor * clamp(fma(weirdDebHeight, 10.0, 1.0), 0.0, 1.0);
 
-    float mixedHeight = mix(scaledAccumulatedWaveHeight, fma(scaledAccumulatedWaveHeight, 0.5, debrisHeightVal * 2.0), weirdMixVal);
+    mat.Height = mix(scaledAccumulatedWaveHeight, fma(scaledAccumulatedWaveHeight, 0.5, debrisHeightVal * 2.0), weirdMixVal);
 
     vec3 finalSurfacePos = mat.PositionWS.xyz + (viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) -g_flWavesHeightOffset));
 
@@ -582,7 +578,7 @@ void main()
 
     if(!isSkybox)
     {
-        finalSurfacePos = mat.PositionWS.xyz + (viewDepOffsetFactor * (mix(0.5, mixedHeight, edgeFactorQ) - g_flWaterPlaneOffset)); // + (rippleDisplacementAsVec3) * (-12.0);
+        finalSurfacePos = mat.PositionWS.xyz + (viewDepOffsetFactor * (mix(0.5, mat.Height, edgeFactorQ) - g_flWaterPlaneOffset)); // + (rippleDisplacementAsVec3) * (-12.0);
 
         float fmaM1 = max(   (   1.0 / fma(1.0, sceneNormalizedDepth, 0.0)   )     -  -(g_matWorldToView * vec4(finalSurfacePos.xyz, 1.0).xyzw).z, 0.0);
 
@@ -1404,75 +1400,6 @@ void main()
 
     returnColor = mix(returnColor, mix(finalReflectionColor, finalReflectionColor * _11313, secondaryColorMixFac), returnColorMixFac);
 
-
-    //return;
-
-//    if (_Globals_.g_bFogEnabled != 0)
-//    {
-//        vec3 _21493;
-//        vec3 _23187 = trueWorldPos - PerViewConstantBuffer_t.g_vCameraPositionWs.xyz;
-//        vec3 _9057 = _23187.xyz;
-//        vec3 fogAppliedRetColor;
-//        do
-//        {
-//            _21493 = _23187.xyz;
-//            bool _12888;
-//            if (dot(_21493, _21493) > PerViewConstantBufferCsgo_t.g_vGradientFogCullingParams.x)
-//            {
-//                _12888 = (trueWorldPos.z * PerViewConstantBufferCsgo_t.g_vGradientFogCullingParams.z) < PerViewConstantBufferCsgo_t.g_vGradientFogCullingParams.y;
-//            }
-//            else
-//            {
-//                _12888 = false;
-//            }
-//            if (_12888)
-//            {
-//                vec2 _6354 = clamp(fma(PerViewConstantBufferCsgo_t.g_vGradientFogBiasAndScale.zw, vec2(length(_21493), trueWorldPos.z), PerViewConstantBufferCsgo_t.g_vGradientFogBiasAndScale.xy), vec2(0.0), vec2(1.0));
-//                float _12872 = (pow(_6354.x, PerViewConstantBufferCsgo_t.m_vGradientFogExponents.x) * pow(_6354.y, PerViewConstantBufferCsgo_t.m_vGradientFogExponents.y)) * PerViewConstantBufferCsgo_t.g_vGradientFogColor_Opacity.w;
-//                fogAppliedRetColor = mix(returnColor5.xyz, vec4(PerViewConstantBufferCsgo_t.g_vGradientFogColor_Opacity.xyz, _12872).xyz, vec3(_12872));
-//                break;
-//            }
-//            fogAppliedRetColor = returnColor5.xyz;
-//            break;
-//        } while(false);
-//        vec4 _23944 = returnColor5;
-//        _23944.x = fogAppliedRetColor.x;
-//        _23944.y = fogAppliedRetColor.y;
-//        _23944.z = fogAppliedRetColor.z;
-//        vec3 _19341;
-//        do
-//        {
-//            bool _12889;
-//            if (dot(_9057, _9057) > PerViewConstantBufferCsgo_t.g_vCubeFogCullingParams_MaxOpacity.x)
-//            {
-//                _12889 = (PerViewConstantBufferCsgo_t.g_vCubeFogCullingParams_MaxOpacity.z * trueWorldPos.z) < PerViewConstantBufferCsgo_t.g_vCubeFogCullingParams_MaxOpacity.y;
-//            }
-//            else
-//            {
-//                _12889 = false;
-//            }
-//            if (_12889)
-//            {
-//                float _14602 = clamp(pow(max(0.0, fma(length(_21493), PerViewConstantBufferCsgo_t.g_vCubeFog_Offset_Scale_Bias_Exponent.y, PerViewConstantBufferCsgo_t.g_vCubeFog_Offset_Scale_Bias_Exponent.x)), PerViewConstantBufferCsgo_t.g_vCubeFog_Offset_Scale_Bias_Exponent.w), 0.0, 1.0) * clamp(pow(max(0.0, fma(trueWorldPos.z, PerViewConstantBufferCsgo_t.g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y, PerViewConstantBufferCsgo_t.g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.x)), PerViewConstantBufferCsgo_t.g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z), 0.0, 1.0);
-//                float _8892 = clamp(_14602, 0.0, 1.0) * PerViewConstantBufferCsgo_t.g_vCubeFogCullingParams_MaxOpacity.w;
-//                _19341 = mix(_23944.xyz, vec4((textureLod(samplerCube(g_tFogCubeTexture, Filter_21_AllowGlobalMipBiasOverride_0_AddressU_2_AddressV_2), normalize((mat4(vec4(PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[0].x, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[1].x, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[2].x, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[3].x), vec4(PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[0].y, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[1].y, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[2].y, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[3].y), vec4(PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[0].z, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[1].z, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[2].z, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[3].z), vec4(PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[0].w, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[1].w, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[2].w, PerViewConstantBufferCsgo_t.g_matvCubeFogSkyWsToOs._m0[3].w)) * vec4(_9057, 0.0)).xyz).xyz, PerViewConstantBufferCsgo_t.g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.w * clamp(fma(-_14602, PerViewConstantBufferCsgo_t.g_vCubeFog_Offset_Scale_Bias_Exponent.z, 1.0), 0.0, 1.0)) * PerViewConstantBufferCsgo_t.g_vCubeFog_ExposureBias.x).xyz, _8892).xyz, vec3(_8892));
-//                break;
-//            }
-//            _19341 = _23944.xyz;
-//            break;
-//        } while(false);
-//
-//        _23944.x = _19341.x;
-//        _23944.y = _19341.y;
-//        _23944.z = _19341.z;
-//        returnColor6 = _23944;
-//    }
-//    else
-//    {
-//        returnColor6 = returnColor5;
-//    }
-
-// We replace that fog logic with our own.
     ApplyFog(returnColor, finalSurfacePos);
 
     // --- DITHER INTO SKYBOX ---
@@ -1484,13 +1411,13 @@ void main()
             discard;
         }
     }
+
     // --- PERFORM EDGE BLEND ---
-    //outputColor.rgb = returnColor;
     #if F_REFRACTION == 1
-    if (!isSkybox)
-    {
-        returnColor = vec3(mix((refractionColorSample.xyz * mix(1.0, 0.6, clamp(refractedVerticalFactor * 60.0, 0.0, 1.0) / fma(distanceToFrag, 0.002, 1.0))).xyz, returnColor.xyz, vec3(clamp(fma(g_flEdgeHardness, effectiveWaterDepthForFog, clamp(combinedfinalFoamIntensity, 0.0, 1.0)) + fma(debrisHeightVal, 2.0, -0.5), 0.0, 1.0))));
-    }
+        if (!isSkybox)
+        {
+            returnColor = vec3(mix((refractionColorSample.xyz * mix(1.0, 0.6, clamp(refractedVerticalFactor * 60.0, 0.0, 1.0) / fma(distanceToFrag, 0.002, 1.0))).xyz, returnColor.xyz, vec3(clamp(fma(g_flEdgeHardness, effectiveWaterDepthForFog, clamp(combinedfinalFoamIntensity, 0.0, 1.0)) + fma(debrisHeightVal, 2.0, -0.5), 0.0, 1.0))));
+        }
     #endif
 
     //outputColor.rgb = vec3(clamp(fma(g_flEdgeHardness, effectiveWaterDepthForFog, clamp(combinedfinalFoamIntensity, 0.0, 1.0)) + fma(debrisHeightVal, 2.0, -0.5), 0.0, 1.0));
@@ -1520,6 +1447,14 @@ void main()
     }
     else if (g_iRenderMode == renderMode_Cubemaps)
     {
-        outputColor.rgb = cubemapReflection;
+        outputColor.rgb = finalReflectionColor;
+    }
+    else if (g_iRenderMode == renderMode_Height)
+    {
+        outputColor.rgb = SrgbGammaToLinear(mat.Height.xxx);
+    }
+    else if (g_iRenderMode == renderMode_TerrainBlend)
+    {
+        outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.xyz);
     }
 }
