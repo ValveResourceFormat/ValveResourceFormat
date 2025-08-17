@@ -1,18 +1,19 @@
 using System.IO;
-using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Map : ResourceData
+    public class Map : Block
     {
+        public override BlockType Type => BlockType.DATA;
+
         public override void Read(BinaryReader reader)
         {
             // Maps have no data
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return string.Empty;
+            // Maps have no data
         }
     }
 }

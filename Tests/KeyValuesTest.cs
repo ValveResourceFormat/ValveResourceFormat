@@ -66,8 +66,13 @@ namespace Tests
                 Assert.That(arrayValue.Properties["0"].Value, Is.EqualTo((long)1));
                 Assert.That(arrayValue.Properties["1"].Value, Is.EqualTo((long)2));
                 Assert.That(arrayValue.Properties["2"].Value, Is.EqualTo("characters/models/shared/animsets/animset_ct.vmdl"));
+                Assert.That(arrayValue.Properties["2"].Flag, Is.EqualTo(KVFlag.Resource));
                 Assert.That(arrayValue.Properties["3"].Value, Is.EqualTo("hud/abilities/haze/haze_sleep_dagger.psd"));
+                Assert.That(arrayValue.Properties["3"].Flag, Is.EqualTo(KVFlag.Panorama));
                 Assert.That(arrayValue.Properties["4"].Value, Is.EqualTo("hello world"));
+                Assert.That(arrayValue.Properties["5"].Flag, Is.EqualTo(KVFlag.SoundEvent));
+                Assert.That(arrayValue.Properties["6"].Flag, Is.EqualTo(KVFlag.SubClass));
+                Assert.That(arrayValue.Properties["7"].Flag, Is.EqualTo(KVFlag.EntityName));
 
                 Assert.That(properties["objectValue"].Type, Is.EqualTo(KVValueType.Collection));
                 var objectValue = properties["objectValue"].Value as KVObject;

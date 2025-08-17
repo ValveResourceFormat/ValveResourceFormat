@@ -28,13 +28,13 @@ uniform float g_flWaterPlaneOffset;
 #endif
 
 #include "common/ViewConstants.glsl"
-uniform mat4 transform;
+#include "common/instancing.glsl"
 
 #define F_REFRACTION 0
 
 void main()
 {
-    
+
 
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(vNormalOut, tangent);

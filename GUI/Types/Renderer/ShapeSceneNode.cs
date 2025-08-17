@@ -247,31 +247,49 @@ namespace GUI.Types.Renderer
         {
             inds.Add(baseVertex + a);
             inds.Add(baseVertex + b);
-            inds.Add(baseVertex + b);
             inds.Add(baseVertex + c);
-            inds.Add(baseVertex + c);
-            inds.Add(baseVertex + a);
+        }
+
+        public static void AddLine(List<SimpleVertex> vertices, Vector3 from, Vector3 to, Color32 color)
+        {
+            vertices.Add(new SimpleVertex(from, color));
+            vertices.Add(new SimpleVertex(to, color));
+        }
+
+        public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
+        {
+            // Adding a box will add many vertices, so ensure the required capacity for it up front
+            vertices.EnsureCapacity(vertices.Count + 2 * 12);
+
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Min.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Min.Z), color);
+
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Max.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Max.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), color);
+
+            AddLine(vertices, new Vector3(box.Min.X, box.Min.Y, box.Min.Z), new Vector3(box.Min.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
+            AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
         }
 
         public override void Render(Scene.RenderContext context)
         {
-            var translucentPass = IsTranslucent && IsTranslucentRenderMode;
+            var isTranslucent = IsTranslucent && IsTranslucentRenderMode && context.ReplacementShader == null;
+            var renderPass = isTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
-            if (translucentPass)
-            {
-                if (context.RenderPass != RenderPass.Translucent)
-                {
-                    return;
-                }
-            }
-            else if (context.RenderPass != RenderPass.AfterOpaque)
+            if (context.RenderPass != renderPass && context.RenderPass != RenderPass.Outline)
             {
                 return;
             }
 
             var renderShader = context.ReplacementShader ?? shader;
             renderShader.Use();
-            renderShader.SetUniform4x4("transform", Transform);
+            renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);
 
@@ -285,7 +303,7 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vaoHandle);
 
-            if (translucentPass)
+            if (isTranslucent)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
@@ -298,7 +316,7 @@ namespace GUI.Types.Renderer
                 // triangles
                 GL.Disable(EnableCap.CullFace);
 
-                GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
                 GL.Disable(EnableCap.PolygonOffsetLine);
                 GL.Disable(EnableCap.PolygonOffsetFill);
@@ -307,7 +325,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
             }
 
             GL.UseProgram(0);

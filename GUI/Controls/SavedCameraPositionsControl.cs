@@ -25,7 +25,7 @@ namespace GUI.Controls
 
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            SaveCameraRequest?.Invoke(this, new EventArgs());
+            SaveCameraRequest?.Invoke(this, EventArgs.Empty);
         }
 
         private void BtnRestore_Click(object sender, EventArgs e)

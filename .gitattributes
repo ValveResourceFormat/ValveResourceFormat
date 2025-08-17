@@ -4,6 +4,7 @@
 *.png binary
 *.ico binary
 *.ttf binary
+*.bin binary
 
 #For KeyValues3 Tests, keep intended line endings to test parser
 *_CRLF.kv3 eol=crlf

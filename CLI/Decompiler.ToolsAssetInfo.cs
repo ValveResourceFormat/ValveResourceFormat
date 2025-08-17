@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using ValveResourceFormat.ToolsAssetInfo;
 
-namespace Decompiler;
+namespace CLI;
 
 public partial class Decompiler
 {

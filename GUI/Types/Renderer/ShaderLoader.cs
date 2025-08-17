@@ -14,11 +14,14 @@ namespace GUI.Types.Renderer
 {
     partial class ShaderLoader : IDisposable
     {
-        [GeneratedRegex(@"(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) : error C(?<ErrorNumber>[0-9]+):")]
+        [GeneratedRegex(@"^(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) ?: error")]
         private static partial Regex NvidiaGlslError();
 
         [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>[0-9]+):")]
         private static partial Regex AmdGlslError();
+
+        [GeneratedRegex(@"^(?<SourceFile>[0-9]+):(?<Line>[0-9]+)\((?<Column>[0-9]+)\):")]
+        private static partial Regex Mesa3dGlslError();
 
         private readonly Dictionary<ulong, Shader> CachedShaders = [];
         public int ShaderCount => CachedShaders.Count;
@@ -32,7 +35,10 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
         public ShaderHotReload? ShaderHotReload { get; private set; }
-        public HashSet<string> LastShaderVariantNames { get; private set; } = [];
+        private HashSet<string> LastShaderVariantNames = [];
+
+        // TODO: This probably should be ParsedShaderData so we can access it for non-blocking linking
+        private List<List<string>> LastShaderSourceLines = [];
 #endif
 
         public class ParsedShaderData
@@ -92,7 +98,7 @@ namespace GUI.Types.Renderer
                 var vertexName = $"{shaderFileName}.vert";
                 var vertexShader = GL.CreateShader(ShaderType.VertexShader);
                 LoadShader(vertexShader, vertexName, shaderName, arguments, ref parsedData);
-                Parser.Reset();
+                Parser.ClearBuilder();
 
                 // Fragment shader
                 var fragmentName = $"{shaderFileName}.frag";
@@ -133,7 +139,7 @@ namespace GUI.Types.Renderer
                     if (!shader.EnsureLoaded())
                     {
                         GL.GetProgramInfoLog(shader.Program, out var log);
-                        ThrowShaderError(log, $"{shaderFileName} ({string.Join(", ", arguments.Keys)})", shaderName, "Failed to link shader");
+                        ThrowShaderError(log, string.Concat(shaderFileName, GetArgumentDescription(arguments)), shaderName, "Failed to link shader");
                     }
                 }
 
@@ -141,10 +147,11 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
                 LastShaderVariantNames = parsedData.ShaderVariants;
+                LastShaderSourceLines = [.. Parser.SourceFileLines];
 #endif
 
-                var argsDescription = GetArgumentDescription(shaderName, arguments);
-                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}' ({argsDescription}) compiled and linked succesfully");
+                var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
+                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}'{argsDescription} compiled and linked succesfully");
 
                 return shader;
             }
@@ -174,7 +181,8 @@ namespace GUI.Types.Renderer
             if (shaderStatus != 1)
             {
                 GL.GetShaderInfoLog(shader, out var log);
-                ThrowShaderError(log, $"{shaderFile} ({string.Join(", ", arguments.Keys)})", originalShaderName, "Failed to set up shader");
+
+                ThrowShaderError(log, string.Concat(shaderFile, GetArgumentDescription(arguments)), originalShaderName, "Failed to set up shader");
             }
         }
 
@@ -188,15 +196,50 @@ namespace GUI.Types.Renderer
                 errorMatch = AmdGlslError().Match(info);
             }
 
+            if (!errorMatch.Success)
+            {
+                errorMatch = Mesa3dGlslError().Match(info);
+            }
+
+            string? sourceFile = null;
+            var errorLine = -1;
+            var errorSourceFile = -1;
+
             if (errorMatch.Success)
             {
-                var errorSourceFile = int.Parse(errorMatch.Groups["SourceFile"].Value, CultureInfo.InvariantCulture);
-                var errorLine = int.Parse(errorMatch.Groups["Line"].Value, CultureInfo.InvariantCulture);
-
-                info += $"\nError in {Parser.SourceFiles[errorSourceFile]} on line {errorLine}";
+                errorSourceFile = int.Parse(errorMatch.Groups["SourceFile"].Value, CultureInfo.InvariantCulture);
+                errorLine = int.Parse(errorMatch.Groups["Line"].Value, CultureInfo.InvariantCulture);
+                sourceFile = Parser.SourceFiles[errorSourceFile];
+            }
 
 #if DEBUG
-                if (errorLine > 0 && errorLine < Parser.SourceFileLines[errorSourceFile].Count)
+            // Output GitHub Actions annotation https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions
+            if (IsCI)
+            {
+                var annotation = "::error ";
+
+                if (sourceFile != null)
+                {
+                    annotation += $"file={ShaderParser.ShaderDirectory.Replace('.', '/')}{sourceFile},";
+                    if (errorLine > 0)
+                    {
+                        annotation += $"line={errorLine},";
+                    }
+                }
+
+                var errorMessage = $"{info}\n({shaderFile}, original={originalShaderName})";
+                annotation += $"title={nameof(ShaderCompilerException)}::{errorMessage.Replace("\n", "%0A", StringComparison.Ordinal).Replace("\r", "%0D", StringComparison.Ordinal)}";
+
+                Console.WriteLine(annotation);
+            }
+#endif
+
+            if (sourceFile != null)
+            {
+                info += $"\nError in {sourceFile} on line {errorLine}";
+
+#if DEBUG
+                if (errorLine > 0 && errorLine <= Parser.SourceFileLines[errorSourceFile].Count)
                 {
                     info += $":\n{Parser.SourceFileLines[errorSourceFile][errorLine - 1]}\n";
                 }
@@ -252,19 +295,22 @@ namespace GUI.Types.Renderer
                 .OrderBy(static p => p.Key);
         }
 
-        private string GetArgumentDescription(string shaderName, IReadOnlyDictionary<string, byte> arguments)
+        private static string GetArgumentDescription(IEnumerable<KeyValuePair<string, byte>> arguments)
         {
             var sb = new StringBuilder();
             var first = true;
 
-            foreach (var param in SortAndFilterArguments(shaderName, arguments))
+            foreach (var param in arguments)
             {
-                if (!first)
+                if (first)
+                {
+                    first = false;
+                    sb.Append(" (");
+                }
+                else
                 {
                     sb.Append(", ");
                 }
-
-                first = false;
 
                 sb.Append(param.Key);
 
@@ -273,6 +319,11 @@ namespace GUI.Types.Renderer
                     sb.Append('=');
                     sb.Append(param.Value);
                 }
+            }
+
+            if (!first)
+            {
+                sb.Append(')');
             }
 
             return sb.ToString();
@@ -308,7 +359,7 @@ namespace GUI.Types.Renderer
 
             if (ext is ".frag" or ".vert")
             {
-                // If frag or vert file changed, then we can only reload this shader
+                // If a named shader changed (not an include), then we can only reload this shader
                 name = Path.GetFileNameWithoutExtension(name);
             }
             else
@@ -342,20 +393,20 @@ namespace GUI.Types.Renderer
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                ValidateShadersCore(progressDialog);
+                ValidateShadersCore(new Progress<string>(progressDialog.SetProgress));
             };
             progressDialog.ShowDialog();
         }
 
-        private static void ValidateShadersCore(Forms.GenericProgressForm progressDialog)
+        public static void ValidateShadersCore(IProgress<string> progressReporter, string? filter = null)
         {
             using var context = new VrfGuiContext(null, null);
             using var loader = new ShaderLoader(context);
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
-            var shaders = Directory.GetFiles(folder, "*.frag");
+            var shaders = Directory.GetFiles(folder, filter ?? "*.frag");
 
-            using var window = new GameWindow(GameWindowSettings.Default, new()
+            using var window = new NativeWindow(new()
             {
                 APIVersion = GLViewerControl.OpenGlVersion,
                 Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -371,7 +422,12 @@ namespace GUI.Types.Renderer
                 var shaderFileName = Path.GetFileNameWithoutExtension(shader);
                 var vrfFileName = string.Concat(VrfInternalShaderPrefix, shaderFileName);
 
-                progressDialog.SetProgress($"Compiling {vrfFileName}");
+                if (IsCI)
+                {
+                    Console.WriteLine($"::group::Shader {shaderFileName}");
+                }
+
+                progressReporter.Report($"Compiling {vrfFileName}");
 
                 if (shaderFileName == "texture_decode")
                 {
@@ -387,24 +443,31 @@ namespace GUI.Types.Renderer
 
                 // Test all defines one by one
                 var defines = loader.ShaderDefines[vrfFileName];
+                var variants = loader.LastShaderVariantNames;
+                var sourceLines = loader.LastShaderSourceLines;
+                var maxValues = ExtractMaxDefineValues(defines, sourceLines);
+
                 foreach (var define in defines)
                 {
-                    progressDialog.SetProgress($"Compiling {vrfFileName} with {define}");
+                    var maxValue = maxValues.GetValueOrDefault(define, 1);
 
-                    loader.Parser.Reset();
-                    loader.LoadShader(vrfFileName, new Dictionary<string, byte>
+                    for (var value = 1; value <= maxValue; value++)
                     {
-                        [define] = 1,
-                    });
-                }
+                        progressReporter.Report($"Compiling {vrfFileName} with {define}={value}");
 
-                var variants = loader.LastShaderVariantNames;
+                        loader.Parser.Reset();
+                        loader.LoadShader(vrfFileName, new Dictionary<string, byte>
+                        {
+                            [define] = (byte)value,
+                        });
+                    }
+                }
 
                 // Test all define(xxx_vfx) names
                 foreach (var name in variants)
                 {
                     var vfxName = string.Concat(name, ".vfx");
-                    progressDialog.SetProgress($"Compiling {vfxName}");
+                    progressReporter.Report($"Compiling variant {vfxName}");
 
                     loader.Parser.Reset();
                     loader.LoadShader(vfxName);
@@ -413,45 +476,83 @@ namespace GUI.Types.Renderer
                     defines = loader.ShaderDefines[vfxName];
                     foreach (var define in defines)
                     {
-                        progressDialog.SetProgress($"Compiling {vfxName} with {define}");
+                        var maxValue = maxValues.GetValueOrDefault(define, 1);
 
-                        loader.Parser.Reset();
-                        loader.LoadShader(vfxName, new Dictionary<string, byte>
+                        // Test all values from 1 to maxValue
+                        for (var value = 1; value <= maxValue; value++)
                         {
-                            [define] = 1,
-                        });
+                            progressReporter.Report($"Compiling variant {vfxName} with {define}={value}");
+
+                            loader.Parser.Reset();
+                            loader.LoadShader(vfxName, new Dictionary<string, byte>
+                            {
+                                [define] = (byte)value,
+                            });
+                        }
                     }
+
+                    // Test all defines at once with their maximum values
+                    progressReporter.Report($"Compiling variant {vfxName} with all defines");
+
+                    loader.Parser.Reset();
+                    loader.LoadShader(vfxName, defines.ToDictionary(static d => d, d => (byte)maxValues.GetValueOrDefault(d, 1)));
                 }
 
                 loader.Parser.Reset();
+
+                if (IsCI)
+                {
+                    Console.WriteLine("::endgroup::");
+                }
             }
 
-            var parsedShaderData = new ParsedShaderData();
+            progressReporter.Report($"Validated {loader.CachedShaders.Count} shader variants");
+        }
 
-            var includes = Directory.GetFiles(folder, "*.glsl");
+        private static bool? _isCI;
+        private static bool IsCI => _isCI ??= Environment.GetEnvironmentVariable("CI") != null;
 
-            foreach (var include in includes)
+        [GeneratedRegex(@"(?<DefineName>(?:F|S|D)_\S+)\s*(?<Operator>>=|<=|>|<|==|!=)\s*(?<Value>\d+)")]
+        private static partial Regex ShaderDefineConditions();
+
+        private static Dictionary<string, int> ExtractMaxDefineValues(HashSet<string> defines, List<List<string>> allSourceLines)
+        {
+            var maxValues = new Dictionary<string, int>();
+
+            foreach (var sourceLines in allSourceLines)
             {
-                var shaderFileName = Path.GetFileName(include);
-                var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-                loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, EmptyArgs, ref parsedShaderData);
-                loader.Parser.Reset();
-                GL.DeleteShader(fragmentShader);
+                foreach (var line in sourceLines)
+                {
+                    var matches = ShaderDefineConditions().Matches(line);
+                    foreach (Match match in matches)
+                    {
+                        var defineName = match.Groups["DefineName"].Value;
+                        var operator_ = match.Groups["Operator"].Value;
+                        var value = int.Parse(match.Groups["Value"].Value, CultureInfo.InvariantCulture);
+
+                        if (defines.Contains(defineName))
+                        {
+                            var testValue = operator_ switch
+                            {
+                                ">" => value + 1,
+                                "<" => Math.Max(1, value - 1),
+                                ">=" => value,
+                                "<=" => value,
+                                "==" => value,
+                                "!=" => Math.Max(value + 1, 2),
+                                _ => value
+                            };
+
+                            if (testValue > maxValues.GetValueOrDefault(defineName, 1))
+                            {
+                                maxValues[defineName] = testValue;
+                            }
+                        }
+                    }
+                }
             }
 
-            /*
-            includes = Directory.GetFiles(Path.Join(folder, "common"), "*.glsl");
-
-            foreach (var include in includes)
-            {
-                var shaderFileName = $"common/{Path.GetFileName(include)}";
-                var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-                loader.LoadShader(fragmentShader, shaderFileName, shaderFileName, EmptyArgs, ref parsedShaderData);
-                GL.DeleteShader(fragmentShader);
-            }
-            */
-
-            progressDialog.SetProgress("Shaders validated");
+            return maxValues;
         }
 #endif
 

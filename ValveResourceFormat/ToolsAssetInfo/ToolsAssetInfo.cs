@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using ValveKeyValue;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.ToolsAssetInfo
 {
@@ -66,6 +67,8 @@ namespace ValveResourceFormat.ToolsAssetInfo
         /// </summary>
         public Dictionary<string, File> Files { get; } = [];
 
+        public Serialization.KeyValues.KVObject? KV3Segment { get; private set; }
+
         /// <summary>
         /// Opens and reads the given filename.
         /// The file is held open until the object is disposed.
@@ -90,7 +93,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             if (magic == MAGIC2)
             {
-                if (Version < 11 || Version > 13)
+                if (Version < 11 || Version > 14)
                 {
                     throw new UnexpectedMagicException("Unexpected version", Version, nameof(Version));
                 }
@@ -182,6 +185,37 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                 lookup[fileId] = file;
                 Files[ConstructFilePath(hash)] = file;
+            }
+
+            if (Version >= 14)
+            {
+                // Align to 8-byte boundary
+                var currentPos = reader.BaseStream.Position;
+                var alignedPos = (currentPos + 7) & ~7L;
+
+                if (currentPos < alignedPos)
+                {
+                    var paddingBytes = alignedPos - currentPos;
+
+                    for (var i = 0; i < paddingBytes; i++)
+                    {
+                        if (reader.ReadByte() != 0)
+                        {
+                            throw new InvalidDataException("Alignment padding contains non-zero bytes");
+                        }
+                    }
+                }
+
+                var kv3magic = reader.ReadUInt32();
+                reader.BaseStream.Position -= 4; // rewind
+
+                if (BinaryKV3.IsBinaryKV3(kv3magic))
+                {
+                    var kv3 = new BinaryKV3(BlockType.Undefined);
+                    kv3.Read(reader);
+
+                    KV3Segment = kv3.Data;
+                }
             }
 
             // These blocks quite closely match RERL and REDI blocks in the individual files

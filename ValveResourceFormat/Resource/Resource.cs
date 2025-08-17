@@ -67,7 +67,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the generic DATA block.
         /// </summary>
-        public ResourceData? DataBlock => (ResourceData?)GetBlockByType(BlockType.DATA);
+        public Block? DataBlock => GetBlockByType(BlockType.DATA);
 
         /// <summary>
         /// Resource files have a FileSize in the metadata, however
@@ -153,9 +153,14 @@ namespace ValveResourceFormat
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         /// <param name="verifyFileSize">Whether to verify that the stream was correctly consumed.</param>
-        public void Read(Stream input, bool verifyFileSize = true)
+        /// <param name="leaveOpen">Whether to leave the stream open after the object is disposed.</param>
+        /// <remarks>
+        /// The <see cref="input"/> stream must remain open while accessing data from this resource,
+        /// as some operations may perform reads lazily from the stream at call time.
+        /// </remarks>
+        public void Read(Stream input, bool verifyFileSize = true, bool leaveOpen = false)
         {
-            Reader = new BinaryReader(input);
+            Reader = new BinaryReader(input, Encoding.UTF8, leaveOpen);
 
             FileSize = Reader.ReadUInt32();
 
@@ -367,6 +372,8 @@ namespace ValveResourceFormat
                 BlockType.SNAP => new ParticleSnapshot(),
                 BlockType.MBUF => new MBUF(),
                 BlockType.TBUF => new TBUF(),
+                BlockType.MVTX => new MeshVertexBuffer(),
+                BlockType.MIDX => new MeshIndexBuffer(),
                 BlockType.CTRL => new BinaryKV3(BlockType.CTRL),
                 BlockType.MDAT => new Mesh(BlockType.MDAT),
                 BlockType.INSG => new BinaryKV3(BlockType.INSG),
@@ -385,11 +392,12 @@ namespace ValveResourceFormat
             };
         }
 
-        private ResourceData ConstructResourceType()
+        private Block ConstructResourceType()
         {
             return ResourceType switch
             {
                 ResourceType.AnimationGraph => new AnimGraph(),
+                ResourceType.NmClip => new ResourceTypes.ModelAnimation2.AnimationClip(),
                 ResourceType.ChoreoSceneFileData => new ChoreoSceneFileData(),
                 ResourceType.EntityLump => new EntityLump(),
                 ResourceType.Map => new Map(),
@@ -414,7 +422,7 @@ namespace ValveResourceFormat
                 ResourceType.Texture => new Texture(),
                 ResourceType.World => new World(),
                 ResourceType.WorldNode => new WorldNode(),
-                _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() : new ResourceData(),
+                _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() : new UnknownDataBlock(ResourceType),
             };
         }
 
@@ -432,6 +440,7 @@ namespace ValveResourceFormat
                 or ResourceType.Morph
                 or ResourceType.SmartProp
                 or ResourceType.AnimationGraph
+                or ResourceType.NmClip
                 or ResourceType.PostProcessing;
         }
 

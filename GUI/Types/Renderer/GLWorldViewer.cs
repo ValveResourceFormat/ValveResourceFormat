@@ -91,6 +91,7 @@ namespace GUI.Types.Renderer
             {
                 if (index > 0)
                 {
+                    Camera.SaveCurrentForTransition(Uptime);
                     Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
                 }
             });
@@ -158,6 +159,7 @@ namespace GUI.Types.Renderer
                 yaw = float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture) * MathF.PI / 180f;
             }
 
+            Camera.SaveCurrentForTransition(Uptime);
             Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
         }
 
@@ -167,6 +169,7 @@ namespace GUI.Types.Renderer
             {
                 if (savedFloats.Length == 5)
                 {
+                    Camera.SaveCurrentForTransition(Uptime);
                     Camera.SetLocationPitchYaw(
                         new Vector3(savedFloats[0], savedFloats[1], savedFloats[2]),
                         savedFloats[3],
@@ -204,13 +207,13 @@ namespace GUI.Types.Renderer
                     if (isFromVmap)
                     {
                         var worldTabPage = new TabPage("World Data");
-                        Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, world, worldTabPage);
                         tabControl.TabPages.Add(worldTabPage);
+                        Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, world, worldTabPage);
                     }
 
                     var worldNodeTabPage = new TabPage("Node Data");
-                    Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, result.MainWorldNode, worldNodeTabPage);
                     tabControl.TabPages.Add(worldNodeTabPage);
+                    Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, result.MainWorldNode, worldNodeTabPage);
 
                     var entitiesTabPage = new TabPage("Entity List");
                     entitiesTabPage.Controls.Add(new EntityViewer(GuiContext, result.Entities, SelectAndFocusEntity));
@@ -359,6 +362,7 @@ namespace GUI.Types.Renderer
             var cameraHeight = bbox.Center.Y + size.Y * 2f;
 
             var location = new Vector3(bbox.Center.X + distance, cameraHeight, bbox.Center.Z + distance);
+            Camera.SaveCurrentForTransition(Uptime);
             Camera.SetLocation(location);
             Camera.LookAt(bbox.Center);
 

@@ -1,6 +1,5 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Parser;
 using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
@@ -9,11 +8,13 @@ using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class ChoreoSceneFileData : ResourceData
+    public class ChoreoSceneFileData : Block
     {
         public const uint MAGIC_LZMA = 0x414D5A4C; //LZMA
         public int Version { get; private set; }
         public ChoreoScene[] Scenes { get; private set; }
+
+        public override BlockType Type => BlockType.DATA;
 
         public override void Read(BinaryReader reader)
         {

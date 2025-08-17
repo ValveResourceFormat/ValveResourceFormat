@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using ValveResourceFormat.Utils;
 
 namespace Tests
 {

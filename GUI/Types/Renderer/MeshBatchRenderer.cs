@@ -3,8 +3,6 @@ using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     static class MeshBatchRenderer
@@ -12,24 +10,32 @@ namespace GUI.Types.Renderer
         [DebuggerDisplay("{Node.DebugName,nq}")]
         public struct Request
         {
-            public Matrix4x4 Transform;
             public RenderableMesh Mesh;
-            public DrawCall Call;
+            public DrawCall? Call;
             public float DistanceFromCamera;
             public int RenderOrder;
             public SceneNode Node;
         }
 
-        public static int ComparePipeline(Request a, Request b)
-        {
-            return a.Call.Material.SortId - b.Call.Material.SortId;
-        }
+        record struct BatchRequest(RenderableMesh Mesh, DrawCall Call, SceneNode Node);
 
+        public static int CompareCustomPipeline(Request a, Request b)
+        {
+            const int CustomRenderSortId = int.MaxValue;
+
+            return (a.Call, b.Call) switch
+            {
+                ({ }, { }) => a.Call.Material.SortId - b.Call.Material.SortId,
+                (null, { }) => CustomRenderSortId - b.Call.Material.SortId,
+                ({ }, null) => a.Call.Material.SortId - CustomRenderSortId,
+                (null, null) => 0,
+            };
+        }
         public static int CompareRenderOrderThenPipeline(Request a, Request b)
         {
             if (a.RenderOrder == b.RenderOrder)
             {
-                return ComparePipeline(a, b);
+                return a.Call!.Material.SortId - b.Call!.Material.SortId;
             }
 
             return a.RenderOrder - b.RenderOrder;
@@ -44,7 +50,7 @@ namespace GUI.Types.Renderer
         {
             if (context.RenderPass == RenderPass.Opaque)
             {
-                requests.Sort(ComparePipeline);
+                requests.Sort(CompareCustomPipeline);
             }
             else if (context.RenderPass == RenderPass.StaticOverlay)
             {
@@ -61,7 +67,6 @@ namespace GUI.Types.Renderer
         private ref struct Uniforms
         {
             public int AnimationData = -1;
-            public int AnimationTexture = -1;
             public int EnvmapTexture = -1;
             public int LightProbeVolumeData = -1;
             public int LPVIrradianceTexture = -1;
@@ -111,8 +116,8 @@ namespace GUI.Types.Renderer
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
             var vao = -1;
-            Shader shader = null;
-            RenderMaterial material = null;
+            Shader? shader = null;
+            RenderMaterial? material = null;
             Uniforms uniforms = new();
             Config config = new()
             {
@@ -123,6 +128,19 @@ namespace GUI.Types.Renderer
 
             foreach (var request in requests)
             {
+                if (request.Call == null)
+                {
+                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline)
+                    {
+                        request.Node.Render(context);
+                        shader = null;
+                        material = null;
+                        vao = -1;
+                    }
+
+                    continue;
+                }
+
                 var requestMaterial = request.Call.Material;
 
                 if (material != requestMaterial)
@@ -138,7 +156,6 @@ namespace GUI.Types.Renderer
                         uniforms = new Uniforms
                         {
                             AnimationData = shader.GetUniformLocation("uAnimationData"),
-                            AnimationTexture = shader.GetUniformLocation("animationTexture"),
                             Transform = shader.GetUniformLocation("transform"),
                             IsInstancing = shader.GetUniformLocation("bIsInstancing"),
                             Tint = shader.GetUniformLocation("vTint"),
@@ -149,7 +166,6 @@ namespace GUI.Types.Renderer
                             uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
                             uniforms.CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices");
                             uniforms.CubeMapArrayLength = shader.GetUniformLocation("g_iEnvMapArrayLength");
-
                         }
 
                         if (shader.Parameters.ContainsKey("F_MORPH_SUPPORTED"))
@@ -202,19 +218,19 @@ namespace GUI.Types.Renderer
                     GL.BindVertexArray(vao);
                 }
 
-                Draw(shader, ref uniforms, ref config, request);
+                Draw(shader!, ref uniforms, ref config, new(request.Mesh, request.Call, request.Node));
             }
 
             if (vao > -1)
             {
-                material.PostRender();
+                material!.PostRender();
                 GL.BindVertexArray(0);
                 GL.UseProgram(0);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, Request request)
+        private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, BatchRequest request)
         {
             if (uniforms.ObjectId != -1)
             {
@@ -263,14 +279,14 @@ namespace GUI.Types.Renderer
 
             if (uniforms.AnimationData != -1)
             {
-                var bAnimated = request.Mesh.AnimationTexture != null;
+                var bAnimated = request.Mesh.BoneMatricesGpu != null;
                 var numBones = 0u;
                 var numWeights = 0u;
                 var boneStart = 0u;
 
-                if (bAnimated && uniforms.AnimationTexture != -1)
+                if (bAnimated)
                 {
-                    SetInstanceTexture(shader, ReservedTextureSlots.AnimationTexture, uniforms.AnimationTexture, request.Mesh.AnimationTexture);
+                    request.Mesh.BoneMatricesGpu!.BindBufferBase();
                     numBones = (uint)request.Mesh.MeshBoneCount;
                     boneStart = (uint)request.Mesh.MeshBoneOffset;
                     numWeights = (uint)request.Mesh.BoneWeightCount;
@@ -285,7 +301,7 @@ namespace GUI.Types.Renderer
                 if (morphComposite != null)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
-                    GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, (float)morphComposite.CompositeTexture.Height);
+                    GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height);
                 }
 
                 GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
@@ -293,8 +309,8 @@ namespace GUI.Types.Renderer
 
             if (uniforms.Transform > -1)
             {
-                var transformTk = request.Transform.ToOpenTK();
-                GL.ProgramUniformMatrix4(shader.Program, uniforms.Transform, false, ref transformTk);
+                var transform = request.Node.Transform.To3x4();
+                GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
             }
 
             if (uniforms.Tint > -1)
@@ -302,12 +318,12 @@ namespace GUI.Types.Renderer
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
                 var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
 
-                GL.ProgramUniform4(shader.Program, uniforms.Tint, tint.X, tint.Y, tint.Z, tint.W);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
             }
 
             var instanceCount = 1;
 
-            if (request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate)
+            if (request.Node is SceneAggregate { InstanceTransformsGpu: not null } aggregate)
             {
                 instanceCount = aggregate.InstanceTransforms.Count;
                 aggregate.InstanceTransformsGpu.BindBufferBase();

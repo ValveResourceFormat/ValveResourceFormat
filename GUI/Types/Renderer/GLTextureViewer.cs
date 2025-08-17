@@ -503,10 +503,6 @@ namespace GUI.Types.Renderer
 
                 decodeFlagsListBox?.Dispose();
                 decodeFlagsListBox = null;
-
-
-                texture?.Dispose();
-                SaveAsFbo?.Dispose();
             }
         }
 
@@ -578,7 +574,7 @@ namespace GUI.Types.Renderer
 
                 if (SaveAsFbo == null)
                 {
-                    SaveAsFbo = Framebuffer.Prepare(bitmap.Width, bitmap.Height, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
+                    SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), bitmap.Width, bitmap.Height, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
                     SaveAsFbo.Initialize();
                 }
                 else
@@ -828,7 +824,7 @@ namespace GUI.Types.Renderer
 
         private void SetupTexture(bool forceSoftwareDecode)
         {
-            texture?.Dispose();
+            texture?.Delete();
 
             UploadTexture(forceSoftwareDecode);
 
@@ -974,7 +970,7 @@ namespace GUI.Types.Renderer
             // Use non-msaa framebuffer for texture viewer
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
-                MainFramebuffer.Dispose();
+                MainFramebuffer.Delete();
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 
@@ -1023,7 +1019,7 @@ namespace GUI.Types.Renderer
         {
             if (NextBitmapToSet != null)
             {
-                texture?.Dispose();
+                texture?.Delete();
 
                 using (NextBitmapToSet)
                 {

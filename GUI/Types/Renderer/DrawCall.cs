@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
     {
         public PrimitiveType PrimitiveType { get; set; }
         public int BaseVertex { get; set; }
-        //public uint VertexCount { get; set; }
+        public uint VertexCount { get; set; }
         public nint StartIndex { get; set; } // pointer for GL call
         public int IndexCount { get; set; }
         //public float UvDensity { get; set; }     //TODO

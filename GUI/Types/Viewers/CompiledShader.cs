@@ -6,7 +6,6 @@ using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
-using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
@@ -56,7 +55,7 @@ namespace GUI.Types.Viewers
             var leadProgramType = ComputeVCSFileName(filename).ProgramType;
             var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
 
-            var shaderCollection = GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
+            var shaderCollection = ShaderCollection.GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
 
             return Create(shaderCollection, vcsCollectionName, leadProgramType);
         }
@@ -195,70 +194,6 @@ namespace GUI.Types.Viewers
             }
 
             return tab;
-        }
-
-        private static ShaderCollection GetShaderCollection(string targetFilename, Package vrfPackage)
-        {
-            ShaderCollection shaderCollection = [];
-
-            var filename = Path.GetFileName(targetFilename);
-            var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
-
-            if (vrfPackage != null)
-            {
-                // search the package
-                var vcsEntries = vrfPackage.Entries["vcs"];
-
-                foreach (var vcsEntry in vcsEntries)
-                {
-                    // vcsEntry.FileName is in the form bloom_dota_pcgl_30_ps (without vcs extension)
-                    if (vcsEntry.FileName.AsSpan().StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
-                    {
-                        vrfPackage.ReadEntry(vcsEntry, out var shaderDatabytes);
-
-                        var relatedShaderFile = new VfxProgramData();
-
-                        try
-                        {
-                            relatedShaderFile.Read(vcsEntry.GetFileName(), new MemoryStream(shaderDatabytes));
-                            shaderCollection.Add(relatedShaderFile);
-                            relatedShaderFile = null;
-                        }
-                        finally
-                        {
-                            relatedShaderFile?.Dispose();
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // search file-system
-                foreach (var vcsFile in Directory.GetFiles(Path.GetDirectoryName(targetFilename)))
-                {
-                    if (Path.GetFileName(vcsFile.AsSpan()).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
-                    {
-                        var program = new VfxProgramData();
-                        Stream stream = null;
-
-                        try
-                        {
-                            stream = new FileStream(vcsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                            program.Read(Path.GetFileName(vcsFile), stream);
-                            shaderCollection.Add(program);
-                            program = null;
-                            stream = null;
-                        }
-                        finally
-                        {
-                            stream?.Dispose();
-                            program?.Dispose();
-                        }
-                    }
-                }
-            }
-
-            return shaderCollection;
         }
 
         public void Dispose()
@@ -448,7 +383,7 @@ namespace GUI.Types.Viewers
                 case VfxShaderFileDXBC:
                 case VfxShaderFileDXIL:
                     {
-                        return (null, shaderFile.Bytecode);
+                        return ("Decompiling DirectX shaders is not supported.", shaderFile.Bytecode);
                     }
 
                 case VfxShaderFileVulkan vulkanSource:
@@ -663,10 +598,13 @@ namespace GUI.Types.Viewers
                     _ => VfxVariableType.Void,
                 };
 
-                var uniformBufferBindingOffset = isVertexShader ? 14u : 0;
+                var uniformBufferBindingOffset = 0u; // used to have 14 offset on vertex shader
                 var uniformBufferBinding = binding - uniformBufferBindingOffset;
 
-                var isGlobalsBuffer = uniformBufferBinding == 0 && set == 0;
+                // confirmed 0 in vs, gs, 1 in ps
+                var globalsBufferSet = program.VcsProgramType is VcsProgramType.PixelShader ? 1 : 0;
+
+                var isGlobalsBuffer = uniformBufferBinding == 0 && set == globalsBufferSet;
 
                 var name = resourceType switch
                 {
@@ -719,7 +657,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        const int TextureStartingPoint = 90;
+        const int TextureStartingPoint = 30;
         const int TextureIndexStartingPoint = 30;
 
         private static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence, uint image_binding, VfxVariableType vfxType)

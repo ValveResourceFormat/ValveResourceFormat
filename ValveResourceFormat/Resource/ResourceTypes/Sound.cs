@@ -1,9 +1,6 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
@@ -33,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
         public EmphasisSample[] EmphasisSamples { get; init; }
     }
 
-    public class Sound : ResourceData
+    public class Sound : Block
     {
         public enum AudioFileType
         {
@@ -57,6 +54,8 @@ namespace ValveResourceFormat.ResourceTypes
             PCM = 1,
             ADPCM = 2,
         }
+
+        public override BlockType Type => BlockType.DATA;
 
         /// <summary>
         /// Gets the audio file type.
@@ -401,39 +400,37 @@ namespace ValveResourceFormat.ResourceTypes
             return stream;
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            var output = new StringBuilder();
-
-            output.AppendLine(CultureInfo.InvariantCulture, $"SoundType: {SoundType}");
-            output.AppendLine(CultureInfo.InvariantCulture, $"Sample Rate: {SampleRate}");
-            output.AppendLine(CultureInfo.InvariantCulture, $"Bits: {Bits}");
-            output.AppendLine(CultureInfo.InvariantCulture, $"SampleSize: {SampleSize}");
-            output.AppendLine(CultureInfo.InvariantCulture, $"SampleCount: {SampleCount}");
-            output.AppendLine(CultureInfo.InvariantCulture, $"Format: {AudioFormat}");
-            output.AppendLine(CultureInfo.InvariantCulture, $"Channels: {Channels}");
+            writer.WriteLine($"SoundType: {SoundType}");
+            writer.WriteLine($"Sample Rate: {SampleRate}");
+            writer.WriteLine($"Bits: {Bits}");
+            writer.WriteLine($"SampleSize: {SampleSize}");
+            writer.WriteLine($"SampleCount: {SampleCount}");
+            writer.WriteLine($"Format: {AudioFormat}");
+            writer.WriteLine($"Channels: {Channels}");
 
             var loopStart = TimeSpan.FromSeconds(LoopStart);
-            output.AppendLine(CultureInfo.InvariantCulture, $"LoopStart: ({loopStart}) {LoopStart}");
+            writer.WriteLine($"LoopStart: ({loopStart}) {LoopStart}");
 
             var loopEnd = TimeSpan.FromSeconds(LoopEnd);
-            output.AppendLine(CultureInfo.InvariantCulture, $"LoopEnd: ({loopEnd}) {LoopEnd}");
+            writer.WriteLine($"LoopEnd: ({loopEnd}) {LoopEnd}");
 
             var duration = TimeSpan.FromSeconds(Duration);
-            output.AppendLine(CultureInfo.InvariantCulture, $"Duration: {duration} ({Duration})");
+            writer.WriteLine($"Duration: {duration} ({Duration})");
 
-            output.AppendLine(CultureInfo.InvariantCulture, $"StreamingDataSize: {StreamingDataSize}");
+            writer.WriteLine($"StreamingDataSize: {StreamingDataSize}");
 
             if (Sentence != null)
             {
-                output.AppendLine(CultureInfo.InvariantCulture, $"Sentence[{Sentence.RunTimePhonemes.Length}]:");
+                writer.WriteLine($"Sentence[{Sentence.RunTimePhonemes.Length}]:");
+                writer.Indent++;
                 foreach (var phoneme in Sentence.RunTimePhonemes)
                 {
-                    output.AppendLine(CultureInfo.InvariantCulture, $"\tPhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})");
+                    writer.WriteLine($"PhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})");
                 }
+                writer.Indent--;
             }
-
-            return output.ToString();
         }
     }
 }

@@ -73,10 +73,18 @@ public class VfxStaticComboVcsEntry
                 case 2:
                     throw new NotImplementedException("ZSTD compresed without dict");
 
-                case 3:
+                case 3: // ZStd with dictionary 1
+                case 5: // ZStd with dictionary 2
                     using (var zstdDecompressor = new ZstdSharp.Decompressor())
                     {
-                        zstdDecompressor.LoadDictionary(ZstdDictionary.GetDictionary());
+                        var dictionary = compressionType switch
+                        {
+                            3 => ZstdDictionary.GetDictionary_2bc2fa87(),
+                            5 => ZstdDictionary.GetDictionary_255df362(),
+                            _ => throw new NotImplementedException(),
+                        };
+
+                        zstdDecompressor.LoadDictionary(dictionary);
 
                         var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
 

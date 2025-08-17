@@ -7,6 +7,7 @@ out vec4 outputColor;
 #include "common/ViewConstants.glsl"
 
 uniform bool g_bShowLightBackground = false;
+uniform bool g_bShowSolidBackground = false;
 
 #define PIh (PI / 2.0)
 #define PI2t (TAU / 3.0)
@@ -35,6 +36,11 @@ float latitude(float polar) {
 }
 
 void main() {
+    if (g_bShowSolidBackground) {
+        outputColor = g_bShowLightBackground ? vec4(0.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 1.0, 1.0);
+        return;
+    }
+
     // polar coordinates in lat/lon
     vec2 polar = polarCoords(vSkyLookupInterpolant.xyz);
 

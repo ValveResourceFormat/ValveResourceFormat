@@ -1,6 +1,6 @@
 using ValveResourceFormat;
 
-namespace Decompiler
+namespace CLI
 {
     public class ResourceStat
     {

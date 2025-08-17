@@ -1,14 +1,15 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class ResourceManifest : ResourceData
+    public class ResourceManifest : Block
     {
+        public override BlockType Type => BlockType.DATA;
+
         public List<List<string>> Resources { get; private set; } = [];
 
         public override void Read(BinaryReader reader)
@@ -80,7 +81,12 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            GetPrintabaleObject().WriteText(writer);
+        }
+
+        private KV3File GetPrintabaleObject()
         {
             var root = new KVObject(null);
             var index = 0;
@@ -99,8 +105,7 @@ namespace ValveResourceFormat.ResourceTypes
                 index++;
             }
 
-            var kv = new KV3File(root);
-            return kv.ToString();
+            return new KV3File(root);
         }
     }
 }

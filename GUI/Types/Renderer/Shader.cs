@@ -1,4 +1,3 @@
-using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -95,7 +94,18 @@ namespace GUI.Types.Renderer
 
                 if (isTexture && !Default.Textures.ContainsKey(name))
                 {
-                    if (MaterialLoader.ReservedTextures.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                    var isReserved = false;
+
+                    foreach (var reserved in MaterialLoader.ReservedTextures)
+                    {
+                        if (name.Contains(reserved, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isReserved = true;
+                            break;
+                        }
+                    }
+
+                    if (isReserved)
                     {
                         ReservedTexuresUsed.Add(name);
                         continue;
@@ -320,6 +330,16 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void SetUniform3x4(string name, Matrix4x4 value)
+        {
+            var uniformLocation = GetUniformLocation(name);
+            if (uniformLocation > -1)
+            {
+                var matrix = value.To3x4();
+                GL.ProgramUniformMatrix3x4(Program, uniformLocation, false, ref matrix);
+            }
+        }
+
         public void SetUniform4x4(string name, Matrix4x4 value, bool transpose = false)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -355,6 +375,8 @@ namespace GUI.Types.Renderer
 
             IsLoaded = false;
             Program = shader.Program;
+
+            System.Diagnostics.Debug.Assert(shader.ShaderObjects.Length == ShaderObjects.Length);
 
             for (var i = 0; i < shader.ShaderObjects.Length; i++)
             {

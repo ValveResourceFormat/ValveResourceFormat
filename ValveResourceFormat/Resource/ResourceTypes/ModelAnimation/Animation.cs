@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -255,45 +256,28 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             t = Math.Min(1f, elapsedTime / movementDuration);
         }
 
-        /// <summary>
-        /// Get the animation matrix for each bone.
-        /// </summary>
-        public void GetAnimationMatrices(Span<Matrix4x4> matrices, AnimationFrameCache frameCache, int frameIndex)
+        public AnimationClip Clip { get; }
+
+        public Animation(AnimationClip clip)
         {
-            // Get bone transformations
-            var frame = frameCache.GetFrame(this, frameIndex);
+            Name = clip.Name;
+            FrameCount = clip.NumFrames;
+            Fps = clip.NumFrames / clip.Duration;
 
-            GetAnimationMatrices(matrices, frame, frameCache.Skeleton);
-        }
-
-        /// <summary>
-        /// Get the animation matrix for each bone.
-        /// </summary>
-        public void GetAnimationMatrices(Span<Matrix4x4> matrices, AnimationFrameCache frameCache, float time)
-        {
-            // Get bone transformations
-            var frame = FrameCount != 0
-                ? frameCache.GetInterpolatedFrame(this, time)
-                : null;
-
-            GetAnimationMatrices(matrices, frame, frameCache.Skeleton);
-        }
-
-        public static void GetAnimationMatrices(Span<Matrix4x4> matrices, Frame frame, Skeleton skeleton)
-        {
-            foreach (var root in skeleton.Roots)
-            {
-                if (root.IsProceduralCloth)
-                {
-                    continue;
-                }
-
-                GetAnimationMatrixRecursive(root, Matrix4x4.Identity, Matrix4x4.Identity, frame, matrices);
-            }
+            Clip = clip;
+            Movements = [];
+            Events = [];
+            Activities = [];
         }
 
         public void DecodeFrame(Frame outFrame)
         {
+            if (Clip != null)
+            {
+                Clip.ReadFrame(outFrame.FrameIndex, outFrame.Bones);
+                return;
+            }
+
             // Read all frame blocks
             foreach (var frameBlock in FrameBlocks)
             {
@@ -307,39 +291,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                         segment?.Read(outFrame.FrameIndex - frameBlock.StartFrame, outFrame);
                     }
                 }
-            }
-        }
-
-        /// <summary>
-        /// Get animation matrix recursively.
-        /// </summary>
-        private static void GetAnimationMatrixRecursive(Bone bone, Matrix4x4 bindPose, Matrix4x4 invBindPose, Frame frame, Span<Matrix4x4> matrices)
-        {
-            // Calculate world space inverse bind pose
-            invBindPose *= bone.InverseBindPose;
-
-            // Calculate and apply tranformation matrix
-            if (frame != null)
-            {
-                var transform = frame.Bones[bone.Index];
-                bindPose = Matrix4x4.CreateScale(transform.Scale)
-                    * Matrix4x4.CreateFromQuaternion(transform.Angle)
-                    * Matrix4x4.CreateTranslation(transform.Position)
-                    * bindPose;
-            }
-            else
-            {
-                bindPose = bone.BindPose * bindPose;
-            }
-
-            // Store result
-            var skinMatrix = invBindPose * bindPose;
-            matrices[bone.Index] = skinMatrix;
-
-            // Propagate to childen
-            foreach (var child in bone.Children)
-            {
-                GetAnimationMatrixRecursive(child, bindPose, invBindPose, frame, matrices);
             }
         }
 

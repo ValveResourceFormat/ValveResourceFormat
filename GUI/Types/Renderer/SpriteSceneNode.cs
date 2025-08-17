@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass != RenderPass.AfterOpaque)
+            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline)
             {
                 return;
             }
@@ -96,7 +96,7 @@ namespace GUI.Types.Renderer
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
             var transform = billboardMatrix * Transform;
-            renderShader.SetUniform4x4("transform", transform);
+            renderShader.SetUniform3x4("transform", transform);
 
             renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);

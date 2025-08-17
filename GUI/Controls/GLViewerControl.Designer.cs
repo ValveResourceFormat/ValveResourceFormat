@@ -17,9 +17,6 @@ namespace GUI.Controls
         {
             if (disposing)
             {
-                GLControl.MakeCurrent();
-
-                DisposeFramebuffer();
                 FullScreenForm?.Dispose();
                 components?.Dispose();
             }

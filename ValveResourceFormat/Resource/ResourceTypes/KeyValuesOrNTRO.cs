@@ -1,12 +1,11 @@
 using System.IO;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class KeyValuesOrNTRO : ResourceData
+    public class KeyValuesOrNTRO : Block
     {
         private readonly string IntrospectionStructName;
         private readonly BlockType KVBlockType;
@@ -14,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public KVObject Data { get; private set; }
 
-        private ResourceData BackingData;
+        private Block BackingData;
 
         public KeyValuesOrNTRO()
         {
@@ -57,14 +56,15 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
             if (BackingData is BinaryKV3 dataKv3)
             {
-                return dataKv3.GetKV3File().ToString();
+                dataKv3.GetKV3File().WriteText(writer);
+                return;
             }
 
-            return BackingData.ToString();
+            BackingData.WriteText(writer);
         }
     }
 }

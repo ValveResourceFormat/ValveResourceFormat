@@ -2,6 +2,8 @@ namespace ValveResourceFormat
 {
     public enum BlockType : uint
     {
+        Undefined = 0,
+
         RERL = 'R' | ('E' << 8) | ('R' << 16) | ('L' << 24),
         REDI = 'R' | ('E' << 8) | ('D' << 16) | ('I' << 24),
         RED2 = 'R' | ('E' << 8) | ('D' << 16) | ('2' << 24),
@@ -26,5 +28,7 @@ namespace ValveResourceFormat
         FLCI = 'F' | ('L' << 8) | ('C' << 16) | ('I' << 24),
         DSTF = 'D' | ('S' << 8) | ('T' << 16) | ('F' << 24),
         TBUF = 'T' | ('B' << 8) | ('U' << 16) | ('F' << 24),
+        MVTX = 'M' | ('V' << 8) | ('T' << 16) | ('X' << 24),
+        MIDX = 'M' | ('I' << 8) | ('D' << 16) | ('X' << 24),
     }
 }

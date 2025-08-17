@@ -14,10 +14,12 @@ namespace GUI.Types.Renderer
     {
         public readonly struct UpdateContext
         {
+            public GLSceneViewer View { get; }
             public float Timestep { get; }
 
-            public UpdateContext(float timestep)
+            public UpdateContext(float timestep, GLSceneViewer view)
             {
+                View = view;
                 Timestep = timestep;
             }
         }
@@ -41,8 +43,8 @@ namespace GUI.Types.Renderer
 
 
         public VrfGuiContext GuiContext { get; }
-        public Octree<SceneNode> StaticOctree { get; }
-        public Octree<SceneNode> DynamicOctree { get; }
+        public Octree StaticOctree { get; }
+        public Octree DynamicOctree { get; }
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
@@ -52,11 +54,13 @@ namespace GUI.Types.Renderer
         private readonly List<SceneNode> staticNodes = [];
         private readonly List<SceneNode> dynamicNodes = [];
 
+        private Shader OutlineShader;
+
         public Scene(VrfGuiContext context, float sizeHint = 32768)
         {
             GuiContext = context;
-            StaticOctree = new Octree<SceneNode>(sizeHint);
-            DynamicOctree = new Octree<SceneNode>(sizeHint);
+            StaticOctree = new(sizeHint);
+            DynamicOctree = new(sizeHint);
 
             LightingInfo = new(this);
         }
@@ -67,6 +71,8 @@ namespace GUI.Types.Renderer
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
             CreateBuffers();
+
+            OutlineShader = GuiContext.ShaderLoader.LoadShader("vrf.outline");
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -78,7 +84,7 @@ namespace GUI.Types.Renderer
             nodeList.Add(node);
             node.Id = (uint)nodeList.Count * 2 - indexOffset;
 
-            octree.Insert(node, node.BoundingBox);
+            octree.Insert(node);
         }
 
         public SceneNode Find(uint id)
@@ -136,10 +142,8 @@ namespace GUI.Types.Renderer
             return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
         }
 
-        public void Update(float timestep)
+        public void Update(Scene.UpdateContext updateContext)
         {
-            var updateContext = new UpdateContext(timestep);
-
             foreach (var node in staticNodes)
             {
                 node.Update(updateContext);
@@ -158,7 +162,7 @@ namespace GUI.Types.Renderer
 
                 if (!oldBox.Equals(node.BoundingBox))
                 {
-                    DynamicOctree.Update(node, oldBox, node.BoundingBox);
+                    DynamicOctree.Update(node, oldBox);
                 }
             }
         }
@@ -219,31 +223,23 @@ namespace GUI.Types.Renderer
         {
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
-            [RenderPass.AfterOpaque] = [],
             [RenderPass.Translucent] = [],
-            [RenderPass.RefractionEffect] = [],
+            [RenderPass.Outline] = [],
         };
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
         {
-            if (renderPass != RenderPass.AfterOpaque && !ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
+            if (!ShowToolsMaterials && request.Call.Material.IsToolsMaterial)
             {
                 return;
             }
-
-            if (renderPass is RenderPass.Opaque or RenderPass.Translucent && request.Call.Material.WantsFrameBufferCopy)
-            {
-                renderPass = RenderPass.RefractionEffect;
-            }
-
 
             var queueList = renderPass switch
             {
                 RenderPass.Opaque => renderLists[RenderPass.Opaque],
                 RenderPass.StaticOverlay => renderLists[RenderPass.StaticOverlay],
                 RenderPass.Translucent => renderLists[RenderPass.Translucent],
-                RenderPass.RefractionEffect => renderLists[RenderPass.RefractionEffect],
-                _ => renderLists[RenderPass.AfterOpaque],
+                _ => throw new ArgumentOutOfRangeException(nameof(renderPass), renderPass, "Unhandled render pass")
             };
 
             if (renderPass == RenderPass.Translucent)
@@ -252,13 +248,17 @@ namespace GUI.Types.Renderer
                 WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
             }
 
-            if (renderPass == RenderPass.RefractionEffect)
+            if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
             {
-                WantsSceneColor = true;
-                WantsSceneDepth = true;
+                renderLists[RenderPass.Outline].Add(request);
             }
 
             queueList.Add(request);
+        }
+
+        static float GetCameraDistance(Camera camera, SceneNode node)
+        {
+            return (node.BoundingBox.Center - camera.Location).LengthSquared();
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum cullFrustum = null)
@@ -285,7 +285,6 @@ namespace GUI.Types.Renderer
                         {
                             Add(new MeshBatchRenderer.Request
                             {
-                                Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
                                 Node = node,
@@ -296,7 +295,6 @@ namespace GUI.Types.Renderer
                         {
                             Add(new MeshBatchRenderer.Request
                             {
-                                Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
                                 RenderOrder = node.OverlayRenderOrder,
@@ -308,10 +306,9 @@ namespace GUI.Types.Renderer
                         {
                             Add(new MeshBatchRenderer.Request
                             {
-                                Transform = node.Transform,
                                 Mesh = mesh,
                                 Call = call,
-                                DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                                DistanceFromCamera = GetCameraDistance(camera, node),
                                 Node = node,
                             }, RenderPass.Translucent);
                         }
@@ -321,7 +318,6 @@ namespace GUI.Types.Renderer
                 {
                     Add(new MeshBatchRenderer.Request
                     {
-                        Transform = fragment.Transform,
                         Mesh = fragment.RenderMesh,
                         Call = fragment.DrawCall,
                         Node = node,
@@ -331,7 +327,6 @@ namespace GUI.Types.Renderer
                 {
                     Add(new MeshBatchRenderer.Request
                     {
-                        Transform = aggregate.Transform,
                         Mesh = aggregate.RenderMesh,
                         Call = aggregate.RenderMesh.DrawCallsOpaque[0],
                         Node = node,
@@ -339,15 +334,21 @@ namespace GUI.Types.Renderer
                 }
                 else
                 {
-                    Add(new MeshBatchRenderer.Request
+                    var customRender = new MeshBatchRenderer.Request
                     {
-                        DistanceFromCamera = (node.BoundingBox.Center - camera.Location).LengthSquared(),
+                        DistanceFromCamera = GetCameraDistance(camera, node),
                         Node = node,
-                    }, RenderPass.AfterOpaque);
+                    };
+
+                    renderLists[RenderPass.Opaque].Add(customRender);
+                    renderLists[RenderPass.Translucent].Add(customRender);
+
+                    if (node.IsSelected)
+                    {
+                        renderLists[RenderPass.Outline].Add(customRender);
+                    }
                 }
             }
-
-            renderLists[RenderPass.AfterOpaque].Sort(MeshBatchRenderer.CompareCameraDistance);
         }
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
@@ -429,7 +430,6 @@ namespace GUI.Types.Renderer
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
                         {
-                            Transform = node.Transform,
                             Mesh = mesh,
                             Call = opaqueCall,
                             Node = node,
@@ -470,20 +470,11 @@ namespace GUI.Types.Renderer
                 renderContext.RenderPass = RenderPass.StaticOverlay;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
-
-            using (new GLDebugGroup("AfterOpaque RenderLoose"))
-            {
-                renderContext.RenderPass = RenderPass.AfterOpaque;
-                foreach (var request in renderLists[renderContext.RenderPass])
-                {
-                    request.Node.Render(renderContext);
-                }
-            }
         }
 
         private bool occlusionDirty;
 
-        static void ClearOccludedStateRecursive(Octree<SceneNode>.Node node)
+        static void ClearOccludedStateRecursive(Octree.Node node)
         {
             foreach (var child in node.Children)
             {
@@ -528,7 +519,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.CullFace);
         }
 
-        private static void TestOctantsRecursive(Octree<SceneNode>.Node octant, Vector3 cameraPosition, ref int maxTests, int maxDepth)
+        private static void TestOctantsRecursive(Octree.Node octant, Vector3 cameraPosition, ref int maxTests, int maxDepth)
         {
             foreach (var octreeNode in octant.Children)
             {
@@ -607,26 +598,23 @@ namespace GUI.Types.Renderer
 
         public void RenderTranslucentLayer(RenderContext renderContext)
         {
-            using (new GLDebugGroup("Translucent RenderLoose"))
-            {
-                renderContext.RenderPass = RenderPass.Translucent;
-
-                foreach (var request in renderLists[RenderPass.AfterOpaque])
-                {
-                    request.Node.Render(renderContext);
-                }
-            }
-
             using (new GLDebugGroup("Translucent Render"))
             {
+                renderContext.RenderPass = RenderPass.Translucent;
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
         }
-        public void RenderRefractionEffects(RenderContext renderContext)
+
+        public void RenderOutlineLayer(RenderContext renderContext)
         {
-            renderContext.RenderPass = RenderPass.RefractionEffect;
-            MeshBatchRenderer.Render(renderLists[RenderPass.RefractionEffect], renderContext);
+            renderContext.RenderPass = RenderPass.Outline;
+            renderContext.ReplacementShader = OutlineShader;
+
+            MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
+
+            renderContext.ReplacementShader = null;
         }
+
         public void SetEnabledLayers(HashSet<string> layers, bool skipUpdate = false)
         {
             foreach (var renderer in AllNodes)
@@ -657,7 +645,7 @@ namespace GUI.Types.Renderer
             {
                 if (node.LayerEnabled)
                 {
-                    StaticOctree.Insert(node, node.BoundingBox);
+                    StaticOctree.Insert(node);
                 }
             }
 
@@ -665,7 +653,7 @@ namespace GUI.Types.Renderer
             {
                 if (node.LayerEnabled)
                 {
-                    DynamicOctree.Insert(node, node.BoundingBox);
+                    DynamicOctree.Insert(node);
                 }
             }
         }
@@ -727,7 +715,7 @@ namespace GUI.Types.Renderer
 
             // Assign random probe to any node that does not have any light probes to fix the flickering,
             // this isn't ideal, and a proper fix would be to remove D_BAKED_LIGHTING_FROM_PROBE from the shader
-            var firstProbe = LightingInfo.ProbeHandshakes.Values.First();
+            var firstProbe = LightingInfo.LightProbes[0];
 
             foreach (var node in AllNodes)
             {
@@ -886,7 +874,7 @@ namespace GUI.Types.Renderer
                 }
             }
         }
-        
+
         private void UpdateGpuEnvmapData(SceneEnvMap envMap, int index)
         {
             if (!Matrix4x4.Invert(envMap.Transform, out var invertedTransform))

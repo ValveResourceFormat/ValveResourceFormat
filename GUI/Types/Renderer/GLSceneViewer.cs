@@ -23,11 +23,10 @@ namespace GUI.Types.Renderer
 
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
+        private bool ShowSolidBackground;
         public bool ShowSkybox { get; set; } = true;
         public bool IsWireframe { get; set; }
         public bool EnableOcclusionCulling { get; set; }
-
-        public float Uptime { get; private set; }
 
         private bool showStaticOctree;
         private bool showDynamicOctree;
@@ -42,8 +41,8 @@ namespace GUI.Types.Renderer
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
         private SceneBackground baseBackground;
-        private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
-        private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
+        private OctreeDebugRenderer staticOctreeRenderer;
+        private OctreeDebugRenderer dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
 
         public enum DepthOnlyProgram
@@ -256,12 +255,17 @@ namespace GUI.Types.Renderer
                 offset = Math.Clamp(offset, 0f, 2000f);
                 var location = new Vector3(offset, 0, offset);
 
+                if (this is GLAnimationViewer)
+                {
+                    location = new(offset);
+                }
+
                 Camera.SetLocation(location);
                 Camera.LookAt(bbox.Center);
             }
 
-            staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
-            dynamicOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.DynamicOctree, Scene.GuiContext, true);
+            staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.GuiContext, false);
+            dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.GuiContext, true);
 
             SetAvailableRenderModes();
         }
@@ -274,13 +278,13 @@ namespace GUI.Types.Renderer
         {
             baseGrid = new InfiniteGrid(Scene);
             Skybox2D = baseBackground = new SceneBackground(Scene);
-            selectedNodeRenderer = new(Scene, textRenderer);
+            selectedNodeRenderer = new(this);
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
             var shadowQuality = Settings.Config.ShadowResolution;
 
-            ShadowDepthBuffer = Framebuffer.Prepare(shadowQuality, shadowQuality, 0, null, Framebuffer.DepthAttachmentFormat.Depth32F);
+            ShadowDepthBuffer = Framebuffer.Prepare(nameof(ShadowDepthBuffer), shadowQuality, shadowQuality, 0, null, Framebuffer.DepthAttachmentFormat.Depth32F);
             ShadowDepthBuffer.Initialize();
             ShadowDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
             GL.DrawBuffer(DrawBufferMode.None);
@@ -299,7 +303,7 @@ namespace GUI.Types.Renderer
 
             depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
 
-            FramebufferCopy = Framebuffer.Prepare(4, 4, 0,
+            FramebufferCopy = Framebuffer.Prepare(nameof(FramebufferCopy), 4, 4, 0,
                 new Framebuffer.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
                 new Framebuffer.DepthAttachmentFormat(PixelInternalFormat.DepthComponent32f, PixelType.Float)
             );
@@ -309,6 +313,7 @@ namespace GUI.Types.Renderer
 
             Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
             Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
+            Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
 
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             CreateBuffers();
@@ -335,7 +340,6 @@ namespace GUI.Types.Renderer
 
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
-            Uptime += e.FrameTime;
             viewBuffer.Data.Time = Uptime;
 
             var renderContext = new Scene.RenderContext
@@ -347,12 +351,14 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Update Loop"))
             {
-                Scene.Update(e.FrameTime);
-                SkyboxScene?.Update(e.FrameTime);
+                var updateContext = new Scene.UpdateContext(e.FrameTime, this);
+
+                Scene.Update(updateContext);
+                SkyboxScene?.Update(updateContext);
 
                 Scene.PostProcessInfo.UpdatePostProcessing(Camera);
 
-                selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
+                selectedNodeRenderer.Update();
 
                 Scene.SetupSceneShadows(Camera, ShadowDepthBuffer.Width);
                 Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
@@ -381,7 +387,7 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Lines Render"))
             {
-                selectedNodeRenderer.Render(renderContext);
+                selectedNodeRenderer.Render();
 
                 if (showStaticOctree)
                 {
@@ -438,7 +444,11 @@ namespace GUI.Types.Renderer
 
         private void RenderScenesWithView(Scene.RenderContext renderContext)
         {
-            GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+            var (w, h) = (renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+
+            GL.Viewport(0, 0, w, h);
+            viewBuffer.Data.InvViewportSize = Vector4.One / new Vector4(w, h, 1, 1);
+
             renderContext.Framebuffer.BindAndClear();
 
             // TODO: check if renderpass allows wireframe mode
@@ -519,6 +529,14 @@ namespace GUI.Types.Renderer
             {
                 GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
             }
+
+            if (renderContext.ReplacementShader is null)
+            {
+                using (new GLDebugGroup("Outline Render"))
+                {
+                    RenderOutlineLayer(renderContext);
+                }
+            }
         }
 
         private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
@@ -532,6 +550,26 @@ namespace GUI.Types.Renderer
             GL.DepthMask(true);
 
             scene.RenderRefractionEffects(renderContext);
+        }
+
+        private void RenderOutlineLayer(Scene.RenderContext renderContext)
+        {
+            GL.DepthMask(false);
+            GL.Disable(EnableCap.DepthTest);
+            GL.Disable(EnableCap.CullFace);
+
+            GL.Enable(EnableCap.StencilTest);
+            GL.StencilOp(StencilOp.Keep, StencilOp.Keep, StencilOp.Replace);
+            GL.StencilFunc(StencilFunction.Always, 1, 0xFF);
+            GL.StencilMask(0xFF);
+
+            SkyboxScene?.RenderOutlineLayer(renderContext);
+            Scene.RenderOutlineLayer(renderContext);
+
+            GL.Disable(EnableCap.StencilTest);
+            GL.Enable(EnableCap.CullFace);
+            GL.Enable(EnableCap.DepthTest);
+            GL.DepthMask(true);
         }
 
         private void GrabFramebufferCopy(Framebuffer framebuffer, bool copyColor, bool copyDepth)
@@ -570,12 +608,19 @@ namespace GUI.Types.Renderer
         {
             ShowBaseGrid = true;
 
-            AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
-            AddCheckBox("Show Light Background", ShowLightBackground, (v) =>
+            AddDivider();
+            AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
                 baseBackground.SetLightBackground(ShowLightBackground);
             });
+            AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
+            {
+                ShowSolidBackground = v;
+                baseBackground.SetSolidBackground(ShowSolidBackground);
+            });
+            AddDivider();
+            AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
         }
 
         protected void AddWireframeToggleControl()

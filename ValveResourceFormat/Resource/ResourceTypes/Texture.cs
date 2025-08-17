@@ -5,14 +5,13 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.TextureDecoders;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Texture : ResourceData
+    public class Texture : Block
     {
         public enum CubemapFace
         {
@@ -101,6 +100,8 @@ namespace ValveResourceFormat.ResourceTypes
             VTexFormat.ATI1N => 8,
             _ => 1,
         };
+
+        public override BlockType Type => BlockType.DATA;
 
         private BinaryReader Reader => Resource.Reader;
         private long DataOffset => Offset + Size;
@@ -866,9 +867,8 @@ namespace ValveResourceFormat.ResourceTypes
             return codec;
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            using var writer = new IndentedTextWriter();
             writer.WriteLine("{0,-12} = {1}", "VTEX Version", Version);
             writer.WriteLine("{0,-12} = {1}", "Width", Width);
             writer.WriteLine("{0,-12} = {1}", "Height", Height);
@@ -980,8 +980,6 @@ namespace ValveResourceFormat.ResourceTypes
                     writer.WriteLine($"Mip level {j} - buffer size: {CalculateBufferSizeForMipLevel(j)}");
                 }
             }
-
-            return writer.ToString();
         }
     }
 }

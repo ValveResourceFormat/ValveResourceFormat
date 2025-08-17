@@ -66,6 +66,7 @@ namespace GUI.Types.Viewers
             var resTabs = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
+                Multiline = true,
             };
 
             TabPage specialTabPage = null;
@@ -109,6 +110,12 @@ namespace GUI.Types.Viewers
 
             foreach (var block in resource.Blocks)
             {
+                // They are just binary blobs, and the actual layout of them is stored in CTRL, so the tabs are not useful here
+                if (block.Type is BlockType.MVTX or BlockType.MIDX)
+                {
+                    continue;
+                }
+
                 if (block.Type == BlockType.RERL)
                 {
                     var externalRefs = new DataGridView
@@ -324,6 +331,20 @@ namespace GUI.Types.Viewers
                     {
                         specialTabPage = new TabPage("ANIMATION GRAPH");
                         specialTabPage.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
+                        break;
+                    }
+
+                case ResourceType.NmClip:
+                    {
+                        specialTabPage = new TabPage("ANIMATION CLIP");
+                        specialTabPage.Controls.Add(new GLAnimationViewer(vrfGuiContext, resource));
+                        break;
+                    }
+
+                case ResourceType.NmSkeleton:
+                    {
+                        specialTabPage = new TabPage("SKELETON");
+                        specialTabPage.Controls.Add(new GLAnimationViewer(vrfGuiContext, resource));
                         break;
                     }
 

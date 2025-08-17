@@ -50,13 +50,12 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     }
 
     private readonly VrfGuiContext guiContext = new();
-    private readonly AutoResetEvent queueUpdateEvent = new(false);
-    private readonly ConcurrentQueue<DecodeRequest> decodeQueue = new();
+    private readonly BlockingCollection<DecodeRequest> decodeQueue = [];
     private readonly Lock threadStartupLock = new();
 
     private Thread GLThread;
 
-    private GameWindow GLWindowContext;
+    private NativeWindow GLWindowContext;
     private Framebuffer Framebuffer;
 
     public void StartThread()
@@ -90,8 +89,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         using var request = new DecodeRequest(bitmap, resource, (int)mipLevel, (int)depth, face, ChannelMapping.RGBA, decodeFlags);
 
         var sw = Stopwatch.StartNew();
-        decodeQueue.Enqueue(request);
-        queueUpdateEvent.Set();
+        decodeQueue.Add(request);
 
         request.Wait();
         request.ResponseTime = sw.Elapsed - request.DecodeTime;
@@ -124,7 +122,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         Log.Info(nameof(GLTextureDecoder), "Initializing GPU texture decoder...");
 
-        GLWindowContext = new GameWindow(new() { UpdateFrequency = 200 }, new()
+        GLWindowContext = new NativeWindow(new()
         {
             APIVersion = GLViewerControl.OpenGlVersion,
             Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -135,41 +133,28 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             StencilBits = null,
         });
 
-        GLWindowContext.Load += () =>
-        {
-            GLViewerControl.CheckOpenGL();
-            Framebuffer = Framebuffer.Prepare(4, 4, 0, LDRFormat.Value, null);
-            Framebuffer.Initialize();
-            Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
-            Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-            Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);
-        };
+        GLWindowContext.MakeCurrent();
 
-        GLWindowContext.RenderFrame += (e) =>
-        {
-            queueUpdateEvent.WaitOne();
+        GLViewerControl.CheckOpenGL();
+        Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
+        Framebuffer.Initialize();
+        Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
+        Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+        Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);
 
-            if (decodeQueue.TryDequeue(out var decodeRequest))
+        foreach (var decodeRequest in decodeQueue.GetConsumingEnumerable())
+        {
+            try
             {
-                try
-                {
-                    var isDecoded = DecodeTexture(decodeRequest);
-                    decodeRequest.MarkAsDone(isDecoded);
-                }
-                catch
-                {
-                    decodeRequest.MarkAsDone(false);
-                    throw;
-                }
+                var isDecoded = DecodeTexture(decodeRequest);
+                decodeRequest.MarkAsDone(isDecoded);
             }
-        };
-
-        GLWindowContext.Closing += (e) =>
-        {
-            Framebuffer?.Dispose();
-        };
-
-        GLWindowContext.Run();
+            catch
+            {
+                decodeRequest.MarkAsDone(false);
+                throw;
+            }
+        }
     }
 
     private bool DecodeTexture(DecodeRequest request)
@@ -244,7 +229,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.BindVertexArray(guiContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
-        inputTexture.Dispose();
+        inputTexture.Delete();
 
         var pixels = request.Bitmap.GetPixels(out var outputLength);
         var fbBytesPerPixel = Framebuffer.ColorFormat.PixelType == PixelType.Float ? 16 : 4;
@@ -278,7 +263,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private void Exit()
     {
         GLWindowContext.Close();  // signal the thread that it should exit
-        queueUpdateEvent.Set(); // wake the thread up
+        decodeQueue.CompleteAdding(); // mark the thread as done
         GLThread.Join(); // wait for the thread to exit
     }
 
@@ -289,14 +274,12 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             queuedRequest.MarkAsDone(successfully: false);
             queuedRequest.Dispose();
         }
-
-        decodeQueue.Clear();
     }
 
     public void Dispose()
     {
         Exit();
-        queueUpdateEvent.Dispose();
+        decodeQueue.Dispose();
         guiContext.Dispose();
         Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
     }

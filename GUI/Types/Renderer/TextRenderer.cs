@@ -1,11 +1,10 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
-
-#nullable disable
 
 namespace GUI.Types.Renderer
 {
@@ -16,23 +15,39 @@ namespace GUI.Types.Renderer
         [StructLayout(LayoutKind.Sequential)]
         struct Vertex
         {
-            public const int Size = 8;
+            public const int Size = 5;
 
             public Vector2 Position;
             public Vector2 TexCoord;
-            public Vector4 Color;
+            public Color32 Color;
         }
 
+        public struct TextRenderRequest()
+        {
+            public float X;
+            public float Y;
+            public float Scale;
+            public Color32 Color = Color32.White;
+            public Vector2 TextOffset = Vector2.Zero;
+            public required string Text;
+            public bool CenterVertical = false;
+            public bool CenterHorizontal = false;
+        }
+
+        private readonly List<TextRenderRequest> TextRenderRequests = new(10);
+
         private readonly VrfGuiContext guiContext;
-        private RenderTexture fontTexture;
-        private Shader shader;
+        private readonly Camera camera;
+
+        private RenderTexture? fontTexture;
+        private Shader? shader;
         private int bufferHandle;
         private int vao;
-        private Vector2 WindowSize;
 
-        public TextRenderer(VrfGuiContext guiContext)
+        public TextRenderer(VrfGuiContext guiContext, Camera camera)
         {
             this.guiContext = guiContext;
+            this.camera = camera;
         }
 
         public void Load()
@@ -50,12 +65,13 @@ namespace GUI.Types.Renderer
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
 
             // Create VAO
-            var attributes = new List<(string Name, int Size)>
+            var attributes = new List<(string Name, int Size, VertexAttribType Type, bool Normalized)>
             {
-                ("vPOSITION", 2),
-                ("vTEXCOORD", 2),
-                ("vCOLOR", 4),
+                ("vPOSITION", 2, VertexAttribType.Float, false),
+                ("vTEXCOORD", 2, VertexAttribType.Float, false),
+                ("vCOLOR", 4, VertexAttribType.UnsignedByte, true),
             };
+
             var stride = sizeof(float) * Vertex.Size;
             var offset = 0;
 
@@ -64,11 +80,11 @@ namespace GUI.Types.Renderer
             GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
             GL.VertexArrayElementBuffer(vao, guiContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            foreach (var (name, size) in attributes)
+            foreach (var (name, size, type, normalized) in attributes)
             {
                 var attributeLocation = GL.GetAttribLocation(shader.Program, name);
                 GL.EnableVertexArrayAttrib(vao, attributeLocation);
-                GL.VertexArrayAttribFormat(vao, attributeLocation, size, VertexAttribType.Float, false, offset);
+                GL.VertexArrayAttribFormat(vao, attributeLocation, size, type, normalized, offset);
                 GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
                 offset += sizeof(float) * size;
             }
@@ -80,12 +96,7 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public void SetViewportSize(int viewportWidth, int viewportHeight)
-        {
-            WindowSize = new Vector2(viewportWidth, viewportHeight);
-        }
-
-        public void RenderTextBillboard(Camera camera, Vector3 position, float scale, Vector4 color, string text, bool center = false)
+        public void AddTextBillboard(Vector3 position, TextRenderRequest textRenderRequest, bool fixedScale = true)
         {
             var screenPosition = Vector4.Transform(new Vector4(position, 1.0f), camera.ViewProjectionMatrix);
             screenPosition /= screenPosition.W;
@@ -95,64 +106,142 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var x = 0.5f * (screenPosition.X + 1.0f) * WindowSize.X;
-            var y = 0.5f * (1.0f - screenPosition.Y) * WindowSize.Y;
+            textRenderRequest.X = 0.5f * (screenPosition.X + 1.0f) * camera.WindowSize.X;
+            textRenderRequest.Y = 0.5f * (1.0f - screenPosition.Y) * camera.WindowSize.Y;
 
-            RenderText(x, y, scale * screenPosition.Z * 100f, color, text, center, writeDepth: true);
+            if (!fixedScale)
+            {
+                textRenderRequest.Scale *= screenPosition.Z * 100f;
+            }
+
+            AddText(textRenderRequest);
         }
 
-        public void RenderText(float x, float y, float scale, Vector4 color, string text,
-            bool center = false, bool writeDepth = false)
+        public void AddTextRelative(TextRenderRequest textRenderRequest)
+        {
+            textRenderRequest.X = camera.WindowSize.X * Math.Clamp(textRenderRequest.X, 0, 1);
+            textRenderRequest.Y = camera.WindowSize.Y * Math.Clamp(textRenderRequest.Y, 0, 1);
+            TextRenderRequests.Add(textRenderRequest);
+        }
+
+        public void AddText(TextRenderRequest textRenderRequest)
+        {
+            TextRenderRequests.Add(textRenderRequest);
+        }
+
+        public void Render()
         {
             var letters = 0;
-            var verticesSize = text.Length * Vertex.Size * 4;
-            var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
+            var verticesSize = 0;
 
-            if (center)
+            foreach (var textRenderRequest in TextRenderRequests)
             {
-                // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
-                x -= text.Length * DefaultAdvance * scale / 2f;
+                verticesSize += textRenderRequest.Text.Length;
             }
+
+            if (verticesSize == 0)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Text Render");
+
+            verticesSize *= Vertex.Size * 4;
+            var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
 
             try
             {
                 var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer);
                 var i = 0;
 
-                foreach (var c in text)
+                foreach (var textRenderRequest in TextRenderRequests)
                 {
-                    if ((uint)c - 33 > 93)
+                    var x = textRenderRequest.X;
+                    var y = textRenderRequest.Y;
+
+                    x += textRenderRequest.TextOffset.X;
+                    y += textRenderRequest.TextOffset.Y;
+
+                    if (textRenderRequest.CenterVertical)
                     {
-                        x += DefaultAdvance * scale;
-                        continue;
+                        // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
+                        x -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
                     }
 
-                    letters++;
-                    var metrics = FontMetrics[c - 33];
+                    if (textRenderRequest.CenterHorizontal)
+                    {
+                        y -= (Ascender + Descender) / 2f * textRenderRequest.Scale;
+                    }
 
-                    var x0 = x + metrics.PlaneBounds.X * scale;
-                    var y0 = y + metrics.PlaneBounds.Y * scale;
-                    var x1 = x + metrics.PlaneBounds.Z * scale;
-                    var y1 = y + metrics.PlaneBounds.W * scale;
+                    var originalX = x;
 
-                    var le = metrics.AtlasBounds.X / AtlasSize;
-                    var bo = metrics.AtlasBounds.Y / AtlasSize;
-                    var ri = metrics.AtlasBounds.Z / AtlasSize;
-                    var to = metrics.AtlasBounds.W / AtlasSize;
+                    var color = textRenderRequest.Color;
 
-                    // left bottom
-                    vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = color };
+                    for (var j = 0; j < textRenderRequest.Text.Length; j++)
+                    {
+                        var c = textRenderRequest.Text[j];
 
-                    // left top
-                    vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = color };
+                        if (c == '\n')
+                        {
+                            y += textRenderRequest.Scale * LineHeight;
+                            x = originalX;
+                            continue;
+                        }
+                        else if (c == '\\')
+                        {
+                            var cNext = j + 1 < textRenderRequest.Text.Length ? textRenderRequest.Text[j + 1] : '\0';
+                            if (cNext == '#')
+                            {
+                                j += 2;
+                                if (j + 8 < textRenderRequest.Text.Length)
+                                {
+                                    if (byte.TryParse(textRenderRequest.Text.AsSpan(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
+                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
+                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b)
+                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
+                                    {
+                                        color = new Color32(r, g, b, a);
+                                        j += 7;
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
 
-                    // right top
-                    vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = color };
+                        if ((uint)c - 33 > 93)
+                        {
+                            x += DefaultAdvance * textRenderRequest.Scale;
+                            continue;
+                        }
 
-                    // right bottom
-                    vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = color };
+                        letters++;
+                        var metrics = FontMetrics[c - 33];
 
-                    x += metrics.Advance * scale;
+                        var x0 = x + metrics.PlaneBounds.X * textRenderRequest.Scale;
+                        var y0 = y + metrics.PlaneBounds.Y * textRenderRequest.Scale;
+                        var x1 = x + metrics.PlaneBounds.Z * textRenderRequest.Scale;
+                        var y1 = y + metrics.PlaneBounds.W * textRenderRequest.Scale;
+
+                        var le = metrics.AtlasBounds.X / AtlasSize;
+                        var bo = metrics.AtlasBounds.Y / AtlasSize;
+                        var ri = metrics.AtlasBounds.Z / AtlasSize;
+                        var to = metrics.AtlasBounds.W / AtlasSize;
+
+                        // left bottom
+                        vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = color };
+
+                        // left top
+                        vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = color };
+
+                        // right top
+                        vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = color };
+
+                        // right bottom
+                        vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = color };
+
+                        x += metrics.Advance * textRenderRequest.Scale;
+                    }
+
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);
@@ -163,13 +252,15 @@ namespace GUI.Types.Renderer
                 ArrayPool<float>.Shared.Return(vertexBuffer);
             }
 
-            GL.DepthMask(writeDepth);
             GL.Disable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
+            Debug.Assert(shader != null);
+            Debug.Assert(fontTexture != null);
+
             shader.Use();
-            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, WindowSize.X, WindowSize.Y, 0f, -100f, 100f));
+            shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, camera.WindowSize.X, camera.WindowSize.Y, 0f, -100f, 100f));
             shader.SetTexture(0, "msdf", fontTexture);
             shader.SetUniform1("g_fRange", TextureRange);
 
@@ -180,110 +271,114 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
-            GL.DepthMask(true);
             GL.Enable(EnableCap.DepthTest);
+
+            TextRenderRequests.Clear();
         }
 
         // Font metrics for JetBrainsMono-Regular.ttf generated using msdf-atlas-gen (use Misc/FontMsdfGen)
         private const float AtlasSize = 512f;
+        private const float Ascender = -1.02f;
+        private const float Descender = 0.3f;
+        private const float LineHeight = 1.32f;
         private const float DefaultAdvance = 0.6f;
         private const float TextureRange = 0.03125f;
         private static readonly FontMetric[] FontMetrics =
         [
-            new(new(0.08989899f, -0.8635101f, 0.510101f, 0.13851011f), new(415.5f, 80.5f, 441.5f, 142.5f), 0.6f),
-            new(new(0.009090909f, -0.86282825f, 0.59090906f, -0.2971717f), new(474.5f, 0.5f, 510.5f, 35.5f), 0.6f),
-            new(new(-0.0959596f, -0.8660101f, 0.69595957f, 0.1360101f), new(91.5f, 154.5f, 140.5f, 216.5f), 0.6f),
-            new(new(-0.06363636f, -1.0033839f, 0.6636364f, 0.27338383f), new(0.5f, 0.5f, 45.5f, 79.5f), 0.6f),
-            new(new(-0.12020202f, -0.8660101f, 0.720202f, 0.1360101f), new(185.5f, 154.5f, 237.5f, 216.5f), 0.6f),
-            new(new(-0.10828283f, -0.87459093f, 0.74828285f, 0.14359091f), new(92.5f, 80.5f, 145.5f, 143.5f), 0.6f),
-            new(new(0.11414141f, -0.86282825f, 0.4858586f, -0.2971717f), new(485.5f, 80.5f, 508.5f, 115.5f), 0.6f),
-            new(new(0.05217172f, -0.9741414f, 0.6178283f, 0.25414142f), new(46.5f, 0.5f, 81.5f, 76.5f), 0.6f),
-            new(new(-0.017828282f, -0.9741414f, 0.54782826f, 0.25414142f), new(82.5f, 0.5f, 117.5f, 76.5f), 0.6f),
-            new(new(-0.0959596f, -0.7493788f, 0.69595957f, 0.026378788f), new(132.5f, 459.5f, 181.5f, 507.5f), 0.6f),
-            new(new(-0.07171717f, -0.7017172f, 0.67171717f, 0.04171717f), new(182.5f, 459.5f, 228.5f, 505.5f), 0.6f),
-            new(new(0.07331818f, -0.27582827f, 0.5096818f, 0.28982827f), new(484.5f, 280.5f, 511.5f, 315.5f), 0.6f),
-            new(new(0.009090909f, -0.49969697f, 0.59090906f, -0.16030303f), new(474.5f, 36.5f, 510.5f, 57.5f), 0.6f),
-            new(new(0.08181818f, -0.28918183f, 0.5181818f, 0.14718182f), new(364.5f, 459.5f, 391.5f, 486.5f), 0.6f),
-            new(new(-0.055555556f, -0.9660606f, 0.65555555f, 0.24606061f), new(225.5f, 0.5f, 269.5f, 75.5f), 0.6f),
-            new(new(-0.055555556f, -0.8740909f, 0.65555555f, 0.1440909f), new(146.5f, 80.5f, 190.5f, 143.5f), 0.6f),
-            new(new(-0.040555555f, -0.8660101f, 0.67055553f, 0.1360101f), new(330.5f, 154.5f, 374.5f, 216.5f), 0.6f),
-            new(new(-0.054055557f, -0.8710101f, 0.65705556f, 0.1310101f), new(375.5f, 154.5f, 419.5f, 216.5f), 0.6f),
-            new(new(-0.06555556f, -0.8610101f, 0.64555556f, 0.1410101f), new(420.5f, 154.5f, 464.5f, 216.5f), 0.6f),
-            new(new(-0.05939394f, -0.8660101f, 0.61939394f, 0.1360101f), new(0.5f, 217.5f, 42.5f, 279.5f), 0.6f),
-            new(new(-0.060555555f, -0.8610101f, 0.65055555f, 0.1410101f), new(0.5f, 280.5f, 44.5f, 342.5f), 0.6f),
-            new(new(-0.07171717f, -0.8610101f, 0.67171717f, 0.1410101f), new(465.5f, 154.5f, 511.5f, 216.5f), 0.6f),
-            new(new(-0.049636364f, -0.8660101f, 0.6776364f, 0.1360101f), new(221.5f, 343.5f, 266.5f, 405.5f), 0.6f),
-            new(new(-0.06363636f, -0.8740909f, 0.6636364f, 0.1440909f), new(191.5f, 80.5f, 236.5f, 143.5f), 0.6f),
-            new(new(-0.07171717f, -0.8710101f, 0.67171717f, 0.1310101f), new(317.5f, 343.5f, 363.5f, 405.5f), 0.6f),
-            new(new(0.08181818f, -0.695202f, 0.5181818f, 0.14520203f), new(484.5f, 343.5f, 511.5f, 395.5f), 0.6f),
-            new(new(0.06873737f, -0.69292927f, 0.52126265f, 0.2929293f), new(364.5f, 343.5f, 392.5f, 404.5f), 0.6f),
-            new(new(-0.047474746f, -0.7259596f, 0.64747477f, 0.065959595f), new(455.5f, 406.5f, 498.5f, 455.5f), 0.6f),
-            new(new(-0.047474746f, -0.6209091f, 0.64747477f, -0.03909091f), new(274.5f, 459.5f, 317.5f, 495.5f), 0.6f),
-            new(new(-0.047474746f, -0.7259596f, 0.64747477f, 0.065959595f), new(88.5f, 459.5f, 131.5f, 508.5f), 0.6f),
-            new(new(0.00042929294f, -0.8635101f, 0.6145707f, 0.13851011f), new(182.5f, 343.5f, 220.5f, 405.5f), 0.6f),
-            new(new(-0.08537879f, -0.869899f, 0.6903788f, 0.309899f), new(425.5f, 0.5f, 473.5f, 73.5f), 0.6f),
-            new(new(-0.07979798f, -0.8660101f, 0.679798f, 0.1360101f), new(91.5f, 343.5f, 138.5f, 405.5f), 0.6f),
-            new(new(-0.044055555f, -0.8660101f, 0.66705555f, 0.1360101f), new(46.5f, 343.5f, 90.5f, 405.5f), 0.6f),
-            new(new(-0.040474746f, -0.8740909f, 0.65447474f, 0.1440909f), new(237.5f, 80.5f, 280.5f, 143.5f), 0.6f),
-            new(new(-0.03739394f, -0.8660101f, 0.64139396f, 0.1360101f), new(139.5f, 343.5f, 181.5f, 405.5f), 0.6f),
-            new(new(-0.02939394f, -0.8660101f, 0.6493939f, 0.1360101f), new(441.5f, 280.5f, 483.5f, 342.5f), 0.6f),
-            new(new(-0.037474748f, -0.8660101f, 0.65747476f, 0.1360101f), new(397.5f, 280.5f, 440.5f, 342.5f), 0.6f),
-            new(new(-0.044474747f, -0.8740909f, 0.6504747f, 0.1440909f), new(281.5f, 80.5f, 324.5f, 143.5f), 0.6f),
-            new(new(-0.03939394f, -0.8660101f, 0.6393939f, 0.1360101f), new(310.5f, 280.5f, 352.5f, 342.5f), 0.6f),
-            new(new(-0.031313132f, -0.8660101f, 0.63131315f, 0.1360101f), new(268.5f, 280.5f, 309.5f, 342.5f), 0.6f),
-            new(new(-0.08555555f, -0.8610101f, 0.6255556f, 0.1410101f), new(223.5f, 280.5f, 267.5f, 342.5f), 0.6f),
-            new(new(-0.037636362f, -0.8660101f, 0.68963635f, 0.1360101f), new(177.5f, 280.5f, 222.5f, 342.5f), 0.6f),
-            new(new(0.0006060606f, -0.8660101f, 0.67939395f, 0.1360101f), new(134.5f, 280.5f, 176.5f, 342.5f), 0.6f),
-            new(new(-0.06363636f, -0.8660101f, 0.6636364f, 0.1360101f), new(88.5f, 280.5f, 133.5f, 342.5f), 0.6f),
-            new(new(-0.03939394f, -0.8660101f, 0.6393939f, 0.1360101f), new(45.5f, 280.5f, 87.5f, 342.5f), 0.6f),
-            new(new(-0.047474746f, -0.8740909f, 0.64747477f, 0.1440909f), new(325.5f, 80.5f, 368.5f, 143.5f), 0.6f),
-            new(new(-0.042636365f, -0.8660101f, 0.68463635f, 0.1360101f), new(466.5f, 217.5f, 511.5f, 279.5f), 0.6f),
-            new(new(-0.052555557f, -0.869899f, 0.65855557f, 0.309899f), new(0.5f, 80.5f, 44.5f, 153.5f), 0.6f),
-            new(new(-0.036555555f, -0.8660101f, 0.67455554f, 0.1360101f), new(377.5f, 217.5f, 421.5f, 279.5f), 0.6f),
-            new(new(-0.06363636f, -0.8740909f, 0.6636364f, 0.1440909f), new(369.5f, 80.5f, 414.5f, 143.5f), 0.6f),
-            new(new(-0.07979798f, -0.8660101f, 0.679798f, 0.1360101f), new(286.5f, 217.5f, 333.5f, 279.5f), 0.6f),
-            new(new(-0.03939394f, -0.8610101f, 0.6393939f, 0.1410101f), new(243.5f, 217.5f, 285.5f, 279.5f), 0.6f),
-            new(new(-0.07979798f, -0.8660101f, 0.679798f, 0.1360101f), new(195.5f, 217.5f, 242.5f, 279.5f), 0.6f),
-            new(new(-0.11212121f, -0.8660101f, 0.7121212f, 0.1360101f), new(143.5f, 217.5f, 194.5f, 279.5f), 0.6f),
-            new(new(-0.0959596f, -0.8660101f, 0.69595957f, 0.1360101f), new(93.5f, 217.5f, 142.5f, 279.5f), 0.6f),
-            new(new(-0.0959596f, -0.8660101f, 0.69595957f, 0.1360101f), new(43.5f, 217.5f, 92.5f, 279.5f), 0.6f),
-            new(new(-0.047474746f, -0.8660101f, 0.64747477f, 0.1360101f), new(353.5f, 280.5f, 396.5f, 342.5f), 0.6f),
-            new(new(0.06891414f, -0.9660606f, 0.58608586f, 0.24606061f), new(270.5f, 0.5f, 302.5f, 75.5f), 0.6f),
-            new(new(-0.055555556f, -0.9660606f, 0.65555555f, 0.24606061f), new(303.5f, 0.5f, 347.5f, 75.5f), 0.6f),
-            new(new(0.013914142f, -0.9660606f, 0.53108585f, 0.24606061f), new(348.5f, 0.5f, 380.5f, 75.5f), 0.6f),
-            new(new(-0.055555556f, -0.86631316f, 0.65555555f, -0.20368686f), new(229.5f, 459.5f, 273.5f, 500.5f), 0.6f),
-            new(new(-0.07171717f, -0.10719697f, 0.67171717f, 0.23219697f), new(422.5f, 459.5f, 468.5f, 480.5f), 0.6f),
-            new(new(0.032656565f, -0.9170202f, 0.5013434f, -0.5129798f), new(392.5f, 459.5f, 421.5f, 484.5f), 0.6f),
-            new(new(-0.068055555f, -0.695202f, 0.64305556f, 0.14520203f), new(0.5f, 406.5f, 44.5f, 458.5f), 0.6f),
-            new(new(-0.044974748f, -0.8610101f, 0.64997476f, 0.1410101f), new(141.5f, 154.5f, 184.5f, 216.5f), 0.6f),
-            new(new(-0.041974746f, -0.695202f, 0.6529747f, 0.14520203f), new(440.5f, 343.5f, 483.5f, 395.5f), 0.6f),
-            new(new(-0.049974747f, -0.8610101f, 0.64497477f, 0.1410101f), new(47.5f, 154.5f, 90.5f, 216.5f), 0.6f),
-            new(new(-0.047474746f, -0.695202f, 0.64747477f, 0.14520203f), new(0.5f, 459.5f, 43.5f, 511.5f), 0.6f),
-            new(new(-0.07921717f, -0.8660101f, 0.6642172f, 0.1360101f), new(0.5f, 154.5f, 46.5f, 216.5f), 0.6f),
-            new(new(-0.04189394f, -0.6910101f, 0.6368939f, 0.3110101f), new(442.5f, 80.5f, 484.5f, 142.5f), 0.6f),
-            new(new(-0.03839394f, -0.8660101f, 0.6403939f, 0.1360101f), new(334.5f, 217.5f, 376.5f, 279.5f), 0.6f),
-            new(new(-0.051717173f, -0.9137525f, 0.69171715f, 0.13675253f), new(45.5f, 80.5f, 91.5f, 145.5f), 0.6f),
-            new(new(-0.047151513f, -0.9126414f, 0.5831515f, 0.3156414f), new(118.5f, 0.5f, 157.5f, 76.5f), 0.6f),
-            new(new(-0.035636365f, -0.8660101f, 0.6916364f, 0.1360101f), new(0.5f, 343.5f, 45.5f, 405.5f), 0.6f),
-            new(new(-0.105959594f, -0.8660101f, 0.6859596f, 0.1360101f), new(267.5f, 343.5f, 316.5f, 405.5f), 0.6f),
-            new(new(-0.07171717f, -0.6921212f, 0.67171717f, 0.1321212f), new(223.5f, 406.5f, 269.5f, 457.5f), 0.6f),
-            new(new(-0.03839394f, -0.6921212f, 0.6403939f, 0.1321212f), new(318.5f, 406.5f, 360.5f, 457.5f), 0.6f),
-            new(new(-0.047474746f, -0.695202f, 0.64747477f, 0.14520203f), new(44.5f, 459.5f, 87.5f, 511.5f), 0.6f),
-            new(new(-0.044974748f, -0.6910101f, 0.64997476f, 0.3110101f), new(422.5f, 217.5f, 465.5f, 279.5f), 0.6f),
-            new(new(-0.049974747f, -0.6910101f, 0.64497477f, 0.3110101f), new(286.5f, 154.5f, 329.5f, 216.5f), 0.6f),
-            new(new(-0.01839394f, -0.6921212f, 0.66039395f, 0.1321212f), new(89.5f, 406.5f, 131.5f, 457.5f), 0.6f),
-            new(new(-0.047474746f, -0.695202f, 0.64747477f, 0.14520203f), new(45.5f, 406.5f, 88.5f, 458.5f), 0.6f),
-            new(new(-0.08821717f, -0.83734846f, 0.6552172f, 0.13234848f), new(393.5f, 343.5f, 439.5f, 403.5f), 0.6f),
-            new(new(-0.03939394f, -0.6821212f, 0.6393939f, 0.14212121f), new(180.5f, 406.5f, 222.5f, 457.5f), 0.6f),
-            new(new(-0.07979798f, -0.6871212f, 0.679798f, 0.13712122f), new(132.5f, 406.5f, 179.5f, 457.5f), 0.6f),
-            new(new(-0.10404041f, -0.6871212f, 0.7040404f, 0.13712122f), new(404.5f, 406.5f, 454.5f, 457.5f), 0.6f),
-            new(new(-0.07979798f, -0.6871212f, 0.679798f, 0.13712122f), new(270.5f, 406.5f, 317.5f, 457.5f), 0.6f),
-            new(new(-0.07979798f, -0.6860101f, 0.679798f, 0.3160101f), new(238.5f, 154.5f, 285.5f, 216.5f), 0.6f),
-            new(new(-0.03939394f, -0.6871212f, 0.6393939f, 0.13712122f), new(361.5f, 406.5f, 403.5f, 457.5f), 0.6f),
-            new(new(-0.057474747f, -0.9660606f, 0.6374748f, 0.24606061f), new(381.5f, 0.5f, 424.5f, 75.5f), 0.6f),
-            new(new(0.12222222f, -0.9660606f, 0.47777778f, 0.24606061f), new(202.5f, 0.5f, 224.5f, 75.5f), 0.6f),
-            new(new(-0.037474748f, -0.9660606f, 0.65747476f, 0.24606061f), new(158.5f, 0.5f, 201.5f, 75.5f), 0.6f),
-            new(new(-0.06363636f, -0.58684343f, 0.6636364f, -0.11815657f), new(318.5f, 459.5f, 363.5f, 488.5f), 0.6f),
+            new(new(0.088187374f, -0.87169045f, 0.5118126f, 0.13849287f), new(218.5f, 154.5f, 244.5f, 216.5f), 0.6f),
+            new(new(0.0067209774f, -0.87169045f, 0.593279f, -0.28513238f), new(474.5f, 218.5f, 510.5f, 254.5f), 0.6f),
+            new(new(-0.09918533f, -0.87169045f, 0.6991853f, 0.13849287f), new(245.5f, 154.5f, 294.5f, 216.5f), 0.6f),
+            new(new(-0.058452137f, -1.0020367f, 0.65845215f, 0.28513238f), new(0.5f, 0.5f, 44.5f, 79.5f), 0.6f),
+            new(new(-0.123625256f, -0.87169045f, 0.72362524f, 0.13849287f), new(295.5f, 154.5f, 347.5f, 216.5f), 0.6f),
+            new(new(-0.1117719f, -0.87169045f, 0.75177187f, 0.15478615f), new(91.5f, 80.5f, 144.5f, 143.5f), 0.6f),
+            new(new(0.11262729f, -0.87169045f, 0.4873727f, -0.28513238f), new(486.5f, 154.5f, 509.5f, 190.5f), 0.6f),
+            new(new(0.04986762f, -0.9857434f, 0.6201324f, 0.25254583f), new(45.5f, 0.5f, 80.5f, 76.5f), 0.6f),
+            new(new(-0.020132383f, -0.9857434f, 0.5501324f, 0.25254583f), new(81.5f, 0.5f, 116.5f, 76.5f), 0.6f),
+            new(new(-0.09918533f, -0.7576375f, 0.6991853f, 0.040733196f), new(116.5f, 407.5f, 165.5f, 456.5f), 0.6f),
+            new(new(-0.06659878f, -0.70875764f, 0.6665988f, 0.040733196f), new(166.5f, 407.5f, 211.5f, 453.5f), 0.6f),
+            new(new(0.071540736f, -0.28513238f, 0.5114593f, 0.30142567f), new(301.5f, 407.5f, 328.5f, 443.5f), 0.6f),
+            new(new(0.0067209774f, -0.5132383f, 0.593279f, -0.15478615f), new(403.5f, 407.5f, 439.5f, 429.5f), 0.6f),
+            new(new(0.08004073f, -0.28513238f, 0.5199593f, 0.15478615f), new(375.5f, 407.5f, 402.5f, 434.5f), 0.6f),
+            new(new(-0.058452137f, -0.9694501f, 0.65845215f, 0.25254583f), new(224.5f, 0.5f, 268.5f, 75.5f), 0.6f),
+            new(new(-0.058452137f, -0.87169045f, 0.65845215f, 0.15478615f), new(145.5f, 80.5f, 189.5f, 143.5f), 0.6f),
+            new(new(-0.04345214f, -0.87169045f, 0.67345214f, 0.13849287f), new(396.5f, 154.5f, 440.5f, 216.5f), 0.6f),
+            new(new(-0.056952138f, -0.87169045f, 0.65995216f, 0.13849287f), new(441.5f, 154.5f, 485.5f, 216.5f), 0.6f),
+            new(new(-0.06845214f, -0.87169045f, 0.64845216f, 0.15478615f), new(190.5f, 80.5f, 234.5f, 143.5f), 0.6f),
+            new(new(-0.06215886f, -0.87169045f, 0.6221589f, 0.13849287f), new(0.5f, 218.5f, 42.5f, 280.5f), 0.6f),
+            new(new(-0.06345214f, -0.87169045f, 0.65345216f, 0.15478615f), new(235.5f, 80.5f, 279.5f, 143.5f), 0.6f),
+            new(new(-0.06659878f, -0.87169045f, 0.6665988f, 0.15478615f), new(280.5f, 80.5f, 325.5f, 143.5f), 0.6f),
+            new(new(-0.05259878f, -0.87169045f, 0.6805988f, 0.13849287f), new(225.5f, 344.5f, 270.5f, 406.5f), 0.6f),
+            new(new(-0.06659878f, -0.87169045f, 0.6665988f, 0.15478615f), new(326.5f, 80.5f, 371.5f, 143.5f), 0.6f),
+            new(new(-0.06659878f, -0.87169045f, 0.6665988f, 0.13849287f), new(271.5f, 344.5f, 316.5f, 406.5f), 0.6f),
+            new(new(0.08004073f, -0.69246435f, 0.5199593f, 0.15478615f), new(0.5f, 407.5f, 27.5f, 459.5f), 0.6f),
+            new(new(0.06689409f, -0.69246435f, 0.5231059f, 0.30142567f), new(480.5f, 281.5f, 508.5f, 342.5f), 0.6f),
+            new(new(-0.0503055f, -0.7413442f, 0.6503055f, 0.073319755f), new(411.5f, 460.5f, 454.5f, 510.5f), 0.6f),
+            new(new(-0.0503055f, -0.62729126f, 0.6503055f, -0.024439918f), new(257.5f, 407.5f, 300.5f, 444.5f), 0.6f),
+            new(new(-0.0503055f, -0.7413442f, 0.6503055f, 0.073319755f), new(455.5f, 460.5f, 498.5f, 510.5f), 0.6f),
+            new(new(-0.0020723015f, -0.87169045f, 0.6170723f, 0.13849287f), new(473.5f, 0.5f, 511.5f, 62.5f), 0.6f),
+            new(new(-0.0885387f, -0.87169045f, 0.6935387f, 0.31771895f), new(424.5f, 0.5f, 472.5f, 73.5f), 0.6f),
+            new(new(-0.08289206f, -0.87169045f, 0.6828921f, 0.13849287f), new(87.5f, 344.5f, 134.5f, 406.5f), 0.6f),
+            new(new(-0.0388055f, -0.87169045f, 0.6618055f, 0.13849287f), new(43.5f, 344.5f, 86.5f, 406.5f), 0.6f),
+            new(new(-0.043305498f, -0.87169045f, 0.6573055f, 0.15478615f), new(372.5f, 80.5f, 415.5f, 143.5f), 0.6f),
+            new(new(-0.04015886f, -0.87169045f, 0.64415884f, 0.13849287f), new(0.5f, 344.5f, 42.5f, 406.5f), 0.6f),
+            new(new(-0.03215886f, -0.87169045f, 0.65215886f, 0.13849287f), new(437.5f, 281.5f, 479.5f, 343.5f), 0.6f),
+            new(new(-0.0403055f, -0.87169045f, 0.6603055f, 0.13849287f), new(393.5f, 281.5f, 436.5f, 343.5f), 0.6f),
+            new(new(-0.0473055f, -0.87169045f, 0.6533055f, 0.15478615f), new(416.5f, 80.5f, 459.5f, 143.5f), 0.6f),
+            new(new(-0.04215886f, -0.87169045f, 0.64215887f, 0.13849287f), new(307.5f, 281.5f, 349.5f, 343.5f), 0.6f),
+            new(new(-0.02586558f, -0.87169045f, 0.6258656f, 0.13849287f), new(266.5f, 281.5f, 306.5f, 343.5f), 0.6f),
+            new(new(-0.08845214f, -0.87169045f, 0.6284521f, 0.15478615f), new(460.5f, 80.5f, 504.5f, 143.5f), 0.6f),
+            new(new(-0.040598776f, -0.87169045f, 0.69259876f, 0.13849287f), new(177.5f, 281.5f, 222.5f, 343.5f), 0.6f),
+            new(new(-0.0021588595f, -0.87169045f, 0.6821589f, 0.13849287f), new(134.5f, 281.5f, 176.5f, 343.5f), 0.6f),
+            new(new(-0.058452137f, -0.87169045f, 0.65845215f, 0.13849287f), new(89.5f, 281.5f, 133.5f, 343.5f), 0.6f),
+            new(new(-0.04215886f, -0.87169045f, 0.64215887f, 0.13849287f), new(46.5f, 281.5f, 88.5f, 343.5f), 0.6f),
+            new(new(-0.0503055f, -0.87169045f, 0.6503055f, 0.15478615f), new(0.5f, 154.5f, 43.5f, 217.5f), 0.6f),
+            new(new(-0.04559878f, -0.87169045f, 0.68759876f, 0.13849287f), new(0.5f, 281.5f, 45.5f, 343.5f), 0.6f),
+            new(new(-0.05545214f, -0.87169045f, 0.6614521f, 0.31771895f), new(0.5f, 80.5f, 44.5f, 153.5f), 0.6f),
+            new(new(-0.03945214f, -0.87169045f, 0.67745215f, 0.13849287f), new(429.5f, 218.5f, 473.5f, 280.5f), 0.6f),
+            new(new(-0.058452137f, -0.87169045f, 0.65845215f, 0.15478615f), new(44.5f, 154.5f, 88.5f, 217.5f), 0.6f),
+            new(new(-0.08289206f, -0.87169045f, 0.6828921f, 0.13849287f), new(335.5f, 218.5f, 382.5f, 280.5f), 0.6f),
+            new(new(-0.04215886f, -0.87169045f, 0.64215887f, 0.15478615f), new(89.5f, 154.5f, 131.5f, 217.5f), 0.6f),
+            new(new(-0.08289206f, -0.87169045f, 0.6828921f, 0.13849287f), new(238.5f, 218.5f, 285.5f, 280.5f), 0.6f),
+            new(new(-0.11547861f, -0.87169045f, 0.7154786f, 0.13849287f), new(186.5f, 218.5f, 237.5f, 280.5f), 0.6f),
+            new(new(-0.0910387f, -0.87169045f, 0.69103867f, 0.13849287f), new(137.5f, 218.5f, 185.5f, 280.5f), 0.6f),
+            new(new(-0.09918533f, -0.87169045f, 0.6991853f, 0.13849287f), new(87.5f, 218.5f, 136.5f, 280.5f), 0.6f),
+            new(new(-0.0503055f, -0.87169045f, 0.6503055f, 0.13849287f), new(43.5f, 218.5f, 86.5f, 280.5f), 0.6f),
+            new(new(0.06680754f, -0.9694501f, 0.58819246f, 0.25254583f), new(269.5f, 0.5f, 301.5f, 75.5f), 0.6f),
+            new(new(-0.058452137f, -0.9694501f, 0.65845215f, 0.25254583f), new(302.5f, 0.5f, 346.5f, 75.5f), 0.6f),
+            new(new(0.011807536f, -0.9694501f, 0.53319246f, 0.25254583f), new(347.5f, 0.5f, 379.5f, 75.5f), 0.6f),
+            new(new(-0.058452137f, -0.87169045f, 0.65845215f, -0.20366599f), new(212.5f, 407.5f, 256.5f, 448.5f), 0.6f),
+            new(new(-0.07474542f, -0.105906315f, 0.67474544f, 0.23625255f), new(440.5f, 407.5f, 486.5f, 428.5f), 0.6f),
+            new(new(0.030747455f, -0.92057025f, 0.50325257f, -0.5132383f), new(474.5f, 255.5f, 503.5f, 280.5f), 0.6f),
+            new(new(-0.07095214f, -0.69246435f, 0.64595217f, 0.15478615f), new(407.5f, 344.5f, 451.5f, 396.5f), 0.6f),
+            new(new(-0.03965886f, -0.87169045f, 0.64465886f, 0.15478615f), new(175.5f, 154.5f, 217.5f, 217.5f), 0.6f),
+            new(new(-0.0448055f, -0.69246435f, 0.6558055f, 0.15478615f), new(28.5f, 407.5f, 71.5f, 459.5f), 0.6f),
+            new(new(-0.04465886f, -0.87169045f, 0.63965887f, 0.15478615f), new(132.5f, 154.5f, 174.5f, 217.5f), 0.6f),
+            new(new(-0.0503055f, -0.69246435f, 0.6503055f, 0.15478615f), new(72.5f, 407.5f, 115.5f, 459.5f), 0.6f),
+            new(new(-0.08224542f, -0.87169045f, 0.6672454f, 0.13849287f), new(135.5f, 344.5f, 181.5f, 406.5f), 0.6f),
+            new(new(-0.04465886f, -0.69246435f, 0.63965887f, 0.31771895f), new(223.5f, 281.5f, 265.5f, 343.5f), 0.6f),
+            new(new(-0.04115886f, -0.87169045f, 0.64315885f, 0.13849287f), new(350.5f, 281.5f, 392.5f, 343.5f), 0.6f),
+            new(new(-0.046598777f, -0.92057025f, 0.6865988f, 0.13849287f), new(45.5f, 80.5f, 90.5f, 145.5f), 0.6f),
+            new(new(-0.049718942f, -0.92057025f, 0.5857189f, 0.31771895f), new(117.5f, 0.5f, 156.5f, 76.5f), 0.6f),
+            new(new(-0.03859878f, -0.87169045f, 0.6945988f, 0.13849287f), new(383.5f, 218.5f, 428.5f, 280.5f), 0.6f),
+            new(new(-0.101038694f, -0.87169045f, 0.6810387f, 0.13849287f), new(286.5f, 218.5f, 334.5f, 280.5f), 0.6f),
+            new(new(-0.07474542f, -0.69246435f, 0.67474544f, 0.13849287f), new(87.5f, 460.5f, 133.5f, 511.5f), 0.6f),
+            new(new(-0.04115886f, -0.69246435f, 0.64315885f, 0.13849287f), new(226.5f, 460.5f, 268.5f, 511.5f), 0.6f),
+            new(new(-0.0503055f, -0.69246435f, 0.6503055f, 0.13849287f), new(182.5f, 460.5f, 225.5f, 511.5f), 0.6f),
+            new(new(-0.03965886f, -0.69246435f, 0.64465886f, 0.31771895f), new(317.5f, 344.5f, 359.5f, 406.5f), 0.6f),
+            new(new(-0.04465886f, -0.69246435f, 0.63965887f, 0.31771895f), new(182.5f, 344.5f, 224.5f, 406.5f), 0.6f),
+            new(new(-0.02115886f, -0.69246435f, 0.66315883f, 0.13849287f), new(44.5f, 460.5f, 86.5f, 511.5f), 0.6f),
+            new(new(-0.0503055f, -0.69246435f, 0.6503055f, 0.13849287f), new(0.5f, 460.5f, 43.5f, 511.5f), 0.6f),
+            new(new(-0.09124542f, -0.8391039f, 0.65824544f, 0.13849287f), new(360.5f, 344.5f, 406.5f, 404.5f), 0.6f),
+            new(new(-0.04215886f, -0.69246435f, 0.64215887f, 0.15478615f), new(452.5f, 344.5f, 494.5f, 396.5f), 0.6f),
+            new(new(-0.08289206f, -0.69246435f, 0.6828921f, 0.13849287f), new(134.5f, 460.5f, 181.5f, 511.5f), 0.6f),
+            new(new(-0.10733198f, -0.69246435f, 0.70733196f, 0.13849287f), new(317.5f, 460.5f, 367.5f, 511.5f), 0.6f),
+            new(new(-0.08289206f, -0.69246435f, 0.6828921f, 0.13849287f), new(269.5f, 460.5f, 316.5f, 511.5f), 0.6f),
+            new(new(-0.08289206f, -0.69246435f, 0.6828921f, 0.31771895f), new(348.5f, 154.5f, 395.5f, 216.5f), 0.6f),
+            new(new(-0.04215886f, -0.69246435f, 0.64215887f, 0.13849287f), new(368.5f, 460.5f, 410.5f, 511.5f), 0.6f),
+            new(new(-0.0603055f, -0.9694501f, 0.6403055f, 0.25254583f), new(380.5f, 0.5f, 423.5f, 75.5f), 0.6f),
+            new(new(0.120773934f, -0.9694501f, 0.47922608f, 0.25254583f), new(201.5f, 0.5f, 223.5f, 75.5f), 0.6f),
+            new(new(-0.0403055f, -0.9694501f, 0.6603055f, 0.25254583f), new(157.5f, 0.5f, 200.5f, 75.5f), 0.6f),
+            new(new(-0.06659878f, -0.5947047f, 0.6665988f, -0.105906315f), new(329.5f, 407.5f, 374.5f, 437.5f), 0.6f),
         ];
     }
 }

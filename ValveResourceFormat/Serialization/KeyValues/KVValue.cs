@@ -10,7 +10,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
         Panorama = 3,
         SoundEvent = 4,
         SubClass = 5,
-        // March 2023: There are more types available in the S2 binaries, but they should not be persisted.
+        EntityName = 6,
+
+        // There are more types available in the S2 binaries, but they should not be persisted. Look for "The specific type '%s' cannot be persisted"
+        MaxPersistedFlag = EntityName,
     }
 
     /// <summary>

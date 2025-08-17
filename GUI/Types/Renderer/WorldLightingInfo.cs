@@ -53,6 +53,7 @@ partial class Scene
         public Matrix4x4 SunViewProjection { get; internal set; }
         public Frustum SunLightFrustum = new();
         public float SunLightShadowBias { get; set; } = 0.001f;
+        public float SunLightShadowCoverageScale { get; set; } = 1f;
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
         public void SetLightmapTextures(Shader shader)
@@ -132,7 +133,7 @@ partial class Scene
             var sunMatrix = LightingData.LightToWorld[0];
             var sunDir = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, sunMatrix with { Translation = Vector3.Zero })); // why is sun dir calculated like so?.
 
-            var bbox = Math.Max(shadowMapSize / 2.5f, 512f);
+            var bbox = Math.Max(shadowMapSize / 2.5f, 512f) * SunLightShadowCoverageScale;
             var farPlane = 8096f;
             var nearPlaneExtend = 1000f;
             var bias = 0.001f;
@@ -176,7 +177,7 @@ partial class Scene
                 //Matrix4x4.Invert(light.Transform, out var lightToWorld);
                 LightingData.LightToWorld[index] = light.Transform;
 
-                LightingData.LightColor_Brightness[index] = new Vector4(RenderMaterial.SrgbGammaToLinear(light.Color), light.Brightness);
+                LightingData.LightColor_Brightness[index] = new Vector4(ColorSpace.SrgbGammaToLinear(light.Color), light.Brightness);
                 LightingData.LightSpotInnerOuterCosines[index] = new Vector4(MathF.Cos(light.SpotInnerAngle), MathF.Cos(light.SpotOuterAngle), 0.0f, 0.0f);
                 LightingData.LightFallOff[index] = new Vector4(light.FallOff, light.Range, light.AttenuationLinear, light.AttenuationQuadratic);
             }
@@ -241,7 +242,7 @@ partial class Scene
                 //Matrix4x4.Invert(light.Transform, out var lightToWorld);
                 LightingData.LightToWorld[totalCount] = light.Transform;
 
-                LightingData.LightColor_Brightness[totalCount] = new Vector4(RenderMaterial.SrgbGammaToLinear(light.Color), light.Brightness);
+                LightingData.LightColor_Brightness[totalCount] = new Vector4(ColorSpace.SrgbGammaToLinear(light.Color), light.Brightness);
 
                 LightingData.LightFallOff[totalCount] = new Vector4(light.FallOff, light.Range, 0.0f, 0.0f);
 

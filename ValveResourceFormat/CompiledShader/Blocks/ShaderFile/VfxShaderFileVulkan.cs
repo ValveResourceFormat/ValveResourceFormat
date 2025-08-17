@@ -52,7 +52,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
         {
             Version = datareader.ReadInt32();
 
-            UnexpectedMagicException.Assert(Version >= 2 && Version <= 5, Version);
+            UnexpectedMagicException.Assert(Version >= 2 && Version <= 6, Version);
 
             BytecodeSize = datareader.ReadInt32();
             if (BytecodeSize > 0)

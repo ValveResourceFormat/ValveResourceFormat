@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using K4os.Compression.LZ4;
 using K4os.Compression.LZ4.Encoders;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVValueType = ValveKeyValue.KVValueType;
 
@@ -13,7 +12,7 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public partial class BinaryKV3 : ResourceData
+    public partial class BinaryKV3 : Block
     {
         private readonly BlockType KVBlockType;
         public override BlockType Type => KVBlockType;
@@ -63,7 +62,10 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void Read(BinaryReader reader)
         {
-            reader.BaseStream.Position = Offset;
+            if (KVBlockType != BlockType.Undefined)
+            {
+                reader.BaseStream.Position = Offset;
+            }
 
             var magic = reader.ReadUInt32();
 
@@ -593,7 +595,10 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                Debug.Assert(reader.BaseStream.Position == Offset + Size);
+                if (KVBlockType != BlockType.Undefined)
+                {
+                    Debug.Assert(reader.BaseStream.Position == Offset + Size);
+                }
 
                 Data = ParseBinaryKV3(context, null, true);
 
@@ -647,7 +652,7 @@ namespace ValveResourceFormat.ResourceTypes
                     flagInfo = (KVFlag)context.Types[0];
                     context.Types = context.Types[1..];
 
-                    if (flagInfo > KVFlag.SubClass)
+                    if (flagInfo > KVFlag.MaxPersistedFlag)
                     {
                         throw new UnexpectedMagicException("Unexpected kv3 flag", (int)flagInfo, nameof(flagInfo));
                     }
@@ -1075,6 +1080,31 @@ namespace ValveResourceFormat.ResourceTypes
             alignment -= 1;
             offset += alignment;
             offset &= ~alignment;
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "ConvertBinaryKV3ToText")]
+        public static IntPtr ConvertBinaryKV3ToText(IntPtr dataPtr, int dataLength)
+        {
+            try
+            {
+                var data = new byte[dataLength];
+                Marshal.Copy(dataPtr, data, 0, dataLength);
+
+                var kv3 = new BinaryKV3(BlockType.Undefined);
+                using var stream = new MemoryStream(data);
+                using var reader = new BinaryReader(stream);
+                kv3.Read(reader);
+
+                var text = kv3.ToString();
+                var pointer = Marshal.StringToHGlobalAnsi(text);
+
+                return pointer;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.Message);
+                return Marshal.StringToHGlobalAnsi(string.Empty);
+            }
         }
     }
 }

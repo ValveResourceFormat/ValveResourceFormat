@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using KVValueType = ValveKeyValue.KVValueType;
 
@@ -9,7 +8,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 {
     public static class ResourceDataExtensions
     {
-        public static KVObject AsKeyValueCollection(this ResourceData data) =>
+        public static KVObject AsKeyValueCollection(this Block data) =>
             data switch
             {
                 BinaryKV3 kv => kv.Data,

@@ -151,6 +151,8 @@ class ShaderHotReload : IDisposable
         {
             errorReloadingPage.BoundDialog?.Close();
         }
+
+        glControl.Invalidate();
     }
 }
 #endif

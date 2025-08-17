@@ -5,7 +5,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer.Buffers
 {
-    class UniformBuffer<T> : Buffer
+    class UniformBuffer<T> : Buffer, IDisposable
         where T : new()
     {
         [NotNull]
@@ -49,12 +49,10 @@ namespace GUI.Types.Renderer.Buffers
             GL.NamedBufferSubData(Handle, IntPtr.Zero, Size, cpuBuffer);
         }
 
-        public override void Dispose()
+        public void Dispose()
         {
             // make sure dispose gets called, or this will leak
             cpuBufferHandle.Free();
-
-            base.Dispose();
         }
     }
 }

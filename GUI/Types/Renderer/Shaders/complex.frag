@@ -282,13 +282,9 @@ uniform sampler2D g_tTintMask;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
-#include "common/lighting_common.glsl"
 #include "common/fullbright.glsl"
 #include "common/texturing.glsl"
-#include "common/pbr.glsl"
 #include "common/fog.glsl"
-
-#include "common/environment.glsl" // (S_SPECULAR == 1 || renderMode_Cubemaps == 1)
 
 // Must be last
 #include "common/lighting.glsl"

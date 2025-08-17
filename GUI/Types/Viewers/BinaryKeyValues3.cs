@@ -13,7 +13,7 @@ namespace GUI.Types.Viewers
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tab = new TabPage();
-            var kv3 = new BinaryKV3();
+            var kv3 = new BinaryKV3(ValveResourceFormat.BlockType.Undefined);
             Stream kv3stream;
 
             if (stream != null)

@@ -1,13 +1,12 @@
 using System.IO;
 using System.IO.Hashing;
 using System.Text;
-using ValveResourceFormat.Blocks;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Panorama : ResourceData
+    public class Panorama : Block
     {
         public class NameEntry
         {
@@ -20,6 +19,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         public byte[] Data { get; private set; }
         public uint CRC32 { get; private set; }
+
+        public override BlockType Type => BlockType.DATA;
 
         public override void Read(BinaryReader reader)
         {
@@ -61,9 +62,9 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            return Encoding.UTF8.GetString(Data);
+            writer.Write(Encoding.UTF8.GetString(Data));
         }
     }
 }

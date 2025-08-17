@@ -6,6 +6,7 @@
 #include "common/LightingConstants.glsl"
 #include "complex_features.glsl"
 
+#include "common/instancing.glsl"
 #include "common/animation.glsl"
 #include "common/morph.glsl"
 
@@ -89,15 +90,6 @@ uniform vec3 g_vColorTint = vec3(1.0);
 uniform float g_flModelTintAmount = 1.0;
 uniform float g_flFadeExponent = 1.0;
 
-layout(std140, binding = 3) readonly buffer g_transformBuffer
-{
-    mat4 transforms[];
-};
-
-uniform mat4 transform;
-uniform vec4 vTint;
-uniform bool bIsInstancing = false;
-
 uniform vec2 g_vTexCoordOffset;
 uniform vec2 g_vTexCoordScale = vec2(1.0);
 uniform vec2 g_vTexCoordScrollSpeed;
@@ -158,7 +150,7 @@ vec2 GetAnimatedUVs(vec2 texCoords)
     return texCoords + g_vTexCoordScrollSpeed.xy * g_flTime;
 }
 
-vec4 GetTintColor()
+vec4 GetTintColor(vec4 vTint)
 {
     vec4 TintFade = vec4(1.0);
 #if F_NOTINT == 0
@@ -185,8 +177,9 @@ vec4 GetTintColor()
 
 void main()
 {
-    mat4 transform = bIsInstancing ? transforms[gl_InstanceID] : transform;
-    mat4 skinTransform = transform * getSkinMatrix();
+    ObjectData_t object = GetObjectData();
+
+    mat4 skinTransform = object.transform * getSkinMatrix();
     vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
@@ -225,7 +218,7 @@ void main()
     vPerVertexLightingOut = pow2(Light);
 #endif
 
-    vVertexColorOut = GetTintColor();
+    vVertexColorOut = GetTintColor(object.vTint);
 
 #if !defined(vFoliageParams) && (F_PAINT_VERTEX_COLORS == 1)
     vVertexColorOut *= vCOLOR;

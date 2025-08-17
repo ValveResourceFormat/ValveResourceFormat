@@ -1,6 +1,4 @@
-using System.Buffers;
 using System.Linq;
-using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
@@ -89,12 +87,7 @@ namespace GUI.Types.Renderer
 
                 if (hitbox.TranslationOnly)
                 {
-                    if (!Matrix4x4.Decompose(targetTransform, out _, out _, out var translation))
-                    {
-                        throw new InvalidOperationException("Matrix decompose failed");
-                    }
-
-                    shape.Transform = Matrix4x4.CreateTranslation(translation);
+                    shape.Transform = Matrix4x4.CreateTranslation(targetTransform.Translation);
                 }
                 else
                 {
@@ -112,17 +105,7 @@ namespace GUI.Types.Renderer
 
             LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
-            var floatBuffer = ArrayPool<float>.Shared.Rent(skeleton.Bones.Length * 16);
-            var boneMatrices = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer);
-            try
-            {
-                animationController?.GetBoneMatrices(boneMatrices);
-                UpdateHitboxSet(currentSet, boneMatrices);
-            }
-            finally
-            {
-                ArrayPool<float>.Shared.Return(floatBuffer);
-            }
+            UpdateHitboxSet(currentSet, animationController.Pose);
         }
 
         public override void Render(Scene.RenderContext context)

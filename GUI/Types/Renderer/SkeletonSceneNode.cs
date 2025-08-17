@@ -13,18 +13,16 @@ namespace GUI.Types.Renderer
 
         readonly AnimationController animationController;
         readonly Skeleton skeleton;
-        private readonly TextRenderer textRenderer;
         readonly Shader shader;
         readonly int vaoHandle;
         readonly int vboHandle;
         int vertexCount;
 
-        public SkeletonSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton, TextRenderer textRenderer)
+        public SkeletonSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton)
             : base(scene)
         {
             this.animationController = animationController;
             this.skeleton = skeleton;
-            this.textRenderer = textRenderer;
 
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
 
@@ -39,7 +37,6 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public List<(Vector3 Position, string String)> TextCalls { get; private set; } = [];
         public override void Update(Scene.UpdateContext context)
         {
             if (!Enabled)
@@ -47,62 +44,64 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
-
-            TextCalls.Clear();
-            Frame frame = null;
-            if (animationController.ActiveAnimation != null)
-            {
-                if (animationController.IsPaused)
-                {
-                    frame = animationController.FrameCache.GetFrame(animationController.ActiveAnimation, animationController.Frame);
-                }
-                else
-                {
-                    frame = animationController.FrameCache.GetInterpolatedFrame(animationController.ActiveAnimation, animationController.Time);
-                }
-            }
-
             var vertices = new List<SimpleVertex>();
 
             foreach (var root in skeleton.Roots)
             {
-                GetAnimationMatrixRecursive(vertices, TextCalls, root, Matrix4x4.Identity, frame);
+                DrawSkeletonRecursive(root, vertices, context.View.TextRenderer, animationController);
             }
 
+            AABB bounds = default;
+            var first = true;
+
+            foreach (var vertex in vertices)
+            {
+                var vertexBounds = new AABB(vertex.Position, 10);
+
+                if (first)
+                {
+                    bounds = vertexBounds;
+                    first = false;
+                    continue;
+                }
+
+                bounds = bounds.Union(vertexBounds);
+            }
+
+            LocalBoundingBox = bounds;
             vertexCount = vertices.Count;
 
             GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
         }
 
-        private static void GetAnimationMatrixRecursive(List<SimpleVertex> vertices, List<(Vector3 Position, string String)> text, Bone bone, Matrix4x4 bindPose, Frame frame)
+        private static void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, TextRenderer textRenderer, AnimationController animation)
         {
-            var oldBindPose = bindPose;
+            var boneMatrix = animation.Pose[bone.Index];
 
-            if (frame != null)
+            textRenderer.AddTextBillboard(boneMatrix.Translation, new TextRenderer.TextRenderRequest
             {
-                var transform = frame.Bones[bone.Index];
-                bindPose = Matrix4x4.CreateScale(transform.Scale)
-                    * Matrix4x4.CreateFromQuaternion(transform.Angle)
-                    * Matrix4x4.CreateTranslation(transform.Position)
-                    * bindPose;
-            }
-            else
-            {
-                bindPose = bone.BindPose * bindPose;
-            }
+                Scale = 10f,
+                Text = bone.Name,
+                Color = (bone.Parent, bone.Children.Count) switch
+                {
+                    (null, _) => new Color32(1.0f, 0.8f, 0.8f, 1.0f),
+                    (_, 0) => new Color32(0.3f, 0.8f, 0.3f, 1.0f),
+                    _ => Color32.White,
+                },
+                CenterVertical = false
+            });
 
-            text.Add((bindPose.Translation, bone.Name));
-
-            if (!oldBindPose.IsIdentity)
+            if (bone.Parent != null)
             {
+                var parentMatrix = animation.Pose[bone.Parent.Index];
+
                 var fade = Random.Shared.NextSingle() * 0.5f + 0.5f;
-                OctreeDebugRenderer<SceneNode>.AddLine(vertices, bindPose.Translation, oldBindPose.Translation, new(1f - fade, 1f, fade, 1f));
+                ShapeSceneNode.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, new(1f - fade, 1f, fade, 1f));
             }
 
             foreach (var child in bone.Children)
             {
-                GetAnimationMatrixRecursive(vertices, text, child, bindPose, frame);
+                DrawSkeletonRecursive(child, vertices, textRenderer, animation);
             }
         }
 
@@ -113,17 +112,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            if (context.RenderPass == RenderPass.Translucent)
-            {
-                foreach (var text in TextCalls)
-                {
-                    textRenderer.RenderTextBillboard(context.View.Camera, text.Position, 3f, Vector4.One, text.String, center: false);
-                }
-
-                return;
-            }
-
-            if (context.RenderPass != RenderPass.AfterOpaque)
+            if (context.RenderPass != RenderPass.Opaque)
             {
                 return;
             }
@@ -133,7 +122,7 @@ namespace GUI.Types.Renderer
             GL.DepthFunc(DepthFunction.Always);
 
             renderShader.Use();
-            renderShader.SetUniform4x4("transform", Transform);
+            renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);
 

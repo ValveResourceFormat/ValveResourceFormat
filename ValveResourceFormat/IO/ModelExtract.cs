@@ -78,7 +78,7 @@ public partial class ModelExtract
         var vmdl = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(ToValveModel()),
-            FileName = GetModelName(),
+            FileName = ModelName,
         };
 
         foreach (var renderMesh in RenderMeshesToExtract)
@@ -122,7 +122,5 @@ public partial class ModelExtract
         return vmdl;
     }
 
-    public string GetModelName()
-        => model?.Data.GetProperty<string>("m_name")
-            ?? fileName;
+    public string ModelName => model?.Name ?? fileName;
 }

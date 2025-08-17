@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using GUI.Utils;
@@ -10,7 +11,7 @@ namespace GUI.Types.Renderer
 {
     partial class ShaderParser
     {
-        private const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
+        public const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         private const string ExpectedShaderVersion = "#version 460";
         private const string RenderModeDefinePrefix = "renderMode_";
 
@@ -36,6 +37,11 @@ namespace GUI.Types.Renderer
 #if DEBUG
         public List<List<string>> SourceFileLines { get; } = [];
 #endif
+
+        public void ClearBuilder()
+        {
+            builder.Clear();
+        }
 
         public void Reset()
         {
@@ -98,6 +104,15 @@ namespace GUI.Types.Renderer
                 {
                     lineNum++;
 
+#if DEBUG
+                    if (!line.All(static c => char.IsAscii(c)))
+                    {
+                        // At least on nvidia, trying to compile GLSL with non ascii characters will throw bizzare errors like
+                        // wrong #line source-line error, or EOF.
+                        throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' contains non-ASCII characters.");
+                    }
+#endif
+
                     if (lineNum == 2)
                     {
                         if (line != ExpectedShaderVersion)
@@ -108,8 +123,10 @@ namespace GUI.Types.Renderer
                         if (isInclude)
                         {
 #if DEBUG
-                            currentSourceLines.Add("// :VrfPreprocessed {line}");
+                            currentSourceLines.Add($"// :VrfPreprocessed {line}");
 #endif
+
+                            builder.Append('\n');
 
                             // We add #version even in includes so that they can be compiled individually for better editing experience
                             continue;
@@ -247,13 +264,15 @@ namespace GUI.Types.Renderer
 #if !DEBUG
         private static Stream GetShaderStream(string name)
         {
+            var resourceName = $"{ShaderDirectory}{name.Replace('/', '.')}";
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var stream = assembly.GetManifestResourceStream($"{ShaderDirectory}{name.Replace('/', '.')}");
+            var stream = assembly.GetManifestResourceStream(resourceName);
             ArgumentNullException.ThrowIfNull(stream);
             return stream;
         }
 #else
-        public static readonly string ShadersFolderPathOnDisk = GetShadersFolder();
+        // Path to the folder where the ValveResourceFormat.sln is on disk (parent of the GUI folder)
+        private static readonly string SolutionRootDirector = GetSolutionRootDirectory();
 
         private static FileStream GetShaderStream(string name)
         {
@@ -277,10 +296,10 @@ namespace GUI.Types.Renderer
 
         public static string GetShaderDiskPath(string name)
         {
-            return Path.Combine(ShadersFolderPathOnDisk, ShaderDirectory.Replace('.', '/'), name);
+            return Path.Combine(SolutionRootDirector, ShaderDirectory.Replace('.', '/'), name);
         }
 
-        private static string GetShadersFolder()
+        private static string GetSolutionRootDirectory()
         {
             var root = AppContext.BaseDirectory;
             var failsafe = 10;
@@ -289,16 +308,17 @@ namespace GUI.Types.Renderer
             do
             {
                 root = Path.GetDirectoryName(root);
-                fileName = Path.GetFileName(root);
+                ArgumentNullException.ThrowIfNull(root);
+                fileName = Path.Join(root, "ValveResourceFormat.sln");
 
                 if (failsafe-- == 0)
                 {
                     throw new DirectoryNotFoundException("Failed to find GUI folder for the shaders, are you debugging in some unconventional setup?");
                 }
             }
-            while (fileName != "GUI");
+            while (!File.Exists(fileName));
 
-            return Path.GetDirectoryName(root)!;
+            return root;
         }
 #endif
     }

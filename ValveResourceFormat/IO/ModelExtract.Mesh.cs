@@ -69,7 +69,7 @@ partial class ModelExtract
 
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
     {
-        var fileName = GetModelName();
+        var fileName = ModelName;
         return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + Path.GetFileNameWithoutExtension(fileName)
@@ -241,7 +241,7 @@ partial class ModelExtract
             var vmdl = new ContentFile
             {
                 Data = Encoding.UTF8.GetBytes(extract.ToValveModel()),
-                FileName = GetFragmentModelName(extract.GetModelName(), i),
+                FileName = GetFragmentModelName(extract.ModelName, i),
             };
 
             if (i == 0)

@@ -814,29 +814,11 @@ partial class ModelExtract
             var breakPieceList = MakeLazyList("BreakPieceList");
             var gameDataList = MakeLazyList("GameDataList");
 
-            var keyvaluesString = model.Data.GetSubCollection("m_modelInfo").GetProperty<string>("m_keyValueText");
+            KVObject keyvalues = model.KeyValues;
 
-            const int NullKeyValuesLengthLimit = 140;
-            if (string.IsNullOrEmpty(keyvaluesString)
-            || !keyvaluesString.StartsWith("<!-- kv3 ", StringComparison.Ordinal)
-            || keyvaluesString.Length < NullKeyValuesLengthLimit)
+            if (keyvalues.Count == 0)
             {
                 return;
-            }
-
-            KVObject keyvalues;
-            using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString)))
-            {
-                try
-                {
-                    keyvalues = KeyValues3.ParseKVFile(ms).Root;
-                }
-                catch (Exception e)
-                {
-                    // TODO: Current parser fails when root is "null", so just skip over them for now
-                    Console.Error.WriteLine(e.ToString());
-                    return;
-                }
             }
 
             if (keyvalues.ContainsKey("anim_graph_resource"))

@@ -1,13 +1,14 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Blocks;
 
 #nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class SoundStackScript : ResourceData
+    public class SoundStackScript : Block
     {
+        public override BlockType Type => BlockType.DATA;
+
         public Dictionary<string, string> SoundStackScriptValue { get; private set; } // TODO: be Dictionary<string, SomeKVObject>
 
         public override void Read(BinaryReader reader)
@@ -48,17 +49,14 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
-            using var writer = new IndentedTextWriter();
             foreach (var entry in SoundStackScriptValue)
             {
                 writer.WriteLine($"// {entry.Key}");
                 writer.Write(entry.Value);
                 writer.WriteLine(string.Empty);
             }
-
-            return writer.ToString();
         }
     }
 }

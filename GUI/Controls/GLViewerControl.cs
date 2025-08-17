@@ -46,12 +46,14 @@ namespace GUI.Controls
             public float FrameTime { get; set; }
         }
 
+        public float Uptime { get; private set; }
         public Camera Camera { get; protected set; }
+        public Types.Renderer.TextRenderer TextRenderer { get; protected set; }
+
 
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
 
-        protected readonly Types.Renderer.TextRenderer textRenderer;
         protected readonly PostProcessRenderer postProcessRenderer;
 
         protected Form FullScreenForm { get; private set; }
@@ -115,11 +117,12 @@ namespace GUI.Controls
 
             glControlContainer.Controls.Add(GLControl);
 
-            textRenderer = new(guiContext);
+            TextRenderer = new(guiContext, Camera);
             postProcessRenderer = new(guiContext);
 
 #if DEBUG
             guiContext.ShaderLoader.EnableHotReload(GLControl);
+            CodeHotReloadService.CodeHotReloaded += OnCodeHotReloaded;
 
             var button = new Button
             {
@@ -234,6 +237,11 @@ namespace GUI.Controls
             GLControl.LostFocus -= OnLostFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             Program.MainForm.Activated -= OnAppActivated;
+
+#if DEBUG
+            CodeHotReloadService.CodeHotReloaded -= OnCodeHotReloaded;
+#endif
+
             Disposed -= OnDisposed;
         }
 
@@ -286,15 +294,9 @@ namespace GUI.Controls
                     Picker?.RequestNextFrame(e.X, e.Y, intent);
                 }
             }
-            /* TODO: phase this obscure bind out */
             else if (e.Button == MouseButtons.Right)
             {
                 CurrentlyPressedKeys |= TrackedKeys.MouseRight;
-
-                if (e.Clicks == 2)
-                {
-                    Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Open);
-                }
             }
         }
 
@@ -403,7 +405,7 @@ namespace GUI.Controls
 #if DEBUG
             if (type == DebugType.DebugTypeError)
             {
-                //Debugger.Break();
+                Debugger.Break();
             }
 #endif
         }
@@ -470,18 +472,20 @@ namespace GUI.Controls
                 GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
             }
 
-            textRenderer.Load();
+            TextRenderer.Load();
             postProcessRenderer.Load();
 
             try
             {
                 // Framebuffer used to draw geometry
-                MainFramebuffer = Framebuffer.Prepare(GLControl.Width,
+                MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer), GLControl.Width,
                     GLControl.Height,
                     NumSamples,
                     new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-                    Framebuffer.DepthAttachmentFormat.Depth32F
+                    Framebuffer.DepthAttachmentFormat.Depth32FStencil8
                 );
+
+                MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
 
                 GLLoad?.Invoke(this, e);
             }
@@ -524,6 +528,7 @@ namespace GUI.Controls
 
             // Clamp frametime because it is possible to go past 1 second when gl control is paused which may cause issues in things like particle rendering
             var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
+            Uptime += frameTime;
 
             if (MouseOverRenderArea && !isTextureViewer)
             {
@@ -544,6 +549,8 @@ namespace GUI.Controls
                 LastMouseDelta = MouseDelta;
                 MouseDelta = Point.Empty;
             }
+
+            Camera.RecalculateMatrices(Uptime);
 
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
@@ -580,11 +587,16 @@ namespace GUI.Controls
 
             if (Settings.Config.DisplayFps != 0 && isActiveForm && !isTextureViewer)
             {
-                using (new GLDebugGroup("Text Render"))
+                TextRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
                 {
-                    textRenderer.RenderText(2f, MainFramebuffer.Height - 4f, 14f, new System.Numerics.Vector4(1, 1, 1, 1f), lastFps);
-                }
+                    X = 2f,
+                    Y = MainFramebuffer.Height - 4f,
+                    Scale = 14f,
+                    Text = lastFps
+                });
             }
+
+            TextRenderer.Render();
 
             GLControl.SwapBuffers();
             Picker?.TriggerEventIfAny();
@@ -665,21 +677,14 @@ namespace GUI.Controls
                     Log.Error(nameof(GLViewerControl), $"Framebuffer failed to initialize with error: {status}");
                     Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
 
-                    DisposeFramebuffer();
+                    MainFramebuffer.Delete();
                     MainFramebuffer = GLDefaultFramebuffer;
                     GL.Enable(EnableCap.FramebufferSrgb);
                 }
             }
 
             Camera.SetViewportSize(w, h);
-            textRenderer.SetViewportSize(w, h);
             Picker?.Resize(w, h);
-        }
-
-        private void DisposeFramebuffer()
-        {
-            GLDefaultFramebuffer?.Dispose();
-            MainFramebuffer?.Dispose();
         }
 
         private void OnAppActivated(object sender, EventArgs e)
@@ -694,6 +699,7 @@ namespace GUI.Controls
                 return;
             }
 
+            lastUpdate = Stopwatch.GetTimestamp();
             HandleResize();
             GLControl.Invalidate();
         }
@@ -734,6 +740,13 @@ namespace GUI.Controls
 
             Clipboard.SetDataObject(data, copy: true);
         }
+
+#if DEBUG
+        private void OnCodeHotReloaded(object sender, EventArgs e)
+        {
+            GLControl.Invalidate();
+        }
+#endif
 
         public static void CheckOpenGL()
         {

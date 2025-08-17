@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -48,16 +48,6 @@ jobs:
           nuget-${{ runner.os }}-
           nuget-
 
-    - name: Build Library
-      run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
-
-    - name: Build CLI
-      run: dotnet build -c Release ./CLI/CLI.csproj
-
-    - name: Build GUI
-      if: matrix.os == 'windows-latest'
-      run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
-
     - name: Run tests
       run: dotnet test ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
 
@@ -76,6 +66,10 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: dotnet publish --configuration Release --self-contained --runtime win-x64 CLI/CLI.csproj
 
+    - name: Publish CLI (Windows arm64)
+      if: matrix.os == 'windows-11-arm'
+      run: dotnet publish --configuration Release --self-contained --runtime win-arm64 CLI/CLI.csproj
+
     - name: Publish CLI (Linux x64)
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release --self-contained --runtime linux-x64 CLI/CLI.csproj
@@ -85,7 +79,7 @@ jobs:
       run: dotnet publish --configuration Release --self-contained --runtime linux-arm CLI/CLI.csproj
 
     - name: Publish CLI (Linux arm64)
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-24.04-arm'
       run: dotnet publish --configuration Release --self-contained --runtime linux-arm64 CLI/CLI.csproj
 
     - name: Publish CLI (macOS x64)
@@ -117,6 +111,13 @@ jobs:
         name: cli-windows-x64
         path: CLI/bin/Release/win-x64/publish
 
+    - name: Upload CLI (Windows arm64)
+      uses: actions/upload-artifact@v4
+      if: matrix.os == 'windows-11-arm'
+      with:
+        name: cli-windows-arm64
+        path: CLI/bin/Release/win-arm64/publish
+
     - name: Upload CLI (Linux x64)
       uses: actions/upload-artifact@v4
       if: matrix.os == 'ubuntu-latest'
@@ -133,7 +134,7 @@ jobs:
 
     - name: Upload CLI (Linux arm64)
       uses: actions/upload-artifact@v4
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-24.04-arm'
       with:
         name: cli-linux-arm64
         path: CLI/bin/Release/linux-arm64/publish
@@ -187,6 +188,7 @@ jobs:
         path: |
           artifacts/Source2Viewer/
           artifacts/cli-windows-x64/
+          artifacts/cli-windows-arm64/
 
     - name: Sign the binaries
       uses: signpath/github-action-submit-signing-request@v1
@@ -213,6 +215,7 @@ jobs:
        chmod +x artifacts/cli-macos-x64/Source2Viewer-CLI
        chmod +x artifacts/cli-macos-arm64/Source2Viewer-CLI
        zip -9j release/cli-windows-x64.zip signed/cli-windows-x64/*
+       zip -9j release/cli-windows-arm64.zip signed/cli-windows-arm64/*
        zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
        zip -9j release/cli-linux-arm.zip artifacts/cli-linux-arm/*
        zip -9j release/cli-linux-arm64.zip artifacts/cli-linux-arm64/*

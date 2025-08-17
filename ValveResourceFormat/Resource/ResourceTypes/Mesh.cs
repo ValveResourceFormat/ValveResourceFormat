@@ -16,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes
             get
             {
                 //new format has VBIB block, for old format we can get it from NTRO DATA block
-                cachedVBIB ??= (VBIB)Resource.GetBlockByType(BlockType.VBIB) ?? new VBIB(Data);
+                cachedVBIB ??= (VBIB)Resource.GetBlockByType(BlockType.VBIB) ?? new VBIB(Resource, Data);
                 return cachedVBIB;
             }
             set

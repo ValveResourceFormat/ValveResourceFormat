@@ -72,6 +72,18 @@ namespace GUI.Types.Renderer
             return true;
         }
 
+        public bool Intersects(in Vector3 point)
+        {
+            for (var i = 0; i < Planes.Length; ++i)
+            {
+                if (Vector3.Dot(new Vector3(Planes[i].X, Planes[i].Y, Planes[i].Z), point) + Planes[i].W < 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public override int GetHashCode()
         {
             var hash = 0;

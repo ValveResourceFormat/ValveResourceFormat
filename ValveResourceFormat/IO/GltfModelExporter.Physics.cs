@@ -99,10 +99,13 @@ public partial class GltfModelExporter
                     node.Mesh = gltfMesh;
                     node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
 
+                    var interactAsStrings = collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings");
+                    var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. interactAsStrings]);
+
                     node.Extras = new System.Text.Json.Nodes.JsonObject
                     {
                         ["SurfaceProperty"] = surfaceProperty,
-                        ["InteractAs"] = System.Text.Json.JsonSerializer.SerializeToNode(collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings")),
+                        ["InteractAs"] = interactAsArray,
                     };
                 }
             }

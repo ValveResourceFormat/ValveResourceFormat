@@ -19,9 +19,10 @@ using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
+using ValveResourceFormat.Utils;
 using ValveResourceFormat.ValveFont;
 
-namespace Decompiler
+namespace CLI
 {
     public partial class Decompiler
     {
@@ -31,6 +32,7 @@ namespace Decompiler
         private HashSet<string>? knownEntityKeys;
 
         private readonly Lock ConsoleWriterLock = new();
+        private readonly StringBuilder ConsoleOutputBuilder = new(1024);
         private int CurrentFile;
         private int TotalFiles;
 
@@ -484,7 +486,7 @@ namespace Decompiler
                         Console.WriteLine($"Processing file {CurrentFile} out of {TotalFiles} files - {path}");
                     }
                 }
-                else if (IsInputFolder)
+                else if (IsInputFolder || originalPath != null)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Write($"[{CurrentFile}/{TotalFiles}] ");
@@ -705,7 +707,15 @@ namespace Decompiler
                     }
 
                     Console.WriteLine("--- Data for block \"{0}\" ---", block.Type);
-                    Console.WriteLine(block.ToString());
+
+                    lock (ConsoleWriterLock)
+                    {
+                        using var stringWriter = new ConsoleStringWriter(ConsoleOutputBuilder, CultureInfo.InvariantCulture);
+                        using var writer = new IndentedTextWriter(stringWriter);
+                        block.WriteText(writer);
+                        writer.Flush();
+                        Console.WriteLine();
+                    }
                 }
             }
         }
@@ -1188,13 +1198,16 @@ namespace Decompiler
 
                 var totalLength = (int)file.TotalLength;
                 var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
+                ContentFile? contentFile = null;
 
                 try
                 {
                     package.ReadEntry(file, rawFileData);
 
                     // Not a file that can be decompiled, or no decompilation was requested
-                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+                    var isVcsFile = totalLength >= 4
+                                    && BitConverter.ToUInt32(rawFileData.AsSpan()[..4]) == VfxProgramData.MAGIC;
+                    if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && !isVcsFile)
                     {
                         if (OutputFile != null)
                         {
@@ -1213,44 +1226,63 @@ namespace Decompiler
                         continue;
                     }
 
-                    using var resource = new Resource
-                    {
-                        FileName = filePath,
-                    };
                     using var memory = new MemoryStream(rawFileData, 0, totalLength);
-
-                    resource.Read(memory);
 
                     if (OutputFile != null)
                     {
                         string outputFile;
-
-                        if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                        // VCS files require multiple files to be decompiled together
+                        if (isVcsFile)
                         {
-                            var outputExtension = GltfExportFormat;
-                            outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
+                            var fileName = Path.GetFileNameWithoutExtension(filePath);
+                            // Only parse features files
+                            if (!fileName.EndsWith("_features", StringComparison.Ordinal))
+                            {
+                                continue;
+                            }
 
-                            Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+                            var collection = ShaderCollection.GetShaderCollection(filePath, package);
+                            contentFile = new ShaderExtract(collection).ToContentFile();
 
-                            gltfExporter.Export(resource, outputFile);
+                            // Remove the last part from the file name ("_features", ...)
+                            var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
+                            var directory = Path.GetDirectoryName(filePath);
 
-                            continue;
+                            outputFile = Path.Combine(directory ?? string.Empty, string.Concat(newFileNameBase, ".vfx"));
                         }
+                        else
+                        {
+                            using var resource = new Resource
+                            {
+                                FileName = filePath,
+                            };
+                            resource.Read(memory);
 
-                        using var contentFile = DecompileResource(resource, fileLoader);
+                            if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
+                            {
+                                var outputExtension = GltfExportFormat;
+                                outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
 
-                        outputFile = filePath;
+                                Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+
+                                gltfExporter.Export(resource, outputFile);
+
+                                continue;
+                            }
+
+                            contentFile = DecompileResource(resource, fileLoader);
+
+                            outputFile = filePath;
+                            extension = FileExtract.GetExtension(resource) ?? type[..^2];
+                            if (type != extension)
+                            {
+                                outputFile = Path.ChangeExtension(outputFile, extension);
+                            }
+                        }
 
                         if (RecursiveSearchArchives)
                         {
                             outputFile = Path.Combine(parentPath, outputFile);
-                        }
-
-                        extension = FileExtract.GetExtension(resource) ?? type[..^2];
-
-                        if (type != extension)
-                        {
-                            outputFile = Path.ChangeExtension(outputFile, extension);
                         }
 
                         outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
@@ -1264,6 +1296,7 @@ namespace Decompiler
                 }
                 finally
                 {
+                    contentFile?.Dispose();
                     ArrayPool<byte>.Shared.Return(rawFileData);
                 }
             }
@@ -1495,9 +1528,13 @@ namespace Decompiler
                 }
             }
 
+            using var stringWriter = new NullStringWriter();
+            using var writer = new IndentedTextWriter(stringWriter);
+
             foreach (var block in resource.Blocks)
             {
-                block.ToString();
+                block.WriteText(writer);
+                stringWriter.GetStringBuilder().Clear();
             }
 
             InternalTestExtraction.Test(resource);
@@ -1557,7 +1594,10 @@ namespace Decompiler
             info.Append("Version: ");
             info.AppendLine(typeof(Decompiler).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
             info.Append("OS: ");
-            info.AppendLine(RuntimeInformation.OSDescription);
+            info.Append(RuntimeInformation.OSDescription);
+            info.Append(" (");
+            info.Append(RuntimeInformation.OSArchitecture.ToString());
+            info.AppendLine(")");
             info.AppendLine("Website: https://valveresourceformat.github.io");
             info.Append("GitHub: https://github.com/ValveResourceFormat/ValveResourceFormat");
             return info.ToString();

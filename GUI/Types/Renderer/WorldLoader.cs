@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using GUI.Utils;
@@ -10,8 +11,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     class WorldLoader
@@ -21,16 +20,16 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext guiContext;
 
         public List<Entity> Entities { get; } = [];
-        public WorldNode MainWorldNode { get; private set; }
+        public WorldNode? MainWorldNode { get; private set; }
 
         public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
 
         public List<string> CameraNames { get; } = [];
         public List<Matrix4x4> CameraMatrices { get; } = [];
 
-        public Scene SkyboxScene { get; set; }
-        public SceneSkybox2D Skybox2D { get; set; }
-        public NavMeshFile NavMesh { get; set; }
+        public Scene? SkyboxScene { get; set; }
+        public SceneSkybox2D? Skybox2D { get; set; }
+        public NavMeshFile? NavMesh { get; set; }
 
         public Vector3 WorldOffset { get; set; } = Vector3.Zero;
         public float WorldScale { get; set; } = 1.0f;
@@ -65,19 +64,24 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var entityLump = (EntityLump)newResource.DataBlock;
-                LoadEntitiesFromLump(entityLump, "world_layer_base", Matrix4x4.Identity); // TODO: Hardcoded layer name
+                var entityLump = (EntityLump?)newResource.DataBlock;
+                if (entityLump == null)
+                {
+                    continue;
+                }
+
+                LoadEntitiesFromLump(entityLump, "Entities", Matrix4x4.Identity);
             }
 
             Action<List<SceneLight>> lightEntityStore = scene.LightingInfo.LightmapGameVersionNumber switch
             {
                 0 or 1 => scene.LightingInfo.StoreLightMappedLights_V1,
                 >= 2 => scene.LightingInfo.StoreLightMappedLights_V2,
-                _ => (List<SceneLight> x) => Log.Error(nameof(WorldLoader), $"Storing lights for lightmap version {scene.LightingInfo.LightmapGameVersionNumber} is not supported."),
+                _ => x => Log.Error(nameof(WorldLoader), $"Storing lights for lightmap version {scene.LightingInfo.LightmapGameVersionNumber} is not supported."),
             };
 
             lightEntityStore.Invoke(
-                scene.AllNodes.Where(n => n is SceneLight).Cast<SceneLight>().ToList()
+                scene.AllNodes.Where(static n => n is SceneLight).Cast<SceneLight>().ToList()
             );
 
             // Output is World_t we need to iterate m_worldNodes inside it.
@@ -92,7 +96,12 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var worldNodeData = (WorldNode)worldNodeResource.DataBlock;
+                    var worldNodeData = (WorldNode?)worldNodeResource.DataBlock;
+                    if (worldNodeData == null)
+                    {
+                        continue;
+                    }
+
                     MainWorldNode ??= worldNodeData;
 
                     var subloader = new WorldNodeLoader(guiContext, worldNodeData, worldNodeResource.ExternalReferences);
@@ -112,7 +121,7 @@ namespace GUI.Types.Renderer
         public void LoadWorldPhysics(Scene scene)
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
-            string worldPhysicsFolder = null;
+            string? worldPhysicsFolder = null;
 
             if (Path.GetExtension(guiContext.FileName) == ".vmap_c")
             {
@@ -123,12 +132,12 @@ namespace GUI.Types.Renderer
                 worldPhysicsFolder = Path.GetDirectoryName(guiContext.FileName);
             }
 
-            PhysAggregateData phys = null;
+            PhysAggregateData? phys = null;
             var physResource = guiContext.LoadFile(Path.Join(worldPhysicsFolder, "world_physics.vmdl_c"));
 
             if (physResource != null)
             {
-                phys = (PhysAggregateData)physResource.GetBlockByType(BlockType.PHYS);
+                phys = (PhysAggregateData?)physResource.GetBlockByType(BlockType.PHYS);
             }
             else
             {
@@ -136,12 +145,14 @@ namespace GUI.Types.Renderer
 
                 if (physResource != null)
                 {
-                    phys = (PhysAggregateData)physResource.DataBlock;
+                    phys = (PhysAggregateData?)physResource.DataBlock;
                 }
             }
 
             if (phys != null)
             {
+                Debug.Assert(physResource?.FileName != null);
+
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
                 {
                     physSceneNode.LayerName = "world_layer_base";
@@ -239,8 +250,14 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var childLump = (EntityLump)newResource.DataBlock;
-                var childName = childLump.Data.GetProperty<string>("m_name");
+                var childLump = (EntityLump?)newResource.DataBlock;
+
+                if (childLump == null)
+                {
+                    continue;
+                }
+
+                var childName = childLump.Name;
 
                 childEntityLumps.Add(childName, childLump);
             }
@@ -274,7 +291,7 @@ namespace GUI.Types.Renderer
                     return; // do not draw
                 }
 
-                var transformationMatrix = parentTransform * EntityTransformHelper.CalculateTransformationMatrix(entity);
+                var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
                 var light = SceneLight.IsAccepted(classname);
 
                 if (entity.Connections != null)
@@ -317,7 +334,7 @@ namespace GUI.Types.Renderer
                         Log.Warn(nameof(WorldLoader), $"Failed to find child entity lump with name {entityLumpName}.");
                     }
                 }
-                else if (classname == "env_sky" || classname == "ent_dota_lightinfo")
+                else if (classname == "env_sky" || classname == "env_global_light")
                 {
                     var skyname = entity.GetProperty<string>("skyname") ?? entity.GetProperty<string>("skybox_material_day");
                     var tintColor = Vector3.One;
@@ -345,6 +362,24 @@ namespace GUI.Types.Renderer
                             Tint = tintColor,
                             Transform = rotation,
                         };
+                    }
+
+                    if (classname == "env_global_light")
+                    {
+                        var angles = new Vector3(50, 43, 0);
+                        scene.Add(new SceneLight(scene)
+                        {
+                            Type = SceneLight.LightType.Directional,
+                            Transform = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles),
+                            Direction = SceneLight.AnglesToDirection(angles),
+                            Color = new Vector3(1.0f, 1.0f, 1.0f),
+                            Brightness = 1.0f,
+                            LayerName = "world_layer_base",
+                            Name = "Source 2 Viewer dynamic sunlight for Dota",
+                        }, false);
+
+                        scene.LightingInfo.EnableDynamicShadows = true;
+                        scene.LightingInfo.SunLightShadowCoverageScale = 4f;
                     }
                 }
                 else if (classname == "env_gradient_fog")
@@ -433,7 +468,7 @@ namespace GUI.Types.Renderer
                         var opacity = entity.GetPropertyUnchecked("cubemapfogmaxopacity", 1f);
                         var fogSource = entity.GetPropertyUnchecked("cubemapfogsource", 0u);
 
-                        RenderTexture fogTexture = null;
+                        RenderTexture? fogTexture = null;
                         var exposureBias = 0.0f;
 
                         if (fogSource == 0) // Cubemap From Texture, Disabled in CS2
@@ -443,7 +478,7 @@ namespace GUI.Types.Renderer
                         }
                         else
                         {
-                            string material = null;
+                            string? material = null;
 
                             if (fogSource == 1) // Cubemap From Env_Sky
                             {
@@ -584,9 +619,8 @@ namespace GUI.Types.Renderer
                             HandShake = handShake,
                             Irradiance = irradianceTexture,
                             IndoorOutdoorLevel = indoorOutdoorLevel,
+                            VoxelSize = entity.GetPropertyUnchecked<float>("voxel_size")
                         };
-
-                        lightProbe.VoxelSize = entity.GetPropertyUnchecked<float>("voxel_size");
 
                         var dliName = entity.GetProperty<string>("lightprobetexture_dli");
                         var dlsName = entity.GetProperty<string>("lightprobetexture_dls");
@@ -651,10 +685,10 @@ namespace GUI.Types.Renderer
                 if (particle != null)
                 {
                     var particleResource = guiContext.LoadFileCompiled(particle);
+                    var particleSystem = (ParticleSystem?)particleResource?.DataBlock;
 
-                    if (particleResource != null)
+                    if (particleSystem != null)
                     {
-                        var particleSystem = (ParticleSystem)particleResource.DataBlock;
                         var origin = new Vector3(positionVector.X, positionVector.Y, positionVector.Z);
 
                         try
@@ -711,7 +745,7 @@ namespace GUI.Types.Renderer
 
                         if (postProcessResource != null)
                         {
-                            var postProcessAsset = (PostProcessing)postProcessResource.DataBlock;
+                            var postProcessAsset = (PostProcessing?)postProcessResource.DataBlock;
 
                             postProcess.LoadPostProcessResource(postProcessAsset);
                         }
@@ -725,7 +759,7 @@ namespace GUI.Types.Renderer
 
                         if (postProcessModel != null)
                         {
-                            var ppModelResource = (Model)postProcessModel.DataBlock;
+                            var ppModelResource = (Model?)postProcessModel.DataBlock;
 
                             postProcess.ModelVolume = ppModelResource;
 
@@ -785,7 +819,7 @@ namespace GUI.Types.Renderer
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix);
                     return;
                 }
 
@@ -797,7 +831,7 @@ namespace GUI.Types.Renderer
 
                     if (errorModelResource != null)
                     {
-                        var errorModel = new ModelSceneNode(scene, (Model)errorModelResource.DataBlock, skin)
+                        var errorModel = new ModelSceneNode(scene, (Model?)errorModelResource.DataBlock, skin)
                         {
                             Name = "error",
                             Transform = transformationMatrix,
@@ -820,7 +854,7 @@ namespace GUI.Types.Renderer
                     renderamt /= 255f;
                 }
 
-                var newModel = (Model)newEntity.DataBlock;
+                var newModel = (Model?)newEntity.DataBlock;
 
                 var modelNode = new ModelSceneNode(scene, newModel, skin)
                 {
@@ -854,8 +888,8 @@ namespace GUI.Types.Renderer
                     scene.Add(modelNode, true);
                 }
 
-                var phys = newModel.GetEmbeddedPhys();
-                if (phys == null)
+                var phys = newModel?.GetEmbeddedPhys();
+                if (newModel != null && phys == null)
                 {
                     var refPhysicsPaths = newModel.GetReferencedPhysNames().ToArray();
                     if (refPhysicsPaths.Length != 0)
@@ -863,7 +897,7 @@ namespace GUI.Types.Renderer
                         var newResource = guiContext.LoadFileCompiled(refPhysicsPaths.First());
                         if (newResource != null)
                         {
-                            phys = (PhysAggregateData)newResource.DataBlock;
+                            phys = (PhysAggregateData?)newResource.DataBlock;
                         }
                     }
                 }
@@ -882,7 +916,7 @@ namespace GUI.Types.Renderer
                 else if (!modelNode.HasMeshes)
                 {
                     // If the loaded model has no meshes and has no physics, fallback to default entity
-                    CreateDefaultEntity(entity, classname, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix);
                 }
             }
 
@@ -919,7 +953,7 @@ namespace GUI.Types.Renderer
             // Maps have to be packed in a vpk?
             var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
             var vpkFound = guiContext.FileLoader.FindFile(vpkFile);
-            Package package;
+            Package? package;
 
             // Load the skybox map vpk and make it searchable in the file loader
             if (vpkFound.PathOnDisk != null)
@@ -929,6 +963,8 @@ namespace GUI.Types.Renderer
             }
             else if (vpkFound.PackageEntry != null)
             {
+                Debug.Assert(vpkFound.Package != null);
+
                 var innerVpkName = vpkFound.PackageEntry.GetFullPath();
 
                 Log.Info(nameof(WorldLoader), $"Preloading vpk \"{innerVpkName}\" from \"{vpkFound.Package.FileName}\"");
@@ -965,17 +1001,21 @@ namespace GUI.Types.Renderer
             );
 
             var skyboxWorld = guiContext.LoadFile(worldName);
+            var skyboxWorldData = (World?)skyboxWorld?.DataBlock;
 
-            if (skyboxWorld == null)
+            if (skyboxWorldData == null)
             {
-                guiContext.FileLoader.RemovePackageFromSearch(package);
+                if (package != null)
+                {
+                    guiContext.FileLoader.RemovePackageFromSearch(package);
+                }
                 return;
             }
 
             SkyboxScene = new Scene(guiContext);
             SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
 
-            var skyboxResult = new WorldLoader((World)skyboxWorld.DataBlock, SkyboxScene);
+            var skyboxResult = new WorldLoader(skyboxWorldData, SkyboxScene);
 
             // Take origin and angles from skybox_reference
             EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
@@ -1005,7 +1045,10 @@ namespace GUI.Types.Renderer
                 envmap.Transform *= offsetAndScaleTransform;
             }
 
-            guiContext.FileLoader.RemovePackageFromSearch(package);
+            if (package != null)
+            {
+                guiContext.FileLoader.RemovePackageFromSearch(package);
+            }
         }
 
         public void LoadNavigationMesh()
@@ -1027,11 +1070,11 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix)
+        private void CreateDefaultEntity(Entity entity, string classname, string layerName, Matrix4x4 transformationMatrix)
         {
             var hammerEntity = HammerEntities.Get(classname);
-            string filename = null;
-            Resource resource = null;
+            string? filename = null;
+            Resource? resource = null;
 
             if (hammerEntity?.Icons.Length > 0)
             {
@@ -1058,7 +1101,7 @@ namespace GUI.Types.Renderer
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
                     Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
-                    LayerName = "Entities",
+                    LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
                 };
@@ -1066,10 +1109,10 @@ namespace GUI.Types.Renderer
             }
             else if (resource.ResourceType == ResourceType.Model)
             {
-                var modelNode = new ModelSceneNode(scene, (Model)resource.DataBlock, null, isWorldPreview: true)
+                var modelNode = new ModelSceneNode(scene, (Model?)resource.DataBlock, null, isWorldPreview: true)
                 {
                     Transform = transformationMatrix,
-                    LayerName = "Entities",
+                    LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
                 };
@@ -1082,7 +1125,7 @@ namespace GUI.Types.Renderer
             {
                 var spriteNode = new SpriteSceneNode(scene, guiContext, resource, transformationMatrix.Translation)
                 {
-                    LayerName = "Entities",
+                    LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
                 };
@@ -1102,7 +1145,7 @@ namespace GUI.Types.Renderer
                         continue;
                     }
 
-                    var startEntity = FindEntityByKeyValue(line.StartKey, (string)value.Value);
+                    var startEntity = FindEntityByKeyValue(line.StartKey, (string)value.Value!);
 
                     if (startEntity == null)
                     {
@@ -1119,7 +1162,7 @@ namespace GUI.Types.Renderer
                             continue;
                         }
 
-                        var endEntity = FindEntityByKeyValue(line.EndKey, (string)value.Value);
+                        var endEntity = FindEntityByKeyValue(line.EndKey, (string)value.Value!);
 
                         if (endEntity == null)
                         {
@@ -1135,7 +1178,7 @@ namespace GUI.Types.Renderer
 
                     var lineNode = new LineSceneNode(scene, start, end, line.Color, line.Color)
                     {
-                        LayerName = "Entities",
+                        LayerName = layerName,
                         Transform = Matrix4x4.CreateTranslation(origin)
                     };
                     scene.Add(lineNode, true);
@@ -1180,13 +1223,16 @@ namespace GUI.Types.Renderer
                 var lineNode = new LineSceneNode(scene, lineStart, end, new Color32(0, 255, 0), new Color32(255, 0, 0))
                 {
                     LayerName = "Entity Connections",
-                    Transform = Matrix4x4.CreateTranslation(origin)
+                    Transform = Matrix4x4.CreateTranslation(origin),
+#if DEBUG
+                    Name = $"Line from {entity.GetProperty<string>("hammeruniqueid")} to {endEntity.GetProperty<string>("hammeruniqueid")}"
+#endif
                 };
                 scene.Add(lineNode, true);
             }
         }
 
-        private Entity FindEntityByKeyValue(string keyToFind, string valueToFind)
+        private Entity? FindEntityByKeyValue(string keyToFind, string valueToFind)
         {
             if (valueToFind == null)
             {

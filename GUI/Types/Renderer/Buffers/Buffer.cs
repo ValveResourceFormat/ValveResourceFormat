@@ -2,7 +2,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer.Buffers
 {
-    abstract class Buffer : IDisposable
+    abstract class Buffer
     {
         public BufferTarget Target { get; }
         public int Handle { get; }
@@ -39,7 +39,7 @@ namespace GUI.Types.Renderer.Buffers
             }
         }
 
-        public virtual void Dispose()
+        public void Delete()
         {
             GL.DeleteBuffer(Handle);
         }

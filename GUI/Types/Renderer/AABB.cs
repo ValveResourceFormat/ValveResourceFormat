@@ -14,6 +14,13 @@ namespace GUI.Types.Renderer
             Max = max;
         }
 
+        public AABB(Vector3 point, float uniformSize)
+        {
+            var size = new Vector3(uniformSize);
+            Min = point - size;
+            Max = point + size;
+        }
+
         public AABB(float min_x, float min_y, float min_z, float max_x, float max_y, float max_z)
         {
             Min = new Vector3(min_x, min_y, min_z);

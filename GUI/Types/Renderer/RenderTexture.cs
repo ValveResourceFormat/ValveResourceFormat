@@ -4,7 +4,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    class RenderTexture //: IDisposable
+    class RenderTexture
     {
         public TextureTarget Target { get; }
         public int Handle { get; }
@@ -39,6 +39,12 @@ namespace GUI.Types.Renderer
             Height = height;
             Depth = depth;
             NumMipLevels = mipcount;
+        }
+
+        public RenderTexture(int handle, TextureTarget target)
+        {
+            Handle = handle;
+            Target = target;
         }
 
         public void SetWrapMode(TextureWrapMode wrap)
@@ -77,7 +83,7 @@ namespace GUI.Types.Renderer
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, Handle, label.Length, label);
         }
 
-        public void Dispose()
+        public void Delete()
         {
             GL.DeleteTexture(Handle);
         }

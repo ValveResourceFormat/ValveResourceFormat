@@ -12,7 +12,7 @@ namespace GUI.Types.Renderer
     {
         public RenderableMesh RenderMesh { get; }
 
-        public List<Matrix4x4> InstanceTransforms { get; } = [];
+        public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer InstanceTransformsGpu { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }

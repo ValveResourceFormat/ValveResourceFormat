@@ -10,6 +10,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
 using Mesh = SharpGLTF.Schema2.Mesh;
+using VAnimationClip = ValveResourceFormat.ResourceTypes.ModelAnimation2.AnimationClip;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
@@ -55,6 +56,7 @@ namespace ValveResourceFormat.IO
         public static bool CanExport(Resource resource) => resource.ResourceType
             is ResourceType.Mesh
             or ResourceType.Model
+            or ResourceType.NmClip
             or ResourceType.EntityLump
             or ResourceType.PhysicsCollisionMesh
             or ResourceType.WorldNode
@@ -138,6 +140,9 @@ namespace ValveResourceFormat.IO
                     case ResourceType.PhysicsCollisionMesh:
                         ExportToFile(resource.FileName, targetPath, (PhysAggregateData)resource.DataBlock!);
                         break;
+                    case ResourceType.NmClip:
+                        ExportToFile(resource.FileName, targetPath, (VAnimationClip)resource.DataBlock!);
+                        break;
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
                 }
@@ -198,7 +203,7 @@ namespace ValveResourceFormat.IO
 
                 var entityLump = (VEntityLump)entityLumpResource.DataBlock!;
 
-                LoadEntityMeshes(exportedModel, scene, entityLump);
+                LoadEntityMeshes(exportedModel, scene, entityLump, Matrix4x4.Identity);
             }
 
             WriteModelFile(exportedModel, fileName);
@@ -246,18 +251,36 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
-            LoadEntityMeshes(exportedModel, scene, entityLump);
+            LoadEntityMeshes(exportedModel, scene, entityLump, Matrix4x4.Identity);
 
             WriteModelFile(exportedModel, fileName);
 
             ExportPhysicsIfAny(resourceName, fileName);
         }
 
-        private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump)
+        private void LoadEntityMeshes(ModelRoot exportedModel, Scene scene, VEntityLump entityLump, Matrix4x4 parentTransform)
         {
+            var childEntities = entityLump.GetChildEntityNames();
+            var childEntityLumps = new Dictionary<string, VEntityLump>(childEntities.Length);
+
+            foreach (var childEntityName in childEntities)
+            {
+                var newResource = FileLoader.LoadFileCompiled(childEntityName);
+
+                if (newResource == null)
+                {
+                    continue;
+                }
+
+                var childLump = (VEntityLump)newResource.DataBlock!;
+                var childName = childLump.Name;
+
+                childEntityLumps.Add(childName, childLump);
+            }
+
             foreach (var entity in entityLump.GetEntities())
             {
-                var transform = EntityTransformHelper.CalculateTransformationMatrix(entity);
+                var transform = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
                 var modelName = entity.GetProperty<string>("model");
                 var className = entity.GetProperty<string>("classname");
 
@@ -286,6 +309,19 @@ namespace ValveResourceFormat.IO
                         var node = scene.CreateNode(className);
                         node.PunctualLight = CreateGltfLightEnvironment(exportedModel, entity);
                         node.LocalMatrix = lightMatrix * TRANSFORMSOURCETOGLTF;
+                    }
+                    else if (className == "point_template")
+                    {
+                        var entityLumpName = entity.GetProperty<string>("entitylumpname");
+
+                        if (entityLumpName != null && childEntityLumps.TryGetValue(entityLumpName, out var childLump))
+                        {
+                            LoadEntityMeshes(exportedModel, scene, childLump, transform);
+                        }
+                        else
+                        {
+                            ProgressReporter?.Report($"Failed to find child entity lump with name {entityLumpName}.");
+                        }
                     }
 
                     continue;
@@ -320,9 +356,7 @@ namespace ValveResourceFormat.IO
                     renderamt /= 255f;
                 }
 
-                rendercolor.X = MathF.Pow(rendercolor.X, 2.2f);
-                rendercolor.Y = MathF.Pow(rendercolor.Y, 2.2f);
-                rendercolor.Z = MathF.Pow(rendercolor.Z, 2.2f);
+                rendercolor = ColorSpace.SrgbGammaToLinear(rendercolor);
                 var tintColor = new Vector4(rendercolor, renderamt);
 
                 // Add meshes and their skeletons
@@ -350,21 +384,6 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var childEntityName in entityLump.GetChildEntityNames())
-            {
-                if (childEntityName == null)
-                {
-                    continue;
-                }
-                var childEntityLumpResource = FileLoader.LoadFileCompiled(childEntityName);
-                if (childEntityLumpResource == null)
-                {
-                    continue;
-                }
-
-                var childEntityLump = (VEntityLump)childEntityLumpResource.DataBlock!;
-                LoadEntityMeshes(exportedModel, scene, childEntityLump);
-            }
         }
 
         private static string? GetSkinPathFromModel(VModel model, string skinName)
@@ -492,6 +511,37 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
+        /// <summary>
+        /// Export a Valve Animation Clip to GLTF.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="fileName">Target file name.</param>
+        /// <param name="animationClip">The animation clip resource to export.</param>
+        private void ExportToFile(string resourceName, string? fileName, VAnimationClip animationClip)
+        {
+            var exportedModel = CreateModelRoot(resourceName, out var scene);
+
+            var skeletonResource = FileLoader.LoadFileCompiled(animationClip.SkeletonName)
+                ?? throw new InvalidOperationException($"Unable to load skeleton data '{animationClip.SkeletonName}'.");
+
+            var skeletonData = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
+
+            var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, animationClip.SkeletonName);
+            if (joints == null)
+            {
+                throw new InvalidDataException($"Failure creating glTF skeleton for '{animationClip.SkeletonName}'.");
+            }
+
+            //if (ExportAnimations)
+            {
+                var animation = new ResourceTypes.ModelAnimation.Animation(animationClip);
+                var animationWriter = new AnimationWriter(skeletonData, []);
+                animationWriter.WriteAnimation(exportedModel, joints, animation);
+            }
+
+            WriteModelFile(exportedModel, fileName);
+        }
+
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
             Matrix4x4 transform, Vector4 tintColor, string? skinName = null, EntityLump.Entity? entity = null)
         {
@@ -510,25 +560,7 @@ namespace ValveResourceFormat.IO
                 Debug.Assert(joints != null);
 
                 var animations = model.GetAllAnimations(FileLoader);
-                // Add animations
-                var frame = new Frame(model.Skeleton, model.FlexControllers);
-                var boneCount = model.Skeleton.Bones.Length;
-
-                var rotationDicts = Enumerable.Range(0, boneCount)
-                    .Select(_ => new Dictionary<float, Quaternion>()).ToArray();
-                var lastRotations = new Quaternion?[boneCount];
-                var rotationOmitted = new bool[boneCount];
-
-                var translationDicts = Enumerable.Range(0, boneCount)
-                    .Select(_ => new Dictionary<float, Vector3>()).ToArray();
-                var lastTranslations = new Vector3?[boneCount];
-                var translationOmitted = new bool[boneCount];
-
-                var scaleDicts = Enumerable.Range(0, boneCount)
-                    .Select(_ => new Dictionary<float, Vector3>()).ToArray();
-                var lastScales = new Vector3?[boneCount];
-                var scaleOmitted = new bool[boneCount];
-
+                var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers);
                 var animationFilter = AnimationFilter;
 
                 // When exporting map entities, only export the default animation
@@ -548,125 +580,8 @@ namespace ValveResourceFormat.IO
                         continue;
                     }
 
-                    // Cleanup state
-                    frame.Clear(model.Skeleton);
-                    for (var i = 0; i < boneCount; i++)
-                    {
-                        rotationDicts[i].Clear();
-                        lastRotations[i] = null;
-                        rotationOmitted[i] = false;
-
-                        translationDicts[i].Clear();
-                        lastTranslations[i] = null;
-                        translationOmitted[i] = false;
-
-                        scaleDicts[i].Clear();
-                        lastScales[i] = null;
-                        scaleOmitted[i] = false;
-                    }
-
-                    var exportedAnimation = exportedModel.UseAnimation(animation.Name);
-
-                    var fps = animation.Fps;
-
-                    // Some models have fps of 0.000, which will make time a NaN
-                    if (fps == 0)
-                    {
-                        fps = 1f;
-                    }
-
-                    for (var frameIndex = 0; frameIndex < animation.FrameCount; frameIndex++)
-                    {
-                        frame.FrameIndex = frameIndex;
-                        animation.DecodeFrame(frame);
-                        var time = frameIndex / fps;
-                        var prevFrameTime = (frameIndex - 1) / fps;
-
-                        for (var boneID = 0; boneID < boneCount; boneID++)
-                        {
-                            var boneFrame = frame.Bones[boneID];
-
-                            var lastRotation = lastRotations[boneID];
-                            if (lastRotation != boneFrame.Angle)
-                            {
-                                if (lastRotation != null && rotationOmitted[boneID])
-                                {
-                                    rotationOmitted[boneID] = false;
-                                    // Restore keyframe before current frame, as otherwise interpolation will
-                                    // begin from the first instance of identical frame, and not from previous frame
-                                    rotationDicts[boneID].Add(prevFrameTime, lastRotation.Value);
-                                }
-                                rotationDicts[boneID].Add(time, boneFrame.Angle);
-                                lastRotations[boneID] = boneFrame.Angle;
-                            }
-                            else
-                            {
-                                rotationOmitted[boneID] = true;
-                            }
-
-                            var lastTranslation = lastTranslations[boneID];
-                            if (lastTranslation != boneFrame.Position)
-                            {
-                                if (lastTranslation != null && translationOmitted[boneID])
-                                {
-                                    translationOmitted[boneID] = false;
-                                    // Restore keyframe before current frame, as otherwise interpolation will
-                                    // begin from the first instance of identical frame, and not from previous frame
-                                    translationDicts[boneID].Add(prevFrameTime, lastTranslation.Value);
-                                }
-                                translationDicts[boneID].Add(time, boneFrame.Position);
-                                lastTranslations[boneID] = boneFrame.Position;
-                            }
-                            else
-                            {
-                                translationOmitted[boneID] = true;
-                            }
-
-                            var lastScale = lastScales[boneID];
-                            var boneFrameScale = boneFrame.Scale;
-
-                            if (float.IsNaN(boneFrameScale) || float.IsInfinity(boneFrameScale))
-                            {
-                                // See https://github.com/ValveResourceFormat/ValveResourceFormat/issues/527 (NaN)
-                                // and https://github.com/ValveResourceFormat/ValveResourceFormat/issues/570 (inf)
-                                boneFrameScale = 0.0f;
-                            }
-
-                            var scaleVec = boneFrameScale * Vector3.One;
-
-                            if (lastScale != scaleVec)
-                            {
-                                if (lastScale != null && scaleOmitted[boneID])
-                                {
-                                    scaleOmitted[boneID] = false;
-                                    // Restore keyframe before current frame, as otherwise interpolation will
-                                    // begin from the first instance of identical frame, and not from previous frame
-                                    scaleDicts[boneID].Add(prevFrameTime, lastScale.Value);
-                                }
-                                scaleDicts[boneID].Add(time, scaleVec);
-                                lastScales[boneID] = scaleVec;
-                            }
-                            else
-                            {
-                                scaleOmitted[boneID] = true;
-                            }
-                        }
-                    }
-
-                    for (var boneID = 0; boneID < boneCount; boneID++)
-                    {
-                        if (animation.FrameCount == 0)
-                        {
-                            rotationDicts[boneID].Add(0f, model.Skeleton.Bones[boneID].Angle);
-                            translationDicts[boneID].Add(0f, model.Skeleton.Bones[boneID].Position);
-                            scaleDicts[boneID].Add(0f, Vector3.One);
-                        }
-
-                        var jointNode = joints[boneID];
-                        exportedAnimation.CreateRotationChannel(jointNode, rotationDicts[boneID], true);
-                        exportedAnimation.CreateTranslationChannel(jointNode, translationDicts[boneID], true);
-                        exportedAnimation.CreateScaleChannel(jointNode, scaleDicts[boneID], true);
-                    }
+                    animationWriter.WriteAnimation(exportedModel, joints, animation);
+                    CancellationToken.ThrowIfCancellationRequested();
                 }
             }
             else
@@ -889,6 +804,7 @@ namespace ValveResourceFormat.IO
         {
             var intensity = entity.GetPropertyUnchecked("brightness", 1f);
             var color = entity.GetColor32Property("color");
+            color = ColorSpace.SrgbGammaToLinear(color);
 
             var envLight = exportedModel
                 .CreatePunctualLight(PunctualLightType.Directional)

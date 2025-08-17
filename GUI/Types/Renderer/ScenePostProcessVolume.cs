@@ -209,6 +209,7 @@ namespace GUI.Types.Renderer
                 ColorCorrectionLutDimensions = resolution;
 
                 ColorCorrectionLUT = new RenderTexture(TextureTarget.Texture3D, resolution, resolution, resolution, 1);
+                ColorCorrectionLUT.SetLabel(nameof(ColorCorrectionLUT));
                 ColorCorrectionLUT.SetWrapMode(TextureWrapMode.ClampToEdge);
                 ColorCorrectionLUT.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
                 GL.TextureStorage3D(ColorCorrectionLUT.Handle, 1, SizedInternalFormat.Rgba8, resolution, resolution, resolution);

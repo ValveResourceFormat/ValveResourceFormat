@@ -18,15 +18,15 @@ namespace ValveResourceFormat.ResourceTypes
             _layoutContent = Resource.GetBlockByType(BlockType.LaCo) as BinaryKV3;
         }
 
-        public override string ToString()
+        public override void WriteText(IndentedTextWriter writer)
         {
             if (_layoutContent == default)
             {
-                return base.ToString();
+                base.WriteText(writer);
             }
             else
             {
-                return PanoramaLayoutPrinter.Print(_layoutContent.AsKeyValueCollection());
+                writer.Write(PanoramaLayoutPrinter.Print(_layoutContent.AsKeyValueCollection()));
             }
         }
     }

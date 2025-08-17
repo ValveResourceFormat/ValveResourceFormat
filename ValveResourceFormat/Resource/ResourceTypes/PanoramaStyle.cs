@@ -16,29 +16,26 @@ namespace ValveResourceFormat.ResourceTypes
             SourceMap = Resource.GetBlockByType(BlockType.SrMa) as BinaryKV3;
         }
 
-        public override string ToString() => ToString(true);
-
-        public string ToString(bool applySourceMapIfPresent)
+        public override void WriteText(IndentedTextWriter writer)
         {
-            if (applySourceMapIfPresent && SourceMap != default && SourceMap.Data.GetProperty<object>("DBITSLC") is not null)
+            if (SourceMap != default && SourceMap.Data.GetProperty<object>("DBITSLC") is not null)
             {
 #if false
                 var sourceBytes = PanoramaSourceMapDecoder.Decode(Data, SourceMap.AsKeyValueCollection());
-                return Encoding.UTF8.GetString(sourceBytes);
+                writer.Write(Encoding.UTF8.GetString(sourceBytes));
+                return;
 #endif
 
-                return ToStringPrettified(Data);
+                WritePrettyText(writer);
+                return;
             }
-            else
-            {
-                return base.ToString();
-            }
+
+            base.WriteText(writer);
         }
 
-        private static string ToStringPrettified(byte[] data)
+        private void WritePrettyText(IndentedTextWriter output)
         {
-            var input = Encoding.UTF8.GetString(data);
-            using var output = new IndentedTextWriter();
+            var input = Encoding.UTF8.GetString(Data);
 
             output.WriteLine($"/* Prettified by {StringToken.VRF_GENERATOR} */");
             output.WriteLine();
@@ -92,8 +89,6 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
             }
-
-            return output.ToString();
         }
     }
 

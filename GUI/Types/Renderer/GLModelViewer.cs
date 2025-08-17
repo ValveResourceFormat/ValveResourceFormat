@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -14,8 +16,8 @@ namespace GUI.Types.Renderer
     {
         protected Model model { get; init; }
         private PhysAggregateData phys;
-        public ComboBox animationComboBox { get; private set; }
-        private CheckBox animationPlayPause;
+        public ComboBox animationComboBox { get; protected set; }
+        protected CheckBox animationPlayPause;
         private CheckBox rootMotionCheckBox;
         private CheckBox showSkeletonCheckbox;
         private ComboBox hitboxComboBox;
@@ -24,7 +26,8 @@ namespace GUI.Types.Renderer
         public CheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
-        private SkeletonSceneNode skeletonSceneNode;
+        protected AnimationController animationController;
+        protected SkeletonSceneNode skeletonSceneNode;
         private HitboxSetSceneNode hitboxSetSceneNode;
         private CheckedListBox physicsGroupsComboBox;
 
@@ -62,35 +65,36 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void AddAnimationControls()
+        protected void AddAnimationControls()
         {
-            animationComboBox = AddSelection("Animation", (animation, _) =>
+            if (modelSceneNode != null)
             {
-                if (modelSceneNode != null)
+                animationComboBox = AddSelection("Animation", (animation, _) =>
                 {
                     modelSceneNode.SetAnimation(animation);
-                    rootMotionCheckBox.Enabled = modelSceneNode.AnimationController.ActiveAnimation?.HasMovementData() ?? false;
+                    rootMotionCheckBox.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
                     enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
-                }
-            });
+                });
+            }
+
             animationPlayPause = AddCheckBox("Autoplay", true, isChecked =>
             {
-                if (modelSceneNode != null)
+                if (animationController != null)
                 {
-                    modelSceneNode.AnimationController.IsPaused = !isChecked;
+                    animationController.IsPaused = !isChecked;
                 }
             });
             animationTrackBar = AddTrackBar(frame =>
             {
-                if (modelSceneNode != null)
+                if (animationController != null)
                 {
-                    modelSceneNode.AnimationController.Frame = frame;
+                    animationController.Frame = frame;
                 }
             });
 
             slowmodeTrackBar = AddTrackBar(value =>
             {
-                modelSceneNode.AnimationController.FrametimeMultiplier = value / 100f;
+                animationController.FrametimeMultiplier = value / 100f;
             });
             slowmodeTrackBar.TrackBar.TickFrequency = 10;
             slowmodeTrackBar.TrackBar.Minimum = 0;
@@ -104,12 +108,12 @@ namespace GUI.Types.Renderer
             var previousPaused = false;
             animationTrackBar.TrackBar.MouseDown += (_, __) =>
             {
-                previousPaused = modelSceneNode.AnimationController.IsPaused;
-                modelSceneNode.AnimationController.IsPaused = true;
+                previousPaused = animationController.IsPaused;
+                animationController.IsPaused = true;
             };
             animationTrackBar.TrackBar.MouseUp += (_, __) =>
             {
-                modelSceneNode.AnimationController.IsPaused = previousPaused;
+                animationController.IsPaused = previousPaused;
             };
 
             rootMotionCheckBox = AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
@@ -129,6 +133,7 @@ namespace GUI.Types.Renderer
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
+                animationController = modelSceneNode.AnimationController;
                 Scene.Add(modelSceneNode, true);
 
                 var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
@@ -139,7 +144,7 @@ namespace GUI.Types.Renderer
                     SetAvailableAnimations(animations);
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, modelSceneNode.AnimationController, model.Skeleton, textRenderer);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
 
                 if (model.Skeleton.Bones.Length > 0)
@@ -156,7 +161,7 @@ namespace GUI.Types.Renderer
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
                     var hitboxSets = model.HitboxSets;
-                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, modelSceneNode.AnimationController, hitboxSets);
+                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, animationController, hitboxSets);
                     Scene.Add(hitboxSetSceneNode, true);
 
                     hitboxComboBox = AddSelection("Hitbox Set", (hitboxSet, i) =>
@@ -223,31 +228,7 @@ namespace GUI.Types.Renderer
                     materialGroupListBox.SelectedIndex = 0;
                 }
 
-                modelSceneNode.AnimationController.RegisterUpdateHandler((animation, frame) =>
-                {
-                    if (frame == -1)
-                    {
-                        var maximum = animation == null ? 1 : animation.FrameCount - 1;
-                        if (maximum < 0)
-                        {
-                            maximum = 0;
-                        }
-                        if (animationTrackBar.TrackBar.Maximum != maximum)
-                        {
-                            animationTrackBar.TrackBar.Maximum = maximum;
-                            animationTrackBar.TrackBar.TickFrequency = maximum / 10;
-                        }
-                        animationTrackBar.Enabled = animation != null;
-                        animationPlayPause.Enabled = animation != null;
-                        slowmodeTrackBar.Enabled = animation != null;
-
-                        frame = 0;
-                    }
-                    else if (animationTrackBar.TrackBar.Value != frame)
-                    {
-                        animationTrackBar.TrackBar.Value = frame;
-                    }
-                });
+                SetAnimationControllerUpdateHandler();
             }
             else
             {
@@ -301,6 +282,96 @@ namespace GUI.Types.Renderer
             }
         }
 
+        protected void SetAnimationControllerUpdateHandler()
+        {
+            animationController?.RegisterUpdateHandler((animation, frame) =>
+            {
+                if (frame == -1)
+                {
+                    var maximum = animation == null ? 1 : animation.FrameCount - 1;
+                    if (maximum < 0)
+                    {
+                        maximum = 0;
+                    }
+                    if (animationTrackBar.TrackBar.Maximum != maximum)
+                    {
+                        animationTrackBar.TrackBar.Maximum = maximum;
+                        animationTrackBar.TrackBar.TickFrequency = maximum / 10;
+                    }
+                    animationTrackBar.Enabled = animation != null;
+                    animationPlayPause.Enabled = animation != null;
+                    slowmodeTrackBar.Enabled = animation != null;
+
+                    frame = 0;
+                }
+                else if (animationTrackBar.TrackBar.Value != frame)
+                {
+                    animationTrackBar.TrackBar.Value = frame;
+                }
+            });
+        }
+
+        private string GetModelStatsText()
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Mesh Count: {modelSceneNode.RenderableMeshes.Count}");
+
+            foreach (var mesh in modelSceneNode.RenderableMeshes)
+            {
+                var meshName = mesh.Name.Split(":")[^1];
+                var size = mesh.BoundingBox.Max - mesh.BoundingBox.Min;
+
+                var vertexTotal = 0;
+                var triangleTotal = 0;
+                var coloredMaterialNames = new List<string>();
+
+                void AddColoredMaterialName(DrawCall call)
+                {
+                    var tintHex = Color32.FromVector4(call.TintColor).HexCode;
+                    coloredMaterialNames.Add($"\\{tintHex}{Path.GetFileNameWithoutExtension(call.Material.Material.Name)}");
+                }
+
+                foreach (var opaqueDraw in mesh.DrawCallsOpaque)
+                {
+                    AddColoredMaterialName(opaqueDraw);
+                    vertexTotal += (int)opaqueDraw.VertexCount;
+                    triangleTotal += opaqueDraw.IndexCount / 3;
+                }
+
+                foreach (var blendedDraw in mesh.DrawCallsBlended)
+                {
+                    AddColoredMaterialName(blendedDraw);
+                    vertexTotal += (int)blendedDraw.VertexCount;
+                    triangleTotal += blendedDraw.IndexCount / 3;
+                }
+
+                foreach (var overlayDraw in mesh.DrawCallsOverlay)
+                {
+                    AddColoredMaterialName(overlayDraw);
+                    vertexTotal += (int)overlayDraw.VertexCount;
+                    triangleTotal += overlayDraw.IndexCount / 3;
+                }
+
+                var moreThanSixEllipsis = coloredMaterialNames.Count > 6 ? "..." : string.Empty;
+                var allColoredMaterials = string.Join("\\#FFFFFFFF, ", coloredMaterialNames.Take(6)) + "\\#FFFFFFFF" + moreThanSixEllipsis;
+
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"""
+
+                    Mesh '{meshName}':
+                        DrawCalls : {coloredMaterialNames.Count} ({allColoredMaterials})
+                        Vertices  : {triangleTotal:N0}
+                        Triangles : {vertexTotal:N0}
+                        Size      : X: {size.X:0.##} | Y: {size.Y:0.##} | Z: {size.Z:0.##}
+
+                    """
+                );
+            }
+
+            return sb.ToString();
+        }
+
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
         {
             foreach (var physNode in Scene.AllNodes.OfType<PhysSceneNode>())
@@ -317,7 +388,7 @@ namespace GUI.Types.Renderer
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
-            if (enableRootMotion && modelSceneNode.AnimationController.GetFrame() is Frame animationFrame)
+            if (enableRootMotion && animationController.AnimationFrame is Frame animationFrame)
             {
                 var rootMotionDelta = animationFrame.Movement.Position - LastRootMotionPosition;
 
@@ -344,7 +415,7 @@ namespace GUI.Types.Renderer
             if (pickingResponse.PixelInfo.ObjectId == 0)
             {
                 selectedNodeRenderer.SelectNode(null);
-                selectedNodeRenderer.UpdateEveryFrame = false;
+                selectedNodeRenderer.ScreenDebugText = string.Empty;
                 return;
             }
 
@@ -352,8 +423,7 @@ namespace GUI.Types.Renderer
             {
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 selectedNodeRenderer.SelectNode(sceneNode);
-                selectedNodeRenderer.UpdateEveryFrame = true;
-
+                selectedNodeRenderer.ScreenDebugText = GetModelStatsText();
                 return;
             }
 

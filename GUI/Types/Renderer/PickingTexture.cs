@@ -46,7 +46,7 @@ class PickingTexture : Framebuffer
     // could share depth buffer with main framebuffer, but msaa doesn't match
     // private readonly Framebuffer depthSource;
 
-    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked)
+    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked) : base(nameof(PickingTexture))
     {
         guiContext = vrfGuiContext;
         Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking");
@@ -56,26 +56,10 @@ class PickingTexture : Framebuffer
         DepthFormat = DepthAttachmentFormat.Depth32F;
         Target = TextureTarget.Texture2D;
         ClearColor = Color4.Black;
-    }
 
-    public override void Resize(int width, int height)
-    {
-        base.Resize(width, height);
-
-        // resize is a good place to initialize the framebuffer with proper dimensions
-        if (InitialStatus == FramebufferErrorCode.FramebufferUndefined)
-        {
-            if (!HasValidDimensions())
-            {
-                return;
-            }
-
-            Initialize();
-
-            Color.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-
-            CheckStatus_ThrowIfIncomplete(nameof(PickingTexture));
-        }
+        Width = 4;
+        Height = 4;
+        Initialize();
     }
 
     public void RequestNextFrame(int x, int y, PickingIntent intent)
@@ -136,15 +120,5 @@ class PickingTexture : Framebuffer
         }
 
         DebugShader = null;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            OnPicked = null;
-        }
-
-        base.Dispose(disposing);
     }
 }
