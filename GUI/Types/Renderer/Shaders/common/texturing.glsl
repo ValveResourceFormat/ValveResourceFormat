@@ -365,6 +365,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #define renderMode_Irradiance 0
 #define renderMode_Tint 0
 #define renderMode_FoliageParams 0
+#define renderMode_VertexColor 0
 #define renderMode_TerrainBlend 0
 #define renderMode_LightmapShadows 0
 
