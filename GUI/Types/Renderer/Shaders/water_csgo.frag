@@ -29,9 +29,6 @@ out vec4 outputColor;
 #define F_CAUSTICS 0
 #define F_BLUR_REFRACTION 0
 
-
-//uniform vec4 g_vSimpleSkyReflectionColor = vec4(1.0, 1.0, 1.0, 1.0);
-
 uniform float g_flWaterPlaneOffset = 0.0;
 uniform float g_flSkyBoxScale = 16.0;
 uniform float g_flSkyBoxFadeRange = 0.05;
@@ -130,9 +127,6 @@ uniform sampler2D g_tWavesNormalHeight;
     uniform vec4 g_vSimpleSkyReflectionColor = vec4(1.0);
 #endif
 
-//uniform sampler2D g_tSceneColor;
-//uniform sampler2D g_tSceneDepth;
-
 //#if (F_REFRACTION == 1)
     uniform sampler2D g_tSceneColor;
     uniform sampler2D g_tSceneDepth;
@@ -140,6 +134,7 @@ uniform sampler2D g_tWavesNormalHeight;
 
 vec3 sunColor = GetLightColor(0);
 vec3 sunDir = GetEnvLightDirection(0);
+
 //float g_flLocalTime = 370.234375;
 //#define g_flTime g_flLocalTime
 
@@ -653,7 +648,6 @@ void main()
         float finalRefractedNormalizedDepth = (texture(g_tSceneDepth, gbufferUV + finalRefractionUVOffset).x - g_flViewportMinZ) / depthBufferRange;
         finalRefractedNormalizedDepth = max(finalRefractedNormalizedDepth, 0.0000001);
 
-
         //vec4 finalRefractedColor = texture(g_tSceneColor, clamp(gbufferUV + finalRefractionUVOffset, vec2(0.0), vec2(1.0)));
 
         #if F_BLUR_REFRACTION == 1
@@ -895,267 +889,9 @@ void main()
     {
         lightingFactor = fma(vec3(max(0.0, dot(mat.NormalMap.xyz, sunDir))).xyz, (sunColor * finalShadowingEffect).xyz, g_vToolsAmbientLighting.xyz);
     }
-    {
-    //----- LIGHT CULLING AND LIGHTING (not entirely understood by me, I didn't want to spend time on things we aren't doing rn)
-    /*
-    if (PerViewConstantBufferCsgo_t.g_bOtherEnabled2.x)
-    {
-        //vec4 _24261 = vec4(trueWorldPos, 1.0).xyzw * mat4(vec4(PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[0].x, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[1].x, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[2].x, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[3].x), vec4(PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[0].y, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[1].y, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[2].y, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[3].y), vec4(PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[0].z, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[1].z, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[2].z, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[3].z), vec4(PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[0].w, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[1].w, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[2].w, PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0[3].w));
-        vec4 _24261 = vec4(trueWorldPos, 1.0).xyzw * transpose(PerViewConstantBufferCsgo_t.g_matPrimaryViewWorldToProjection._m0);
-        vec2 ndcXY = _24261.xy / _24261.w;
-        vec4 _6654;
-        _6654.x = clamp(((ndcXY.x + 1.0) * PerViewConstantBuffer_t.g_vViewportSize.x) * 0.5, 0.0, PerViewConstantBuffer_t.g_vViewportSize.x - 1.0);
-        _6654.y = clamp(((1.0 - ndcXY.y) * PerViewConstantBuffer_t.g_vViewportSize.y) * 0.5, 0.0, PerViewConstantBuffer_t.g_vViewportSize.y - 1.0);
-        _6654.w = _20181;
-        pixelCoordInvW = _6654;
-    }
-
-    uvec2 _12083 = uvec2(pixelCoordInvW.xy - PerViewConstantBuffer_t.g_vViewportOffset.xy) >> uvec2(g_vTileCullParams.x);
-    uint _10838 = g_vLightCullParams.y + (((_12083.y * g_vTileCullParams.y) + _12083.x) * g_vLightCullParams.z);
-    uint _23393 = g_vLightCullParams.x + (uint(clamp(pixelCoordInvW.w * undetermined._m6.x, 0.0, undetermined._m6.y)) * g_vLightCullParams.z);
-    vec3 _13155;
-    _13155 = lightingFactor;
-    uint _7172;
-    vec3 _13156;
-    uint _16208 = 0u;
-    for (;;)
-    {
-        if (!(_16208 < g_vLightCullParams.z))
-        {
-            break;
-        }
-        uint _13365 = subgroupOr(g_CullBits_1._m0[_10838 + _16208] & g_CullBits_1._m0[_23393 + _16208]);
-        uint _24597 = _16208 * 32u;
-        _7172 = _16208 + 1u;
-        _13156 = _13155;
-        uint _20344;
-        vec3 _12504;
-        uint _16209 = _13365;
-        for (;;)
-        {
-            if (!(_16209 != 0u))
-            {
-                break;
-            }
-            int _11281 = int(uint(findLSB(_16209)) + _24597);
-            _20344 = _16209 & (_16209 - 1u);
-            do
-            {
-                vec3 _14644 = lightingSamplePos.xyz;
-                vec4 _15817 = mat4(vec4(g_BarnLights_1._m0[_11281]._m0._m0[0].x, g_BarnLights_1._m0[_11281]._m0._m0[1].x, g_BarnLights_1._m0[_11281]._m0._m0[2].x, g_BarnLights_1._m0[_11281]._m0._m0[3].x), vec4(g_BarnLights_1._m0[_11281]._m0._m0[0].y, g_BarnLights_1._m0[_11281]._m0._m0[1].y, g_BarnLights_1._m0[_11281]._m0._m0[2].y, g_BarnLights_1._m0[_11281]._m0._m0[3].y), vec4(g_BarnLights_1._m0[_11281]._m0._m0[0].z, g_BarnLights_1._m0[_11281]._m0._m0[1].z, g_BarnLights_1._m0[_11281]._m0._m0[2].z, g_BarnLights_1._m0[_11281]._m0._m0[3].z), vec4(g_BarnLights_1._m0[_11281]._m0._m0[0].w, g_BarnLights_1._m0[_11281]._m0._m0[1].w, g_BarnLights_1._m0[_11281]._m0._m0[2].w, g_BarnLights_1._m0[_11281]._m0._m0[3].w)) * vec4(lightingSamplePos.xyz, 1.0);
-                vec3 _10521 = _15817.xyz / vec3(_15817.w);
-                vec4 _22905;
-                _22905.x = _10521.x;
-                _22905.y = _10521.y;
-                _22905.z = _10521.z;
-                vec3 _21543 = _22905.xyz;
-                vec3 _21662;
-                if ((g_BarnLights_1._m0[_11281]._m14 & 4u) != 0u)
-                {
-                    vec2 _6281 = _22905.yx * vec2(1.0, -1.0);
-                    vec3 _23716 = _21543;
-                    _23716.x = _6281.x;
-                    _23716.y = _6281.y;
-                    _21662 = _23716;
-                }
-                else
-                {
-                    _21662 = _21543;
-                }
-                bool _7424;
-                if (all(greaterThan(_21662.xyz, vec3(-1.0, -1.0, 0.0))))
-                {
-                    _7424 = all(lessThan(_21662.xyz, vec3(1.0)));
-                }
-                else
-                {
-                    _7424 = false;
-                }
-                bool _12886;
-                if (!_7424)
-                {
-                    _12886 = true;
-                }
-                else
-                {
-                    _12886 = !all(lessThanEqual(abs((mat4x3(vec3(g_BarnLights_1._m0[_11281]._m15._m0[0].x, g_BarnLights_1._m0[_11281]._m15._m0[1].x, g_BarnLights_1._m0[_11281]._m15._m0[2].x), vec3(g_BarnLights_1._m0[_11281]._m15._m0[0].y, g_BarnLights_1._m0[_11281]._m15._m0[1].y, g_BarnLights_1._m0[_11281]._m15._m0[2].y), vec3(g_BarnLights_1._m0[_11281]._m15._m0[0].z, g_BarnLights_1._m0[_11281]._m15._m0[1].z, g_BarnLights_1._m0[_11281]._m15._m0[2].z), vec3(g_BarnLights_1._m0[_11281]._m15._m0[0].w, g_BarnLights_1._m0[_11281]._m15._m0[1].w, g_BarnLights_1._m0[_11281]._m15._m0[2].w)) * vec4(_14644, 1.0)).xyz), vec3(1.0)));
-                }
-                if (_12886)
-                {
-                    _12504 = _13156;
-                    break;
-                }
-                float _12415 = g_BarnLights_1._m0[_11281]._m5.z * (-2.0);
-                float _21996 = 2.0 * g_BarnLights_1._m0[_11281]._m5.x;
-                float _15157 = 2.0 * g_BarnLights_1._m0[_11281]._m5.w;
-                float _19536 = _15157 * g_BarnLights_1._m0[_11281]._m5.z;
-                vec3 _16268 = vec3(fma(_21996, g_BarnLights_1._m0[_11281]._m5.y, -_19536), fma(_12415, g_BarnLights_1._m0[_11281]._m5.z, fma(g_BarnLights_1._m0[_11281]._m5.x * (-2.0), g_BarnLights_1._m0[_11281]._m5.x, 1.0)), fma(2.0 * g_BarnLights_1._m0[_11281]._m5.y, g_BarnLights_1._m0[_11281]._m5.z, _15157 * g_BarnLights_1._m0[_11281]._m5.x)) * g_BarnLights_1._m0[_11281]._m6.z;
-                float _21316;
-                if (g_BarnLights_1._m0[_11281]._m3.z > 0.0)
-                {
-                    _21316 = min(1.0, _21662.z * g_BarnLights_1._m0[_11281]._m3.z);
-                }
-                else
-                {
-                    _21316 = 1.0;
-                }
-                float _19667;
-                if (g_BarnLights_1._m0[_11281]._m3.w > 0.0)
-                {
-                    _19667 = _21316 * min(1.0, (1.0 - _21662.z) * g_BarnLights_1._m0[_11281]._m3.w);
-                }
-                else
-                {
-                    _19667 = _21316;
-                }
-                vec3 _11179;
-                float _11937;
-                if (g_BarnLights_1._m0[_11281]._m2.w != 0.0)
-                {
-                    vec3 _10017 = g_BarnLights_1._m0[_11281]._m2.xyz - _14644;
-                    float _18345 = dot(_10017, _10017);
-                    float _17647 = sqrt(_18345);
-                    vec3 _12302 = _10017 - _16268;
-                    vec3 _10210;
-                    do
-                    {
-                        vec3 _20229 = (_10017 + _16268) - _12302;
-                        float _25105 = dot(-_12302, _20229);
-                        if (_25105 <= 0.0)
-                        {
-                            _10210 = _12302;
-                            break;
-                        }
-                        else
-                        {
-                            _10210 = _12302 + (_20229 * min(1.0, _25105 / dot(_20229, _20229)));
-                            break;
-                        }
-                        break; // unreachable workaround
-                    } while(false);
-                    _11179 = _10017 / vec3(_17647);
-                    _11937 = ((_19667 * (g_BarnLights_1._m0[_11281]._m2.w / max(_18345, g_BarnLights_1._m0[_11281]._m2.w))) * clamp(fma(g_BarnLights_1._m0[_11281]._m3.y, _17647, g_BarnLights_1._m0[_11281]._m3.x), 0.0, 1.0)) * clamp(fma(g_BarnLights_1._m0[_11281]._m6.y, dot(vec3(fma(_12415, g_BarnLights_1._m0[_11281]._m5.z, fma(g_BarnLights_1._m0[_11281]._m5.y * (-2.0), g_BarnLights_1._m0[_11281]._m5.y, 1.0)), fma(_21996, g_BarnLights_1._m0[_11281]._m5.y, _19536), fma(_21996, g_BarnLights_1._m0[_11281]._m5.z, -(_15157 * g_BarnLights_1._m0[_11281]._m5.y))), normalize(_10210)), g_BarnLights_1._m0[_11281]._m6.x), 0.0, 1.0);
-                }
-                else
-                {
-                    _11179 = g_BarnLights_1._m0[_11281]._m2.xyz;
-                    _11937 = _19667;
-                }
-                vec3 _15440 = (g_BarnLights_1._m0[_11281]._m4.xyz * 1.0).xyz * _11937;
-                bool _24419;
-                if (g_BarnLights_1._m0[_11281]._m8.z > 0.0)
-                {
-                    _24419 = !_20060;
-                }
-                else
-                {
-                    _24419 = false;
-                }
-                vec3 _21548;
-                if (g_BarnLights_1._m0[_11281]._m4.w == 0.0)
-                {
-                    float _10342;
-                    do
-                    {
-                        vec2 _22154 = abs(_21662.xy);
-                        if (g_BarnLights_1._m0[_11281]._m9.z == 0.0)
-                        {
-                            _10342 = smoothstep(1.0, g_BarnLights_1._m0[_11281]._m9.x, _22154.x) * smoothstep(1.0, g_BarnLights_1._m0[_11281]._m9.y, _22154.y);
-                            break;
-                        }
-                        else
-                        {
-                            float _11473 = _22154.x;
-                            float _15266 = 2.0 / g_BarnLights_1._m0[_11281]._m9.z;
-                            float _15017 = _22154.y;
-                            float _23041 = (-0.5) * g_BarnLights_1._m0[_11281]._m9.z;
-                            float _11981 = (g_BarnLights_1._m0[_11281]._m9.x * g_BarnLights_1._m0[_11281]._m9.y) * pow(max(pow(g_BarnLights_1._m0[_11281]._m9.y * _11473, _15266) + pow(g_BarnLights_1._m0[_11281]._m9.x * _15017, _15266), 1.1754943508222875079687365372222e-38), _23041);
-                            float _16524 = pow(max(pow(_11473, _15266) + pow(_15017, _15266), 1.1754943508222875079687365372222e-38), _23041);
-                            if (_11981 < _16524)
-                            {
-                                _10342 = smoothstep(_16524, _11981, 1.0);
-                                break;
-                            }
-                            else
-                            {
-                                _10342 = float(_16524 > 1.0);
-                                break;
-                            }
-                            break; // unreachable workaround
-                        }
-                        break; // unreachable workaround
-                    } while(false);
-                    _21548 = _15440.xyz * _10342;
-                }
-                else
-                {
-                    vec3 _12503;
-                    if (g_BarnLights_1._m0[_11281]._m4.w < 0.0)
-                    {
-                        vec4 _17795 = vec4(-g_BarnLights_1._m0[_11281]._m5.xyz, g_BarnLights_1._m0[_11281]._m5.w);
-                        vec4 _19008 = _17795.xyzw * vec4(-1.0, -1.0, -1.0, 1.0);
-                        vec3 _24989 = _19008.xyz;
-                        vec3 _23629 = vec4((-_11179).xyz, 0.0).xyz;
-                        float _15156 = -dot(_23629, _24989);
-                        vec3 _20479 = vec4((_23629 * _19008.w) + cross(_23629, _24989), _15156).xyz;
-                        vec3 _23592 = _17795.xyz;
-                        vec3 _12170 = ((_20479 * g_BarnLights_1._m0[_11281]._m5.w) + (_23592 * _15156)) + cross(_23592, _20479);
-                        vec3 _14385 = vec3(vec2(atan(_12170.y, -_12170.x) * 0.15915493667125701904296875, acos(_12170.z) * 0.3183098733425140380859375), -g_BarnLights_1._m0[_11281]._m4.w);
-                        vec2 _13665 = fma(_14385.xy, g_BarnLights_1._m0[_11281]._m9.zw, g_BarnLights_1._m0[_11281]._m9.xy);
-                        vec3 _19313 = _14385;
-                        _19313.x = _13665.x;
-                        _19313.y = _13665.y;
-                        _12503 = _15440.xyz * textureLod(sampler3D(g_tLightCookieTexture, Filter_21_AddressU_0_AddressV_0_AllowGlobalMipBiasOverride_0), _19313.xyz, 0.0).xyz;
-                    }
-                    else
-                    {
-                        vec3 _14095 = vec3(fma(_22905.xy, vec2(0.5, -0.5), vec2(0.5)), g_BarnLights_1._m0[_11281]._m4.w);
-                        vec2 _13664 = fma(_14095.xy, g_BarnLights_1._m0[_11281]._m9.zw, g_BarnLights_1._m0[_11281]._m9.xy);
-                        vec3 _19312 = _14095;
-                        _19312.x = _13664.x;
-                        _19312.y = _13664.y;
-                        _12503 = _15440.xyz * textureLod(sampler3D(g_tLightCookieTexture, Filter_20_AddressU_3_AddressV_3_AddressW_3_BorderColor_0), _19312.xyz, 0.0).xyz;
-                    }
-                    _21548 = _12503;
-                }
-                if (all(equal(_21548.xyz, vec3(0.0))))
-                {
-                    _12504 = _13156;
-                    break;
-                }
-                vec3 _19629;
-                if (_24419)
-                {
-                    vec3 _20482 = _21548.xyz * mix(1.0, textureLod(sampler2DShadow(g_tShadowDepthBufferDepth, AddressU_2_AddressV_2_Filter_149_ComparisonFunc_3), vec3(vec3(fma(_21662.xy, g_BarnLights_1._m0[_11281]._m8.zw, g_BarnLights_1._m0[_11281]._m8.xy), _21662.z).xy, clamp(_21662.z + undetermined._m8, 0.0, 1.0)), 0.0), g_BarnLights_1._m0[_11281]._m12);
-                    if (all(equal(_20482.xyz, vec3(0.0))))
-                    {
-                        _12504 = _13156;
-                        break;
-                    }
-                    _19629 = _20482;
-                }
-                else
-                {
-                    _19629 = _21548;
-                }
-                _12504 = fma(vec3(max(0.0, dot(mat.NormalMap.xyz, _11179.xyz))).xyz, _19629.xyz, _13156.xyz);
-                break;
-            } while(false);
-            _13156 = _12504;
-            _16209 = _20344;
-            continue;
-        }
-        _13155 = _13156;
-        _16208 = _7172;
-        continue;
-    }*/
-    }
-    //TODO: find something comparable to g_vFastPathSunLightBakedShadowMask
-
     vec3 _22686 = (lightingFactor.xyz + bakedIrradiance) * mix(mix((baseFogColor * waterFogAlpha) * g_flWaterFogShadowStrength, finalFoamColor.xyz, vec3(combinedfinalFoamIntensity)), vec4(debrisColorHeightSample.xyz * fma(finalDebrisFactor, 0.5, 0.5), debrisEdgeFactor).xyz * g_vDebrisTint.xyz, vec3(clamp(debrisEdgeFactor - noClue, 0.0, 1.0))).xyz;
 
     outputColor.rgb = vec3(vec3(clamp(debrisEdgeFactor - noClue, 0.0, 1.0)));
-    //return;
 
     #if F_REFRACTION == 0
       combinedRefractedColor = vec3(0);
@@ -1203,15 +939,11 @@ void main()
         vec3 cubemapReflection = SrgbGammaToLinear(g_vSimpleSkyReflectionColor.rgb);
     #endif
 
-    bool has_hit = false;
     //TODO: get the correct parameters, this is just a hack for now
     //cubemapReflection = texture(g_tLowEndCubeMap, reflect(viewDir, mat.NormalMap)).rgb * g_flLowEndCubeMapIntensity * GetLuma(ambientTerm);
-
     //cubemapReflection
 
     vec3 finalReflectionColor = cubemapReflection;
-
-
 
     float SSRStepCountMultiplier = clamp((cameraDir.z + 0.75) * 4.0, 0.0, 1.0) * (0.5 + 0.5 * float(!isSkybox));
 
@@ -1229,8 +961,6 @@ void main()
 
     if(SSRStepCount > 0)
     {
-        //outputColor.rgb = vec3(10.0, 0.0, 0.0);
-        //return;
         float SsrHitThickness = fma(blueNoiseDitherFactor, g_flSSRSampleJitter, g_flSSRMaxThickness);
 
         mat4 transWorldToView = transpose(g_matWorldToView);
@@ -1423,38 +1153,21 @@ void main()
     //outputColor.rgb = vec3(clamp(fma(g_flEdgeHardness, effectiveWaterDepthForFog, clamp(combinedfinalFoamIntensity, 0.0, 1.0)) + fma(debrisHeightVal, 2.0, -0.5), 0.0, 1.0));
     //return;
 
-    // --- MOIT SOMETHING (for now unused, do we even do MOIT?) ---
-//    if (one_minus_e_to_the_zeroth > 0.0)
-//    {
-//        vec4 _3401 = texelFetch(g_tMoitFinal, scaledFragCoord, 0);
-//        vec3 _8598 = _3401.xyz * (one_minus_e_to_the_zeroth / (_3401.w + 9.9999997473787516355514526367188e-06));
-//        vec4 _8677;
-//        _8677.x = _8598.x;
-//        _8677.y = _8598.y;
-//        _8677.z = _8598.z;
-//        vec3 _24094 = _8677.xyz + (returnColor8.xyz * e_to_the_zerothMoment);
-//        vec4 _20494 = returnColor8;
-//        _20494.x = _24094.x;
-//        _20494.y = _24094.y;
-//        _20494.z = _24094.z;
-//        returnColor = _20494;
-//    }
-
     outputColor.rgb = returnColor;
 
-    if (HandleMaterialRenderModes(outputColor, mat))
+    if (!HandleMaterialRenderModes(outputColor, mat))
     {
-    }
-    else if (g_iRenderMode == renderMode_Cubemaps)
-    {
-        outputColor.rgb = finalReflectionColor;
-    }
-    else if (g_iRenderMode == renderMode_Height)
-    {
-        outputColor.rgb = SrgbGammaToLinear(mat.Height.xxx);
-    }
-    else if (g_iRenderMode == renderMode_TerrainBlend)
-    {
-        outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.xyz);
+        if (g_iRenderMode == renderMode_Cubemaps)
+        {
+            outputColor.rgb = finalReflectionColor;
+        }
+        else if (g_iRenderMode == renderMode_Height)
+        {
+            outputColor.rgb = SrgbGammaToLinear(mat.Height.xxx);
+        }
+        else if (g_iRenderMode == renderMode_TerrainBlend)
+        {
+            outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.xyz);
+        }
     }
 }

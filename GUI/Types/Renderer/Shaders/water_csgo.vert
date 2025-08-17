@@ -43,7 +43,6 @@ void main()
 
     vec3 offset = vec3(0);
 
-
     //TODO: this is probably wrong because refraction modes != r_csgo_water_refraction true/false
     //#if F_REFRACTION == 1
         offset =  vNormalOut * g_flWaterPlaneOffset * mix(1.0, 1.0 / g_flSkyBoxScale, float(g_bIsSkybox)) * 1;
