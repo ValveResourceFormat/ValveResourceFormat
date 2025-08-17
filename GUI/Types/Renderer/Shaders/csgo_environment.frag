@@ -6,7 +6,6 @@
 #define renderMode_Tint 0
 #define renderMode_Diffuse 0
 #define renderMode_Specular 0
-#define renderMode_Height 0
 #define renderMode_VertexColor 0
 #define renderMode_Irradiance 0
 #define renderMode_TerrainBlend 0

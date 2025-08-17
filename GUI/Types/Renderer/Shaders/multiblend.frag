@@ -1,17 +1,5 @@
 #version 460
 
-// Render modes -- Switched on/off by code
-#define renderMode_FullBright 0
-#define renderMode_Color 0
-#define renderMode_Normals 0
-#define renderMode_Roughness 0
-#define renderMode_Tangents 0
-#define renderMode_BumpMap 0
-#define renderMode_BumpNormals 0
-#define renderMode_Illumination 0
-#define renderMode_TerrainBlend 0
-#define renderMode_Tint 0
-
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_TINT_MASK 0
 #define F_NORMAL_MAP 0
