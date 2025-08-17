@@ -11,10 +11,7 @@ layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.glsl"
 
 in vec4 vCOLOR;
-
-#if (F_SECONDARY_UV == 1)
-    in vec2 vTEXCOORD1;
-#endif
+in vec2 vTEXCOORD1;
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     in vec2 vLightmapUV;
@@ -47,6 +44,8 @@ uniform float g_flModelTintAmount = 1.0;
 #include "common/LightingConstants.glsl"
 
 // Material 1
+uniform int g_nUVSet1 = 1; // 0=Biplanar, 1=UV1, 2=UV2
+uniform int g_nDetailUVSet1 = -1; // -1=Use g_nUVSet1, 1=UV1, 2=UV2
 uniform float g_flTexCoordRotation1 = 0.0;
 uniform vec2 g_vTexCoordCenter1 = vec2(0.5);
 uniform vec2 g_vTexCoordOffset1 = vec2(0.0);
@@ -54,6 +53,8 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
 
 // Material 2
 #if defined(csgo_environment_blend_vfx)
+    uniform int g_nUVSet2 = 1;
+    uniform int g_nDetailUVSet2 = -1; // -1=Use g_nUVSet2, 1=UV1, 2=UV2
     uniform float g_flTexCoordRotation2 = 0.0;
     uniform vec2 g_vTexCoordCenter2 = vec2(0.5);
     uniform vec2 g_vTexCoordOffset2 = vec2(0.0);
@@ -72,6 +73,8 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
 
 
     #if (F_ENABLE_LAYER_3 == 1)
+        uniform int g_nUVSet3 = 1;
+        uniform int g_nDetailUVSet3 = -1; // -1=Use g_nUVSet3, 1=UV1, 2=UV2
         uniform float g_flTexCoordRotation3 = 0.0;
         uniform vec2 g_vTexCoordCenter3 = vec2(0.5);
         uniform vec2 g_vTexCoordOffset3 = vec2(0.0);
@@ -94,6 +97,7 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
 
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
+        uniform int g_nColorOverlayUVSet = 2;
         uniform float g_flOverlayTexCoordRotation = 0.0;
         uniform vec2 g_vOverlayTexCoordCenter = vec2(0.5);
         uniform vec2 g_vOverlayTexCoordOffset = vec2(0.0);
@@ -153,18 +157,87 @@ void main()
 
     vVertexColor_Alpha = vec4(SrgbGammaToLinear(g_vColorTint.rgb) * vVertexPaint, object.vTint.a);
 
-    #if (F_SECONDARY_UV == 1)
-        vTexCoord2.zw = vTEXCOORD1.xy;
+    // Set up UV coordinates for all texture layers
+    vec4 baseUVs = vec4(vTEXCOORD.xy, vTEXCOORD1.xy);
+
+    vec2 selectedUVs1 = (g_nUVSet1 == 2) ? baseUVs.zw : baseUVs.xy;
+    vTexCoord.xy = RotateVector2D(selectedUVs1,
+        g_flTexCoordRotation1,
+        g_vTexCoordScale1.xy,
+        g_vTexCoordOffset1.xy,
+        g_vTexCoordCenter1.xy
+    );
+
+    #if defined(csgo_environment_blend_vfx)
+        vec2 selectedUVs2 = (g_nUVSet2 == 2) ? baseUVs.zw : baseUVs.xy;
+        vTexCoord2.xy = RotateVector2D(selectedUVs2,
+            g_flTexCoordRotation2,
+            g_vTexCoordScale2.xy,
+            g_vTexCoordOffset2.xy,
+            g_vTexCoordCenter2.xy
+        );
+
+        #if (F_ENABLE_LAYER_3 == 1)
+            vec2 selectedUVs3 = (g_nUVSet3 == 2) ? baseUVs.zw : baseUVs.xy;
+            vTexCoord3.xy = RotateVector2D(selectedUVs3,
+                g_flTexCoordRotation3,
+                g_vTexCoordScale3.xy,
+                g_vTexCoordOffset3.xy,
+                g_vTexCoordCenter3.xy
+            );
+            vTexCoord3.zw = baseUVs.xy;
+        #endif
+
+        #if (F_SHARED_COLOR_OVERLAY == 1)
+            if (g_nColorOverlayUVSet > 0) {
+                vec2 selectedUVsOverlay = (g_nColorOverlayUVSet == 2) ? baseUVs.zw : baseUVs.xy;
+                vTexCoord.zw = RotateVector2D(selectedUVsOverlay,
+                    g_flOverlayTexCoordRotation,
+                    g_vOverlayTexCoordScale.xy,
+                    g_vOverlayTexCoordOffset.xy,
+                    g_vOverlayTexCoordCenter.xy
+                );
+            }
+        #endif
+
+        vTexCoord2.zw = baseUVs.zw;
     #endif
 
     #if (F_DETAIL_NORMAL == 1)
-        const bool bDetailNormalUsesUV2 = (F_SECONDARY_UV == 1 && F_DETAIL_NORMAL_USES_SECONDARY_UVS == 1);
-        vDetailTexCoords = RotateVector2D(bDetailNormalUsesUV2 ? vTexCoord2.zw : vTEXCOORD.xy,
+        // Select UV set based on detail UV set setting
+        int actualDetailUVSet = (g_nDetailUVSet1 == -1) ? g_nUVSet1 : g_nDetailUVSet1;
+        vec2 detailUVs = (actualDetailUVSet == 2) ? vTEXCOORD1.xy : vTEXCOORD.xy;
+
+        vDetailTexCoords = RotateVector2D(detailUVs,
             g_flDetailTexCoordRotation1,
             g_vDetailTexCoordScale1.xy,
             g_vDetailTexCoordOffset1.xy,
             g_vDetailTexCoordCenter1.xy
         );
+
+        #if defined(csgo_environment_blend_vfx)
+            // Layer 2 detail normals
+            int actualDetailUVSet2 = (g_nDetailUVSet2 == -1) ? g_nUVSet2 : g_nDetailUVSet2;
+            vec2 detailUVs2 = (actualDetailUVSet2 == 2) ? vTEXCOORD1.xy : vTEXCOORD.xy;
+            vTexCoord2.zw = RotateVector2D(detailUVs2,
+                g_flDetailTexCoordRotation2,
+                g_vDetailTexCoordScale2.xy,
+                g_vDetailTexCoordOffset2.xy,
+                g_vDetailTexCoordCenter2.xy
+            );
+
+            #if (F_ENABLE_LAYER_3 == 1)
+                // Layer 3 detail normals
+                int actualDetailUVSet3 = (g_nDetailUVSet3 == -1) ? g_nUVSet3 : g_nDetailUVSet3;
+                vec2 detailUVs3 = (actualDetailUVSet3 == 2) ? vTEXCOORD1.xy : vTEXCOORD.xy;
+                vTexCoord3.zw = RotateVector2D(detailUVs3,
+                    g_flDetailTexCoordRotation3,
+                    g_vDetailTexCoordScale3.xy,
+                    g_vDetailTexCoordOffset3.xy,
+                    g_vDetailTexCoordCenter3.xy
+                );
+            #endif
+        #endif
     #endif
 
     #if defined(csgo_environment_blend_vfx)
@@ -218,16 +291,6 @@ void main()
         #endif
 
         vColorBlendValues.a = clamp(vColorBlendValues.a + flSoftness, 0.001, 1.0);
-
-        #if (F_SHARED_COLOR_OVERLAY == 1)
-            vTexCoord.zw = RotateVector2D((F_SECONDARY_UV == 1) ? vTexCoord2.zw : vTEXCOORD.xy,
-                g_flOverlayTexCoordRotation,
-                g_vOverlayTexCoordScale.xy,
-                g_vOverlayTexCoordOffset.xy,
-                g_vOverlayTexCoordCenter.xy
-            );
-        #endif
-
     #endif
 
     vCentroidNormalOut = vNormalOut;
