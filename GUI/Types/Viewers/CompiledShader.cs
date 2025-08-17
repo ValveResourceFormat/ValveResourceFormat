@@ -598,10 +598,13 @@ namespace GUI.Types.Viewers
                     _ => VfxVariableType.Void,
                 };
 
-                var uniformBufferBindingOffset = isVertexShader ? 14u : 0;
+                var uniformBufferBindingOffset = 0u; // used to have 14 offset on vertex shader
                 var uniformBufferBinding = binding - uniformBufferBindingOffset;
 
-                var isGlobalsBuffer = uniformBufferBinding == 0 && set == 0;
+                // confirmed 0 in vs, gs, 1 in ps
+                var globalsBufferSet = program.VcsProgramType is VcsProgramType.PixelShader ? 1 : 0;
+
+                var isGlobalsBuffer = uniformBufferBinding == 0 && set == globalsBufferSet;
 
                 var name = resourceType switch
                 {
