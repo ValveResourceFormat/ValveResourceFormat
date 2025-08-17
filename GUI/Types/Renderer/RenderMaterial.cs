@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
         public bool IsOverlay { get; }
         public bool IsAlphaTest { get; }
         public bool IsToolsMaterial { get; }
-        public bool WantsFrameBufferCopy { get; }
+        public bool IsCs2Water { get; }
         public bool DoNotCastShadows { get; }
 
         private readonly bool isAdditiveBlend;
@@ -141,9 +141,10 @@ namespace GUI.Types.Renderer
 
             if (material.ShaderName == "csgo_water_fancy.vfx")
             {
-                IsTranslucent = false;
+                IsTranslucent = true;
                 IsAlphaTest = true;
-                WantsFrameBufferCopy = true;
+                DoNotCastShadows = true;
+                IsCs2Water = true;
             }
 
             // :MaterialIsOverlay

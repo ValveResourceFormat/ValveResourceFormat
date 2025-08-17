@@ -49,7 +49,7 @@ void main()
         offset =  vNormalOut * g_flWaterPlaneOffset * mix(1.0, 1.0 / g_flSkyBoxScale, float(g_bIsSkybox)) * 1;
     //#endif
 
-    vec4 worldSpacePos = transform * vec4(vPOSITION, 1.0);
+    vec4 worldSpacePos = CalculateObjectToWorldMatrix() * vec4(vPOSITION, 1.0);
 
     //Here comes some of the greatest fucking bullshit I have ever seen
     vec3 vertDir = normalize(worldSpacePos.xyz - g_vCameraPositionWs);
