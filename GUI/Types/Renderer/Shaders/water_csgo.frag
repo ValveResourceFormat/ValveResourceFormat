@@ -5,7 +5,6 @@
 #include "common/ViewConstants.glsl"
 #include "common/LightingConstants.glsl"
 
-
 #define renderMode_Irradiance 0
 #define renderMode_LightmapShadows 0
 #define renderMode_Cubemaps 0
@@ -18,7 +17,6 @@ in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec4 vColorBlendValues;
 
-
 #include "common/lighting_common.glsl"
 #include "common/fullbright.glsl"
 #include "common/texturing.glsl"
@@ -28,8 +26,6 @@ in vec4 vColorBlendValues;
 
 // Must be last
 #include "common/lighting.glsl"
-
-
 
 out vec4 outputColor;
 
@@ -140,7 +136,6 @@ uniform sampler3D g_tLightCookieTexture;
 uniform sampler2D g_tMoitFinal;
 uniform sampler2D g_tWavesNormalHeight;
 
-
 #if (F_REFLECTION_TYPE == 0)
     uniform vec4 g_vSimpleSkyReflectionColor = vec4(1.0);
 #endif
@@ -157,7 +152,6 @@ vec3 sunColor = GetLightColor(0);
 vec3 sunDir = GetEnvLightDirection(0);
 //float g_flLocalTime = 370.234375;
 //#define g_flTime g_flLocalTime
-
 
 bool HandleRenderingModes()
 {
@@ -228,7 +222,6 @@ void main()
     vec4 fragCoordWInverse = fragCoord;
     fragCoordWInverse.w = 1.0 / fragCoord.w;
 
-
     // --- Normal Preparation ---
     bool flipBackfaceNormals = false;
     if(g_bRenderBackfaceNormals)
@@ -249,9 +242,6 @@ void main()
     float visibilityFromMoment = exp(-texelFetch(g_tZerothMoment, momentTexelCoords, 0).x);
     float occlusionFactor = 1.0 - visibilityFromMoment;
     if (occlusionFactor > 0.9998999834060669) { discard; }
-
-
-
 
     // --- Skybox Scale Effect & Blue Noise ---
 
@@ -278,23 +268,15 @@ void main()
     // around line 406 in decomp
     float blueNoiseDitherFactor = blueNoiseOffset.x * 2.0;
 
-
-
-
     // --- Position & View Vectors ---
 
     //FragCoord.xy * PerViewConstantBuffer_t.g_vInvGBufferSize.xy in decompile
     vec2 gbufferUV = fragCoord.xy / textureSize( g_tSceneColor, 0);
 
-
     vec2 unbiasedUV = (worldPos.xy - g_vMapUVMin.xy) / (g_vMapUVMax.xy - g_vMapUVMin.xy);
-
-
     unbiasedUV.y = 1.0 - unbiasedUV.y;
 
     vec3 relFragPos = worldPos - g_vCameraPositionWs;
-
-
 
     vec3 viewDir = normalize(relFragPos);
     vec3 invViewDir = -viewDir;
@@ -307,26 +289,18 @@ void main()
     //The following is not in the direct decompile either, but the inverse offset like this exists atleast once
     vec3 worldPosToCamera = g_vCameraPositionWs - worldPos;
 
-
-
-
     // ---- Skybox corrected projection stuff ---------
-
     //Gemini suggested this one below but its not even used here yet. Again TODO to check that
     //vec3 scaledRelFragPos = relFragPos * SkyboxScale;
     //vec3 horChangerateSqrtZ = mix( vec3(invViewDir.xy / invViewDir.z, sqrt(invViewDir.z)), vec3(0.0), isSkybox);
     vec3 viewDepOffsetFactor = mix(vec3(viewDir.xy / viewDir.z, sqrt(-viewDir.z)), vec3(0.0), vec3(isSkybox));
 
-
-
     // ---- Something about Refraction (idk either) ------
-
     float refractionDistortionFactor = 0.0;
     float waterColumnOpticalDepthFactor = 1.0;
     vec4 refractionColorSample = vec4(0.0);
     float sceneNormalizedDepth = 1.0;
     vec3 sceneHitPositionWs = vec3(0.0);
-
 
     //What the fuck is this for? TODO, also not in the raw decompile
     float sceneViewDistance = -0.95;
@@ -382,7 +356,6 @@ void main()
     float refractedVerticalFactor = waterColumnOpticalDepthFactor * invViewDir.z;
 
     // --- Get Roughness, Foam and Debris ----
-
     float currentWaterRoughness;
     if(isSkybox)
     {
@@ -395,25 +368,13 @@ void main()
     float currentFoamAmount = isSkybox ? 0.0 : max(0.0, mix(g_flFoamMin, g_flFoamMax, vColorBlendValues.y));
 
     float currentDebrisVisibility = (isSkybox ? 0.0 : max(0.0, mix(g_flDebrisMin, g_flDebrisMax, vColorBlendValues.z)));
-
-
-
-
     vec2 baseWaveUV = (worldPos.xy * SkyboxScale + viewDepOffsetFactor.xy * (0.5 - g_flWaterPlaneOffset)) / 30.f; // Another arbitrary scale
 
     vec2 baseWaveUVDx = dFdx(baseWaveUV);
     //TODO: same shit as earlier with dFdy: why is it flipped in CS?
     vec2 baseWaveUVDy = -dFdy(baseWaveUV);
 
-    //outputColor = vec4(-baseWaveUVDy, 1.0, 1.0);
-    //return;
-
     float reflectionsLodFactor = (0.5 * pow(max(dot(baseWaveUVDx, baseWaveUVDx), dot(baseWaveUVDy, baseWaveUVDy)), 0.1)) * g_flReflectionDistanceEffect;
-
-
-    //outputColor = vec4(reflectionsLodFactor);
-    //return;
-
 
     //(fragCoord.xy - g_vViewportOffset.xy) * g_vInvViewportSize.xy * g_vViewportToGBufferRatio.xy, just assuming a size of SceneColor and ratio of 1.0
     vec2 waterEffectsMapUV = gbufferUV;
@@ -430,8 +391,6 @@ void main()
     float clampedLodFactor = clamp(reflectionsLodFactor, 0.0, 0.5);
 
     //TODO: I have no idea what the fuck this does and I don't have the energy to find out rn
-
-
     vec3 refractShiftedPos = sceneHitPositionWs + viewDepOffsetFactor * clamp(dot(refractionColorSample.rgb, vec3(0.2125, 0.7154, 0.0721)), 0.0, 0.4);
 
     vec3 refractShiftedPosDdx = dFdx(refractShiftedPos);
@@ -439,15 +398,12 @@ void main()
     vec3 refractShiftedPosDdy = -dFdy(refractShiftedPos);
     vec3 reconstructedWorldNormal = -normalize(cross(refractShiftedPosDdx, refractShiftedPosDdy));
 
-
     float timeAnim = g_flTime * 3.0 + sin(g_flTime * 0.5) * 0.1;
-
 
     vec2 depthFactorFine = vec2(clamp(adjustedWaterColumnDepth * 10.0, 0.0, 1.0));
     vec2 depthFactorCoarse = vec2(clamp(adjustedWaterColumnDepth * 4.0, 0.0, 1.0));
 
     //outputColor = vec4(adjustedWaterColumnDepth) * 1000; return;
-
 
     float sceneDepthChangeMagnitude = fwidth(sceneNormalizedDepth);
 
@@ -464,14 +420,11 @@ void main()
 
     float currentWaveAngle = g_flWaterInitialDirection;
 
-
-
     for (uint i = 0; i < g_nWaveIterations; ++i)
     {
         float iterProgress = float(i) / (float(g_nWaveIterations) - 1.0);
 
         // Weight for this wave octave (low, med, high frequencies)
-
         float lowMedBlend = clamp(iterProgress * 2.0, 0.0, 1.0);
         float medHighBlend = clamp(iterProgress * 2.0 - 1.0, 0.0, 1.0);
 
@@ -479,9 +432,9 @@ void main()
         float medFreqWeight = fma(totalDisturbanceStrength, 0.25, g_flMedFreqWeight);
 
         float lowMedWeightedAmplitude = mix(
-        lowFreqWeight,
-        medFreqWeight,
-        lowMedBlend
+            lowFreqWeight,
+            medFreqWeight,
+            lowMedBlend
         );
 
         float freqWeight = mix(
@@ -494,29 +447,21 @@ void main()
         vec2 waveAnimOffset = vec2(sin(currentWaveAngle), cos(currentWaveAngle)) * (g_flTime * g_flWavesSpeed) * 0.5;
 
         vec2 anisoUV = waveAnimOffset * inversesqrt(currentWaveTexScale); // Anisotropic speed based on scale
-
-        vec2 waveSampleUV1 =  anisoUV + (baseWaveUV + accumulatedWaveUVOffset * 3.0 + accumulatedPhaseOffset) / currentWaveTexScale;
-
-        vec3  sampledWaveNormalHeight1 = texture(g_tWavesNormalHeight, waveSampleUV1, -clampedLodFactor).xyz - vec3(0.5);
-
+        vec2 waveSampleUV1 = anisoUV + (baseWaveUV + accumulatedWaveUVOffset * 3.0 + accumulatedPhaseOffset) / currentWaveTexScale;
+        vec3 sampledWaveNormalHeight1 = texture(g_tWavesNormalHeight, waveSampleUV1, -clampedLodFactor).xyz - vec3(0.5);
 
         float waveHeightComponent1 = sampledWaveNormalHeight1.z * freqWeight * length(currentWaveTexScale) * 0.01; // Height contribution
-
         vec2 waveNormalXYComponent1 = sampledWaveNormalHeight1.xy * 2.0; // Unpack normal
 
         waveNormalXYComponent1.x *= min(1.0, currentWaveTexScale.y / currentWaveTexScale.x);
         waveNormalXYComponent1.y *= min(1.0, currentWaveTexScale.x / currentWaveTexScale.y);
-
         waveNormalXYComponent1 *= (freqWeight * 0.1); // Scale normal contribution
 
         vec2 gerstnerDisplacement = (-viewParallaxFactor) * (waveHeightComponent1) * g_flWavesHeightOffset * currentWaterRoughness;
-
         vec2 waveNormalDisplacement = ((waveNormalXYComponent1 * g_flWavesSharpness) * currentWaveTexScale) * g_flWavesPhaseOffset;
-
-
         vec2 waveSampleUV2 = anisoUV + (baseWaveUV + (accumulatedWaveUVOffset + gerstnerDisplacement) * 3.0 + accumulatedPhaseOffset + waveNormalDisplacement) / currentWaveTexScale;
 
-        vec3  sampledWaveNormalHeight2 = texture(g_tWavesNormalHeight, waveSampleUV2, -clampedLodFactor).xyz - vec3(0.5);
+        vec3 sampledWaveNormalHeight2 = texture(g_tWavesNormalHeight, waveSampleUV2, -clampedLodFactor).xyz - vec3(0.5);
 
         vec2 waveNormalXYComponent2 = sampledWaveNormalHeight2.xy * 2.0;
 
@@ -533,7 +478,6 @@ void main()
         // Accumulate UV offset for next iteration (choppiness / parallax)
         // Parallax factor for wave displacement (view-dependent)
 
-
         currentWaveTexScale *= g_flWavesPhaseOffset; // e.g., smaller scale for higher frequency
         accumulatedPhaseOffset += waveNormalXYComponent1 * g_flWavesSharpness * currentWaveTexScale;
 
@@ -545,16 +489,11 @@ void main()
         currentWaveAngle += 3.5 / float(i + 1u); // Change angle to avoid repetition
     }
 
-
-
     vec2 finalWavePhaseOffset = accumulatedPhaseOffset * 0.1;
     vec3 roughedWaveNormal = accumulatedWaveNormal * currentWaterRoughness;
     float scaledAccumulatedWaveHeight = accumulatedWaveHeight * currentWaterRoughness * 60.0; // For stronger visual effect
 
     vec3 ditheredNormal = vec3(0.0, 0.0, 1.0);
-
-
-
     float edgeFactorQ = g_flEdgeShapeEffect;
 
 
@@ -617,7 +556,6 @@ void main()
         //float rippleBaseFromEffectsMap = rippleFoamFromEffectsMap.x;
         //float foamBaseFromEffectsMap = rippleFoamFromEffectsMap.y;
 
-
         vec4 _24771;
         _24771.z = rippleFoamFromEffectsMap.y;
 
@@ -654,7 +592,6 @@ void main()
         finalFoam = effectsSample1.z;
         debrisDisturbanceForWaves = ((effectsSample1.x + effectsSample1.y ) * g_flWaterEffectDisturbanceStrength) * 0.25;
 
-
         foamSiltEffectNormalXY = (normalize(cross(vec3(stepScale.x,0, effectsSample1.y -rippleFoamDX.y),vec3(0,stepScale.y, effectsSample1.y - rippleFoamDY.y))).xy*vec2(-1,1)) * pow(effectsSample1.y,3.5); // Original used rippleFoam_plusDY.y
 
         effectsSamplePos += (vec3(foamEffectDisplacementUV.xy, 0.0) * (-4.0));
@@ -666,12 +603,7 @@ void main()
     vec2 foamWobbleAnim = vec2(sin(effectsSamplePos.y * 0.07 + timeAnim), cos(effectsSamplePos.x * 0.07 + timeAnim));
     vec2 foamBaseUV = (worldPosForFoamAndDebrisBase.xy / g_flFoamScale);
 
-
-
     vec2 foamWobbleEffect =  (foamBaseUV + finalWavePhaseOffset * g_flFoamWobble * 0.5 * (1.0 - currentFoamAmount))  - (foamSiltEffectNormalXY / g_flFoamScale);
-
-
-
 
     float foamNoiseStrength = finalFoam + 0.05;
     vec4 foamSample1 = texture(g_tFoam, mix(foamBaseUV, foamWobbleEffect + (foamWobbleAnim * foamNoiseStrength * 0.03), depthFactorFine) );
@@ -683,8 +615,6 @@ void main()
 
     float finalFoamIntensity = fma(    currentFoamAmount * fma(finalFoamHeightContrib, 0.008, 1.0),       1.0 - clamp(debrisDisturbanceForWaves * 2.0, 0.0, 1.0),       foamFromEffects   );
     finalFoamIntensity = clamp(finalFoamIntensity, 0.0, 1.0);
-
-
 
     float finalFoamPow1_5 = pow(finalFoam, 1.5);
 
@@ -711,7 +641,6 @@ void main()
 
     //outputColor.rgb = debrisColorHeightSample.rgb;
 
-
     float debrisHeightVal = debrisColorHeightSample.a - 0.5; // Signed height
 
     float finalDebrisVisibility = fma(-currentDebrisVisibility, clamp(1.4 - (finalFoam / mix(1.0, 0.4, debrisColorHeightSample.w)), 0.0, 1.0), 1.0);
@@ -724,7 +653,6 @@ void main()
 
     float finalDebrisFactor = debrisVisibilityMask * debrisEdgeFactor; // Final alpha for debris layer
 
-
     vec3 debrisNormalSample = texture(g_tDebrisNormal, debrisFinalUV).xyz - vec3(0.5); // Sample and un-pack
     debrisNormalSample.y *= -1.0;
 
@@ -733,20 +661,13 @@ void main()
     float combinedfinalFoamIntensity = clamp(fma(-debrisVisibilityMask, debrisEdgeFactor, fma(finalFoamIntensity * combinedFoamTextureValue, 0.25, clamp(finalFoamIntensity - (1.0 - combinedFoamTextureValue), 0.0, 1.0) * 0.75)), 0.0, 1.0);
     float finalDebrisFoamHeightContrib = mix(finalFoamHeightContrib, fma(finalFoamHeightContrib, 0.5, debrisHeightVal * 2.0), finalDebrisFactor);
 
-
     float weirdDebHeight = max(0.0, debrisHeightVal * (-2.0));
 
     float weirdMixVal = debrisEdgeFactor * clamp(fma(weirdDebHeight, 10.0, 1.0), 0.0, 1.0);
 
     float mixedHeight = mix(scaledAccumulatedWaveHeight, fma(scaledAccumulatedWaveHeight, 0.5, debrisHeightVal * 2.0), weirdMixVal);
 
-
-
     vec3 finalSurfacePos = worldPos.xyz + (viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) -g_flWavesHeightOffset));
-
-    //outputColor.rgb  = vec3(length(viewDepOffsetFactor * (mix(0.5, mixedHeight, edgeFactorQ) -g_flWavesHeightOffset))) - 20;
-    //outputColor.rgb  = vec3(length(viewDepOffsetFactor)) - 7;
-   //return;
 
     float finalWaterColumnDepthForRefract = waterColumnOpticalDepthFactor;
 
@@ -761,35 +682,21 @@ void main()
 
     float surfaceCoverageAlpha = clamp(debrisEdgeFactor + combinedfinalFoamIntensity, 0.0, 1.0);
 
-
-
     vec2 finalWaveNormalXY = (((roughedWaveNormal.xy * 2.0) * g_flWavesNormalStrength) * mix(1.0, 2.0, reflectionsLodFactor)) * 1.0; // * mix(1.0, 2.0, reflectionMipBiasFactor); // Stronger at glancing angles
 
     finalWaveNormalXY *= fma(clamp(0.2 - finalWaterColumnDepthForRefract, 0.0, 1.0), 8.0, 1.0);
-
     finalWaveNormalXY += ((debrisNormalXY * finalDebrisFactor) * 1.5);
-
     finalWaveNormalXY += (mix(foamSample1.xy - vec2(0.5), foamSample2.xy - vec2(0.5), vec2(float(foamSample2.z > foamSample1.z))).xy * combinedfinalFoamIntensity);
-
-
     finalWaveNormalXY += ((debrisEffectsNormalXY.xy * combinedfinalFoamIntensity) * 0.5);
-
     finalWaveNormalXY += ((foamEffectDisplacementUV.xy * (1.0 - clamp(fma(debrisVisibilityMask, debrisEdgeFactor, combinedfinalFoamIntensity), 0.0, 1.0))) * 2.0);
-
     finalWaveNormalXY *= (vec2(1.0) + ((blueNoiseOffset * 2.0) * g_flWavesNormalJitter));
 
-
-
     vec3 surfaceNormal = vec3(finalWaveNormalXY, sqrt(1.0 - clamp(dot(finalWaveNormalXY, finalWaveNormalXY), 0.0, 1.0)));
-
-
 
     vec2 perturbedNormalXY = surfaceNormal.xy * 3.0; // Stronger perturbation
 
     vec3 perturbedSurfaceNormal = vec3(perturbedNormalXY, sqrt(1.0 - clamp(dot(perturbedNormalXY, perturbedNormalXY), 0.0, 1.0)));
     vec3 finalSurfaceNormal = surfaceNormal;
-
-
 
     vec3 finalPerturbedSurfaceNormal = perturbedSurfaceNormal;
 
@@ -803,13 +710,6 @@ void main()
 
         }
     //#endif
-
-    //outputColor.rgb  = finalSurfaceNormal;
-    //return;
-
-    //outputColor.rgb = (finalSurfaceNormal) + 0.3;
-    //return;
-
 
     float cosNormAngle = clamp(dot(-viewDir, finalPerturbedSurfaceNormal.xyz), 0.0, 1.0);
 
@@ -833,7 +733,6 @@ void main()
         vec2 refractionUVOffsetRaw = (vec2(dot(finalPerturbedSurfaceNormal.xy, cross(-viewDir, vec3(0.0, 0.0, -1.0)).xy), dot(finalPerturbedSurfaceNormal.xy, -viewDir.xy)) + ((blueNoiseOffset * 0.002) * g_flWaterFogStrength)).xy * min(g_flRefractionLimit, finalWaterColumnDepthForRefract);
         float depthBufferRange = g_flViewportMaxZ - g_flViewportMinZ;
         float surfaceDepth = -(g_matWorldToView * vec4(finalSurfacePos, 1.0)).z;
-
 
         float normalizedDepth = clamp((textureLod(g_tSceneDepth, gbufferUV + refractionUVOffsetRaw.xy, 0.0).x - g_flViewportMinZ) / depthBufferRange, 0.0, 1.0);
 
@@ -878,8 +777,6 @@ void main()
         //finalRefractedColor = texture(g_tSceneColor, clamp(gbufferUV + finalRefractionUVOffset, vec2(0.0), vec2(1.0)));
 
         vec3 darkenedRefractedColor = pow(finalRefractedColor.rgb, vec3(1.1)) * g_flUnderwaterDarkening;
-
-
 
         outputColor.rgb = darkenedRefractedColor;
         //return;
@@ -938,8 +835,6 @@ void main()
                 causticBaseIntensity *= clamp(dot(ditheredNormal, causticsLightDir.xyz), 0.0, 1.0);
             }
 
-
-
             vec2 causticWaveUVBase = (causticRayTarget.xy * vec2(1.0 / 30)) * g_flCausticUVScaleMultiple;
 
             vec2 currWaveScale = g_vWaveScale.xy;
@@ -965,11 +860,9 @@ void main()
             }
 
 
-
             vec2 currWaveScale1 = g_vWaveScale.xy;
             float currWaveDir1 = g_flWaterInitialDirection;
             vec3 currWaveSampleSum1 = vec3(0.0);
-
 
             for(int i = 0; i < 3; i++)
             {
@@ -1013,8 +906,6 @@ void main()
             finalCausticsEffectsSample.y = causticsClampedESampleXY.x;
             finalCausticsEffectsSample.z = causticsClampedESampleXY.y;
 
-
-
             vec4 fadedCausticsEffects = finalCausticsEffectsSample * clamp((((causticsUV.y * (1.0 - causticsUV.y)) * causticsUV.x) * (1.0 - causticsUV.x)) * 40.0, 0.0, 1.0);
 
             float causticsXOverChangerate = fadedCausticsEffects.x + (fadedCausticsEffects.x / fma(fwidth(fadedCausticsEffects.x), 1000.0, 0.5));
@@ -1022,17 +913,12 @@ void main()
             vec3 causticsModifier = (currWaveSampleSum1 + vec3(fma(clamp(causticsXOverChangerate, 0.0, 1.0) * 4.0, g_flWaterEffectCausticStrength, -((clamp(-causticsXOverChangerate, 0.0, 1.0) * 0.15) * g_flWaterEffectCausticStrength)))) * mix(1.0, 0.0, clamp(fma(causticDebrisCoverage, 2.0, fadedCausticsEffects.y * 0.4), 0.0, 1.0));
             float causticsModifierX = causticsModifier.x;
 
-
-
             //minor readability improvement
             vec3 powA = max(causticsModifier * (vec3(1.0) + (vec3(1.25, -0.25, -1.0) * (clamp(dFdxFine(causticsModifierX) * 200.0, -1.0, 1.0) * clamp(fma(-causticsModifierX, 3.0, 1.0), 0.0, 1.0)))), vec3(0.001)) * 8.0;
             vec3 modifiedCausticsRefractColor = darkenedRefractedColor * (vec3(1.0) + (((((pow(powA, vec3(2.5)) * causticBaseIntensity) * sunColor) * g_vCausticsTint.xyz) * g_flCausticsStrength) * 0.1));
 
-
             float _16517 = pow(dot(modifiedCausticsRefractColor, vec3(0.2125, 0.7154, 0.0721)), 0.2);
             float _14717 = clamp(dFdxFine(_16517), -1.0, 1.0) + clamp(-dFdyFine(_16517), -1.0, 1.0);
-
-
 
             causticsDebrisTotal.w = causticDebrisCoverage;
             combinedRefractedColor = mix(modifiedCausticsRefractColor, modifiedCausticsRefractColor * (vec3(1.0) + (vec3(2.5, 0.0, -2.0) * float(int(sign(_14717 * clamp(abs(_14717) - 0.1, 0.0, 1.0)))))), vec3(clamp(200.0 / relFragPos, 0.0, 1.0) * 0.1));
@@ -1041,7 +927,6 @@ void main()
         #endif //F_CAUSTICS == 1
         postCausticsWaterColumnDepth = fma(max( ( 1.0 / finalRefractedNormalizedDepth) - surfaceDepth, 0.0), 0.01, refractionDistortionFactor);
     }
-
 
     float effectiveWaterDepthForFog = min(g_flWaterMaxDepth, postCausticsWaterColumnDepth);
     vec3 waterDecayColorFactor = exp(((g_vWaterDecayColor.rgb - vec3(1.0)) * vec3(g_flWaterDecayStrength)) * effectiveWaterDepthForFog);
@@ -1055,26 +940,18 @@ void main()
     float specularExponent = mix(g_flSpecularPower, g_flDebrisReflectance * 8.0, debrisEdgeFactor) * mix(2.0, 0.2, clamp(currentWaterRoughness, 0.0, 1.0));
     float specularFactor = fma(pow(specularCosAlpha, specularExponent), 0.1, pow(specularCosAlpha, specularExponent * 10.0));
 
-
     float inverseWaterFogAlpha = 1.0 - waterFogAlpha;
     float waterOpacity = (clamp((1.0 - debrisEdgeFactor) + noClue, 0.0, 1.0) * clamp(fma(-combinedfinalFoamIntensity, 4.0, 1.0), 0.0, 1.0)) * inverseWaterFogAlpha;
-
-
 
     //TODO: this would ask for worldPos + "precision lighting offset" instead of just worldPos, whatever the fuck that is
     vec3 lightingSamplePos = worldPos.xyz + (((-viewDepOffsetFactor) * (vec3(finalDebrisFoamHeightContrib * (-1.0)) + (((mix(blueNoise.xxx, vec3(blueNoise.xy, 0.0), vec3(0.1)) * 90.0) * pow(waterOpacity, 2.0)) + vec3(g_flWaterPlaneOffset)))) * mix(1.0, effectiveWaterDepthForFog * 2.0, 0.75));
 
     vec4 surfaceNormal4f = vec4(finalSurfaceNormal.xyz, 1.0);
 
-
     float squaredWaterOpacity = pow(waterOpacity, 2.0);
     float _12400 = mix(1.0, effectiveWaterDepthForFog * 2.0, 0.75);
 
     vec3 ditheredLightmapUV = vec3(vLightmapUVScaled.xy + (((((((fwidth(vLightmapUVScaled.xy) * 1200.0) / vec2(distanceToFrag)) * cosNormAngle) * (-viewParallaxFactor)) * vec2(-1.0, 1.0)) * (vec2(finalDebrisFoamHeightContrib * (-2.0)) + ((mix(blueNoise.yy, blueNoise.yx, vec2(0.1)) * 20.0) * squaredWaterOpacity))) * _12400), 0.0).xyz;
-
-
-
-
 
     //Calculating baked lighting
     vec3 bakedShadow = texture(g_tDirectLightShadows, ditheredLightmapUV).rgb;
@@ -1432,12 +1309,7 @@ void main()
     }
     //TODO: find something comparable to g_vFastPathSunLightBakedShadowMask
 
-
-
-
     vec3 _22686 = (lightingFactor.xyz + bakedIrradiance) * mix(mix((baseFogColor * waterFogAlpha) * g_flWaterFogShadowStrength, finalFoamColor.xyz, vec3(combinedfinalFoamIntensity)), vec4(debrisColorHeightSample.xyz * fma(finalDebrisFactor, 0.5, 0.5), debrisEdgeFactor).xyz * g_vDebrisTint.xyz, vec3(clamp(debrisEdgeFactor - noClue, 0.0, 1.0))).xyz;
-
-
 
     outputColor.rgb = vec3(vec3(clamp(debrisEdgeFactor - noClue, 0.0, 1.0)));
     //return;
@@ -1447,10 +1319,6 @@ void main()
     #endif
 
     vec3 returnColor = mix(_22686, combinedRefractedColor * waterDecayColorFactor, vec3(waterOpacity)); // + float(specularFactor > 0.5) * sunColor;
-
-
-
-
     returnColor = mix(returnColor, (baseFogColor * 4.0) * bakedIrradiance, vec3((waterFogAlpha * clamp((1.0 - surfaceCoverageAlpha) + noClue, 0.0, 1.0)) * (1.0 - g_flWaterFogShadowStrength)));
 
     outputColor.rgb = returnColor;
@@ -1462,7 +1330,6 @@ void main()
     material.SpecularColor = vec3(1);
 
     float roughnessForCubemap = dot(mix(g_vRoughness,vec2(1),vec2(clamp(reflectionsLodFactor, 0.0 ,0.35))), vec2(0.5) );
-
     material.Roughness.x = sqrt(roughnessForCubemap);
 
 
@@ -1471,11 +1338,11 @@ void main()
 
     if(true)
     {
-    tempSurfNormal.xy *= 6.0;
-    tempSurfNormal = mat3(g_matWorldToView) * normalize(tempSurfNormal);
-    //tempSurfNormal = (g_matWorldToView * vec4(normalize(tempSurfNormal), 0.0)).xyz;
-    tempSurfNormal.yz *= 2;
-    tempSurfNormal = transpose(mat3(g_matWorldToView)) * normalize(tempSurfNormal);
+        tempSurfNormal.xy *= 6.0;
+        tempSurfNormal = mat3(g_matWorldToView) * normalize(tempSurfNormal);
+        //tempSurfNormal = (g_matWorldToView * vec4(normalize(tempSurfNormal), 0.0)).xyz;
+        tempSurfNormal.yz *= 2;
+        tempSurfNormal = transpose(mat3(g_matWorldToView)) * normalize(tempSurfNormal);
     }
     else
     {
@@ -1692,8 +1559,8 @@ void main()
             }
         }
     }
-    returnColor = returnColor.xyz * mix(vec3(1.0), ambientTerm * 0.75, vec3(clamp(causticsDebrisTotal.w * 4.0, 0.0, 1.0) * inverseWaterFogAlpha));
 
+    returnColor = returnColor.xyz * mix(vec3(1.0), ambientTerm * 0.75, vec3(clamp(causticsDebrisTotal.w * 4.0, 0.0, 1.0) * inverseWaterFogAlpha));
 
     vec3 returnColorMixFac = vec3(clamp(reflectionModulation, 0.0, 1.0));
     vec3 secondaryColorMixFac = vec3(((clamp(noClue * 20.0, 0.0, 1.0) * g_flDebrisOilyness) / fma(distanceToFrag, 0.005, 1.0)) * clamp(fma(-refractedVerticalFactor, 5.0, 1.0), 0.0, 1.0));
@@ -1811,14 +1678,4 @@ void main()
 
 
     outputColor.rgb = returnColor;
-
 }
-
-
-
-
-
-
-
-
-
