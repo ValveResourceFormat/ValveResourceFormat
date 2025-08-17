@@ -398,13 +398,13 @@ namespace GUI.Types.Renderer
             progressDialog.ShowDialog();
         }
 
-        public static void ValidateShadersCore(IProgress<string> progressReporter)
+        public static void ValidateShadersCore(IProgress<string> progressReporter, string? filter = null)
         {
             using var context = new VrfGuiContext(null, null);
             using var loader = new ShaderLoader(context);
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
-            var shaders = Directory.GetFiles(folder, "*.frag");
+            var shaders = Directory.GetFiles(folder, filter ?? "*.frag");
 
             using var window = new NativeWindow(new()
             {
