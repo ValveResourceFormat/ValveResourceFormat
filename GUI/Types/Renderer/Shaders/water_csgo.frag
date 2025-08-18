@@ -41,7 +41,7 @@ uniform float g_flFoamMin = 0.0;
 uniform float g_flFoamMax = 1.0;
 uniform float g_flDebrisMin = 0.0;
 uniform float g_flDebrisMax = 1.0;
-uniform vec3 g_vDebrisTint = vec3(0.7, 0.7, 0.7);
+uniform vec3 g_vDebrisTint = vec3(0.7, 0.7, 0.7); // SrgbRead(true)
 uniform float g_flDebrisReflectance = 0.1;
 uniform float g_flDebrisOilyness = 0.1;
 uniform float g_flDebrisNormalStrength = 1.0;
@@ -50,7 +50,7 @@ uniform float g_flDebrisScale = 1.0;
 uniform float g_flDebrisWobble = 1.0;
 uniform float g_flFoamScale = 1.0;
 uniform float g_flFoamWobble = 1.0;
-uniform vec4 g_vFoamColor = vec4(0.7, 0.7, 0.7, 1.0);
+uniform vec4 g_vFoamColor = vec4(0.7, 0.7, 0.7, 1.0); // SrgbRead(true)
 uniform float g_flWavesHeightOffset = 1.0;
 uniform float g_flWavesSharpness = 0.5;
 uniform float g_flFresnelExponent = 5.0;
@@ -66,12 +66,12 @@ uniform float g_flWavesPhaseOffset = 0.4;
 uniform float g_flEdgeHardness = 10.0;
 uniform float g_flEdgeShapeEffect = 1.0;
 uniform int g_nWaveIterations = 3;
-uniform vec3 g_vWaterFogColor = vec3(0.5, 0.5, 0.5);
+uniform vec3 g_vWaterFogColor = vec3(0.5, 0.5, 0.5); // SrgbRead(true)
 uniform float g_flRefractionLimit = 0.1;
 uniform float g_flWaterFogStrength = 0.5;
 uniform float g_flRefractSampleOffset = 2.0;
 uniform float g_flRefractChromaticSeparation = 0.5;
-uniform vec3 g_vWaterDecayColor = vec3(1.0, 1.0, 1.0);
+uniform vec3 g_vWaterDecayColor = vec3(1.0, 1.0, 1.0); // not converted to linear
 uniform float g_flWaterDecayStrength = 8.0;
 uniform float g_flWaterMaxDepth = 100.0;
 uniform float g_flWaterFogShadowStrength = 0.5;
@@ -87,7 +87,7 @@ uniform float g_flCausticsStrength = 40.0;
 uniform float g_flCausticSharpness = 0.5;
 uniform float g_flCausticDepthFallOffDistance = 100.0;
 uniform float g_flCausticShadowCutOff = 0.2;
-uniform vec4 g_vCausticsTint = vec4(0.5, 0.5, 0.5, 1.0);
+uniform vec4 g_vCausticsTint = vec4(0.5, 0.5, 0.5, 1.0); // not converted to linear
 uniform float g_flReflectance = 0.2;
 uniform float g_flReflectionDistanceEffect = 0.5;
 uniform float g_flForceMixResolutionScale = 1.0;
@@ -614,7 +614,7 @@ void main()
 
     float fresnel = pow(1.0 - cosNormAngle, g_flFresnelExponent);
 
-    vec3 finalFoamColor = SrgbGammaToLinear(g_vFoamColor.rgb) * fma(combinedfinalFoamIntensity, 0.5, 1.0);
+    vec3 finalFoamColor = g_vFoamColor.rgb * fma(combinedfinalFoamIntensity, 0.5, 1.0);
 
     float g_flViewportMinZ = 0.05;
     float g_flViewportMaxZ = 1.0;
@@ -831,7 +831,7 @@ void main()
     float totalFogStrength = max(foamSiltStrength, causticsEffectsZ);
     float foamDebrisForFogMix = finalFoamIntensity + clamp(causticsEffectsZ - 0.5, 0.0, 1.0);
     float waterFogAlpha = fma(fma(-clamp(blueNoise.x, 0.0, 1.0), 0.25, foamDebrisForFogMix), 0.1, 1.0 - exp((-effectiveWaterDepthForFog) * totalFogStrength));
-    vec3 baseFogColor = mix(SrgbGammaToLinear(g_vWaterFogColor.rgb), finalFoamColor, vec3(foamDebrisForFogMix * 0.1)) * mix(waterDecayColorFactor, vec3(1.0), vec3(clamp(totalFogStrength * 0.04, 0.0, 1.0)));
+    vec3 baseFogColor = mix(g_vWaterFogColor.rgb, finalFoamColor, vec3(foamDebrisForFogMix * 0.1)) * mix(waterDecayColorFactor, vec3(1.0), vec3(clamp(totalFogStrength * 0.04, 0.0, 1.0)));
 
     vec3 finalDirToCam = -normalize(finalSurfacePos.xyz - g_vCameraPositionWs.xyz);
     float specularCosAlpha = clamp(dot(-sunDir, reflect(finalDirToCam, normalize(mix(normalize(mat.GeometricNormal).xyz, finalPerturbedSurfaceNormal.xyz, vec3(g_flSpecularNormalMultiple * fma(distanceToFrag, 0.0005, 1.0)))))), 0.0, 1.0);
@@ -889,7 +889,7 @@ void main()
     {
         lightingFactor = fma(vec3(max(0.0, dot(mat.NormalMap.xyz, sunDir))).xyz, (sunColor * finalShadowingEffect).xyz, g_vToolsAmbientLighting.xyz);
     }
-    vec3 _22686 = (lightingFactor.xyz + bakedIrradiance) * mix(mix((baseFogColor * waterFogAlpha) * g_flWaterFogShadowStrength, finalFoamColor.xyz, vec3(combinedfinalFoamIntensity)), vec4(debrisColorHeightSample.xyz * fma(finalDebrisFactor, 0.5, 0.5), debrisEdgeFactor).xyz * SrgbGammaToLinear(g_vDebrisTint.xyz), vec3(clamp(debrisEdgeFactor - noClue, 0.0, 1.0))).xyz;
+    vec3 _22686 = (lightingFactor.xyz + bakedIrradiance) * mix(mix((baseFogColor * waterFogAlpha) * g_flWaterFogShadowStrength, finalFoamColor.xyz, vec3(combinedfinalFoamIntensity)), vec4(debrisColorHeightSample.xyz * fma(finalDebrisFactor, 0.5, 0.5), debrisEdgeFactor).xyz * g_vDebrisTint.xyz, vec3(clamp(debrisEdgeFactor - noClue, 0.0, 1.0))).xyz;
 
     outputColor.rgb = vec3(vec3(clamp(debrisEdgeFactor - noClue, 0.0, 1.0)));
 
