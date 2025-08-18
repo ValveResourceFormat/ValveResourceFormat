@@ -54,7 +54,7 @@ uniform float g_fTextureRoughnessBrightness1 = 1.0;
 uniform float g_fTextureRoughnessContrast1 = 1.0;
 uniform float g_fTintMaskBrightness1 = 1.0;
 uniform float g_fTintMaskContrast1 = 1.0;
-uniform int g_nVertexColorMode1 = 0;
+uniform int g_nVertexColorMode1 = 0; // 0=Masked by tint, 1=Unmasked, 2=Disabled
 uniform vec3 g_vAmbientOcclusionLevels1 = vec3(0, 0.5, 1);
 
 uniform float g_flHeightMapScale1 = 1.0;
@@ -277,8 +277,13 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         color.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer1 ? tintMask1 : 1.0) * float(g_bColorOverlayLayer1)));
     #endif
 
-    color.rgb *= g_nVertexColorMode1 == 1 ? vVertexColor_Alpha.rgb : vec3(1.0);
-    color.rgb = (color.rgb);
+    #if defined(csgo_environment_blend_vfx)
+        float flVertexColorMask = float(g_nVertexColorMode1 != 2) * mix(height.g, 1.0, g_nVertexColorMode1 == 0);
+        color.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask);
+    #else
+        // note: g_nVertexColorMode ignored in non-blend
+        color.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, height.g);
+    #endif
 
     // Blending
 #if defined(csgo_environment_blend_vfx)
@@ -315,8 +320,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         color2.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer2 ? tintMask2 : 1.0) * float(g_bColorOverlayLayer2)));
     #endif
 
-    color2.rgb *= g_nVertexColorMode2 == 1 ? vVertexColor_Alpha.rgb : vec3(1.0);
-    color2.rgb = (color2.rgb);
+    float flVertexColorMask2 = float(g_nVertexColorMode2 != 2) * mix(height2.g, 1.0, g_nVertexColorMode2 == 0);
+    color2.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask2);
 
     height.r -= g_flHeightMapZeroPoint1;
     height2.r -= g_flHeightMapZeroPoint2;
@@ -364,8 +369,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
             color3.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer3 ? tintMask3 : 1.0) * float(g_bColorOverlayLayer3)));
         #endif
 
-        color3.rgb *= g_nVertexColorMode3 == 1 ? vVertexColor_Alpha.rgb : vec3(1.0);
-        color3.rgb = (color3.rgb);
+        float flVertexColorMask3 = float(g_nVertexColorMode3 != 2) * mix(height3.g, 1.0, g_nVertexColorMode3 == 0);
+        color3.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask3);
 
         height3.r -= g_flHeightMapZeroPoint3;
 
