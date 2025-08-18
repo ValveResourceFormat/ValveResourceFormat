@@ -25,10 +25,11 @@ namespace GUI.Types.Renderer
         private static partial Regex RegexIsVfxDefined();
 #endif
 
-        // regex that detects "uniform samplerx sampler; // SrgbRead(true)"
-        // accept whitespace in front
-        [GeneratedRegex("^uniform sampler(?<SamplerType>\\S+) (?<SamplerName>\\S+);\\s*// SrgbRead\\(true\\)")]
-        private static partial Regex RegexSamplerWithSrgbRead();
+        // regex that detects
+        // uniform sampler{dim} a; // SrgbRead(true)
+        // uniform vec{dim} b = vec3(1.0); // SrgbRead(true)
+        [GeneratedRegex("^uniform (?<Type>(?:sampler|vec)\\S+) (?<Name>\\S+)(?:\\s*=\\s*[^;]+)?;\\s*// SrgbRead\\(true\\)")]
+        private static partial Regex RegexUniformWithSrgbRead();
 
         private readonly StringBuilder builder = new(1024);
         private int sourceFileNumber;
@@ -214,14 +215,14 @@ namespace GUI.Types.Renderer
                             continue;
                         }
 
-                        // sRGB samplers
-                        match = RegexSamplerWithSrgbRead().Match(line);
+                        // sRGB uniforms or samplers
+                        match = RegexUniformWithSrgbRead().Match(line);
                         if (match.Success)
                         {
-                            var samplerName = match.Groups["SamplerName"].Value;
-                            var samplerType = match.Groups["SamplerType"].Value;
+                            var uniformType = match.Groups["Type"].Value;
+                            var uniformName = match.Groups["Name"].Value;
 
-                            parsedData.SrgbSamplers.Add(samplerName);
+                            parsedData.SrgbUniforms.Add(uniformName);
                         }
 
 #if DEBUG

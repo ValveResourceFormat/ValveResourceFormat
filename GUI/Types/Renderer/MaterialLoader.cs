@@ -122,7 +122,7 @@ namespace GUI.Types.Renderer
             {
                 if (mat.Shader.GetUniformLocation(name) != -1)
                 {
-                    var srgbRead = mat.Shader.SrgbSamplers.Contains(name);
+                    var srgbRead = mat.Shader.SrgbUniforms.Contains(name);
                     mat.Textures[name] = GetTexture(path, srgbRead, anisotropicFiltering: true);
                     return true;
                 }

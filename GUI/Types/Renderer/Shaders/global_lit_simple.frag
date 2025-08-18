@@ -49,7 +49,7 @@ out vec4 outputColor;
 
 #if (F_SPECULAR == 1)
     uniform sampler2D g_tSpecular; // Reflectance, SelfIllum, Bloom
-    uniform vec3 g_vColorTint2 = vec3(1.0);
+    uniform vec3 g_vColorTint2 = vec3(1.0); // SrgbRead(true)
     uniform float g_flSpecularIntensity;
 #endif
 
@@ -71,7 +71,7 @@ out vec4 outputColor;
 #include "common/lighting_common.glsl"
 #include "common/shadowmapping.glsl"
 
-uniform vec3 g_vColorTint = vec3(1.0);
+uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 uniform float g_flOpacityScale = 1.0;
 
 uniform float g_flAlphaTestReference = 0.5;
@@ -154,7 +154,7 @@ void main()
     vec3 tintFactor = vTintColorFadeOut.rgb;
 #endif
 
-    tintFactor *= SrgbGammaToLinear(g_vColorTint.rgb);
+    tintFactor *= g_vColorTint.rgb;
 
     //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * 2.0 * color.rgb * tintFactor, color.a);

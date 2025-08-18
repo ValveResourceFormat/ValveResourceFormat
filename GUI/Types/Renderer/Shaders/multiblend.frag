@@ -64,15 +64,15 @@ uniform sampler2D g_tSpecular3;
     }
 #endif
 
-uniform vec3 g_vGlobalTint = vec3(1.0);
-uniform vec3 g_vColorTint0 = vec3(1.0);
-uniform vec3 g_vColorTint1 = vec3(1.0);
-uniform vec3 g_vColorTint2 = vec3(1.0);
-uniform vec3 g_vColorTint3 = vec3(1.0);
-uniform vec3 g_vColorTintB0 = vec3(1.0);
-uniform vec3 g_vColorTintB1 = vec3(1.0);
-uniform vec3 g_vColorTintB2 = vec3(1.0);
-uniform vec3 g_vColorTintB3 = vec3(1.0);
+uniform vec3 g_vGlobalTint = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTint0 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTint1 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTint2 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTint3 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintB0 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintB1 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintB2 = vec3(1.0); // SrgbRead(true)
+uniform vec3 g_vColorTintB3 = vec3(1.0); // SrgbRead(true)
 
 #include "common/utils.glsl"
 #include "common/ViewConstants.glsl"
@@ -150,17 +150,17 @@ void main()
     //Calculate each of the 4 colours to blend
 #if (F_TINT_MASK == 1)
     // Include tint mask
-    vec3 tint0 = SrgbGammaToLinear(interpolateTint(0, g_vColorTintB0.rgb, g_vColorTint0.rgb, vTexCoordOut));
-    vec3 tint1 = SrgbGammaToLinear(interpolateTint(1, g_vColorTintB1.rgb, g_vColorTint1.rgb, vTexCoord1Out));
+    vec3 tint0 = interpolateTint(0, g_vColorTintB0.rgb, g_vColorTint0.rgb, vTexCoordOut);
+    vec3 tint1 = interpolateTint(1, g_vColorTintB1.rgb, g_vColorTint1.rgb, vTexCoord1Out);
     #if (F_TWO_LAYER_BLEND == 0)
-        vec3 tint2 = SrgbGammaToLinear(interpolateTint(2, g_vColorTintB2.rgb, g_vColorTint2.rgb, vTexCoord2Out));
-        vec3 tint3 = SrgbGammaToLinear(interpolateTint(3, g_vColorTintB3.rgb, g_vColorTint3.rgb, vTexCoord3Out));
+        vec3 tint2 = interpolateTint(2, g_vColorTintB2.rgb, g_vColorTint2.rgb, vTexCoord2Out);
+        vec3 tint3 = interpolateTint(3, g_vColorTintB3.rgb, g_vColorTint3.rgb, vTexCoord3Out);
     #endif
 #else
-    vec3 tint0 = SrgbGammaToLinear(g_vColorTint0.rgb);
-    vec3 tint1 = SrgbGammaToLinear(g_vColorTint1.rgb);
-    vec3 tint2 = SrgbGammaToLinear(g_vColorTint2.rgb);
-    vec3 tint3 = SrgbGammaToLinear(g_vColorTint3.rgb);
+    vec3 tint0 = g_vColorTint0.rgb;
+    vec3 tint1 = g_vColorTint1.rgb;
+    vec3 tint2 = g_vColorTint2.rgb;
+    vec3 tint3 = g_vColorTint3.rgb;
 #endif
 
     vec3 c0 = blendWeight0 * color0.rgb * tint0;
@@ -178,7 +178,7 @@ void main()
     vec3 finalColor = c0 + c1;
 #endif
 
-    finalColor *= vVertexColor.rgb * SrgbGammaToLinear(g_vGlobalTint.rgb);
+    finalColor *= vVertexColor.rgb * g_vGlobalTint.rgb;
 
 #if (F_NORMAL_MAP == 1)
     // Get normal

@@ -41,7 +41,7 @@ mat4 CalculateObjectToWorldMatrix()
     return UnpackMatrix4(bIsInstancing ? transforms[gl_InstanceID] : transform);
 }
 
-vec4 GetObjectTint()
+vec4 GetObjectTintSrgb()
 {
     return UnpackColor32(vTint);
 }
@@ -50,6 +50,6 @@ ObjectData_t GetObjectData()
 {
     ObjectData_t object;
     object.transform = CalculateObjectToWorldMatrix();
-    object.vTint = GetObjectTint();
+    object.vTint = GetObjectTintSrgb();
     return object;
 }

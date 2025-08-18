@@ -45,7 +45,7 @@ namespace GUI.Types.Renderer
         {
             public HashSet<string> Defines = [];
             public HashSet<string> RenderModes = [];
-            public HashSet<string> SrgbSamplers = [];
+            public HashSet<string> SrgbUniforms = [];
 
 #if DEBUG
             public HashSet<string> ShaderVariants = [];
@@ -124,7 +124,7 @@ namespace GUI.Types.Renderer
                     Program = shaderProgram,
                     ShaderObjects = [vertexShader, fragmentShader],
                     RenderModes = parsedData.RenderModes,
-                    SrgbSamplers = parsedData.SrgbSamplers
+                    SrgbUniforms = parsedData.SrgbUniforms
                 };
 
                 GL.AttachShader(shader.Program, vertexShader);

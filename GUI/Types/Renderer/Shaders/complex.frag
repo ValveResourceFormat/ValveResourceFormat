@@ -128,7 +128,7 @@ uniform sampler2D g_tTintMask;
 
 #if defined(vr_skin_vfx)
     uniform sampler2D g_tCombinedMasks;
-    uniform vec3 g_vTransmissionColor = vec3(0.74902, 0.231373, 0.011765);
+    uniform vec3 g_vTransmissionColor = vec3(0.74902, 0.231373, 0.011765); // SrgbRead(true)
     uniform float g_flMouthInteriorBrightnessScale = 1.0;
 #endif
 
@@ -175,11 +175,11 @@ uniform sampler2D g_tTintMask;
     uniform float g_flSelfIllumBrightness = 0.0;
     uniform float g_flSelfIllumScale = 1.0;
     uniform vec2 g_vSelfIllumScrollSpeed = vec2(0.0);
-    uniform vec3 g_vSelfIllumTint = vec3(1.0);
+    uniform vec3 g_vSelfIllumTint = vec3(1.0); // SrgbRead(true)
 
     vec3 GetStandardSelfIllumination(float flSelfIllumMask, vec3 vAlbedo)
     {
-        vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * SrgbGammaToLinear(g_vSelfIllumTint.rgb);
+        vec3 selfIllumScale = (exp2(g_flSelfIllumBrightness) * g_flSelfIllumScale) * g_vSelfIllumTint.rgb;
         return selfIllumScale * flSelfIllumMask * mix(vec3(1.0), vAlbedo, g_flSelfIllumAlbedoFactor);
     }
 #endif
@@ -599,7 +599,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
 
     #if defined(vr_skin_vfx)
-        mat.TransmissiveColor = SrgbGammaToLinear(g_vTransmissionColor.rgb) * color.a;
+        mat.TransmissiveColor = g_vTransmissionColor.rgb * color.a;
 
         float mouthOcclusion = mix(1.0, g_flMouthInteriorBrightnessScale, mat.ExtraParams.a);
         mat.TransmissiveColor *= mouthOcclusion;
