@@ -39,12 +39,11 @@ namespace ValveResourceFormat.Utils
             var vLinearSegment = vSrgbGammaColor / 12.92f;
             const float power = 2.4f;
 
-            var vExpSegment = (vSrgbGammaColor / 1.055f) + new Vector3(0.055f / 1.055f);
-            vExpSegment = new Vector3(
-                MathF.Pow(vExpSegment.X, power),
-                MathF.Pow(vExpSegment.Y, power),
-                MathF.Pow(vExpSegment.Z, power)
-            );
+            var vExpSegment = Vector3.FusedMultiplyAdd(vSrgbGammaColor, new Vector3(1f / 1.055f), new Vector3(0.055f / 1.055f));
+
+            // note: pow(x, y) = exp(y*log(x)) when x > 0
+            vExpSegment = Vector3.Exp(power * Vector3.Log(vExpSegment));
+            vExpSegment -= new Vector3(0.0000001f); // Fix error with Vector3.Exp(Vector3.Zero)
 
             var vLinearColor = new Vector3(
                 (vSrgbGammaColor.X <= 0.04045f) ? vLinearSegment.X : vExpSegment.X,
