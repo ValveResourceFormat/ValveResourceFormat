@@ -213,7 +213,7 @@ vec3 AdjustBrightnessContrastSaturation(vec3 color, float brightness, float cont
     color = color * RemapVal(brightness, -8.0, 1.0, 0.0, 1.0);
 
     // Contrast
-    color = (color - 0.1) * contrast + 0.1;
+    // color = (color - 0.5) * contrast + 0.5;
 
     // Saturation
     color = mix(GetLuma(color).xxx, color, saturation);

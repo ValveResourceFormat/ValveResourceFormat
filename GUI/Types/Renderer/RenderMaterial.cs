@@ -30,6 +30,17 @@ namespace GUI.Types.Renderer
         Last = MorphCompositeTexture,
     }
 
+    enum BlendMode
+    {
+        Opaque,
+        AlphaTest,
+        Translucent,
+        Additive,
+        Multiply,
+        Mod2x,
+        ModThenAdd,
+    }
+
     [DebuggerDisplay("{Material.Name} ({Shader.Name})")]
     class RenderMaterial
     {
@@ -39,15 +50,14 @@ namespace GUI.Types.Renderer
         public required Shader Shader { get; init; }
         public Material Material { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = [];
-        public bool IsTranslucent { get; }
         public bool IsOverlay { get; }
-        public bool IsAlphaTest { get; }
         public bool IsToolsMaterial { get; }
-
         public bool DoNotCastShadows { get; }
 
-        private readonly bool isAdditiveBlend;
-        private readonly bool isMod2x;
+        public bool IsTranslucent => blendMode >= BlendMode.Translucent;
+        public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
+
+        private readonly BlendMode blendMode;
         private readonly bool isRenderBackfaces;
         private readonly bool hasDepthBias;
         private int textureUnit;
@@ -120,57 +130,78 @@ namespace GUI.Types.Renderer
 
         private int GetSortId() => Shader.Program * 10000 + Random.Shared.Next(1, 9999);
 
+        static readonly string[] TranslucentShaders =
+        [
+            "vr_glass.vfx",
+            "vr_glass_markable.vfx",
+            "vr_energy_field.vfx",
+            "csgo_glass.vfx",
+            "csgo_effects.vfx",
+            "tools_sprite.vfx",
+        ];
+
         RenderMaterial(Material material)
         {
             Material = material;
 
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
-            IsTranslucent = (material.IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1)
-                || material.IntAttributes.ContainsKey("mapbuilder.water")
-                || material.ShaderName == "vr_glass.vfx"
-                || material.ShaderName == "vr_glass_markable.vfx"
-                || material.ShaderName == "vr_energy_field.vfx"
-                || material.ShaderName == "csgo_glass.vfx"
-                || material.ShaderName == "csgo_effects.vfx"
-                || material.ShaderName == "csgo_decalmodulate.vfx"
-                || material.ShaderName == "tools_sprite.vfx";
-            IsAlphaTest = material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1;
-            isAdditiveBlend = material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1;
             isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
 
-            // :MaterialIsOverlay
             hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
-            IsOverlay = (material.IntParams.GetValueOrDefault("F_OVERLAY") == 1)
-                || (IsTranslucent && hasDepthBias && material.ShaderName is "csgo_vertexlitgeneric.vfx" or "csgo_complex.vfx");
+            IsOverlay = material.IntParams.GetValueOrDefault("F_OVERLAY") == 1;
 
-            var blendMode = 0;
+            if (material.ShaderName == "csgo_decalmodulate.vfx")
+            {
+                blendMode = BlendMode.Mod2x;
+                return;
+            }
 
-            if (material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal)
-                || material.ShaderName is "citadel_overlay.vfx")
+            if (material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1)
+            {
+                blendMode = BlendMode.AlphaTest;
+            }
+
+            if (material.IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1
+            || TranslucentShaders.AsSpan().Contains(material.ShaderName)
+            || material.IntAttributes.ContainsKey("mapbuilder.water"))
+            {
+                blendMode = BlendMode.Translucent;
+            }
+
+            if (material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1)
+            {
+                blendMode = BlendMode.Additive;
+            }
+
+            // :MaterialIsOverlay
+            if (IsTranslucent && hasDepthBias && material.ShaderName is "csgo_vertexlitgeneric.vfx" or "csgo_complex.vfx")
             {
                 IsOverlay = true;
-                blendMode = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
+            }
+
+            var blendModeParam = 0;
+            if (material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || material.ShaderName is "citadel_overlay.vfx")
+            {
+                IsOverlay = true;
+                blendModeParam = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
             }
 
             if (material.ShaderName == "csgo_unlitgeneric.vfx")
             {
-                blendMode = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
-            }
-            else if (material.ShaderName == "csgo_decalmodulate.vfx")
-            {
-                blendMode = 3; // mod2x
+                blendModeParam = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
             }
 
-            if (blendMode > 0)
+            blendMode = blendModeParam switch
             {
-                IsTranslucent = blendMode > 0 && blendMode != 2;
-                IsAlphaTest = blendMode == 2;
-                isMod2x = blendMode == 3;
-                isAdditiveBlend = blendMode == 4;
-                // 5 = multiply
-                // 6 = modthenadd
-            }
+                1 => BlendMode.Translucent,
+                2 => BlendMode.AlphaTest,
+                3 => BlendMode.Mod2x,
+                4 => BlendMode.Additive,
+                5 => BlendMode.Multiply,
+                6 => BlendMode.ModThenAdd,
+                _ => blendMode,
+            };
         }
 
         public void Render(Shader? shader = default)
@@ -233,18 +264,18 @@ namespace GUI.Types.Renderer
                 GL.DepthMask(false);
             }
 
-            if (IsTranslucent)
+            if (blendMode >= BlendMode.Translucent)
             {
                 if (IsOverlay)
                 {
                     GL.Enable(EnableCap.Blend);
                 }
 
-                if (isMod2x)
+                if (blendMode >= BlendMode.Mod2x)
                 {
                     GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
                 }
-                else if (isAdditiveBlend)
+                else if (blendMode >= BlendMode.Additive)
                 {
                     GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
                 }
@@ -272,7 +303,7 @@ namespace GUI.Types.Renderer
             {
                 GL.DepthMask(true);
 
-                if (IsTranslucent)
+                if (blendMode >= BlendMode.Translucent)
                 {
                     GL.Disable(EnableCap.Blend);
                 }

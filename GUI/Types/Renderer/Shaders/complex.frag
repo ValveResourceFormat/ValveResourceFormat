@@ -144,6 +144,7 @@ uniform sampler2D g_tTintMask;
 #define translucent (F_TRANSLUCENT == 1) || (F_GLASS == 1) || (F_BLEND_MODE > 0 && F_BLEND_MODE != 2) || defined(glass_vfx_common) || defined(csgo_decalmodulate_vfx) || ((defined(csgo_unlitgeneric_vfx) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
 #define selfillum ((F_SELF_ILLUM == 1 && (defined(generic_vfx) || defined(complex_vfx_common) || defined(csgo_vertexlitgeneric_vfx) || defined(vr_skin_vfx))) || defined(csgo_unlitgeneric_vfx))
 #define blendMod2x (F_BLEND_MODE == 3) || defined(csgo_decalmodulate_vfx)
+#define blendModThenAdd (F_BLEND_MODE == 6)
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
     in vec2 vTexCoord2;
@@ -679,9 +680,13 @@ void main()
     outputColor.rgb = SrgbGammaToLinear(outputColor.rgb);
 #endif
 
-#if (blendMod2x)
+#if (blendMod2x || blendModThenAdd)
     vec3 gammaOutput = SrgbLinearToGamma(outputColor.rgb);
-    outputColor = vec4(mix(vec3(0.5), gammaOutput, vec3(outputColor.a)), outputColor.a);
+    #if (blendMod2x)
+        outputColor = vec4(mix(vec3(0.5), gammaOutput, vec3(outputColor.a)), outputColor.a);
+    #elif (blendModThenAdd)
+        outputColor = vec4(mix(vec3(0), gammaOutput.rgb, vec3(outputColor.a)), outputColor.a);
+    #endif
 #endif
 
     if (HandleMaterialRenderModes(outputColor, mat))
