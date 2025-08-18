@@ -6,17 +6,6 @@
 #include "common/LightingConstants.glsl"
 #include "complex_features.glsl"
 
-// Render modes -- Switched on/off by code
-#define renderMode_Illumination 0
-#define renderMode_Diffuse 0
-#define renderMode_Specular 0
-#define renderMode_Cubemaps 0
-#define renderMode_Irradiance 0
-#define renderMode_Tint 0
-#define renderMode_FoliageParams 0
-#define renderMode_TerrainBlend 0
-#define renderMode_LightmapShadows 0
-
 #if defined(vr_complex_vfx) || defined(csgo_complex_vfx)
     #define complex_vfx_common
 #elif defined(vr_simple_vfx) || defined(csgo_simple_vfx)
