@@ -88,18 +88,28 @@ namespace ValveResourceFormat.IO
 
                 var feature = features.StaticComboArray[condition.FeatureIndex];
 
-                foreach (var (Name, Value) in featureParams)
+                foreach (var (name, value) in featureParams)
                 {
-                    if (feature.Name == Name)
+                    if (feature.Name == name)
                     {
                         // Check that data coming from the material is within the allowed range
-                        if (Value > feature.RangeMax || Value < feature.RangeMin)
+                        if (value > feature.RangeMax)
                         {
-                            // TODO: what does source2 fall back to in this case? 0?
-                            throw new InvalidDataException($"Material feature '{Name}' is out of range for '{features.ShaderName}'");
+                            Console.WriteLine($"Value for feature '{name}' is higher ({value}) than the maximum ({feature.RangeMax})."); // TODO: logger
+
+                            staticConfiguration[condition.BlockIndex] = feature.RangeMax;
+                        }
+                        else if (value < feature.RangeMin)
+                        {
+                            Console.WriteLine($"Value for feature '{name}' is lower ({value}) than the minimum ({feature.RangeMin})."); // TODO: logger
+
+                            staticConfiguration[condition.BlockIndex] = feature.RangeMin;
+                        }
+                        else
+                        {
+                            staticConfiguration[condition.BlockIndex] = value;
                         }
 
-                        staticConfiguration[condition.BlockIndex] = Value;
                         break;
                     }
                 }
