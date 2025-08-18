@@ -33,7 +33,7 @@ void main()
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
-    vTintColorFadeOut = GetObjectTint();
+    vTintColorFadeOut = GetObjectTintSrgb();
 
     vTexCoordOut = vTEXCOORD;
 }

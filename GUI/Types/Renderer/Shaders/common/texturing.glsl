@@ -150,11 +150,11 @@ void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
 
 #if defined(DIFFUSE_AO_COLOR_BLEED)
 
-uniform vec3 g_vAmbientOcclusionColorBleed = vec3(0.4, 0.14902, 0.129412);
+uniform vec3 g_vAmbientOcclusionColorBleed = vec3(0.4, 0.14902, 0.129412); // SrgbRead(true)
 
 void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 {
-    vec3 vAmbientOcclusionExponent = vec3(1.0) - SrgbGammaToLinear(g_vAmbientOcclusionColorBleed.rgb);
+    vec3 vAmbientOcclusionExponent = vec3(1.0) - g_vAmbientOcclusionColorBleed.rgb;
 #if (F_SSS_MASK == 1)
     vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, mat.SSSMask);
 #endif
@@ -290,7 +290,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     uniform float g_flEdgeColorFalloff = 3.0;
     uniform float g_flEdgeColorMaxOpacity = 0.5;
     uniform float g_flEdgeColorThickness = 0.1;
-    uniform vec3 g_vEdgeColor;
+    uniform vec3 g_vEdgeColor = vec3(0.5, 0.8, 0.5); // SrgbRead(true)
     uniform float g_flRefractScale = 0.1;
 
     // todo: is this right?

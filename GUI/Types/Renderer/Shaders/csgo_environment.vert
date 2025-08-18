@@ -37,7 +37,7 @@ out vec4 vTexCoord2;
 out vec4 vTintColor_ModelAmount;
 centroid out vec4 vVertexColor_Alpha;
 
-uniform vec3 g_vColorTint = vec3(1.0);
+uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 uniform float g_flModelTintAmount = 1.0;
 
 #include "common/ViewConstants.glsl"
@@ -169,9 +169,9 @@ void main()
     vTintColor_ModelAmount.a = g_flModelTintAmount * (1.0 - flLowestPoint);
 
     vec3 vVertexPaint = vec3(1.0);
-    vVertexPaint =  mix(vec3(1.0), vCOLOR.rgb, vec3(vCOLOR.a));
+    vVertexPaint = mix(vec3(1.0), vCOLOR.rgb, vec3(vCOLOR.a));
 
-    vVertexColor_Alpha = vec4(SrgbGammaToLinear(g_vColorTint.rgb) * vVertexPaint, object.vTint.a);
+    vVertexColor_Alpha = vec4(g_vColorTint.rgb * vVertexPaint, object.vTint.a);
 
     // Set up UV coordinates for all texture layers
     vec4 baseUVs = vec4(vTEXCOORD.xy, vTEXCOORD1.xy);

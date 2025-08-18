@@ -15,7 +15,7 @@ centroid out vec4 vColorOut;
 
 #include "common/ViewConstants.glsl"
 
-uniform vec3 g_vColorTint = vec3(1.0);
+uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 
 void main()
 {
@@ -33,9 +33,9 @@ void main()
 
     vTexCoordOut = vTEXCOORD;
 
-    vColorOut = GetObjectTint();
+    vColorOut = GetObjectTintSrgb();
     vColorOut.rgb = SrgbGammaToLinear(vColorOut.rgb);
-    vColorOut.rgb *= SrgbGammaToLinear(g_vColorTint.rgb);
+    vColorOut.rgb *= g_vColorTint.rgb;
 
     if (vCOLOR != vec4(0.0)) // Is this necessary?
     {

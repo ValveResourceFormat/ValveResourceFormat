@@ -14,10 +14,10 @@ namespace GUI.Types.Renderer
         public required int[] ShaderObjects { get; init; }
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public required HashSet<string> RenderModes { get; init; }
-        public required HashSet<string> SrgbSamplers { get; init; }
+        public required HashSet<string> SrgbUniforms { get; init; }
         public readonly HashSet<string> ReservedTexuresUsed = [];
 
-        private readonly Dictionary<string, (ActiveUniformType Type, int Location)> Uniforms = [];
+        private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
         public RenderMaterial Default;
         protected MaterialLoader MaterialLoader { get; init; }
 
@@ -175,7 +175,7 @@ namespace GUI.Types.Renderer
 
                 if (uniformLocation > -1)
                 {
-                    Uniforms[uniformName] = (uniformType, uniformLocation);
+                    Uniforms[uniformName] = new(uniformType, uniformLocation, SrgbUniforms.Contains(uniformName));
                 }
 
                 yield return (uniformName, i, uniformType, size);
@@ -205,7 +205,7 @@ namespace GUI.Types.Renderer
 
             var location = GL.GetUniformLocation(Program, name);
 
-            Uniforms[name] = (ActiveUniformType.FloatVec4, location);
+            Uniforms[name] = (ActiveUniformType.FloatVec4, location, SrgbUniforms.Contains(name));
 
             return location;
         }
@@ -219,7 +219,7 @@ namespace GUI.Types.Renderer
 
             var location = GL.GetUniformBlockIndex(Program, name);
 
-            Uniforms[name] = (ActiveUniformType.FloatVec4, location);
+            Uniforms[name] = (ActiveUniformType.FloatVec4, location, false);
 
             return location;
         }
@@ -284,6 +284,11 @@ namespace GUI.Types.Renderer
         {
             if (Uniforms.TryGetValue(name, out var uniform) && uniform.Location > -1)
             {
+                if (uniform.SrgbRead)
+                {
+                    value = new Vector4(ColorSpace.SrgbGammaToLinear(value.AsVector3()), value.W);
+                }
+
                 if (uniform.Type == ActiveUniformType.FloatVec3)
                 {
                     GL.ProgramUniform3(Program, uniform.Location, value.X, value.Y, value.Z);
