@@ -144,6 +144,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private readonly Dictionary<uint, string> LocalVariableNames = [];
 
         public IReadOnlyList<string> RenderAttributesUsed { get; }
+        public Func<int, string> EnumMapper { get; }
 
 
         // The 'return' keyword in the last line of a dynamic expression is optional (it is implied where absent)
@@ -159,10 +160,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ParseExpression(binaryBlob);
         }
 
-        public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
+        public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed,
+            bool omitReturnStatement = false,
+            IReadOnlyList<string> features = null,
+            Func<int, string> enumMapper = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
+            EnumMapper = enumMapper;
             RenderAttributesUsed = renderAttributesUsed;
 
             StringToken.Store(renderAttributesUsed);
@@ -259,6 +264,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 var pointer1 = dataReader.ReadUInt16();
                 var pointer2 = dataReader.ReadUInt16();
+
+                // Skip AND or OR branch detection as they might hide enum values that are 0 or 1
+                if (EnumMapper != null)
+                {
+                    OffsetAtBranchExits.Push(IFELSE_BRANCH);
+                    return;
+                }
+
                 var b = dataReader.ReadBytes(5);
 
                 // for <e1>&&<e2> expressions we are looking for the pattern
@@ -310,12 +323,22 @@ namespace ValveResourceFormat.Serialization.VfxEval
             if (op == OPCODE.FLOAT)
             {
                 var floatVal = dataReader.ReadSingle();
+
+                if (EnumMapper != null && floatVal == MathF.Floor(floatVal))
+                {
+
+                    Expressions.Push(EnumMapper((int)floatVal));
+                    return;
+                }
+
                 var floatLiteral = $"{floatVal:g}";
+
                 // if a float leads with "0." remove the 0 (as how Valve likes it)
                 if (floatLiteral.Length > 1 && floatLiteral[..2] == "0.")
                 {
                     floatLiteral = floatLiteral[1..];
                 }
+
                 Expressions.Push(floatLiteral);
                 return;
             }

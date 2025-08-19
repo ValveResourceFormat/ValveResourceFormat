@@ -265,6 +265,27 @@ namespace Tests
         }
 
         [Test]
+        public void TestDynamicExpression15_EnumMapper()
+        {
+            var exampleStr =
+            "07 00 00 80 3F 04 0A 00 12 00 07 00 00 80 3F 02 17 00 07 00 00 00 40 00";
+
+            var expectedResult = "return One ? One : Two;";
+
+            static string mapper(int v)
+            {
+                return v switch
+                {
+                    1 => "One",
+                    2 => "Two",
+                    _ => "Unknown",
+                };
+            }
+
+            Assert.That(new VfxEval(ParseString(exampleStr), [], false, [], mapper).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
         public void TestDynamicExpression16()
         {
             var exampleStr =

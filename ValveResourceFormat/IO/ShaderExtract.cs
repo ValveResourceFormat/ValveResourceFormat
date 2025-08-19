@@ -1144,11 +1144,50 @@ public sealed class ShaderExtract
         }
     }
 
+    enum Boolean
+    {
+        False,
+        True
+    }
+
+    static readonly Dictionary<string, Type> RenderStateEnumSource = new()
+    {
+        // RsRasterizerStateDesc
+        [nameof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.FillMode)] = typeof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.RsFillMode),
+        [nameof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.CullMode)] = typeof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.RsCullMode),
+        [nameof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.DepthClipEnable)] = typeof(Boolean),
+        [nameof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.MultisampleEnable)] = typeof(Boolean),
+
+        // RsDepthStencilStateDesc
+        [nameof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.DepthFunc)] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsComparison),
+        ["DepthEnable"] = typeof(Boolean),
+        [nameof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.DepthWriteEnable)] = typeof(Boolean),
+
+        // RsBlendStateDesc
+        [nameof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.AlphaToCoverageEnable)] = typeof(Boolean),
+        [nameof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.IndependentBlendEnable)] = typeof(Boolean),
+        [nameof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.SrgbWriteEnable)] = typeof(Boolean),
+        [nameof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.BlendEnable)] = typeof(Boolean),
+        [nameof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.SrcBlend)] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendMode),
+        [nameof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.BlendOp)] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendOp),
+        [nameof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.SrcBlendAlpha)] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendMode),
+        [nameof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.BlendOpAlpha)] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendOp),
+        ["DstBlendAlpha"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendMode),
+        ["DstBlend"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendMode),
+        ["ColorWriteEnable"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsColorWriteEnableBits),
+    };
+
     private void WriteState(IndentedTextWriter writer, VfxVariableDescription param)
     {
+        string enumMapper(int v)
+        {
+            var enumSource = RenderStateEnumSource.GetValueOrDefault(param.Name.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7'));
+            return enumSource?.GetEnumName(v) ?? v.ToString(CultureInfo.InvariantCulture);
+        }
+
         var stateValue = param.DynExp.Length > 0
-            ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult
-            : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
+            ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames, enumMapper).DynamicExpressionResult
+            : enumMapper(param.IntDefs[0]);
 
         if (param.RegisterType == VfxRegisterType.RenderState)
         {
