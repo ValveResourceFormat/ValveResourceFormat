@@ -685,7 +685,7 @@ void main()
     #if (blendMod2x)
         outputColor = vec4(mix(vec3(0.5), gammaOutput, vec3(outputColor.a)), outputColor.a);
     #elif (blendModThenAdd)
-        outputColor = vec4(mix(vec3(0), gammaOutput.rgb, vec3(outputColor.a)), outputColor.a);
+        outputColor = vec4(mix(vec3(0), outputColor.rgb, vec3(0.5)), outputColor.a);
     #endif
 #endif
 
