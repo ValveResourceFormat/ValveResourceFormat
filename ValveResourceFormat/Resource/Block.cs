@@ -42,9 +42,15 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// Writers the correct object to IndentedTextWriter.
+        /// Writes the correct text dump of the object to IndentedTextWriter.
         /// </summary>
         /// <param name="writer">IndentedTextWriter.</param>
         public abstract void WriteText(IndentedTextWriter writer);
+
+        /// <summary>
+        /// Writes the binary representation of the object to Stream.
+        /// </summary>
+        /// <param name="stream">Stream.</param>
+        public abstract void Serialize(Stream stream);
     }
 }

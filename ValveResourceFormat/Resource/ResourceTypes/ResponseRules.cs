@@ -53,6 +53,11 @@ namespace ValveResourceFormat.ResourceTypes
             File = Encoding.UTF8.GetString(reader.ReadBytes((int)(Size - relativeOffsetHere)));
         }
 
+        public override void Serialize(Stream stream)
+        {
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.Write(File);

@@ -46,7 +46,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the list of blocks this resource contains.
         /// </summary>
-        public List<Block> Blocks { get; }
+        public List<Block> Blocks { get; } = [];
 
         /// <summary>
         /// Gets or sets the type of the resource.
@@ -105,7 +105,16 @@ namespace ValveResourceFormat
         public Resource()
         {
             ResourceType = ResourceType.Unknown;
-            Blocks = [];
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Resource"/> class for creating new resources.
+        /// </summary>
+        public Resource(ResourceType resourceType, ushort version = 0)
+        {
+            ResourceType = resourceType;
+            HeaderVersion = KnownHeaderVersion;
+            Version = version;
         }
 
         /// <summary>
@@ -323,6 +332,104 @@ namespace ValveResourceFormat
 
                 throw new InvalidDataException($"File size ({Reader.BaseStream.Length}) does not match size specified in file ({fullFileSize}) ({ResourceType}).");
             }
+        }
+
+        /// <summary>
+        /// Serialize resource to binary.
+        /// </summary>
+        /// <remarks>NOT PRODUCTION READY! Not all blocks support serialization and will throw. The total file size must not exceed <see cref="uint"/>.</remarks>
+        /// <param name="stream">Stream to write to. The stream support seeking.</param>
+        public void Serialize(Stream stream)
+        {
+            if (!stream.CanSeek)
+            {
+                throw new InvalidOperationException("The stream must be seekable.");
+            }
+
+            var start = stream.Position;
+            using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
+
+            writer.Write(0xDEADBEEF); // file size to be updated later
+            writer.Write(KnownHeaderVersion);
+            writer.Write(Version);
+            writer.Write(8); // basically always 8 because we only write 2 ints
+            writer.Write(Blocks.Count);
+
+            var blocksStart = stream.Position + 4; // Skip the block type for correct stride
+
+            foreach (var block in Blocks)
+            {
+                writer.Write((uint)block.Type);
+                writer.Write(0xDEADBEEF); // offset
+                writer.Write(0xDEADBEEF); // size
+            }
+
+            writer.Flush();
+
+            for (var i = 0; i < Blocks.Count; i++)
+            {
+                // Align to 16 bytes
+                var currentPos = stream.Position;
+                var padding = (16 - currentPos % 16) % 16;
+
+                if (padding >= 5)
+                {
+                    var halfPadding = padding / 2;
+                    var s2vStart = halfPadding - 1;
+
+                    for (var j = 0; j < s2vStart; j++)
+                    {
+                        writer.Write((byte)0);
+                    }
+
+                    // Who said the padding has to be null bytes? :)
+                    writer.Write((byte)'S');
+                    writer.Write((byte)'2');
+                    writer.Write((byte)'V');
+
+                    padding -= s2vStart + 3;
+                }
+
+                for (var j = 0; j < padding; j++)
+                {
+                    writer.Write((byte)0);
+                }
+
+                var blockOffset = stream.Position;
+                var block = Blocks[i];
+
+                block.Serialize(stream);
+                stream.Flush();
+
+                var blockOffsetEnd = stream.Position;
+                var blockSize = blockOffsetEnd - blockOffset;
+
+                if (blockOffsetEnd > uint.MaxValue)
+                {
+                    throw new InvalidDataException("File size exceeds 32-bit integer.");
+                }
+
+                // Update metadata
+                var blockMetadataOffset = blocksStart + i * 12; // Start of offset field for this block
+                stream.Position = blockMetadataOffset;
+                writer.Write((uint)(blockOffset - blockMetadataOffset));
+                writer.Write((uint)blockSize);
+                writer.Flush();
+                stream.Position = blockOffsetEnd;
+            }
+
+            var end = stream.Position;
+            stream.Position = start;
+
+            // Update file size
+            var fileSize = end - start;
+
+            if (fileSize > uint.MaxValue)
+            {
+                throw new InvalidDataException("File size exceeds 32-bit integer.");
+            }
+
+            writer.Write((uint)fileSize);
         }
 
         public Block GetBlockByIndex(int index)

@@ -867,6 +867,11 @@ namespace ValveResourceFormat.ResourceTypes
             return codec;
         }
 
+        public override void Serialize(Stream stream)
+        {
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("{0,-12} = {1}", "VTEX Version", Version);

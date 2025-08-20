@@ -56,6 +56,17 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        public override void Serialize(Stream stream)
+        {
+            if (BackingData is BinaryKV3 dataKv3)
+            {
+                dataKv3.Serialize(stream);
+                return;
+            }
+
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
         public override void WriteText(IndentedTextWriter writer)
         {
             if (BackingData is BinaryKV3 dataKv3)

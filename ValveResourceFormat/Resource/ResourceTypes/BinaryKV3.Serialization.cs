@@ -63,11 +63,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        /// <summary>
-        /// Serialize KeyValues3 to binary keyvalues version 1.
-        /// </summary>
-        /// <param name="stream">Stream to write to.</param>
-        public void Serialize(Stream stream)
+        public override void Serialize(Stream stream)
         {
             if (Data == null)
             {

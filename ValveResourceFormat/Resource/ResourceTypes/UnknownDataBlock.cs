@@ -14,6 +14,11 @@ namespace ValveResourceFormat.ResourceTypes
             //
         }
 
+        public override void Serialize(Stream stream)
+        {
+            throw new NotImplementedException($"Unknown data block for resource type {ResourceType}");
+        }
+
         public override void WriteText(IndentedTextWriter writer)
         {
             throw new NotImplementedException($"Unknown data block for resource type {ResourceType}");

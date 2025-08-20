@@ -783,6 +783,11 @@ namespace ValveResourceFormat.Blocks
             return (normals, tangents);
         }
 
+        public override void Serialize(Stream stream)
+        {
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("Vertex buffers:");
