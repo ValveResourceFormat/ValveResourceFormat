@@ -60,7 +60,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         public int GetColorCorrectionLUTDimension()
-            => Data.GetProperty<int>("m_nColorCorrectionVolumeDim");
+            => Data.GetInt32Property("m_nColorCorrectionVolumeDim");
 
         public byte[] GetColorCorrectionLUT()
             => Data.GetProperty<byte[]>("m_colorCorrectionVolumeData");
