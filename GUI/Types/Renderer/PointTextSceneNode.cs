@@ -13,7 +13,11 @@ namespace GUI.Types.Renderer
             // Extract text properties from entity data
             if (EntityData != null)
             {
-                text = EntityData.GetProperty<string>("text") ?? "Missing Text";
+                text = EntityData.GetProperty<string>("text");
+                if (string.IsNullOrEmpty(text))
+                {
+                    text = "Missing Text";
+                }
                 
                 // Get color property as Vector3 and convert to Color32
                 var colorVec = EntityData.ContainsKey("textcolor") 
