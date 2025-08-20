@@ -816,6 +816,19 @@ namespace GUI.Types.Renderer
                         scene.PostProcessInfo.MasterTonemapController = tonemapController;
                     }
                 }
+                else if (classname == "point_worldtext")
+                {
+                    var textNode = new PointTextSceneNode(scene)
+                    {
+                        Transform = transformationMatrix,
+                        LayerName = layerName,
+                        Name = entity.GetProperty<string>("text") ?? "point_worldtext",
+                        EntityData = entity,
+                    };
+
+                    scene.Add(textNode, true);
+                    return;
+                }
 
                 if (model == null)
                 {
