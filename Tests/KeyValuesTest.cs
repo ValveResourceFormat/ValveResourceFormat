@@ -33,7 +33,7 @@ namespace Tests
         {
             var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
             Assert.That(file.Encoding, Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
-            AssertKV3Properties(file, false);
+            AssertKV3Properties(file);
         }
 
         [Test]
@@ -58,10 +58,10 @@ namespace Tests
             deserializedBinaryKV3.Read(reader);
 
             var deserializedFile = deserializedBinaryKV3.GetKV3File();
-            AssertKV3Properties(deserializedFile, true);
+            AssertKV3Properties(deserializedFile);
         }
 
-        private static void AssertKV3Properties(KV3File file, bool isSerializeTest)
+        private static void AssertKV3Properties(KV3File file)
         {
             Assert.Multiple(() =>
             {
@@ -103,7 +103,7 @@ namespace Tests
                 Assert.That(arrayValue.Properties["4"].Value, Is.EqualTo("hello world"));
                 Assert.That(arrayValue.Properties["5"].Flag, Is.EqualTo(KVFlag.SoundEvent));
                 Assert.That(arrayValue.Properties["6"].Flag, Is.EqualTo(KVFlag.SubClass));
-                Assert.That(arrayValue.Properties["7"].Flag, Is.EqualTo(isSerializeTest ? KVFlag.None : KVFlag.EntityName));
+                Assert.That(arrayValue.Properties["7"].Flag, Is.EqualTo(KVFlag.EntityName));
 
                 Assert.That(properties["objectValue"].Type, Is.EqualTo(KVValueType.Collection));
                 var objectValue = properties["objectValue"].Value as KVObject;

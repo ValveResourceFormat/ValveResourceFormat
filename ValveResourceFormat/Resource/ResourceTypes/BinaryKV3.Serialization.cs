@@ -16,21 +16,28 @@ namespace ValveResourceFormat.ResourceTypes
             public Dictionary<string, int> StringMap = [];
             public List<string> Strings = [];
             public MemoryStream Bytes1 = new();
+            public MemoryStream Bytes2 = new();
             public MemoryStream Bytes4 = new();
             public MemoryStream Bytes8 = new();
             public MemoryStream Types = new();
+            public MemoryStream BinaryBlobs = new();
+            public List<int> BinaryBlobLengths = [];
 
             public BinaryWriter Bytes1Writer;
+            public BinaryWriter Bytes2Writer;
             public BinaryWriter Bytes4Writer;
             public BinaryWriter Bytes8Writer;
             public BinaryWriter TypesWriter;
+            public BinaryWriter BinaryBlobsWriter;
 
             public SerializationContext()
             {
                 Bytes1Writer = new BinaryWriter(Bytes1, System.Text.Encoding.UTF8, leaveOpen: true);
+                Bytes2Writer = new BinaryWriter(Bytes2, System.Text.Encoding.UTF8, leaveOpen: true);
                 Bytes4Writer = new BinaryWriter(Bytes4, System.Text.Encoding.UTF8, leaveOpen: true);
                 Bytes8Writer = new BinaryWriter(Bytes8, System.Text.Encoding.UTF8, leaveOpen: true);
                 TypesWriter = new BinaryWriter(Types, System.Text.Encoding.UTF8, leaveOpen: true);
+                BinaryBlobsWriter = new BinaryWriter(BinaryBlobs, System.Text.Encoding.UTF8, leaveOpen: true);
             }
 
             public int GetStringId(string str)
@@ -53,13 +60,17 @@ namespace ValveResourceFormat.ResourceTypes
             public void Dispose()
             {
                 Bytes1Writer?.Dispose();
+                Bytes2Writer?.Dispose();
                 Bytes4Writer?.Dispose();
                 Bytes8Writer?.Dispose();
                 TypesWriter?.Dispose();
+                BinaryBlobsWriter?.Dispose();
                 Bytes1?.Dispose();
+                Bytes2?.Dispose();
                 Bytes4?.Dispose();
                 Bytes8?.Dispose();
                 Types?.Dispose();
+                BinaryBlobs?.Dispose();
             }
         }
 
@@ -81,22 +92,56 @@ namespace ValveResourceFormat.ResourceTypes
 
             using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
 
-            WriteHeader(writer, context);
+            writer.Write(MAGIC4);
+            writer.Write(Format.ToByteArray());
+            writer.Write(0); // 0 = no compression
+            writer.Write((ushort)0); // compressionDictionaryId
+            writer.Write((ushort)0); // compressionFrameSize
+            writer.Write((int)context.Bytes1.Length);
+            writer.Write((int)context.Bytes4.Length / 4);
+            writer.Write((int)context.Bytes8.Length / 8);
+
+            var countTypesOffset = stream.Position;
+            writer.Write(0); // countTypes, will be overwritten
+            writer.Write((ushort)0); // countObjects
+            writer.Write((ushort)0); // countArrays
+
+            var sizeUncompressedTotalOffset = stream.Position;
+            writer.Write(0xDEADBEEF); // uncompressed size, will be overwritten
+            writer.Write(0xDEADBEEF); // compressed size, will be overwritten
+
+            writer.Write(context.BinaryBlobLengths.Count);
+            writer.Write((int)context.BinaryBlobs.Length);
+            writer.Write((int)context.Bytes2.Length / 2);
+            writer.Write(0); // sizeBlockCompressedSizesBytes
 
             var start = stream.Position;
-            writer.Write(0xDEADBEEF); // uncompressed size, will be overwritten
+            var countTypes = WriteData(writer, context);
 
-            WriteData(writer, context);
+            // If there are no binary blobs, write the trailer in the main buffer
+            if (context.BinaryBlobLengths.Count == 0)
+            {
+                writer.Write(0xFFEEDD00);
+            }
+
             var end = stream.Position;
 
-            // Go back and write uncompressed size
+            // Go back and write uncompressed size (only the main data, including trailer when no binary blobs)
             var dataSize = (uint)(end - start);
-            stream.Position = start;
+            stream.Position = countTypesOffset;
+            writer.Write(countTypes);
+            stream.Position = sizeUncompressedTotalOffset;
+            writer.Write(dataSize);
             writer.Write(dataSize);
             stream.Position = end;
 
-            // Finish with a trailer
-            writer.Write(0xFFEEDD00);
+            if (context.BinaryBlobLengths.Count > 0)
+            {
+                context.BinaryBlobs.WriteTo(writer.BaseStream);
+
+                // Finish with a trailer after binary blobs
+                writer.Write(0xFFEEDD00);
+            }
         }
 
         private void WriteValue(KVObject obj, SerializationContext context, bool isRoot = false, KVFlag flag = KVFlag.None)
@@ -167,10 +212,10 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVValueType.Null:
                     break;
                 case KVValueType.Int16:
-                    context.Bytes4Writer.Write(Convert.ToInt32(value.Value, CultureInfo.InvariantCulture));
+                    context.Bytes2Writer.Write(Convert.ToInt16(value.Value, CultureInfo.InvariantCulture));
                     break;
                 case KVValueType.UInt16:
-                    context.Bytes4Writer.Write(Convert.ToUInt32(value.Value, CultureInfo.InvariantCulture));
+                    context.Bytes2Writer.Write(Convert.ToUInt16(value.Value, CultureInfo.InvariantCulture));
                     break;
                 case KVValueType.Int32:
                     context.Bytes4Writer.Write(Convert.ToInt32(value.Value, CultureInfo.InvariantCulture));
@@ -184,12 +229,9 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVValueType.UInt64:
                     context.Bytes8Writer.Write(Convert.ToUInt64(value.Value, CultureInfo.InvariantCulture));
                     break;
-#if false // TODO: Needs v4 for floats
                 case KVValueType.FloatingPoint:
                     context.Bytes4Writer.Write(Convert.ToSingle(value.Value, CultureInfo.InvariantCulture));
                     break;
-#endif
-                case KVValueType.FloatingPoint:
                 case KVValueType.FloatingPoint64:
                     context.Bytes8Writer.Write(Convert.ToDouble(value.Value, CultureInfo.InvariantCulture));
                     break;
@@ -198,12 +240,11 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVValueType.BinaryBlob:
                     var bytes = (byte[])value.Value;
-                    context.Bytes4Writer.Write(bytes.Length);
+                    context.BinaryBlobLengths.Add(bytes.Length);
                     if (bytes.Length > 0)
                     {
-                        context.Bytes1Writer.Write(bytes);
+                        context.BinaryBlobsWriter.Write(bytes);
                     }
-
                     break;
                 case KVValueType.Collection:
                     context.Bytes4Writer.Write(((KVObject)value.Value).Properties.Count);
@@ -238,7 +279,7 @@ namespace ValveResourceFormat.ResourceTypes
                 KVValueType.UInt32 => KV3BinaryNodeType.UINT32,
                 KVValueType.Int64 => KV3BinaryNodeType.INT64,
                 KVValueType.UInt64 => KV3BinaryNodeType.UINT64,
-                KVValueType.FloatingPoint => KV3BinaryNodeType.DOUBLE, // TODO: Needs v4 for floats
+                KVValueType.FloatingPoint => KV3BinaryNodeType.FLOAT,
                 KVValueType.FloatingPoint64 => KV3BinaryNodeType.DOUBLE,
                 KVValueType.String => KV3BinaryNodeType.STRING,
                 KVValueType.BinaryBlob => KV3BinaryNodeType.BINARY_BLOB,
@@ -250,47 +291,18 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void WriteType(SerializationContext context, KV3BinaryNodeType type, KVFlag flag = KVFlag.None)
         {
-            var typeByte = (byte)type;
-
             if (flag != KVFlag.None)
             {
-                typeByte |= 0x80;
+                context.TypesWriter.Write((byte)((byte)type | 0x80));
+                context.TypesWriter.Write((byte)flag);
             }
-
-            context.TypesWriter.Write(typeByte);
-
-            if (flag != KVFlag.None)
+            else
             {
-                var version1Flag = ConvertFlagToVersion1(flag);
-                context.TypesWriter.Write((byte)version1Flag);
+                context.TypesWriter.Write((byte)type);
             }
         }
 
-        private static int ConvertFlagToVersion1(KVFlag flag)
-        {
-            return flag switch
-            {
-                KVFlag.None => 0,
-                KVFlag.Resource => 1,
-                KVFlag.ResourceName => 2,
-                KVFlag.Panorama => 8,
-                KVFlag.SoundEvent => 16,
-                KVFlag.SubClass => 32,
-                _ => 0,
-            };
-        }
-
-        private void WriteHeader(BinaryWriter writer, SerializationContext context)
-        {
-            writer.Write(MAGIC1);
-            writer.Write(Format.ToByteArray());
-            writer.Write(0); // 0 = no compression
-            writer.Write((int)context.Bytes1.Length);
-            writer.Write((int)context.Bytes4.Length / 4);
-            writer.Write((int)context.Bytes8.Length / 8);
-        }
-
-        private static void WriteData(BinaryWriter writer, SerializationContext context)
+        private static int WriteData(BinaryWriter writer, SerializationContext context)
         {
             // We're aligning inside of the compressed data block (even though we don't compress)
             var offset = (int)context.Bytes1.Length;
@@ -298,6 +310,13 @@ namespace ValveResourceFormat.ResourceTypes
             if (context.Bytes1.Length > 0)
             {
                 context.Bytes1.WriteTo(writer.BaseStream);
+            }
+
+            if (context.Bytes2.Length > 0)
+            {
+                AlignWriter(ref offset, writer, 2);
+                context.Bytes2.WriteTo(writer.BaseStream);
+                offset += (int)context.Bytes2.Length;
             }
 
             if (context.Bytes4.Length > 0)
@@ -315,18 +334,36 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                // For version 1 (< 5), align even when empty
+                // For versions before 5, align even when empty
                 AlignWriter(ref offset, writer, 8);
             }
+
+            var stringsStartOffset = offset;
 
             foreach (var str in context.Strings)
             {
                 var strBytes = System.Text.Encoding.UTF8.GetBytes(str);
                 writer.Write(strBytes);
                 writer.Write((byte)0);
+                offset += strBytes.Length + 1;
             }
 
             context.Types.WriteTo(writer.BaseStream);
+            offset += (int)context.Types.Length;
+
+            var typesEndOffset = offset - stringsStartOffset;
+
+            if (context.BinaryBlobLengths.Count > 0)
+            {
+                foreach (var length in context.BinaryBlobLengths)
+                {
+                    writer.Write(length);
+                }
+
+                writer.Write(0xFFEEDD00);
+            }
+
+            return typesEndOffset;
         }
 
         private static int CalculateStringBytes(SerializationContext context)
