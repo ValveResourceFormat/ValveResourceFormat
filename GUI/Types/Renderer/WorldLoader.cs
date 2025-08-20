@@ -818,12 +818,10 @@ namespace GUI.Types.Renderer
                 }
                 else if (classname == "point_worldtext")
                 {
-                    var textNode = new PointTextSceneNode(scene)
+                    var textNode = new PointTextSceneNode(scene, entity)
                     {
                         Transform = transformationMatrix,
                         LayerName = layerName,
-                        Name = entity.GetProperty<string>("text") ?? "point_worldtext",
-                        EntityData = entity,
                     };
 
                     scene.Add(textNode, true);
