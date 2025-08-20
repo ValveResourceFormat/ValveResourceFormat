@@ -230,7 +230,7 @@ namespace GUI.Types.Renderer
                     var classname = node.EntityData.GetProperty<string>("classname");
                     nodeName = classname;
 
-                    if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
+                    if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_volumetric_fog_volume" or "env_wind_volume" or "steampal_kill_volume" or "env_cubemap_box" or "env_cubemap")
                     {
                         AABB bounds = default;
 
