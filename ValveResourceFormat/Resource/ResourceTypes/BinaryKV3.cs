@@ -60,6 +60,14 @@ namespace ValveResourceFormat.ResourceTypes
             KVBlockType = type;
         }
 
+        public BinaryKV3(KVObject data, Guid format)
+        {
+            KVBlockType = BlockType.Undefined;
+            Data = data;
+            Format = format;
+            Encoding = KV3_ENCODING_BINARY_UNCOMPRESSED;
+        }
+
         public override void Read(BinaryReader reader)
         {
             if (KVBlockType != BlockType.Undefined)

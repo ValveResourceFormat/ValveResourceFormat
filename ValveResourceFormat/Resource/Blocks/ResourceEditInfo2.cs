@@ -113,6 +113,11 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        public override void Serialize(Stream stream)
+        {
+            BackingData.Serialize(stream);
+        }
+
         public override void WriteText(IndentedTextWriter writer)
         {
             BackingData.WriteText(writer);

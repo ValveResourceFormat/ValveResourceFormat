@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text;
 using NUnit.Framework;
+using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVValueType = ValveKeyValue.KVValueType;
 
@@ -30,13 +32,42 @@ namespace Tests
         public void TestKeyValues3_LF()
         {
             var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            Assert.That(file.Encoding, Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
+            AssertKV3Properties(file, false);
+        }
 
+        [Test]
+        public void TestBinaryKV3_Serialization()
+        {
+            var originalFile = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+
+            var formatGuid = new System.Guid("7412167c-06e9-4698-aff2-e63eb59037e7");
+            var binaryKV3 = new BinaryKV3(originalFile.Root, formatGuid);
+
+            using var stream = new MemoryStream();
+            binaryKV3.Serialize(stream);
+            stream.Position = 0;
+
+            var deserializedBinaryKV3 = new BinaryKV3(BlockType.DATA)
+            {
+                Size = (uint)stream.Length,
+                Offset = 0
+            };
+
+            using var reader = new BinaryReader(stream);
+            deserializedBinaryKV3.Read(reader);
+
+            var deserializedFile = deserializedBinaryKV3.GetKV3File();
+            AssertKV3Properties(deserializedFile, true);
+        }
+
+        private static void AssertKV3Properties(KV3File file, bool isSerializeTest)
+        {
             Assert.Multiple(() =>
             {
                 //Not sure what KVType is better for this
                 Assert.That(file.Root.Properties["multiLineStringValue"].Value, Is.EqualTo("First line of a multi-line string literal.\nSecond line of a multi-line string literal."));
 
-                Assert.That(file.Encoding, Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
                 Assert.That(file.Format, Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
 
                 Assert.That(file.Root, Has.Count.EqualTo(14));
@@ -72,7 +103,7 @@ namespace Tests
                 Assert.That(arrayValue.Properties["4"].Value, Is.EqualTo("hello world"));
                 Assert.That(arrayValue.Properties["5"].Flag, Is.EqualTo(KVFlag.SoundEvent));
                 Assert.That(arrayValue.Properties["6"].Flag, Is.EqualTo(KVFlag.SubClass));
-                Assert.That(arrayValue.Properties["7"].Flag, Is.EqualTo(KVFlag.EntityName));
+                Assert.That(arrayValue.Properties["7"].Flag, Is.EqualTo(isSerializeTest ? KVFlag.None : KVFlag.EntityName));
 
                 Assert.That(properties["objectValue"].Type, Is.EqualTo(KVValueType.Collection));
                 var objectValue = properties["objectValue"].Value as KVObject;

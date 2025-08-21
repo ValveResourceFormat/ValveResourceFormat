@@ -72,6 +72,82 @@ namespace Tests
         }
 
         [Test]
+        public void RoundtripSerialization()
+        {
+            var resources = new Dictionary<string, Resource>();
+            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
+            var files = Directory.GetFiles(path, "*.*_c", new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+            });
+
+            if (files.Length == 0)
+            {
+                Assert.Fail("There are no files to test.");
+            }
+
+            foreach (var file in files)
+            {
+                var ms = new MemoryStream();
+
+                using (var resourceOnDisk = new Resource
+                {
+                    FileName = file,
+                })
+                {
+                    try
+                    {
+                        resourceOnDisk.Read(file);
+                    }
+                    catch (NotImplementedException)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        resourceOnDisk.Serialize(ms);
+                    }
+                    catch (NotImplementedException)
+                    {
+                        continue;
+                    }
+                }
+
+                ms.Position = 0;
+
+                // Now try to parse what we just wrote
+                using var resource = new Resource
+                {
+                    FileName = file,
+                };
+                resource.Read(ms);
+
+                resources.Add(Path.GetFileName(file), resource);
+
+                Assert.That(resource.ResourceType, Is.Not.EqualTo(ResourceType.Unknown));
+
+                // Verify extension
+                var extension = Path.GetExtension(file);
+
+                if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+                {
+                    extension = extension[..^2];
+                }
+
+                var attribute = "." + resource.ResourceType.GetExtension();
+                Assert.That(attribute, Is.EqualTo(extension), file);
+
+                if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
+                {
+                    InternalTestExtraction.Test(resource);
+                }
+            }
+
+            VerifyResources(resources, validateMissingResources: false);
+        }
+
+        [Test]
         public void ReadBlocksWithMemoryStream()
         {
             var resources = new Dictionary<string, Resource>();
@@ -144,7 +220,7 @@ namespace Tests
             Assert.That(dataBlock, Is.Not.TypeOf<UnknownDataBlock>(), file);
         }
 
-        static void VerifyResources(Dictionary<string, Resource> resources)
+        static void VerifyResources(Dictionary<string, Resource> resources, bool validateMissingResources = true)
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
             var files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
@@ -156,7 +232,10 @@ namespace Tests
 
                 if (name == null || !resources.TryGetValue(name, out var resource))
                 {
-                    Assert.Fail($"{name}: no such resource");
+                    if (validateMissingResources)
+                    {
+                        Assert.Fail($"{name}: no such resource");
+                    }
 
                     continue;
                 }

@@ -128,6 +128,11 @@ namespace ValveResourceFormat.Blocks
             Debug.Assert(reader.BaseStream.Position == Offset + Size);
         }
 
+        public override void Serialize(Stream stream)
+        {
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("Parsing world visiblity is not implemented. If you're up to the task, try to reverse engineer it!");

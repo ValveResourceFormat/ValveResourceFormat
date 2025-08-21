@@ -146,5 +146,10 @@ namespace ValveResourceFormat.ResourceTypes
             reader.BaseStream.Position = previousPosition;
             return strings;
         }
+
+        public override void Serialize(Stream stream)
+        {
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
     }
 }
