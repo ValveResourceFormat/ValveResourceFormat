@@ -140,10 +140,10 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             string ConstructFilePath(ulong hash)
             {
-                var unk1 = (int)(hash >> 61) & 7;
-                var addonIndex = (int)(hash >> 52) & 0x1FF;
-                var directoryIndex = (int)(hash >> 33) & 0x7FFFF;
-                var filenameIndex = (int)(hash >> 10) & 0x7FFFFF;
+                var unk1 = (int)((hash >> 61) & 7);
+                var addonIndex = (int)((hash >> 52) & 0x1FF);
+                var directoryIndex = (int)((hash >> 33) & 0x7FFFF);
+                var filenameIndex = (int)((hash >> 10) & 0x7FFFFF);
                 var extensionIndex = (int)(hash & 0x3FF);
 
                 var path = new StringBuilder();
