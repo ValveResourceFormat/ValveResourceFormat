@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -85,7 +86,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             context.Bytes4Writer.Write(0xDEADBEEF); // string count, will be updated
 
-            WriteValue(Data, context, isRoot: true);
+            WriteObject(Data, context);
 
             context.Bytes4.Position = 0;
             context.Bytes4Writer.Write(context.Strings.Count);
@@ -144,40 +145,16 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private void WriteValue(KVObject obj, SerializationContext context, bool isRoot = false, KVFlag flag = KVFlag.None)
+        private void WriteObject(KVObject obj, SerializationContext context)
         {
-            if (isRoot)
+            Debug.Assert(!obj.IsArray); // The reader does not support non-object roots properly.
+
+            WriteType(context, KV3BinaryNodeType.OBJECT, KVFlag.None);
+            context.Bytes4Writer.Write(obj.Properties.Count);
+
+            foreach (var property in obj.Properties)
             {
-                WriteType(context, KV3BinaryNodeType.OBJECT, flag);
-                context.Bytes4Writer.Write(obj.Properties.Count);
-
-                foreach (var property in obj.Properties)
-                {
-                    WriteProperty(property.Key, property.Value, context);
-                }
-            }
-            else
-            {
-                if (obj.IsArray)
-                {
-                    context.Bytes4Writer.Write(obj.Properties.Count);
-                    WriteType(context, KV3BinaryNodeType.ARRAY, flag);
-
-                    foreach (var property in obj.Properties)
-                    {
-                        WriteValueRecursive(property.Value, context);
-                    }
-                }
-                else
-                {
-                    context.Bytes4Writer.Write(obj.Properties.Count);
-                    WriteType(context, KV3BinaryNodeType.OBJECT, flag);
-
-                    foreach (var property in obj.Properties)
-                    {
-                        WriteProperty(property.Key, property.Value, context);
-                    }
-                }
+                WriteProperty(property.Key, property.Value, context);
             }
         }
 
@@ -396,16 +373,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return typesEndOffset;
-        }
-
-        private static int CalculateStringBytes(SerializationContext context)
-        {
-            var total = 0;
-            foreach (var str in context.Strings)
-            {
-                total += System.Text.Encoding.UTF8.GetByteCount(str) + 1; // +1 for null terminator
-            }
-            return total;
         }
 
         private static void AlignWriter(ref int offset, BinaryWriter writer, int alignment)
