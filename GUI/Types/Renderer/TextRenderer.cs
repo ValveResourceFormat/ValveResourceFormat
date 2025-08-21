@@ -208,7 +208,7 @@ namespace GUI.Types.Renderer
                             }
                         }
 
-                        if ((uint)c - 33 > 93)
+                        if (c < 33 || c > 126)
                         {
                             x += DefaultAdvance * textRenderRequest.Scale;
                             continue;

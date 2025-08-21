@@ -113,13 +113,12 @@ namespace GUI.Types.Renderer
                 GL.ObjectLabel(ObjectLabelIdentifier.Shader, fragmentShader, fragmentName.Length, fragmentName);
 #endif
 
-                var shader = new Shader(VrfGuiContext)
+                var shader = new Shader(shaderName, VrfGuiContext)
                 {
 #if DEBUG
                     FileName = shaderFileName,
 #endif
 
-                    Name = shaderName,
                     Parameters = arguments,
                     Program = shaderProgram,
                     ShaderObjects = [vertexShader, fragmentShader],
