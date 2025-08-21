@@ -202,11 +202,49 @@ namespace ValveResourceFormat.ResourceTypes
 
                 return;
             }
+            else if (value.Type == KVValueType.Int64)
+            {
+                var writeValue = Convert.ToInt64(value.Value, CultureInfo.InvariantCulture);
+
+                if (writeValue == 0)
+                {
+                    WriteType(context, KV3BinaryNodeType.INT64_ZERO, value.Flag);
+                    return;
+                }
+                else if (writeValue == 1)
+                {
+                    WriteType(context, KV3BinaryNodeType.INT64_ONE, value.Flag);
+                    return;
+                }
+
+                WriteType(context, KV3BinaryNodeType.INT64, value.Flag);
+                context.Bytes8Writer.Write(writeValue);
+                return;
+            }
+            else if (value.Type == KVValueType.FloatingPoint64)
+            {
+                var writeValue = Convert.ToDouble(value.Value, CultureInfo.InvariantCulture);
+
+                if (writeValue == 0.0)
+                {
+                    WriteType(context, KV3BinaryNodeType.DOUBLE_ZERO, value.Flag);
+                    return;
+                }
+                else if (writeValue == 1.0)
+                {
+                    WriteType(context, KV3BinaryNodeType.DOUBLE_ONE, value.Flag);
+                    return;
+                }
+
+                WriteType(context, KV3BinaryNodeType.DOUBLE, value.Flag);
+                context.Bytes8Writer.Write(writeValue);
+                return;
+            }
+
 
             var nodeType = GetKV3BinaryNodeType(value);
             WriteType(context, nodeType, value.Flag);
 
-            // TODO: Support writing optimized 0/1 values
             switch (value.Type)
             {
                 case KVValueType.Null:
@@ -223,17 +261,11 @@ namespace ValveResourceFormat.ResourceTypes
                 case KVValueType.UInt32:
                     context.Bytes4Writer.Write(Convert.ToUInt32(value.Value, CultureInfo.InvariantCulture));
                     break;
-                case KVValueType.Int64:
-                    context.Bytes8Writer.Write(Convert.ToInt64(value.Value, CultureInfo.InvariantCulture));
-                    break;
                 case KVValueType.UInt64:
                     context.Bytes8Writer.Write(Convert.ToUInt64(value.Value, CultureInfo.InvariantCulture));
                     break;
                 case KVValueType.FloatingPoint:
                     context.Bytes4Writer.Write(Convert.ToSingle(value.Value, CultureInfo.InvariantCulture));
-                    break;
-                case KVValueType.FloatingPoint64:
-                    context.Bytes8Writer.Write(Convert.ToDouble(value.Value, CultureInfo.InvariantCulture));
                     break;
                 case KVValueType.String:
                     context.Bytes4Writer.Write(context.GetStringId((string)value.Value));
@@ -272,15 +304,15 @@ namespace ValveResourceFormat.ResourceTypes
             return value.Type switch
             {
                 KVValueType.Null => KV3BinaryNodeType.NULL,
-                KVValueType.Boolean => KV3BinaryNodeType.BOOLEAN,
+                //KVValueType.Boolean => KV3BinaryNodeType.BOOLEAN,
                 KVValueType.Int16 => KV3BinaryNodeType.INT16,
                 KVValueType.UInt16 => KV3BinaryNodeType.UINT16,
                 KVValueType.Int32 => KV3BinaryNodeType.INT32,
                 KVValueType.UInt32 => KV3BinaryNodeType.UINT32,
-                KVValueType.Int64 => KV3BinaryNodeType.INT64,
+                //KVValueType.Int64 => KV3BinaryNodeType.INT64,
                 KVValueType.UInt64 => KV3BinaryNodeType.UINT64,
                 KVValueType.FloatingPoint => KV3BinaryNodeType.FLOAT,
-                KVValueType.FloatingPoint64 => KV3BinaryNodeType.DOUBLE,
+                //KVValueType.FloatingPoint64 => KV3BinaryNodeType.DOUBLE,
                 KVValueType.String => KV3BinaryNodeType.STRING,
                 KVValueType.BinaryBlob => KV3BinaryNodeType.BINARY_BLOB,
                 KVValueType.Array => KV3BinaryNodeType.ARRAY,
