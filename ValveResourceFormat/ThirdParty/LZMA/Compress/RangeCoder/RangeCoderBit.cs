@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SevenZip.Compression.RangeCoder
 {
-	[ExcludeFromCodeCoverage]
 	internal struct BitDecoder
 	{
 		public const int kNumBitModelTotalBits = 11;
@@ -14,14 +13,6 @@ namespace SevenZip.Compression.RangeCoder
 		const int kNumMoveBits = 5;
 
 		uint Prob;
-
-		public void UpdateModel(int numMoveBits, uint symbol)
-		{
-			if (symbol == 0)
-				Prob += (kBitModelTotal - Prob) >> numMoveBits;
-			else
-				Prob -= (Prob) >> numMoveBits;
-		}
 
 		public void Init() { Prob = kBitModelTotal >> 1; }
 

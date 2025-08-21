@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SevenZip.Compression.LZ
 {
-	[ExcludeFromCodeCoverage]
 	internal class OutWindow
 	{
 		byte[] _buffer = null;
