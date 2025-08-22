@@ -120,5 +120,23 @@ namespace Tests
                 Assert.That(properties["a quoted key with spaces"].Value, Is.EqualTo("some cool value"));
             }
         }
+
+        [Test]
+        public void TestKV3Guids()
+        {
+            using (Assert.EnterMultipleScope())
+            {
+                foreach (var (name, guid) in KV3IDLookup.Table)
+                {
+                    if (name == "vpcf38") // Classic valve
+                    {
+                        Assert.That(guid.Version, Is.EqualTo(1), name);
+                        continue;
+                    }
+
+                    Assert.That(guid.Version, Is.EqualTo(4), name);
+                }
+            }
+        }
     }
 }
