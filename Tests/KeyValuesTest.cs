@@ -41,8 +41,7 @@ namespace Tests
         {
             var originalFile = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
 
-            var formatGuid = new System.Guid("7412167c-06e9-4698-aff2-e63eb59037e7");
-            var binaryKV3 = new BinaryKV3(originalFile.Root, formatGuid);
+            var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"));
 
             using var stream = new MemoryStream();
             binaryKV3.Serialize(stream);

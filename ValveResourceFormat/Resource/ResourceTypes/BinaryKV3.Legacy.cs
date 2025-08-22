@@ -17,8 +17,8 @@ namespace ValveResourceFormat.ResourceTypes
                 Version = 0,
             };
 
-            Encoding = new Guid(reader.ReadBytes(16));
-            Format = new Guid(reader.ReadBytes(16));
+            Encoding = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
+            Format = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
 
             // Valve's implementation lives in LoadKV3Binary()
             // KV3_ENCODING_BINARY_BLOCK_COMPRESSED calls CBlockCompress::FastDecompress()
@@ -31,7 +31,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 int outBufferLength;
 
-                if (Encoding.CompareTo(KV3IDLookup.Table["binary_bc"]) == 0)
+                if (Encoding == KV3IDLookup.Get("binary_bc"))
                 {
                     var info = BlockCompress.GetDecompressedSize(reader);
                     outBufferLength = info.Size;
@@ -39,14 +39,14 @@ namespace ValveResourceFormat.ResourceTypes
 
                     BlockCompress.FastDecompress(info, reader, outputBuf.AsSpan(0, outBufferLength));
                 }
-                else if (Encoding.CompareTo(KV3IDLookup.Table["binary_lz4"]) == 0)
+                else if (Encoding == KV3IDLookup.Get("binary_lz4"))
                 {
                     outBufferLength = reader.ReadInt32();
                     var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
                     DecompressLZ4(reader, outputBuf.AsSpan(0, outBufferLength), compressedSize);
                 }
-                else if (Encoding.CompareTo(KV3IDLookup.Table["binary"]) == 0)
+                else if (Encoding == KV3IDLookup.Get("binary"))
                 {
                     outBufferLength = (int)(Size - (reader.BaseStream.Position - Offset));
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);

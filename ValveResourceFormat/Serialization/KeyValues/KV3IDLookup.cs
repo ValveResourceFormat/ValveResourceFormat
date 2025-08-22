@@ -201,6 +201,9 @@ public static class KV3IDLookup
         { "text", new Guid([0x3C, 0x7F, 0x1C, 0xE2, 0x33, 0x8A, 0xC5, 0x41, 0x99, 0x77, 0xA7, 0x6D, 0x3A, 0x32, 0xAA, 0x0D]) },
     }.ToFrozenDictionary();
 
+    /// <summary>
+    /// Lookups a KV3 ID in the lookup table, will throw <see cref="ArgumentException"/> if not found.
+    /// </summary>
     public static KV3ID Get(string name)
     {
         if (!Table.TryGetValue(name, out var id))
@@ -209,5 +212,21 @@ public static class KV3IDLookup
         }
 
         return new KV3ID(name, id);
+    }
+
+    /// <summary>
+    /// Lookup a KV3 ID in the lookup table, will return a <see cref="KV3ID"/> with name set to "vrfunknown" if not found.
+    /// </summary>
+    public static KV3ID GetByValue(Guid value)
+    {
+        foreach (var (name, guid) in KV3IDLookup.Table)
+        {
+            if (value == guid)
+            {
+                return new KV3ID(name, value);
+            }
+        }
+
+        return new KV3ID("vrfunknown", value);
     }
 }

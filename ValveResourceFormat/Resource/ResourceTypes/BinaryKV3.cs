@@ -27,9 +27,8 @@ namespace ValveResourceFormat.ResourceTypes
         public static bool IsBinaryKV3(uint magic) => magic is MAGIC0 or MAGIC1 or MAGIC2 or MAGIC3 or MAGIC4 or MAGIC5;
 
         public KVObject Data { get; private set; }
-        // TODO: Upgrade these from Guid to KV3ID
-        public Guid Encoding { get; private set; }
-        public Guid Format { get; private set; }
+        public KV3ID? Encoding { get; private set; }
+        public KV3ID Format { get; private set; }
 
         private class Buffers
         {
@@ -61,12 +60,11 @@ namespace ValveResourceFormat.ResourceTypes
             KVBlockType = type;
         }
 
-        public BinaryKV3(KVObject data, Guid format, BlockType blockType = BlockType.Undefined)
+        public BinaryKV3(KVObject data, KV3ID format, BlockType blockType = BlockType.Undefined)
         {
             KVBlockType = blockType;
             Data = data;
             Format = format;
-            Encoding = KV3IDLookup.Table["binary"];
         }
 
         public override void Read(BinaryReader reader)
@@ -149,7 +147,7 @@ namespace ValveResourceFormat.ResourceTypes
                 Version = version,
             };
 
-            Format = new Guid(reader.ReadBytes(16));
+            Format = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
 
             var compressionMethod = reader.ReadUInt32();
             ushort compressionDictionaryId = 0;
@@ -1056,18 +1054,7 @@ namespace ValveResourceFormat.ResourceTypes
         public KV3File GetKV3File()
 #pragma warning restore CA1024 // Use properties where appropriate
         {
-            var formatType = "vrfunknown";
-
-            foreach (var (type, guid) in KV3IDLookup.Table)
-            {
-                if (Format == guid)
-                {
-                    formatType = type;
-                    break;
-                }
-            }
-
-            return new KV3File(Data, format: new KV3ID(formatType, Format));
+            return new KV3File(Data, format: Format);
         }
 
         public override void WriteText(IndentedTextWriter writer)
