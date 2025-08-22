@@ -58,6 +58,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
             public readonly Stack<KVObject> ObjStack;
             public readonly Stack<State> StateStack;
 
+            public string HeaderString;
+
             public bool EndOfStream => FileStream.EndOfStream && CharBuffer.Count == 0;
 
             public Parser()
@@ -152,7 +154,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 parser.PreviousChar = c;
             }
 
-            return new KV3File((KVObject)parser.Root.Properties.ElementAt(0).Value.Value); //TODO: give Encoding and Formatting too
+            // Parse header
+            KV3ID? encoding = null;
+            KV3ID? format = null;
+            if (!string.IsNullOrEmpty(parser.HeaderString))
+            {
+                (encoding, format) = ParseHeaderInfo(parser.HeaderString);
+            }
+
+            return new KV3File((KVObject)parser.Root.Properties.ElementAt(0).Value.Value, encoding, format);
         }
 
         //header state
@@ -163,10 +173,67 @@ namespace ValveResourceFormat.Serialization.KeyValues
             //Read until --> is encountered
             if (c == '>' && parser.CurrentString.Length >= 3 && parser.CurrentString[^2] == '-' && parser.CurrentString[^3] == '-')
             {
+                parser.HeaderString = parser.CurrentString.ToString();
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.SEEK_VALUE);
                 return;
             }
+        }
+
+        private static (KV3ID? encoding, KV3ID? format) ParseHeaderInfo(string header)
+        {
+            // Header format: <!-- kv3 encoding:text:version{guid} format:generic:version{guid} -->
+            var startIndex = header.IndexOf("kv3", StringComparison.Ordinal);
+            if (startIndex == -1)
+            {
+                return (null, null);
+            }
+
+            var headerContent = header[startIndex..];
+
+            KV3ID? encoding = null;
+            KV3ID? format = null;
+
+            var encodingIndex = headerContent.IndexOf("encoding:", StringComparison.Ordinal);
+            if (encodingIndex != -1)
+            {
+                encoding = ParseKV3IDFromHeader(headerContent, encodingIndex + "encoding:".Length);
+            }
+
+            var formatIndex = headerContent.IndexOf("format:", StringComparison.Ordinal);
+            if (formatIndex != -1)
+            {
+                format = ParseKV3IDFromHeader(headerContent, formatIndex + "format:".Length);
+            }
+
+            return (encoding, format);
+        }
+
+        private static KV3ID? ParseKV3IDFromHeader(string headerContent, int startIndex)
+        {
+            // Parse pattern: name:version{guid}
+            var colonIndex = headerContent.IndexOf(":version{", startIndex, StringComparison.Ordinal);
+            if (colonIndex == -1)
+            {
+                return null;
+            }
+
+            var name = headerContent[startIndex..colonIndex];
+
+            var guidStartIndex = colonIndex + ":version{".Length;
+            var guidEndIndex = headerContent.IndexOf('}', guidStartIndex);
+            if (guidEndIndex == -1)
+            {
+                return null;
+            }
+
+            var guidString = headerContent[guidStartIndex..guidEndIndex];
+            if (Guid.TryParse(guidString, out var guid))
+            {
+                return new KV3ID(name, guid);
+            }
+
+            return null;
         }
 
         //Seeking value state

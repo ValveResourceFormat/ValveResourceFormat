@@ -137,5 +137,75 @@ namespace Tests
                 }
             }
         }
+
+        [Test]
+        public void TestKV3HeaderParsing()
+        {
+            using var stream = new MemoryStream();
+            using var writer = new StreamWriter(stream);
+
+            writer.WriteLine("<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->");
+            writer.WriteLine("{");
+            writer.WriteLine("    testKey = \"testValue\"");
+            writer.WriteLine("}");
+            writer.Flush();
+
+            stream.Position = 0;
+            var file = KeyValues3.ParseKVFile(stream);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(file.Encoding.Name, Is.EqualTo("text"));
+                Assert.That(file.Encoding.Id, Is.EqualTo(Guid.Parse("e21c7f3c-8a33-41c5-9977-a76d3a32aa0d")));
+                Assert.That(file.Format.Name, Is.EqualTo("generic"));
+                Assert.That(file.Format.Id, Is.EqualTo(Guid.Parse("7412167c-06e9-4698-aff2-e63eb59037e7")));
+            }
+        }
+
+        [Test]
+        public void TestKV3HeaderParsing_PartialHeader()
+        {
+            using var stream = new MemoryStream();
+            using var writer = new StreamWriter(stream);
+
+            writer.WriteLine("<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} -->");
+            writer.WriteLine("{");
+            writer.WriteLine("    testKey = \"testValue\"");
+            writer.WriteLine("}");
+            writer.Flush();
+
+            stream.Position = 0;
+            var file = KeyValues3.ParseKVFile(stream);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(file.Encoding, Is.EqualTo(KV3IDLookup.Get("text")));
+                Assert.That(file.Format, Is.EqualTo(KV3IDLookup.Get("generic")));
+            }
+        }
+
+        [Test]
+        public void TestKV3HeaderParsing_CustomFormat()
+        {
+            using var stream = new MemoryStream();
+            using var writer = new StreamWriter(stream);
+
+            writer.WriteLine("<!-- kv3 encoding:binary:version{12345678-1234-5678-9abc-123456789abc} format:custom:version{87654321-4321-8765-cba9-987654321abc} -->");
+            writer.WriteLine("{");
+            writer.WriteLine("    testKey = \"testValue\"");
+            writer.WriteLine("}");
+            writer.Flush();
+
+            stream.Position = 0;
+            var file = KeyValues3.ParseKVFile(stream);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(file.Encoding.Name, Is.EqualTo("binary"));
+                Assert.That(file.Encoding.Id, Is.EqualTo(Guid.Parse("12345678-1234-5678-9abc-123456789abc")));
+                Assert.That(file.Format.Name, Is.EqualTo("custom"));
+                Assert.That(file.Format.Id, Is.EqualTo(Guid.Parse("87654321-4321-8765-cba9-987654321abc")));
+            }
+        }
     }
 }
