@@ -9,20 +9,20 @@ namespace Tests
         [Test]
         public void ReturnsCorrectExtension()
         {
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(ResourceType.Unknown.GetExtension(), Is.Null);
                 Assert.That(ResourceType.Animation.GetExtension(), Is.EqualTo("vanim"));
                 Assert.That(ResourceType.Panorama.GetExtension(), Is.EqualTo("vtxt"));
 
                 Assert.That(((ResourceType)1333337).GetExtension(), Is.Null);
-            });
+            }
         }
 
         [Test]
         public void DeterminesResourceTypeByFileExtension()
         {
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vcss_c"), Is.EqualTo(ResourceType.PanoramaStyle));
                 Assert.That(ResourceTypeExtensions.DetermineByFileExtension(".vanim_c"), Is.EqualTo(ResourceType.Animation));
@@ -35,7 +35,7 @@ namespace Tests
                 Assert.That(ResourceTypeExtensions.DetermineByFileExtension("."), Is.EqualTo(ResourceType.Unknown));
                 Assert.That(ResourceTypeExtensions.DetermineByFileExtension(""), Is.EqualTo(ResourceType.Unknown));
                 Assert.That(ResourceTypeExtensions.DetermineByFileExtension(null), Is.EqualTo(ResourceType.Unknown));
-            });
+            }
         }
 
         [Test]

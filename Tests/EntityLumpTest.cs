@@ -28,18 +28,18 @@ namespace Tests
             var entities = entityLump.GetEntities().ToList();
 
             Assert.That(entities, Has.Count.EqualTo(23));
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(entities[0].Properties.Properties, Has.Count.EqualTo(26));
                 Assert.That(entities[22].Properties.Properties, Has.Count.EqualTo(56));
-            });
+            }
 
             var classname = entities[0].GetProperty("classname");
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(classname.Type, Is.EqualTo(KVValueType.String));
                 Assert.That(classname.Value, Is.EqualTo("worldspawn"));
-            });
+            }
 
             var classnameString = entities[0].GetProperty<string>("classname");
             Assert.That(classnameString, Is.EqualTo("worldspawn"));

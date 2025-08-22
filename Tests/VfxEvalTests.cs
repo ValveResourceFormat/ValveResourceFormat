@@ -323,12 +323,12 @@ namespace Tests
             var testInput2 = ParseString("1D 3C 13 92 A3 1E A4 06 1F 00 00");
             var expectedResult2 = "SrgbGammaToLinear(MATERIAL_PARAM[a392133c].xyz)";
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(new VfxEval(testInput1, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResultWithNoFeatures));
                 Assert.That(new VfxEval(testInput1, omitReturnStatement: true, features: ["F_A", "F_B"]).DynamicExpressionResult, Is.EqualTo(expectedResultWithFeatures));
                 Assert.That(new VfxEval(testInput2, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult2));
-            });
+            }
         }
 
         [Test]

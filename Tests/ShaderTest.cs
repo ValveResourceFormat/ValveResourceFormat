@@ -58,14 +58,14 @@ namespace Tests
                 var result = ComputeVCSFileName(testCase.FileName);
                 var opposite = ComputeVCSFileName(testCase.ShaderName, testCase.ProgramType, testCase.Platform, testCase.ShaderModel);
 
-                Assert.Multiple(() =>
+                using (Assert.EnterMultipleScope())
                 {
                     Assert.That(result.ShaderName, Is.EqualTo(testCase.ShaderName));
                     Assert.That(result.PlatformType, Is.EqualTo(testCase.Platform));
                     Assert.That(result.ShaderModelType, Is.EqualTo(testCase.ShaderModel));
                     Assert.That(result.ProgramType, Is.EqualTo(testCase.ProgramType));
                     Assert.That(opposite, Is.EqualTo(Path.GetFileName(testCase.FileName)));
-                });
+                }
             }
         }
 
@@ -109,7 +109,7 @@ namespace Tests
         [Test]
         public void TestChannelMapping()
         {
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(ChannelMapping.R.PackedValue, Is.EqualTo(0xFFFFFF00));
                 Assert.That(ChannelMapping.G.PackedValue, Is.EqualTo(0xFFFFFF01));
@@ -159,7 +159,7 @@ namespace Tests
                 Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x05));
 
                 Assert.That(ChannelMapping.FromChannels(0xFF), Is.EqualTo(ChannelMapping.NULL));
-            });
+            }
         }
 
         [Test]
@@ -256,14 +256,14 @@ namespace Tests
             foreach (var (compactString, expected) in testCases)
             {
                 var parsed = UiGroup.FromCompactString(compactString);
-                Assert.Multiple(() =>
+                using (Assert.EnterMultipleScope())
                 {
                     Assert.That(parsed.Heading, Is.EqualTo(expected.Heading));
                     Assert.That(parsed.HeadingOrder, Is.EqualTo(expected.HeadingOrder));
                     Assert.That(parsed.Group, Is.EqualTo(expected.Group));
                     Assert.That(parsed.GroupOrder, Is.EqualTo(expected.GroupOrder));
                     Assert.That(parsed.VariableOrder, Is.EqualTo(expected.VariableOrder));
-                });
+                }
             }
         }
     }

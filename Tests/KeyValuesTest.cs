@@ -18,14 +18,14 @@ namespace Tests
         {
             var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_CRLF.kv3"));
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(file.Encoding.ToString(), Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
                 Assert.That(file.Format.ToString(), Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
 
                 //Not sure what KVType is better for this
                 Assert.That(file.Root.Properties["multiLineStringValue"].Value, Is.EqualTo("First line of a multi-line string literal.\r\nSecond line of a multi-line string literal."));
-            });
+            }
         }
 
         [Test]
@@ -63,7 +63,7 @@ namespace Tests
 
         private static void AssertKV3Properties(KV3File file)
         {
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 //Not sure what KVType is better for this
                 Assert.That(file.Root.Properties["multiLineStringValue"].Value, Is.EqualTo("First line of a multi-line string literal.\nSecond line of a multi-line string literal."));
@@ -118,7 +118,7 @@ namespace Tests
 
                 Assert.That(properties["quoted.key"].Value, Is.EqualTo("hello"));
                 Assert.That(properties["a quoted key with spaces"].Value, Is.EqualTo("some cool value"));
-            });
+            }
         }
     }
 }
