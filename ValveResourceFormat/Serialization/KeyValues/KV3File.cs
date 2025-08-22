@@ -21,6 +21,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine($"<!-- kv3 encoding:{Encoding} format:{Format} -->");
+
+            if (Format.StartsWith("vrfunknown", StringComparison.Ordinal))
+            {
+                writer.WriteLine($"// this format guid is not known to Source 2 Viewer, make a pull request to update KV3IDLookup file");
+            }
+
             Root.Serialize(writer);
         }
 

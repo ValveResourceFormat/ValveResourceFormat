@@ -1055,12 +1055,15 @@ namespace ValveResourceFormat.ResourceTypes
         public KV3File GetKV3File()
 #pragma warning restore CA1024 // Use properties where appropriate
         {
-            // TODO: Other format guids are not "generic" but strings like "vpc19"
-            var formatType = "generic";
+            var formatType = "vrfunknown";
 
-            if (Format != KV3_FORMAT_GENERIC)
+            foreach (var (type, guid) in KV3IDLookup.Table)
             {
-                formatType = "vrfunknown";
+                if (Format == guid)
+                {
+                    formatType = type;
+                    break;
+                }
             }
 
             return new KV3File(Data, format: $"{formatType}:version{{{Format}}}");
