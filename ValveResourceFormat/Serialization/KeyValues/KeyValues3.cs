@@ -75,11 +75,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             return ParseKVFile(fileStream);
         }
 
-        public static KV3File ParseKVFile(Stream fileStream)
+        public static KV3File ParseKVFile(Stream stream)
         {
             var parser = new Parser
             {
-                FileStream = new StreamReader(fileStream)
+                FileStream = new StreamReader(stream, leaveOpen: true)
             };
 
             char c;
