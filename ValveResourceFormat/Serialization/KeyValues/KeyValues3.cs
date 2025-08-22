@@ -161,7 +161,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             parser.CurrentString.Append(c);
 
             //Read until --> is encountered
-            if (c == '>' && parser.CurrentString.ToString()[(parser.CurrentString.Length - 3)..] == "-->")
+            if (c == '>' && parser.CurrentString.Length >= 3 && parser.CurrentString[^2] == '-' && parser.CurrentString[^3] == '-')
             {
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.SEEK_VALUE);
