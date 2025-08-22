@@ -20,8 +20,6 @@ using System.Linq;
 using System.Text;
 using KVValueType = ValveKeyValue.KVValueType;
 
-#nullable disable
-
 namespace ValveResourceFormat.Serialization.KeyValues
 {
     public static class KeyValues3
@@ -45,37 +43,29 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         private class Parser
         {
-            public StreamReader FileStream;
+            public required StreamReader FileStream { get; init; }
 
             public readonly KVObject Root;
 
-            public string CurrentName;
-            public readonly StringBuilder CurrentString;
+            public string CurrentName = string.Empty;
+            public readonly StringBuilder CurrentString = new();
 
             public char PreviousChar;
-            public readonly Queue<char> CharBuffer;
+            public readonly Queue<char> CharBuffer = new();
 
-            public readonly Stack<KVObject> ObjStack;
-            public readonly Stack<State> StateStack;
+            public readonly Stack<KVObject> ObjStack = new();
+            public readonly Stack<State> StateStack = new();
 
-            public string HeaderString;
+            public string? HeaderString;
 
             public bool EndOfStream => FileStream.EndOfStream && CharBuffer.Count == 0;
 
             public Parser()
             {
-                //Initialise datastructures
-                ObjStack = new Stack<KVObject>();
-                StateStack = new Stack<State>();
                 StateStack.Push(State.HEADER);
 
                 Root = new KVObject("root");
                 ObjStack.Push(Root);
-
-                PreviousChar = '\0';
-                CharBuffer = new Queue<char>();
-
-                CurrentString = new StringBuilder();
             }
         }
 
@@ -162,7 +152,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 (encoding, format) = ParseHeaderInfo(parser.HeaderString);
             }
 
-            return new KV3File((KVObject)parser.Root.Properties.ElementAt(0).Value.Value, encoding, format);
+            var root = (KVObject)parser.Root.Properties.ElementAt(0).Value.Value!;
+            return new KV3File(root, encoding, format);
         }
 
         //header state
