@@ -20,8 +20,8 @@ namespace Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(file.Encoding, Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
-                Assert.That(file.Format, Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
+                Assert.That(file.Encoding.ToString(), Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
+                Assert.That(file.Format.ToString(), Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
 
                 //Not sure what KVType is better for this
                 Assert.That(file.Root.Properties["multiLineStringValue"].Value, Is.EqualTo("First line of a multi-line string literal.\r\nSecond line of a multi-line string literal."));
@@ -32,7 +32,7 @@ namespace Tests
         public void TestKeyValues3_LF()
         {
             var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
-            Assert.That(file.Encoding, Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
+            Assert.That(file.Encoding.ToString(), Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
             AssertKV3Properties(file);
         }
 
@@ -68,7 +68,7 @@ namespace Tests
                 //Not sure what KVType is better for this
                 Assert.That(file.Root.Properties["multiLineStringValue"].Value, Is.EqualTo("First line of a multi-line string literal.\nSecond line of a multi-line string literal."));
 
-                Assert.That(file.Format, Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
+                Assert.That(file.Format.ToString(), Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
 
                 Assert.That(file.Root, Has.Count.EqualTo(14));
 

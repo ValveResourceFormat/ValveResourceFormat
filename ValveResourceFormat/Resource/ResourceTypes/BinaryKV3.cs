@@ -27,6 +27,7 @@ namespace ValveResourceFormat.ResourceTypes
         public static bool IsBinaryKV3(uint magic) => magic is MAGIC0 or MAGIC1 or MAGIC2 or MAGIC3 or MAGIC4 or MAGIC5;
 
         public KVObject Data { get; private set; }
+        // TODO: Upgrade these from Guid to KV3ID
         public Guid Encoding { get; private set; }
         public Guid Format { get; private set; }
 
@@ -1066,7 +1067,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            return new KV3File(Data, format: $"{formatType}:version{{{Format}}}");
+            return new KV3File(Data, format: new KV3ID(formatType, Format));
         }
 
         public override void WriteText(IndentedTextWriter writer)
