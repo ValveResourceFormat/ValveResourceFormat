@@ -66,7 +66,7 @@ namespace ValveResourceFormat.ResourceTypes
             KVBlockType = blockType;
             Data = data;
             Format = format;
-            Encoding = KV3_ENCODING_BINARY_UNCOMPRESSED;
+            Encoding = KV3IDLookup.Table["binary"];
         }
 
         public override void Read(BinaryReader reader)

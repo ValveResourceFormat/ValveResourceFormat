@@ -10,10 +10,6 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public partial class BinaryKV3 : Block
     {
-        private static readonly Guid KV3_ENCODING_BINARY_BLOCK_COMPRESSED = new([0x46, 0x1A, 0x79, 0x95, 0xBC, 0x95, 0x6C, 0x4F, 0xA7, 0x0B, 0x05, 0xBC, 0xA1, 0xB7, 0xDF, 0xD2]);
-        private static readonly Guid KV3_ENCODING_BINARY_UNCOMPRESSED = new([0x00, 0x05, 0x86, 0x1B, 0xD8, 0xF7, 0xC1, 0x40, 0xAD, 0x82, 0x75, 0xA4, 0x82, 0x67, 0xE7, 0x14]);
-        private static readonly Guid KV3_ENCODING_BINARY_BLOCK_LZ4 = new([0x8A, 0x34, 0x47, 0x68, 0xA1, 0x63, 0x5C, 0x4F, 0xA1, 0x97, 0x53, 0x80, 0x6F, 0xD9, 0xB1, 0x19]);
-
         private void ReadVersion0(BinaryReader reader)
         {
             var context = new Context
@@ -35,7 +31,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 int outBufferLength;
 
-                if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_COMPRESSED) == 0)
+                if (Encoding.CompareTo(KV3IDLookup.Table["binary_bc"]) == 0)
                 {
                     var info = BlockCompress.GetDecompressedSize(reader);
                     outBufferLength = info.Size;
@@ -43,14 +39,14 @@ namespace ValveResourceFormat.ResourceTypes
 
                     BlockCompress.FastDecompress(info, reader, outputBuf.AsSpan(0, outBufferLength));
                 }
-                else if (Encoding.CompareTo(KV3_ENCODING_BINARY_BLOCK_LZ4) == 0)
+                else if (Encoding.CompareTo(KV3IDLookup.Table["binary_lz4"]) == 0)
                 {
                     outBufferLength = reader.ReadInt32();
                     var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
                     DecompressLZ4(reader, outputBuf.AsSpan(0, outBufferLength), compressedSize);
                 }
-                else if (Encoding.CompareTo(KV3_ENCODING_BINARY_UNCOMPRESSED) == 0)
+                else if (Encoding.CompareTo(KV3IDLookup.Table["binary"]) == 0)
                 {
                     outBufferLength = (int)(Size - (reader.BaseStream.Position - Offset));
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
