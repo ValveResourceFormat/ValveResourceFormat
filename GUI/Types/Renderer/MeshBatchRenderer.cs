@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
 
         public static int CompareCustomPipeline(Request a, Request b)
         {
-            const int CustomRenderSortId = int.MaxValue;
+            const int CustomRenderSortId = int.MaxValue - 100_000;
 
             return (a.Call, b.Call) switch
             {
@@ -31,6 +31,7 @@ namespace GUI.Types.Renderer
                 (null, null) => 0,
             };
         }
+
         public static int CompareRenderOrderThenPipeline(Request a, Request b)
         {
             if (a.RenderOrder == b.RenderOrder)

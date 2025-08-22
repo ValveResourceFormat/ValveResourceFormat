@@ -323,14 +323,17 @@ namespace GUI.Types.Renderer
                         Node = node,
                     }, RenderPass.Opaque);
                 }
-                else if (node is SceneAggregate aggregate && aggregate.InstanceTransforms.Count > 0)
+                else if (node is SceneAggregate aggregate)
                 {
-                    Add(new MeshBatchRenderer.Request
+                    if (aggregate.InstanceTransforms.Count > 0)
                     {
-                        Mesh = aggregate.RenderMesh,
-                        Call = aggregate.RenderMesh.DrawCallsOpaque[0],
-                        Node = node,
-                    }, RenderPass.Opaque);
+                        Add(new MeshBatchRenderer.Request
+                        {
+                            Mesh = aggregate.RenderMesh,
+                            Call = aggregate.RenderMesh.DrawCallsOpaque[0],
+                            Node = node,
+                        }, RenderPass.Opaque);
+                    }
                 }
                 else
                 {

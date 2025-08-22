@@ -213,33 +213,6 @@ namespace GUI.Types.Renderer
                 ColorCorrectionLUT.SetWrapMode(TextureWrapMode.ClampToEdge);
                 ColorCorrectionLUT.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
                 GL.TextureStorage3D(ColorCorrectionLUT.Handle, 1, SizedInternalFormat.Rgba8, resolution, resolution, resolution);
-                // COLOR CORRECTION DEBUG
-#if false
-                Log.Info(nameof(ScenePostProcessVolume), "CREATING COLOR CORRECTION TEXTURE");
-                Log.Info(nameof(ScenePostProcessVolume), $"Dimensions: {dimensions} x {dimensions} x {dimensions}");
-                Log.Info(nameof(ScenePostProcessVolume), $"Total Size in Bytes: {data.Length}");
-                Log.Info(nameof(ScenePostProcessVolume), $"Number of Blocks: {data.Length / bytesPerPixel}");
-                Log.Info(nameof(ScenePostProcessVolume), $"LUT Texture Handle: {ColorCorrectionLUT.Handle}");
-
-                Log.Info(nameof(ScenePostProcessVolume), "PRINTING FIRST 32X32 BLOCK");
-                for (var i = 0; i < ((dimensions * dimensions) / bytesPerPixel); i++)
-                {
-                    var pixelValues = new string("");
-                    for (var k = 0; k < bytesPerPixel; k++)
-                    {
-                        if (k == 0)
-                        {
-                            pixelValues = $"{data[i * 4 + k] / 255.0f} ";
-                        }
-                        else
-                        {
-                            pixelValues = pixelValues.Insert(pixelValues.Length - 1, $"{data[i * 4 + k] / 255.0f} ");
-                        }
-                    }
-                    Log.Info(nameof(ScenePostProcessVolume), pixelValues);
-                }
-#endif
-
                 GL.TextureSubImage3D(ColorCorrectionLUT.Handle, 0, 0, 0, 0, resolution, resolution, resolution, PixelFormat.Rgba, PixelType.UnsignedByte, data);
             }
         }

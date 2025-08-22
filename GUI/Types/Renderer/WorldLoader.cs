@@ -47,9 +47,14 @@ namespace GUI.Types.Renderer
         private void Load()
         {
             LoadWorldLightingInfo();
+            LoadWorldNodes();
+            LoadEntities();
+            LoadWorldPhysics();
+            LoadNavigationMesh();
+        }
 
-            scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
-
+        private void LoadEntities()
+        {
             foreach (var lumpName in world.GetEntityLumpNames())
             {
                 if (lumpName == null)
@@ -83,6 +88,10 @@ namespace GUI.Types.Renderer
             lightEntityStore.Invoke(
                 scene.AllNodes.Where(static n => n is SceneLight).Cast<SceneLight>().ToList()
             );
+        }
+
+        private void LoadWorldNodes()
+        {
 
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();
@@ -113,12 +122,9 @@ namespace GUI.Types.Renderer
                     }
                 }
             }
-
-            LoadWorldPhysics(scene);
-            LoadNavigationMesh();
         }
 
-        public void LoadWorldPhysics(Scene scene)
+        public void LoadWorldPhysics()
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
             string? worldPhysicsFolder = null;
@@ -234,6 +240,8 @@ namespace GUI.Types.Renderer
                     result.HasValidLightmaps = true;
                 }
             }
+
+            scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
         }
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string layerName, Matrix4x4 parentTransform)
