@@ -1465,7 +1465,8 @@ public sealed class MapExtract
         const string prefix = "vrf_stripped_";
         if (className is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_cubemap_box" or "env_cubemap")
         {
-            if (propertyKey is "cubemaptexture" or "lightprobetexture")
+            // in newer s2 engine branches having `array_index` present causes all sort of issues and crashes
+            if (propertyKey is "cubemaptexture" or "lightprobetexture" or "array_index")
             {
                 propertyKey = prefix + propertyKey;
             }
