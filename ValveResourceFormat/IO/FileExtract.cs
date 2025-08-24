@@ -204,6 +204,10 @@ namespace ValveResourceFormat.IO
                         break;
                     }
 
+                case ResourceType.NmSkeleton:
+                    contentFile = new NmSkeletonExtract(resource).ToContentFile();
+                    break;
+
                 case ResourceType.NmClip:
                     {
                         var clip = (ResourceTypes.ModelAnimation2.AnimationClip)resource.DataBlock;
