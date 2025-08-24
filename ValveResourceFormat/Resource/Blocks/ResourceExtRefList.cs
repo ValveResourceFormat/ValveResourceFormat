@@ -103,7 +103,7 @@ namespace ValveResourceFormat.Blocks
             writer.Write(8u); // size of the 2 ints we are writing right now
             writer.Write(ResourceRefInfoList.Count);
 
-            var currentStringOffset = ResourceRefInfoList.Count * sizeof(ulong) * 2;
+            var currentStringOffset = ResourceRefInfoList.Count * sizeof(ulong);
 
             foreach (var refInfo in ResourceRefInfoList)
             {
