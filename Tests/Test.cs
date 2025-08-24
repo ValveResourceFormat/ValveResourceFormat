@@ -80,6 +80,8 @@ namespace Tests
             {
                 RecurseSubdirectories = true,
             });
+            var total = 0;
+            var notImplemented = 0;
 
             if (files.Length == 0)
             {
@@ -104,12 +106,15 @@ namespace Tests
                         continue;
                     }
 
+                    total++;
+
                     try
                     {
                         resourceOnDisk.Serialize(ms);
                     }
                     catch (NotImplementedException)
                     {
+                        notImplemented++;
                         continue;
                     }
                 }
@@ -145,6 +150,8 @@ namespace Tests
             }
 
             VerifyResources(resources, validateMissingResources: false);
+
+            Console.WriteLine($"{notImplemented} out of {total} files are not yet serializable.");
         }
 
         [Test]

@@ -26,8 +26,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = Offset;
 
-            if ((Resource.ResourceType == ResourceType.PanoramaScript && Resource.Version >= 4)
-            || (Resource.ResourceType == ResourceType.PanoramaTypescript && Resource.Version >= 2))
+            if (IsPlaintext())
             {
                 Data = reader.ReadBytes((int)Size);
 
@@ -64,12 +63,33 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void Serialize(Stream stream)
         {
+            if (IsPlaintext())
+            {
+                stream.Write(Data);
+                return;
+            }
+
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            writer.Write(Encoding.UTF8.GetString(Data));
+            writer.Write(Data);
+        }
+
+        private bool IsPlaintext()
+        {
+            if (Resource.ResourceType == ResourceType.PanoramaScript && Resource.Version >= 4)
+            {
+                return true;
+            }
+
+            if (Resource.ResourceType == ResourceType.PanoramaTypescript && Resource.Version >= 2)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }
