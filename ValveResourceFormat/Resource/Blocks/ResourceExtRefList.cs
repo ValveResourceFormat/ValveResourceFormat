@@ -91,7 +91,34 @@ namespace ValveResourceFormat.Blocks
 
         public override void Serialize(Stream stream)
         {
-            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+
+            if (ResourceRefInfoList.Count == 0)
+            {
+                writer.Write(0u);
+                writer.Write(0u);
+                return;
+            }
+
+            writer.Write(8u); // size of the 2 ints we are writing right now
+            writer.Write(ResourceRefInfoList.Count);
+
+            var currentStringOffset = ResourceRefInfoList.Count * sizeof(ulong) * 2;
+
+            foreach (var refInfo in ResourceRefInfoList)
+            {
+                writer.Write(refInfo.Id);
+                writer.Write((long)currentStringOffset);
+
+                currentStringOffset += Encoding.UTF8.GetByteCount(refInfo.Name) + 1;
+            }
+
+            foreach (var refInfo in ResourceRefInfoList)
+            {
+                var nameBytes = Encoding.UTF8.GetBytes(refInfo.Name);
+                writer.Write(nameBytes);
+                writer.Write((byte)0);
+            }
         }
 
         public override void WriteText(IndentedTextWriter writer)
