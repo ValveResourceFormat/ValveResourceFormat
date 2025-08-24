@@ -11,6 +11,16 @@ namespace ValveResourceFormat.ResourceTypes
 
         public string Data { get; private set; }
 
+        public Plaintext()
+        {
+            //
+        }
+
+        public Plaintext(string data) : this()
+        {
+            Data = data;
+        }
+
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
