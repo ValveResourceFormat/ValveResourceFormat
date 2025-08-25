@@ -103,12 +103,21 @@ namespace ValveResourceFormat.Blocks
             writer.Write(8u); // size of the 2 ints we are writing right now
             writer.Write(ResourceRefInfoList.Count);
 
-            var currentStringOffset = ResourceRefInfoList.Count * sizeof(ulong);
+            const uint EntrySize = sizeof(ulong) + sizeof(long);
+            var stringsStartOffset = ResourceRefInfoList.Count * EntrySize;
+            var currentStringOffset = 0;
 
-            foreach (var refInfo in ResourceRefInfoList)
+            for (var i = 0; i < ResourceRefInfoList.Count; i++)
             {
+                var refInfo = ResourceRefInfoList[i];
+
                 writer.Write(refInfo.Id);
-                writer.Write((long)currentStringOffset);
+
+                var currentPosAfterID = sizeof(ulong) + i * EntrySize;
+                var stringAbsolutePos = stringsStartOffset + currentStringOffset;
+                var relativeOffset = stringAbsolutePos - currentPosAfterID;
+
+                writer.Write(relativeOffset);
 
                 currentStringOffset += Encoding.UTF8.GetByteCount(refInfo.Name) + 1;
             }
