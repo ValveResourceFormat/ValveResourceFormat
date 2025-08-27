@@ -27,4 +27,9 @@ public class VfxShaderFileDXIL : VfxShaderFile
 
         HashMD5 = new Guid(datareader.ReadBytes(16));
     }
+
+    public override string GetDecompiledFile()
+    {
+        throw new InvalidOperationException("DXIL decompilation is not supported.");
+    }
 }
