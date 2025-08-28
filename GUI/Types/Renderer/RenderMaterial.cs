@@ -52,6 +52,7 @@ namespace GUI.Types.Renderer
         public Dictionary<string, RenderTexture> Textures { get; } = [];
         public bool IsOverlay { get; }
         public bool IsToolsMaterial { get; }
+        public bool IsCs2Water { get; }
         public bool DoNotCastShadows { get; }
 
         public bool IsTranslucent => blendMode >= BlendMode.Translucent;
@@ -148,6 +149,15 @@ namespace GUI.Types.Renderer
             DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
             isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
 
+            if (material.ShaderName == "csgo_water_fancy.vfx")
+            {
+                blendMode = BlendMode.Translucent;
+                DoNotCastShadows = true;
+                IsCs2Water = true;
+                return;
+            }
+
+            // :MaterialIsOverlay
             hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
             IsOverlay = material.IntParams.GetValueOrDefault("F_OVERLAY") == 1;
 

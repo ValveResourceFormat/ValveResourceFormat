@@ -143,6 +143,28 @@ void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
     mat.Roughness = geometricAdjusted;
 }
 
+vec3 calculateIridescence(float hueAngle, float intensity)
+{
+    float segmentIndex = floor(hueAngle * 6.0);
+    float segmentPhase = fract(hueAngle * 6.0);
+    
+    // Calculate transition values
+    float fadeOut = intensity * (1.0 - segmentPhase);
+    float fadeIn = intensity * segmentPhase;
+    
+    // Use modulo arithmetic to create a smooth color wheel
+    int colorIndex = int(segmentIndex) % 6;
+    
+    // Return color based on segment
+    switch(colorIndex) {
+        case 0: return vec3(intensity, fadeIn, 0.0);  // Red -> Yellow
+        case 1: return vec3(fadeOut, intensity, 0.0); // Yellow -> Green
+        case 2: return vec3(0.0, intensity, fadeIn);  // Green -> Cyan
+        case 3: return vec3(0.0, fadeOut, intensity); // Cyan -> Blue
+        case 4: return vec3(fadeIn, 0.0, intensity);  // Blue -> Magenta
+        default: return vec3(intensity, 0.0, fadeOut); // Magenta -> Red
+    }
+}
 
 #if defined(vr_skin_vfx) || defined(vr_xen_foliage_vfx)
 #define DIFFUSE_AO_COLOR_BLEED
@@ -356,6 +378,18 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #define renderMode_Roughness 0
 #define renderMode_Metalness 0
 #define renderMode_ExtraParams 0
+
+#define renderMode_Illumination 0
+#define renderMode_Diffuse 0
+#define renderMode_Specular 0
+#define renderMode_Cubemaps 0
+#define renderMode_Height 0
+#define renderMode_Irradiance 0
+#define renderMode_Tint 0
+#define renderMode_FoliageParams 0
+#define renderMode_VertexColor 0
+#define renderMode_TerrainBlend 0
+#define renderMode_LightmapShadows 0
 
 #define renderMode_UvDensity 0
 #define renderMode_LightmapUvDensity 0

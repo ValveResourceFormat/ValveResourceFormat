@@ -29,3 +29,13 @@ layout(std140, binding = 0) uniform ViewConstants {
     mat4 g_matvCubeFogSkyWsToOs;
     vec4 g_vCubeFogCullingParams_ExposureBias_MaxOpacity;
 };
+
+float blink(float speed, float phase)
+{
+    return fract((fract(g_flTime * speed) + phase));
+}
+
+bool blink()
+{
+    return blink(0.5, 0) < 0.5;
+}
