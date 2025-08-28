@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using Vortice.SpirvCross;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -184,5 +186,39 @@ public class VfxShaderFileVulkan : VfxShaderFile
         Debug.Assert(actuallyRead == Size);
 
         HashMD5 = new Guid(datareader.ReadBytes(16));
+    }
+
+    public override string GetDecompiledFile()
+    {
+        using var buffer = new StringWriter(CultureInfo.InvariantCulture);
+
+        var backendsToTry = new[] { Backend.HLSL, Backend.GLSL, /* Backend.MSL, */ };
+        for (var i = 0; i < backendsToTry.Length; i++)
+        {
+            var backend = backendsToTry[i];
+            try
+            {
+                buffer.Write(ShaderSpirvReflection.ReflectSpirv(this, backend));
+                break;
+            }
+            catch (Exception e)
+            {
+                buffer.WriteLine($"// SPIR-V reflection failed for backend {backend}:");
+                foreach (var line in e.Message.AsSpan().EnumerateLines())
+                {
+                    buffer.Write("// ");
+                    buffer.WriteLine(line);
+                }
+
+                if (i < backendsToTry.Length - 1)
+                {
+                    buffer.WriteLine("// ");
+                    buffer.WriteLine($"// Re-attempting reflection with the {backendsToTry[i + 1]} backend.");
+                    buffer.WriteLine();
+                }
+            }
+        }
+
+        return buffer.ToString();
     }
 }

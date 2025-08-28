@@ -9,6 +9,7 @@
     <PublishAot>true</PublishAot>
     <IsAotCompatible>true</IsAotCompatible>
     <NoWarn>$(NoWarn);NU5104;CS8002</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
       <EmbeddedResource Include="Utils\RobotoAscii.ttf" />
@@ -24,6 +25,7 @@
     <PackageReference Include="TinyBCSharp" Version="0.1.2" />
     <PackageReference Include="ValveKeyValue" Version="0.20.0.417" />
     <PackageReference Include="ValvePak" Version="2.0.1.107" />
+    <PackageReference Include="Vortice.SpirvCross" Version="1.5.3" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.6" />
     <PackageReference Include="KeyValues2" Version="0.8.0" />
     <PackageReference Include="TinyEXR.NET" Version="0.3.10" />

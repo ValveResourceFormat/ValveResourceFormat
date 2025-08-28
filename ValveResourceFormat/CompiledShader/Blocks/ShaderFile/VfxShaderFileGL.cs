@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -21,5 +22,10 @@ public class VfxShaderFileGL : VfxShaderFile
         }
 
         HashMD5 = new Guid(datareader.ReadBytes(16));
+    }
+
+    public override string GetDecompiledFile()
+    {
+        return Encoding.UTF8.GetString(this.Bytecode);
     }
 }

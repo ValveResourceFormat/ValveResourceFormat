@@ -18,6 +18,8 @@ public abstract class VfxShaderFile : ShaderDataBlock
         Size = datareader.ReadInt32();
     }
 
+    public abstract string GetDecompiledFile();
+
     public bool IsEmpty()
     {
         return Size == 0;
