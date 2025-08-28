@@ -142,6 +142,30 @@ void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
     mat.Roughness = geometricAdjusted;
 }
 
+vec3 calculateIridescence(float hueAngle, float intensity)
+{
+    float segmentIndex = floor(hueAngle * 6.0);
+    float segmentPhase = fract(hueAngle * 6.0);
+    
+    // Calculate transition values
+    float fadeOut = intensity * (1.0 - segmentPhase);
+    float fadeIn = intensity * segmentPhase;
+    
+    // Use modulo arithmetic to create a smooth color wheel
+    int colorIndex = int(segmentIndex) % 6;
+    
+    // Return color based on segment
+    switch(colorIndex)
+    {
+        case 0: return vec3(intensity, fadeIn, 0.0);  // Red -> Yellow
+        case 1: return vec3(fadeOut, intensity, 0.0); // Yellow -> Green
+        case 2: return vec3(0.0, intensity, fadeIn);  // Green -> Cyan
+        case 3: return vec3(0.0, fadeOut, intensity); // Cyan -> Blue
+        case 4: return vec3(fadeIn, 0.0, intensity);  // Blue -> Magenta
+        default: return vec3(intensity, 0.0, fadeOut); // Magenta -> Red
+    }
+}
+
 #if defined(vr_skin_vfx) || defined(vr_xen_foliage_vfx)
 #define DIFFUSE_AO_COLOR_BLEED
 #endif

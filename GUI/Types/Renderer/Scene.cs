@@ -223,6 +223,7 @@ namespace GUI.Types.Renderer
         {
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
+            [RenderPass.Water] = [],
             [RenderPass.Translucent] = [],
             [RenderPass.Outline] = [],
         };
@@ -246,6 +247,11 @@ namespace GUI.Types.Renderer
             {
                 WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
                 WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+
+                if (request.Call.Material.IsCs2Water)
+                {
+                    queueList = renderLists[RenderPass.Water];
+                }
             }
 
             if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
@@ -602,6 +608,15 @@ namespace GUI.Types.Renderer
             {
                 renderContext.RenderPass = RenderPass.Translucent;
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
+            }
+        }
+
+        public void RenderWaterLayer(RenderContext renderContext)
+        {
+            using (new GLDebugGroup("Fancy Water Render"))
+            {
+                renderContext.RenderPass = RenderPass.Water;
+                MeshBatchRenderer.Render(renderLists[RenderPass.Water], renderContext);
             }
         }
 

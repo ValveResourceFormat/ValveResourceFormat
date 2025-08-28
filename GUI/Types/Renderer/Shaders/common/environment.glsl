@@ -130,8 +130,7 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
         : localReflectionVector;
 }
 
-
-vec3 GetEnvironment(MaterialProperties_t mat)
+vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
 {
     #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
         vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
@@ -154,12 +153,8 @@ vec3 GetEnvironment(MaterialProperties_t mat)
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
 
-    #if (F_CLOTH_SHADING == 1)
-        // changed, original was just true
-        const bool bIsClothShading = mat.ClothMask > 0.0;
-    #else
-        const bool bIsClothShading = false;
-    #endif
+    // Blend to fully corrected
+    float flAmbientNormalMix = roughnessReflectionCorrectionAmount * mix(roughness, sqrt(roughness), mat.ClothMask);
 
     vec3 envMap = vec3(0.0);
 
@@ -177,7 +172,7 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-        coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
+        coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix); 
 
         envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
     #elif (S_SCENE_CUBEMAP_TYPE == 2)
@@ -217,7 +212,7 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         totalWeight += weight;
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-        coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
+        coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix);
 
         envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
 
@@ -228,6 +223,13 @@ vec3 GetEnvironment(MaterialProperties_t mat)
     }
 
     #endif // S_SCENE_CUBEMAP_TYPE == 2
+
+    return envMap;
+}
+
+vec3 GetEnvironment(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
+{
+    vec3 envMap = GetEnvironmentNoBRDF(mat, roughnessReflectionCorrectionAmount);
 
     if (g_iRenderMode == renderMode_Cubemaps)
     {
@@ -243,4 +245,9 @@ vec3 GetEnvironment(MaterialProperties_t mat)
     #endif
 
     return brdf * envMap;
+}
+
+vec3 GetEnvironment(MaterialProperties_t mat)
+{
+    return GetEnvironment(mat, 1.0);
 }

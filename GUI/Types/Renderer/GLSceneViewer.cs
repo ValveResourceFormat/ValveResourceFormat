@@ -541,6 +541,8 @@ namespace GUI.Types.Renderer
 
         private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
         {
+            scene.RenderWaterLayer(renderContext);
+
             GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
 
