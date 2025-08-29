@@ -66,7 +66,7 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_CLOTH_SHADING 0
 #define F_USE_BENT_NORMALS 0
 #define F_DIFFUSE_WRAP 0
-//#define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
+#define F_TRANSMISSIVE_BACKFACE_NDOTL 0
 #define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
 // SKIN
 //#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
@@ -97,6 +97,12 @@ uniform sampler2D g_tTintMask;
 
 #if defined(foliage_vfx_common)
     in vec4 vFoliageParamsOut;
+
+    uniform float g_flVertexAmbientOcclusionPower = 1.0;
+    uniform float g_flVertexAmbientOcclusionAmount = 0.0;
+    uniform int F_DISABLE_TRANSMISSIVE_SHADOWS = 0;
+    uniform int F_USE_ALBEDO_FOR_TRANSMISSIVE = 0;
+    uniform sampler2D g_tTransmissiveColor; // SrgbRead(true)
 #endif
 
 #if defined(vr_complex_vfx)
@@ -555,6 +561,16 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 #endif
 
+    #if defined(foliage_vfx_common)
+        vec4 vFoliageParams = clamp(vFoliageParamsOut, vec4(0.001), vec4(1.0));
+        mat.AmbientOcclusion *= mix(1.0, pow(vFoliageParams.w, g_flVertexAmbientOcclusionPower), g_flVertexAmbientOcclusionAmount);
+
+        #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
+            vec3 vTransmissiveColor = texture(g_tTransmissiveColor, texCoord).rgb;
+            mat.TransmissiveColor = F_USE_ALBEDO_FOR_TRANSMISSIVE == 1 ? mat.Albedo : vTransmissiveColor;
+        #endif
+    #endif
+
 #if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
     mat.ExtraParams.x = g_flRetroReflectivity;
 #endif
@@ -657,18 +673,12 @@ void main()
         specularLighting = (mat.Roughness == vec2(1.0)) ? vec3(0) : specularLighting;
     #endif
 
-    #if defined(S_TRANSMISSIVE_BACKFACE_NDOTL)
-        vec3 transmissiveLighting = o.TransmissiveDirect * mat.TransmissiveColor;
-    #else
-        const vec3 transmissiveLighting = vec3(0.0);
-    #endif
-
     // Unique HLA Membrane blend mode: specular unaffected by opacity
     #if defined(vr_complex_vfx) && (F_TRANSLUCENT == 2)
-        vec3 combinedLighting = specularLighting + (mat.DiffuseColor * diffuseLighting + transmissiveLighting + mat.IllumColor) * mat.Opacity;
+        vec3 combinedLighting = specularLighting + (mat.DiffuseColor * diffuseLighting + lighting.TransmissiveDirect + mat.IllumColor) * mat.Opacity;
         outputColor.a = 1.0;
     #else
-        vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting + transmissiveLighting + mat.IllumColor;
+        vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting + lighting.TransmissiveDirect + mat.IllumColor;
     #endif
 
     outputColor.rgb = combinedLighting;

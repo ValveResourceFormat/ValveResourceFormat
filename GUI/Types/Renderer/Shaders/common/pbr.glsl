@@ -198,4 +198,9 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
 
     lighting.SpecularDirect += specularLight * lightColor;
     lighting.DiffuseDirect += diffuseLight * lightColor;
+
+    #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
+        float transmissiveLight = ClampToPositive(-dot(mat.Normal, lightVector)); // Light passing through the back face
+        lighting.TransmissiveDirect += transmissiveLight * lightColor * mat.TransmissiveColor;
+    #endif
 }
