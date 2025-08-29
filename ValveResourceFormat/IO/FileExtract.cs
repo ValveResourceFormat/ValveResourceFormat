@@ -210,7 +210,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.NmClip:
-                    contentFile = new NmClipExtract(resource).ToContentFile();
+                    contentFile = new NmClipExtract(resource, fileLoader).ToContentFile();
                     break;
 
                 // These all just use ToString() and WriteText() to do the job
