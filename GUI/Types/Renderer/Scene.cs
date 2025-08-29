@@ -801,14 +801,28 @@ namespace GUI.Types.Renderer
                 var lightingOrigin = node.LightingOrigin ?? Vector3.Zero;
                 if (node.LightingOrigin.HasValue)
                 {
-                    // in source2 this is a dynamic combo D_SPECULAR_CUBEMAP_STATIC=1, and i guess without a loop (similar to S_SCENE_CUBEMAP_TYPE=1)
-                    node.EnvMaps.Clear();
-
-                    foreach (var envMap in LightingInfo.EnvMaps)
+                    if (LightingInfo.LightmapGameVersionNumber <= 1)
                     {
-                        if (envMap.BoundingBox.Contains(lightingOrigin))
+                        node.EnvMaps.Clear();
+                        foreach (var envMap in LightingInfo.EnvMaps)
                         {
-                            node.EnvMaps.Add(envMap);
+                            if (envMap.BoundingBox.Contains(lightingOrigin))
+                            {
+                                node.EnvMaps.Add(envMap);
+                            }
+                        }
+                    }
+                    else if (LightingInfo.LightmapGameVersionNumber >= 2)
+                    {
+                        // CS2 Mapping docs say that the lighting origin should point at an exact cubemap.
+                        foreach (var envMap in LightingInfo.EnvMaps)
+                        {
+                            if ((envMap.Transform.Translation - lightingOrigin).LengthSquared() < 0.01f)
+                            {
+                                node.EnvMaps.Clear();
+                                node.EnvMaps.Add(envMap);
+                                break;
+                            }
                         }
                     }
                 }
