@@ -789,6 +789,11 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            if (e.KeyData == Keys.Escape)
+            {
+                selectedNodeRenderer.SelectNode(null);
+            }
+
             base.OnKeyDown(sender, e);
         }
 
