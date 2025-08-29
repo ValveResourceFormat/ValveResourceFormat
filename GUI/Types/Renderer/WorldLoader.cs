@@ -47,8 +47,8 @@ namespace GUI.Types.Renderer
         private void Load()
         {
             LoadWorldLightingInfo();
-            LoadWorldNodes();
             LoadEntities();
+            LoadWorldNodes();
             LoadWorldPhysics();
             LoadNavigationMesh();
         }
