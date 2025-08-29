@@ -21,13 +21,13 @@ namespace GUI.Types.Renderer
 
         public static int CompareCustomPipeline(Request a, Request b)
         {
-            const int CustomRenderSortId = int.MaxValue - 100_000;
+            const int CustomRenderSortId = int.MinValue + 100_000;
 
             return (a.Call, b.Call) switch
             {
-                ({ }, { }) => a.Call.Material.SortId - b.Call.Material.SortId,
-                (null, { }) => CustomRenderSortId - b.Call.Material.SortId,
-                ({ }, null) => a.Call.Material.SortId - CustomRenderSortId,
+                ({ }, { }) => b.Call.Material.SortId - a.Call.Material.SortId,
+                (null, { }) => b.Call.Material.SortId - CustomRenderSortId,
+                ({ }, null) => CustomRenderSortId - a.Call.Material.SortId,
                 (null, null) => 0,
             };
         }
