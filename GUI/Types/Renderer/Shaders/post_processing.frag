@@ -58,7 +58,7 @@ vec3 TonemapColor(vec3 vColor)
 vec3 ApplyColorCorrection(vec3 vColor)
 {
     vec3 scaledColor = saturate(vColor) * g_vColorCorrectionColorRange.x + g_vColorCorrectionColorRange.y;
-    vec3 ColorCorrectedColor = texture(g_tColorCorrection, scaledColor).rgb;
+    vec3 ColorCorrectedColor = textureLod(g_tColorCorrection, scaledColor, 0.0).rgb;
     return mix(vColor, ColorCorrectedColor, g_flColorCorrectionDefaultWeight); // Probably for blending
 }
 

@@ -192,9 +192,6 @@ namespace GUI.Types.Renderer
             {
                 is3d = true;
                 target = (data.Flags & VTexFlags.VOLUME_TEXTURE) != 0 ? TextureTarget.Texture3D : TextureTarget.Texture2DArray;
-                clampModeS = TextureWrapMode.ClampToEdge;
-                clampModeT = TextureWrapMode.ClampToEdge;
-                clampModeU = TextureWrapMode.ClampToEdge;
             }
 
             var tex = new RenderTexture(target, data);
@@ -343,7 +340,7 @@ namespace GUI.Types.Renderer
             _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
         };
 
-        public static readonly string[] ReservedTextures = Enum.GetNames<ReservedTextureSlots>();
+        public static readonly HashSet<string> ReservedTextures = [.. Enum.GetNames<ReservedTextureSlots>(), "g_tLPV"];
 
         private RenderMaterial GetErrorMaterial()
         {

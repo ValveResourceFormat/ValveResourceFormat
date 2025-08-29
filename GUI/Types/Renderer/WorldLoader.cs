@@ -210,6 +210,7 @@ namespace GUI.Types.Renderer
                     var srgbRead = name == "irradiance";
                     var renderTexture = guiContext.MaterialLoader.GetTexture(lightmap, srgbRead);
                     result.Lightmaps[uniformName] = renderTexture;
+                    MaterialLoader.ReservedTextures.Add(uniformName);
 
                     if (name == "direct_light_indices")
                     {
@@ -637,12 +638,14 @@ namespace GUI.Types.Renderer
                         if (dlsName != null)
                         {
                             lightProbe.DirectLightScalars = guiContext.MaterialLoader.GetTexture(dlsName);
+                            lightProbe.DirectLightScalars.SetWrapMode(TextureWrapMode.ClampToEdge);
                         }
 
                         if (dliName != null)
                         {
                             lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                            lightProbe.DirectLightIndices.SetWrapMode(TextureWrapMode.ClampToEdge);
                         }
 
                         scene.LightingInfo.LightProbeType = entity.ContainsKey("light_probe_atlas_x") switch
@@ -654,6 +657,7 @@ namespace GUI.Types.Renderer
                         if (dlsdName != null)
                         {
                             lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
+                            lightProbe.DirectLightShadows.SetWrapMode(TextureWrapMode.ClampToEdge);
 
                             lightProbe.AtlasSize = new Vector3(
                                 entity.GetPropertyUnchecked<float>("light_probe_size_x"),

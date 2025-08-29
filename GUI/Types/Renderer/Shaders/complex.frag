@@ -96,7 +96,7 @@ uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
 
 #if defined(foliage_vfx_common)
-    in vec3 vFoliageParamsOut;
+    in vec4 vFoliageParamsOut;
 #endif
 
 #if defined(vr_complex_vfx)
