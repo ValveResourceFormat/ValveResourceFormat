@@ -858,17 +858,19 @@ void main()
 
     float localReflectance = mix(g_flReflectance, g_flDebrisReflectance, finalDebrisFactor);
     float reflectionModulation = (fma(fresnel, 1.0 - localReflectance, localReflectance) * fma(-combinedfinalFoamIntensity, 2.0, fma(-surfaceCoverageAlpha, 0.75, 1.0))) * 1.5;
-    returnColor = fma((lighting.DiffuseDirect * (fma(ClampToPositive(specularFactor - (1.0 - g_flSpecularBloomBoostThreshold)), g_flSpecularBloomBoostStrength, specularFactor) * mix(1.0, g_flDebrisReflectance * 0.05, debrisEdgeFactor))) * reflectionModulation, sunColor, returnColor.xyz);
+    lighting.SpecularDirect = (lighting.DiffuseDirect * (fma(ClampToPositive(specularFactor - (1.0 - g_flSpecularBloomBoostThreshold)), g_flSpecularBloomBoostStrength, specularFactor) * mix(1.0, g_flDebrisReflectance * 0.05, debrisEdgeFactor))) * reflectionModulation;
+    lighting.SpecularDirect *= sunColor;
+    returnColor += lighting.SpecularDirect;
 
     float oilIridHue = fract(fma(g_flTime, 0.1, fma(fresnel, 20.0, debrisHeightVal * 8.0)));
     vec3 oilIridescence = calculateIridescence(oilIridHue, 0.75);
 
-    returnColor = returnColor.xyz * mix(vec3(1.0), lighting.DiffuseIndirect * 0.75, vec3(saturate(causticsDebrisTotal.w * 4.0) * inverseWaterFogAlpha));
+    returnColor.xyz *= mix(vec3(1.0), lighting.DiffuseIndirect * 0.75, vec3(saturate(causticsDebrisTotal.w * 4.0) * inverseWaterFogAlpha));
 
     vec3 returnColorMixFac = vec3(saturate(reflectionModulation));
-    vec3 secondaryColorMixFac = vec3(((saturate(noClue * 20.0) * g_flDebrisOilyness) / fma(distanceToFrag, 0.005, 1.0)) * saturate(fma(-refractedVerticalFactor, 5.0, 1.0)));
+    vec3 oilSpecularFactor = vec3(((saturate(noClue * 20.0) * g_flDebrisOilyness) / fma(distanceToFrag, 0.005, 1.0)) * saturate(fma(-refractedVerticalFactor, 5.0, 1.0)));
 
-    returnColor = mix(returnColor, mix(finalReflectionColor, finalReflectionColor * oilIridescence, secondaryColorMixFac), returnColorMixFac);
+    returnColor = mix(returnColor, mix(finalReflectionColor, finalReflectionColor * oilIridescence, oilSpecularFactor), returnColorMixFac);
 
     ApplyFog(returnColor, finalSurfacePos);
 
@@ -897,7 +899,7 @@ void main()
         // for debug vis
         mat.ExtraParams.r = 1.0 - flEdgeBlend;
         mat.ExtraParams.g = adjustedWaterColumnDepth;
-        //mat.ExtraParams.b = waterOpacity;
+        lighting.SpecularIndirect = finalReflectionColor * returnColorMixFac;
 
         if (!HandleMaterialRenderModes(outputColor, mat)
         && !HandleUVRenderModes(outputColor,mat, g_tDebris, vTexCoordOut)
