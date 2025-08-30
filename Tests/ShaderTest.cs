@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
@@ -236,7 +237,7 @@ namespace Tests
             }
         }
 
-        public static IEnumerable<TestCaseData> SpirvReflectionTestCases()
+        private static IEnumerable<TestCaseData> SpirvReflectionTestCases()
         {
             yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_vs.vcs", 0, 9);
             yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_ps.vcs", 1, 1);
@@ -250,6 +251,12 @@ namespace Tests
         [Test, TestCaseSource(nameof(SpirvReflectionTestCases))]
         public void TestSpirvReflection(string shaderFile, int staticCombo, int dynamicCombo)
         {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+            {
+                Assert.Ignore("There are no native binaries for SPIR-V on arm linux yet.");
+                return;
+            }
+
             var path = Path.Combine(ShadersDir, shaderFile);
             using var shader = new VfxProgramData();
             shader.Read(path);
