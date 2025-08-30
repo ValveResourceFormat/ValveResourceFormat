@@ -445,11 +445,9 @@ void main()
 
     outputColor.rgb = combinedLighting;
 
-    if (HandleMaterialRenderModes(outputColor, mat))
-    {
-        //
-    }
-    else if (HandleUVRenderModes(outputColor, mat, g_tColor1, vTexCoord.xy, vLightmapUVScaled))
+    if (HandleMaterialRenderModes(outputColor, mat)
+    || HandleLightingRenderModes(outputColor, mat, lighting)
+    || HandleUVRenderModes(outputColor, mat, g_tColor1, vTexCoord.xy))
     {
         //
     }
@@ -459,36 +457,14 @@ void main()
         vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
         outputColor.rgb = viewmodeEnvMap;
     }
-    else if (g_iRenderMode == renderMode_Illumination)
-    {
-        outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
-    }
     else if (g_iRenderMode == renderMode_Tint)
     {
         outputColor = vec4(SrgbGammaToLinear(vTintColor_ModelAmount.rgb), vVertexColor_Alpha.a);
-    }
-    else if (g_iRenderMode == renderMode_Diffuse)
-    {
-        outputColor.rgb = diffuseLighting * 0.5;
-    }
-    else if (g_iRenderMode == renderMode_Specular)
-    {
-        outputColor.rgb = specularLighting;
-    }
-    else if (g_iRenderMode == renderMode_Height)
-    {
-        outputColor.rgb = SrgbGammaToLinear(mat.Height.xxx);
     }
     else if (g_iRenderMode == renderMode_VertexColor)
     {
         outputColor.rgb = SrgbGammaToLinear(vVertexColor_Alpha.rgb);
     }
-#if (F_GLASS == 0)
-    else if (g_iRenderMode == renderMode_Irradiance)
-    {
-        outputColor = vec4(lighting.DiffuseIndirect, 1.0);
-    }
-#endif
 #if defined(csgo_environment_blend_vfx)
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {

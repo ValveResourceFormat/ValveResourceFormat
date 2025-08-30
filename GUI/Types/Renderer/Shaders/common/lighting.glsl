@@ -113,8 +113,8 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 
     #if (S_LIGHTMAP_VERSION_MINOR == 1)
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-            vec4 dls = texture(g_tDirectLightStrengths, vLightmapUVScaled);
-            vec4 dli = texture(g_tDirectLightIndices, vLightmapUVScaled);
+            vec4 dls = texture(g_tDirectLightStrengths, mat.LightmapUv);
+            vec4 dli = texture(g_tDirectLightIndices, mat.LightmapUv);
         #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
             vec3 vLightProbeShadowCoords = CalculateProbeShadowCoords(mat.PositionWS);
             vec4 dls = textureLod(g_tLPV_Scalars, vLightProbeShadowCoords, 0.0);
@@ -164,7 +164,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
         vec4 dlsh = vec4(1, 1, 1, 1);
 
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-            dlsh = textureLod(g_tDirectLightShadows, vLightmapUVScaled, 0.0);
+            dlsh = textureLod(g_tDirectLightShadows, mat.LightmapUv, 0.0);
         #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
             vec3 vLightProbeShadowCoords = CalculateProbeShadowCoords(mat.PositionWS);
             dlsh = textureLod(g_tLPV_Shadows, vLightProbeShadowCoords, 0.0);
@@ -280,11 +280,11 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
     // Indirect Lighting
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    vec3 irradiance = texture(g_tIrradiance, vLightmapUVScaled).rgb;
+    vec3 irradiance = texture(g_tIrradiance, mat.LightmapUv).rgb;
     #if (S_LIGHTMAP_VERSION_MINOR >= 3)
-        vec4 vAHDData = texture(g_tDirectionalIrradianceR, vLightmapUVScaled);
+        vec4 vAHDData = texture(g_tDirectionalIrradianceR, mat.LightmapUv);
     #else
-        vec4 vAHDData = texture(g_tDirectionalIrradiance, vLightmapUVScaled);
+        vec4 vAHDData = texture(g_tDirectionalIrradiance, mat.LightmapUv);
     #endif
 
     lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat.NormalMap);
@@ -361,8 +361,37 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
         mat.IsometricRoughness = mat.Roughness.x;
     #endif
 
+    mat.LightmapUv = vLightmapUVScaled;
+
     CalculateDirectLighting(lighting, mat);
     CalculateIndirectLighting(lighting, mat);
 
     return lighting;
+}
+
+bool HandleLightingRenderModes(inout vec4 outputColor, inout MaterialProperties_t mat, LightingTerms_t lighting)
+{
+    switch (g_iRenderMode)
+    {
+        case renderMode_Illumination:
+            outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
+            return true;
+        case renderMode_Irradiance:
+            outputColor = vec4(lighting.DiffuseIndirect, 1.0);
+            return true;
+        case renderMode_Diffuse:
+            outputColor = vec4((lighting.DiffuseDirect + lighting.DiffuseIndirect) * 0.5, 1.0);
+            return true;
+        case renderMode_Specular:
+            outputColor = vec4((lighting.SpecularDirect + lighting.SpecularIndirect) * 0.5, 1.0);
+            return true;
+    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1 && S_LIGHTMAP_VERSION_MINOR >= 2)
+        case renderMode_LightmapShadows:
+            vec4 dlsh = texture(g_tDirectLightShadows, mat.LightmapUv);
+            outputColor = vec4(vec3(1.0 - dlsh.x) + vec3(1.0 - min3(dlsh.yzw)) * vec3(0.5, 0.5, 0), 1.0);
+            return true;
+    #endif
+        default:
+            return false;
+    }
 }

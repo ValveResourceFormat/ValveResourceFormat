@@ -61,6 +61,8 @@ struct MaterialProperties_t
     vec3 TransmissiveColor;
     vec3 IllumColor;
 
+    vec3 LightmapUv;
+
     vec3 AmbientGeometricNormal; // Indirect geometric normal
     vec3 AmbientNormal; // Indirect normal
 
@@ -106,6 +108,8 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     mat.SpecularColor = vec3(0.04);
     mat.TransmissiveColor = vec3(0.0);
     mat.IllumColor = vec3(0.0);
+
+    mat.LightmapUv = vec3(0.0);
 
     mat.AmbientGeometricNormal = vec3(0.0); // Indirect geometric normal
     mat.AmbientNormal = vec3(0.0); // Indirect normal
@@ -447,6 +451,11 @@ bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
         outputColor.rgb = SrgbGammaToLinear(mat.Metalness.xxx);
         return true;
     }
+    else if (g_iRenderMode == renderMode_Height)
+    {
+        outputColor.rgb = SrgbGammaToLinear(mat.Height.xxx);
+        return true;
+    }
     else if (g_iRenderMode == renderMode_ExtraParams)
     {
         outputColor.rgb = SrgbGammaToLinear(mat.ExtraParams.rgb);
@@ -456,26 +465,28 @@ bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
     return false;
 }
 
-bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampler2D representativeTexture, vec2 flUVs, vec3 vLightmapUVs)
+bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampler2D representativeTexture, vec2 flUVs)
 {
     if (g_iRenderMode == renderMode_UvDensity || g_iRenderMode == renderMode_LightmapUvDensity)
     {
         outputColor.rgb = mat.Albedo;
-        vec2 uv = g_iRenderMode == renderMode_UvDensity ? flUVs : vLightmapUVs.xy;
+        vec2 uv = g_iRenderMode == renderMode_UvDensity ? flUVs : mat.LightmapUv.xy;
 
-        ivec2 vDims = textureSize(representativeTexture, 0);
+        ivec2 vDims = g_iRenderMode == renderMode_LightmapUvDensity
+            ? ivec2(8096)
+            : textureSize(representativeTexture, 0);
 
         uint testVal = ((uv.x < 0) != (uv.y < 0)) ? 0 : 1;
         uvec2 vUVInPixels = uvec2(abs(uv) * vDims.xy);
         if (((vUVInPixels.x + vUVInPixels.y) & 1) == testVal)
         {
-            outputColor.rgb *= 0.8;
+            outputColor.rgb *= 0.6;
         }
 
         uvec2 vUVIn16Pixels = vUVInPixels / 16;
         if (((vUVIn16Pixels.x + vUVIn16Pixels.y) & 1) == testVal)
         {
-            outputColor.rgb *= 0.5;
+            outputColor.rgb *= 0.4;
         }
 
         return true;
