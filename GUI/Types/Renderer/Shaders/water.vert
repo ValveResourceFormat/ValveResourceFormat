@@ -19,9 +19,8 @@ void main()
 {
     vec4 fragPosition = CalculateObjectToWorldMatrix() * vec4(vPOSITION, 1.0);
     gl_Position = g_matWorldToProjection * fragPosition;
-    vFragPosition = fragPosition.xyz / fragPosition.w;
+    vFragPosition = fragPosition.xyz;
 
     GetOptionallyCompressedNormalTangent(vNormalOut, vTangentOut);
-
     vTexCoordOut = vTEXCOORD;
 }

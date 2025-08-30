@@ -4,7 +4,7 @@
 #include "common/ViewConstants.glsl"
 
 #define renderMode_Color 0
-#define renderMode_SpriteEffects 0
+#define renderMode_ExtraParams 0
 #define renderMode_Tint 0
 
 in vec3 vFragPosition;
@@ -130,7 +130,7 @@ void main()
     {
         outputColor = vColorOut;
     }
-    else if (g_iRenderMode == renderMode_SpriteEffects)
+    else if (g_iRenderMode == renderMode_ExtraParams)
     {
         outputColor = vec4(mask1, mask2, mask3, 1);
     }
