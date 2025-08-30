@@ -585,19 +585,13 @@ namespace GUI.Types.Renderer
 
             FramebufferCopy.BindAndClear(FramebufferTarget.DrawFramebuffer);
 
-            if (copyColor)
-            {
-                GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
-                    0, 0, framebuffer.Width, framebuffer.Height,
-                    0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-            }
+            var flags = ClearBufferMask.None;
+            flags |= copyColor ? ClearBufferMask.ColorBufferBit : 0;
+            flags |= copyDepth ? ClearBufferMask.DepthBufferBit : 0;
 
-            if (copyDepth)
-            {
-                GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
-                    0, 0, framebuffer.Width, framebuffer.Height,
-                    0, 0, FramebufferCopy.Width, FramebufferCopy.Height, ClearBufferMask.DepthBufferBit, BlitFramebufferFilter.Nearest);
-            }
+            GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
+                0, 0, framebuffer.Width, framebuffer.Height,
+                0, 0, FramebufferCopy.Width, FramebufferCopy.Height, flags, BlitFramebufferFilter.Nearest);
 
             framebuffer.Bind(FramebufferTarget.Framebuffer);
         }
