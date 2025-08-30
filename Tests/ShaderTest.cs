@@ -4,6 +4,7 @@ using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Utils;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace Tests
@@ -233,6 +234,43 @@ namespace Tests
                 Assert.That(vfx.VfxContent, Does.Contain("Description = \"Error shader\""));
                 Assert.That(vfx.VfxContent, Does.Contain("DevShader = true"));
             }
+        }
+
+        public static IEnumerable<TestCaseData> SpirvReflectionTestCases()
+        {
+            yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_vs.vcs", 0, 9);
+            yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_ps.vcs", 1, 1);
+            yield return new TestCaseData("vcs68_csgo_simple_2way_blend_vulkan_60_rtx.vcs", 0x6, 0);
+            yield return new TestCaseData("vcs68_test_vulkan_60_ms.vcs", 0, 1);
+            yield return new TestCaseData("vcs69_downsample_depth_cs_vulkan_50_cs.vcs", 0, 0x20);
+            yield return new TestCaseData("vcs69_zstd5_npr_dummy_vulkan_50_vs.vcs", 0, 0);
+            yield return new TestCaseData("vcs69_bloom_vulkan_40_ps.vcs", 0, 0);
+        }
+
+        [Test, TestCaseSource(nameof(SpirvReflectionTestCases))]
+        public void TestSpirvReflection(string shaderFile, int staticCombo, int dynamicCombo)
+        {
+            var path = Path.Combine(ShadersDir, shaderFile);
+            using var shader = new VfxProgramData();
+            shader.Read(path);
+
+            var staticComboEntry = shader.GetStaticCombo(staticCombo);
+            var dynamicComboEntry = staticComboEntry.DynamicCombos[dynamicCombo];
+            var code = staticComboEntry.ShaderFiles[dynamicComboEntry.ShaderFileId].GetDecompiledFile();
+            code = code.Replace(StringToken.VRF_GENERATOR, string.Empty, StringComparison.Ordinal);
+
+            var referencePath = Path.Combine(ShadersDir, "SpirvOutput", $"{shaderFile}.glsl");
+
+            /*{
+                var shadersDirRepo = Path.Combine(TestContext.CurrentContext.TestDirectory, "../../", "Files", "Shaders");
+                var referencePathRepo = Path.Combine(shadersDirRepo, "SpirvOutput", $"{shaderFile}.glsl");
+                File.WriteAllText(referencePathRepo, code);
+                return;
+            }*/
+
+            var reference = File.ReadAllText(referencePath);
+
+            Assert.That(code, Is.EqualTo(reference).IgnoreWhiteSpace, $"Spirv reflection output does not match reference.");
         }
 
         [Test]
