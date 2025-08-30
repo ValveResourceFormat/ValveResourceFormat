@@ -192,7 +192,7 @@ void main()
             vec4 _22906;
             _22906.x = _10522.x;
             _22906.y = _10522.y;
-            float _19733 = clamp(-_10522.z, 0.0, 1.0) - 0.00069999997504055500030517578125;
+            float _19733 = saturate(-_10522.z) - 0.00069999997504055500030517578125;
             vec2 _12679 = (vec2(5.0) * _Globals_.g_flPortalRadiusScale.x).xy;
             int _20524;
             float _13014;
@@ -255,7 +255,7 @@ void main()
             vec4 _22905;
             _22905.x = _10521.x;
             _22905.y = _10521.y;
-            _12501 = textureLod(sampler2DShadow(g_tFresnelWarp, undetermined_7), vec3(_22905.xy, clamp(-_10521.z, 0.0, 1.0)), 0.0);
+            _12501 = textureLod(sampler2DShadow(g_tFresnelWarp, undetermined_7), vec3(_22905.xy, saturate(-_10521.z)), 0.0);
         }
         _21709 = _12501;
     }
@@ -269,7 +269,7 @@ void main()
     vec2 _21656 = (input_3.xyz + (_Globals_.g_flAmbientScale.xyz * input_3.y)).xy * (1.0 / _Globals_.g_vDetail1ColorTint);
     vec3 _21103 = (((vec3(fma(_17643, 0.5, 0.5) * _21709).xyz * _Globals_._m1.xyz).xyz + (((_Globals_.g_flSelfIllumBlendToFull.xyz * clamp(dot(_Globals_._m2.xyz, _18460), 0.0, 1.0)) * _Globals_.g_flMetalnessBlendToFull) * undetermined._m0)).xyz + (((mix(_Globals_._m12.xyz, _Globals_.g_flSpecularExponentBlendToFull.xyz, vec3(fma(_8729, 0.5, 0.5))) * _Globals_._m6) * max(1.0 - _21709, 1.0 - clamp(min(texture(sampler2D(g_tNormal, undetermined_8), (_21656 + _Globals_._m7.xy).xy).x, texture(sampler2D(g_tNormal, undetermined_8), (_21656 + _Globals_.g_vSpecularColor.xy).xy).y), 0.0, 1.0))) * undetermined._m0)).xyz * _19017.xyz;
     vec4 _11665 = vec4(_21103, _13553 * input_4.w);
-    vec3 _14166 = (((((vec3(clamp(_17643, 0.0, 1.0) * pow(max(0.001000000047497451305389404296875, clamp(dot(_13833.xyz, -reflect(_13353.xyz, _13845).xyz), 0.0, 1.0)), max(_19373.w, undetermined._m9) * undetermined._m11)).xyz * _Globals_._m1.xyz).xyz * undetermined._m12).xyz * max(_19373.x, undetermined._m6)).xyz * mix(_19680.xyz, undetermined._m10.xyz, vec3(max(_19373.z, undetermined._m8)))).xyz * max(_9136, _7433)).xyz;
+    vec3 _14166 = (((((vec3(saturate(_17643) * pow(max(0.001000000047497451305389404296875, clamp(dot(_13833.xyz, -reflect(_13353.xyz, _13845).xyz), 0.0, 1.0)), max(_19373.w, undetermined._m9) * undetermined._m11)).xyz * _Globals_._m1.xyz).xyz * undetermined._m12).xyz * max(_19373.x, undetermined._m6)).xyz * mix(_19680.xyz, undetermined._m10.xyz, vec3(max(_19373.z, undetermined._m8)))).xyz * max(_9136, _7433)).xyz;
     vec3 _15752 = _11665.xyz + _14166;
     _11665.x = _15752.x;
     _11665.y = _15752.y;
@@ -287,7 +287,7 @@ void main()
     vec4 _19363;
     if (undetermined._m15 != 0)
     {
-        vec3 _19801 = mix(_20489.xyz, _19017.xyz, vec3(clamp(_19248, 0.0, 1.0)));
+        vec3 _19801 = mix(_20489.xyz, _19017.xyz, vec3(saturate(_19248)));
         vec4 _17845 = _20489;
         _17845.x = _19801.x;
         _17845.y = _19801.y;
@@ -296,7 +296,7 @@ void main()
     }
     else
     {
-        vec3 _19800 = mix(_20489.xyz, _23491.xyz, vec3(clamp(_19248, 0.0, 1.0)));
+        vec3 _19800 = mix(_20489.xyz, _23491.xyz, vec3(saturate(_19248)));
         vec4 _17844 = _20489;
         _17844.x = _19800.x;
         _17844.y = _19800.y;
@@ -370,7 +370,7 @@ void main()
         _21711 = input_3.xz;
     }
     vec2 _12553 = (vec2(-PerViewConstantBuffer_t.g_flTime) * undetermined._m28) + _21711;
-    float _8310 = clamp(1.0 - _19250, 0.0, 1.0);
+    float _8310 = saturate(1.0 - _19250);
     float _13533 = _12553.x * undetermined._m21;
     float _24284 = _12553.y * undetermined._m21;
     vec2 _7203 = vec2(_13533, _24284);

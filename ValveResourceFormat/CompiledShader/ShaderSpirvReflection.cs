@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using ValveResourceFormat.ResourceTypes;
 using Vortice.SPIRV;
 using Vortice.SpirvCross;
@@ -11,7 +12,7 @@ namespace ValveResourceFormat.CompiledShader;
 
 #nullable disable
 
-public static class ShaderSpirvReflection
+public static partial class ShaderSpirvReflection
 {
     private const int TextureStartingPoint = 30;
     private const int TextureIndexStartingPoint = 30;
@@ -81,6 +82,8 @@ public static class ShaderSpirvReflection
                     code = code.Replace("SPIRV_Cross_Output", "PS_OUTPUT", StringComparison.Ordinal);
                 }
             }
+
+            code = ReplaceCommonPatterns(code);
 
             buffer.WriteLine(
                 $"// SPIR-V source ({vulkanSource.BytecodeSize} bytes), {backend} reflection with SPIRV-Cross by KhronosGroup");
@@ -441,5 +444,15 @@ public static class ShaderSpirvReflection
         }
 
         return $"{(input ? "input" : "output")}_{attributeIndex}";
+    }
+
+    [GeneratedRegex(@"\bclamp\s*\(\s*([^\(\),]+?)\s*,\s*(?:0\.?0?|vec[2-4]\s*\(\s*0\.?0?\s*\))\s*,\s*(?:1\.?0?|vec[2-4]\s*\(\s*1\.?0?\s*\))\s*\)", RegexOptions.Compiled)]
+    private static partial Regex Clamp01();
+
+    private static string ReplaceCommonPatterns(string code)
+    {
+        code = Clamp01().Replace(code, "saturate($1)");
+
+        return code;
     }
 }

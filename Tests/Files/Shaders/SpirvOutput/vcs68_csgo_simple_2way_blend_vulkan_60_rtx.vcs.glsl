@@ -363,7 +363,7 @@ void main()
                 float _919 = fma(float((g_Vertices[nonuniformEXT(_115)]._m0[_906] >> 22u) & 1023u), 0.00195503421127796173095703125, -1.0);
                 float _923 = (1.0 - abs(_917)) - abs(_919);
                 vec3 _924 = vec3(_917, _919, _923);
-                float _926 = clamp(-_923, 0.0, 1.0);
+                float _926 = saturate(-_923);
                 vec2 _927 = _924.xy;
                 vec2 _933 = _927 + mix(vec2(_926), vec2(-_926), greaterThanEqual(_927, vec2(0.0)));
                 _494[0] = normalize(vec3(_933.x, _933.y, _924.z));
@@ -379,7 +379,7 @@ void main()
                 float _981 = fma(float((g_Vertices[nonuniformEXT(_115)]._m0[_968] >> 22u) & 1023u), 0.00195503421127796173095703125, -1.0);
                 float _985 = (1.0 - abs(_979)) - abs(_981);
                 vec3 _986 = vec3(_979, _981, _985);
-                float _988 = clamp(-_985, 0.0, 1.0);
+                float _988 = saturate(-_985);
                 vec2 _989 = _986.xy;
                 vec2 _995 = _989 + mix(vec2(_988), vec2(-_988), greaterThanEqual(_989, vec2(0.0)));
                 _494[1] = normalize(vec3(_995.x, _995.y, _986.z));
@@ -395,7 +395,7 @@ void main()
                 float _1043 = fma(float((g_Vertices[nonuniformEXT(_115)]._m0[_1030] >> 22u) & 1023u), 0.00195503421127796173095703125, -1.0);
                 float _1047 = (1.0 - abs(_1041)) - abs(_1043);
                 vec3 _1048 = vec3(_1041, _1043, _1047);
-                float _1050 = clamp(-_1047, 0.0, 1.0);
+                float _1050 = saturate(-_1047);
                 vec2 _1051 = _1048.xy;
                 vec2 _1057 = _1051 + mix(vec2(_1050), vec2(-_1050), greaterThanEqual(_1051, vec2(0.0)));
                 _494[2] = normalize(vec3(_1057.x, _1057.y, _1048.z));
