@@ -55,55 +55,67 @@ If you are interested in helping, take a look at the open issues and join our Di
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
 ## Supported resource types
-Ext      | Name                    | Support
--------- | ----------------------- | -------
-vagrp    | Animation Group         | 👍
-vanim    | Animation               | 👍
-vanmgrph | Animation Graph         | No
-vcompmat | Composite Material      | No
-vcss     | Panorama Style          | 👍
-vdata    | Data                    | 👍
-vents    | EntityLump              | 👍
-vjs      | Panorama Script         | 👍
-vmap     | Map                     | 👍
-vmat     | Material                | 👍
-vmdl     | Model                   | 👍
-vmesh    | Mesh                    | 👍
-vmorf    | MorphSet                | 👍
-vpcf     | Particle System         | 👍
-vpdi     | Panorama Dynamic Images | No
-vphys    | Physics Collision Mesh  | 👍
-vpost    | Postprocessing Settings | 👍
-vpsf     | Particle Snapshot       | No
-vpulse   | Pulse Graph Definition  | No
-vrman    | ResourceManifest        | 👍
-vrmap    | Resource Remap Table    | No
-vrr      | Response rules          | 👍
-vseq     | Sequence Group          | No
-vsmart   | Smart Prop              | Partially
-vsnap    | Particle Snapshot       | 👍
-vsnd     | Sound                   | 👍
-vsndevts | Sound Event Script      | 👍
-vsndstck | Sound Stack Script      | 👍
-vsurf    | Surface Properties      | No
-vsvg     | Panorama Vector Graphic | 👍
-vtex     | Compiled Texture        | 👍
-vts      | Panorama TypeScript     | 👍
-vvis     | WorldVisibility         | No
-vwnod    | WorldNode               | 👍
-vwrld    | World                   | 👍
-vxml     | Panorama Layout         | 👍
-&nbsp;   | &nbsp;                  | &nbsp;
-vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak)
-vcs      | Compiled Shader         | 👍 Handled by `CompiledShader`
-vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source 1 and Source 2.
-dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
-bin      | Tools Asset Info        | 👍 Handled by `ToolsAssetInfo`
-vdpn     | Dota Patch Notes        | 👍
-vdacdefs | DAC Game Defs Data      | No
-vfe      | Flex Scene File         | 👍 Handled by `FlexSceneFile`
-vcd      | VCD                     | No
-vcdlist  | VCD list                | 👍
+Ext           | Name                              | Support
+------------- | --------------------------------- | -------
+vagrp         | Animation Group                   | 👍
+vanim         | Animation                         | 👍
+vanmgrph      | Animation Graph                   | 👍
+vcd           | Choreo                            | 👍
+vcdlist       | Choreo Scene File Data            | 👍
+vcompmat      | Composite Material                | 👍
+vcss          | Panorama Style                    | 👍
+vdata         | Data                              | 👍
+vents         | EntityLump                        | 👍
+vjs           | Panorama Script                   | 👍
+vmap          | Map                               | 👍
+vmat          | Material                          | 👍
+vmdl          | Model                             | 👍
+vmesh         | Mesh                              | 👍
+vmix          | VMix                              | 👍
+vmorf         | MorphSet                          | 👍
+vnmclip       | NmClip                            | 👍
+vnmgrph       | NmGraph                           | 👍
+vnmskel       | NmSkeleton                        | 👍
+vnmvar        | NmGraph Variation                 | 👍
+vpcf          | Particle System                   | 👍
+vpdi          | Panorama Dynamic Images           | No
+vphys         | Physics Collision Mesh            | 👍
+vpost         | Postprocessing Settings           | 👍
+vpram         | Processing Graph Instance         | 👍
+vpsf          | Particle Snapshot                 | 👍
+vpulse        | Pulse Graph Definition            | 👍
+vrman         | ResourceManifest                  | 👍
+vrmap         | Resource Remap Table              | No
+vrr           | Response Rules                    | 👍
+vseq          | Sequence Group                    | No
+vsmart        | Smart Prop                        | Partially
+vsnap         | Particle Snapshot                 | 👍
+vsnd          | Sound                             | 👍
+vsndevts      | Sound Event Script                | 👍
+vsndstck      | Sound Stack Script                | 👍
+vsurf         | Surface Properties                | No
+vsvg          | Panorama Vector Graphic           | 👍
+vtex          | Compiled Texture                  | 👍
+vts           | Panorama TypeScript               | 👍
+vvis          | World Visibility                  | No
+vwnod         | World Node                        | 👍
+vwrld         | World                             | 👍
+vxml          | Panorama Layout                   | 👍
+&nbsp;        | &nbsp;                            | &nbsp;
+csgoitem      | CSGO Item                         | 👍
+econitem      | CSGO Economy Item                 | 👍
+herolist      | Dota Hero List                    | 👍
+item          | Artifact Item                     | 👍
+vdpn          | Dota Patch Notes                  | 👍
+vdvn          | Dota Visual Novels                | 👍
+&nbsp;        | &nbsp;                            | &nbsp;
+bin           | Tools Asset Info                  | 👍 Handled by `ToolsAssetInfo`
+dat           | Closed Captions                   | 👍 Handled by `ClosedCaptions`
+vcs           | Compiled Shader                   | 👍 Handled by `CompiledShader`
+vdacdefs      | DAC Game Defs Data                | No
+vfe           | Flex Scene File                   | 👍 Handled by `FlexSceneFile`
+vfont         | Bitmap Font                       | 👍 Decrypts `VFONT1`, supported in Source 1 and Source 2.
+vpk           | Pak (package)                     | 👍 Handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak)
 
 ## List of supported magics
 Magic        | Description
