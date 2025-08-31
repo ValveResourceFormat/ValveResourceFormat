@@ -6,17 +6,6 @@
 #include "common/LightingConstants.glsl"
 #include "complex_features.glsl"
 
-// Render modes -- Switched on/off by code
-#define renderMode_Illumination 0
-#define renderMode_Diffuse 0
-#define renderMode_Specular 0
-#define renderMode_Cubemaps 0
-#define renderMode_Irradiance 0
-#define renderMode_Tint 0
-#define renderMode_FoliageParams 0
-#define renderMode_TerrainBlend 0
-#define renderMode_LightmapShadows 0
-
 #if defined(vr_complex_vfx) || defined(csgo_complex_vfx)
     #define complex_vfx_common
 #elif defined(vr_simple_vfx) || defined(csgo_simple_vfx)
@@ -657,13 +646,11 @@ void main()
     LightingTerms_t lighting;
 
 #if (unlit)
-    outputColor.rgb = mat.Albedo + mat.IllumColor;
+    lighting.DiffuseDirect = mat.Albedo + mat.IllumColor;
+    outputColor.rgb = lighting.DiffuseDirect;
 #else
 
     lighting = CalculateLighting(mat);
-
-    // Combining pass
-
     ApplyAmbientOcclusion(lighting, mat);
 
     vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect;
@@ -699,11 +686,9 @@ void main()
     #endif
 #endif
 
-    if (HandleMaterialRenderModes(outputColor, mat))
-    {
-        //
-    }
-    else if (HandleUVRenderModes(outputColor, mat, g_tColor, vTexCoordOut, vLightmapUVScaled))
+    if (HandleMaterialRenderModes(outputColor, mat)
+    || HandleLightingRenderModes(outputColor, mat, lighting)
+    || HandleUVRenderModes(outputColor, mat, g_tColor, vTexCoordOut.xy))
     {
         //
     }
@@ -713,29 +698,10 @@ void main()
         vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
         outputColor.rgb = viewmodeEnvMap;
     }
-    else if (g_iRenderMode == renderMode_Illumination)
-    {
-        outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
-    }
-#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    else if (g_iRenderMode == renderMode_LightmapShadows)
-    {
-        #if (S_LIGHTMAP_VERSION_MINOR >= 2)
-            vec4 dlsh = texture(g_tDirectLightShadows, vLightmapUVScaled);
-            outputColor = vec4(vec3(1.0 - dlsh.x) + vec3(1.0 - min3(dlsh.yzw)) * vec3(0.5, 0.5, 0), 1.0);
-        #endif
-    }
-#endif
     else if (g_iRenderMode == renderMode_Tint)
     {
         outputColor = vec4(SrgbGammaToLinear(vVertexColorOut.rgb), vVertexColorOut.a);
     }
-#if (F_GLASS == 0)
-    else if (g_iRenderMode == renderMode_Irradiance)
-    {
-        outputColor = vec4(lighting.DiffuseIndirect, 1.0);
-    }
-#endif
 #if defined(foliage_vfx_common)
     else if (g_iRenderMode == renderMode_FoliageParams)
     {
@@ -746,16 +712,6 @@ void main()
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
         outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rgb);
-    }
-#endif
-#if !(unlit)
-    else if (g_iRenderMode == renderMode_Diffuse)
-    {
-        outputColor.rgb = diffuseLighting * 0.5;
-    }
-    else if (g_iRenderMode == renderMode_Specular)
-    {
-        outputColor.rgb = specularLighting;
     }
 #endif
 }

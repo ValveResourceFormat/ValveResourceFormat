@@ -8,6 +8,8 @@
 //? #include "lighting.glsl"
 
 #define S_SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
+#define renderMode_Cubemaps 0
+
 
 #if (S_SCENE_CUBEMAP_TYPE == 0)
     // ...
