@@ -371,6 +371,7 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
 #define renderMode_Diffuse 0
 #define renderMode_Specular 0
 #define renderMode_Irradiance 0
+#define renderMode_Occlusion 0
 #define renderMode_LightmapShadows 0
 
 bool HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat, LightingTerms_t lighting)
@@ -388,6 +389,10 @@ bool HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat,
             return true;
         case renderMode_Specular:
             outputColor = vec4((lighting.SpecularDirect + lighting.SpecularIndirect) * 0.5, 1.0);
+            return true;
+        case renderMode_Occlusion:
+            float flLightmapOcclusion = blink() ? 1.0 : lighting.SpecularOcclusion;
+            outputColor = vec4(SrgbGammaToLinear((mat.AmbientOcclusion * flLightmapOcclusion).xxx), 1.0);
             return true;
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1 && S_LIGHTMAP_VERSION_MINOR >= 2)
         case renderMode_LightmapShadows:

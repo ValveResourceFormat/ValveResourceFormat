@@ -461,17 +461,10 @@ void main()
     {
         outputColor = vec4(SrgbGammaToLinear(vTintColor_ModelAmount.rgb), vVertexColor_Alpha.a);
     }
-
     else if (g_iRenderMode == renderMode_VertexColor)
     {
         outputColor.rgb = SrgbGammaToLinear(vVertexColor_Alpha.rgb);
     }
-#if (F_GLASS == 0)
-    else if (g_iRenderMode == renderMode_Irradiance)
-    {
-        outputColor = vec4(lighting.DiffuseIndirect, 1.0);
-    }
-#endif
 #if defined(csgo_environment_blend_vfx)
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {

@@ -342,7 +342,6 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #define renderMode_Tangents 0
 #define renderMode_Normals 0
 #define renderMode_BumpNormals 0
-#define renderMode_Occlusion 0
 #define renderMode_Roughness 0
 #define renderMode_Metalness 0
 #define renderMode_Height 0
@@ -378,9 +377,6 @@ bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
             return true;
         case renderMode_BumpNormals:
             outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.Normal)), 1.0);
-            return true;
-        case renderMode_Occlusion:
-            outputColor.rgb = SrgbGammaToLinear(mat.AmbientOcclusion.xxx);
             return true;
         case renderMode_Roughness:
             {

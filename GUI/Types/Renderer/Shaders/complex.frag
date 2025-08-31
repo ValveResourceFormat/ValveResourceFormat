@@ -643,7 +643,7 @@ void main()
     MaterialProperties_t mat = GetMaterial(texCoord, vertexNormal);
     outputColor.a = mat.Opacity;
 
-    LightingTerms_t lighting;
+    LightingTerms_t lighting = InitLighting();
 
 #if (unlit)
     lighting.DiffuseDirect = mat.Albedo + mat.IllumColor;
