@@ -254,6 +254,8 @@ Source 2 Viewer keeps its settings in `%LocalAppData%/Source2Viewer/settings.vdf
 | <kbd>Ctrl-S</kbd> | Save current texture to disk |
 | <kbd>F11</kbd> | Enter/exit fullscreen |
 
+# Misc
+
 ## License
 
 Contents of this repository are available under [MIT license](LICENSE), except for `Tests/Files` folder contains files which have likely come from Valve's games.
