@@ -92,7 +92,7 @@ jobs:
 
     - name: Build misc projects
       if: matrix.os == 'windows-latest'
-      run: dotnet build Misc/MiscVrfProjects.slnx
+      run: dotnet build --configuration Release Misc/MiscVrfProjects.slnx
 
     - name: Upload GUI
       uses: actions/upload-artifact@v4
