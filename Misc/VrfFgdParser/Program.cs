@@ -246,7 +246,7 @@ void ParseFile(string file)
             {
                 if (behaviour.Name == "line" && behaviour.Values.Count > 3)
                 {
-                    var color = ConstructColor(behaviour.Values.Take(3).ToList());
+                    var color = ConstructColor([.. behaviour.Values.Take(3)]);
                     var line = string.Empty;
 
                     if (behaviour.Values.Count == 5)

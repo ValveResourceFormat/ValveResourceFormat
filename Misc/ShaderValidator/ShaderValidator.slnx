@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="..\..\GUI\GUI.csproj" />
-  <Project Path="ShaderValidator.csproj" />
-</Solution>

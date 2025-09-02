@@ -1,4 +1,3 @@
-using System;
 using Sledge.Formats.FileSystem;
 
 namespace VrfFgdParser;
@@ -31,6 +30,16 @@ public sealed class FgdFileResolver(string path) : IFileResolver
     }
 
     bool IFileResolver.FileExists(string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    bool IFileResolver.FolderExists(string path)
+    {
+        throw new NotImplementedException();
+    }
+
+    long IFileResolver.FileSize(string path)
     {
         throw new NotImplementedException();
     }
