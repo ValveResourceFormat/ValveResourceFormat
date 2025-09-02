@@ -2,12 +2,23 @@ using System.Globalization;
 using System.Text;
 using Sledge.Formats.GameData;
 using Sledge.Formats.GameData.Objects;
+using ValveResourceFormat.IO;
 using VrfFgdParser;
 
-if (args?.Length < 1)
+var pathsToCheck = args ?? [];
+
+if (pathsToCheck.Length < 1)
 {
-    Console.Error.WriteLine("Usage: ./program <path to Steam to find .fgd files in>");
-    return 1;
+    Console.Error.WriteLine("Usage: ./program [path to Steam to find .fgd files in]");
+
+    if (GameFolderLocator.SteamPath == null)
+    {
+        return 1;
+    }
+
+    Console.Error.WriteLine($"No path specified, searching Steam libraries.");
+
+    pathsToCheck = [.. GameFolderLocator.FindAllSteamGames().Select(static x => x.SteamPath).ToHashSet()];
 }
 
 var allEntities = new SortedDictionary<string, EntityInfo>();
@@ -15,13 +26,15 @@ var allProperties = new HashSet<string>();
 var baseEntities = new Dictionary<string, EntityInfo>();
 var entityMaterials = new Dictionary<string, string>();
 
-foreach (var arg in args!)
+foreach (var arg in pathsToCheck)
 {
     if (!Directory.Exists(arg))
     {
         Console.Error.WriteLine($"'{arg}' does not exist.");
         continue;
     }
+
+    Console.WriteLine($"Searching {arg}");
 
     foreach (var file in Directory.EnumerateFiles(arg, "*.fgd", SearchOption.AllDirectories))
     {
