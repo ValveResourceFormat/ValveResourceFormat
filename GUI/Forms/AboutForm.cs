@@ -40,7 +40,7 @@ namespace GUI.Forms
 
         private void OnKeybindsClick(object sender, EventArgs e)
         {
-            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/wiki/Source-2-Viewer-Keybinds");
+            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat?tab=readme-ov-file#gui-keybinds");
         }
 
         private static void OpenUrl(string url)

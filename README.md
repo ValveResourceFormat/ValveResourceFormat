@@ -137,6 +137,8 @@ Magic        | Description
 `VFONT1`     | "encrypted" font file
 `0x00564645` | VFE - flex scene file
 
+# CLI
+
 ## Command-line options
 
 Option                        | Description
@@ -193,6 +195,64 @@ There are also `--stats` related options, but they are not listed here as they a
 # Decompile a specific file on disk
 ./Source2Viewer-CLI.exe -i "file.vtex_c" -o exported.png
 ```
+
+# GUI
+
+Source 2 Viewer keeps its settings in `%LocalAppData%/Source2Viewer/settings.vdf`.
+
+## GUI Keybinds
+
+### General
+
+| Key | Action |
+| --- | ------ |
+| <kbd>Ctrl-O</kbd> | Open a new file |
+| <kbd>Ctrl-F</kbd> | Open find window (package or text viewer) |
+| <kbd>Ctrl-W</kbd> | Close current tab |
+| <kbd>Ctrl-Q</kbd> | Close all tabs |
+| <kbd>Ctrl-E</kbd> | Close all tabs to the right of the current one |
+| <kbd>Ctrl-R</kbd> or <kbd>F5</kbd> | Reload current tab |
+
+### Map/model viewer
+
+### Camera
+| Key | Action |
+| --- | ------ |
+| Hold <kbd>LMB</kbd> | Rotate the camera |
+| <kbd>ShiftLeft+LMB</kbd> | Pan the camera |
+| <kbd>AltLeft+LMB</kbd> | Move camera forward or backwards |
+| <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>  | Move the camera |
+| <kbd>Q</kbd> | Move the camera up |
+| <kbd>Z</kbd> | Move the camera down |
+| Hold <kbd>Ctrl</kbd> and <kbd>LMB</kbd> | Move the light position (in model viewer) |
+
+#### Objects
+| Key | Action |
+| --- | ------ |
+| Click <kbd>LMB</kbd> | Pick an object |
+| <kbd>Ctrl+LMB</kbd> | Toggle object selection |
+| Double click <kbd>LMB</kbd> | Open entity info dialog |
+| Double click <kbd>Ctrl+LMB</kbd> | Open object in a new tab |
+| <kbd>Delete</kbd> | Temporarily hide the selected object (toggle world layers to restore) |
+
+#### Other
+| Key | Action |
+| --- | ------ |
+| <kbd>F11</kbd> | Enter/exit fullscreen |
+| <kbd>Ctrl-C</kbd> | Copy viewport screenshot to clipboard |
+
+### Texture viewer
+
+| Key | Action |
+| --- | ------ |
+| Hold <kbd>LMB</kbd> | Move around the picture |
+| Arrow keys | Move around the picture |
+| <kbd>Ctrl-0</kbd> | Reset zoom |
+| <kbd>Ctrl</kbd> and <kbd>+</kbd> | Zoom in |
+| <kbd>Ctrl</kbd> and <kbd>-</kbd> | Zoom out |
+| <kbd>Ctrl-C</kbd> | Copy current texture to clipboard |
+| <kbd>Ctrl-S</kbd> | Save current texture to disk |
+| <kbd>F11</kbd> | Enter/exit fullscreen |
 
 ## License
 
