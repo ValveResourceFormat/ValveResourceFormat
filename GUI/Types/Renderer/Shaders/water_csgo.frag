@@ -672,7 +672,7 @@ void main()
             float _14717 = clamp(dFdxFine(_16517), -1.0, 1.0) + clamp(-dFdyFine(_16517), -1.0, 1.0);
 
             causticsDebrisTotal.w = causticDebrisCoverage;
-            combinedRefractedColor = mix(modifiedCausticsRefractColor, modifiedCausticsRefractColor * (vec3(1.0) + (vec3(2.5, 0.0, -2.0) * float(int(sign(_14717 * saturate(abs(_14717) - 0.1)))))), vec3(saturate(200.0 / vPositionViewSpace) * 0.1));
+            combinedRefractedColor = mix(modifiedCausticsRefractColor, modifiedCausticsRefractColor * (vec3(1.0) + (vec3(2.5, 0.0, -2.0) * float(int(sign(_14717 * saturate(abs(_14717) - 0.1)))))), vec3(saturate(200.0 / distanceToFrag) * 0.1));
             causticsEffectsZ = fadedCausticsEffects.z;
         }
 
