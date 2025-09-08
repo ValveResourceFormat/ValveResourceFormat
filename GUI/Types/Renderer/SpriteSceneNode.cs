@@ -112,10 +112,5 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(0);
             GL.UseProgram(0);
         }
-
-        public override void Update(Scene.UpdateContext context)
-        {
-            //
-        }
     }
 }

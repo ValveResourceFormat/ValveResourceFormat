@@ -46,7 +46,7 @@ void main(void)
 
     if(g_bNormalShaded)
     {
-        vec3 viewDir = normalize(vtxPos - camPos);
+        vec3 viewDir = normalize(camPos - vtxPos);
 
         if (g_bTriplanarMapping)
         {
@@ -58,8 +58,8 @@ void main(void)
         vec3 lighting = CalculateFullbrightLighting(outputColor.rgb, vtxNormal, viewDir);
         outputColor = vec4(lighting, vtxColor.a);
     }
-
-    if (!gl_FrontFacing) {
+    else if (!gl_FrontFacing)
+    {
         outputColor.rgba *= 0.75;
     }
 

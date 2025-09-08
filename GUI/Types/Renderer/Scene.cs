@@ -339,7 +339,9 @@ namespace GUI.Types.Renderer
                 {
                     var customRender = new MeshBatchRenderer.Request
                     {
-                        DistanceFromCamera = GetCameraDistance(camera, node),
+                        DistanceFromCamera = node is PhysSceneNode
+                            ? 100000f - node.OverlayRenderOrder * 10f
+                            : GetCameraDistance(camera, node),
                         Node = node,
                     };
 
