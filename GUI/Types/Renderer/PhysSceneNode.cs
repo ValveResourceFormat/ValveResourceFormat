@@ -134,7 +134,7 @@ namespace GUI.Types.Renderer
 
                         try
                         {
-                            var positions = MemoryMarshal.Cast<float, Vector3>(positionsBuffer);
+                            var positions = MemoryMarshal.Cast<float, Vector3>(positionsBuffer.AsSpan());
                             for (var i = 0; i < vertexPositions.Length; i++)
                             {
                                 positions[i] = Vector3.Transform(vertexPositions[i], pose);

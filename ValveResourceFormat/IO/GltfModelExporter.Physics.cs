@@ -115,7 +115,7 @@ public partial class GltfModelExporter
     /// <summary>
     /// Transforms an array of vertices by the given pose matrix.
     /// </summary>
-    private static Vector3[] TransformVertices(Span<Vector3> vertices, Matrix4x4 pose)
+    private static Vector3[] TransformVertices(ReadOnlySpan<Vector3> vertices, Matrix4x4 pose)
     {
         var transformed = new Vector3[vertices.Length];
         for (var i = 0; i < vertices.Length; i++)
@@ -129,7 +129,7 @@ public partial class GltfModelExporter
     /// Triangulates a convex hull using its face and edge data.
     /// Generates triangle vertices, normals, and UV coordinates using planar projection.
     /// </summary>
-    private static void TriangulateHull(Span<Face> faces, Span<HalfEdge> edges, Vector3[] transformedPositions,
+    private static void TriangulateHull(ReadOnlySpan<Face> faces, ReadOnlySpan<HalfEdge> edges, Vector3[] transformedPositions,
         List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices)
     {
         foreach (var face in faces)
@@ -160,7 +160,7 @@ public partial class GltfModelExporter
     /// Adds triangles from a triangle mesh to the vertex data.
     /// Generates normals and UV coordinates for each triangle.
     /// </summary>
-    private static void AddTriangles(Span<Triangle> triangles, Vector3[] transformedPositions,
+    private static void AddTriangles(ReadOnlySpan<Triangle> triangles, Vector3[] transformedPositions,
         List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices)
     {
         foreach (var tri in triangles)

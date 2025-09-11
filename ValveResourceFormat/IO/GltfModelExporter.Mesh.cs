@@ -220,7 +220,7 @@ public partial class GltfModelExporter
                     weights = [.. Enumerable.Repeat(baseWeights, (int)vertexBuffer.ElementCount)];
                 }
 
-                var weightsFloats = MemoryMarshal.Cast<Vector4, float>(weights);
+                var weightsFloats = MemoryMarshal.Cast<Vector4, float>(weights.AsSpan());
 
                 FixDuplicateJoints(joints, weightsFloats, actualJointCount);
 

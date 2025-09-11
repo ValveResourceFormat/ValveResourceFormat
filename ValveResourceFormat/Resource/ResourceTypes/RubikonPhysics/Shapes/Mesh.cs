@@ -99,12 +99,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// The mesh vertices in the space of the parent shape.
         /// </summary>
-        public Span<Vector3> GetVertices() => Hull.ParseVertices(Data);
+        public ReadOnlySpan<Vector3> GetVertices() => Hull.ParseVertices(Data);
 
         /// <summary>
         /// The nodes of the loose kd-tree to accelerate ray casts and volume queries against this mesh.
         /// </summary>
-        public Span<Node> ParseNodes()
+        public ReadOnlySpan<Node> ParseNodes()
         {
             if (Data.IsNotBlobType("m_Nodes"))
             {
@@ -118,7 +118,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// The mesh triangles with additional topology information similar to the half-edge data structure.
         /// </summary>
-        public Span<Triangle> GetTriangles()
+        public ReadOnlySpan<Triangle> GetTriangles()
         {
             if (Data.IsNotBlobType("m_Triangles"))
             {
