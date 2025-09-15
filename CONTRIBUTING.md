@@ -14,6 +14,19 @@ add the smallest possible test files to the [Tests/Files](Tests/Files) folder.
 If it's not a generic `_c` file, then you will have to add a test case to
 actually load and test the new files.
 
+## Shaders
+
+If you are modifying shaders, you need to run shader validator to ensure all shaders compile sucessfully, as we use runtime compilation.
+To perform full validation:
+```sh
+dotnet run --project misc/shadervalidator
+```
+
+To perform filtered validation:
+```sh
+dotnet run --project misc/shadervalidator "water"
+```
+
 ## CLI
 
 New file formats should preferably also be readable by the CLI,

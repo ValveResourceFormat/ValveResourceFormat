@@ -16,8 +16,8 @@ in vec4 vColorBlendValues;
 #include "common/fullbright.glsl"
 #include "common/texturing.glsl"
 #include "common/fog.glsl"
-#include "common/environment.glsl"
 #include "common/lighting.glsl"
+
 
 out vec4 outputColor;
 
