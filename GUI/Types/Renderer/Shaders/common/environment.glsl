@@ -49,10 +49,11 @@ float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
 
     const float EnvMapMipCount = g_vEnvMapSizeConstants.x;
 
-    #if F_CLOTH_SHADING == 1
+    if (F_CLOTH_SHADING == 1)
+    {
         float lod = mix(roughness, pow(roughness, 0.125), clothMask);
         return lod * EnvMapMipCount;
-    #endif
+    }
 
     return roughness * EnvMapMipCount;
 }
@@ -98,14 +99,11 @@ vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
     return specColor * GGXLut.x + GGXLut.y;
 }
 
-#if (F_CLOTH_SHADING == 1)
-    float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
-    {
-        float NoH = dot(normalize(N + V), N);
-        return D_Cloth(roughness, NoH) / 8.0;
-    }
-#endif
-
+float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
+{
+    float NoH = dot(normalize(N + V), N);
+    return D_Charlie(roughness, NoH) * V_Neubelt(NoH, NoH);
+}
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
 #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
@@ -237,12 +235,11 @@ vec3 GetEnvironment(MaterialProperties_t mat, float roughnessReflectionCorrectio
     }
 
     vec3 brdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir);
-
-    #if (F_CLOTH_SHADING == 1)
+    if (F_CLOTH_SHADING == 1)
+    {
         vec3 clothBrdf = vec3(EnvBRDFCloth(mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir));
-
         brdf = mix(brdf, clothBrdf, mat.ClothMask);
-    #endif
+    }
 
     return brdf * envMap;
 }

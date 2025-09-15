@@ -112,33 +112,18 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 
 #endif
 
-
-
-#if F_CLOTH_SHADING == 1
-
-// This isn't even based on GGX, lol
-float D_Cloth(float roughness, float NoH)
+float D_Charlie(float roughness, float NoH)
 {
-    roughness = max(roughness, 1e-6);
+    roughness = max(roughness * roughness, 0.000001);
     float invRough = 1.0 / roughness;
-    return (invRough + 2.0) * pow(1.0 - pow2(NoH), invRough * 0.5);
+    return (invRough + 2.0) * pow(1.0 - pow2(NoH), invRough * 0.5) / TAU;
 }
 
-float Vis_Cloth(float NoL, float NoV)
+float V_Neubelt(float NoL, float NoV)
 {
     float clampedNoV = min(NoV + 0.001, 1.0);
     return 1.0 / (4.0 * (clampedNoV + NoL - NoL * clampedNoV));
 }
-
-vec3 SpecularCloth(float roughness, float NoL, float NoH, float NoV, float VoH, vec3 specularColor)
-{
-    float NDF = D_Cloth(roughness, NoH);
-    float Vis = Vis_Cloth(NoL, NoV);
-    vec3 Fresnel = F_Schlick(VoH, specularColor);
-
-    return vec3(NoL * NDF * Vis) * Fresnel;
-}
-#endif
 
 // Still pass normal due to some effects modifying normal per light
 vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
@@ -155,10 +140,6 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 	float NoV = saturate( dot(normal, mat.ViewDir) );
 	float VoH = ClampToPositive(dot(lightVector, halfVector));
 
-#if defined(vr_complex_vfx) && (F_CLOTH_SHADING == 1)
-    return SpecularCloth(mat.Roughness.x, NoL, NoH, NoV, VoH, mat.SpecularColor);
-#else
-
 #if defined(ANISO_ROUGHNESS)
     // Anisotropic shading
     float NDF = D_AnisoGGX(mat.Roughness, halfVector, normal, mat.AnisotropicTangent, mat.AnisotropicBitangent);
@@ -168,19 +149,16 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 	float Vis = G_SchlickSmithGGX(NoL, NoV, mat.IsometricRoughness);
 #endif
 	vec3 F = F_Schlick(VoH, mat.SpecularColor);
+    float ndfVis = NDF * Vis;
 
-#if (F_CLOTH_SHADING == 1)
+    if (F_CLOTH_SHADING == 1)
+    {
+        float ClothNDF = D_Charlie(mat.IsometricRoughness, NoH);
+        float ClothVis = V_Neubelt(NoL, NoV);
+        ndfVis = mix(ndfVis, ClothNDF * ClothVis, mat.ClothMask);
+    }
 
-    float ClothNDF = D_Cloth(mat.IsometricRoughness, NoH);
-    float ClothVis = Vis_Cloth(NoL, NoV);
-
-    float blendedClothShading = mix(NDF * Vis, ClothNDF * ClothVis, mat.ClothMask);
-
-    return vec3(blendedClothShading * NoL) * F;
-#else
-    return vec3(NDF * Vis * NoL) * F;
-#endif
-#endif
+    return vec3(ndfVis) * NoL * F;
 }
 
 

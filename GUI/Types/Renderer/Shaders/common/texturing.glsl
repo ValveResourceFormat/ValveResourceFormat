@@ -325,14 +325,14 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 
 // Cloth Sheen
-#if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
+#if defined(csgo_character_vfx)
 
     uniform float g_flSheenScale = 0.667;
-    uniform vec3 g_flSheenTintColor = vec3(1.0);
+    uniform vec3 g_flSheenTintColor = vec3(1.0);  // SrgbRead(true)
 
     vec3 ApplySheen(float reflectance, vec3 albedo, float clothMask)
     {
-        return mix(vec3(reflectance), saturate((SrgbGammaToLinear(g_flSheenTintColor.rgb) * sqrt(albedo)) * g_flSheenScale), clothMask);
+        return mix(vec3(reflectance), saturate((g_flSheenTintColor.rgb * sqrt(albedo)) * g_flSheenScale), clothMask);
     }
 #endif
 

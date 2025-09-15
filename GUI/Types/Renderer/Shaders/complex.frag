@@ -52,7 +52,7 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_ANISOTROPIC_GLOSS 0
 #define F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP 0 // only optional in HLA
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
-#define F_CLOTH_SHADING 0
+uniform int F_CLOTH_SHADING;
 #define F_USE_BENT_NORMALS 0
 #define F_DIFFUSE_WRAP 0
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0
@@ -563,8 +563,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
     mat.ExtraParams.x = g_flRetroReflectivity;
 #endif
-#if defined(vr_complex_vfx) && (F_CLOTH_SHADING == 1)
-    mat.ClothMask = 1.0;
+#if defined(vr_complex_vfx)
+    mat.ClothMask = F_CLOTH_SHADING == 1 ? 1.0 : 0.0;
 #endif
 
     AdjustRoughnessByGeometricNormal(mat);
@@ -596,10 +596,13 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     vec3 F0 = vec3(0.04);
 
-    #if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
-        F0 = ApplySheen(0.04, mat.Albedo, mat.ClothMask);
-    #elif defined(csgo_weapon_vfx)
+    #if defined(csgo_weapon_vfx)
         F0 = vec3(0.02);
+    #elif defined(csgo_character_vfx)
+        if (F_CLOTH_SHADING == 1)
+        {
+            F0 = ApplySheen(0.04, mat.Albedo, mat.ClothMask);
+        }
     #endif
 
     mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
