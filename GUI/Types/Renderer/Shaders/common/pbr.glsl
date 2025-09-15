@@ -12,7 +12,6 @@ float diffuseLobe(float NoL, float roughness)
     return pow(NoL, diffuseExponent) * ((diffuseExponent + 1.0) / 2.0);
 }
 
-
 #if (F_DIFFUSE_WRAP == 1) || defined(vr_xen_foliage_vfx)
 // idea: what if we included individual features in tiny files per feature. they would all be used in #includes
 #define S_DIFFUSE_WRAP
@@ -30,7 +29,6 @@ vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
     return mix(vec3(saturate(NoL)), vec3(DiffuseWrapLighting), g_vDiffuseWrapColor.rgb);
 }
 #endif
-
 
 
 // Normal Distribution function --------------------------------------
@@ -98,19 +96,13 @@ vec3 F_Schlick(float cosTheta, vec3 F0)
 	return mix(F0, vec3(1.0), pow(1.0 - cosTheta, 5.0));
 }
 
-
-
-
-
-#if F_RETRO_REFLECTIVE == 1
-
 vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, vec3 H)
 {
     vec3 retroReflectionVector = L - reflect(-V, N);
     return normalize(mix(N, retroReflectionVector, retroReflectivity));
 }
 
-#endif
+uniform int F_CLOTH_SHADING;
 
 float D_Charlie(float roughness, float NoH)
 {
