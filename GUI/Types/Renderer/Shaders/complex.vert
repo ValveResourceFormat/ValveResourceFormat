@@ -90,15 +90,15 @@ uniform int F_TEXTURE_ANIMATION_MODE;
         float flutterStrength;
         float swayFalloff;
         float flutterFalloff;
-        
+
         // Time-based offsets
         vec3 swayTimeOffset;
         vec3 flutterTimeOffset;
-        
+
         // Noise sampling scales
         vec3 swayNoiseScale;
         vec3 flutterNoiseScale;
-        
+
         // Height-based parameters
         float heightBlend;
         vec3 heightOffset;
@@ -114,16 +114,16 @@ uniform int F_TEXTURE_ANIMATION_MODE;
         vec3 swayDir = vec3(swayNoise.xy, swayNoise.y * 0.5) * 0.5;
 
         // Calculate final sway offset
-        vec3 swayOffset = ((swayDir * swayNoiseMask + g_vWindDirection.xyz) * params.swayFalloff * 
+        vec3 swayOffset = ((swayDir * swayNoiseMask + g_vWindDirection.xyz) * params.swayFalloff *
                         g_vWindStrengthFreqMulHighStrength.x * params.swayStrength) * swayNoiseMask;
 
         // Sample and calculate flutter noise
-        vec3 flutterNoisePos = ((pos + vec3(params.heightBlend * 10.0, params.heightBlend * 5.0, params.heightBlend * 5.0)) * 
+        vec3 flutterNoisePos = ((pos + vec3(params.heightBlend * 10.0, params.heightBlend * 5.0, params.heightBlend * 5.0)) *
                             params.flutterNoiseScale) + params.flutterTimeOffset;
         vec3 flutterNoise = (textureLod(g_tNoiseMap, flutterNoisePos, 0.0).xyz - vec3(0.5)) * 2.0;
 
         // Calculate final flutter offset
-        vec3 flutterOffset = ((flutterNoise * g_vWindDirection.xyz + flutterNoise * swayDir) * 
+        vec3 flutterOffset = ((flutterNoise * g_vWindDirection.xyz + flutterNoise * swayDir) *
                             g_vWindStrengthFreqMulHighStrength.x * params.flutterStrength) * params.flutterFalloff;
 
         // Combine effects with gravity compensation
@@ -264,25 +264,25 @@ void main()
 
         // Initialize animation parameters
         FoliageAnimParams animParams;
-        
+
         // Calculate strengths
         animParams.swayStrength = 150.0 * g_flSwayAmount;
         animParams.flutterStrength = 25.0 * g_flFlutterAmount;
         animParams.swayFalloff = pow(foliageParams.x, g_flSwayFalloff);
         animParams.flutterFalloff = pow(foliageParams.z, g_flFlutterFalloff);
-        
+
         // Calculate height blend and offset
         animParams.heightBlend = (2.0 * foliageParams.y) - 1.0;
         animParams.heightOffset = vec3(animParams.heightBlend * 100.0, 0.0, animParams.heightBlend * 50.0);
-        
+
         // Set time-based movement offsets
         animParams.swayTimeOffset = vec3(-0.3, 0.0, -0.03) * g_flSwaySpeed * g_flTime;
         animParams.flutterTimeOffset = vec3(-0.35, 0.0, 0.1) * g_flFlutterSpeed * g_flTime;
-        
+
         // Set noise sampling scales
         animParams.swayNoiseScale = vec3(0.00075, 0.00075, 0.00005) * g_flSwayNoiseScale;
         animParams.flutterNoiseScale = vec3(0.0025, 0.0025, 0.0005) * g_flFlutterNoiseScale;
-        
+
         vFragPosition = vertexAnimation(vFragPosition.xyz, animParams);
         // todo: animate normaltangent
     #endif
@@ -311,7 +311,7 @@ void main()
 
     vVertexColorOut = GetTintColorLinear(object.vTint);
 
-#if !defined(vFoliageParams) && (F_PAINT_VERTEX_COLORS == 1)
+#if !defined(vFoliageParams) && ((F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1))
     vVertexColorOut *= SrgbGammaToLinear(vCOLOR);
 #endif
 
