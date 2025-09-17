@@ -181,7 +181,7 @@ namespace ValveResourceFormat.IO
                     contentFile = new MaterialExtract(resource, fileLoader).ToContentFile();
                     break;
 
-                case ResourceType.Shader:
+                case ResourceType.SboxShader:
                     contentFile = new ShaderExtract(resource).ToContentFile();
                     break;
 

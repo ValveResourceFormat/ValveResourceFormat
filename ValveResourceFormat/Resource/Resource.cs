@@ -330,6 +330,11 @@ namespace ValveResourceFormat
                     }
                 }
 
+                if (ResourceType == ResourceType.Shader)
+                {
+                    return;
+                }
+
                 throw new InvalidDataException($"File size ({Reader.BaseStream.Length}) does not match size specified in file ({fullFileSize}) ({ResourceType}).");
             }
         }
@@ -522,7 +527,7 @@ namespace ValveResourceFormat
                 ResourceType.ResourceManifest => new ResourceManifest(),
                 ResourceType.ResponseRules => new ResponseRules(),
                 ResourceType.SboxManagedResource or ResourceType.ArtifactItem or ResourceType.DotaHeroList => new Plaintext(),
-                ResourceType.Shader => new SboxShader(),
+                ResourceType.SboxShader => new SboxShader(),
                 ResourceType.SmartProp => new SmartProp(),
                 ResourceType.Sound => new Sound(),
                 ResourceType.SoundStackScript => new SoundStackScript(),

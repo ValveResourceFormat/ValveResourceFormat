@@ -449,7 +449,7 @@ namespace GUI.Types.Viewers
 
         private static void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
-            if (resource.ResourceType == ResourceType.Shader && block is SboxShader shaderBlock)
+            if (resource.ResourceType == ResourceType.SboxShader && block is SboxShader shaderBlock)
             {
                 var viewer = new CompiledShader();
 

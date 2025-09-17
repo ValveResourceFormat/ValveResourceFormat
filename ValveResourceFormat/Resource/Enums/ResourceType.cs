@@ -170,6 +170,9 @@ namespace ValveResourceFormat
         SboxManagedResource,
 
         [Extension("shader")]
-        Shader, // This is for sbox
+        SboxShader,
+
+        [Extension("vcs")]
+        Shader,
     }
 }
