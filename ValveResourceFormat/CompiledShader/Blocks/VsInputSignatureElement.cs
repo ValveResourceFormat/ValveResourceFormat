@@ -21,8 +21,8 @@ public class VsInputSignatureElement : ShaderDataBlock
 
         for (var i = 0; i <= data.Count; i++)
         {
-            var @object = (KVObject)data.Properties[i.ToString(CultureInfo.InvariantCulture)].Value!;
-            SymbolsDefinition[i] = new(@object);
+            var definition = (KVObject)data[i].Value!;
+            SymbolsDefinition[i] = new(definition);
         }
     }
 

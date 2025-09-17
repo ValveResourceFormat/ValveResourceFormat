@@ -329,6 +329,7 @@ namespace ValveResourceFormat.CompiledShader
         {
             Resource = resource;
             VcsVersion = resource.Version;
+            DataReader = resource.Reader;
 
             SetFileNameDerivedProperties(resource.FileName!);
             ThrowIfNotSupported(VcsVersion);
@@ -413,6 +414,25 @@ namespace ValveResourceFormat.CompiledShader
             for (var i = 0; i < vsInputSignatureArray.Length; i++)
             {
                 VSInputSignatures[i] = new VsInputSignatureElement(vsInputSignatureArray[i], i);
+            }
+
+            var staticComboData = data.GetArray("m_staticComboData");
+            var staticComboIDs = data.GetIntegerArray("m_staticComboIDs");
+            var byteCodeData = data.GetArray("m_byteCodeData");
+            var attributes = data.GetArray("m_attributes").Select(a => new VfxShaderAttribute(a)).ToArray();
+
+            for (var i = 0; i < staticComboData.Length; i++)
+            {
+                var staticComboId = staticComboIDs[i];
+                var comboData = staticComboData[i];
+
+                StaticComboEntries.Add(staticComboId, new VfxStaticComboVcsEntry
+                {
+                    ParentProgramData = this,
+                    StaticComboId = staticComboId,
+                    FileOffset = -1, // not used when reading from KV3
+                    ResourceEntry = new VfxStaticComboData(comboData, staticComboId, attributes, byteCodeData, this)
+                });
             }
 
             // ...

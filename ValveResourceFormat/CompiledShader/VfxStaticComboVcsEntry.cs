@@ -11,9 +11,15 @@ public class VfxStaticComboVcsEntry
     public required VfxProgramData ParentProgramData { get; init; }
     public long StaticComboId { get; init; }
     public int FileOffset { get; init; }
+    public VfxStaticComboData? ResourceEntry { get; set; }
 
     public VfxStaticComboData Unserialize()
     {
+        if (ResourceEntry is not null)
+        {
+            return ResourceEntry;
+        }
+
         // CVfxStaticComboData::Unserialize
         var dataReader = ParentProgramData.DataReader;
         Debug.Assert(dataReader != null);

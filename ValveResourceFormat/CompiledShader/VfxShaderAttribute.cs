@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
@@ -14,6 +15,22 @@ public class VfxShaderAttribute
     public int DynExpLen { get; } = -1;
     public byte[]? DynExpression { get; }
     public object? ConstValue { get; }
+
+    public VfxShaderAttribute(KVObject data)
+    {
+        Name0 = data.GetProperty<string>("m_Name");
+        VfxType = (VfxVariableType)data.GetInt32Property("m_type");
+        LinkedParameterIndex = (short)data.GetInt32Property("m_nVariableBinding");
+        ConstValue = data.GetProperty<object?>("m_value");
+
+        if (data.GetArray<byte>("m_expr") is byte[] expression)
+        {
+            DynExpLen = expression.Length;
+            DynExpression = expression;
+        }
+
+        StringToken.Store(Name0);
+    }
 
     public VfxShaderAttribute(BinaryReader datareader)
     {

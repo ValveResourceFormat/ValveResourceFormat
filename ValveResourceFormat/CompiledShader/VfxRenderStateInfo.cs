@@ -7,6 +7,14 @@ public class VfxRenderStateInfo
     public long DynamicComboId { get; }
     public int ShaderFileId { get; }
     public int SourcePointer { get; }
+
+    public VfxRenderStateInfo(long comboId, int shaderId, int sourePointer)
+    {
+        DynamicComboId = comboId;
+        ShaderFileId = shaderId;
+        SourcePointer = sourePointer;
+    }
+
     public VfxRenderStateInfo(BinaryReader datareader)
     {
         DynamicComboId = datareader.ReadInt64();

@@ -1,5 +1,7 @@
 using System.IO;
+using System.Linq;
 using System.Text;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -19,6 +21,79 @@ namespace ValveResourceFormat.CompiledShader
         public bool Flagbyte2 { get; }
         public VfxShaderFile[] ShaderFiles { get; } = [];
         public VfxRenderStateInfo[] DynamicCombos { get; } = [];
+
+        public VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, KVObject[] byteCodeDataArray, VfxProgramData programData)
+        {
+            ParentProgramData = programData;
+            StaticComboId = staticComboId;
+
+            var dynamicComboIds = data.GetArray<int>("m_dynamicComboIDs");
+            var byteCodeIndex = data.GetArray<int>("m_byteCodeIndex")!;
+
+            DynamicCombos = new VfxRenderStateInfo[dynamicComboIds.Length];
+            for (var i = 0; i < dynamicComboIds.Length; i++)
+            {
+                DynamicCombos[i] = new VfxRenderStateInfo(dynamicComboIds[i], byteCodeIndex[i], -1);
+            }
+
+            var byteCodeData = byteCodeDataArray[data.GetInt32Property("m_nByteCodeDataIdx")];
+            var hashes = byteCodeData.GetArray("m_hash");
+            var offsets = byteCodeData.GetArray<uint>("m_offs");
+
+            ShaderFiles = new VfxShaderFileTempKv3[hashes.Length];
+            foreach (var i in byteCodeIndex)
+            {
+                var blockOffset = byteCodeData.GetInt32Property("m_nOffs");
+                var blockSize = byteCodeData.GetInt32Property("m_nSize");
+
+                programData.DataReader.BaseStream.Position = blockOffset;
+                var actualData = programData.DataReader.ReadBytes(blockSize);
+                // todo
+
+                var hash = new Guid(hashes[i].GetArray<byte>("m_nHashChar"));
+                var byteCodeOffset = offsets[i];
+
+                ShaderFiles[i] = new VfxShaderFileTempKv3(hash, this);
+            }
+
+            DynamicCombos = new VfxRenderStateInfo[dynamicComboIds.Length];
+            for (var i = 0; i < dynamicComboIds.Length; i++)
+            {
+                DynamicCombos[i] = new VfxRenderStateInfo(dynamicComboIds[i], byteCodeIndex[i], -1);
+            }
+
+            var dynamicComboVars = data.GetArray<uint>("m_dynamicComboVars");
+            var dynamicComboVarsRef = data.GetArray("m_dynamicComboVarsRef");
+
+            DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVarsRef.Length];
+            for (var i = 0; i < dynamicComboVarsRef.Length; i++)
+            {
+                var variableIndexArray = dynamicComboVarsRef[i];
+                var start = variableIndexArray.GetInt32Property("m_indexAndRegisterOffsetStart");
+                var count = variableIndexArray.GetInt32Property("m_indexAndRegisterOffsetCount");
+                DynamicComboVariables[i] = new VfxVariableIndexArray(
+                    dynamicComboVars.AsSpan(start, count),
+                    variableIndexArray.GetInt32Property("m_nFirstRenderStateElement"),
+                    variableIndexArray.GetInt32Property("m_nFirstConstantElement")
+                )
+                { BlockId = i };
+            }
+
+            var constantBufferBindingArray = data.GetArray<int>("m_constantBufferBindingArray");
+            // ConstantBufferBindInfoSlots
+            // ConstantBufferBindInfoFlags
+
+            var allVars = data.GetSubCollection("m_allVars");
+            VariablesFromStaticCombo = new VfxVariableIndexArray(
+                allVars.GetArray<uint>("m_indexAndRegisterOffsetArray"),
+                allVars.GetInt32Property("m_nFirstRenderStateElement"),
+                allVars.GetInt32Property("m_nFirstConstantElement")
+            )
+            { BlockId = -1 };
+
+            VShaderInputs = [.. data.GetIntegerArray("m_vsInputSignatureIndexArray").Select(i => (int)i)];
+            Attributes = [.. data.GetIntegerArray("m_attribIdx").Select(i => attributes[i])];
+        }
 
         public VfxStaticComboData(Stream stream, long staticComboId, VfxProgramData programData)
         {

@@ -19,7 +19,7 @@ public class VfxRule : ShaderDataBlock
     public VfxRule(KVObject data, int blockIndex) : base()
     {
         BlockIndex = blockIndex;
-        Rule = data.GetEnumValue<VfxRuleMethod>("m_nRule", normalize: true, stripExtension: "Method");
+        Rule = data.GetEnumValue<VfxRuleMethod>("m_rule", normalize: true, stripExtension: "Method");
         RuleType = data.GetEnumValue<VfxRuleType>("m_ruleType", normalize: true);
 
         ConditionalTypes = new VfxRuleType[MaxArgs];
