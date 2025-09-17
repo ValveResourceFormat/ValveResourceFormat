@@ -30,7 +30,7 @@ public class VfxCombo : ShaderDataBlock
         BlockIndex = blockIndex;
         Name = data.GetProperty<string>("m_szName");
         Category = data.GetProperty<string>("m_szCategory");
-        ComboType = data.GetEnumValue<VfxComboType>("m_comboType");
+        ComboType = data.GetEnumValue<VfxComboType>("m_comboType", normalize: true, stripExtension: "Type");
         RangeMin = data.GetInt32Property("m_nMin");
         RangeMax = data.GetInt32Property("m_nMax");
         ComboSourceType = data.GetInt32Property("m_shaderComboSourceType");

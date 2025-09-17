@@ -93,7 +93,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public static KVObject[] GetArray(this KVObject collection, string name)
             => collection.GetArray<KVObject>(name);
 
-        public static TEnum GetEnumValue<TEnum>(this KVObject collection, string name, bool normalize = false) where TEnum : Enum
+        public static TEnum GetEnumValue<TEnum>(this KVObject collection, string name, bool normalize = false, string stripExtension = "Flags")
+            where TEnum : Enum
         {
             var rawValue = collection.GetProperty<object>(name);
 
@@ -116,10 +117,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (normalize)
             {
                 var enumTypeName = typeof(TEnum).Name;
-                const string FlagsSuffix = "Flags";
-                if (enumTypeName.EndsWith(FlagsSuffix, StringComparison.Ordinal))
+
+                if (enumTypeName.EndsWith(stripExtension, StringComparison.Ordinal))
                 {
-                    enumTypeName = enumTypeName[..^FlagsSuffix.Length];
+                    enumTypeName = enumTypeName[..^stripExtension.Length];
                 }
 
                 var sb = new StringBuilder(strValue.Length);
