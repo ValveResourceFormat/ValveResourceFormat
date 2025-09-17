@@ -74,7 +74,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void WriteText(IndentedTextWriter writer)
         {
-            writer.Write(Data);
+            writer.Write(Encoding.UTF8.GetString(Data));
         }
 
         private bool IsPlaintext()

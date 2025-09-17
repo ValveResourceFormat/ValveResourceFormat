@@ -208,7 +208,10 @@ namespace ValveResourceFormat
         }
 
         /// <inheritdoc/>
+        [Obsolete("Do not write to string as a generic object, this is probably a mistake.")]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         public override void Write(object? value)
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
         {
             OutputTabs();
             writer.Write(value);
