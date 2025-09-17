@@ -70,11 +70,14 @@ namespace ValveResourceFormat.Blocks
             }
 
             var searchableData = kv3.Data.GetProperty<KVObject>("m_SearchableUserData");
-            SearchableUserData.Properties.EnsureCapacity(searchableData.Properties.Count);
-
-            foreach (var property in searchableData.Properties)
+            if (searchableData is not null)
             {
-                SearchableUserData.Properties.Add(property.Key, property.Value);
+                SearchableUserData.Properties.EnsureCapacity(searchableData.Properties.Count);
+
+                foreach (var property in searchableData.Properties)
+                {
+                    SearchableUserData.Properties.Add(property.Key, property.Value);
+                }
             }
 
             var subassetReferences = kv3.Data.GetProperty<KVObject>("m_SubassetReferences");
