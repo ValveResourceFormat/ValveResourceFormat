@@ -1034,7 +1034,7 @@ public sealed class ShaderExtract
             var constrainedNames = new List<string>(constraint.ConditionalTypes.Length);
             foreach ((var Type, var Index, var Value) in Enumerable.Zip(constraint.ConditionalTypes, constraint.Indices, constraint.Values))
             {
-                if (Type == VfxRuleType.None)
+                if (Type == VfxRuleType.Unknown)
                 {
                     break;
                 }

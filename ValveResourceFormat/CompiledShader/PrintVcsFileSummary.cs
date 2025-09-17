@@ -113,7 +113,7 @@ namespace ValveResourceFormat.CompiledShader
                 var checkboxNames = item.Strings.Length > 0
                     ? string.Join(", ", item.Strings.Select(static (x, i) => $"{i}=\"{x}\""))
                     : string.Empty;
-                var comboSourceType = item.ComboType == 2 ? ((VfxDynamicComboSourceType)item.ComboSourceType).ToString() : ((VfxStaticComboSourceType)item.ComboSourceType).ToString();
+                var comboSourceType = item.ComboType == VfxComboType.VFX_COMBO_DYNAMIC ? ((VfxDynamicComboSourceType)item.ComboSourceType).ToString() : ((VfxStaticComboSourceType)item.ComboSourceType).ToString();
                 output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", $"{item.FeatureIndex,2}", $"{item.ComboType}", checkboxNames]);
             }
             output.PrintTabulatedValues();
@@ -138,7 +138,7 @@ namespace ValveResourceFormat.CompiledShader
                 {
                     ruleName[i] = vfxRule.ConditionalTypes[i] switch
                     {
-                        VfxRuleType.None => string.Empty,
+                        VfxRuleType.Unknown => string.Empty,
                         VfxRuleType.Dynamic => program.DynamicComboArray[vfxRule.Indices[i]].Name,
                         VfxRuleType.Static => program.StaticComboArray[vfxRule.Indices[i]].Name,
                         VfxRuleType.Feature => program.VcsProgramType == VcsProgramType.Features

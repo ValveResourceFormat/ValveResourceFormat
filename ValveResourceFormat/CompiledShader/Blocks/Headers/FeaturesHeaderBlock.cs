@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -11,6 +12,25 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public bool DevShader { get; }
     public bool[] AvailablePrograms { get; }
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
+
+    public FeaturesHeaderBlock(KVObject data)
+    {
+        Version = data.GetInt32Property("m_nVersion");
+        FileDescription = data.GetStringProperty("m_description");
+        DevShader = data.GetProperty<bool>("m_bDevShader");
+        AvailablePrograms = data.GetArray<bool>("m_bHasShaderProgram");
+
+        var modeArray = data.GetArray("m_modeArray");
+        Modes.EnsureCapacity(modeArray.Length);
+
+        foreach (var modeObj in modeArray)
+        {
+            var name = modeObj.GetStringProperty("m_szName");
+            var shader = modeObj.GetStringProperty("m_szShaderFallback");
+            // todo: support CVfxModeSettings
+            Modes.Add((name, shader, string.Empty, -1));
+        }
+    }
 
     public FeaturesHeaderBlock(BinaryReader datareader, int programTypesCount) : base(datareader)
     {

@@ -1,5 +1,7 @@
 using System.IO;
+using System.Linq;
 using System.Text;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -15,7 +17,7 @@ public class VfxCombo : ShaderDataBlock
     public long CalculatedComboId { get; set; } // set after loading all combos
     public string Name { get; }
     public string Category { get; }
-    public int ComboType { get; } // 1 - static, 2 - dynamic
+    public VfxComboType ComboType { get; } // 1 - static, 2 - dynamic
     public int RangeMin { get; }
     public int RangeMax { get; }
     public int ComboSourceType { get; } // VfxStaticComboSourceType or VfxDynamicComboSourceType
@@ -23,13 +25,31 @@ public class VfxCombo : ShaderDataBlock
     public int FeatureIndex { get; }
     public string[] Strings { get; } = [];
 
+    public VfxCombo(KVObject data, int blockIndex) : base()
+    {
+        BlockIndex = blockIndex;
+        Name = data.GetProperty<string>("m_szName");
+        Category = data.GetProperty<string>("m_szCategory");
+        ComboType = data.GetEnumValue<VfxComboType>("m_comboType");
+        RangeMin = data.GetInt32Property("m_nMin");
+        RangeMax = data.GetInt32Property("m_nMax");
+        ComboSourceType = data.GetInt32Property("m_shaderComboSourceType");
+        FeatureIndex = data.GetInt32Property("m_iFeatureIndex");
+        Strings = data.GetArray<string>("m_stringArray");
+
+        CalculatedComboId = data.GetIntegerProperty("m_nComboIndexValue");
+
+        // todo: verify this
+        // FeatureComparisonValue = data.ContainsKey("m_nCompareValue") ? data.GetInt32Property("m_nCompareValue") : 0;
+    }
+
     public VfxCombo(BinaryReader datareader, int blockIndex) : base(datareader)
     {
         // CVfxCombo::Unserialize
         BlockIndex = blockIndex;
         Name = ReadStringWithMaxLength(datareader, 64);
         Category = ReadStringWithMaxLength(datareader, 64);
-        ComboType = datareader.ReadInt32();
+        ComboType = (VfxComboType)datareader.ReadInt32();
         RangeMin = datareader.ReadInt32();
         RangeMax = datareader.ReadInt32();
         ComboSourceType = datareader.ReadInt32();

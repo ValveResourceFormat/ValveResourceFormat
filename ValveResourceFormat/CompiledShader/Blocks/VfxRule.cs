@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -7,11 +9,43 @@ public class VfxRule : ShaderDataBlock
     public int BlockIndex { get; }
     public VfxRuleMethod Rule { get; }
     public VfxRuleType RuleType { get; }
+    public const int MaxArgs = 16;
     public VfxRuleType[] ConditionalTypes { get; }
     public int[] Indices { get; }
     public int[] Values { get; }
     public int[] Range2 { get; }
     public string Description { get; }
+
+    public VfxRule(KVObject data, int blockIndex) : base()
+    {
+        BlockIndex = blockIndex;
+        Rule = (VfxRuleMethod)data.GetInt32Property("m_nRule");
+        RuleType = data.GetEnumValue<VfxRuleType>("m_ruleType", normalize: true);
+
+        ConditionalTypes = new VfxRuleType[MaxArgs];
+        Indices = new int[MaxArgs];
+        Values = new int[MaxArgs];
+        Range2 = new int[MaxArgs];
+
+        var argTypesArray = data.GetArray<string>("m_argTypeArray");
+        var argIndexArray = data.GetArray<int>("m_argIndexArray");
+        var argValueArray = data.GetArray<int>("m_argValueArray");
+        var extraRuleData = data.GetArray<int>("m_nExtraRuleData");
+
+        Debug.Assert(argTypesArray.Length == MaxArgs);
+        Debug.Assert(argIndexArray.Length == MaxArgs);
+        Debug.Assert(argValueArray.Length == MaxArgs);
+
+        for (var i = 0; i < MaxArgs; i++)
+        {
+            ConditionalTypes[i] = Enum.Parse<VfxRuleType>(argTypesArray[i].AsSpan()["VFX_RULE_TYPE_".Length..], ignoreCase: true);
+            Indices[i] = argIndexArray[i];
+            Values[i] = argValueArray[i];
+            Range2[i] = extraRuleData[i];
+        }
+
+        Description = data.GetProperty<string>("m_szErrorString");
+    }
 
     public VfxRule(BinaryReader datareader, int blockIndex) : base(datareader)
     {

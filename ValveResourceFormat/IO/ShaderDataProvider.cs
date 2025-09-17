@@ -130,7 +130,7 @@ namespace ValveResourceFormat.IO
             foreach (var constraint in program.StaticComboRules)
             {
                 // Allow only one of the statics
-                if (constraint.Rule == VfxRuleMethod.Allow)
+                if (constraint.Rule == VfxRuleMethod.AllowNum)
                 {
                     // Allow0 (disable this toggle)
                     var allow0 = constraint.Range2[0] == 0;

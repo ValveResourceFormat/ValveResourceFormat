@@ -376,6 +376,14 @@ namespace GUI.Types.Viewers
                         specialTabPage.Controls.Add(new ChoreoViewer(resource));
                         break;
                     }
+
+                case ResourceType.Shader:
+                    {
+                        var compiledShaderViewer = new CompiledShader();
+                        specialTabPage = compiledShaderViewer.Create(vrfGuiContext, resource);
+                        specialTabPage.Text = "SHADER";
+                        break;
+                    }
             }
         }
 
