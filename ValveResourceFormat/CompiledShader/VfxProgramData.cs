@@ -20,6 +20,7 @@ namespace ValveResourceFormat.CompiledShader
 
         // VCS version 70 onwards stores data as a KV3 resource
         public Resource? Resource { get; private set; }
+        public long ByteCodeOffset;
 
         public VcsProgramType VcsProgramType { get; private set; } = VcsProgramType.Undetermined;
         public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
@@ -330,6 +331,7 @@ namespace ValveResourceFormat.CompiledShader
             Resource = resource;
             VcsVersion = resource.Version;
             DataReader = resource.Reader;
+            ByteCodeOffset = resource.EditInfo!.Offset + resource.EditInfo!.Size;
 
             SetFileNameDerivedProperties(resource.FileName!);
             ThrowIfNotSupported(VcsVersion);
@@ -357,6 +359,7 @@ namespace ValveResourceFormat.CompiledShader
                 HashesMD5.Add(new Guid(hashBytes));
             }
 
+            FileHash = new Guid(data.GetProperty<KVObject>("m_variableDescriptionVersionHash").GetProperty<byte[]>("m_nHashChar"));
             VariableSourceMax = data.GetInt32Property("m_nVariableSourceMax");
 
             var staticCombos = data.GetArray("m_staticComboArray");
@@ -426,13 +429,15 @@ namespace ValveResourceFormat.CompiledShader
                 var staticComboId = staticComboIDs[i];
                 var comboData = staticComboData[i];
 
-                StaticComboEntries.Add(staticComboId, new VfxStaticComboVcsEntry
+                var entry = new VfxStaticComboVcsEntry
                 {
                     ParentProgramData = this,
                     StaticComboId = staticComboId,
-                    FileOffset = -1, // not used when reading from KV3
-                    ResourceEntry = new VfxStaticComboData(comboData, staticComboId, attributes, byteCodeData, this)
-                });
+                    FileOffset = -1,
+                    ResourceData = new VfxStaticComboData(comboData, staticComboId, attributes, byteCodeData, this),
+                };
+
+                StaticComboEntries.Add(staticComboId, entry);
             }
 
             // ...

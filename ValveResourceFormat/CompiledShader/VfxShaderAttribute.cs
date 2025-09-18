@@ -29,7 +29,7 @@ public class VfxShaderAttribute
             DynExpression = expression;
         }
 
-        StringToken.Store(Name0);
+        Murmur32 = StringToken.Store(Name0);
     }
 
     public VfxShaderAttribute(BinaryReader datareader)

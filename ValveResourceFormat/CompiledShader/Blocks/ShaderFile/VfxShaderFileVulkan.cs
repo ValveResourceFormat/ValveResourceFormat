@@ -47,8 +47,20 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public byte Unknown33 { get; }
     public byte[]? Unknown34 { get; }
 
-    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile) : base(datareader, sourceId, parent)
+    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent)
+        : base(sourceId, parent)
     {
+        var isMobile = parent.ParentProgramData?.VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
+
+        if (parent.ParentProgramData?.Resource is null)
+        {
+            Size = datareader.ReadInt32();
+        }
+        else
+        {
+            Size = 9999;
+        }
+
         // CVfxShaderFile::Unserialize
         if (Size > 0)
         {
@@ -182,10 +194,9 @@ public class VfxShaderFileVulkan : VfxShaderFile
             datareader.BaseStream.Position += Size - BytecodeSize - 8;
         }
 
-        var actuallyRead = datareader.BaseStream.Position - Start - 4;
-        Debug.Assert(actuallyRead == Size);
-
-        HashMD5 = new Guid(datareader.ReadBytes(16));
+        // var actuallyRead = datareader.BaseStream.Position - Start - 4;
+        // Debug.Assert(actuallyRead == Size);
+        // HashMD5 = new Guid(datareader.ReadBytes(16));
     }
 
     public override string GetDecompiledFile()

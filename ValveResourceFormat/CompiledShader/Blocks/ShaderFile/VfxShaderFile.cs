@@ -18,9 +18,10 @@ public abstract class VfxShaderFile : ShaderDataBlock
         Size = datareader.ReadInt32();
     }
 
-    protected VfxShaderFile(VfxStaticComboData parent) : base()
+    protected VfxShaderFile(int sourceId, VfxStaticComboData parent) : base()
     {
         ParentCombo = parent;
+        ShaderFileId = sourceId;
         Size = 0;
         Bytecode = [];
         HashMD5 = Guid.Empty;

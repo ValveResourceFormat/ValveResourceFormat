@@ -19,7 +19,7 @@ public class VsInputSignatureElement : ShaderDataBlock
         Debug.Assert(data.IsArray);
         SymbolsDefinition = new InputSignatureElement[data.Count];
 
-        for (var i = 0; i <= data.Count; i++)
+        for (var i = 0; i < data.Count; i++)
         {
             var definition = (KVObject)data[i].Value!;
             SymbolsDefinition[i] = new(definition);
