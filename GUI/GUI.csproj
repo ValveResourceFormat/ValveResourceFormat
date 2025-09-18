@@ -47,6 +47,10 @@
       <Project>{E685E563-5F49-4D8D-8342-A7354229E54F}</Project>
       <Name>ValveResourceFormat</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Misc\NodeGraph\NodeGraphControl\NodeGraphControl.csproj">
+        <Project>{329d2374-b63c-4d82-88ab-5e628df1449a}</Project>
+        <Name>NodeGraphControl</Name>
+      </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />
