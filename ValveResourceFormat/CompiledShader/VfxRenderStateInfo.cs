@@ -8,11 +8,11 @@ public class VfxRenderStateInfo
     public int ShaderFileId { get; }
     public int SourcePointer { get; }
 
-    public VfxRenderStateInfo(long comboId, int shaderId, int sourePointer)
+    public VfxRenderStateInfo(long comboId, int shaderId, int sourcePointer)
     {
         DynamicComboId = comboId;
         ShaderFileId = shaderId;
-        SourcePointer = sourePointer;
+        SourcePointer = sourcePointer;
     }
 
     public VfxRenderStateInfo(BinaryReader datareader)

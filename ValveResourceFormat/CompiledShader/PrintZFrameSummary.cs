@@ -229,7 +229,9 @@ namespace ValveResourceFormat.CompiledShader
             }
             OutputWriter.WriteLine();
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
-            var gpuSourceName = StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant();
+            var gpuSourceName = StaticCombo.ShaderFiles.Length > 0
+                ? StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant()
+                : "unknown";
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
                     ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)] :

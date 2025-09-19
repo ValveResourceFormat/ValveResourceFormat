@@ -26,7 +26,17 @@ namespace Tests
 
                 using var sw = new IndentedTextWriter();
 
-                shader.Read(file);
+                if (file.Contains("_resource_", StringComparison.Ordinal))
+                {
+                    using var resource = new Resource();
+                    resource.Read(file);
+                    shader.VfxCreateFromResource(resource);
+                }
+                else
+                {
+                    shader.Read(file);
+                }
+
                 shader.PrintSummary(sw);
                 Assert.That(sw.ToString(), Has.Length.AtLeast(100));
 
