@@ -11,32 +11,76 @@ using ValveResourceFormat.TextureDecoders;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a texture resource containing image data with various formats and metadata.
+    /// </summary>
     public class Texture : Block
     {
+        /// <summary>
+        /// Defines the six faces of a cubemap texture.
+        /// </summary>
         public enum CubemapFace
         {
-            PositiveX, // rt
-            NegativeX, // lf
-            PositiveY, // bk
-            NegativeY, // ft
-            PositiveZ, // up
-            NegativeZ, // dn
+            /// <summary>Right face.</summary>
+            PositiveX,
+            /// <summary>Left face.</summary>
+            NegativeX,
+            /// <summary>Back face.</summary>
+            PositiveY,
+            /// <summary>Front face.</summary>
+            NegativeY,
+            /// <summary>Up face.</summary>
+            PositiveZ,
+            /// <summary>Down face.</summary>
+            NegativeZ,
         }
 
+        /// <summary>
+        /// Contains data for sprite sheet animations and sequences.
+        /// </summary>
         public class SpritesheetData
         {
+            /// <summary>
+            /// Represents an animation sequence within a sprite sheet.
+            /// </summary>
             public class Sequence
             {
+                /// <summary>
+                /// Represents a single frame within an animation sequence.
+                /// </summary>
                 public class Frame
                 {
+                    /// <summary>
+                    /// Represents an image within a frame, defining cropped and uncropped UV coordinates.
+                    /// </summary>
                     public class Image
                     {
+                        /// <summary>
+                        /// Gets or sets the minimum UV coordinates for the cropped image area.
+                        /// </summary>
                         public Vector2 CroppedMin { get; set; }
+
+                        /// <summary>
+                        /// Gets or sets the maximum UV coordinates for the cropped image area.
+                        /// </summary>
                         public Vector2 CroppedMax { get; set; }
 
+                        /// <summary>
+                        /// Gets or sets the minimum UV coordinates for the uncropped image area.
+                        /// </summary>
                         public Vector2 UncroppedMin { get; set; }
+
+                        /// <summary>
+                        /// Gets or sets the maximum UV coordinates for the uncropped image area.
+                        /// </summary>
                         public Vector2 UncroppedMax { get; set; }
 
+                        /// <summary>
+                        /// Gets the cropped rectangle in pixel coordinates for the specified dimensions.
+                        /// </summary>
+                        /// <param name="width">The width of the texture in pixels.</param>
+                        /// <param name="height">The height of the texture in pixels.</param>
+                        /// <returns>A rectangle representing the cropped area in pixel coordinates.</returns>
                         public SKRectI GetCroppedRect(int width, int height)
                         {
                             var startX = (int)(CroppedMin.X * width);
@@ -47,6 +91,12 @@ namespace ValveResourceFormat.ResourceTypes
                             return new SKRectI(startX, startY, endX, endY);
                         }
 
+                        /// <summary>
+                        /// Gets the uncropped rectangle in pixel coordinates for the specified dimensions.
+                        /// </summary>
+                        /// <param name="width">The width of the texture in pixels.</param>
+                        /// <param name="height">The height of the texture in pixels.</param>
+                        /// <returns>A rectangle representing the uncropped area in pixel coordinates.</returns>
                         public SKRectI GetUncroppedRect(int width, int height)
                         {
                             var startX = (int)(UncroppedMin.X * width);
@@ -58,24 +108,67 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
+                    /// <summary>
+                    /// Gets or sets the array of images contained in this frame.
+                    /// </summary>
                     public Image[] Images { get; set; }
 
+                    /// <summary>
+                    /// Gets or sets the display time for this frame in seconds.
+                    /// </summary>
                     public float DisplayTime { get; set; }
                 }
 
+                /// <summary>
+                /// Gets or sets the array of frames in this sequence.
+                /// </summary>
                 public Frame[] Frames { get; set; }
+
+                /// <summary>
+                /// Gets or sets the playback rate of this sequence in frames per second.
+                /// </summary>
                 public float FramesPerSecond { get; set; }
+
+                /// <summary>
+                /// Gets or sets the name of this sequence.
+                /// </summary>
                 public string Name { get; set; }
+
+                /// <summary>
+                /// Gets or sets a value indicating whether this sequence should clamp at the end.
+                /// </summary>
                 public bool Clamp { get; set; }
+
+                /// <summary>
+                /// Gets or sets a value indicating whether alpha cropping is enabled for this sequence.
+                /// </summary>
                 public bool AlphaCrop { get; set; }
+
+                /// <summary>
+                /// Gets or sets a value indicating whether color information should be ignored.
+                /// </summary>
                 public bool NoColor { get; set; }
+
+                /// <summary>
+                /// Gets or sets a value indicating whether alpha information should be ignored.
+                /// </summary>
                 public bool NoAlpha { get; set; }
+
+                /// <summary>
+                /// Gets the dictionary of floating-point parameters associated with this sequence.
+                /// </summary>
                 public Dictionary<string, float> FloatParams { get; } = [];
             }
 
+            /// <summary>
+            /// Gets or sets the array of animation sequences in this sprite sheet.
+            /// </summary>
             public Sequence[] Sequences { get; set; }
         }
 
+        /// <summary>
+        /// Gets the block size in bytes for the current texture format.
+        /// </summary>
         public int BlockSize => Format switch
         {
             VTexFormat.DXT1 => 8,
@@ -101,33 +194,72 @@ namespace ValveResourceFormat.ResourceTypes
             _ => 1,
         };
 
+        /// <summary>
+        /// Gets the block type, which is always DATA for texture blocks.
+        /// </summary>
         public override BlockType Type => BlockType.DATA;
 
         private BinaryReader Reader => Resource.Reader;
         private long DataOffset => Offset + Size;
 
+        /// <summary>
+        /// Gets the texture version number.
+        /// </summary>
         public ushort Version { get; private set; }
 
+        /// <summary>
+        /// Gets the width of the texture in pixels.
+        /// </summary>
         public ushort Width { get; private set; }
 
+        /// <summary>
+        /// Gets the height of the texture in pixels.
+        /// </summary>
         public ushort Height { get; private set; }
 
+        /// <summary>
+        /// Gets the depth of the texture for volume textures, or the number of array slices.
+        /// </summary>
         public ushort Depth { get; private set; }
 
+        /// <summary>
+        /// Gets the reflectivity values as a 4-component vector (RGBA).
+        /// </summary>
         public float[] Reflectivity { get; private set; }
 
+        /// <summary>
+        /// Gets the texture flags that define various properties and behaviors.
+        /// </summary>
         public VTexFlags Flags { get; private set; }
 
+        /// <summary>
+        /// Gets the pixel format of the texture data.
+        /// </summary>
         public VTexFormat Format { get; private set; }
 
+        /// <summary>
+        /// Gets the number of mip levels in the texture.
+        /// </summary>
         public byte NumMipLevels { get; private set; }
 
+        /// <summary>
+        /// Gets the picmip 0 resolution value.
+        /// </summary>
         public uint Picmip0Res { get; private set; }
 
+        /// <summary>
+        /// Gets the dictionary containing extra data blocks associated with the texture.
+        /// </summary>
         public Dictionary<VTexExtraData, byte[]> ExtraData { get; private set; }
 
+        /// <summary>
+        /// Gets the non-power-of-2 width value, if different from the main width.
+        /// </summary>
         public ushort NonPow2Width { get; private set; }
 
+        /// <summary>
+        /// Gets the non-power-of-2 height value, if different from the main height.
+        /// </summary>
         public ushort NonPow2Height { get; private set; }
 
         private int[] CompressedMips;
@@ -135,16 +267,32 @@ namespace ValveResourceFormat.ResourceTypes
 
         private float[] RadianceCoefficients;
 
-        // Some textures have displayrect set to 1x1, but that's not the expected size
-        // If it's set to 1x1, but the real size does not expand to 4x4 (the usual block compression size), ignore it
+        /// <summary>
+        /// Gets the actual width of the texture, using NonPow2Width if available and valid, otherwise Width.
+        /// Some textures have displayrect set to 1x1, but that's not the expected size.
+        /// If it's set to 1x1, but the real size does not expand to 4x4 (the usual block compression size), it's ignored.
+        /// </summary>
         public ushort ActualWidth => NonPow2Width > 0 && (NonPow2Width != 1 || Width == 4) ? NonPow2Width : Width;
+
+        /// <summary>
+        /// Gets the actual height of the texture, using NonPow2Height if available and valid, otherwise Height.
+        /// Some textures have displayrect set to 1x1, but that's not the expected size.
+        /// If it's set to 1x1, but the real size does not expand to 4x4 (the usual block compression size), it's ignored.
+        /// </summary>
         public ushort ActualHeight => NonPow2Height > 0 && (NonPow2Height != 1 || Height == 4) ? NonPow2Height : Height;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Texture"/> class.
+        /// </summary>
         public Texture()
         {
             ExtraData = [];
         }
 
+        /// <summary>
+        /// Reads the texture data from the specified binary reader.
+        /// </summary>
+        /// <param name="reader">The binary reader to read from.</param>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -256,6 +404,10 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Retrieves sprite sheet data if available in the texture's extra data.
+        /// </summary>
+        /// <returns>The sprite sheet data, or null if not available.</returns>
         public SpritesheetData GetSpriteSheetData()
         {
             if (ExtraData.TryGetValue(VTexExtraData.SHEET, out var bytes))
@@ -365,6 +517,9 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        /// <summary>
+        /// Gets a value indicating whether this texture uses a high dynamic range format.
+        /// </summary>
         public bool IsHighDynamicRange => Format
             is VTexFormat.R16
             or VTexFormat.RG1616
@@ -378,12 +533,33 @@ namespace ValveResourceFormat.ResourceTypes
             or VTexFormat.RGBA32323232F
             or VTexFormat.BC6H;
 
+        /// <summary>
+        /// Gets a value indicating whether this texture contains raw image data, not block data.
+        /// </summary>
+        public bool IsRawAnyImage => IsRawJpeg || IsRawPng || IsRawWebp;
+
+        /// <summary>
+        /// Gets a value indicating whether this texture contains raw JPEG data.
+        /// </summary>
         public bool IsRawJpeg => Format is VTexFormat.JPEG_DXT5 or VTexFormat.JPEG_RGBA8888;
+
+        /// <summary>
+        /// Gets a value indicating whether this texture contains raw PNG data.
+        /// </summary>
         public bool IsRawPng => Format is VTexFormat.PNG_DXT5 or VTexFormat.PNG_RGBA8888;
 
+        /// <summary>
+        /// Gets a value indicating whether this texture contains raw WebP data.
+        /// </summary>
+        public bool IsRawWebp => Format is VTexFormat.WEBP_DXT5 or VTexFormat.WEBP_RGBA8888;
+
+        /// <summary>
+        /// Reads the raw image data for PNG, JPEG, or WebP textures.
+        /// </summary>
+        /// <returns>The raw image data as a byte array, or null if not a raw image format.</returns>
         internal byte[] ReadRawImageData()
         {
-            if (IsRawPng || IsRawJpeg)
+            if (IsRawAnyImage)
             {
                 Reader.BaseStream.Position = DataOffset;
                 SkipMipmaps(0);
@@ -393,7 +569,14 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        /// <summary>
+        /// The default color type used for standard dynamic range bitmaps.
+        /// </summary>
         public const SKColorType DefaultBitmapColorType = SKColorType.Bgra8888;
+
+        /// <summary>
+        /// The color type used for high dynamic range bitmaps.
+        /// </summary>
         public const SKColorType HdrBitmapColorType = SKColorType.RgbaF32;
 
         /// <summary>
@@ -434,6 +617,11 @@ namespace ValveResourceFormat.ResourceTypes
                 case VTexFormat.PNG_RGBA8888:
                     Reader.BaseStream.Position = DataOffset;
                     return SKBitmap.Decode(Reader.ReadBytes(CalculatePngSize()));
+
+                case VTexFormat.WEBP_DXT5:
+                case VTexFormat.WEBP_RGBA8888:
+                    Reader.BaseStream.Position = DataOffset;
+                    return SKBitmap.Decode(Reader.ReadBytes(CalculateWebpSize()));
             }
 
             decodeFlags = decodeFlags == TextureCodec.Auto
@@ -540,6 +728,10 @@ namespace ValveResourceFormat.ResourceTypes
             };
         }
 
+        /// <summary>
+        /// Calculates the total size of texture data across all mip levels.
+        /// </summary>
+        /// <returns>The total size in bytes.</returns>
         public int CalculateTextureDataSize()
         {
             if (IsRawJpeg)
@@ -550,6 +742,11 @@ namespace ValveResourceFormat.ResourceTypes
             if (IsRawPng)
             {
                 return CalculatePngSize();
+            }
+
+            if (IsRawWebp)
+            {
+                return CalculateWebpSize();
             }
 
             var bytes = 0;
@@ -707,6 +904,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Biggest buffer size to be used with <see cref="GetEveryMipLevelTexture"/>.
         /// </summary>
+        /// <returns>The size of the largest mip level (mip 0) in bytes.</returns>
         public int GetBiggestBufferSize() => CalculateBufferSizeForMipLevel(0);
 
         /// <summary>
@@ -811,17 +1009,51 @@ namespace ValveResourceFormat.ResourceTypes
             return size;
         }
 
+        private int CalculateWebpSize()
+        {
+            var originalPosition = Reader.BaseStream.Position;
+
+            Reader.BaseStream.Position = DataOffset;
+
+            try
+            {
+                var riffHeader = Reader.ReadInt32();
+                if (riffHeader != 0x46464952) // "RIFF"
+                {
+                    throw new UnexpectedMagicException("This is not WebP RIFF", riffHeader, nameof(riffHeader));
+                }
+
+                var fileSize = Reader.ReadUInt32();
+                var webpHeader = Reader.ReadInt32();
+
+                if (webpHeader != 0x50424557) // "WEBP"
+                {
+                    throw new UnexpectedMagicException("This is not WebP", webpHeader, nameof(webpHeader));
+                }
+
+                return (int)(8 + fileSize);
+            }
+            finally
+            {
+                Reader.BaseStream.Position = originalPosition;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int MipLevelSize(int size, uint level)
         {
             return Math.Max(size >> (int)level, 1);
         }
 
+        /// <summary>
+        /// Retrieves the texture codec information from the resource's edit info.
+        /// </summary>
+        /// <returns>The texture codec flags derived from the edit info.</returns>
         public TextureCodec RetrieveCodecFromResourceEditInfo()
         {
             var codec = TextureCodec.None;
 
-            if (IsRawPng || IsRawJpeg)
+            if (IsRawAnyImage)
             {
                 return codec;
             }
@@ -867,11 +1099,19 @@ namespace ValveResourceFormat.ResourceTypes
             return codec;
         }
 
+        /// <summary>
+        /// Serializes the texture block to the specified stream.
+        /// </summary>
+        /// <param name="stream">The stream to serialize to.</param>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <summary>
+        /// Writes a text representation of the texture to the specified writer.
+        /// </summary>
+        /// <param name="writer">The writer to output the text representation to.</param>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("{0,-12} = {1}", "VTEX Version", Version);
@@ -978,7 +1218,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            if (!IsRawPng && !IsRawJpeg)
+            if (!IsRawAnyImage)
             {
                 for (var j = 0u; j < NumMipLevels; j++)
                 {
