@@ -48,9 +48,8 @@ namespace GUI.Types.Viewers
             var vcsCollectionName = resource.FileName.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
 
             var shaderCollection = new ShaderCollection();
-
             var programData = new VfxProgramData();
-            programData.VfxCreateFromResource(resource);
+            programData.Read(vrfGuiContext.FileName, resource.Reader.BaseStream);
             shaderCollection.Add(programData);
 
             return Create(shaderCollection, vcsCollectionName, leadProgramType);

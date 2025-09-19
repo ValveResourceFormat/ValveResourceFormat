@@ -23,19 +23,9 @@ namespace Tests
             foreach (var file in files)
             {
                 using var shader = new VfxProgramData();
+                shader.Read(file);
 
                 using var sw = new IndentedTextWriter();
-
-                if (file.Contains("_resource_", StringComparison.Ordinal))
-                {
-                    using var resource = new Resource();
-                    resource.Read(file);
-                    shader.VfxCreateFromResource(resource);
-                }
-                else
-                {
-                    shader.Read(file);
-                }
 
                 shader.PrintSummary(sw);
                 Assert.That(sw.ToString(), Has.Length.AtLeast(100));
@@ -45,6 +35,108 @@ namespace Tests
                     var value = zframe.Value.Unserialize();
                     Assert.That(value, Is.Not.Null);
                     var zframeSummary = new PrintZFrameSummary(value, sw);
+                }
+            }
+        }
+
+        [Test]
+        public void ShaderResourceDataMatchesBinary()
+        {
+            using var shader1 = new VfxProgramData();
+            using var shader2 = new VfxProgramData();
+
+            shader1.Read(Path.Combine(ShadersDir, "vcs69_bloom_vulkan_40_ps.vcs"));
+            shader2.Read(Path.Combine(ShadersDir, "vcs70_resource_bloom_vulkan_40_ps.vcs"));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(shader2.VcsProgramType, Is.EqualTo(shader1.VcsProgramType));
+                Assert.That(shader2.VcsPlatformType, Is.EqualTo(shader1.VcsPlatformType));
+                Assert.That(shader2.VcsShaderModelType, Is.EqualTo(shader1.VcsShaderModelType));
+                Assert.That(shader2.FileHash, Is.EqualTo(shader1.FileHash));
+                Assert.That(shader2.VariableSourceMax, Is.EqualTo(shader1.VariableSourceMax));
+
+                // Binary stores one hash, KV3 stores all hashes
+                // Assert.That(shader1.HashesMD5, Is.EqualTo(shader2.HashesMD5));
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(shader2.DynamicComboArray, Has.Length.EqualTo(shader1.DynamicComboArray.Length));
+                for (var i = 0; i < shader1.DynamicComboArray.Length; i++)
+                {
+                    var combo1 = shader1.DynamicComboArray[i];
+                    var combo2 = shader2.DynamicComboArray[i];
+
+                    Assert.That(combo2.Name, Is.EqualTo(combo1.Name));
+                    Assert.That(combo2.CalculatedComboId, Is.EqualTo(combo1.CalculatedComboId));
+                    Assert.That(combo2.AliasName, Is.EqualTo(combo1.AliasName));
+                    Assert.That(combo2.ComboType, Is.EqualTo(combo1.ComboType));
+                    Assert.That(combo2.ComboSourceType, Is.EqualTo(combo1.ComboSourceType));
+                    Assert.That(combo2.FeatureComparisonValue, Is.EqualTo(combo1.FeatureComparisonValue));
+                    Assert.That(combo2.RangeMin, Is.EqualTo(combo1.RangeMin));
+                    Assert.That(combo2.RangeMax, Is.EqualTo(combo1.RangeMax));
+                    Assert.That(combo2.Strings, Is.EquivalentTo(combo1.Strings));
+                }
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(shader2.DynamicComboRules, Has.Length.EqualTo(shader1.DynamicComboRules.Length));
+                for (var i = 0; i < shader1.DynamicComboRules.Length; i++)
+                {
+                    var rule1 = shader1.DynamicComboRules[i];
+                    var rule2 = shader2.DynamicComboRules[i];
+
+                    Assert.That(rule2.Rule, Is.EqualTo(rule1.Rule));
+                    Assert.That(rule2.RuleType, Is.EqualTo(rule1.RuleType));
+                    Assert.That(rule2.ConditionalTypes, Is.EquivalentTo(rule1.ConditionalTypes));
+                    Assert.That(rule2.Indices, Is.EquivalentTo(rule1.Indices));
+                    Assert.That(rule2.Values, Is.EquivalentTo(rule1.Values));
+                    Assert.That(rule2.ExtraRuleData, Is.EquivalentTo(rule1.ExtraRuleData));
+                    Assert.That(rule2.Description, Is.EqualTo(rule1.Description));
+                }
+
+                Assert.That(shader2.VariableDescriptions, Has.Length.EqualTo(shader1.VariableDescriptions.Length));
+                for (var i = 0; i < shader1.VariableDescriptions.Length; i++)
+                {
+                    var var1 = shader1.VariableDescriptions[i];
+                    var var2 = shader2.VariableDescriptions[i];
+
+                    Assert.That(var2.Name, Is.EqualTo(var1.Name));
+                    Assert.That(var2.UiGroup, Is.EqualTo(var1.UiGroup));
+                    Assert.That(var2.StringData, Is.EqualTo(var1.StringData));
+                    Assert.That(var2.UiType, Is.EqualTo(var1.UiType));
+                    Assert.That(var2.UiStep, Is.EqualTo(var1.UiStep));
+                    Assert.That(var2.VariableSource, Is.EqualTo(var1.VariableSource));
+                    Assert.That(var2.DynExp, Is.EquivalentTo(var1.DynExp));
+                    Assert.That(var2.UiVisibilityExp, Is.EquivalentTo(var1.UiVisibilityExp));
+                    Assert.That(var2.SourceIndex, Is.EqualTo(var1.SourceIndex));
+                    Assert.That(var2.VfxType, Is.EqualTo(var1.VfxType));
+                    Assert.That(var2.RegisterType, Is.EqualTo(var1.RegisterType));
+                    Assert.That(var2.ContextStateAffectedByVariable, Is.EqualTo(var1.ContextStateAffectedByVariable));
+                    Assert.That(var2.RegisterElements, Is.EqualTo(var1.RegisterElements));
+                    Assert.That(var2.ExtConstantBufferId, Is.EqualTo(var1.ExtConstantBufferId));
+                    Assert.That(var2.FileRef, Is.EqualTo(var1.FileRef));
+                    Assert.That(var2.IntDefs, Is.EquivalentTo(var1.IntDefs), var2.Name);
+                    // Min/Max Value is off by 1
+                    //Assert.That(var2.IntMins, Is.EquivalentTo(var1.IntMins));
+                    //Assert.That(var2.IntMaxs, Is.EquivalentTo(var1.IntMaxs));
+                    Assert.That(var2.FloatDefs, Is.EquivalentTo(var1.FloatDefs));
+                    Assert.That(var2.FloatMins, Is.EquivalentTo(var1.FloatMins));
+                    Assert.That(var2.FloatMaxs, Is.EquivalentTo(var1.FloatMaxs));
+                    Assert.That(var2.ImageFormat, Is.EqualTo(var1.ImageFormat));
+                    Assert.That(var2.ChannelCount, Is.EqualTo(var1.ChannelCount));
+                    Assert.That(var2.ChannelIndices, Is.EquivalentTo(var1.ChannelIndices));
+                    Assert.That(var2.ColorMode, Is.EqualTo(var1.ColorMode));
+                    Assert.That(var2.ImageSuffix, Is.EqualTo(var1.ImageSuffix));
+                    Assert.That(var2.ImageProcessor, Is.EqualTo(var1.ImageProcessor));
+
+                    Assert.That(var2.MinPrecisionBits, Is.EqualTo(var1.MinPrecisionBits));
+                    Assert.That(var2.LayerId, Is.EqualTo(var1.LayerId));
+                    Assert.That(var2.AllowLayerOverride, Is.EqualTo(var1.AllowLayerOverride));
+                    Assert.That(var2.Field5, Is.EqualTo(var1.Field5));
+                    Assert.That(var2.IsLayerConstant, Is.EqualTo(var1.IsLayerConstant));
                 }
             }
         }

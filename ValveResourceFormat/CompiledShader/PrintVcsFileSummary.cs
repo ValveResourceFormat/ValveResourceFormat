@@ -151,9 +151,9 @@ namespace ValveResourceFormat.CompiledShader
                 var breakNames = CombineValuesBreakString(ruleName, BL);
                 var s0 = $"[{vfxRule.BlockIndex,2}]";
                 var s4 = $"{breakNames[0]}";
-                var s5 = $"{vfxRule.Rule}{vfxRule.Range2[0]}";
+                var s5 = $"{vfxRule.Rule}{vfxRule.ExtraRuleData[0]}";
                 var s6 = $"{CombineIntArray(vfxRule.Values[..maxConstrains])}";
-                var s7 = $"{CombineIntArray(vfxRule.Range2[..maxConstrains])}";
+                var s7 = $"{CombineIntArray(vfxRule.ExtraRuleData[..maxConstrains])}";
                 output.WriteLine($"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}");
                 for (var i = 1; i < breakNames.Length; i++)
                 {
@@ -179,10 +179,10 @@ namespace ValveResourceFormat.CompiledShader
             output.DefineHeaders(["index",
                 nameof(VfxVariableDescription.Name),
                 nameof(VfxVariableDescription.VfxType),
-                nameof(VfxVariableDescription.Tex),
-                nameof(VfxVariableDescription.Field1),
-                nameof(VfxVariableDescription.Field2),
-                nameof(VfxVariableDescription.VecSize),
+                nameof(VfxVariableDescription.SourceIndex),
+                nameof(VfxVariableDescription.ContextStateAffectedByVariable),
+                nameof(VfxVariableDescription.MinPrecisionBits),
+                nameof(VfxVariableDescription.RegisterElements),
                 nameof(VfxVariableDescription.ExtConstantBufferId),
                 nameof(VfxVariableDescription.VariableSource),
                 nameof(VfxVariableDescription.StringData),
@@ -211,10 +211,10 @@ namespace ValveResourceFormat.CompiledShader
                 output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                     param.Name,
                     $"{param.VfxType}",
-                    $"{BlankNegOne(param.Tex),2}",
-                    param.Field1.ToString(CultureInfo.InvariantCulture),
-                    $"{BlankNegOne(param.Field2),2}",
-                    $"{param.VecSize,2}",
+                    $"{BlankNegOne(param.SourceIndex),2}",
+                    param.ContextStateAffectedByVariable.ToString(CultureInfo.InvariantCulture),
+                    $"{BlankNegOne(param.MinPrecisionBits),2}",
+                    $"{param.RegisterElements,2}",
                     param.ExtConstantBufferId.ToString(CultureInfo.InvariantCulture),
                     $"{param.VariableSource}",
                     param.StringData,
@@ -243,8 +243,8 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.ImageSuffix),
                 nameof(VfxVariableDescription.FileRef),
                 nameof(VfxVariableDescription.DynExp),
-                nameof(VfxVariableDescription.Field3),
-                nameof(VfxVariableDescription.Field4),
+                nameof(VfxVariableDescription.LayerId),
+                nameof(VfxVariableDescription.AllowLayerOverride),
                 nameof(VfxVariableDescription.Field5),
             ]);
             foreach (var param in program.VariableDescriptions)
@@ -264,8 +264,8 @@ namespace ValveResourceFormat.CompiledShader
                     param.ImageSuffix,
                     param.FileRef,
                     $"{hasDynExp}",
-                    $"{param.Field3}",
-                    $"{param.Field4}",
+                    $"{param.LayerId}",
+                    $"{param.AllowLayerOverride}",
                     $"{param.Field5}",
                 ]);
             }
@@ -298,7 +298,7 @@ namespace ValveResourceFormat.CompiledShader
 
                     output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
                         $"{param.Name}",
-                        $"{GetVfxVariableTypeString(param.VfxType)},{param.RegisterType,2},{param.VecSize,2},{BlankNegOne(param.Tex),2}",
+                        $"{GetVfxVariableTypeString(param.VfxType)},{param.RegisterType,2},{param.RegisterElements,2},{BlankNegOne(param.SourceIndex),2}",
                         $"{param.VariableSource,2}",
                         dynExpstring,
                         uiVisibilityString]);

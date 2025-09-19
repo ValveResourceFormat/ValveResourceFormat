@@ -50,7 +50,7 @@ namespace ValveResourceFormat.CompiledShader
 
                 var blockOffset = byteCodeData.GetInt32Property("m_nOffs");
                 var blockSize = byteCodeData.GetInt32Property("m_nSize");
-                var finalOffset = programData.ByteCodeOffset + blockOffset;
+                var finalOffset = programData.Resource!.FileSize + blockOffset;
 
                 programData.DataReader!.BaseStream.Position = finalOffset;
 

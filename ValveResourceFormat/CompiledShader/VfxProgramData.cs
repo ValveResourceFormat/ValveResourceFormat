@@ -20,7 +20,6 @@ namespace ValveResourceFormat.CompiledShader
 
         // VCS version 70 onwards stores data as a KV3 resource
         public Resource? Resource { get; private set; }
-        public long ByteCodeOffset;
 
         public VcsProgramType VcsProgramType { get; private set; } = VcsProgramType.Undetermined;
         public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
@@ -65,17 +64,14 @@ namespace ValveResourceFormat.CompiledShader
         {
             if (disposing)
             {
-                if (BaseStream != null)
-                {
-                    BaseStream.Dispose();
-                    BaseStream = null;
-                }
+                BaseStream?.Dispose();
+                BaseStream = null;
 
-                if (DataReader != null)
-                {
-                    DataReader.Dispose();
-                    DataReader = null;
-                }
+                DataReader?.Dispose();
+                DataReader = null;
+
+                Resource?.Dispose();
+                Resource = null;
 
                 StaticComboCache?.Dispose();
             }
@@ -111,7 +107,29 @@ namespace ValveResourceFormat.CompiledShader
             BaseStream = input;
             DataReader = new BinaryReader(input, Encoding.UTF8, leaveOpen: true);
             FilenamePath = filenamepath;
-            VfxCreateFromVcs();
+
+            var vcsMagicId = DataReader.ReadInt32();
+            if (vcsMagicId == MAGIC)
+            {
+                VfxCreateFromVcs();
+            }
+            else
+            {
+                var resourceSize = vcsMagicId;
+                var resourceHeaderVersion = DataReader.ReadUInt16();
+                if (resourceHeaderVersion != Resource.KnownHeaderVersion)
+                {
+                    throw new UnexpectedMagicException($"Unknown {nameof(VfxProgramData)} storage. Expected binary VCS2 or resource file. Resource header: {resourceHeaderVersion}", vcsMagicId, nameof(vcsMagicId));
+                }
+
+                var resource = new Resource();
+                input.Position -= 6;
+                resource.FileName = filenamepath;
+                resource.Read(input, false, leaveOpen: true);
+
+                VfxCreateFromResource(resource);
+            }
+
             StaticComboCache = new StaticCache(this);
         }
 
@@ -134,9 +152,6 @@ namespace ValveResourceFormat.CompiledShader
             Debug.Assert(FilenamePath != null);
 
             SetFileNameDerivedProperties(FilenamePath);
-
-            var vcsMagicId = DataReader.ReadInt32();
-            UnexpectedMagicException.Assert(vcsMagicId == MAGIC, vcsMagicId);
 
             VcsVersion = DataReader.ReadInt32();
             ThrowIfNotSupported(VcsVersion);
@@ -326,12 +341,11 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        public void VfxCreateFromResource(Resource resource)
+        internal void VfxCreateFromResource(Resource resource)
         {
             Resource = resource;
             VcsVersion = resource.Version;
             DataReader = resource.Reader;
-            ByteCodeOffset = resource.EditInfo!.Offset + resource.EditInfo!.Size;
 
             SetFileNameDerivedProperties(resource.FileName!);
             ThrowIfNotSupported(VcsVersion);

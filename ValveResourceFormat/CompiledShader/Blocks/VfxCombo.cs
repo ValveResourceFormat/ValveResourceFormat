@@ -16,7 +16,7 @@ public class VfxCombo : ShaderDataBlock
     public int BlockIndex { get; }
     public long CalculatedComboId { get; set; } // set after loading all combos
     public string Name { get; }
-    public string Category { get; }
+    public string AliasName { get; }
     public VfxComboType ComboType { get; }
     public int RangeMin { get; }
     public int RangeMax { get; }
@@ -29,7 +29,7 @@ public class VfxCombo : ShaderDataBlock
     {
         BlockIndex = blockIndex;
         Name = data.GetProperty<string>("m_szName");
-        Category = data.GetProperty<string>("m_szCategory");
+        AliasName = data.GetProperty<string>("m_szAliasName") ?? string.Empty;
         ComboType = data.GetEnumValue<VfxComboType>("m_comboType", normalize: true, stripExtension: "Type");
         RangeMin = data.GetInt32Property("m_nMin");
         RangeMax = data.GetInt32Property("m_nMax");
@@ -39,8 +39,10 @@ public class VfxCombo : ShaderDataBlock
 
         CalculatedComboId = data.GetIntegerProperty("m_nComboIndexValue");
 
-        // todo: verify this
-        // FeatureComparisonValue = data.ContainsKey("m_nCompareValue") ? data.GetInt32Property("m_nCompareValue") : 0;
+        if (ComboSourceType is ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__) or ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__))
+        {
+            FeatureComparisonValue = data.GetInt32Property("m_nCompareValue");
+        }
     }
 
     public VfxCombo(BinaryReader datareader, int blockIndex) : base(datareader)
@@ -48,7 +50,7 @@ public class VfxCombo : ShaderDataBlock
         // CVfxCombo::Unserialize
         BlockIndex = blockIndex;
         Name = ReadStringWithMaxLength(datareader, 64);
-        Category = ReadStringWithMaxLength(datareader, 64);
+        AliasName = ReadStringWithMaxLength(datareader, 64);
         ComboType = (VfxComboType)datareader.ReadInt32();
         RangeMin = datareader.ReadInt32();
         RangeMax = datareader.ReadInt32();

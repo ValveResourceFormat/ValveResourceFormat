@@ -16,12 +16,13 @@ public class VfxVariableDescription : ShaderDataBlock
     public VfxVariableSourceType VariableSource { get; }
     public byte[] DynExp { get; } = [];
     public byte[] UiVisibilityExp { get; } = [];
-    public int Tex { get; }
+    public int SourceIndex { get; }
     public VfxVariableType VfxType { get; }
     public VfxRegisterType RegisterType { get; }
-    public int Field1 { get; }
-    public VariableFlags Flags => (VariableFlags)((Field1 >> 8) & 0xFF);
-    public int VecSize { get; }
+    public VariableFlags Flags => (VariableFlags)((ContextStateAffectedByVariable >> 8) & 0xFF);
+    public int ContextStateAffectedByVariable { get; }
+    public int RegisterElements { get; }
+    public bool SrgbRead => (ExtConstantBufferId & 0x01) == 1;
     public int ExtConstantBufferId { get; }
     public string FileRef { get; }
     public static readonly float FloatInf = 1e9F;
@@ -32,17 +33,17 @@ public class VfxVariableDescription : ShaderDataBlock
     public float[] FloatDefs { get; } = new float[4];
     public float[] FloatMins { get; } = [-FloatInf, -FloatInf, -FloatInf, -FloatInf];
     public float[] FloatMaxs { get; } = [FloatInf, FloatInf, FloatInf, FloatInf];
-    public int ImageFormat { get; }
+    public ImageFormat ImageFormat { get; } = ImageFormat.UNKNOWN;
     public int ChannelCount { get; }
-    public int[] ChannelIndices { get; } = new int[4];
+    public int[] ChannelIndices { get; } = [-1, -1, -1, -1];
     public int ColorMode { get; }
-    public int Field2 { get; }
+    public int MinPrecisionBits { get; } = -1;
     public string ImageSuffix { get; }
     public string ImageProcessor { get; }
-    public byte Field3 { get; }
-    public bool Field4 { get; }
+    public byte LayerId { get; }
+    public bool AllowLayerOverride { get; }
     public int Field5 { get; }
-    public byte Field6 { get; }
+    public bool IsLayerConstant { get; }
 
     public VfxVariableDescription(KVObject data, int blockIndex) : base()
     {
@@ -61,28 +62,26 @@ public class VfxVariableDescription : ShaderDataBlock
 
         UiVisibilityExp = data.GetProperty<byte[]>("m_pCompiledUIVisibilityExpression");
 
-        Tex = data.GetInt32Property("m_sourceIndex");
+        SourceIndex = data.GetInt32Property("m_sourceIndex");
         VfxType = (VfxVariableType)data.GetInt32Property("m_type");
         RegisterType = (VfxRegisterType)data.GetInt32Property("m_registerType");
+        ContextStateAffectedByVariable = data.GetInt32Property("m_nContextStateAffectedByVariable");
 
-        // Uncertain about these
-        // todo
-        Field1 = data.GetInt32Property("m_nContextStateAffectedByVariable");
+        var registerOffset = data.GetUInt32Property("m_nRegisterOffset"); // todo: new property?
+        var descriptorSet = data.GetUInt32Property("m_nDescriptorSet"); // todo: new property?
 
-        data.GetUInt32Property("m_nRegisterOffset"); // todo
-        data.GetUInt32Property("m_nDescriptorSet"); // todo
-        data.GetUInt32Property("m_nTypeSpecificBits"); // todo
-
-        VecSize = data.GetInt32Property("m_nRegisterElements");
-
-        // ExtConstantBufferId
-        // FileRef
+        RegisterElements = data.GetInt32Property("m_nRegisterElements");
+        ExtConstantBufferId = unchecked((int)data.GetUInt32Property("m_nTypeSpecificBits"));
 
         if (data.ContainsKey("m_flDefault"))
         {
             FloatDefs = data.GetFloatArray("m_flDefault");
             FloatMins = data.GetFloatArray("m_flMin");
             FloatMaxs = data.GetFloatArray("m_flMax");
+
+            IntMins = [.. FloatMins.Select(fl => (int)MathF.Floor(fl))];
+            IntMaxs = [.. FloatMaxs.Select(fl => (int)MathF.Floor(fl))];
+            IntDefs = [.. FloatDefs.Select(fl => (int)MathF.Floor(fl))];
         }
         else if (data.ContainsKey("m_intDefault"))
         {
@@ -91,22 +90,20 @@ public class VfxVariableDescription : ShaderDataBlock
             IntMaxs = data.GetIntegerArray("m_intMax").Select(l => (int)l).ToArray();
         }
 
-        Field5 = data.GetInt32Property("m_nLayerId");
-
-        // todo: verify these two
-        Field4 = data.GetProperty<bool>("m_bAllowLayerOverride");
-        Field6 = data.GetProperty<bool>("m_bIsLayerConstant") ? (byte)1 : (byte)0;
+        LayerId = (byte)data.GetInt32Property("m_nLayerId");
+        AllowLayerOverride = data.GetProperty<bool>("m_bAllowLayerOverride");
+        IsLayerConstant = data.GetProperty<bool>("m_bIsLayerConstant");
 
         // Texture properties, not always present
         // todo: better detection
         if (data.ContainsKey("m_outputTextureFormat"))
         {
             FileRef = data.GetProperty<string>("m_defaultInputTexture");
-            ImageFormat = unchecked((int)data.GetUInt32Property("m_outputTextureFormat"));
+            ImageFormat = (ImageFormat)data.GetUInt32Property("m_outputTextureFormat");
             ChannelCount = data.GetInt32Property("m_nChannelCount");
             ChannelIndices = data.GetArray<int>("m_nChannelInfoIndex");
             ColorMode = data.GetInt32Property("m_inputColorSpace");
-            data.GetInt32Property("m_nMinPrecisionBits"); // todo
+            MinPrecisionBits = data.GetInt32Property("m_nMinPrecisionBits"); // todo
 
             ImageSuffix = data.GetProperty<string>("m_szTextureFileEnding");
             ImageProcessor = data.GetProperty<string>("m_inputProcessingCommand");
@@ -137,15 +134,15 @@ public class VfxVariableDescription : ShaderDataBlock
             DynExp = datareader.ReadBytes(dynExpLen);
         }
 
-        Tex = datareader.ReadInt32();
+        SourceIndex = datareader.ReadInt32();
 
         // check to see if this reads 'SBMS' (unknown what this is, instance found in v65 hero_pc_40_features.vcs file)
-        if (Tex == 0x534D4253)
+        if (SourceIndex == 0x534D4253)
         {
             var dynExpLen = datareader.ReadInt32();
             UiVisibilityExp = datareader.ReadBytes(dynExpLen);
 
-            Tex = datareader.ReadInt32();
+            SourceIndex = datareader.ReadInt32();
         }
 
         VfxType = (VfxVariableType)datareader.ReadInt32();
@@ -153,10 +150,10 @@ public class VfxVariableDescription : ShaderDataBlock
 
         if (vcsVersion >= 64)
         {
-            Field1 = datareader.ReadInt32();
+            ContextStateAffectedByVariable = datareader.ReadInt32();
         }
 
-        VecSize = datareader.ReadInt32();
+        RegisterElements = datareader.ReadInt32();
         ExtConstantBufferId = datareader.ReadInt32();
 
         FileRef = ReadStringWithMaxLength(datareader, 64);
@@ -188,7 +185,7 @@ public class VfxVariableDescription : ShaderDataBlock
 
         Debug.Assert(!float.IsNaN(FloatMaxs[3]));
 
-        ImageFormat = datareader.ReadInt32();
+        ImageFormat = (ImageFormat)datareader.ReadInt32();
         ChannelCount = datareader.ReadInt32();
         for (var i = 0; i < 4; i++)
         {
@@ -196,21 +193,21 @@ public class VfxVariableDescription : ShaderDataBlock
         }
 
         ColorMode = datareader.ReadInt32();
-        Field2 = datareader.ReadInt32();
+        MinPrecisionBits = datareader.ReadInt32();
 
         ImageSuffix = ReadStringWithMaxLength(datareader, 32);
         ImageProcessor = ReadStringWithMaxLength(datareader, 32);
 
         if (vcsVersion >= 65)
         {
-            Field3 = datareader.ReadByte();
-            Field4 = datareader.ReadBoolean();
+            LayerId = datareader.ReadByte();
+            AllowLayerOverride = datareader.ReadBoolean();
             Field5 = datareader.ReadInt32();
         }
 
         if (vcsVersion >= 69)
         {
-            Field6 = datareader.ReadByte();
+            IsLayerConstant = datareader.ReadBoolean();
         }
     }
 

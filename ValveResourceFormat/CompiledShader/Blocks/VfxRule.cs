@@ -9,12 +9,13 @@ public class VfxRule : ShaderDataBlock
     public int BlockIndex { get; }
     public VfxRuleMethod Rule { get; }
     public VfxRuleType RuleType { get; }
-    public const int MaxArgs = 16;
     public VfxRuleType[] ConditionalTypes { get; }
     public int[] Indices { get; }
     public int[] Values { get; }
-    public int[] Range2 { get; }
+    public int[] ExtraRuleData { get; }
     public string Description { get; }
+
+    private const int MaxArgs = 16;
 
     public VfxRule(KVObject data, int blockIndex) : base()
     {
@@ -25,7 +26,7 @@ public class VfxRule : ShaderDataBlock
         ConditionalTypes = new VfxRuleType[MaxArgs];
         Indices = new int[MaxArgs];
         Values = new int[MaxArgs];
-        Range2 = new int[MaxArgs];
+        ExtraRuleData = new int[MaxArgs];
 
         var argTypesArray = data.GetArray<string>("m_argTypeArray");
         var argIndexArray = data.GetArray<int>("m_argIndexArray");
@@ -38,10 +39,10 @@ public class VfxRule : ShaderDataBlock
 
         for (var i = 0; i < MaxArgs; i++)
         {
-            ConditionalTypes[i] = Enum.Parse<VfxRuleType>(argTypesArray[i].AsSpan()["VFX_RULE_TYPE_".Length..], ignoreCase: true);
+            ConditionalTypes[i] = Enum.Parse<VfxRuleType>(KVObjectExtensions.NormalizeEnumName<VfxRuleType>(argTypesArray[i]));
             Indices[i] = argIndexArray[i];
             Values[i] = argValueArray[i];
-            Range2[i] = extraRuleData[i];
+            ExtraRuleData[i] = extraRuleData[i];
         }
 
         Description = data.GetProperty<string>("m_szErrorString");
@@ -57,25 +58,25 @@ public class VfxRule : ShaderDataBlock
         ConditionalTypes = ReadByteFlags(datareader);
         Indices = ReadIntRange(datareader);
         Values = ReadIntRange(datareader);
-        Range2 = ReadIntRange(datareader);
+        ExtraRuleData = ReadIntRange(datareader);
 
         Description = ReadStringWithMaxLength(datareader, 256);
     }
 
     private static int[] ReadIntRange(BinaryReader datareader)
     {
-        var ints0 = new int[16];
-        for (var i = 0; i < 16; i++)
+        var ints0 = new int[MaxArgs];
+        for (var i = 0; i < MaxArgs; i++)
         {
             ints0[i] = datareader.ReadInt32();
         }
-        return [.. ints0];
+        return ints0;
     }
 
     private static VfxRuleType[] ReadByteFlags(BinaryReader datareader)
     {
-        var byteFlags = new VfxRuleType[16];
-        for (var i = 0; i < 16; i++)
+        var byteFlags = new VfxRuleType[MaxArgs];
+        for (var i = 0; i < MaxArgs; i++)
         {
             byteFlags[i] = (VfxRuleType)datareader.ReadByte();
         }
