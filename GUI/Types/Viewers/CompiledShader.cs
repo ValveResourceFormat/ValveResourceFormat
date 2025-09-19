@@ -41,20 +41,6 @@ namespace GUI.Types.Viewers
             control.AddControl(fileListView);
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
-        {
-            var filename = Path.GetFileName(vrfGuiContext.FileName);
-            var leadProgramType = ComputeVCSFileName(filename).ProgramType;
-            var vcsCollectionName = resource.FileName.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40
-
-            var shaderCollection = new ShaderCollection();
-            var programData = new VfxProgramData();
-            programData.Read(vrfGuiContext.FileName, resource.Reader.BaseStream);
-            shaderCollection.Add(programData);
-
-            return Create(shaderCollection, vcsCollectionName, leadProgramType);
-        }
-
         public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             stream?.Dispose(); // Creating shader collection doesn't actually use the provided stream which is kind of a waste
