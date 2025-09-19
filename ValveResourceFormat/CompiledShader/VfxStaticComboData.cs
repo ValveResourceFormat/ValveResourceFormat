@@ -99,9 +99,9 @@ namespace ValveResourceFormat.CompiledShader
                 DynamicComboVariables[i] = new VfxVariableIndexArray(
                     dynamicComboVars.AsSpan(start, count),
                     variableIndexArray.GetInt32Property("m_nFirstRenderStateElement"),
-                    variableIndexArray.GetInt32Property("m_nFirstConstantElement")
-                )
-                { BlockId = i };
+                    variableIndexArray.GetInt32Property("m_nFirstConstantElement"),
+                    i
+                );
             }
 
             var constantBufferBindingArray = data.GetArray<int>("m_constantBufferBindingArray");
@@ -112,9 +112,9 @@ namespace ValveResourceFormat.CompiledShader
             VariablesFromStaticCombo = new VfxVariableIndexArray(
                 allVars.GetArray<uint>("m_indexAndRegisterOffsetArray"),
                 allVars.GetInt32Property("m_nFirstRenderStateElement"),
-                allVars.GetInt32Property("m_nFirstConstantElement")
-            )
-            { BlockId = -1 };
+                allVars.GetInt32Property("m_nFirstConstantElement"),
+                -1
+            );
 
             VShaderInputs = [.. data.GetIntegerArray("m_vsInputSignatureIndexArray").Select(i => (int)i)];
             Attributes = [.. data.GetIntegerArray("m_attribIdx").Select(i => attributes[i])];
