@@ -17,7 +17,7 @@ public class VfxCombo : ShaderDataBlock
     public long CalculatedComboId { get; set; } // set after loading all combos
     public string Name { get; }
     public string Category { get; }
-    public VfxComboType ComboType { get; } // 1 - static, 2 - dynamic
+    public VfxComboType ComboType { get; }
     public int RangeMin { get; }
     public int RangeMax { get; }
     public int ComboSourceType { get; } // VfxStaticComboSourceType or VfxDynamicComboSourceType
