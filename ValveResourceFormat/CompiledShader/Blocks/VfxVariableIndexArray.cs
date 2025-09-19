@@ -18,6 +18,14 @@ public class VfxVariableIndexArray : ShaderDataBlock
     // TODO: remove this
     public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<VfxVariableIndexData>(Fields);
 
+    public VfxVariableIndexArray(ReadOnlySpan<uint> fields, int firstRenderStateElement, int firstConstantElement, int blockIndex) : base()
+    {
+        BlockId = blockIndex;
+        Fields = MemoryMarshal.Cast<uint, VfxVariableIndexData>(fields).ToArray();
+        Offset1 = firstRenderStateElement;
+        Offset2 = firstConstantElement;
+    }
+
     public VfxVariableIndexArray(BinaryReader datareader, int blockId, bool readDest) : base(datareader)
     {
         BlockId = blockId;

@@ -9,7 +9,8 @@ public class VfxShaderFileDXBC : VfxShaderFile
 {
     public override string BlockName => "DXBC";
 
-    public VfxShaderFileDXBC(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
+    public VfxShaderFileDXBC(BinaryReader datareader, int sourceId, VfxStaticComboData parent)
+        : base(datareader, sourceId, parent)
     {
         if (Size > 0)
         {
@@ -17,6 +18,14 @@ public class VfxShaderFileDXBC : VfxShaderFile
         }
 
         HashMD5 = new Guid(datareader.ReadBytes(16));
+    }
+
+    public VfxShaderFileDXBC(BinaryReader datareader, int sourceId, int size, Guid hash, VfxStaticComboData parent)
+        : base(sourceId, parent)
+    {
+        Size = size;
+        Bytecode = datareader.ReadBytes(size);
+        HashMD5 = hash;
     }
 
     public override string GetDecompiledFile()

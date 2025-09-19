@@ -13,6 +13,11 @@ public abstract class ShaderDataBlock
         Start = datareader.BaseStream.Position;
     }
 
+    protected ShaderDataBlock()
+    {
+        Start = -1;
+    }
+
     public static string ReadStringWithMaxLength(BinaryReader datareader, int length)
     {
         var str = datareader.ReadNullTermString(Encoding.UTF8);
