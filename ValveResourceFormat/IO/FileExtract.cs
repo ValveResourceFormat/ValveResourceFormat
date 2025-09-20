@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 #nullable disable
 
@@ -204,33 +205,13 @@ namespace ValveResourceFormat.IO
                         break;
                     }
 
+                case ResourceType.NmSkeleton:
+                    contentFile = new NmSkeletonExtract(resource).ToContentFile();
+                    break;
+
                 case ResourceType.NmClip:
-                    {
-                        var clip = (ResourceTypes.ModelAnimation2.AnimationClip)resource.DataBlock;
-
-                        // todo: improve
-                        var kv = new Serialization.KeyValues.KVObject(null);
-                        var sourceFileName = Path.ChangeExtension(resource.FileName, ".dmx");
-                        kv.AddProperty("m_sourceFilename", sourceFileName);
-                        kv.AddProperty("m_animationSkeletonName ", clip.SkeletonName);
-                        contentFile.Data = Encoding.UTF8.GetBytes(new Serialization.KeyValues.KV3File(kv).ToString());
-
-                        contentFile.AddSubFile(sourceFileName, () =>
-                        {
-                            using var skeletonResource = fileLoader.LoadFileCompiled(clip.SkeletonName);
-
-                            if (skeletonResource == null)
-                            {
-                                return null;
-                            }
-
-                            var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
-
-                            return ModelExtract.ToDmxAnim(skeleton, [], new ResourceTypes.ModelAnimation.Animation(clip));
-                        });
-
-                        break;
-                    }
+                    contentFile = new NmClipExtract(resource, fileLoader).ToContentFile();
+                    break;
 
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
