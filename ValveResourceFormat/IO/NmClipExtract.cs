@@ -5,6 +5,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2;
+
 public class NmClipExtract
 {
     private readonly Resource resource;
@@ -14,9 +15,10 @@ public class NmClipExtract
     {
         this.resource = resource;
         clip = resource.DataBlock as AnimationClip
-            ?? throw new InvalidDataException("Resource DataBlock is not an AnimationClip.");
+            ?? throw new InvalidDataException($"Resource DataBlock is not an {nameof(AnimationClip)}.");
         this.fileLoader = fileLoader;
     }
+
     public ContentFile ToContentFile()
     {
         var contentFile = new ContentFile();
@@ -82,67 +84,42 @@ public class NmClipExtract
 
         kvDocEventTrack.AddProperty("m_type", "Duration"); // Doesn't seem to matter?
         kvDocEventTrack.AddProperty("m_bIsSyncTrack", kvCompiledEvent.ContainsKey("m_syncID"));
-        // Get string between "CNm" and "Event".
-        var eventName = className[3..^5];
+
         // Example: CNmIDEvent maps to CNmClipDocEvent_ID.
-        var docEventClass = "CNmClipDocEvent_" + eventName;
+        var eventName = className["CNm".Length..^"Event".Length];
+
+        const string EntityAttribute = "EntityAttribute";
+        if (eventName is "EntityAttributeInt" or "EntityAttributeFloat")
+        {
+            eventName = EntityAttribute;
+            var attributeType = eventName[EntityAttribute.Length..];
+            kvDocEvent.AddProperty("m_nValueType", $"EVENT_ENTITY_ATTR_TYPE_{attributeType.ToUpperInvariant()}");
+        }
+
+        var docEventClass = $"CNmClipDocEvent_{eventName}";
+
         kvDocEventTrack.AddProperty("m_eventClassName", docEventClass);
         kvDocEvent.AddProperty("_class", docEventClass);
-        foreach (var field in kvCompiledEvent)
+
+        foreach (var (key, value) in kvCompiledEvent)
         {
             // These were already handled and shouldn't be copied over.
-            if (field.Key == "m_flStartTimeSeconds" || field.Key == "m_flDurationSeconds")
+            if (key is "m_flStartTimeSeconds" or "m_flDurationSeconds")
             {
                 continue;
             }
-            // Handle special cases - a few doc fields are different to the compiled event definition.
-            switch (eventName)
+
+            var (newKey, newValue) = (eventName, key) switch
             {
-                case "Particle":
-                    {
-                        if (field.Key == "m_hParticleSystem")
-                        {
-                            kvDocEvent.AddProperty("m_particleSystem", field.Value);
-                        }
-                    }
-                    break;
-                case "Legacy":
-                    {
-                        if (field.Key == "m_animEventClassName")
-                        {
-                            kvDocEvent.AddProperty("m_eventClass", field.Value);
-                        }
-                        break;
-                    }
-                case "Transition":
-                    {
-                        if (field.Key == "m_ID")
-                        {
-                            kvDocEvent.AddProperty("m_optionalID", field.Value);
-                        }
-                        break;
-                    }
-                default:
-                    {
-                        kvDocEvent.AddProperty(field.Key, field.Value);
-                        break;
-                    }
-            }
+                ("Particle", "m_hParticleSystem") => ("m_particleSystem", value),
+                ("Legacy", "m_animEventClassName") => ("m_eventClass", value),
+                ("Transition", "m_ID") => ("m_optionalID", value),
+                _ => (key, value),
+            };
+
+            kvDocEvent.AddProperty(newKey, newValue);
         }
-        // Handle special cases - only additional fields that need adding afterwards.
-        switch (eventName)
-        {
-            case "EntityAttributeInt":
-                {
-                    kvDocEvent.AddProperty("m_nValueType", "EVENT_ENTITY_ATTR_TYPE_INT");
-                    break;
-                }
-            case "EntityAttributeFloat":
-                {
-                    kvDocEvent.AddProperty("m_nValueType", "EVENT_ENTITY_ATTR_TYPE_FLOAT");
-                    break;
-                }
-        }
+
         var eventsArray = new KVObject("m_events", true, 1);
         eventsArray.AddItem(kvDocEvent);
         kvDocEventTrack.AddProperty("m_events", eventsArray);

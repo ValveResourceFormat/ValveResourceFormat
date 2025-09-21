@@ -7,6 +7,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
+
 public class NmSkeletonExtract
 {
     private readonly Resource resource;
