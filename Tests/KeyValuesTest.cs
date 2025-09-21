@@ -228,5 +228,18 @@ namespace Tests
             var parsedFile = KeyValues3.ParseKVFile(expectedFilePath);
             Assert.That(parsedFile.Root.Properties["with_quote_at_start"].Value, Is.EqualTo("\""));
         }
+
+        [Test]
+        public void TestManualKVObjectSerializationWithEscapeSequences()
+        {
+            var inputFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "EscapeSequenceTest_Input.kv3");
+            var parsedFile = KeyValues3.ParseKVFile(inputFilePath);
+            var serializedOutput = parsedFile.ToString().Trim().ReplaceLineEndings();
+
+            var expectedFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "EscapeSequenceTest.kv3");
+            var expectedOutput = File.ReadAllText(expectedFilePath).Trim().ReplaceLineEndings();
+
+            Assert.That(serializedOutput, Is.EqualTo(expectedOutput));
+        }
     }
 }

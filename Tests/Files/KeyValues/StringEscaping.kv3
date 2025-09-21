@@ -28,6 +28,6 @@
 	"key\nwith\nnewlines" = "multiline_key_test"
 	"key\twith\ttabs" = "tab_key_test"
 	"complex\tkey\"with\\mixed\nescapes" = "complex_key_value"
-	"key\'with\'quotes" = "single_quote_test"
+	"key'with'quotes" = "single_quote_test"
 	test_symmetry = "\\n\\t\\\\\\\"\\'"
 }
