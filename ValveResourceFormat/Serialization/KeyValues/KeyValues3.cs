@@ -269,8 +269,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
             else if (c == '"')
             {
                 //Check if a multistring or single string was found
-                var next = PeekString(parser, 4);
-                if (next.Contains("\"\"\n", StringComparison.Ordinal) || next == "\"\"\r\n")
+                var next = PeekString(parser, 3);
+                if (next.Length >= 3 && next[0] == '"' && next[1] == '"' && (next[2] is '\n' or '\r'))
                 {
                     //Skip the next two "'s
                     SkipChars(parser, 2);
@@ -371,11 +371,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         //Reading a quoted property name
         private static void ReadPropNameQuoted(char c, Parser parser)
         {
-            if (c == '"' && parser.PreviousChar != '\\')
+            if (c == '"' && !IsEscaped(parser.CurrentString))
             {
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.SEEK_VALUE);
-                parser.CurrentName = parser.CurrentString.ToString();
+                parser.CurrentName = UnescapeString(parser.CurrentString);
                 return;
             }
 
@@ -424,11 +424,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
-        private static string UnescapeString(string input)
+        private static string UnescapeString(StringBuilder input)
         {
-            if (string.IsNullOrEmpty(input))
+            if (input.Length == 0)
             {
-                return input;
+                return string.Empty;
             }
 
             var result = new StringBuilder(input.Length);
@@ -472,25 +472,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
         //Read a string value
         private static void ReadValueString(char c, Parser parser)
         {
-            if (c == '"')
+            if (c == '"' && !IsEscaped(parser.CurrentString))
             {
-                // Check if this quote is actually escaped by counting preceding backslashes
-                var backslashCount = 0;
-                var currentString = parser.CurrentString.ToString();
-                for (var i = currentString.Length - 1; i >= 0 && currentString[i] == '\\'; i--)
-                {
-                    backslashCount++;
-                }
-
-                // Quote is escaped only if there's an odd number of preceding backslashes
-                if (backslashCount % 2 == 0)
-                {
-                    //String ending found
-                    parser.StateStack.Pop();
-                    var unescapedString = UnescapeString(parser.CurrentString.ToString());
-                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, unescapedString));
-                    return;
-                }
+                //String ending found
+                parser.StateStack.Pop();
+                var unescapedString = UnescapeString(parser.CurrentString);
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, unescapedString));
+                return;
             }
 
             parser.CurrentString.Append(c);
@@ -501,7 +489,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             //Check for ending
             var next = PeekString(parser, 2);
-            if (c == '"' && next == "\"\"" && parser.PreviousChar != '\\')
+            if (c == '"' && next == "\"\"" && !IsEscaped(parser.CurrentString))
             {
                 //Check for starting and trailing linebreaks
                 var multilineStr = parser.CurrentString.ToString();
@@ -543,6 +531,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             parser.CurrentString.Append(c);
+        }
+
+        // Check if the last character is escaped by counting preceding backslashes
+        private static bool IsEscaped(StringBuilder sb)
+        {
+            var count = 0;
+            for (var i = sb.Length - 1; i >= 0 && sb[i] == '\\'; i--)
+            {
+                count++;
+            }
+            return count % 2 == 1;
         }
 
         // Read binary blob
@@ -702,12 +701,18 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 }
                 else
                 {
-                    buffer[i] = (char)parser.FileStream.Read();
+                    var nextByte = parser.FileStream.Read();
+                    if (nextByte == -1)
+                    {
+                        // End of stream reached, return partial string
+                        return new string(buffer, 0, i);
+                    }
+                    buffer[i] = (char)nextByte;
                     parser.CharBuffer.Enqueue(buffer[i]);
                 }
             }
 
-            return string.Join(string.Empty, buffer);
+            return new string(buffer);
         }
 
         private static bool ReadAheadMatches(Parser parser, char c, string pattern)

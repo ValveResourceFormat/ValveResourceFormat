@@ -219,5 +219,14 @@ namespace Tests
 
             Assert.That(serializedOutput, Is.EqualTo(expectedOutput));
         }
+
+        [Test]
+        public void TestEscapedFakeMultiline()
+        {
+            var expectedFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "StringEscaping_LF.kv3");
+
+            var parsedFile = KeyValues3.ParseKVFile(expectedFilePath);
+            Assert.That(parsedFile.Root.Properties["with_quote_at_start"].Value, Is.EqualTo("\""));
+        }
     }
 }
