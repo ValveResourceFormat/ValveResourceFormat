@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using KVValueType = ValveKeyValue.KVValueType;
 
@@ -59,9 +58,7 @@ internal static class KV3TextSerializer
                     }
                     else
                     {
-                        writer.Write("\"");
-                        writer.Write(EscapeUnescaped(text, '"'));
-                        writer.Write("\"");
+                        WriteEscapedString(text, writer);
                     }
                     break;
                 }
@@ -141,34 +138,34 @@ internal static class KV3TextSerializer
         }
     }
 
-    private static string EscapeUnescaped(string input, char toEscape)
+    private static void WriteEscapedString(string input, IndentedTextWriter writer)
     {
-        if (input.Length == 0)
+        writer.Grow(input.Length + 2);
+        writer.Write("\"");
+
+        foreach (var c in input)
         {
-            return input;
+            switch (c)
+            {
+                case '\n':
+                    writer.Write("\\n");
+                    break;
+                case '\t':
+                    writer.Write("\\t");
+                    break;
+                case '\\':
+                    writer.Write("\\\\");
+                    break;
+                case '"':
+                    writer.Write("\\\"");
+                    break;
+                default:
+                    writer.Write(c);
+                    break;
+            }
         }
 
-        var index = 1;
-        while (true)
-        {
-            index = input.IndexOf(toEscape, index);
-
-            //Break out of the loop if no more occurrences were found
-            if (index == -1)
-            {
-                break;
-            }
-
-            if (input.ElementAt(index - 1) != '\\')
-            {
-                input = input.Insert(index, "\\");
-            }
-
-            //Don't read this one again
-            index++;
-        }
-
-        return input;
+        writer.Write("\"");
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

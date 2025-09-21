@@ -165,6 +165,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             if (c == '>' && parser.CurrentString.Length >= 3 && parser.CurrentString[^2] == '-' && parser.CurrentString[^3] == '-')
             {
                 parser.HeaderString = parser.CurrentString.ToString();
+                parser.CurrentString.Clear();
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.SEEK_VALUE);
                 return;
@@ -423,15 +424,73 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
+        private static string UnescapeString(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return input;
+            }
+
+            var result = new StringBuilder(input.Length);
+            var isEscaped = false;
+
+            for (var i = 0; i < input.Length; i++)
+            {
+                var c = input[i];
+
+                if (c == '\\' && !isEscaped)
+                {
+                    isEscaped = true;
+                    continue;
+                }
+
+                if (isEscaped)
+                {
+                    switch (c)
+                    {
+                        case 'n':
+                            result.Append('\n');
+                            break;
+                        case 't':
+                            result.Append('\t');
+                            break;
+                        default:
+                            result.Append(c);
+                            break;
+                    }
+                    isEscaped = false;
+                }
+                else
+                {
+                    result.Append(c);
+                }
+            }
+
+            return result.ToString();
+        }
+
         //Read a string value
         private static void ReadValueString(char c, Parser parser)
         {
-            if (c == '"' && parser.PreviousChar != '\\')
+            if (c == '"')
             {
-                //String ending found
-                parser.StateStack.Pop();
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, parser.CurrentString.ToString()));
-                return;
+                // Check if this quote is actually escaped by counting preceding backslashes
+                var backslashCount = 0;
+                var currentString = parser.CurrentString.ToString();
+                for (var i = currentString.Length - 1; i >= 0 && currentString[i] == '\\'; i--)
+                {
+                    backslashCount++;
+                }
+
+                // Quote is escaped only if there's an odd number of preceding backslashes
+                if (backslashCount % 2 == 0)
+                {
+                    //String ending found
+                    parser.StateStack.Pop();
+                    var unescapedString = UnescapeString(parser.CurrentString.ToString());
+                    parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, unescapedString));
+                    return;
+                }
             }
 
             parser.CurrentString.Append(c);

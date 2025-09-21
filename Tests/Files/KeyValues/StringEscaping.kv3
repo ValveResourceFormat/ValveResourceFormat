@@ -1,0 +1,20 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+
+{
+	generic_data_type = "vdata"
+	with_quote_at_start = "\""
+	with_escaped_backslash = "\\"
+	with_escaped_backslash_before_quote = "\\\""
+	mixed_string = "\\abc\""
+	quote_at_end = "hello\""
+	multiple_quotes = "\"hello\"world\""
+	multiple_backslashes = "\\\\\\\\"
+	backslash_at_end = "test\\"
+	alternating = "\\\"\\\"\\"
+	complex_path = "C:\\Program Files\\\"Game\"\\data\\"
+	empty_string = ""
+	only_quotes = "\"\"\""
+	only_backslashes = "\\\\\\\\\\\\\\\\"
+	mixed_complex = "\\\"test\\\\path\"end\\"
+	with_tab = "col1\tcol2"
+}

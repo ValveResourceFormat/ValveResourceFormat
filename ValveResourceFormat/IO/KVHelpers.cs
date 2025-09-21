@@ -3,6 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 #nullable disable
 
 namespace ValveResourceFormat.IO;
+
 internal class KVHelpers
 {
     internal static KVObject MakeNode(string className, KVObject @object)

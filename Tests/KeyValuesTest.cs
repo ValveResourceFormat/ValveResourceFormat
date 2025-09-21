@@ -207,5 +207,17 @@ namespace Tests
                 Assert.That(file.Format.Id, Is.EqualTo(Guid.Parse("87654321-4321-8765-cba9-987654321abc")));
             }
         }
+
+        [Test]
+        public void TestKV3StringEscaping()
+        {
+            var expectedFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "StringEscaping.kv3");
+
+            var parsedFile = KeyValues3.ParseKVFile(expectedFilePath);
+            var serializedOutput = parsedFile.ToString().Trim().ReplaceLineEndings();
+            var expectedOutput = File.ReadAllText(expectedFilePath).Trim().ReplaceLineEndings();
+
+            Assert.That(serializedOutput, Is.EqualTo(expectedOutput));
+        }
     }
 }
