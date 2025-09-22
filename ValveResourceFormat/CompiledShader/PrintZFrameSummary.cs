@@ -124,10 +124,10 @@ namespace ValveResourceFormat.CompiledShader
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
-            tabulatedData.DefineHeaders(StaticCombo.VariablesFromStaticCombo.FieldsCount > 0 ?
+            tabulatedData.DefineHeaders(StaticCombo.VariablesFromStaticCombo.Fields.Length > 0 ?
                 ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)] :
                 emptyRow);
-            if (StaticCombo.VariablesFromStaticCombo.FieldsCount > 0)
+            if (StaticCombo.VariablesFromStaticCombo.Fields.Length > 0)
             {
                 tabulatedData.AddTabulatedRow(emptyRow);
             }
@@ -299,7 +299,7 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintSourceSummary()
         {
             OutputWriter.WriteLine("source bytes/flags");
-            OutputWriter.WriteLine($"{StaticCombo.Flags0}      // size?");
+            OutputWriter.WriteLine($"{StaticCombo.ConstantBufferSize}      // Constant Buffer Size");
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte0}       //");
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte1}       // added with v66");
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte2}       //");

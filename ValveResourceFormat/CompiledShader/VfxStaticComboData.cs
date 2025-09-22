@@ -16,7 +16,7 @@ namespace ValveResourceFormat.CompiledShader
         public VfxVariableIndexArray[] DynamicComboVariables { get; } = [];
         public byte[] ConstantBufferBindInfoSlots { get; } = [];
         public byte[] ConstantBufferBindInfoFlags { get; } = [];
-        public int Flags0 { get; }
+        public int ConstantBufferSize { get; }
         public bool Flagbyte0 { get; }
         public byte Flagbyte1 { get; }
         public bool Flagbyte2 { get; }
@@ -39,7 +39,14 @@ namespace ValveResourceFormat.CompiledShader
                     ? dynamicComboIds[i]
                     : i;
 
-                DynamicCombos[i] = new VfxRenderStateInfo(i, byteCodeIndex[i], -1);
+                var renderState = dynamicComboRenderState[i];
+
+                DynamicCombos[i] = programData.VcsProgramType switch
+                {
+                    VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState
+                        => new VfxRenderStateInfoPixelShader(i, byteCodeIndex[i], -1, renderState),
+                    _ => new VfxRenderStateInfo(i, byteCodeIndex[i], -1),
+                };
             }
 
             var byteCodeDataIdx = data.GetInt32Property("m_nByteCodeDataIdx");
@@ -107,6 +114,11 @@ namespace ValveResourceFormat.CompiledShader
             var constantBufferBindingArray = data.GetArray<int>("m_constantBufferBindingArray");
             ConstantBufferBindInfoSlots = [.. constantBufferBindingArray.Select(i => (byte)(i >> 0))];
             ConstantBufferBindInfoFlags = [.. constantBufferBindingArray.Select(i => (byte)(i >> 8))];
+
+            ConstantBufferSize = data.GetInt32Property("m_nConstantBufferSize");
+            // todo: are these correct?
+            Flagbyte0 = data.GetUInt32Property("m_bStaticCB") != 0u;
+            Flagbyte1 = (byte)data.GetUInt32Property("m_bGlobalsBDA"); //  != 0u
 
             var allVars = data.GetSubCollection("m_allVars");
             VariablesFromStaticCombo = new VfxVariableIndexArray(
@@ -178,7 +190,7 @@ namespace ValveResourceFormat.CompiledShader
                 ConstantBufferBindInfoFlags[i] = dataReader.ReadByte();
             }
 
-            Flags0 = dataReader.ReadInt32(); // probably size of RenderShaderHandle_t__ or the shader data below
+            ConstantBufferSize = dataReader.ReadInt32();
             Flagbyte0 = dataReader.ReadBoolean();
             if (ParentProgramData.VcsVersion >= 66)
             {

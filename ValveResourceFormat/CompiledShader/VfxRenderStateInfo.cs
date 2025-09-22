@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -58,15 +61,23 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public float DepthBiasClamp { get; }
         public float SlopeScaledDepthBias { get; }
 
-        public RsRasterizerStateDesc(BinaryReader datareader)
+        public RsRasterizerStateDesc(ReadOnlySpan<int> rasterizerStateBits)
         {
-            FillMode = (RsFillMode)datareader.ReadByte();
-            CullMode = (RsCullMode)datareader.ReadByte();
-            DepthClipEnable = datareader.ReadBoolean();
-            MultisampleEnable = datareader.ReadBoolean();
-            DepthBias = datareader.ReadInt32();
-            DepthBiasClamp = datareader.ReadSingle();
-            SlopeScaledDepthBias = datareader.ReadSingle();
+            Debug.Assert(rasterizerStateBits.Length == 4);
+
+            FillMode = (RsFillMode)(rasterizerStateBits[0] & 0xFF);
+            CullMode = (RsCullMode)((rasterizerStateBits[0] >> 8) & 0xFF);
+            DepthClipEnable = ((rasterizerStateBits[0] >> 16) & 1) != 0;
+            MultisampleEnable = ((rasterizerStateBits[0] >> 24) & 1) != 0;
+
+            DepthBias = rasterizerStateBits[1];
+            DepthBiasClamp = BitConverter.Int32BitsToSingle(rasterizerStateBits[2]);
+            SlopeScaledDepthBias = BitConverter.Int32BitsToSingle(rasterizerStateBits[3]);
+        }
+
+        public RsRasterizerStateDesc(BinaryReader datareader)
+            : this(MemoryMarshal.Cast<byte, int>(datareader.ReadBytes(16)))
+        {
         }
     }
 
@@ -129,6 +140,41 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public bool HiStencilWriteEnable360 { get; }
         public RsHiStencilComparison360 HiStencilFunc360 { get; }
         public byte HiStencilRef360 { get; }
+
+        public RsDepthStencilStateDesc(ulong depthStencilBits)
+        {
+            // First byte: depth test flags and comparison
+            DepthTestEnable = (depthStencilBits & 1) != 0;
+            DepthWriteEnable = ((depthStencilBits >> 1) & 1) != 0;
+            DepthFunc = (RsComparison)((depthStencilBits >> 2) & 0x7);
+
+            // Second byte: HiZ modes
+            HiZEnable360 = (RsHiZMode360)((depthStencilBits >> 5) & 0x3);
+            HiZWriteEnable360 = (RsHiZMode360)((depthStencilBits >> 7) & 0x3);
+
+            // Third byte: stencil enable and masks
+            StencilEnable = ((depthStencilBits >> 9) & 1) != 0;
+            StencilReadMask = (byte)((depthStencilBits >> 10) & 0xFF);
+            StencilWriteMask = (byte)((depthStencilBits >> 18) & 0xFF);
+
+            // Front stencil operations
+            FrontStencilFailOp = (RsStencilOp)((depthStencilBits >> 26) & 0x7);
+            FrontStencilDepthFailOp = (RsStencilOp)((depthStencilBits >> 29) & 0x7);
+            FrontStencilPassOp = (RsStencilOp)((depthStencilBits >> 32) & 0x7);
+            FrontStencilFunc = (RsComparison)((depthStencilBits >> 35) & 0x7);
+
+            // Back stencil operations
+            BackStencilFailOp = (RsStencilOp)((depthStencilBits >> 38) & 0x7);
+            BackStencilDepthFailOp = (RsStencilOp)((depthStencilBits >> 41) & 0x7);
+            BackStencilPassOp = (RsStencilOp)((depthStencilBits >> 44) & 0x7);
+            BackStencilFunc = (RsComparison)((depthStencilBits >> 47) & 0x7);
+
+            // Hi stencil flags for 360
+            HiStencilEnable360 = ((depthStencilBits >> 50) & 1) != 0;
+            HiStencilWriteEnable360 = ((depthStencilBits >> 51) & 1) != 0;
+            HiStencilFunc360 = (RsHiStencilComparison360)((depthStencilBits >> 52) & 0x1);
+            HiStencilRef360 = (byte)((depthStencilBits >> 53) & 0xFF);
+        }
 
         public RsDepthStencilStateDesc(BinaryReader datareader)
         {
@@ -215,6 +261,21 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public RsColorWriteEnableBits[] RenderTargetWriteMask { get; } = new RsColorWriteEnableBits[MaxRenderTargets];
         public bool[] SrgbWriteEnable { get; } = new bool[MaxRenderTargets];
 
+        public RsBlendStateDesc(ReadOnlySpan<int> blendStateBits)
+        {
+            Debug.Assert(blendStateBits.Length == 8);
+
+            AlphaToCoverageEnable = (blendStateBits[0] & 1) != 0;
+            IndependentBlendEnable = ((blendStateBits[0] >> 1) & 1) != 0;
+
+            // todo
+
+            for (var i = 0; i < MaxRenderTargets; i++)
+            {
+                SrgbWriteEnable[i] = ((blendStateBits[7] >> i) & 1) != 0;
+            }
+        }
+
         public RsBlendStateDesc(BinaryReader datareader)
         {
             AlphaToCoverageEnable = datareader.ReadBoolean();
@@ -271,6 +332,14 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     public RsRasterizerStateDesc? RasterizerStateDesc { get; }
     public RsDepthStencilStateDesc? DepthStencilStateDesc { get; }
     public RsBlendStateDesc? BlendStateDesc { get; }
+
+    public VfxRenderStateInfoPixelShader(long comboId, int shaderId, int sourcePointer, KVObject renderState)
+        : base(comboId, shaderId, sourcePointer)
+    {
+        RasterizerStateDesc = new RsRasterizerStateDesc(renderState.GetArray<int>("rasterizerStateDesc"));
+        DepthStencilStateDesc = new RsDepthStencilStateDesc(renderState.GetUnsignedIntegerProperty("depthStencilStateDesc"));
+        BlendStateDesc = new RsBlendStateDesc(renderState.GetArray<int>("blendStateDesc"));
+    }
 
     public VfxRenderStateInfoPixelShader(BinaryReader datareader) : base(datareader)
     {
