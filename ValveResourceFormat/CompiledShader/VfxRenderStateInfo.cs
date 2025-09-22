@@ -76,8 +76,14 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         }
 
         public RsRasterizerStateDesc(BinaryReader datareader)
-            : this(MemoryMarshal.Cast<byte, int>(datareader.ReadBytes(16)))
         {
+            FillMode = (RsFillMode)datareader.ReadByte();
+            CullMode = (RsCullMode)datareader.ReadByte();
+            DepthClipEnable = datareader.ReadBoolean();
+            MultisampleEnable = datareader.ReadBoolean();
+            DepthBias = datareader.ReadInt32();
+            DepthBiasClamp = datareader.ReadSingle();
+            SlopeScaledDepthBias = datareader.ReadSingle();
         }
     }
 
@@ -198,7 +204,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 
     public class RsBlendStateDesc
     {
-        private const int MaxRenderTargets = 8;
+        public const int MaxRenderTargets = 8;
 
         public enum RsBlendOp : byte
         {
@@ -255,14 +261,27 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         {
             Debug.Assert(blendStateBits.Length == 8);
 
-            AlphaToCoverageEnable = (blendStateBits[0] & 1) != 0;
-            IndependentBlendEnable = ((blendStateBits[0] >> 1) & 1) != 0;
-
-            // todo
-
+            // Extract per-render target values from packed bits
             for (var i = 0; i < MaxRenderTargets; i++)
             {
-                SrgbWriteEnable[i] = ((blendStateBits[7] >> i) & 1) != 0;
+                SrcBlend[i] = (RsBlendMode)((blendStateBits[0] >> (i * 4)) & 0xF);
+                DestBlend[i] = (RsBlendMode)((blendStateBits[1] >> (i * 4)) & 0xF);
+                SrcBlendAlpha[i] = (RsBlendMode)((blendStateBits[2] >> (i * 4)) & 0xF);
+                DestBlendAlpha[i] = (RsBlendMode)((blendStateBits[3] >> (i * 4)) & 0xF);
+                RenderTargetWriteMask[i] = (RsColorWriteEnableBits)((blendStateBits[4] >> (i * 4)) & 0xF);
+                BlendOp[i] = (RsBlendOp)((blendStateBits[5] >> (i * 4)) & 0xF);  // First 30 bits
+                BlendOpAlpha[i] = (RsBlendOp)((blendStateBits[6] >> (i * 4)) & 0xF);
+            }
+
+            // Bitfields at the end of blendStateBits[5]
+            AlphaToCoverageEnable = ((blendStateBits[5] >> 30) & 1) != 0;
+            IndependentBlendEnable = ((blendStateBits[5] >> 31) & 1) != 0;
+
+            // Last int contains blend enable and srgb write enable bytes
+            for (var i = 0; i < MaxRenderTargets; i++)
+            {
+                BlendEnable[i] = ((blendStateBits[7] >> i) & 1) != 0;
+                SrgbWriteEnable[i] = ((blendStateBits[7] >> (8 + i)) & 1) != 0;
             }
         }
 

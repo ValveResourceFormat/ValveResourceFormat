@@ -210,6 +210,8 @@ namespace Tests
                     Assert.That(depth2.BackStencilPassOp, Is.EqualTo(depth1.BackStencilPassOp));
                     Assert.That(depth2.BackStencilFailOp, Is.EqualTo(depth1.BackStencilFailOp));
                     Assert.That(depth2.BackStencilDepthFailOp, Is.EqualTo(depth1.BackStencilDepthFailOp));
+
+                    // These are no longer stored in KV3
                     Assert.That(depth2.HiZEnable360, Is.EqualTo(depth1.HiZEnable360));
                     Assert.That(depth2.HiZWriteEnable360, Is.EqualTo(depth1.HiZWriteEnable360));
                     Assert.That(depth2.HiStencilEnable360, Is.EqualTo(depth1.HiStencilEnable360));
@@ -229,7 +231,22 @@ namespace Tests
 
                     var blend1 = psRenderState1.BlendStateDesc!;
                     var blend2 = psRenderState2.BlendStateDesc!;
+
                     Assert.That(blend2.AlphaToCoverageEnable, Is.EqualTo(blend1.AlphaToCoverageEnable));
+                    Assert.That(blend2.IndependentBlendEnable, Is.EqualTo(blend1.IndependentBlendEnable));
+
+                    for (var t = 0; t < VfxRenderStateInfoPixelShader.RsBlendStateDesc.MaxRenderTargets; t++)
+                    {
+                        Assert.That(blend2.BlendEnable[t], Is.EqualTo(blend1.BlendEnable[t]));
+                        Assert.That(blend2.SrcBlend[t], Is.EqualTo(blend1.SrcBlend[t]));
+                        Assert.That(blend2.DestBlend[t], Is.EqualTo(blend1.DestBlend[t]));
+                        Assert.That(blend2.BlendOp[t], Is.EqualTo(blend1.BlendOp[t]));
+                        Assert.That(blend2.SrcBlendAlpha[t], Is.EqualTo(blend1.SrcBlendAlpha[t]));
+                        Assert.That(blend2.DestBlendAlpha[t], Is.EqualTo(blend1.DestBlendAlpha[t]));
+                        Assert.That(blend2.BlendOpAlpha[t], Is.EqualTo(blend1.BlendOpAlpha[t]));
+                        Assert.That(blend2.RenderTargetWriteMask[t], Is.EqualTo(blend1.RenderTargetWriteMask[t]));
+                        Assert.That(blend2.SrgbWriteEnable[t], Is.EqualTo(blend1.SrgbWriteEnable[t]));
+                    }
                 }
 
                 Assert.That(combo2.Attributes, Is.EqualTo(combo1.Attributes));
