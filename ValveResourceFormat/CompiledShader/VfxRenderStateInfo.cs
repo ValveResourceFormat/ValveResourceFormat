@@ -143,37 +143,27 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 
         public RsDepthStencilStateDesc(ulong depthStencilBits)
         {
-            // First byte: depth test flags and comparison
+            // Depth state
             DepthTestEnable = (depthStencilBits & 1) != 0;
             DepthWriteEnable = ((depthStencilBits >> 1) & 1) != 0;
-            DepthFunc = (RsComparison)((depthStencilBits >> 2) & 0x7);
+            DepthFunc = (RsComparison)((depthStencilBits >> 8) & 0xFF);
 
-            // Second byte: HiZ modes
-            HiZEnable360 = (RsHiZMode360)((depthStencilBits >> 5) & 0x3);
-            HiZWriteEnable360 = (RsHiZMode360)((depthStencilBits >> 7) & 0x3);
+            // Stencil state starts at byte 2 (bit 16)
+            // RsStencilStateDesc_t
+            var stencilBits = depthStencilBits >> 16;
 
-            // Third byte: stencil enable and masks
-            StencilEnable = ((depthStencilBits >> 9) & 1) != 0;
-            StencilReadMask = (byte)((depthStencilBits >> 10) & 0xFF);
-            StencilWriteMask = (byte)((depthStencilBits >> 18) & 0xFF);
+            StencilEnable = (stencilBits & 1) != 0;
+            FrontStencilFailOp = (RsStencilOp)((stencilBits >> 1) & 0x7);
+            FrontStencilDepthFailOp = (RsStencilOp)((stencilBits >> 4) & 0x7);
+            FrontStencilPassOp = (RsStencilOp)((stencilBits >> 7) & 0x7);
+            FrontStencilFunc = (RsComparison)((stencilBits >> 10) & 0x7);
+            BackStencilFailOp = (RsStencilOp)((stencilBits >> 13) & 0x7);
+            BackStencilDepthFailOp = (RsStencilOp)((stencilBits >> 16) & 0x7);
+            BackStencilPassOp = (RsStencilOp)((stencilBits >> 19) & 0x7);
+            BackStencilFunc = (RsComparison)((stencilBits >> 22) & 0x7);
 
-            // Front stencil operations
-            FrontStencilFailOp = (RsStencilOp)((depthStencilBits >> 26) & 0x7);
-            FrontStencilDepthFailOp = (RsStencilOp)((depthStencilBits >> 29) & 0x7);
-            FrontStencilPassOp = (RsStencilOp)((depthStencilBits >> 32) & 0x7);
-            FrontStencilFunc = (RsComparison)((depthStencilBits >> 35) & 0x7);
-
-            // Back stencil operations
-            BackStencilFailOp = (RsStencilOp)((depthStencilBits >> 38) & 0x7);
-            BackStencilDepthFailOp = (RsStencilOp)((depthStencilBits >> 41) & 0x7);
-            BackStencilPassOp = (RsStencilOp)((depthStencilBits >> 44) & 0x7);
-            BackStencilFunc = (RsComparison)((depthStencilBits >> 47) & 0x7);
-
-            // Hi stencil flags for 360
-            HiStencilEnable360 = ((depthStencilBits >> 50) & 1) != 0;
-            HiStencilWriteEnable360 = ((depthStencilBits >> 51) & 1) != 0;
-            HiStencilFunc360 = (RsHiStencilComparison360)((depthStencilBits >> 52) & 0x1);
-            HiStencilRef360 = (byte)((depthStencilBits >> 53) & 0xFF);
+            StencilReadMask = (byte)((stencilBits >> 32) & 0xFF);
+            StencilWriteMask = (byte)((stencilBits >> 40) & 0xFF);
         }
 
         public RsDepthStencilStateDesc(BinaryReader datareader)
