@@ -3,6 +3,7 @@ name: CI
 permissions:
   actions: write
   contents: write
+  id-token: write
 
 on:
   push:
@@ -171,6 +172,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+
     steps:
     - name: Download artifacts
       uses: actions/download-artifact@v5
@@ -240,5 +245,11 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: NuGet login
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
     - name: Publish to NuGet Gallery
-      run: dotnet nuget push release/ValveResourceFormat.nupkg --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json"
+      run: dotnet nuget push release/ValveResourceFormat.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"
