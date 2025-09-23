@@ -21,12 +21,14 @@ public class VfxVariableDescription : ShaderDataBlock
     public VfxRegisterType RegisterType { get; }
     public VariableFlags Flags => (VariableFlags)((ContextStateAffectedByVariable >> 8) & 0xFF);
     public int ContextStateAffectedByVariable { get; }
+    public uint RegisterOffset { get; }
+    public uint DescriptorSet { get; }
     public int RegisterElements { get; }
     public bool SrgbRead => (ExtConstantBufferId & 0x01) == 1;
     public int ExtConstantBufferId { get; }
-    public string FileRef { get; }
+    public string DefaultInputTexture { get; }
     public static readonly float FloatInf = 1e9F;
-    public static readonly int IntInf = 999999999;
+    public static readonly int IntInf = 1000000000;
     public int[] IntDefs { get; } = new int[4];
     public int[] IntMins { get; } = [-IntInf, -IntInf, -IntInf, -IntInf];
     public int[] IntMaxs { get; } = [IntInf, IntInf, IntInf, IntInf];
@@ -67,8 +69,8 @@ public class VfxVariableDescription : ShaderDataBlock
         RegisterType = (VfxRegisterType)data.GetInt32Property("m_registerType");
         ContextStateAffectedByVariable = data.GetInt32Property("m_nContextStateAffectedByVariable");
 
-        var registerOffset = data.GetUInt32Property("m_nRegisterOffset"); // todo: new property?
-        var descriptorSet = data.GetUInt32Property("m_nDescriptorSet"); // todo: new property?
+        RegisterOffset = data.GetUInt32Property("m_nRegisterOffset");
+        DescriptorSet = data.GetUInt32Property("m_nDescriptorSet");
 
         RegisterElements = data.GetInt32Property("m_nRegisterElements");
         ExtConstantBufferId = unchecked((int)data.GetUInt32Property("m_nTypeSpecificBits"));
@@ -90,15 +92,13 @@ public class VfxVariableDescription : ShaderDataBlock
             IntMaxs = data.GetIntegerArray("m_intMax").Select(l => (int)l).ToArray();
         }
 
-        LayerId = (byte)data.GetInt32Property("m_nLayerId");
-        AllowLayerOverride = data.GetProperty<bool>("m_bAllowLayerOverride");
-        IsLayerConstant = data.GetProperty<bool>("m_bIsLayerConstant");
+        FixupIntMinsMaxs();
 
         // Texture properties, not always present
         // todo: better detection
         if (data.ContainsKey("m_outputTextureFormat"))
         {
-            FileRef = data.GetProperty<string>("m_defaultInputTexture");
+            DefaultInputTexture = data.GetProperty<string>("m_defaultInputTexture");
             ImageFormat = (ImageFormat)data.GetUInt32Property("m_outputTextureFormat");
             ChannelCount = data.GetInt32Property("m_nChannelCount");
             ChannelIndices = data.GetArray<int>("m_nChannelInfoIndex");
@@ -111,10 +111,14 @@ public class VfxVariableDescription : ShaderDataBlock
         }
         else
         {
-            FileRef = string.Empty;
+            DefaultInputTexture = string.Empty;
             ImageSuffix = string.Empty;
             ImageProcessor = string.Empty;
         }
+
+        LayerId = (byte)data.GetInt32Property("m_nLayerId");
+        AllowLayerOverride = data.GetProperty<bool>("m_bAllowLayerOverride");
+        IsLayerConstant = data.GetProperty<bool>("m_bIsLayerConstant");
     }
 
     public VfxVariableDescription(BinaryReader datareader, int blockIndex, int vcsVersion) : base(datareader)
@@ -156,7 +160,7 @@ public class VfxVariableDescription : ShaderDataBlock
         RegisterElements = datareader.ReadInt32();
         ExtConstantBufferId = datareader.ReadInt32();
 
-        FileRef = ReadStringWithMaxLength(datareader, 64);
+        DefaultInputTexture = ReadStringWithMaxLength(datareader, 64);
 
         for (var i = 0; i < 4; i++)
         {
@@ -182,6 +186,8 @@ public class VfxVariableDescription : ShaderDataBlock
         {
             FloatMaxs[i] = datareader.ReadSingle();
         }
+
+        FixupIntMinsMaxs();
 
         Debug.Assert(!float.IsNaN(FloatMaxs[3]));
 
@@ -211,5 +217,24 @@ public class VfxVariableDescription : ShaderDataBlock
         }
     }
 
-    public bool HasDynamicExpression => VariableSource is VfxVariableSourceType.__Expression__ or VfxVariableSourceType.__SetByArtistAndExpression__;
+    public bool HasDynamicExpression
+        => VariableSource is VfxVariableSourceType.__Expression__
+                          or VfxVariableSourceType.__SetByArtistAndExpression__;
+
+    private void FixupIntMinsMaxs()
+    {
+        const int OldIntInf = 999999999;
+        for (var i = 0; i < 4; i++)
+        {
+            if (IntMins[i] == -OldIntInf)
+            {
+                IntMins[i] = -IntInf;
+            }
+
+            if (IntMaxs[i] == OldIntInf)
+            {
+                IntMaxs[i] = IntInf;
+            }
+        }
+    }
 }

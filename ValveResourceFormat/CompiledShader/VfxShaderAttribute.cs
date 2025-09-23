@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -21,7 +22,16 @@ public class VfxShaderAttribute
         Name0 = data.GetProperty<string>("m_Name");
         VfxType = (VfxVariableType)data.GetInt32Property("m_type");
         LinkedParameterIndex = (short)data.GetInt32Property("m_nVariableBinding");
-        ConstValue = data.GetProperty<object?>("m_value");
+
+        var value = data.GetProperty<object?>("m_value");
+        ConstValue = VfxType switch
+        {
+            VfxVariableType.Int => Convert.ToInt32(value, CultureInfo.InvariantCulture),
+            VfxVariableType.Float2 when value is KVObject { IsArray: true } kv => kv.ToVector2(),
+            VfxVariableType.Float3 when value is KVObject { IsArray: true } kv => kv.ToVector3(),
+            VfxVariableType.Float4 when value is KVObject { IsArray: true } kv => kv.ToVector4(),
+            _ => value,
+        };
 
         if (data.GetArray<byte>("m_expr") is byte[] expression)
         {

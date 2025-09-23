@@ -1058,9 +1058,13 @@ public sealed class ShaderExtract
             }
 
             // By value constraint
-            // e.g. FeatureRule( Requires1( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
+            // e.g. FeatureRule( Requires( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
 
-            var rule = $"{constraint.Rule}{constraint.ExtraRuleData[0]}( {string.Join(", ", constrainedNames)} )";
+            var ruleName = constraint.Rule == VfxRuleMethod.AllowNum
+                ? $"Allow{constraint.ExtraRuleData[0]}"
+                : constraint.Rule.ToString();
+
+            var rule = $"{ruleName}( {string.Join(", ", constrainedNames)} )";
 
             writer.WriteLine(conditionalType == VfxRuleType.Feature
                 ? $"FeatureRule( {rule}, \"{constraint.Description}\" );"
@@ -1264,9 +1268,14 @@ public sealed class ShaderExtract
             }
         }
 
-        // Other annotations: MaxRes(<=8192), UiStep(?), Source(?)
+        // Other annotations: MaxRes(<=8192)
 
         HandleParameterAttribute(param, paramBlocks, annotations);
+
+        if (param.UiStep > 0f && param.UiStep != 1f)
+        {
+            annotations.Add($"UiStep({param.UiStep});");
+        }
 
         if (param.UiType != UiType.None)
         {
@@ -1314,9 +1323,9 @@ public sealed class ShaderExtract
             ? "_" + param.ImageSuffix
             : string.Empty;
 
-        var defaultValue = string.IsNullOrEmpty(param.FileRef)
+        var defaultValue = string.IsNullOrEmpty(param.DefaultInputTexture)
             ? $"Default4({string.Join(", ", param.FloatDefs)})"
-            : $"\"{param.FileRef}\"";
+            : $"\"{param.DefaultInputTexture}\"";
 
         writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.MinPrecisionBits}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
     }

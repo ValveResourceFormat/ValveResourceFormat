@@ -190,7 +190,7 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.UiType),
                 nameof(VfxVariableDescription.UiGroup),
                 "command 0|1",
-                nameof(VfxVariableDescription.FileRef),
+                nameof(VfxVariableDescription.DefaultInputTexture),
                 nameof(VfxVariableDescription.UiVisibilityExp)]);
 
             foreach (var param in program.VariableDescriptions)
@@ -222,7 +222,7 @@ namespace ValveResourceFormat.CompiledShader
                     param.UiType.ToString(),
                     param.UiGroup.CompactString,
                     $"{c0}",
-                    $"{param.FileRef}",
+                    $"{param.DefaultInputTexture}",
                     uiVisibilityExists]);
             }
             output.PrintTabulatedValues(spacing: 1);
@@ -241,7 +241,7 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.ChannelIndices),
                 nameof(VfxVariableDescription.ImageFormat),
                 nameof(VfxVariableDescription.ImageSuffix),
-                nameof(VfxVariableDescription.FileRef),
+                nameof(VfxVariableDescription.DefaultInputTexture),
                 nameof(VfxVariableDescription.DynExp),
                 nameof(VfxVariableDescription.LayerId),
                 nameof(VfxVariableDescription.AllowLayerOverride),
@@ -262,7 +262,7 @@ namespace ValveResourceFormat.CompiledShader
                     $"{Comb(param.ChannelIndices)}",
                     $"{param.ImageFormat}",
                     param.ImageSuffix,
-                    param.FileRef,
+                    param.DefaultInputTexture,
                     $"{hasDynExp}",
                     $"{param.LayerId}",
                     $"{param.AllowLayerOverride}",
@@ -483,12 +483,12 @@ namespace ValveResourceFormat.CompiledShader
 
         private static string Fmt(float val)
         {
-            if (val == -1e9)
+            if (val == -VfxVariableDescription.FloatInf)
             {
                 return "-";
             }
 
-            if (val == 1e9)
+            if (val == VfxVariableDescription.FloatInf)
             {
                 return "+";
             }
@@ -498,12 +498,12 @@ namespace ValveResourceFormat.CompiledShader
 
         private static string Fmt(int val)
         {
-            if (val == -999999999)
+            if (val == -VfxVariableDescription.IntInf)
             {
                 return "-";
             }
 
-            if (val == 999999999)
+            if (val == VfxVariableDescription.IntInf)
             {
                 return "+";
             }

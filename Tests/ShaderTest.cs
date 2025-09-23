@@ -117,11 +117,10 @@ namespace Tests
                     Assert.That(var2.ContextStateAffectedByVariable, Is.EqualTo(var1.ContextStateAffectedByVariable));
                     Assert.That(var2.RegisterElements, Is.EqualTo(var1.RegisterElements));
                     Assert.That(var2.ExtConstantBufferId, Is.EqualTo(var1.ExtConstantBufferId));
-                    Assert.That(var2.FileRef, Is.EqualTo(var1.FileRef));
+                    Assert.That(var2.DefaultInputTexture, Is.EqualTo(var1.DefaultInputTexture));
                     Assert.That(var2.IntDefs, Is.EquivalentTo(var1.IntDefs), var2.Name);
-                    // Min/Max Value is off by 1
-                    //Assert.That(var2.IntMins, Is.EquivalentTo(var1.IntMins));
-                    //Assert.That(var2.IntMaxs, Is.EquivalentTo(var1.IntMaxs));
+                    Assert.That(var2.IntMins, Is.EquivalentTo(var1.IntMins), var2.Name);
+                    Assert.That(var2.IntMaxs, Is.EquivalentTo(var1.IntMaxs), var2.Name);
                     Assert.That(var2.FloatDefs, Is.EquivalentTo(var1.FloatDefs));
                     Assert.That(var2.FloatMins, Is.EquivalentTo(var1.FloatMins));
                     Assert.That(var2.FloatMaxs, Is.EquivalentTo(var1.FloatMaxs));

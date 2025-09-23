@@ -345,9 +345,26 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     public VfxRenderStateInfoPixelShader(long comboId, int shaderId, int sourcePointer, KVObject renderState)
         : base(comboId, shaderId, sourcePointer)
     {
-        RasterizerStateDesc = new RsRasterizerStateDesc(renderState.GetArray<int>("rasterizerStateDesc"));
-        DepthStencilStateDesc = new RsDepthStencilStateDesc(renderState.GetUnsignedIntegerProperty("depthStencilStateDesc"));
-        BlendStateDesc = new RsBlendStateDesc(renderState.GetArray<int>("blendStateDesc"));
+        if (renderState is null)
+        {
+            return;
+        }
+
+        if (renderState.ContainsKey("rasterizerStateDesc"))
+        {
+            RasterizerStateDesc = new RsRasterizerStateDesc(renderState.GetArray<int>("rasterizerStateDesc"));
+        }
+
+        if (renderState.ContainsKey("depthStencilStateDesc"))
+        {
+            DepthStencilStateDesc = new RsDepthStencilStateDesc(renderState.GetUnsignedIntegerProperty("depthStencilStateDesc"));
+        }
+
+        // PSRS only has blendStateDesc
+        if (renderState.ContainsKey("blendStateDesc"))
+        {
+            BlendStateDesc = new RsBlendStateDesc(renderState.GetArray<int>("blendStateDesc"));
+        }
     }
 
     public VfxRenderStateInfoPixelShader(BinaryReader datareader) : base(datareader)
