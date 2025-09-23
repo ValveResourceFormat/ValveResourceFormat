@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.IO;
 using SteamDatabase.ValvePak;
 
@@ -38,6 +39,8 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 
         if (vrfPackage != null)
         {
+            Debug.Assert(vrfPackage.Entries != null);
+
             // search the package
             var vcsEntries = vrfPackage.Entries["vcs"];
 

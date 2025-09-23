@@ -938,6 +938,8 @@ namespace CLI
 
             if (OutputFile == null)
             {
+                Debug.Assert(package.Entries != null);
+
                 var orderedEntries = package.Entries.OrderByDescending(x => x.Value.Count).ThenBy(x => x.Key).ToList();
 
                 if (ExtFilterList != null)
@@ -1083,6 +1085,8 @@ namespace CLI
 
                 using var fileLoader = new GameFileLoader(package, package.FileName);
 
+                Debug.Assert(package.Entries != null);
+
                 foreach (var type in package.Entries)
                 {
                     ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData);
@@ -1150,6 +1154,8 @@ namespace CLI
             }
             else
             {
+                Debug.Assert(package.Entries != null);
+
                 maximum = package.Entries.Sum(x => x.Value.Count);
 
                 Console.WriteLine("Verifying file checksums...");
@@ -1170,6 +1176,8 @@ namespace CLI
                     return;
                 }
             }
+
+            Debug.Assert(package.Entries != null);
 
             if (!package.Entries.TryGetValue(type, out var entries))
             {
