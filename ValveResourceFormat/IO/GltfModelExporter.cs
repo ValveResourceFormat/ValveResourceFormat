@@ -737,8 +737,7 @@ namespace ValveResourceFormat.IO
                 ImageWriting = SatelliteImages ? ResourceWriteMode.SatelliteFile : ResourceWriteMode.BufferView,
                 ImageWriteCallback = ImageWriteCallback,
                 JsonIndented = false,
-                MergeBuffers = true,
-                BuffersMaxSize = 1_074_000_000,
+                MergeBuffers = false,
             };
 
             // If no file path is provided, validate the schema without writing a file
@@ -748,13 +747,26 @@ namespace ValveResourceFormat.IO
                 return;
             }
 
+            var isGLB = filePath.EndsWith(".glb", StringComparison.OrdinalIgnoreCase);
+
             // See https://github.com/KhronosGroup/glTF/blob/0bc36d536946b13c4807098f9cf62ddff738e7a5/specification/2.0/README.md#buffers-and-buffer-views
             // Disable merging buffers if the buffer size is >=2GiB, otherwise this will
             // cause SharpGLTF to run past the int32 limitation and crash.
-            var totalSize = exportedModel.LogicalBuffers.Sum(buffer => (long)buffer.Content.Length);
-            if (totalSize >= int.MaxValue && filePath.EndsWith(".glb", StringComparison.InvariantCultureIgnoreCase))
+            if (isGLB)
             {
-                throw new NotSupportedException("VRF does not properly support big model (>=2GiB) exports yet due to glTF limitations. Try exporting as .gltf, not .glb.");
+                var totalSize = exportedModel.LogicalBuffers.Sum(buffer => (long)buffer.Content.Length);
+                if (totalSize >= int.MaxValue)
+                {
+                    throw new NotSupportedException("VRF does not properly support big model (>=2GiB) exports yet due to glTF limitations. Try exporting as .gltf, not .glb.");
+                }
+
+                // binary glb must be a single buffer, which is limited to 2gib
+                exportedModel.MergeBuffers();
+            }
+            else
+            {
+                // Split into 1gb buffer chunks for text gltf
+                exportedModel.MergeBuffers(1_074_000_000);
             }
 
 #if DEBUG
