@@ -115,16 +115,12 @@ namespace ValveResourceFormat.CompiledShader
             }
             else
             {
-                var resourceSize = vcsMagicId;
-                var resourceHeaderVersion = DataReader.ReadUInt16();
-                if (resourceHeaderVersion != Resource.KnownHeaderVersion)
+                var resource = new Resource
                 {
-                    throw new UnexpectedMagicException($"Unknown {nameof(VfxProgramData)} storage. Expected binary VCS2 or resource file. Resource header: {resourceHeaderVersion}", vcsMagicId, nameof(vcsMagicId));
-                }
+                    FileName = filenamepath
+                };
 
-                var resource = new Resource();
-                input.Position -= 6;
-                resource.FileName = filenamepath;
+                input.Position -= 4;
                 resource.Read(input, false, leaveOpen: true);
 
                 VfxCreateFromResource(resource);

@@ -48,8 +48,8 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public byte Unknown33 { get; }
     public byte[]? Unknown34 { get; }
 
-    public VfxShaderFileVulkan(BinaryReader datareader, int i, Guid hash, VfxStaticComboData parent)
-        : base(i, parent)
+    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, Guid hash, VfxStaticComboData parent)
+        : base(sourceId, parent)
     {
         HashMD5 = hash;
         Unserialize(datareader);

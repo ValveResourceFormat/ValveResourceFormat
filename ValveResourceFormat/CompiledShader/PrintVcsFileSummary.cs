@@ -245,7 +245,7 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.DynExp),
                 nameof(VfxVariableDescription.LayerId),
                 nameof(VfxVariableDescription.AllowLayerOverride),
-                nameof(VfxVariableDescription.Field5),
+                nameof(VfxVariableDescription.MaxRes),
             ]);
             foreach (var param in program.VariableDescriptions)
             {
@@ -266,7 +266,7 @@ namespace ValveResourceFormat.CompiledShader
                     $"{hasDynExp}",
                     $"{param.LayerId}",
                     $"{param.AllowLayerOverride}",
-                    $"{param.Field5}",
+                    $"{param.MaxRes}",
                 ]);
             }
             output.PrintTabulatedValues(spacing: 1);

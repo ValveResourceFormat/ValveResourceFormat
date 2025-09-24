@@ -180,7 +180,7 @@ namespace ValveResourceFormat
 
             if (FileSize == VfxProgramData.MAGIC)
             {
-                throw new InvalidDataException("Use ShaderFile() class to parse compiled shader files.");
+                throw new InvalidDataException($"Use {nameof(VfxProgramData)}() class to parse legacy compiled shader files.");
             }
 
             HeaderVersion = Reader.ReadUInt16();

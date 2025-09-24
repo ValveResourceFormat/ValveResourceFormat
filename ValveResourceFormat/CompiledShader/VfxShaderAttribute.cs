@@ -27,6 +27,7 @@ public class VfxShaderAttribute
         ConstValue = VfxType switch
         {
             VfxVariableType.Int => Convert.ToInt32(value, CultureInfo.InvariantCulture),
+            VfxVariableType.Float when value is KVObject { IsArray: true } kv => kv.ToVector2()[0],
             VfxVariableType.Float2 when value is KVObject { IsArray: true } kv => kv.ToVector2(),
             VfxVariableType.Float3 when value is KVObject { IsArray: true } kv => kv.ToVector3(),
             VfxVariableType.Float4 when value is KVObject { IsArray: true } kv => kv.ToVector4(),

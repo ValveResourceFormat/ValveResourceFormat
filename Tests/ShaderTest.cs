@@ -134,7 +134,7 @@ namespace Tests
                     Assert.That(var2.MinPrecisionBits, Is.EqualTo(var1.MinPrecisionBits));
                     Assert.That(var2.LayerId, Is.EqualTo(var1.LayerId));
                     Assert.That(var2.AllowLayerOverride, Is.EqualTo(var1.AllowLayerOverride));
-                    Assert.That(var2.Field5, Is.EqualTo(var1.Field5));
+                    Assert.That(var2.MaxRes, Is.EqualTo(var1.MaxRes));
                     Assert.That(var2.IsLayerConstant, Is.EqualTo(var1.IsLayerConstant));
                 }
             }

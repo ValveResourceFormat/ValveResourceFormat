@@ -44,7 +44,7 @@ public class VfxVariableDescription : ShaderDataBlock
     public string ImageProcessor { get; }
     public byte LayerId { get; }
     public bool AllowLayerOverride { get; }
-    public int Field5 { get; }
+    public int MaxRes { get; }
     public bool IsLayerConstant { get; }
 
     public VfxVariableDescription(KVObject data, int blockIndex) : base()
@@ -107,7 +107,7 @@ public class VfxVariableDescription : ShaderDataBlock
 
             ImageSuffix = data.GetProperty<string>("m_szTextureFileEnding");
             ImageProcessor = data.GetProperty<string>("m_inputProcessingCommand");
-            data.GetInt32Property("m_nMaxRes"); // todo
+            MaxRes = data.GetInt32Property("m_nMaxRes"); // todo
         }
         else
         {
@@ -208,7 +208,7 @@ public class VfxVariableDescription : ShaderDataBlock
         {
             LayerId = datareader.ReadByte();
             AllowLayerOverride = datareader.ReadBoolean();
-            Field5 = datareader.ReadInt32();
+            MaxRes = datareader.ReadInt32();
         }
 
         if (vcsVersion >= 69)
