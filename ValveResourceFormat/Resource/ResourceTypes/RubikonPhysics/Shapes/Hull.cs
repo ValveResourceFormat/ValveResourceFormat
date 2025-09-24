@@ -72,7 +72,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// <summary>
             /// Hull face planes with outward pointing normals (n1, -d1, n2, -d2, ...)
             /// </summary>
-            public Span<Plane> GetPlanes()
+            public ReadOnlySpan<Plane> GetPlanes()
             {
                 if (Data.IsNotBlobType("m_Planes"))
                 {
@@ -142,12 +142,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull vertex positions.
         /// </summary>
-        public Span<Vector3> GetVertexPositions() => ParseVertices(Data);
+        public ReadOnlySpan<Vector3> GetVertexPositions() => ParseVertices(Data);
 
         /// <summary>
         /// Hull half edges order such that each edge e is followed by its twin e' (e1, e1', e2, e2', ...)
         /// </summary>
-        public Span<HalfEdge> GetEdges()
+        public ReadOnlySpan<HalfEdge> GetEdges()
         {
             if (Data.IsNotBlobType("m_Edges"))
             {
@@ -161,7 +161,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull faces.
         /// </summary>
-        public Span<Face> GetFaces()
+        public ReadOnlySpan<Face> GetFaces()
         {
             if (Data.IsNotBlobType("m_Faces"))
             {
@@ -175,7 +175,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull face planes with outward pointing normals (n1, -d1, n2, -d2, ...)
         /// </summary>
-        public Span<Plane> GetPlanes()
+        public ReadOnlySpan<Plane> GetPlanes()
         {
             if (Data.IsNotBlobType("m_Planes"))
             {
@@ -186,7 +186,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             return MemoryMarshal.Cast<byte, Plane>(Data.GetArray<byte>("m_Planes"));
         }
 
-        internal static Span<Vector3> ParseVertices(KVObject data)
+        internal static ReadOnlySpan<Vector3> ParseVertices(KVObject data)
         {
             if (data.IsNotBlobType("m_Vertices"))
             {

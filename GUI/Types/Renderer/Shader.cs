@@ -1,11 +1,13 @@
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.ThirdParty;
 
 namespace GUI.Types.Renderer
 {
     class Shader
     {
-        public string Name { get; init; }
+        public string Name { get; }
+        public uint NameHash { get; }
         public int Program { get; set; }
 
         public bool IsLoaded { get; private set; }
@@ -27,14 +29,13 @@ namespace GUI.Types.Renderer
         public required string FileName { get; init; }
 #endif
 
-        public Shader(VrfGuiContext guiContext)
+        public Shader(string name, VrfGuiContext guiContext)
         {
-            Name = "unnamed";
+            Name = name;
+            NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
             Default = new RenderMaterial(this);
             MaterialLoader = guiContext.MaterialLoader;
         }
-
-        public int NameHash => Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
 
         public bool EnsureLoaded()
         {
@@ -86,8 +87,8 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var isTexture = type is ActiveUniformType.Sampler2D or ActiveUniformType.SamplerCube;
-                var isVector = type is ActiveUniformType.FloatVec4 or ActiveUniformType.FloatVec3 or ActiveUniformType.FloatVec2;
+                var isTexture = type is >= ActiveUniformType.Sampler2D and <= ActiveUniformType.SamplerCube;
+                var isVector = type is >= ActiveUniformType.FloatVec2 and <= ActiveUniformType.IntVec4;
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
                 var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;
@@ -162,6 +163,7 @@ namespace GUI.Types.Renderer
             GL.GetProgram(Program, GetProgramParameterName.ActiveUniforms, out var count);
 
             Uniforms.EnsureCapacity(count - uniformBlockMemberIndices.Count);
+            Uniforms.Clear();
 
             for (var i = 0; i < count; i++)
             {
@@ -205,7 +207,7 @@ namespace GUI.Types.Renderer
 
             var location = GL.GetUniformLocation(Program, name);
 
-            Uniforms[name] = (ActiveUniformType.FloatVec4, location, SrgbUniforms.Contains(name));
+            Uniforms[name] = (0, location, SrgbUniforms.Contains(name));
 
             return location;
         }

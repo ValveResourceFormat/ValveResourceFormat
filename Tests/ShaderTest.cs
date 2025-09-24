@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Utils;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace Tests
@@ -58,14 +60,14 @@ namespace Tests
                 var result = ComputeVCSFileName(testCase.FileName);
                 var opposite = ComputeVCSFileName(testCase.ShaderName, testCase.ProgramType, testCase.Platform, testCase.ShaderModel);
 
-                Assert.Multiple(() =>
+                using (Assert.EnterMultipleScope())
                 {
                     Assert.That(result.ShaderName, Is.EqualTo(testCase.ShaderName));
                     Assert.That(result.PlatformType, Is.EqualTo(testCase.Platform));
                     Assert.That(result.ShaderModelType, Is.EqualTo(testCase.ShaderModel));
                     Assert.That(result.ProgramType, Is.EqualTo(testCase.ProgramType));
                     Assert.That(opposite, Is.EqualTo(Path.GetFileName(testCase.FileName)));
-                });
+                }
             }
         }
 
@@ -109,7 +111,7 @@ namespace Tests
         [Test]
         public void TestChannelMapping()
         {
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(ChannelMapping.R.PackedValue, Is.EqualTo(0xFFFFFF00));
                 Assert.That(ChannelMapping.G.PackedValue, Is.EqualTo(0xFFFFFF01));
@@ -159,7 +161,7 @@ namespace Tests
                 Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x05));
 
                 Assert.That(ChannelMapping.FromChannels(0xFF), Is.EqualTo(ChannelMapping.NULL));
-            });
+            }
         }
 
         [Test]
@@ -235,6 +237,49 @@ namespace Tests
             }
         }
 
+        private static IEnumerable<TestCaseData> SpirvReflectionTestCases()
+        {
+            yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_vs.vcs", 0, 9);
+            yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_ps.vcs", 1, 1);
+            yield return new TestCaseData("vcs68_csgo_simple_2way_blend_vulkan_60_rtx.vcs", 0x6, 0);
+            yield return new TestCaseData("vcs68_test_vulkan_60_ms.vcs", 0, 1);
+            yield return new TestCaseData("vcs69_downsample_depth_cs_vulkan_50_cs.vcs", 0, 0x20);
+            yield return new TestCaseData("vcs69_zstd5_npr_dummy_vulkan_50_vs.vcs", 0, 0);
+            yield return new TestCaseData("vcs69_bloom_vulkan_40_ps.vcs", 0, 0);
+        }
+
+        [Test, TestCaseSource(nameof(SpirvReflectionTestCases))]
+        public void TestSpirvReflection(string shaderFile, int staticCombo, int dynamicCombo)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+            {
+                Assert.Ignore("There are no native binaries for SPIR-V on arm linux yet.");
+                return;
+            }
+
+            var path = Path.Combine(ShadersDir, shaderFile);
+            using var shader = new VfxProgramData();
+            shader.Read(path);
+
+            var staticComboEntry = shader.GetStaticCombo(staticCombo);
+            var dynamicComboEntry = staticComboEntry.DynamicCombos[dynamicCombo];
+            var code = staticComboEntry.ShaderFiles[dynamicComboEntry.ShaderFileId].GetDecompiledFile();
+            code = code.Replace(StringToken.VRF_GENERATOR, string.Empty, StringComparison.Ordinal);
+
+            var referencePath = Path.Combine(ShadersDir, "SpirvOutput", $"{shaderFile}.glsl");
+
+            /*{
+                var shadersDirRepo = Path.Combine(TestContext.CurrentContext.TestDirectory, "../../", "Files", "Shaders");
+                var referencePathRepo = Path.Combine(shadersDirRepo, "SpirvOutput", $"{shaderFile}.glsl");
+                File.WriteAllText(referencePathRepo, code);
+                return;
+            }*/
+
+            var reference = File.ReadAllText(referencePath);
+
+            Assert.That(code, Is.EqualTo(reference).IgnoreWhiteSpace, $"Spirv reflection output does not match reference.");
+        }
+
         [Test]
         public void TestUiGroup()
         {
@@ -256,14 +301,14 @@ namespace Tests
             foreach (var (compactString, expected) in testCases)
             {
                 var parsed = UiGroup.FromCompactString(compactString);
-                Assert.Multiple(() =>
+                using (Assert.EnterMultipleScope())
                 {
                     Assert.That(parsed.Heading, Is.EqualTo(expected.Heading));
                     Assert.That(parsed.HeadingOrder, Is.EqualTo(expected.HeadingOrder));
                     Assert.That(parsed.Group, Is.EqualTo(expected.Group));
                     Assert.That(parsed.GroupOrder, Is.EqualTo(expected.GroupOrder));
                     Assert.That(parsed.VariableOrder, Is.EqualTo(expected.VariableOrder));
-                });
+                }
             }
         }
     }

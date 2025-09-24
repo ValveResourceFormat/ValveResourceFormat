@@ -47,9 +47,14 @@ namespace GUI.Types.Renderer
         private void Load()
         {
             LoadWorldLightingInfo();
+            LoadEntities();
+            LoadWorldNodes();
+            LoadWorldPhysics();
+            LoadNavigationMesh();
+        }
 
-            scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
-
+        private void LoadEntities()
+        {
             foreach (var lumpName in world.GetEntityLumpNames())
             {
                 if (lumpName == null)
@@ -83,6 +88,10 @@ namespace GUI.Types.Renderer
             lightEntityStore.Invoke(
                 scene.AllNodes.Where(static n => n is SceneLight).Cast<SceneLight>().ToList()
             );
+        }
+
+        private void LoadWorldNodes()
+        {
 
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();
@@ -113,12 +122,9 @@ namespace GUI.Types.Renderer
                     }
                 }
             }
-
-            LoadWorldPhysics(scene);
-            LoadNavigationMesh();
         }
 
-        public void LoadWorldPhysics(Scene scene)
+        public void LoadWorldPhysics()
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
             string? worldPhysicsFolder = null;
@@ -204,6 +210,7 @@ namespace GUI.Types.Renderer
                     var srgbRead = name == "irradiance";
                     var renderTexture = guiContext.MaterialLoader.GetTexture(lightmap, srgbRead);
                     result.Lightmaps[uniformName] = renderTexture;
+                    MaterialLoader.ReservedTextures.Add(uniformName);
 
                     if (name == "direct_light_indices")
                     {
@@ -234,6 +241,8 @@ namespace GUI.Types.Renderer
                     result.HasValidLightmaps = true;
                 }
             }
+
+            scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
         }
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string layerName, Matrix4x4 parentTransform)
@@ -629,12 +638,14 @@ namespace GUI.Types.Renderer
                         if (dlsName != null)
                         {
                             lightProbe.DirectLightScalars = guiContext.MaterialLoader.GetTexture(dlsName);
+                            lightProbe.DirectLightScalars.SetWrapMode(TextureWrapMode.ClampToEdge);
                         }
 
                         if (dliName != null)
                         {
                             lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                            lightProbe.DirectLightIndices.SetWrapMode(TextureWrapMode.ClampToEdge);
                         }
 
                         scene.LightingInfo.LightProbeType = entity.ContainsKey("light_probe_atlas_x") switch
@@ -646,6 +657,7 @@ namespace GUI.Types.Renderer
                         if (dlsdName != null)
                         {
                             lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
+                            lightProbe.DirectLightShadows.SetWrapMode(TextureWrapMode.ClampToEdge);
 
                             lightProbe.AtlasSize = new Vector3(
                                 entity.GetPropertyUnchecked<float>("light_probe_size_x"),

@@ -20,8 +20,6 @@ using System.Linq;
 using System.Text;
 using KVValueType = ValveKeyValue.KVValueType;
 
-#nullable disable
-
 namespace ValveResourceFormat.Serialization.KeyValues
 {
     public static class KeyValues3
@@ -45,35 +43,29 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         private class Parser
         {
-            public StreamReader FileStream;
+            public required StreamReader FileStream { get; init; }
 
             public readonly KVObject Root;
 
-            public string CurrentName;
-            public readonly StringBuilder CurrentString;
+            public string CurrentName = string.Empty;
+            public readonly StringBuilder CurrentString = new();
 
             public char PreviousChar;
-            public readonly Queue<char> CharBuffer;
+            public readonly Queue<char> CharBuffer = new();
 
-            public readonly Stack<KVObject> ObjStack;
-            public readonly Stack<State> StateStack;
+            public readonly Stack<KVObject> ObjStack = new();
+            public readonly Stack<State> StateStack = new();
+
+            public string? HeaderString;
 
             public bool EndOfStream => FileStream.EndOfStream && CharBuffer.Count == 0;
 
             public Parser()
             {
-                //Initialise datastructures
-                ObjStack = new Stack<KVObject>();
-                StateStack = new Stack<State>();
                 StateStack.Push(State.HEADER);
 
                 Root = new KVObject("root");
                 ObjStack.Push(Root);
-
-                PreviousChar = '\0';
-                CharBuffer = new Queue<char>();
-
-                CurrentString = new StringBuilder();
             }
         }
 
@@ -83,11 +75,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             return ParseKVFile(fileStream);
         }
 
-        public static KV3File ParseKVFile(Stream fileStream)
+        public static KV3File ParseKVFile(Stream stream)
         {
             var parser = new Parser
             {
-                FileStream = new StreamReader(fileStream)
+                FileStream = new StreamReader(stream, leaveOpen: true)
             };
 
             char c;
@@ -152,7 +144,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 parser.PreviousChar = c;
             }
 
-            return new KV3File((KVObject)parser.Root.Properties.ElementAt(0).Value.Value); //TODO: give Encoding and Formatting too
+            // Parse header
+            KV3ID? encoding = null;
+            KV3ID? format = null;
+            if (!string.IsNullOrEmpty(parser.HeaderString))
+            {
+                (encoding, format) = ParseHeaderInfo(parser.HeaderString);
+            }
+
+            var root = (KVObject)parser.Root.Properties.ElementAt(0).Value.Value!;
+            return new KV3File(root, encoding, format);
         }
 
         //header state
@@ -161,12 +162,70 @@ namespace ValveResourceFormat.Serialization.KeyValues
             parser.CurrentString.Append(c);
 
             //Read until --> is encountered
-            if (c == '>' && parser.CurrentString.ToString()[(parser.CurrentString.Length - 3)..] == "-->")
+            if (c == '>' && parser.CurrentString.Length >= 3 && parser.CurrentString[^2] == '-' && parser.CurrentString[^3] == '-')
             {
+                parser.HeaderString = parser.CurrentString.ToString();
+                parser.CurrentString.Clear();
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.SEEK_VALUE);
                 return;
             }
+        }
+
+        private static (KV3ID? encoding, KV3ID? format) ParseHeaderInfo(string header)
+        {
+            // Header format: <!-- kv3 encoding:text:version{guid} format:generic:version{guid} -->
+            var startIndex = header.IndexOf("kv3", StringComparison.Ordinal);
+            if (startIndex == -1)
+            {
+                return (null, null);
+            }
+
+            var headerContent = header[startIndex..];
+
+            KV3ID? encoding = null;
+            KV3ID? format = null;
+
+            var encodingIndex = headerContent.IndexOf("encoding:", StringComparison.Ordinal);
+            if (encodingIndex != -1)
+            {
+                encoding = ParseKV3IDFromHeader(headerContent, encodingIndex + "encoding:".Length);
+            }
+
+            var formatIndex = headerContent.IndexOf("format:", StringComparison.Ordinal);
+            if (formatIndex != -1)
+            {
+                format = ParseKV3IDFromHeader(headerContent, formatIndex + "format:".Length);
+            }
+
+            return (encoding, format);
+        }
+
+        private static KV3ID? ParseKV3IDFromHeader(string headerContent, int startIndex)
+        {
+            // Parse pattern: name:version{guid}
+            var colonIndex = headerContent.IndexOf(":version{", startIndex, StringComparison.Ordinal);
+            if (colonIndex == -1)
+            {
+                return null;
+            }
+
+            var name = headerContent[startIndex..colonIndex];
+
+            var guidStartIndex = colonIndex + ":version{".Length;
+            var guidEndIndex = headerContent.IndexOf('}', guidStartIndex);
+            if (guidEndIndex == -1)
+            {
+                return null;
+            }
+
+            var guidString = headerContent[guidStartIndex..guidEndIndex];
+            if (Guid.TryParse(guidString, out var guid))
+            {
+                return new KV3ID(name, guid);
+            }
+
+            return null;
         }
 
         //Seeking value state
@@ -210,8 +269,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
             else if (c == '"')
             {
                 //Check if a multistring or single string was found
-                var next = PeekString(parser, 4);
-                if (next.Contains("\"\"\n", StringComparison.Ordinal) || next == "\"\"\r\n")
+                var next = PeekString(parser, 3);
+                if (next.Length >= 3 && next[0] == '"' && next[1] == '"' && (next[2] is '\n' or '\r'))
                 {
                     //Skip the next two "'s
                     SkipChars(parser, 2);
@@ -312,11 +371,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         //Reading a quoted property name
         private static void ReadPropNameQuoted(char c, Parser parser)
         {
-            if (c == '"' && parser.PreviousChar != '\\')
+            if (c == '"' && !IsEscaped(parser.CurrentString))
             {
                 parser.StateStack.Pop();
                 parser.StateStack.Push(State.SEEK_VALUE);
-                parser.CurrentName = parser.CurrentString.ToString();
+                parser.CurrentName = UnescapeString(parser.CurrentString);
                 return;
             }
 
@@ -365,14 +424,60 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
+        private static string UnescapeString(StringBuilder input)
+        {
+            if (input.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var result = new StringBuilder(input.Length);
+            var isEscaped = false;
+
+            for (var i = 0; i < input.Length; i++)
+            {
+                var c = input[i];
+
+                if (c == '\\' && !isEscaped)
+                {
+                    isEscaped = true;
+                    continue;
+                }
+
+                if (isEscaped)
+                {
+                    switch (c)
+                    {
+                        case 'n':
+                            result.Append('\n');
+                            break;
+                        case 't':
+                            result.Append('\t');
+                            break;
+                        default:
+                            result.Append(c);
+                            break;
+                    }
+                    isEscaped = false;
+                }
+                else
+                {
+                    result.Append(c);
+                }
+            }
+
+            return result.ToString();
+        }
+
         //Read a string value
         private static void ReadValueString(char c, Parser parser)
         {
-            if (c == '"' && parser.PreviousChar != '\\')
+            if (c == '"' && !IsEscaped(parser.CurrentString))
             {
                 //String ending found
                 parser.StateStack.Pop();
-                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, parser.CurrentString.ToString()));
+                var unescapedString = UnescapeString(parser.CurrentString);
+                parser.ObjStack.Peek().AddProperty(parser.CurrentName, new KVValue(KVValueType.String, unescapedString));
                 return;
             }
 
@@ -384,7 +489,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             //Check for ending
             var next = PeekString(parser, 2);
-            if (c == '"' && next == "\"\"" && parser.PreviousChar != '\\')
+            if (c == '"' && next == "\"\"" && !IsEscaped(parser.CurrentString))
             {
                 //Check for starting and trailing linebreaks
                 var multilineStr = parser.CurrentString.ToString();
@@ -426,6 +531,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
 
             parser.CurrentString.Append(c);
+        }
+
+        // Check if the last character is escaped by counting preceding backslashes
+        private static bool IsEscaped(StringBuilder sb)
+        {
+            var count = 0;
+            for (var i = sb.Length - 1; i >= 0 && sb[i] == '\\'; i--)
+            {
+                count++;
+            }
+            return count % 2 == 1;
         }
 
         // Read binary blob
@@ -585,12 +701,18 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 }
                 else
                 {
-                    buffer[i] = (char)parser.FileStream.Read();
+                    var nextByte = parser.FileStream.Read();
+                    if (nextByte == -1)
+                    {
+                        // End of stream reached, return partial string
+                        return new string(buffer, 0, i);
+                    }
+                    buffer[i] = (char)nextByte;
                     parser.CharBuffer.Enqueue(buffer[i]);
                 }
             }
 
-            return string.Join(string.Empty, buffer);
+            return new string(buffer);
         }
 
         private static bool ReadAheadMatches(Parser parser, char c, string pattern)

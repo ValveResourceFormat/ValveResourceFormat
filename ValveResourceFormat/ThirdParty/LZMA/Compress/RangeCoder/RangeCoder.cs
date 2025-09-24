@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SevenZip.Compression.RangeCoder
 {
-	[ExcludeFromCodeCoverage]
 	internal class Decoder
 	{
 		public const uint kTopValue = (1 << 24);
@@ -28,43 +27,7 @@ namespace SevenZip.Compression.RangeCoder
 
 		public void ReleaseStream()
 		{
-			// Stream.ReleaseStream();
 			Stream = null;
-		}
-
-		public void CloseStream()
-		{
-			Stream.Close();
-		}
-
-		public void Normalize()
-		{
-			while (Range < kTopValue)
-			{
-				Code = (Code << 8) | (byte)Stream.ReadByte();
-				Range <<= 8;
-			}
-		}
-
-		public void Normalize2()
-		{
-			if (Range < kTopValue)
-			{
-				Code = (Code << 8) | (byte)Stream.ReadByte();
-				Range <<= 8;
-			}
-		}
-
-		public uint GetThreshold(uint total)
-		{
-			return Code / (Range /= total);
-		}
-
-		public void Decode(uint start, uint size, uint total)
-		{
-			Code -= start * Range;
-			Range *= size;
-			Normalize();
 		}
 
 		public uint DecodeDirectBits(int numTotalBits)
@@ -75,14 +38,6 @@ namespace SevenZip.Compression.RangeCoder
 			for (int i = numTotalBits; i > 0; i--)
 			{
 				range >>= 1;
-				/*
-				result <<= 1;
-				if (code >= range)
-				{
-					code -= range;
-					result |= 1;
-				}
-				*/
 				uint t = (code - range) >> 31;
 				code -= range & (t - 1);
 				result = (result << 1) | (1 - t);
@@ -97,26 +52,5 @@ namespace SevenZip.Compression.RangeCoder
 			Code = code;
 			return result;
 		}
-
-		public uint DecodeBit(uint size0, int numTotalBits)
-		{
-			uint newBound = (Range >> numTotalBits) * size0;
-			uint symbol;
-			if (Code < newBound)
-			{
-				symbol = 0;
-				Range = newBound;
-			}
-			else
-			{
-				symbol = 1;
-				Code -= newBound;
-				Range -= newBound;
-			}
-			Normalize();
-			return symbol;
-		}
-
-		// ulong GetProcessedSize() {return Stream.GetProcessedSize(); }
 	}
 }

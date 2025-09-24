@@ -3,6 +3,7 @@ name: CI
 permissions:
   actions: write
   contents: write
+  id-token: write
 
 on:
   push:
@@ -35,7 +36,7 @@ jobs:
     - uses: actions/checkout@v5
 
     - name: Setup .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 9.0.x
 
@@ -89,6 +90,10 @@ jobs:
     - name: Publish CLI (macOS arm64)
       if: matrix.os == 'macos-latest'
       run: dotnet publish --configuration Release --self-contained --runtime osx-arm64 CLI/CLI.csproj
+
+    - name: Build misc projects
+      if: matrix.os == 'windows-latest'
+      run: dotnet build Misc/MiscVrfProjects.slnx
 
     - name: Upload GUI
       uses: actions/upload-artifact@v4
@@ -167,6 +172,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
+
     steps:
     - name: Download artifacts
       uses: actions/download-artifact@v5
@@ -236,5 +242,11 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: NuGet login
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
     - name: Publish to NuGet Gallery
-      run: dotnet nuget push release/ValveResourceFormat.nupkg --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json"
+      run: dotnet nuget push release/ValveResourceFormat.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"

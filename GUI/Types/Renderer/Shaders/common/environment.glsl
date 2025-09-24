@@ -8,6 +8,8 @@
 //? #include "lighting.glsl"
 
 #define S_SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
+#define renderMode_Cubemaps 0
+
 
 #if (S_SCENE_CUBEMAP_TYPE == 0)
     // ...
@@ -47,10 +49,11 @@ float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
 
     const float EnvMapMipCount = g_vEnvMapSizeConstants.x;
 
-    #if F_CLOTH_SHADING == 1
+    if (F_CLOTH_SHADING == 1)
+    {
         float lod = mix(roughness, pow(roughness, 0.125), clothMask);
         return lod * EnvMapMipCount;
-    #endif
+    }
 
     return roughness * EnvMapMipCount;
 }
@@ -96,14 +99,11 @@ vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
     return specColor * GGXLut.x + GGXLut.y;
 }
 
-#if (F_CLOTH_SHADING == 1)
-    float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
-    {
-        float NoH = dot(normalize(N + V), N);
-        return D_Cloth(roughness, NoH) / 8.0;
-    }
-#endif
-
+float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
+{
+    float NoH = dot(normalize(N + V), N);
+    return D_Charlie(roughness, NoH) * V_Neubelt(NoH, NoH);
+}
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
 #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
@@ -128,8 +128,7 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
         : localReflectionVector;
 }
 
-
-vec3 GetEnvironment(MaterialProperties_t mat)
+vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
 {
     #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
         vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
@@ -152,12 +151,8 @@ vec3 GetEnvironment(MaterialProperties_t mat)
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
 
-    #if (F_CLOTH_SHADING == 1)
-        // changed, original was just true
-        const bool bIsClothShading = mat.ClothMask > 0.0;
-    #else
-        const bool bIsClothShading = false;
-    #endif
+    // Blend to fully corrected
+    float flAmbientNormalMix = roughnessReflectionCorrectionAmount * mix(roughness, sqrt(roughness), mat.ClothMask);
 
     vec3 envMap = vec3(0.0);
 
@@ -175,7 +170,7 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-        coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
+        coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix); 
 
         envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
     #elif (S_SCENE_CUBEMAP_TYPE == 2)
@@ -215,7 +210,7 @@ vec3 GetEnvironment(MaterialProperties_t mat)
         totalWeight += weight;
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-        coords = mix(coords, mat.AmbientNormal, (bIsClothShading) ? sqrt(roughness) : roughness); // blend to fully corrected
+        coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix);
 
         envMap += textureLod(g_tEnvironmentMap, vec4(coords, envMapArrayIndex), lod).rgb * weight;
 
@@ -227,18 +222,29 @@ vec3 GetEnvironment(MaterialProperties_t mat)
 
     #endif // S_SCENE_CUBEMAP_TYPE == 2
 
+    return envMap;
+}
+
+vec3 GetEnvironment(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
+{
+    vec3 envMap = GetEnvironmentNoBRDF(mat, roughnessReflectionCorrectionAmount);
+
     if (g_iRenderMode == renderMode_Cubemaps)
     {
         return envMap;
     }
 
     vec3 brdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir);
-
-    #if (F_CLOTH_SHADING == 1)
+    if (F_CLOTH_SHADING == 1)
+    {
         vec3 clothBrdf = vec3(EnvBRDFCloth(mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir));
-
         brdf = mix(brdf, clothBrdf, mat.ClothMask);
-    #endif
+    }
 
     return brdf * envMap;
+}
+
+vec3 GetEnvironment(MaterialProperties_t mat)
+{
+    return GetEnvironment(mat, 1.0);
 }

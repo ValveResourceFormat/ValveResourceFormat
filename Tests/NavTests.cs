@@ -19,35 +19,35 @@ namespace Tests
         public void TestNavVersion30_NavGenVersion6()
         {
             var navMeshFile = GetNavMesh("preview_flat.nav");
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(navMeshFile.Version, Is.EqualTo(30));
                 Assert.That(navMeshFile.SubVersion, Is.Zero);
                 Assert.That(navMeshFile.Areas.Count, Is.EqualTo(3));
                 Assert.That(navMeshFile.GenerationParams.NavGenVersion, Is.EqualTo(6));
                 Assert.That(navMeshFile.GenerationParams.HullParams[2].MaxJumpUpDist, Is.EqualTo(240));
-            });
+            }
         }
 
         [Test]
         public void TestNavVersion30_NavGenVersion7()
         {
             var navMeshFile = GetNavMesh("workshop_example_tilemesh.nav");
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(navMeshFile.Version, Is.EqualTo(30));
                 Assert.That(navMeshFile.SubVersion, Is.Zero);
                 Assert.That(navMeshFile.Areas.Count, Is.EqualTo(414));
                 Assert.That(navMeshFile.GenerationParams.NavGenVersion, Is.EqualTo(7));
                 Assert.That(navMeshFile.GenerationParams.HullParams[2].MaxJumpUpDist, Is.EqualTo(240));
-            });
+            }
         }
 
         [Test]
         public void TestNavVersion35()
         {
             var navMeshFile = GetNavMesh("lobby_mapveto.nav");
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(navMeshFile.Version, Is.EqualTo(35));
                 Assert.That(navMeshFile.SubVersion, Is.EqualTo(1));
@@ -55,7 +55,7 @@ namespace Tests
                 Assert.That(navMeshFile.Ladders.Count, Is.Zero);
                 Assert.That(navMeshFile.GenerationParams.NavGenVersion, Is.EqualTo(12));
                 Assert.That(navMeshFile.CustomData, Is.Not.Null);
-            });
+            }
         }
     }
 }

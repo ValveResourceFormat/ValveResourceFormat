@@ -208,6 +208,11 @@ public sealed class TextureExtract
             return "jpeg";
         }
 
+        if (texture.IsRawWebp)
+        {
+            return "webp";
+        }
+
         return "png";
     }
 

@@ -194,10 +194,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
                         sb.Append('"');
                         break;
 
-                    case '\'':
+                    case '\\':
                         escaped = true;
                         sb.Append('\\');
-                        sb.Append('\'');
+                        sb.Append('\\');
                         break;
 
                     default:

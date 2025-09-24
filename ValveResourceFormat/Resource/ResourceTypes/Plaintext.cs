@@ -11,6 +11,16 @@ namespace ValveResourceFormat.ResourceTypes
 
         public string Data { get; private set; }
 
+        public Plaintext()
+        {
+            //
+        }
+
+        public Plaintext(string data) : this()
+        {
+            Data = data;
+        }
+
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -20,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         public override void Serialize(Stream stream)
         {
-            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+            stream.Write(Encoding.UTF8.GetBytes(Data));
         }
 
         public override void WriteText(IndentedTextWriter writer)

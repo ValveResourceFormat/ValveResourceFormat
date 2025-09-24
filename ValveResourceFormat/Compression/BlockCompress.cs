@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Compression
             // 0x80000000 is 2147483648 which automatically makes any number higher than max signed 32-bit integer.
             if (decompressedSize > int.MaxValue)
             {
-                return new(false, (int)decompressedSize & 0x7FFFFFFF);
+                return new(false, (int)(decompressedSize & 0x7FFFFFFF));
             }
 
             return new(true, (int)decompressedSize);

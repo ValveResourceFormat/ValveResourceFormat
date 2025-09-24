@@ -6,17 +6,6 @@
 #include "common/LightingConstants.glsl"
 #include "complex_features.glsl"
 
-// Render modes -- Switched on/off by code
-#define renderMode_Illumination 0
-#define renderMode_Diffuse 0
-#define renderMode_Specular 0
-#define renderMode_Cubemaps 0
-#define renderMode_Irradiance 0
-#define renderMode_Tint 0
-#define renderMode_FoliageParams 0
-#define renderMode_TerrainBlend 0
-#define renderMode_LightmapShadows 0
-
 #if defined(vr_complex_vfx) || defined(csgo_complex_vfx)
     #define complex_vfx_common
 #elif defined(vr_simple_vfx) || defined(csgo_simple_vfx)
@@ -63,10 +52,9 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_ANISOTROPIC_GLOSS 0
 #define F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP 0 // only optional in HLA
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
-#define F_CLOTH_SHADING 0
 #define F_USE_BENT_NORMALS 0
 #define F_DIFFUSE_WRAP 0
-//#define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // todo
+#define F_TRANSMISSIVE_BACKFACE_NDOTL 0
 #define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
 // SKIN
 //#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
@@ -96,7 +84,13 @@ uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
 
 #if defined(foliage_vfx_common)
-    in vec3 vFoliageParamsOut;
+    in vec4 vFoliageParamsOut;
+
+    uniform float g_flVertexAmbientOcclusionPower = 1.0;
+    uniform float g_flVertexAmbientOcclusionAmount = 0.0;
+    uniform int F_DISABLE_TRANSMISSIVE_SHADOWS = 0;
+    uniform int F_USE_ALBEDO_FOR_TRANSMISSIVE = 0;
+    uniform sampler2D g_tTransmissiveColor; // SrgbRead(true)
 #endif
 
 #if defined(vr_complex_vfx)
@@ -555,11 +549,21 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 #endif
 
+    #if defined(foliage_vfx_common)
+        vec4 vFoliageParams = clamp(vFoliageParamsOut, vec4(0.001), vec4(1.0));
+        mat.AmbientOcclusion *= mix(1.0, pow(vFoliageParams.w, g_flVertexAmbientOcclusionPower), g_flVertexAmbientOcclusionAmount);
+
+        #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
+            vec3 vTransmissiveColor = texture(g_tTransmissiveColor, texCoord).rgb;
+            mat.TransmissiveColor = F_USE_ALBEDO_FOR_TRANSMISSIVE == 1 ? mat.Albedo : vTransmissiveColor;
+        #endif
+    #endif
+
 #if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
     mat.ExtraParams.x = g_flRetroReflectivity;
 #endif
-#if defined(vr_complex_vfx) && (F_CLOTH_SHADING == 1)
-    mat.ClothMask = 1.0;
+#if defined(vr_complex_vfx)
+    mat.ClothMask = F_CLOTH_SHADING == 1 ? 1.0 : 0.0;
 #endif
 
     AdjustRoughnessByGeometricNormal(mat);
@@ -591,10 +595,13 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     vec3 F0 = vec3(0.04);
 
-    #if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
-        F0 = ApplySheen(0.04, mat.Albedo, mat.ClothMask);
-    #elif defined(csgo_weapon_vfx)
+    #if defined(csgo_weapon_vfx)
         F0 = vec3(0.02);
+    #elif defined(csgo_character_vfx)
+        if (F_CLOTH_SHADING == 1)
+        {
+            F0 = ApplySheen(0.04, mat.Albedo, mat.ClothMask);
+        }
     #endif
 
     mat.SpecularColor = mix(F0, mat.Albedo, mat.Metalness);
@@ -638,16 +645,14 @@ void main()
     MaterialProperties_t mat = GetMaterial(texCoord, vertexNormal);
     outputColor.a = mat.Opacity;
 
-    LightingTerms_t lighting;
+    LightingTerms_t lighting = InitLighting();
 
 #if (unlit)
-    outputColor.rgb = mat.Albedo + mat.IllumColor;
+    lighting.DiffuseDirect = mat.Albedo + mat.IllumColor;
+    outputColor.rgb = lighting.DiffuseDirect;
 #else
 
     lighting = CalculateLighting(mat);
-
-    // Combining pass
-
     ApplyAmbientOcclusion(lighting, mat);
 
     vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect;
@@ -657,18 +662,12 @@ void main()
         specularLighting = (mat.Roughness == vec2(1.0)) ? vec3(0) : specularLighting;
     #endif
 
-    #if defined(S_TRANSMISSIVE_BACKFACE_NDOTL)
-        vec3 transmissiveLighting = o.TransmissiveDirect * mat.TransmissiveColor;
-    #else
-        const vec3 transmissiveLighting = vec3(0.0);
-    #endif
-
     // Unique HLA Membrane blend mode: specular unaffected by opacity
     #if defined(vr_complex_vfx) && (F_TRANSLUCENT == 2)
-        vec3 combinedLighting = specularLighting + (mat.DiffuseColor * diffuseLighting + transmissiveLighting + mat.IllumColor) * mat.Opacity;
+        vec3 combinedLighting = specularLighting + (mat.DiffuseColor * diffuseLighting + lighting.TransmissiveDirect + mat.IllumColor) * mat.Opacity;
         outputColor.a = 1.0;
     #else
-        vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting + transmissiveLighting + mat.IllumColor;
+        vec3 combinedLighting = mat.DiffuseColor * diffuseLighting + specularLighting + lighting.TransmissiveDirect + mat.IllumColor;
     #endif
 
     outputColor.rgb = combinedLighting;
@@ -689,11 +688,9 @@ void main()
     #endif
 #endif
 
-    if (HandleMaterialRenderModes(outputColor, mat))
-    {
-        //
-    }
-    else if (HandleUVRenderModes(outputColor, mat, g_tColor, vTexCoordOut, vLightmapUVScaled))
+    if (HandleMaterialRenderModes(outputColor, mat)
+    || HandleLightingRenderModes(outputColor, mat, lighting)
+    || HandleUVRenderModes(outputColor, mat, g_tColor, vTexCoordOut.xy))
     {
         //
     }
@@ -703,29 +700,10 @@ void main()
         vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
         outputColor.rgb = viewmodeEnvMap;
     }
-    else if (g_iRenderMode == renderMode_Illumination)
-    {
-        outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
-    }
-#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    else if (g_iRenderMode == renderMode_LightmapShadows)
-    {
-        #if (S_LIGHTMAP_VERSION_MINOR >= 2)
-            vec4 dlsh = texture(g_tDirectLightShadows, vLightmapUVScaled);
-            outputColor = vec4(vec3(1.0 - dlsh.x) + vec3(1.0 - min3(dlsh.yzw)) * vec3(0.5, 0.5, 0), 1.0);
-        #endif
-    }
-#endif
     else if (g_iRenderMode == renderMode_Tint)
     {
         outputColor = vec4(SrgbGammaToLinear(vVertexColorOut.rgb), vVertexColorOut.a);
     }
-#if (F_GLASS == 0)
-    else if (g_iRenderMode == renderMode_Irradiance)
-    {
-        outputColor = vec4(lighting.DiffuseIndirect, 1.0);
-    }
-#endif
 #if defined(foliage_vfx_common)
     else if (g_iRenderMode == renderMode_FoliageParams)
     {
@@ -736,16 +714,6 @@ void main()
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
         outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rgb);
-    }
-#endif
-#if !(unlit)
-    else if (g_iRenderMode == renderMode_Diffuse)
-    {
-        outputColor.rgb = diffuseLighting * 0.5;
-    }
-    else if (g_iRenderMode == renderMode_Specular)
-    {
-        outputColor.rgb = specularLighting;
     }
 #endif
 }

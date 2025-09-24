@@ -223,6 +223,7 @@ namespace GUI.Types.Renderer
         {
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
+            [RenderPass.Water] = [],
             [RenderPass.Translucent] = [],
             [RenderPass.Outline] = [],
         };
@@ -246,6 +247,11 @@ namespace GUI.Types.Renderer
             {
                 WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
                 WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+
+                if (request.Call.Material.IsCs2Water)
+                {
+                    queueList = renderLists[RenderPass.Water];
+                }
             }
 
             if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
@@ -323,20 +329,25 @@ namespace GUI.Types.Renderer
                         Node = node,
                     }, RenderPass.Opaque);
                 }
-                else if (node is SceneAggregate aggregate && aggregate.InstanceTransforms.Count > 0)
+                else if (node is SceneAggregate aggregate)
                 {
-                    Add(new MeshBatchRenderer.Request
+                    if (aggregate.InstanceTransforms.Count > 0)
                     {
-                        Mesh = aggregate.RenderMesh,
-                        Call = aggregate.RenderMesh.DrawCallsOpaque[0],
-                        Node = node,
-                    }, RenderPass.Opaque);
+                        Add(new MeshBatchRenderer.Request
+                        {
+                            Mesh = aggregate.RenderMesh,
+                            Call = aggregate.RenderMesh.DrawCallsOpaque[0],
+                            Node = node,
+                        }, RenderPass.Opaque);
+                    }
                 }
                 else
                 {
                     var customRender = new MeshBatchRenderer.Request
                     {
-                        DistanceFromCamera = GetCameraDistance(camera, node),
+                        DistanceFromCamera = node is PhysSceneNode
+                            ? 100000f - node.OverlayRenderOrder * 10f
+                            : GetCameraDistance(camera, node),
                         Node = node,
                     };
 
@@ -600,6 +611,15 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public void RenderWaterLayer(RenderContext renderContext)
+        {
+            using (new GLDebugGroup("Fancy Water Render"))
+            {
+                renderContext.RenderPass = RenderPass.Water;
+                MeshBatchRenderer.Render(renderLists[RenderPass.Water], renderContext);
+            }
+        }
+
         public void RenderOutlineLayer(RenderContext renderContext)
         {
             renderContext.RenderPass = RenderPass.Outline;
@@ -798,14 +818,28 @@ namespace GUI.Types.Renderer
                 var lightingOrigin = node.LightingOrigin ?? Vector3.Zero;
                 if (node.LightingOrigin.HasValue)
                 {
-                    // in source2 this is a dynamic combo D_SPECULAR_CUBEMAP_STATIC=1, and i guess without a loop (similar to S_SCENE_CUBEMAP_TYPE=1)
-                    node.EnvMaps.Clear();
-
-                    foreach (var envMap in LightingInfo.EnvMaps)
+                    if (LightingInfo.LightmapGameVersionNumber <= 1)
                     {
-                        if (envMap.BoundingBox.Contains(lightingOrigin))
+                        node.EnvMaps.Clear();
+                        foreach (var envMap in LightingInfo.EnvMaps)
                         {
-                            node.EnvMaps.Add(envMap);
+                            if (envMap.BoundingBox.Contains(lightingOrigin))
+                            {
+                                node.EnvMaps.Add(envMap);
+                            }
+                        }
+                    }
+                    else if (LightingInfo.LightmapGameVersionNumber >= 2)
+                    {
+                        // CS2 Mapping docs say that the lighting origin should point at an exact cubemap.
+                        foreach (var envMap in LightingInfo.EnvMaps)
+                        {
+                            if ((envMap.Transform.Translation - lightingOrigin).LengthSquared() < 0.01f)
+                            {
+                                node.EnvMaps.Clear();
+                                node.EnvMaps.Add(envMap);
+                                break;
+                            }
                         }
                     }
                 }

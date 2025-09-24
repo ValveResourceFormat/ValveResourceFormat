@@ -21,16 +21,17 @@ namespace GUI.Types.Renderer
 
         public static int CompareCustomPipeline(Request a, Request b)
         {
-            const int CustomRenderSortId = int.MaxValue;
+            const int CustomRenderSortId = int.MinValue + 100_000;
 
             return (a.Call, b.Call) switch
             {
-                ({ }, { }) => a.Call.Material.SortId - b.Call.Material.SortId,
-                (null, { }) => CustomRenderSortId - b.Call.Material.SortId,
-                ({ }, null) => a.Call.Material.SortId - CustomRenderSortId,
+                ({ }, { }) => b.Call.Material.SortId - a.Call.Material.SortId,
+                (null, { }) => b.Call.Material.SortId - CustomRenderSortId,
+                ({ }, null) => CustomRenderSortId - a.Call.Material.SortId,
                 (null, null) => 0,
             };
         }
+
         public static int CompareRenderOrderThenPipeline(Request a, Request b)
         {
             if (a.RenderOrder == b.RenderOrder)
@@ -236,7 +237,7 @@ namespace GUI.Types.Renderer
             {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
                 GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, (uint)request.Call.Material.Shader.NameHash);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, request.Call.Material.Shader.NameHash);
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
             }
 

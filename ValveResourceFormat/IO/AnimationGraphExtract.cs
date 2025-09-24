@@ -108,7 +108,7 @@ public class AnimationGraphExtract
             ]
         );
 
-        return new KV3File(kv, format: "animgraph19:version{0adb35b7-2585-4302-8d05-e2825b4518ac}").ToString();
+        return new KV3File(kv, format: KV3IDLookup.Get("animgraph19")).ToString();
     }
 
     private static KVValue MakeNodeIdObjectValue(long nodeId)

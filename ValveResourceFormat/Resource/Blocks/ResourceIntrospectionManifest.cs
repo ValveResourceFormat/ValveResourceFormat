@@ -8,8 +8,9 @@ namespace ValveResourceFormat.Blocks
     /// <summary>
     /// "NTRO" block. CResourceIntrospectionManifest.
     /// </summary>
-    public class ResourceIntrospectionManifest : Block
+    public class ResourceIntrospectionManifest : RawBinary
     {
+        // Serialize legacy info by copying raw data from the original resource beacuse we have no plans to support NTRO serialization
         public override BlockType Type => BlockType.NTRO;
 
         public class ResourceDiskStruct
@@ -313,11 +314,6 @@ namespace ValveResourceFormat.Blocks
 
                 ReferencedEnums.Add(diskEnum);
             }
-        }
-
-        public override void Serialize(Stream stream)
-        {
-            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
         public override void WriteText(IndentedTextWriter writer)

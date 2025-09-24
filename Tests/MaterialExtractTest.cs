@@ -122,7 +122,7 @@ namespace Tests
 
             var png = TextureExtract.ToPngImageChannels(img, channels);
             using var result = SKBitmap.Decode(png, img.Info);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(result.Width, Is.EqualTo(1));
                 Assert.That(result.Height, Is.EqualTo(1));
@@ -130,7 +130,7 @@ namespace Tests
                 Assert.That(result.AlphaType, Is.EqualTo(SKAlphaType.Unpremul));
 
                 Assert.That(result.GetPixel(0, 0), Is.EqualTo(colorOut));
-            });
+            }
         }
     }
 }

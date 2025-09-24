@@ -7,7 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Sledge.Formats.GameData" Version="1.1.4" />
+    <PackageReference Include="Sledge.Formats.GameData" Version="1.1.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ValveResourceFormat\ValveResourceFormat.csproj" />
   </ItemGroup>
 
 </Project>

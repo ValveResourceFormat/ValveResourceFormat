@@ -50,10 +50,5 @@ namespace GUI.Types.Renderer
             GL.UseProgram(0);
             GL.BindVertexArray(0);
         }
-
-        public override void Update(Scene.UpdateContext context)
-        {
-            //
-        }
     }
 }

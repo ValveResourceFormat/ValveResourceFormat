@@ -25,7 +25,7 @@ namespace GUI.Types.Renderer
 
             try
             {
-                var indices = MemoryMarshal.Cast<byte, ushort>(indicesBytes);
+                var indices = MemoryMarshal.Cast<byte, ushort>(indicesBytes.AsSpan());
                 for (var i = 0; i < size / 6; ++i)
                 {
                     indices[(i * 6) + 0] = (ushort)((i * 4) + 0);

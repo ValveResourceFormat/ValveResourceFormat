@@ -55,55 +55,67 @@ If you are interested in helping, take a look at the open issues and join our Di
 Not all formats are 100% supported, some parameters are still unknown and not fully understood.
 
 ## Supported resource types
-Ext      | Name                    | Support
--------- | ----------------------- | -------
-vagrp    | Animation Group         | 👍
-vanim    | Animation               | 👍
-vanmgrph | Animation Graph         | No
-vcompmat | Composite Material      | No
-vcss     | Panorama Style          | 👍
-vdata    | Data                    | 👍
-vents    | EntityLump              | 👍
-vjs      | Panorama Script         | 👍
-vmap     | Map                     | 👍
-vmat     | Material                | 👍
-vmdl     | Model                   | 👍
-vmesh    | Mesh                    | 👍
-vmorf    | MorphSet                | 👍
-vpcf     | Particle System         | 👍
-vpdi     | Panorama Dynamic Images | No
-vphys    | Physics Collision Mesh  | 👍
-vpost    | Postprocessing Settings | 👍
-vpsf     | Particle Snapshot       | No
-vpulse   | Pulse Graph Definition  | No
-vrman    | ResourceManifest        | 👍
-vrmap    | Resource Remap Table    | No
-vrr      | Response rules          | 👍
-vseq     | Sequence Group          | No
-vsmart   | Smart Prop              | Partially
-vsnap    | Particle Snapshot       | 👍
-vsnd     | Sound                   | 👍
-vsndevts | Sound Event Script      | 👍
-vsndstck | Sound Stack Script      | 👍
-vsurf    | Surface Properties      | No
-vsvg     | Panorama Vector Graphic | 👍
-vtex     | Compiled Texture        | 👍
-vts      | Panorama TypeScript     | 👍
-vvis     | WorldVisibility         | No
-vwnod    | WorldNode               | 👍
-vwrld    | World                   | 👍
-vxml     | Panorama Layout         | 👍
-&nbsp;   | &nbsp;                  | &nbsp;
-vpk      | Pak (package)           | 👍 Handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak)
-vcs      | Compiled Shader         | 👍 Handled by `CompiledShader`
-vfont    | Bitmap Font             | 👍 Decrypts `VFONT1`, supported in Source 1 and Source 2.
-dat      | Closed Captions         | 👍 Handled by `ClosedCaptions`
-bin      | Tools Asset Info        | 👍 Handled by `ToolsAssetInfo`
-vdpn     | Dota Patch Notes        | 👍
-vdacdefs | DAC Game Defs Data      | No
-vfe      | Flex Scene File         | 👍 Handled by `FlexSceneFile`
-vcd      | VCD                     | No
-vcdlist  | VCD list                | 👍
+Ext           | Name                              | Support
+------------- | --------------------------------- | -------
+vagrp         | Animation Group                   | 👍
+vanim         | Animation                         | 👍
+vanmgrph      | Animation Graph                   | 👍
+vcd           | Choreo                            | 👍
+vcdlist       | Choreo Scene File Data            | 👍
+vcompmat      | Composite Material                | 👍
+vcss          | Panorama Style                    | 👍
+vdata         | Data                              | 👍
+vents         | EntityLump                        | 👍
+vjs           | Panorama Script                   | 👍
+vmap          | Map                               | 👍
+vmat          | Material                          | 👍
+vmdl          | Model                             | 👍
+vmesh         | Mesh                              | 👍
+vmix          | VMix                              | 👍
+vmorf         | MorphSet                          | 👍
+vnmclip       | NmClip                            | 👍
+vnmgrph       | NmGraph                           | 👍
+vnmskel       | NmSkeleton                        | 👍
+vnmvar        | NmGraph Variation                 | 👍
+vpcf          | Particle System                   | 👍
+vpdi          | Panorama Dynamic Images           | No
+vphys         | Physics Collision Mesh            | 👍
+vpost         | Postprocessing Settings           | 👍
+vpram         | Processing Graph Instance         | 👍
+vpsf          | Particle Snapshot                 | 👍
+vpulse        | Pulse Graph Definition            | 👍
+vrman         | ResourceManifest                  | 👍
+vrmap         | Resource Remap Table              | No
+vrr           | Response Rules                    | 👍
+vseq          | Sequence Group                    | No
+vsmart        | Smart Prop                        | Partially
+vsnap         | Particle Snapshot                 | 👍
+vsnd          | Sound                             | 👍
+vsndevts      | Sound Event Script                | 👍
+vsndstck      | Sound Stack Script                | 👍
+vsurf         | Surface Properties                | No
+vsvg          | Panorama Vector Graphic           | 👍
+vtex          | Compiled Texture                  | 👍
+vts           | Panorama TypeScript               | 👍
+vvis          | World Visibility                  | No
+vwnod         | World Node                        | 👍
+vwrld         | World                             | 👍
+vxml          | Panorama Layout                   | 👍
+&nbsp;        | &nbsp;                            | &nbsp;
+csgoitem      | CSGO Item                         | 👍
+econitem      | CSGO Economy Item                 | 👍
+herolist      | Dota Hero List                    | 👍
+item          | Artifact Item                     | 👍
+vdpn          | Dota Patch Notes                  | 👍
+vdvn          | Dota Visual Novels                | 👍
+&nbsp;        | &nbsp;                            | &nbsp;
+bin           | Tools Asset Info                  | 👍 Handled by `ToolsAssetInfo`
+dat           | Closed Captions                   | 👍 Handled by `ClosedCaptions`
+vcs           | Compiled Shader                   | 👍 Handled by `CompiledShader`
+vdacdefs      | DAC Game Defs Data                | No
+vfe           | Flex Scene File                   | 👍 Handled by `FlexSceneFile`
+vfont         | Bitmap Font                       | 👍 Decrypts `VFONT1`, supported in Source 1 and Source 2.
+vpk           | Pak (package)                     | 👍 Handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak)
 
 ## List of supported magics
 Magic        | Description
@@ -124,6 +136,8 @@ Magic        | Description
 `0xEDABCDEF` | murmurhash64 seed used to encode resource IDs
 `VFONT1`     | "encrypted" font file
 `0x00564645` | VFE - flex scene file
+
+# CLI
 
 ## Command-line options
 
@@ -181,6 +195,66 @@ There are also `--stats` related options, but they are not listed here as they a
 # Decompile a specific file on disk
 ./Source2Viewer-CLI.exe -i "file.vtex_c" -o exported.png
 ```
+
+# GUI
+
+Source 2 Viewer keeps its settings in `%LocalAppData%/Source2Viewer/settings.vdf`.
+
+## GUI Keybinds
+
+### General
+
+| Key | Action |
+| --- | ------ |
+| <kbd>Ctrl-O</kbd> | Open a new file |
+| <kbd>Ctrl-F</kbd> | Open find window (package or text viewer) |
+| <kbd>Ctrl-W</kbd> | Close current tab |
+| <kbd>Ctrl-Q</kbd> | Close all tabs |
+| <kbd>Ctrl-E</kbd> | Close all tabs to the right of the current one |
+| <kbd>Ctrl-R</kbd> or <kbd>F5</kbd> | Reload current tab |
+
+### Map/model viewer
+
+### Camera
+| Key | Action |
+| --- | ------ |
+| Hold <kbd>LMB</kbd> | Rotate the camera |
+| <kbd>ShiftLeft+LMB</kbd> | Pan the camera |
+| <kbd>AltLeft+LMB</kbd> | Move camera forward or backwards |
+| <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>  | Move the camera |
+| <kbd>Q</kbd> | Move the camera up |
+| <kbd>Z</kbd> | Move the camera down |
+| Hold <kbd>Ctrl</kbd> and <kbd>LMB</kbd> | Move the light position (in model viewer) |
+
+#### Objects
+| Key | Action |
+| --- | ------ |
+| Click <kbd>LMB</kbd> | Pick an object |
+| <kbd>Ctrl+LMB</kbd> | Toggle object selection |
+| Double click <kbd>LMB</kbd> | Open entity info dialog |
+| Double click <kbd>Ctrl+LMB</kbd> | Open object in a new tab |
+| <kbd>Delete</kbd> | Temporarily hide the selected object (toggle world layers to restore) |
+
+#### Other
+| Key | Action |
+| --- | ------ |
+| <kbd>F11</kbd> | Enter/exit fullscreen |
+| <kbd>Ctrl-C</kbd> | Copy viewport screenshot to clipboard |
+
+### Texture viewer
+
+| Key | Action |
+| --- | ------ |
+| Hold <kbd>LMB</kbd> | Move around the picture |
+| Arrow keys | Move around the picture |
+| <kbd>Ctrl-0</kbd> | Reset zoom |
+| <kbd>Ctrl</kbd> and <kbd>+</kbd> | Zoom in |
+| <kbd>Ctrl</kbd> and <kbd>-</kbd> | Zoom out |
+| <kbd>Ctrl-C</kbd> | Copy current texture to clipboard |
+| <kbd>Ctrl-S</kbd> | Save current texture to disk |
+| <kbd>F11</kbd> | Enter/exit fullscreen |
+
+# Misc
 
 ## License
 

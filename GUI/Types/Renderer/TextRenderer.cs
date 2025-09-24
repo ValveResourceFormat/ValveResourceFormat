@@ -151,7 +151,7 @@ namespace GUI.Types.Renderer
 
             try
             {
-                var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer);
+                var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer.AsSpan());
                 var i = 0;
 
                 foreach (var textRenderRequest in TextRenderRequests)
@@ -208,7 +208,7 @@ namespace GUI.Types.Renderer
                             }
                         }
 
-                        if ((uint)c - 33 > 93)
+                        if (c < 33 || c > 126)
                         {
                             x += DefaultAdvance * textRenderRequest.Scale;
                             continue;

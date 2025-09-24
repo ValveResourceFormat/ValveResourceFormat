@@ -30,7 +30,6 @@ namespace GUI.Types.Renderer
             new("Mask1"),
             new("Mask2"),
             new("ExtraParams"),
-            new("SpriteEffects"),
 
             new("Normals", IsHeader: true),
             new("Normals"),

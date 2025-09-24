@@ -27,7 +27,7 @@ namespace Tests
             Assert.That(animGroupPaths.Count, Is.Zero);
             Assert.That(animations, Has.Count.EqualTo(3));
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(animations[0].Name, Is.EqualTo("ref_pose"));
                 Assert.That(animations[0].Fps, Is.EqualTo(30));
@@ -40,7 +40,7 @@ namespace Tests
                 Assert.That(animations[2].Name, Is.EqualTo("box_creature_leggy_walk"));
                 Assert.That(animations[2].Fps, Is.EqualTo(30));
                 Assert.That(animations[2].FrameCount, Is.EqualTo(25));
-            });
+            }
         }
     }
 }

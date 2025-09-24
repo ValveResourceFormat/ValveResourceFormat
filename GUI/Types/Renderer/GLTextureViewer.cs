@@ -335,7 +335,7 @@ namespace GUI.Types.Renderer
 
             AddChannelsComboBox();
 
-            var forceSoftwareDecode = textureData.IsRawJpeg || textureData.IsRawPng;
+            var forceSoftwareDecode = textureData.IsRawAnyImage;
             softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
             {
                 if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
@@ -885,7 +885,7 @@ namespace GUI.Types.Renderer
             }
 
             var textureData = (Texture)Resource.DataBlock;
-            var isCpuDecodedFormat = textureData.IsRawJpeg || textureData.IsRawPng;
+            var isCpuDecodedFormat = textureData.IsRawAnyImage;
             var swDecodeFlags = decodeFlags & softwareDecodeOnlyOptions;
 
             if (isCpuDecodedFormat || forceSoftwareDecode)

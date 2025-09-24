@@ -29,7 +29,6 @@ float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftne
     return smoothstep(minb, maxb, blendFactor);
 }
 
-
 // Struct full of everything needed for lighting, for easy access around the shader.
 
 struct MaterialProperties_t
@@ -61,9 +60,10 @@ struct MaterialProperties_t
     vec3 TransmissiveColor;
     vec3 IllumColor;
 
+    vec3 LightmapUv;
+
     vec3 AmbientGeometricNormal; // Indirect geometric normal
     vec3 AmbientNormal; // Indirect normal
-
 
 #if defined(NEED_CURVATURE)
     float Curvature;
@@ -73,7 +73,6 @@ struct MaterialProperties_t
     vec3 AnisotropicTangent;
     vec3 AnisotropicBitangent;
 #endif
-    //int NumDynamicLights;
 };
 
 void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
@@ -107,6 +106,8 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     mat.TransmissiveColor = vec3(0.0);
     mat.IllumColor = vec3(0.0);
 
+    mat.LightmapUv = vec3(0.0);
+
     mat.AmbientGeometricNormal = vec3(0.0); // Indirect geometric normal
     mat.AmbientNormal = vec3(0.0); // Indirect normal
 #if defined(NEED_CURVATURE)// || renderMode_Curvature
@@ -121,7 +122,6 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
     mat.AnisotropicTangent = vec3(0.0);
     mat.AnisotropicBitangent = vec3(0.0);
 #endif
-    //prop.NumDynamicLights = 0;
 
     if (F_RENDER_BACKFACES == 1 && F_DONT_FLIP_BACKFACE_NORMALS == 0)
     {
@@ -129,7 +129,6 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
         mat.GeometricNormal *= gl_FrontFacing ? 1.0 : -1.0;
     }
 }
-
 
 void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
 {
@@ -143,6 +142,29 @@ void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
     mat.Roughness = geometricAdjusted;
 }
 
+vec3 calculateIridescence(float hueAngle, float intensity)
+{
+    float segmentIndex = floor(hueAngle * 6.0);
+    float segmentPhase = fract(hueAngle * 6.0);
+    
+    // Calculate transition values
+    float fadeOut = intensity * (1.0 - segmentPhase);
+    float fadeIn = intensity * segmentPhase;
+    
+    // Use modulo arithmetic to create a smooth color wheel
+    int colorIndex = int(segmentIndex) % 6;
+    
+    // Return color based on segment
+    switch(colorIndex)
+    {
+        case 0: return vec3(intensity, fadeIn, 0.0);  // Red -> Yellow
+        case 1: return vec3(fadeOut, intensity, 0.0); // Yellow -> Green
+        case 2: return vec3(0.0, intensity, fadeIn);  // Green -> Cyan
+        case 3: return vec3(0.0, fadeOut, intensity); // Cyan -> Blue
+        case 4: return vec3(fadeIn, 0.0, intensity);  // Blue -> Magenta
+        default: return vec3(intensity, 0.0, fadeOut); // Magenta -> Red
+    }
+}
 
 #if defined(vr_skin_vfx) || defined(vr_xen_foliage_vfx)
 #define DIFFUSE_AO_COLOR_BLEED
@@ -197,7 +219,6 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
     }
 #endif
 
-
 //-------------------------------------------------------------------------
 //                              ALPHA TEST
 //-------------------------------------------------------------------------
@@ -214,7 +235,6 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
         return mix( flAlphaTestAA, flOpacity, flAntiAliasAlphaBlend );
     }
 #endif
-
 
 //-------------------------------------------------------------------------
 //                              DETAIL TEXTURING
@@ -242,7 +262,6 @@ uniform sampler2D g_tDetailMask;
 
 #define MOD2X_MUL 1.9922
 #define DETAIL_CONST 0.9961
-
 
 void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMaskCoords)
 {
@@ -306,14 +325,14 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 
 // Cloth Sheen
-#if (F_CLOTH_SHADING == 1) && defined(csgo_character_vfx)
+#if defined(csgo_character_vfx)
 
     uniform float g_flSheenScale = 0.667;
-    uniform vec3 g_flSheenTintColor = vec3(1.0);
+    uniform vec3 g_flSheenTintColor = vec3(1.0);  // SrgbRead(true)
 
     vec3 ApplySheen(float reflectance, vec3 albedo, float clothMask)
     {
-        return mix(vec3(reflectance), saturate((SrgbGammaToLinear(g_flSheenTintColor.rgb) * sqrt(albedo)) * g_flSheenScale), clothMask);
+        return mix(vec3(reflectance), saturate((g_flSheenTintColor.rgb * sqrt(albedo)) * g_flSheenScale), clothMask);
     }
 #endif
 
@@ -334,14 +353,9 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     #endif
         vec4 decalTex = texture(g_tDecal, coords);
 
-        if (F_DECAL_BLEND_MODE == 0)
-        {
-            return mix(albedo, decalTex.rgb, decalTex.a);
-        }
-        else
-        {
-            return albedo * decalTex.rgb;
-        }
+        return (F_DECAL_BLEND_MODE == 0)
+            ? mix(albedo, decalTex.rgb, decalTex.a)
+            : albedo * decalTex.rgb;
     }
 #endif
 
@@ -352,10 +366,15 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #define renderMode_Tangents 0
 #define renderMode_Normals 0
 #define renderMode_BumpNormals 0
-#define renderMode_Occlusion 0
 #define renderMode_Roughness 0
 #define renderMode_Metalness 0
+#define renderMode_Height 0
 #define renderMode_ExtraParams 0
+
+#define renderMode_Tint 0
+#define renderMode_FoliageParams 0
+#define renderMode_VertexColor 0
+#define renderMode_TerrainBlend 0
 
 #define renderMode_UvDensity 0
 #define renderMode_LightmapUvDensity 0
@@ -363,79 +382,66 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 
 bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
 {
-    if (g_iRenderMode == renderMode_FullBright)
+    switch (g_iRenderMode)
     {
-        vec3 fullbrightLighting = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
-        outputColor.rgb = fullbrightLighting;
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_Color)
-    {
-        outputColor = vec4(mat.Albedo, 1.0);
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_BumpMap)
-    {
-        outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.NormalMap)), 1.0);
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_Tangents)
-    {
-        outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.Tangent)), 1.0);
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_Normals)
-    {
-        outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.GeometricNormal)), 1.0);
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_BumpNormals)
-    {
-        outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.Normal)), 1.0);
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_Occlusion)
-    {
-        outputColor.rgb = SrgbGammaToLinear(mat.AmbientOcclusion.xxx);
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_Roughness)
-    {
-        #if defined(ANISO_ROUGHNESS)
-            outputColor.rgb = SrgbGammaToLinear(vec3(mat.Roughness.xy, 0.0));
-        #else
-            outputColor.rgb = SrgbGammaToLinear(mat.IsometricRoughness.xxx);
-        #endif
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_Metalness)
-    {
-        outputColor.rgb = SrgbGammaToLinear(mat.Metalness.xxx);
-        return true;
-    }
-    else if (g_iRenderMode == renderMode_ExtraParams)
-    {
-        outputColor.rgb = SrgbGammaToLinear(mat.ExtraParams.rgb);
-        return true;
-    }
+        case renderMode_FullBright:
+            outputColor.rgb = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
+            return true;
+        case renderMode_Color:
+            outputColor = vec4(mat.Albedo, 1.0);
+            return true;
+        case renderMode_BumpMap:
+            outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.NormalMap)), 1.0);
+            return true;
+        case renderMode_Tangents:
+            outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.Tangent)), 1.0);
+            return true;
+        case renderMode_Normals:
+            outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.GeometricNormal)), 1.0);
+            return true;
+        case renderMode_BumpNormals:
+            outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.Normal)), 1.0);
+            return true;
+        case renderMode_Roughness:
+            {
+                #if defined(ANISO_ROUGHNESS)
+                    outputColor.rgb = SrgbGammaToLinear(vec3(mat.Roughness.xy, 0.0));
+                #else
+                    outputColor.rgb = SrgbGammaToLinear(mat.IsometricRoughness.xxx);
+                #endif
 
-    return false;
+                return true;
+            }
+        case renderMode_Metalness:
+            outputColor.rgb = SrgbGammaToLinear(mat.Metalness.xxx);
+            return true;
+        case renderMode_Height:
+            outputColor.rgb = SrgbGammaToLinear(mat.Height.xxx);
+            return true;
+        case renderMode_ExtraParams:
+            outputColor.rgb = SrgbGammaToLinear(mat.ExtraParams.rgb);
+            return true;
+        default:
+            return false;
+    }
 }
 
-bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampler2D representativeTexture, vec2 flUVs, vec3 vLightmapUVs)
+bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampler2D representativeTexture, vec2 flUVs)
 {
     if (g_iRenderMode == renderMode_UvDensity || g_iRenderMode == renderMode_LightmapUvDensity)
     {
         outputColor.rgb = mat.Albedo;
-        vec2 uv = g_iRenderMode == renderMode_UvDensity ? flUVs : vLightmapUVs.xy;
+        vec2 uv = g_iRenderMode == renderMode_UvDensity ? flUVs : mat.LightmapUv.xy;
 
-        ivec2 vDims = textureSize(representativeTexture, 0);
+        ivec2 vDims = g_iRenderMode == renderMode_LightmapUvDensity
+            ? ivec2(8096)
+            : textureSize(representativeTexture, 0);
 
         uint testVal = ((uv.x < 0) != (uv.y < 0)) ? 0 : 1;
         uvec2 vUVInPixels = uvec2(abs(uv) * vDims.xy);
         if (((vUVInPixels.x + vUVInPixels.y) & 1) == testVal)
         {
-            outputColor.rgb *= 0.8;
+            outputColor.rgb *= 0.6;
         }
 
         uvec2 vUVIn16Pixels = vUVInPixels / 16;

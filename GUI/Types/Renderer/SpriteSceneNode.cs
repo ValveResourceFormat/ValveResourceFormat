@@ -100,7 +100,7 @@ namespace GUI.Types.Renderer
 
             renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("sceneObjectId", Id);
-            renderShader.SetUniform1("shaderId", (uint)material.Shader.NameHash);
+            renderShader.SetUniform1("shaderId", material.Shader.NameHash);
             renderShader.SetUniform1("shaderProgramId", (uint)material.Shader.Program);
 
             material.Render(renderShader);
@@ -111,11 +111,6 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(0);
             GL.UseProgram(0);
-        }
-
-        public override void Update(Scene.UpdateContext context)
-        {
-            //
         }
     }
 }

@@ -18,4 +18,9 @@ public class VfxShaderFileDXBC : VfxShaderFile
 
         HashMD5 = new Guid(datareader.ReadBytes(16));
     }
+
+    public override string GetDecompiledFile()
+    {
+        throw new InvalidOperationException("DXBC decompilation is not supported.");
+    }
 }

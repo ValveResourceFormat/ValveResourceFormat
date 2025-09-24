@@ -8,8 +8,9 @@ namespace ValveResourceFormat.Blocks
     /// <summary>
     /// "REDI" block. ResourceEditInfoBlock_t.
     /// </summary>
-    public class ResourceEditInfo : Block
+    public class ResourceEditInfo : RawBinary
     {
+        // Serialize legacy REDI info by copying raw data from the original resource beacuse we have no plans to support NTRO serialization
         public override BlockType Type => BlockType.REDI;
 
         public List<InputDependency> InputDependencies { get; } = [];
@@ -87,11 +88,6 @@ namespace ValveResourceFormat.Blocks
             ReadKeyValues(SearchableUserData, static (reader) => (long)reader.ReadInt32());
             ReadKeyValues(SearchableUserData, static (reader) => (double)reader.ReadSingle());
             ReadKeyValues(SearchableUserData, static (reader) => reader.ReadOffsetString(Encoding.UTF8));
-        }
-
-        public override void Serialize(Stream stream)
-        {
-            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
         public override void WriteText(IndentedTextWriter writer)

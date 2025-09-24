@@ -309,7 +309,7 @@ namespace GUI.Types.Renderer
 
                 GL.Enable(EnableCap.PolygonOffsetLine);
                 GL.Enable(EnableCap.PolygonOffsetFill);
-                GL.PolygonOffsetClamp(0, 96, 0.0005f);
+                GL.PolygonOffsetClamp(0, 100, 0.005f);
 
                 GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
 

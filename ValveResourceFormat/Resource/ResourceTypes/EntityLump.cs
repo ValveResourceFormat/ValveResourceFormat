@@ -79,6 +79,7 @@ namespace ValveResourceFormat.ResourceTypes
         public List<Entity> GetEntities()
             => Data.GetArray("m_entityKeyValues")
                 .Select(ParseEntityProperties)
+                .Where(entity => entity != null)
                 .ToList();
 
         private Entity ParseEntityProperties(KVObject entityKv)
@@ -93,6 +94,12 @@ namespace ValveResourceFormat.ResourceTypes
             else
             {
                 entity = ParseEntityProperties(entityKv.GetArray<byte>("m_keyValuesData"));
+            }
+
+            // are there any kinds of valid entities which don't contain a classname?
+            if (!entity.Properties.ContainsKey("classname"))
+            {
+                return null;
             }
 
             if (connections.Length > 0)
@@ -122,6 +129,11 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void ReadValues(Entity entity, KVValue values)
         {
+            if (values.Type == KVValueType.Null)
+            {
+                return;
+            }
+
             if (values.Type != KVValueType.Collection)
             {
                 throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
