@@ -424,7 +424,6 @@ namespace ValveResourceFormat
             }
 
             var end = stream.Position;
-            stream.Position = start;
 
             // Update file size
             var fileSize = end - start;
@@ -434,7 +433,11 @@ namespace ValveResourceFormat
                 throw new InvalidDataException("File size exceeds 32-bit integer.");
             }
 
+            stream.SetLength(fileSize);
+            stream.Position = start;
+
             writer.Write((uint)fileSize);
+            writer.Flush();
         }
 
         public Block GetBlockByIndex(int index)
