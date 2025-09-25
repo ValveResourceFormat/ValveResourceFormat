@@ -18,7 +18,10 @@ namespace ValveResourceFormat.CompiledShader
         public string? FilenamePath { get; private set; }
         public string? ShaderName { get; private set; }
 
-        // VCS version 70 onwards stores data as a KV3 resource
+        /// <summary>
+        /// The resource this VfxProgramData was read from.
+        /// Starting from VCS version 70.
+        /// </summary>
         public Resource? Resource { get; private set; }
 
         public VcsProgramType VcsProgramType { get; private set; } = VcsProgramType.Undetermined;
@@ -444,13 +447,11 @@ namespace ValveResourceFormat.CompiledShader
                     ParentProgramData = this,
                     StaticComboId = staticComboId,
                     FileOffset = -1,
-                    ResourceData = new VfxStaticComboData(comboData, staticComboId, attributes, byteCodeData, this),
+                    KVEntry = new(comboData, attributes, byteCodeData),
                 };
 
                 StaticComboEntries.Add(staticComboId, entry);
             }
-
-            // ...
         }
 
         private static void ThrowIfNotSupported(int vcsFileVersion)

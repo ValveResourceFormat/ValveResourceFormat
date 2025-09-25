@@ -103,11 +103,11 @@ public class VfxVariableDescription : ShaderDataBlock
             ChannelCount = data.GetInt32Property("m_nChannelCount");
             ChannelIndices = data.GetArray<int>("m_nChannelInfoIndex");
             ColorMode = data.GetInt32Property("m_inputColorSpace");
-            MinPrecisionBits = data.GetInt32Property("m_nMinPrecisionBits"); // todo
+            MinPrecisionBits = data.GetInt32Property("m_nMinPrecisionBits");
 
             ImageSuffix = data.GetProperty<string>("m_szTextureFileEnding");
             ImageProcessor = data.GetProperty<string>("m_inputProcessingCommand");
-            MaxRes = data.GetInt32Property("m_nMaxRes"); // todo
+            MaxRes = data.GetInt32Property("m_nMaxRes");
         }
         else
         {

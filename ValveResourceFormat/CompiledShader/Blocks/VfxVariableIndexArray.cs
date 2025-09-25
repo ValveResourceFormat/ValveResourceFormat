@@ -11,7 +11,7 @@ public class VfxVariableIndexArray : ShaderDataBlock
 
     public VfxVariableIndexData[] Fields { get; }
     public IReadOnlyList<VfxVariableIndexData> Evaluated => Fields[..FirstRenderStateElement];
-    public IReadOnlyList<VfxVariableIndexData> Segment1 => Fields[FirstRenderStateElement..FirstConstantElement];
+    public IReadOnlyList<VfxVariableIndexData> RenderState => Fields[FirstRenderStateElement..FirstConstantElement];
     public IReadOnlyList<VfxVariableIndexData> Globals => Fields[FirstConstantElement..];
 
     // TODO: remove this

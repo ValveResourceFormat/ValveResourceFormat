@@ -4,6 +4,9 @@ using SteamDatabase.ValvePak;
 
 namespace ValveResourceFormat.CompiledShader;
 
+// Disable broken analyzer (Use recommended dispose pattern)
+#pragma warning disable CA2000
+
 public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 {
     public VfxProgramData? Features

@@ -1268,11 +1268,9 @@ public sealed class ShaderExtract
             }
         }
 
-        // Other annotations: MaxRes(<=8192)
-
         HandleParameterAttribute(param, paramBlocks, annotations);
 
-        if (param.UiStep > 0f && param.UiStep != 1f)
+        if (param.UiStep > 0f)
         {
             annotations.Add($"UiStep({param.UiStep});");
         }
@@ -1285,6 +1283,11 @@ public sealed class ShaderExtract
         if (param.UiGroup.CompactString.Length > 0)
         {
             annotations.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
+        }
+
+        if (param.MaxRes > 0)
+        {
+            annotations.Add($"MaxRes(\"{param.MaxRes}\");");
         }
 
         var stageSpecificGlobals = new Lazy<string[]>(() => [.. paramBlocks.Select(p => p.Name)]);

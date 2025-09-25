@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -12,13 +13,20 @@ public class VfxStaticComboVcsEntry
     public long StaticComboId { get; init; }
     public int FileOffset { get; init; }
 
-    public VfxStaticComboData? ResourceData { get; set; }
+    public record ResourceEntry(KVObject ComboData, VfxShaderAttribute[] AllAttributes, KVObject[] ByteCodeDescArray);
+    public ResourceEntry? KVEntry { get; init; }
 
     public VfxStaticComboData Unserialize()
     {
-        if (ResourceData is not null)
+        if (KVEntry is not null)
         {
-            return ResourceData;
+            return new VfxStaticComboData(
+                KVEntry.ComboData,
+                StaticComboId,
+                KVEntry.AllAttributes,
+                KVEntry.ByteCodeDescArray,
+                ParentProgramData
+            );
         }
 
         // CVfxStaticComboData::Unserialize

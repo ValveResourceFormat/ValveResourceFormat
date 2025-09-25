@@ -27,8 +27,20 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         {
             var name = modeObj.GetStringProperty("m_szName");
             var shader = modeObj.GetStringProperty("m_szShaderFallback");
-            // todo: support CVfxModeSettings
-            Modes.Add((name, shader, string.Empty, -1));
+
+            var mode = (name, shader, ComboName: string.Empty, ComboValue: -1);
+
+            var settings = modeObj.GetArray<KVObject>("m_staticComboSettings");
+            if (settings.Length > 0)
+            {
+                Debug.Assert(settings.Length <= 1, "CVfxModeSettings with more than one combo.");
+
+                var setting = settings[0];
+                mode.ComboName = setting.GetProperty<string>("m_szStaticCombo");
+                mode.ComboValue = setting.GetInt32Property("m_nValue");
+            }
+
+            Modes.Add(mode);
         }
     }
 

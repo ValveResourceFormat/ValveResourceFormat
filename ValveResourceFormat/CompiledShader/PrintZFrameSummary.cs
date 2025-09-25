@@ -155,7 +155,7 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintParamWriteSequence(VfxVariableIndexArray dataBlock, OutputFormatterTabulatedData tabulatedData)
         {
             PrintParamWriteSequenceSegment(dataBlock.Evaluated, 0, tabulatedData);
-            PrintParamWriteSequenceSegment(dataBlock.Segment1, 1, tabulatedData);
+            PrintParamWriteSequenceSegment(dataBlock.RenderState, 1, tabulatedData);
             PrintParamWriteSequenceSegment(dataBlock.Globals, 2, tabulatedData);
         }
 
@@ -253,7 +253,12 @@ namespace ValveResourceFormat.CompiledShader
                 var configIdText = $"0x{blockId:X2}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
                 var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"SEQ[{writeSequences[blockId]}]";
-                var blockSource = blockIdToSource[blockId];
+                var blockSource = blockIdToSource.GetValueOrDefault(blockId);
+                if (blockSource is null)
+                {
+                    return;
+                }
+
                 var sourceLink = $"{blockSource.ShaderFileId:X2}";
                 var vsInputs = isVertexShader ? StaticCombo.VShaderInputs[block.ShaderFileId] : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS[{vsInputs}]" : "[none]";
@@ -291,7 +296,10 @@ namespace ValveResourceFormat.CompiledShader
             Dictionary<long, VfxShaderFile> blockIdToSource = [];
             foreach (var endBlock in zframeFile.DynamicCombos)
             {
-                blockIdToSource.Add(endBlock.DynamicComboId, zframeFile.ShaderFiles[endBlock.ShaderFileId]);
+                if (endBlock.ShaderFileId != -1)
+                {
+                    blockIdToSource.Add(endBlock.DynamicComboId, zframeFile.ShaderFiles[endBlock.ShaderFileId]);
+                }
             }
             return blockIdToSource;
         }

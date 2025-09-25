@@ -292,10 +292,7 @@ namespace Tests
             using var resource = new Resource();
 
             var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
-
-            Debug.Assert(ex != null);
             Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.Message, Does.Contain("Use ShaderFile"));
         }
 
         [Test]

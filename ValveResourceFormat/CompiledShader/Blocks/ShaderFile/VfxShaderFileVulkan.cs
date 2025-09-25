@@ -210,26 +210,26 @@ public class VfxShaderFileVulkan : VfxShaderFile
         for (var i = 0; i < backendsToTry.Length; i++)
         {
             var backend = backendsToTry[i];
-            try
+            var success = ShaderSpirvReflection.ReflectSpirv(this, backend, out var code);
+            if (success)
             {
-                buffer.Write(ShaderSpirvReflection.ReflectSpirv(this, backend));
+                buffer.Write(code);
                 break;
             }
-            catch (Exception e)
-            {
-                buffer.WriteLine($"// SPIR-V reflection failed for backend {backend}:");
-                foreach (var line in e.Message.AsSpan().EnumerateLines())
-                {
-                    buffer.Write("// ");
-                    buffer.WriteLine(line);
-                }
 
-                if (i < backendsToTry.Length - 1)
-                {
-                    buffer.WriteLine("// ");
-                    buffer.WriteLine($"// Re-attempting reflection with the {backendsToTry[i + 1]} backend.");
-                    buffer.WriteLine();
-                }
+            buffer.WriteLine($"// SPIR-V reflection failed for backend {backend}:");
+
+            foreach (var line in code.AsSpan().EnumerateLines())
+            {
+                buffer.Write("// ");
+                buffer.WriteLine(line);
+            }
+
+            if (i < backendsToTry.Length - 1)
+            {
+                buffer.WriteLine("// ");
+                buffer.WriteLine($"// Re-attempting reflection with the {backendsToTry[i + 1]} backend.");
+                buffer.WriteLine();
             }
         }
 

@@ -94,7 +94,17 @@ namespace ValveResourceFormat.CompiledShader
             output.Write($"Showing {program.VcsProgramType}: {Path.GetFileName(program.FilenamePath)}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
-            output.WriteLine($"MD5    {program.HashesMD5[0]}    // {program.VcsProgramType}");
+            if (program.Resource is null)
+            {
+                output.WriteLine($"MD5    {program.HashesMD5[0]}    // {program.VcsProgramType}");
+            }
+            else
+            {
+                foreach (var hash in program.HashesMD5)
+                {
+                    output.WriteLine($"MD5    {hash}");
+                }
+            }
             output.WriteLine($"MD5    {program.FileHash}    // Common editor/compiler hash shared by multiple different vcs files.");
             output.WriteLine($"{nameof(program.VariableSourceMax)} = {program.VariableSourceMax}");
             output.BreakLine();

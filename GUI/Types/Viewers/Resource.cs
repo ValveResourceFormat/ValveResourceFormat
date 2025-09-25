@@ -380,8 +380,17 @@ namespace GUI.Types.Viewers
                 case ResourceType.Shader:
                     {
                         var compiledShaderViewer = new CompiledShader();
-                        specialTabPage = compiledShaderViewer.Create(vrfGuiContext, null);
-                        specialTabPage.Text = "SHADER";
+                        try
+                        {
+                            specialTabPage = compiledShaderViewer.Create(vrfGuiContext, null);
+                            specialTabPage.Text = "SHADER";
+                            compiledShaderViewer = null;
+                        }
+                        finally
+                        {
+                            compiledShaderViewer?.Dispose();
+                        }
+
                         break;
                     }
             }

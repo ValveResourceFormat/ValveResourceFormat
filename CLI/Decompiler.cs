@@ -756,14 +756,18 @@ namespace CLI
                         zframe.Value.Unserialize();
                     }
 
-                    var id = $"Shader version {shader.VcsVersion}";
-
-                    if (originalPath != null)
+                    // Shader resources already store stats
+                    if (shader.Resource == null)
                     {
-                        path = $"{originalPath} -> {path}";
-                    }
+                        var id = $"Binary shader version {shader.VcsVersion}";
 
-                    AddStat(id, id, path);
+                        if (originalPath != null)
+                        {
+                            path = $"{originalPath} -> {path}";
+                        }
+
+                        AddStat(id, id, path);
+                    }
                 }
             }
             catch (Exception e)
@@ -1205,8 +1209,8 @@ namespace CLI
                     package.ReadEntry(file, rawFileData);
 
                     // Not a file that can be decompiled, or no decompilation was requested
-                    var isVcsFile = totalLength >= 4
-                                    && BitConverter.ToUInt32(rawFileData.AsSpan()[..4]) == VfxProgramData.MAGIC;
+                    var isVcsFile = type == "vcs";
+
                     if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && !isVcsFile)
                     {
                         if (OutputFile != null)
@@ -1513,6 +1517,13 @@ namespace CLI
                         }
                     }
                     break;
+                case ResourceType.Shader:
+                    {
+                        var stream = resource.Reader!.BaseStream;
+                        stream.Seek(0, SeekOrigin.Begin);
+                        ParseVCS(path, stream, originalPath);
+                        break;
+                    }
             }
 
             AddStatLocal(info);
