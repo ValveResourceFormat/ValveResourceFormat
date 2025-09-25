@@ -21,20 +21,17 @@ public static partial class ShaderSpirvReflection
 
     private const int StorageBufferStartingPoint = 30;
 
-    public static string ReflectSpirv(VfxShaderFileVulkan vulkanSource, Backend backend)
+    public static bool ReflectSpirv(VfxShaderFileVulkan vulkanSource, Backend backend, out string code)
     {
-        SpirvCrossApi.spvc_context_create(out var context).CheckResult();
+        var result = SpirvCrossApi.spvc_context_create(out var context);
 
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);
 
         try
         {
-            SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.Bytecode, out var parsedIr).CheckResult();
-            SpirvCrossApi
-                .spvc_context_create_compiler(context, backend, parsedIr, CaptureMode.TakeOwnership, out var compiler)
-                .CheckResult();
-
-            SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options).CheckResult();
+            result = SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.Bytecode, out var parsedIr);
+            result = SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, CaptureMode.TakeOwnership, out var compiler);
+            result = SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options);
 
             if (backend == Backend.GLSL)
             {
@@ -51,11 +48,11 @@ public static partial class ShaderSpirvReflection
                 SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.HLSLUseEntryPointName, 1);
             }
 
-            SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options).CheckResult();
+            result = SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
 
             if (vulkanSource.ParentCombo.ParentProgramData.VcsProgramType is not VcsProgramType.RaytracingShader)
             {
-                SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources).CheckResult();
+                result = SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources);
 
                 RenameResource(compiler, resources, SpirvResourceType.SeparateImage, vulkanSource);
                 RenameResource(compiler, resources, SpirvResourceType.SeparateSamplers, vulkanSource);
@@ -67,7 +64,14 @@ public static partial class ShaderSpirvReflection
                 RenameResource(compiler, resources, SpirvResourceType.StageOutput, vulkanSource);
             }
 
-            SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
+            result = SpirvCrossApi.spvc_compiler_compile(compiler, out code);
+
+            if (result != Result.Success)
+            {
+                var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
+                code = lastError ?? string.Empty;
+                return false;
+            }
 
             if (backend == Backend.HLSL)
             {
@@ -91,23 +95,14 @@ public static partial class ShaderSpirvReflection
             buffer.WriteLine();
             buffer.WriteLine(code);
         }
-        catch (SpirvCrossException e)
-        {
-            var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
-            if (!string.IsNullOrEmpty(lastError))
-            {
-                throw new SpirvCrossException(lastError, e);
-            }
-
-            throw;
-        }
         finally
         {
             SpirvCrossApi.spvc_context_release_allocations(context);
             SpirvCrossApi.spvc_context_destroy(context);
         }
 
-        return buffer.ToString();
+        code = buffer.ToString();
+        return result == Result.Success;
     }
 
     private static void RenameResource(spvc_compiler compiler, spvc_resources resources, SpirvResourceType resourceType,
@@ -284,11 +279,11 @@ public static partial class ShaderSpirvReflection
     public static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint imageBinding, VfxVariableType vfxType)
     {
-        var semgent1Params = writeSequence.Segment1
+        var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]));
 
-        foreach (var field in writeSequence.Segment1)
+        foreach (var field in writeSequence.RenderState)
         {
             var variable = program.VariableDescriptions[field.VariableIndex];
 
@@ -335,13 +330,13 @@ public static partial class ShaderSpirvReflection
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint samplerBinding)
     {
-        var semgent1Params = writeSequence.Segment1
+        var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]));
 
         var samplerSettings = string.Empty;
 
-        foreach (var field in writeSequence.Segment1)
+        foreach (var field in writeSequence.RenderState)
         {
             var param = program.VariableDescriptions[field.VariableIndex];
 
@@ -366,11 +361,11 @@ public static partial class ShaderSpirvReflection
     public static string GetNameForStorageBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint bufferBinding)
     {
-        var semgent1Params = writeSequence.Segment1
+        var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]));
 
-        foreach (var field in writeSequence.Segment1)
+        foreach (var field in writeSequence.RenderState)
         {
             var param = program.VariableDescriptions[field.VariableIndex];
 
@@ -391,7 +386,7 @@ public static partial class ShaderSpirvReflection
     public static string GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint binding, uint set)
     {
-        return writeSequence.Segment1
+        return writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]))
             .Where(fp => fp.Param.VfxType is VfxVariableType.Cbuffer)

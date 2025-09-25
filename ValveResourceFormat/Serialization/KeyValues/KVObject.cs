@@ -88,6 +88,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             AddProperty(null, item);
         }
 
+        public KVValue this[int arrayIndex]
+        {
+            get => Properties[arrayIndex.ToString(CultureInfo.InvariantCulture)];
+        }
+
         public void Serialize(IndentedTextWriter writer)
         {
             writer.Grow(12 + Count * 3 + (writer.Indent + 1) * Count); // Not exact
@@ -140,7 +145,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             // Need to preserve the order
             for (var i = 0; i < Count; i++)
             {
-                var value = Properties[i.ToString(CultureInfo.InvariantCulture)];
+                var value = this[i];
                 KV3TextSerializer.WriteValue(value, writer);
 
 #if DEBUG_ADD_KV_TYPE_COMMENTS

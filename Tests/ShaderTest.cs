@@ -23,10 +23,10 @@ namespace Tests
             foreach (var file in files)
             {
                 using var shader = new VfxProgramData();
+                shader.Read(file);
 
                 using var sw = new IndentedTextWriter();
 
-                shader.Read(file);
                 shader.PrintSummary(sw);
                 Assert.That(sw.ToString(), Has.Length.AtLeast(100));
 
@@ -36,6 +36,220 @@ namespace Tests
                     Assert.That(value, Is.Not.Null);
                     var zframeSummary = new PrintZFrameSummary(value, sw);
                 }
+            }
+        }
+
+        [Test]
+        public void ShaderResourceDataMatchesBinary()
+        {
+            using var shader1 = new VfxProgramData();
+            using var shader2 = new VfxProgramData();
+
+            shader1.Read(Path.Combine(ShadersDir, "vcs69_bloom_vulkan_40_ps.vcs"));
+            shader2.Read(Path.Combine(ShadersDir, "vcs70_resource_bloom_vulkan_40_ps.vcs"));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(shader2.VcsProgramType, Is.EqualTo(shader1.VcsProgramType));
+                Assert.That(shader2.VcsPlatformType, Is.EqualTo(shader1.VcsPlatformType));
+                Assert.That(shader2.VcsShaderModelType, Is.EqualTo(shader1.VcsShaderModelType));
+                Assert.That(shader2.FileHash, Is.EqualTo(shader1.FileHash));
+                Assert.That(shader2.VariableSourceMax, Is.EqualTo(shader1.VariableSourceMax));
+
+                // Binary stores one hash, KV3 stores all hashes
+                // Assert.That(shader1.HashesMD5, Is.EqualTo(shader2.HashesMD5));
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(shader2.DynamicComboArray, Has.Length.EqualTo(shader1.DynamicComboArray.Length));
+                for (var i = 0; i < shader1.DynamicComboArray.Length; i++)
+                {
+                    var combo1 = shader1.DynamicComboArray[i];
+                    var combo2 = shader2.DynamicComboArray[i];
+
+                    Assert.That(combo2.Name, Is.EqualTo(combo1.Name));
+                    Assert.That(combo2.CalculatedComboId, Is.EqualTo(combo1.CalculatedComboId));
+                    Assert.That(combo2.AliasName, Is.EqualTo(combo1.AliasName));
+                    Assert.That(combo2.ComboType, Is.EqualTo(combo1.ComboType));
+                    Assert.That(combo2.ComboSourceType, Is.EqualTo(combo1.ComboSourceType));
+                    Assert.That(combo2.FeatureComparisonValue, Is.EqualTo(combo1.FeatureComparisonValue));
+                    Assert.That(combo2.RangeMin, Is.EqualTo(combo1.RangeMin));
+                    Assert.That(combo2.RangeMax, Is.EqualTo(combo1.RangeMax));
+                    Assert.That(combo2.Strings, Is.EquivalentTo(combo1.Strings));
+                }
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(shader2.DynamicComboRules, Has.Length.EqualTo(shader1.DynamicComboRules.Length));
+                for (var i = 0; i < shader1.DynamicComboRules.Length; i++)
+                {
+                    var rule1 = shader1.DynamicComboRules[i];
+                    var rule2 = shader2.DynamicComboRules[i];
+
+                    Assert.That(rule2.Rule, Is.EqualTo(rule1.Rule));
+                    Assert.That(rule2.RuleType, Is.EqualTo(rule1.RuleType));
+                    Assert.That(rule2.ConditionalTypes, Is.EquivalentTo(rule1.ConditionalTypes));
+                    Assert.That(rule2.Indices, Is.EquivalentTo(rule1.Indices));
+                    Assert.That(rule2.Values, Is.EquivalentTo(rule1.Values));
+                    Assert.That(rule2.ExtraRuleData, Is.EquivalentTo(rule1.ExtraRuleData));
+                    Assert.That(rule2.Description, Is.EqualTo(rule1.Description));
+                }
+
+                Assert.That(shader2.VariableDescriptions, Has.Length.EqualTo(shader1.VariableDescriptions.Length));
+                for (var i = 0; i < shader1.VariableDescriptions.Length; i++)
+                {
+                    var var1 = shader1.VariableDescriptions[i];
+                    var var2 = shader2.VariableDescriptions[i];
+
+                    Assert.That(var2.Name, Is.EqualTo(var1.Name));
+                    Assert.That(var2.UiGroup, Is.EqualTo(var1.UiGroup));
+                    Assert.That(var2.StringData, Is.EqualTo(var1.StringData));
+                    Assert.That(var2.UiType, Is.EqualTo(var1.UiType));
+                    Assert.That(var2.UiStep, Is.EqualTo(var1.UiStep));
+                    Assert.That(var2.VariableSource, Is.EqualTo(var1.VariableSource));
+                    Assert.That(var2.DynExp, Is.EquivalentTo(var1.DynExp));
+                    Assert.That(var2.UiVisibilityExp, Is.EquivalentTo(var1.UiVisibilityExp));
+                    Assert.That(var2.SourceIndex, Is.EqualTo(var1.SourceIndex));
+                    Assert.That(var2.VfxType, Is.EqualTo(var1.VfxType));
+                    Assert.That(var2.RegisterType, Is.EqualTo(var1.RegisterType));
+                    Assert.That(var2.ContextStateAffectedByVariable, Is.EqualTo(var1.ContextStateAffectedByVariable));
+                    Assert.That(var2.RegisterElements, Is.EqualTo(var1.RegisterElements));
+                    Assert.That(var2.ExtConstantBufferId, Is.EqualTo(var1.ExtConstantBufferId));
+                    Assert.That(var2.DefaultInputTexture, Is.EqualTo(var1.DefaultInputTexture));
+                    Assert.That(var2.IntDefs, Is.EquivalentTo(var1.IntDefs), var2.Name);
+                    Assert.That(var2.IntMins, Is.EquivalentTo(var1.IntMins), var2.Name);
+                    Assert.That(var2.IntMaxs, Is.EquivalentTo(var1.IntMaxs), var2.Name);
+                    Assert.That(var2.FloatDefs, Is.EquivalentTo(var1.FloatDefs));
+                    Assert.That(var2.FloatMins, Is.EquivalentTo(var1.FloatMins));
+                    Assert.That(var2.FloatMaxs, Is.EquivalentTo(var1.FloatMaxs));
+                    Assert.That(var2.ImageFormat, Is.EqualTo(var1.ImageFormat));
+                    Assert.That(var2.ChannelCount, Is.EqualTo(var1.ChannelCount));
+                    Assert.That(var2.ChannelIndices, Is.EquivalentTo(var1.ChannelIndices));
+                    Assert.That(var2.ColorMode, Is.EqualTo(var1.ColorMode));
+                    Assert.That(var2.ImageSuffix, Is.EqualTo(var1.ImageSuffix));
+                    Assert.That(var2.ImageProcessor, Is.EqualTo(var1.ImageProcessor));
+
+                    Assert.That(var2.MinPrecisionBits, Is.EqualTo(var1.MinPrecisionBits));
+                    Assert.That(var2.LayerId, Is.EqualTo(var1.LayerId));
+                    Assert.That(var2.AllowLayerOverride, Is.EqualTo(var1.AllowLayerOverride));
+                    Assert.That(var2.MaxRes, Is.EqualTo(var1.MaxRes));
+                    Assert.That(var2.IsLayerConstant, Is.EqualTo(var1.IsLayerConstant));
+                }
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(shader2.StaticComboEntries, Has.Count.EqualTo(shader1.StaticComboEntries.Count));
+
+                var combo1 = shader1.GetStaticCombo(0);
+                var combo2 = shader2.GetStaticCombo(0);
+
+                // KV3 has one less item in some arrays
+                const int OneLessItemKV3 = 1;
+
+                Assert.That(combo2.StaticComboId, Is.EqualTo(combo1.StaticComboId));
+                Assert.That(combo2.VShaderInputs, Is.EqualTo(combo1.VShaderInputs));
+                Assert.That(combo2.ConstantBufferBindInfoFlags, Is.EqualTo(combo1.ConstantBufferBindInfoFlags[..^OneLessItemKV3]));
+                Assert.That(combo2.ConstantBufferBindInfoSlots, Is.EqualTo(combo1.ConstantBufferBindInfoSlots[..^OneLessItemKV3]));
+                Assert.That(combo2.ConstantBufferSize, Is.EqualTo(combo1.ConstantBufferSize));
+                Assert.That(combo2.Flagbyte0, Is.EqualTo(combo1.Flagbyte0));
+                Assert.That(combo2.Flagbyte1, Is.EqualTo(combo1.Flagbyte1));
+                Assert.That(combo2.Flagbyte2, Is.EqualTo(combo1.Flagbyte2));
+
+                static void TestVfxVariableIndexArray(VfxVariableIndexArray binary, VfxVariableIndexArray kv3)
+                {
+                    using var _ = Assert.EnterMultipleScope();
+                    Assert.That(kv3.BlockId, Is.EqualTo(binary.BlockId));
+                    Assert.That(kv3.FirstRenderStateElement, Is.EqualTo(binary.FirstRenderStateElement));
+                    Assert.That(kv3.FirstConstantElement, Is.EqualTo(binary.FirstConstantElement));
+                    Assert.That(kv3.Fields, Is.EqualTo(binary.Fields));
+                }
+
+                TestVfxVariableIndexArray(combo1.VariablesFromStaticCombo, combo2.VariablesFromStaticCombo);
+
+                // one less
+                Assert.That(combo2.DynamicComboVariables, Has.Length.EqualTo(combo1.DynamicComboVariables.Length - OneLessItemKV3));
+                for (var i = 0; i < combo2.DynamicComboVariables.Length; i++)
+                {
+                    TestVfxVariableIndexArray(combo1.DynamicComboVariables[i], combo2.DynamicComboVariables[i]);
+                }
+
+                Assert.That(combo2.DynamicCombos, Has.Length.EqualTo(combo1.DynamicCombos.Length));
+                for (var i = 0; i < combo1.DynamicCombos.Length; i++)
+                {
+                    var dyn1 = combo1.DynamicCombos[i];
+                    var dyn2 = combo2.DynamicCombos[i];
+
+                    Assert.That(dyn2.ShaderFileId, Is.EqualTo(dyn1.ShaderFileId));
+                    Assert.That(dyn2.DynamicComboId, Is.EqualTo(dyn1.DynamicComboId));
+
+                    // Source pointer is binary only
+                    // Assert.That(dyn2.SourcePointer, Is.EqualTo(dyn1.SourcePointer));
+
+                    var psRenderState1 = dyn1 as VfxRenderStateInfoPixelShader;
+                    var psRenderState2 = dyn2 as VfxRenderStateInfoPixelShader;
+
+                    var depth1 = psRenderState1!.DepthStencilStateDesc!;
+                    var depth2 = psRenderState2!.DepthStencilStateDesc!;
+
+
+                    Assert.That(depth2.DepthWriteEnable, Is.EqualTo(depth1.DepthWriteEnable));
+                    Assert.That(depth2.DepthFunc, Is.EqualTo(depth1.DepthFunc));
+                    Assert.That(depth2.DepthTestEnable, Is.EqualTo(depth1.DepthTestEnable));
+                    Assert.That(depth2.StencilEnable, Is.EqualTo(depth1.StencilEnable));
+                    Assert.That(depth2.StencilReadMask, Is.EqualTo(depth1.StencilReadMask));
+                    Assert.That(depth2.StencilWriteMask, Is.EqualTo(depth1.StencilWriteMask));
+                    Assert.That(depth2.FrontStencilFunc, Is.EqualTo(depth1.FrontStencilFunc));
+                    Assert.That(depth2.FrontStencilPassOp, Is.EqualTo(depth1.FrontStencilPassOp));
+                    Assert.That(depth2.FrontStencilFailOp, Is.EqualTo(depth1.FrontStencilFailOp));
+                    Assert.That(depth2.FrontStencilDepthFailOp, Is.EqualTo(depth1.FrontStencilDepthFailOp));
+                    Assert.That(depth2.BackStencilFunc, Is.EqualTo(depth1.BackStencilFunc));
+                    Assert.That(depth2.BackStencilPassOp, Is.EqualTo(depth1.BackStencilPassOp));
+                    Assert.That(depth2.BackStencilFailOp, Is.EqualTo(depth1.BackStencilFailOp));
+                    Assert.That(depth2.BackStencilDepthFailOp, Is.EqualTo(depth1.BackStencilDepthFailOp));
+
+                    // These are no longer stored in KV3
+                    Assert.That(depth2.HiZEnable360, Is.EqualTo(depth1.HiZEnable360));
+                    Assert.That(depth2.HiZWriteEnable360, Is.EqualTo(depth1.HiZWriteEnable360));
+                    Assert.That(depth2.HiStencilEnable360, Is.EqualTo(depth1.HiStencilEnable360));
+                    Assert.That(depth2.HiStencilWriteEnable360, Is.EqualTo(depth1.HiStencilWriteEnable360));
+                    Assert.That(depth2.HiStencilFunc360, Is.EqualTo(depth1.HiStencilFunc360));
+                    Assert.That(depth2.HiStencilRef360, Is.EqualTo(depth1.HiStencilRef360));
+
+                    var raster1 = psRenderState1.RasterizerStateDesc!;
+                    var raster2 = psRenderState2.RasterizerStateDesc!;
+                    Assert.That(raster2.FillMode, Is.EqualTo(raster1.FillMode));
+                    Assert.That(raster2.CullMode, Is.EqualTo(raster1.CullMode));
+                    Assert.That(raster2.DepthClipEnable, Is.EqualTo(raster1.DepthClipEnable));
+                    Assert.That(raster2.MultisampleEnable, Is.EqualTo(raster1.MultisampleEnable));
+                    Assert.That(raster2.DepthBias, Is.EqualTo(raster1.DepthBias));
+                    Assert.That(raster2.DepthBiasClamp, Is.EqualTo(raster1.DepthBiasClamp));
+                    Assert.That(raster2.SlopeScaledDepthBias, Is.EqualTo(raster1.SlopeScaledDepthBias));
+
+                    var blend1 = psRenderState1.BlendStateDesc!;
+                    var blend2 = psRenderState2.BlendStateDesc!;
+
+                    Assert.That(blend2.AlphaToCoverageEnable, Is.EqualTo(blend1.AlphaToCoverageEnable));
+                    Assert.That(blend2.IndependentBlendEnable, Is.EqualTo(blend1.IndependentBlendEnable));
+
+                    for (var t = 0; t < VfxRenderStateInfoPixelShader.RsBlendStateDesc.MaxRenderTargets; t++)
+                    {
+                        Assert.That(blend2.BlendEnable[t], Is.EqualTo(blend1.BlendEnable[t]));
+                        Assert.That(blend2.SrcBlend[t], Is.EqualTo(blend1.SrcBlend[t]));
+                        Assert.That(blend2.DestBlend[t], Is.EqualTo(blend1.DestBlend[t]));
+                        Assert.That(blend2.BlendOp[t], Is.EqualTo(blend1.BlendOp[t]));
+                        Assert.That(blend2.SrcBlendAlpha[t], Is.EqualTo(blend1.SrcBlendAlpha[t]));
+                        Assert.That(blend2.DestBlendAlpha[t], Is.EqualTo(blend1.DestBlendAlpha[t]));
+                        Assert.That(blend2.BlendOpAlpha[t], Is.EqualTo(blend1.BlendOpAlpha[t]));
+                        Assert.That(blend2.RenderTargetWriteMask[t], Is.EqualTo(blend1.RenderTargetWriteMask[t]));
+                        Assert.That(blend2.SrgbWriteEnable[t], Is.EqualTo(blend1.SrgbWriteEnable[t]));
+                    }
+                }
+
+                Assert.That(combo2.Attributes, Is.EqualTo(combo1.Attributes));
+                Assert.That(combo2.ShaderFiles, Has.Length.EqualTo(combo1.ShaderFiles.Length));
             }
         }
 
@@ -78,10 +292,7 @@ namespace Tests
             using var resource = new Resource();
 
             var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
-
-            Debug.Assert(ex != null);
             Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.Message, Does.Contain("Use ShaderFile"));
         }
 
         [Test]

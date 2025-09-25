@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
@@ -14,6 +17,13 @@ namespace ValveResourceFormat.CompiledShader
 
         public string? FilenamePath { get; private set; }
         public string? ShaderName { get; private set; }
+
+        /// <summary>
+        /// The resource this VfxProgramData was read from.
+        /// Starting from VCS version 70.
+        /// </summary>
+        public Resource? Resource { get; private set; }
+
         public VcsProgramType VcsProgramType { get; private set; } = VcsProgramType.Undetermined;
         public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
         public VcsShaderModelType VcsShaderModelType { get; private set; } = VcsShaderModelType.Undetermined;
@@ -57,17 +67,14 @@ namespace ValveResourceFormat.CompiledShader
         {
             if (disposing)
             {
-                if (BaseStream != null)
-                {
-                    BaseStream.Dispose();
-                    BaseStream = null;
-                }
+                BaseStream?.Dispose();
+                BaseStream = null;
 
-                if (DataReader != null)
-                {
-                    DataReader.Dispose();
-                    DataReader = null;
-                }
+                DataReader?.Dispose();
+                DataReader = null;
+
+                Resource?.Dispose();
+                Resource = null;
 
                 StaticComboCache?.Dispose();
             }
@@ -103,7 +110,25 @@ namespace ValveResourceFormat.CompiledShader
             BaseStream = input;
             DataReader = new BinaryReader(input, Encoding.UTF8, leaveOpen: true);
             FilenamePath = filenamepath;
-            VfxCreateFromVcs();
+
+            var vcsMagicId = DataReader.ReadInt32();
+            if (vcsMagicId == MAGIC)
+            {
+                VfxCreateFromVcs();
+            }
+            else
+            {
+                var resource = new Resource
+                {
+                    FileName = filenamepath
+                };
+
+                input.Position -= 4;
+                resource.Read(input, false, leaveOpen: true);
+
+                VfxCreateFromResource(resource);
+            }
+
             StaticComboCache = new StaticCache(this);
         }
 
@@ -125,14 +150,7 @@ namespace ValveResourceFormat.CompiledShader
             Debug.Assert(DataReader != null);
             Debug.Assert(FilenamePath != null);
 
-            var vcsFileProperties = ComputeVCSFileName(FilenamePath);
-            ShaderName = vcsFileProperties.ShaderName;
-            VcsProgramType = vcsFileProperties.ProgramType;
-            VcsPlatformType = vcsFileProperties.PlatformType;
-            VcsShaderModelType = vcsFileProperties.ShaderModelType;
-
-            var vcsMagicId = DataReader.ReadInt32();
-            UnexpectedMagicException.Assert(vcsMagicId == MAGIC, vcsMagicId);
+            SetFileNameDerivedProperties(FilenamePath);
 
             VcsVersion = DataReader.ReadInt32();
             ThrowIfNotSupported(VcsVersion);
@@ -322,6 +340,120 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        internal void VfxCreateFromResource(Resource resource)
+        {
+            Resource = resource;
+            VcsVersion = resource.Version;
+            DataReader = resource.Reader;
+
+            SetFileNameDerivedProperties(resource.FileName!);
+            ThrowIfNotSupported(VcsVersion);
+
+            var data = ((BinaryKV3)resource.DataBlock!).Data;
+
+            if (VcsProgramType is VcsProgramType.Features)
+            {
+                FeaturesHeader = new FeaturesHeaderBlock(data);
+                var programData = data.GetProperty<KVObject>("m_programData");
+                UnserializeKV3ProgramData(programData);
+                return;
+            }
+
+            UnserializeKV3ProgramData(data);
+        }
+
+        private void UnserializeKV3ProgramData(KVObject data)
+        {
+            var programHashes = data.GetArray("m_programHashes");
+            foreach (var hashObject in programHashes)
+            {
+                var hashBytes = hashObject.GetProperty<byte[]>("m_nHashChar");
+                Debug.Assert(hashBytes.Length == 16);
+                HashesMD5.Add(new Guid(hashBytes));
+            }
+
+            FileHash = new Guid(data.GetProperty<KVObject>("m_variableDescriptionVersionHash").GetProperty<byte[]>("m_nHashChar"));
+            VariableSourceMax = data.GetInt32Property("m_nVariableSourceMax");
+
+            var staticCombos = data.GetArray("m_staticComboArray");
+            StaticComboArray = new VfxCombo[staticCombos.Length];
+            for (var i = 0; i < staticCombos.Length; i++)
+            {
+                StaticComboArray[i] = new VfxCombo(staticCombos[i], i);
+            }
+
+            // CalculateComboIds(StaticComboArray);
+
+            var staticComboRules = data.GetArray("m_staticComboRuleArray");
+            StaticComboRules = new VfxRule[staticComboRules.Length];
+            for (var i = 0; i < staticComboRules.Length; i++)
+            {
+                StaticComboRules[i] = new VfxRule(staticComboRules[i], i);
+            }
+
+            var dynamicCombos = data.GetArray("m_dynamicComboArray");
+            DynamicComboArray = new VfxCombo[dynamicCombos.Length];
+            for (var i = 0; i < dynamicCombos.Length; i++)
+            {
+                DynamicComboArray[i] = new VfxCombo(dynamicCombos[i], i);
+            }
+
+            // CalculateComboIds(DynamicComboArray);
+
+            var dynamicComboRules = data.GetArray("m_dynamicComboRuleArray");
+            DynamicComboRules = new VfxRule[dynamicComboRules.Length];
+            for (var i = 0; i < dynamicComboRules.Length; i++)
+            {
+                DynamicComboRules[i] = new VfxRule(dynamicComboRules[i], i);
+            }
+
+            // This is needed for the zframes to determine their source mapping
+            // it must be instantiated after the D-blocks have been read
+            dBlockConfigGen = new ConfigMappingParams(this, isDynamic: true);
+
+            var variableDescriptions = data.GetArray("m_variableDescriptionArray");
+            VariableDescriptions = new VfxVariableDescription[variableDescriptions.Length];
+            for (var i = 0; i < variableDescriptions.Length; i++)
+            {
+                VariableDescriptions[i] = new VfxVariableDescription(variableDescriptions[i], i);
+            }
+
+            var textureProcessors = data.GetArray("m_textureChannelProcessorArray");
+            TextureChannelProcessors = new VfxTextureChannelProcessor[textureProcessors.Length];
+            for (var i = 0; i < textureProcessors.Length; i++)
+            {
+                TextureChannelProcessors[i] = new VfxTextureChannelProcessor(textureProcessors[i], i);
+            }
+
+            var vsInputSignatureArray = data.GetArray("m_vsInputSignatureArray");
+            VSInputSignatures = new VsInputSignatureElement[vsInputSignatureArray.Length];
+            for (var i = 0; i < vsInputSignatureArray.Length; i++)
+            {
+                VSInputSignatures[i] = new VsInputSignatureElement(vsInputSignatureArray[i], i);
+            }
+
+            var staticComboData = data.GetArray("m_staticComboData");
+            var staticComboIDs = data.GetIntegerArray("m_staticComboIDs");
+            var byteCodeData = data.GetArray("m_byteCodeData");
+            var attributes = data.GetArray("m_attributes").Select(a => new VfxShaderAttribute(a)).ToArray();
+
+            for (var i = 0; i < staticComboData.Length; i++)
+            {
+                var staticComboId = staticComboIDs[i];
+                var comboData = staticComboData[i];
+
+                var entry = new VfxStaticComboVcsEntry
+                {
+                    ParentProgramData = this,
+                    StaticComboId = staticComboId,
+                    FileOffset = -1,
+                    KVEntry = new(comboData, attributes, byteCodeData),
+                };
+
+                StaticComboEntries.Add(staticComboId, entry);
+            }
+        }
+
         private static void ThrowIfNotSupported(int vcsFileVersion)
         {
             const int earliest = 59;
@@ -332,6 +464,16 @@ namespace ValveResourceFormat.CompiledShader
                 throw new UnexpectedMagicException($"Only VCS file versions {earliest} through {latest} are supported",
                     vcsFileVersion, nameof(vcsFileVersion));
             }
+        }
+
+        private void SetFileNameDerivedProperties(string fileName)
+        {
+            FilenamePath = fileName;
+            var vcsFileProperties = ComputeVCSFileName(fileName);
+            ShaderName = vcsFileProperties.ShaderName;
+            VcsProgramType = vcsFileProperties.ProgramType;
+            VcsPlatformType = vcsFileProperties.PlatformType;
+            VcsShaderModelType = vcsFileProperties.ShaderModelType;
         }
 
         public VfxStaticComboData GetStaticCombo(long id)

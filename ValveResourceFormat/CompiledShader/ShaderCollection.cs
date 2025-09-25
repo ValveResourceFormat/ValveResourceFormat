@@ -5,6 +5,9 @@ using SteamDatabase.ValvePak;
 
 namespace ValveResourceFormat.CompiledShader;
 
+// Disable broken analyzer (Use recommended dispose pattern)
+#pragma warning disable CA2000
+
 public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 {
     public VfxProgramData? Features
@@ -73,12 +76,13 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
             {
                 if (Path.GetFileName(vcsFile.AsSpan()).StartsWith(vcsCollectionName, StringComparison.InvariantCulture))
                 {
-                    var program = new VfxProgramData();
+                    VfxProgramData? program = null;
                     Stream? stream = null;
 
                     try
                     {
                         stream = new FileStream(vcsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        program = new VfxProgramData();
                         program.Read(Path.GetFileName(vcsFile), stream);
                         shaderCollection.Add(program);
                         program = null;

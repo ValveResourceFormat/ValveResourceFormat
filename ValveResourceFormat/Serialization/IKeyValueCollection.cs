@@ -93,7 +93,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public static KVObject[] GetArray(this KVObject collection, string name)
             => collection.GetArray<KVObject>(name);
 
-        public static TEnum GetEnumValue<TEnum>(this KVObject collection, string name, bool normalize = false) where TEnum : Enum
+        public static TEnum GetEnumValue<TEnum>(this KVObject collection, string name, bool normalize = false, string stripExtension = "Flags")
+            where TEnum : Enum
         {
             var rawValue = collection.GetProperty<object>(name);
 
@@ -110,59 +111,67 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return (TEnum)(object)(int)l;
             }
 
-            var strValue = (string)rawValue;
-
-            // Normalize VALVE_ENUM_VALUE_1 to ValveEnum.Value1
+            var enumString = (string)rawValue;
             if (normalize)
             {
-                var enumTypeName = typeof(TEnum).Name;
-                const string FlagsSuffix = "Flags";
-                if (enumTypeName.EndsWith(FlagsSuffix, StringComparison.Ordinal))
-                {
-                    enumTypeName = enumTypeName[..^FlagsSuffix.Length];
-                }
-
-                var sb = new StringBuilder(strValue.Length);
-                var i = 0;
-                var nextUpper = true;
-                var startsWithEnumTypeName = true;
-
-                foreach (var c in strValue)
-                {
-                    if (c == '_' || char.IsDigit(c))
-                    {
-                        nextUpper = true;
-                        continue;
-                    }
-
-                    var cs = nextUpper ? char.ToUpperInvariant(c) : char.ToLowerInvariant(c);
-                    sb.Append(cs);
-
-                    if (i < enumTypeName.Length && cs != enumTypeName[i])
-                    {
-                        startsWithEnumTypeName = false;
-                    }
-
-                    nextUpper = false;
-                    i++;
-                }
-
-                if (startsWithEnumTypeName)
-                {
-                    sb.Remove(0, enumTypeName.Length);
-                }
-
-                strValue = sb.ToString();
+                enumString = NormalizeEnumName<TEnum>(enumString, stripExtension);
             }
 
-            if (Enum.TryParse(typeof(TEnum), strValue, false, out var value))
+            if (Enum.TryParse(typeof(TEnum), enumString, false, out var value))
             {
                 return (TEnum)value;
             }
             else
             {
-                throw new ArgumentException($"Unable to map {strValue} to a member of enum {typeof(TEnum).Name}");
+                throw new ArgumentException($"Unable to map {enumString} to a member of enum {typeof(TEnum).Name}");
             }
+        }
+
+        /// <summary>
+        /// Normalize C Style VALVE_ENUM_VALUE_1 to C# ValveEnum.Value1
+        /// </summary>
+        public static string NormalizeEnumName<TEnum>(string name, string stripExtension = "")
+            where TEnum : Enum
+        {
+            var enumTypeName = typeof(TEnum).Name;
+
+            if (enumTypeName.EndsWith(stripExtension, StringComparison.Ordinal))
+            {
+                enumTypeName = enumTypeName[..^stripExtension.Length];
+            }
+
+            var sb = new StringBuilder(name.Length);
+            var i = 0;
+            var nextUpper = true;
+            var startsWithEnumTypeName = true;
+
+            foreach (var c in name)
+            {
+                if (c == '_' || char.IsDigit(c))
+                {
+                    nextUpper = true;
+                    continue;
+                }
+
+                var cs = nextUpper ? char.ToUpperInvariant(c) : char.ToLowerInvariant(c);
+                sb.Append(cs);
+
+                if (i < enumTypeName.Length && cs != enumTypeName[i])
+                {
+                    startsWithEnumTypeName = false;
+                }
+
+                nextUpper = false;
+                i++;
+            }
+
+            if (startsWithEnumTypeName)
+            {
+                sb.Remove(0, enumTypeName.Length);
+            }
+
+            name = sb.ToString();
+            return name;
         }
 
         public static bool IsNotBlobType(this KVObject collection, string key)

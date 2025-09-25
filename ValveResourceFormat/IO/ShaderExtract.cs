@@ -964,7 +964,7 @@ public sealed class ShaderExtract
                 ? " (" + string.Join(", ", feature.Strings.Select((x, i) => $"{i}=\"{x}\"")) + ")"
                 : string.Empty;
 
-            writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{checkboxNames}, \"{feature.Category}\" );");
+            writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{checkboxNames}, \"{feature.AliasName}\" );");
         }
 
         HandleRules(VfxRuleType.Feature,
@@ -1034,7 +1034,7 @@ public sealed class ShaderExtract
             var constrainedNames = new List<string>(constraint.ConditionalTypes.Length);
             foreach ((var Type, var Index, var Value) in Enumerable.Zip(constraint.ConditionalTypes, constraint.Indices, constraint.Values))
             {
-                if (Type == VfxRuleType.None)
+                if (Type == VfxRuleType.Unknown)
                 {
                     break;
                 }
@@ -1058,9 +1058,13 @@ public sealed class ShaderExtract
             }
 
             // By value constraint
-            // e.g. FeatureRule( Requires1( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
+            // e.g. FeatureRule( Requires( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
 
-            var rule = $"{constraint.Rule}{constraint.Range2[0]}( {string.Join(", ", constrainedNames)} )";
+            var ruleName = constraint.Rule == VfxRuleMethod.AllowNum
+                ? $"Allow{constraint.ExtraRuleData[0]}"
+                : constraint.Rule.ToString();
+
+            var rule = $"{ruleName}( {string.Join(", ", constrainedNames)} )";
 
             writer.WriteLine(conditionalType == VfxRuleType.Feature
                 ? $"FeatureRule( {rule}, \"{constraint.Description}\" );"
@@ -1264,9 +1268,12 @@ public sealed class ShaderExtract
             }
         }
 
-        // Other annotations: MaxRes(<=8192), UiStep(?), Source(?)
-
         HandleParameterAttribute(param, paramBlocks, annotations);
+
+        if (param.UiStep > 0f)
+        {
+            annotations.Add($"UiStep({param.UiStep});");
+        }
 
         if (param.UiType != UiType.None)
         {
@@ -1276,6 +1283,11 @@ public sealed class ShaderExtract
         if (param.UiGroup.CompactString.Length > 0)
         {
             annotations.Add($"UiGroup(\"{param.UiGroup.CompactString}\");");
+        }
+
+        if (param.MaxRes > 0)
+        {
+            annotations.Add($"MaxRes(\"{param.MaxRes}\");");
         }
 
         var stageSpecificGlobals = new Lazy<string[]>(() => [.. paramBlocks.Select(p => p.Name)]);
@@ -1304,7 +1316,7 @@ public sealed class ShaderExtract
 
         UnexpectedMagicException.Assert(param.UiType == UiType.Texture, param.UiType);
         UnexpectedMagicException.Assert(param.ExtConstantBufferId == -1, param.ExtConstantBufferId);
-        UnexpectedMagicException.Assert(param.VecSize == -1, param.VecSize);
+        UnexpectedMagicException.Assert(param.RegisterElements == -1, param.RegisterElements);
 
         var mode = param.ColorMode == 0
             ? "Linear"
@@ -1314,11 +1326,11 @@ public sealed class ShaderExtract
             ? "_" + param.ImageSuffix
             : string.Empty;
 
-        var defaultValue = string.IsNullOrEmpty(param.FileRef)
+        var defaultValue = string.IsNullOrEmpty(param.DefaultInputTexture)
             ? $"Default4({string.Join(", ", param.FloatDefs)})"
-            : $"\"{param.FileRef}\"";
+            : $"\"{param.DefaultInputTexture}\"";
 
-        writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.Field2}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
+        writer.WriteLine($"CreateInputTexture2D({param.Name}, {mode}, {param.MinPrecisionBits}, \"{param.ImageProcessor}\", \"{imageSuffix}\", \"{param.UiGroup}\", {defaultValue});");
     }
 
     private void WriteTexture(VfxVariableDescription param, VfxVariableDescription[] paramBlocks, VfxTextureChannelProcessor[] channelBlocks, IndentedTextWriter writer, List<string> annotations)
@@ -1336,20 +1348,20 @@ public sealed class ShaderExtract
 
         HandleParameterAttribute(param, paramBlocks, annotations);
 
-        if (param.ImageFormat != -1)
+        if (param.ImageFormat != ImageFormat.UNKNOWN)
         {
             var format = Features.VcsVersion switch
             {
-                >= 66 => ((ImageFormatV66)param.ImageFormat).ToString(),
-                >= 64 => ((ImageFormat)param.ImageFormat).ToString(),
-                _ when !Options.ForceWrite_UncertainEnumsAsInts => ((ImageFormat)param.ImageFormat).ToString(),
-                _ => param.ImageFormat.ToString(CultureInfo.InvariantCulture),
+                >= 66 => param.ImageFormat.ToString(),
+                >= 64 => ((LegacyImageFormat)param.ImageFormat).ToString(),
+                >= 61 when !Options.ForceWrite_UncertainEnumsAsInts => ((LegacyImageFormat)param.ImageFormat).ToString(),
+                _ => ((int)param.ImageFormat).ToString(CultureInfo.InvariantCulture),
             };
 
             annotations.Add($"OutputFormat({format});");
         }
 
-        annotations.Add($"SrgbRead({((param.ExtConstantBufferId & 0xFF) == 0 ? "false" : "true")});");
+        annotations.Add($"SrgbRead({(param.SrgbRead ? "false" : "true")});");
 
         const string Sampler = "Sampler";
         var typeString = param.VfxType.ToString();
@@ -1367,9 +1379,9 @@ public sealed class ShaderExtract
         {
             annotations.Add($"Source({param.VariableSource});");
 
-            if (param.Tex != -1)
+            if (param.SourceIndex != -1)
             {
-                annotations.Add($"SourceArg({paramBlocks[param.Tex].Name})");
+                annotations.Add($"SourceArg({paramBlocks[param.SourceIndex].Name})");
             }
         }
 

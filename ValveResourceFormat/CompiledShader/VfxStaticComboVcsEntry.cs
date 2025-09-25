@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -12,113 +13,116 @@ public class VfxStaticComboVcsEntry
     public long StaticComboId { get; init; }
     public int FileOffset { get; init; }
 
+    public record ResourceEntry(KVObject ComboData, VfxShaderAttribute[] AllAttributes, KVObject[] ByteCodeDescArray);
+    public ResourceEntry? KVEntry { get; init; }
+
     public VfxStaticComboData Unserialize()
     {
+        if (KVEntry is not null)
+        {
+            return new VfxStaticComboData(
+                KVEntry.ComboData,
+                StaticComboId,
+                KVEntry.AllAttributes,
+                KVEntry.ByteCodeDescArray,
+                ParentProgramData
+            );
+        }
+
         // CVfxStaticComboData::Unserialize
         var dataReader = ParentProgramData.DataReader;
         Debug.Assert(dataReader != null);
 
         dataReader.BaseStream.Position = FileOffset;
 
-        var compressionTypeOrSize = dataReader.ReadInt32();
+        using var pooledStream = GetUncompressedStaticComboDataStream(dataReader, ParentProgramData);
+        pooledStream.Position = 0;
+        return new VfxStaticComboData(pooledStream, StaticComboId, ParentProgramData);
+    }
+
+    public static PooledMemoryStream GetUncompressedStaticComboDataStream(BinaryReader reader, VfxProgramData programData)
+    {
+        var compressionTypeOrSize = reader.ReadInt32();
         var uncompressedSize = 0;
 
-        if (ParentProgramData.VcsVersion < 64 && ParentProgramData.VcsProgramType == VcsProgramType.Features)
+        if (programData.VcsVersion < 64 && programData.VcsProgramType == VcsProgramType.Features)
         {
-            var data = dataReader.ReadBytes(compressionTypeOrSize); // not bothering to rent buffer for old versions
-            using var outStream = new MemoryStream(data);
-            return new VfxStaticComboData(outStream, StaticComboId, ParentProgramData);
+            var uncompressedStream = new PooledMemoryStream(compressionTypeOrSize);
+            reader.Read(uncompressedStream.BufferSpan);
+            return uncompressedStream;
         }
 
-        uncompressedSize = dataReader.ReadInt32();
+        uncompressedSize = reader.ReadInt32();
 
         if (uncompressedSize == LZMA_MAGIC)
         {
             // On PC v64 switched to using zstd, but on mobile builds they still kept the LZMA decompression.
-            Debug.Assert(ParentProgramData.VcsVersion <= 64);
+            Debug.Assert(programData.VcsVersion <= 64);
 
-            uncompressedSize = dataReader.ReadInt32();
-            var compressedSize2 = dataReader.ReadInt32();
+            uncompressedSize = reader.ReadInt32();
+            var compressedSize2 = reader.ReadInt32();
 
             var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
-            lzmaDecoder.SetDecoderProperties(dataReader.ReadBytes(5));
+            lzmaDecoder.SetDecoderProperties(reader.ReadBytes(5));
 
-            var uncompressedBufferv64 = ArrayPool<byte>.Shared.Rent(uncompressedSize);
-            try
-            {
-                using var outStream = new MemoryStream(uncompressedBufferv64, 0, uncompressedSize);
-                lzmaDecoder.Code(dataReader.BaseStream, outStream, compressedSize2, uncompressedSize, null);
-                outStream.Position = 0;
-                return new VfxStaticComboData(outStream, StaticComboId, ParentProgramData);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(uncompressedBufferv64);
-            }
+            var outStream = new PooledMemoryStream(uncompressedSize);
+            lzmaDecoder.Code(reader.BaseStream, outStream, compressedSize2, uncompressedSize, null);
+            return outStream;
         }
 
-        var uncompressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+        var stream = new PooledMemoryStream(uncompressedSize);
 
-        try
+        var compressionType = -compressionTypeOrSize; // it's negative
+        var compressedSize = reader.ReadInt32();
+
+        switch (compressionType)
         {
-            var compressionType = -compressionTypeOrSize; // it's negative
+            case 1:
+                throw new NotImplementedException("Uncompressed block");
 
-            var compressedSize = dataReader.ReadInt32();
+            case 2:
+                throw new NotImplementedException("ZSTD compresed without dict");
 
-            switch (compressionType)
-            {
-                case 1:
-                    throw new NotImplementedException("Uncompressed block");
-
-                case 2:
-                    throw new NotImplementedException("ZSTD compresed without dict");
-
-                case 3: // ZStd with dictionary 1
-                case 5: // ZStd with dictionary 2
-                    using (var zstdDecompressor = new ZstdSharp.Decompressor())
+            case 3: // ZStd with dictionary 1
+            case 5: // ZStd with dictionary 2
+                using (var zstdDecompressor = new ZstdSharp.Decompressor())
+                {
+                    var dictionary = compressionType switch
                     {
-                        var dictionary = compressionType switch
+                        3 => ZstdDictionary.GetDictionary_2bc2fa87(),
+                        5 => ZstdDictionary.GetDictionary_255df362(),
+                        _ => throw new NotImplementedException(),
+                    };
+
+                    zstdDecompressor.LoadDictionary(dictionary);
+
+                    var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
+
+                    try
+                    {
+                        var input = inputBuf.AsSpan(0, compressedSize);
+                        reader.Read(input);
+
+                        if (!zstdDecompressor.TryUnwrap(input, stream.BufferSpan, out var written) || uncompressedSize != written)
                         {
-                            3 => ZstdDictionary.GetDictionary_2bc2fa87(),
-                            5 => ZstdDictionary.GetDictionary_255df362(),
-                            _ => throw new NotImplementedException(),
-                        };
-
-                        zstdDecompressor.LoadDictionary(dictionary);
-
-                        var inputBuf = ArrayPool<byte>.Shared.Rent(compressedSize);
-
-                        try
-                        {
-                            var input = inputBuf.AsSpan(0, compressedSize);
-                            dataReader.Read(input);
-
-                            if (!zstdDecompressor.TryUnwrap(input, uncompressedBuffer, out var written) || uncompressedSize != written)
-                            {
-                                throw new InvalidDataException($"Failed to decompress ZSTD (expected {uncompressedSize} bytes, got {written})");
-                            }
-                        }
-                        finally
-                        {
-                            ArrayPool<byte>.Shared.Return(inputBuf);
+                            throw new InvalidDataException($"Failed to decompress ZSTD (expected {uncompressedSize} bytes, got {written} {stream.BufferSpan.Length})");
                         }
                     }
-                    break;
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(inputBuf);
+                    }
+                }
+                break;
 
-                case 4:
-                    throw new NotImplementedException("LZ4 compressed");
+            case 4:
+                throw new NotImplementedException("LZ4 compressed");
 
-                default:
-                    throw new UnexpectedMagicException("Unknown compression", compressionType);
-            }
-
-            using var stream = new MemoryStream(uncompressedBuffer, 0, uncompressedSize);
-            return new VfxStaticComboData(stream, StaticComboId, ParentProgramData);
+            default:
+                throw new UnexpectedMagicException("Unknown compression", compressionType);
         }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(uncompressedBuffer);
-        }
+
+        return stream;
     }
 
 #if false

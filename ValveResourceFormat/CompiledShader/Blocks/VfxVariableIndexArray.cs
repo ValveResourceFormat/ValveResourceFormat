@@ -6,27 +6,34 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxVariableIndexArray : ShaderDataBlock
 {
     public int BlockId { get; }
-    public int FieldsCount { get; }
-    public int Offset1 { get; }
-    public int Offset2 { get; }
+    public int FirstRenderStateElement { get; }
+    public int FirstConstantElement { get; }
 
     public VfxVariableIndexData[] Fields { get; }
-    public IReadOnlyList<VfxVariableIndexData> Evaluated => Fields[..Offset1];
-    public IReadOnlyList<VfxVariableIndexData> Segment1 => Fields[Offset1..Offset2];
-    public IReadOnlyList<VfxVariableIndexData> Globals => Fields[Offset2..];
+    public IReadOnlyList<VfxVariableIndexData> Evaluated => Fields[..FirstRenderStateElement];
+    public IReadOnlyList<VfxVariableIndexData> RenderState => Fields[FirstRenderStateElement..FirstConstantElement];
+    public IReadOnlyList<VfxVariableIndexData> Globals => Fields[FirstConstantElement..];
 
     // TODO: remove this
     public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<VfxVariableIndexData>(Fields);
 
+    public VfxVariableIndexArray(ReadOnlySpan<uint> fields, int firstRenderStateElement, int firstConstantElement, int blockIndex) : base()
+    {
+        BlockId = blockIndex;
+        Fields = MemoryMarshal.Cast<uint, VfxVariableIndexData>(fields).ToArray();
+        FirstRenderStateElement = firstRenderStateElement;
+        FirstConstantElement = firstConstantElement;
+    }
+
     public VfxVariableIndexArray(BinaryReader datareader, int blockId, bool readDest) : base(datareader)
     {
         BlockId = blockId;
-        FieldsCount = datareader.ReadInt32();
-        Offset1 = datareader.ReadInt32();
-        Offset2 = datareader.ReadInt32();
+        var fieldCount = datareader.ReadInt32();
+        FirstRenderStateElement = datareader.ReadInt32();
+        FirstConstantElement = datareader.ReadInt32();
 
-        Fields = new VfxVariableIndexData[FieldsCount];
-        for (var i = 0; i < FieldsCount; i++)
+        Fields = new VfxVariableIndexData[fieldCount];
+        for (var i = 0; i < fieldCount; i++)
         {
             if (readDest)
             {

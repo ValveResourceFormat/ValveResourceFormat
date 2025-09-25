@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -7,6 +10,14 @@ public class VfxRenderStateInfo
     public long DynamicComboId { get; }
     public int ShaderFileId { get; }
     public int SourcePointer { get; }
+
+    public VfxRenderStateInfo(long comboId, int shaderId, int sourcePointer)
+    {
+        DynamicComboId = comboId;
+        ShaderFileId = shaderId;
+        SourcePointer = sourcePointer;
+    }
+
     public VfxRenderStateInfo(BinaryReader datareader)
     {
         DynamicComboId = datareader.ReadInt64();
@@ -49,6 +60,20 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public int DepthBias { get; }
         public float DepthBiasClamp { get; }
         public float SlopeScaledDepthBias { get; }
+
+        public RsRasterizerStateDesc(ReadOnlySpan<int> rasterizerStateBits)
+        {
+            Debug.Assert(rasterizerStateBits.Length == 4);
+
+            FillMode = (RsFillMode)(rasterizerStateBits[0] & 0xFF);
+            CullMode = (RsCullMode)((rasterizerStateBits[0] >> 8) & 0xFF);
+            DepthClipEnable = ((rasterizerStateBits[0] >> 16) & 1) != 0;
+            MultisampleEnable = ((rasterizerStateBits[0] >> 24) & 1) != 0;
+
+            DepthBias = rasterizerStateBits[1];
+            DepthBiasClamp = BitConverter.Int32BitsToSingle(rasterizerStateBits[2]);
+            SlopeScaledDepthBias = BitConverter.Int32BitsToSingle(rasterizerStateBits[3]);
+        }
 
         public RsRasterizerStateDesc(BinaryReader datareader)
         {
@@ -122,6 +147,31 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public RsHiStencilComparison360 HiStencilFunc360 { get; }
         public byte HiStencilRef360 { get; }
 
+        public RsDepthStencilStateDesc(ulong depthStencilBits)
+        {
+            // Depth state
+            DepthTestEnable = (depthStencilBits & 1) != 0;
+            DepthWriteEnable = ((depthStencilBits >> 1) & 1) != 0;
+            DepthFunc = (RsComparison)((depthStencilBits >> 8) & 0xFF);
+
+            // Stencil state starts at byte 2 (bit 16)
+            // RsStencilStateDesc_t
+            var stencilBits = depthStencilBits >> 16;
+
+            StencilEnable = (stencilBits & 1) != 0;
+            FrontStencilFailOp = (RsStencilOp)((stencilBits >> 1) & 0x7);
+            FrontStencilDepthFailOp = (RsStencilOp)((stencilBits >> 4) & 0x7);
+            FrontStencilPassOp = (RsStencilOp)((stencilBits >> 7) & 0x7);
+            FrontStencilFunc = (RsComparison)((stencilBits >> 10) & 0x7);
+            BackStencilFailOp = (RsStencilOp)((stencilBits >> 13) & 0x7);
+            BackStencilDepthFailOp = (RsStencilOp)((stencilBits >> 16) & 0x7);
+            BackStencilPassOp = (RsStencilOp)((stencilBits >> 19) & 0x7);
+            BackStencilFunc = (RsComparison)((stencilBits >> 22) & 0x7);
+
+            StencilReadMask = (byte)((stencilBits >> 32) & 0xFF);
+            StencilWriteMask = (byte)((stencilBits >> 40) & 0xFF);
+        }
+
         public RsDepthStencilStateDesc(BinaryReader datareader)
         {
             DepthTestEnable = datareader.ReadBoolean();
@@ -154,7 +204,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 
     public class RsBlendStateDesc
     {
-        private const int MaxRenderTargets = 8;
+        public const int MaxRenderTargets = 8;
 
         public enum RsBlendOp : byte
         {
@@ -206,6 +256,34 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         public RsBlendOp[] BlendOpAlpha { get; } = new RsBlendOp[MaxRenderTargets];
         public RsColorWriteEnableBits[] RenderTargetWriteMask { get; } = new RsColorWriteEnableBits[MaxRenderTargets];
         public bool[] SrgbWriteEnable { get; } = new bool[MaxRenderTargets];
+
+        public RsBlendStateDesc(ReadOnlySpan<int> blendStateBits)
+        {
+            Debug.Assert(blendStateBits.Length == 8);
+
+            // Extract per-render target values from packed bits
+            for (var i = 0; i < MaxRenderTargets; i++)
+            {
+                SrcBlend[i] = (RsBlendMode)((blendStateBits[0] >> (i * 4)) & 0xF);
+                DestBlend[i] = (RsBlendMode)((blendStateBits[1] >> (i * 4)) & 0xF);
+                SrcBlendAlpha[i] = (RsBlendMode)((blendStateBits[2] >> (i * 4)) & 0xF);
+                DestBlendAlpha[i] = (RsBlendMode)((blendStateBits[3] >> (i * 4)) & 0xF);
+                RenderTargetWriteMask[i] = (RsColorWriteEnableBits)((blendStateBits[4] >> (i * 4)) & 0xF);
+                BlendOp[i] = (RsBlendOp)((blendStateBits[5] >> (i * 4)) & 0xF);  // First 30 bits
+                BlendOpAlpha[i] = (RsBlendOp)((blendStateBits[6] >> (i * 4)) & 0xF);
+            }
+
+            // Bitfields at the end of blendStateBits[5]
+            AlphaToCoverageEnable = ((blendStateBits[5] >> 30) & 1) != 0;
+            IndependentBlendEnable = ((blendStateBits[5] >> 31) & 1) != 0;
+
+            // Last int contains blend enable and srgb write enable bytes
+            for (var i = 0; i < MaxRenderTargets; i++)
+            {
+                BlendEnable[i] = ((blendStateBits[7] >> i) & 1) != 0;
+                SrgbWriteEnable[i] = ((blendStateBits[7] >> (8 + i)) & 1) != 0;
+            }
+        }
 
         public RsBlendStateDesc(BinaryReader datareader)
         {
@@ -263,6 +341,31 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     public RsRasterizerStateDesc? RasterizerStateDesc { get; }
     public RsDepthStencilStateDesc? DepthStencilStateDesc { get; }
     public RsBlendStateDesc? BlendStateDesc { get; }
+
+    public VfxRenderStateInfoPixelShader(long comboId, int shaderId, int sourcePointer, KVObject renderState)
+        : base(comboId, shaderId, sourcePointer)
+    {
+        if (renderState is null)
+        {
+            return;
+        }
+
+        if (renderState.ContainsKey("rasterizerStateDesc"))
+        {
+            RasterizerStateDesc = new RsRasterizerStateDesc(renderState.GetArray<int>("rasterizerStateDesc"));
+        }
+
+        if (renderState.ContainsKey("depthStencilStateDesc"))
+        {
+            DepthStencilStateDesc = new RsDepthStencilStateDesc(renderState.GetUnsignedIntegerProperty("depthStencilStateDesc"));
+        }
+
+        // PSRS only has blendStateDesc
+        if (renderState.ContainsKey("blendStateDesc"))
+        {
+            BlendStateDesc = new RsBlendStateDesc(renderState.GetArray<int>("blendStateDesc"));
+        }
+    }
 
     public VfxRenderStateInfoPixelShader(BinaryReader datareader) : base(datareader)
     {

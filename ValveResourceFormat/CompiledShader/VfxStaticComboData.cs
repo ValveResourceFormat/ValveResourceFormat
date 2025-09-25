@@ -1,5 +1,8 @@
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader
 {
@@ -13,12 +16,121 @@ namespace ValveResourceFormat.CompiledShader
         public VfxVariableIndexArray[] DynamicComboVariables { get; } = [];
         public byte[] ConstantBufferBindInfoSlots { get; } = [];
         public byte[] ConstantBufferBindInfoFlags { get; } = [];
-        public int Flags0 { get; }
+        public int ConstantBufferSize { get; }
         public bool Flagbyte0 { get; }
         public byte Flagbyte1 { get; }
         public bool Flagbyte2 { get; }
         public VfxShaderFile[] ShaderFiles { get; } = [];
         public VfxRenderStateInfo[] DynamicCombos { get; } = [];
+
+        public VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, KVObject[] byteCodeDataArray, VfxProgramData programData)
+        {
+            ParentProgramData = programData;
+            StaticComboId = staticComboId;
+
+            var dynamicComboIds = data.GetIntegerArray("m_dynamicComboIDs"); // This can be empty sometimes?
+            var dynamicComboRenderState = data.GetArray("m_dynamicComboRenderState");
+            var byteCodeIndex = data.GetArray<int>("m_byteCodeIndex")!;
+
+            DynamicCombos = new VfxRenderStateInfo[dynamicComboRenderState.Length];
+            for (var i = 0; i < DynamicCombos.Length; i++)
+            {
+                var id = dynamicComboIds.Length > 0
+                    ? dynamicComboIds[i]
+                    : i;
+
+                var renderState = dynamicComboRenderState[i];
+
+                DynamicCombos[i] = programData.VcsProgramType switch
+                {
+                    VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState
+                        => new VfxRenderStateInfoPixelShader(i, byteCodeIndex[i], -1, renderState),
+                    _ => new VfxRenderStateInfo(i, byteCodeIndex[i], -1),
+                };
+            }
+
+            var byteCodeDataIdx = data.GetInt32Property("m_nByteCodeDataIdx");
+
+            if (byteCodeDataIdx >= 0)
+            {
+                var byteCodeData = byteCodeDataArray[byteCodeDataIdx];
+
+                var blockOffset = byteCodeData.GetInt32Property("m_nOffs");
+                var blockSize = byteCodeData.GetInt32Property("m_nSize");
+                var finalOffset = programData.Resource!.FileSize + blockOffset;
+
+                programData.DataReader!.BaseStream.Position = finalOffset;
+
+                using var byteCodeStream = VfxStaticComboVcsEntry.GetUncompressedStaticComboDataStream(programData.DataReader, ParentProgramData);
+                using var byteCodeReader = new BinaryReader(byteCodeStream, Encoding.UTF8, leaveOpen: true);
+                Debug.Assert(programData.DataReader.BaseStream.Position == finalOffset + blockSize);
+
+                var hashes = byteCodeData.GetArray("m_hash");
+                var offsets = byteCodeData.GetArray<uint>("m_offs");
+                Debug.Assert(offsets.Length == hashes.Length + 1);
+
+                ShaderFiles = new VfxShaderFile[hashes.Length];
+                foreach (var i in byteCodeIndex)
+                {
+                    var hash = new Guid(hashes[i].GetArray<byte>("m_nHashChar"));
+                    var byteCodeOffset = offsets[i];
+                    var byteCodeSize = offsets[i + 1];
+
+                    byteCodeReader.BaseStream.Position = byteCodeOffset;
+                    ShaderFiles[i] = ParentProgramData.VcsPlatformType switch
+                    {
+                        VcsPlatformType.VULKAN => new VfxShaderFileVulkan(byteCodeReader, i, hash, this),
+                        VcsPlatformType.PC => new VfxShaderFileDXBC(byteCodeReader, i, (int)byteCodeSize, hash, this),
+                        _ => throw new NotImplementedException($"Unhandled bytecode reader for resource-encoded shader of platform {ParentProgramData.VcsPlatformType}")
+                    };
+
+                    // Debug.Assert(ShaderFiles[i].Size == byteCodeSize);
+                }
+            }
+
+            var dynamicComboVars = data.GetArray<uint>("m_dynamicComboVars");
+            var dynamicComboVarsRef = data.GetArray("m_dynamicComboVarsRef");
+
+            DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVarsRef.Length];
+            for (var i = 0; i < dynamicComboVarsRef.Length; i++)
+            {
+                var variableIndexArray = dynamicComboVarsRef[i];
+                var start = variableIndexArray.GetInt32Property("m_indexAndRegisterOffsetStart");
+                var count = variableIndexArray.GetInt32Property("m_indexAndRegisterOffsetCount");
+
+                if (start <= 0)
+                {
+                    start = 0; // psrs = -1073741824
+                }
+
+                DynamicComboVariables[i] = new VfxVariableIndexArray(
+                    dynamicComboVars.AsSpan(start, count),
+                    variableIndexArray.GetInt32Property("m_nFirstRenderStateElement"),
+                    variableIndexArray.GetInt32Property("m_nFirstConstantElement"),
+                    i
+                );
+            }
+
+            var constantBufferBindingArray = data.GetArray<int>("m_constantBufferBindingArray");
+            ConstantBufferBindInfoSlots = [.. constantBufferBindingArray.Select(i => (byte)(i >> 0))];
+            ConstantBufferBindInfoFlags = [.. constantBufferBindingArray.Select(i => (byte)(i >> 8))];
+
+            ConstantBufferSize = data.GetInt32Property("m_nConstantBufferSize");
+            // todo: are these correct?
+            Flagbyte0 = data.GetUInt32Property("m_bStaticCB") != 0u;
+            Flagbyte1 = (byte)data.GetUInt32Property("m_bGlobalsBDA"); //  != 0u
+
+            var allVars = data.GetSubCollection("m_allVars");
+            VariablesFromStaticCombo = new VfxVariableIndexArray(
+                allVars.GetArray<uint>("m_indexAndRegisterOffsetArray"),
+                allVars.GetInt32Property("m_nFirstRenderStateElement"),
+                allVars.GetInt32Property("m_nFirstConstantElement"),
+                -1
+            );
+
+            VShaderInputs = [.. data.GetIntegerArray("m_vsInputSignatureIndexArray").Select(i => (int)i)];
+            Attributes = [.. data.GetIntegerArray("m_attribIdx").Select(i => attributes[i])];
+        }
 
         public VfxStaticComboData(Stream stream, long staticComboId, VfxProgramData programData)
         {
@@ -78,7 +190,7 @@ namespace ValveResourceFormat.CompiledShader
                 ConstantBufferBindInfoFlags[i] = dataReader.ReadByte();
             }
 
-            Flags0 = dataReader.ReadInt32(); // probably size of RenderShaderHandle_t__ or the shader data below
+            ConstantBufferSize = dataReader.ReadInt32();
             Flagbyte0 = dataReader.ReadBoolean();
             if (ParentProgramData.VcsVersion >= 66)
             {
@@ -175,6 +287,7 @@ namespace ValveResourceFormat.CompiledShader
                 ShaderFiles[sourceId] = dxbcSource;
             }
         }
+
         private void ReadVulkanSources(BinaryReader dataReader)
         {
             var isMobile = ParentProgramData?.VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;

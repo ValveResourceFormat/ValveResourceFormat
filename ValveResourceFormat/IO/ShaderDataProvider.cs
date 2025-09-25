@@ -130,17 +130,17 @@ namespace ValveResourceFormat.IO
             foreach (var constraint in program.StaticComboRules)
             {
                 // Allow only one of the statics
-                if (constraint.Rule == VfxRuleMethod.Allow)
+                if (constraint.Rule == VfxRuleMethod.AllowNum)
                 {
                     // Allow0 (disable this toggle)
-                    var allow0 = constraint.Range2[0] == 0;
+                    var allow0 = constraint.ExtraRuleData[0] == 0;
                     if (allow0 && staticConfiguration[constraint.Indices[0]] != 0)
                     {
                         reducedConfiguration[constraint.Indices[0]] = 0;
                     }
 
                     // Allow1 (cannot both be active)
-                    var allow1 = constraint.Range2[0] == 1;
+                    var allow1 = constraint.ExtraRuleData[0] == 1;
                     if (allow1 && staticConfiguration[constraint.Indices[0]] != 0 && staticConfiguration[constraint.Indices[1]] != 0)
                     {
                         reducedConfiguration[constraint.Indices[1]] = 0;
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.IO
                 }
                 else if (constraint.Rule == VfxRuleMethod.Requires)
                 {
-                    var requires1 = constraint.Range2[0] == 1;
+                    var requires1 = constraint.ExtraRuleData[0] == 1;
                     if (requires1 && staticConfiguration[constraint.Indices[0]] == 0 && staticConfiguration[constraint.Indices[1]] == 1)
                     {
                         reducedConfiguration[constraint.Indices[1]] = 0;
