@@ -23,6 +23,13 @@ public static partial class ShaderSpirvReflection
 
     public static bool ReflectSpirv(VfxShaderFileVulkan vulkanSource, Backend backend, out string code)
     {
+        static bool Error(out string code, spvc_context context)
+        {
+            var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
+            code = lastError ?? string.Empty;
+            return false;
+        }
+
         var result = SpirvCrossApi.spvc_context_create(out var context);
 
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);
@@ -30,6 +37,12 @@ public static partial class ShaderSpirvReflection
         try
         {
             result = SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.Bytecode, out var parsedIr);
+
+            if (result != Result.Success) // Typically InvalidSPIRV 
+            {
+                return Error(out code, context);
+            }
+
             result = SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, CaptureMode.TakeOwnership, out var compiler);
             result = SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options);
 
@@ -68,9 +81,7 @@ public static partial class ShaderSpirvReflection
 
             if (result != Result.Success)
             {
-                var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
-                code = lastError ?? string.Empty;
-                return false;
+                return Error(out code, context);
             }
 
             if (backend == Backend.HLSL)
