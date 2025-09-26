@@ -443,7 +443,7 @@ void main()
 
     ApplyFog(combinedLighting, mat.PositionWS);
 
-    outputColor.rgb = combinedLighting;
+    outputColor = vec4(combinedLighting, mat.Opacity);
 
     if (HandleMaterialRenderModes(outputColor, mat)
     || HandleLightingRenderModes(outputColor, mat, lighting)
