@@ -129,7 +129,8 @@ namespace GUI.Types.Renderer
             SortId = GetSortId();
         }
 
-        private int GetSortId() => Shader.Program * 10000 + Random.Shared.Next(1, 9999);
+        public const int PerShaderSortIdRange = 10_000;
+        private int GetSortId() => Shader.Program * PerShaderSortIdRange + Random.Shared.Next(1, 9999);
 
         static readonly string[] TranslucentShaders =
         [

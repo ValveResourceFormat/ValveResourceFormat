@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
 
         public static int CompareCustomPipeline(Request a, Request b)
         {
-            const int CustomRenderSortId = int.MinValue + 100_000;
+            const int CustomRenderSortId = 500 * -RenderMaterial.PerShaderSortIdRange;
 
             return (a.Call, b.Call) switch
             {
