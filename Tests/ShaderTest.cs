@@ -121,9 +121,9 @@ namespace Tests
                     Assert.That(var2.IntDefs, Is.EquivalentTo(var1.IntDefs), var2.Name);
                     Assert.That(var2.IntMins, Is.EquivalentTo(var1.IntMins), var2.Name);
                     Assert.That(var2.IntMaxs, Is.EquivalentTo(var1.IntMaxs), var2.Name);
-                    Assert.That(var2.FloatDefs, Is.EquivalentTo(var1.FloatDefs));
-                    Assert.That(var2.FloatMins, Is.EquivalentTo(var1.FloatMins));
-                    Assert.That(var2.FloatMaxs, Is.EquivalentTo(var1.FloatMaxs));
+                    Assert.That(var2.FloatDefs, Is.EquivalentTo(var1.FloatDefs), var2.Name);
+                    Assert.That(var2.FloatMins, Is.EquivalentTo(var1.FloatMins), var2.Name);
+                    Assert.That(var2.FloatMaxs, Is.EquivalentTo(var1.FloatMaxs), var2.Name);
                     Assert.That(var2.ImageFormat, Is.EqualTo(var1.ImageFormat));
                     Assert.That(var2.ChannelCount, Is.EqualTo(var1.ChannelCount));
                     Assert.That(var2.ChannelIndices, Is.EquivalentTo(var1.ChannelIndices));

@@ -81,9 +81,12 @@ public class VfxVariableDescription : ShaderDataBlock
             FloatMins = data.GetFloatArray("m_flMin");
             FloatMaxs = data.GetFloatArray("m_flMax");
 
-            IntMins = [.. FloatMins.Select(fl => (int)MathF.Floor(fl))];
-            IntMaxs = [.. FloatMaxs.Select(fl => (int)MathF.Floor(fl))];
-            IntDefs = [.. FloatDefs.Select(fl => (int)MathF.Floor(fl))];
+            if (RegisterType is VfxRegisterType.Uniform)
+            {
+                IntMins = [.. FloatMins.Select(fl => (int)MathF.Floor(fl))];
+                IntMaxs = [.. FloatMaxs.Select(fl => (int)MathF.Floor(fl))];
+                IntDefs = [.. FloatDefs.Select(fl => (int)MathF.Floor(fl))];
+            }
         }
         else if (data.ContainsKey("m_intDefault"))
         {
@@ -91,9 +94,12 @@ public class VfxVariableDescription : ShaderDataBlock
             IntMins = [.. data.GetIntegerArray("m_intMin").Select(l => (int)l)];
             IntMaxs = [.. data.GetIntegerArray("m_intMax").Select(l => (int)l)];
 
-            FloatMins = [.. IntMins.Select(i => (float)i)];
-            FloatMaxs = [.. IntMaxs.Select(i => (float)i)];
-            FloatDefs = [.. IntDefs.Select(i => (float)i)];
+            if (RegisterType is VfxRegisterType.Uniform)
+            {
+                FloatMins = [.. IntMins.Select(i => (float)i)];
+                FloatMaxs = [.. IntMaxs.Select(i => (float)i)];
+                FloatDefs = [.. IntDefs.Select(i => (float)i)];
+            }
         }
 
         FixupIntMinsMaxs();
