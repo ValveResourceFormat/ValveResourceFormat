@@ -133,6 +133,7 @@ namespace GUI.Types.Renderer
                 {
                     if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline)
                     {
+                        material?.PostRender();
                         request.Node.Render(context);
                         shader = null;
                         material = null;
