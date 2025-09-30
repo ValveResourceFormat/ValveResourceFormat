@@ -1,8 +1,8 @@
 
 using System.Linq;
-using System.Runtime.Intrinsics;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using Vortice.SpirvCross;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
 namespace GUI.Types.Renderer;
@@ -56,38 +56,52 @@ class Rubikon
     private static TraceResult RayIntersectsWithMesh(PhysicsMeshData mesh, Vector3 from, Vector3 to)
     {
         var dir = Vector3.Normalize(to - from);
-        var invDir = (Vector3.One / dir).AsVector128();
+        var invDir = Vector3.One / dir;
         var tMin = 0.0f;
         var tMax = Vector3.Distance(from, to);
-
-        var (start, end) = (from.AsVector128(), to.AsVector128());
 
         var stack = mesh.TraversalStack;
         stack.Clear();
         stack.Push((mesh.PhysicsTree[0], 0));
 
+        var closestT = float.MaxValue;
+        var result = new TraceResult(false, Vector3.Zero, -1);
+
         while (stack.TryPop(out var nodeWithIndex))
         {
             var node = nodeWithIndex.Node;
-            var (min, max) = (node.Min.AsVector128(), node.Max.AsVector128());
+            var (min, max) = (node.Min, node.Max);
 
-            var nodeIntersects =
-                Vector128.GreaterThanOrEqual(Vector128.Multiply(Vector128.Subtract(min, start), invDir), Vector128.Create(tMin)) &
-                Vector128.LessThanOrEqual(Vector128.Multiply(Vector128.Subtract(max, start), invDir), Vector128.Create(tMax));
+            // Calculate intersection with AABB using slab method
+            var t1 = (min - from) * invDir;
+            var t2 = (max - from) * invDir;
 
-            if (Vector128.EqualsAll(nodeIntersects, Vector128<float>.Zero))
+            var tNear = Vector3.Min(t1, t2);
+            var tFar = Vector3.Max(t1, t2);
+
+            var tNearMax = MathF.Max(tNear.X, MathF.Max(tNear.Y, tNear.Z));
+            var tFarMin = MathF.Min(tFar.X, MathF.Min(tFar.Y, tFar.Z));
+
+            var nodeIntersects = tNearMax <= tFarMin && tFarMin >= tMin && tNearMax <= tMax;
+
+            if (!nodeIntersects)
             {
                 continue;
             }
 
             if (node.Type != NodeType.Leaf)
             {
-                // Add child nodes to the traversal stack
-                var id = nodeWithIndex.Index + 1; // GetLeftChild
-                stack.Push(new(mesh.PhysicsTree[id], id));
+                var leftChild = nodeWithIndex.Index + 1;
+                var rightChild = nodeWithIndex.Index + (int)node.ChildOffset;
 
-                id = nodeWithIndex.Index + (int)node.ChildOffset; // GetRightChild
-                stack.Push(new(mesh.PhysicsTree[id], id));
+                var rayIsPositive = dir[(int)node.Type] >= 0;
+                var (nearId, farId) = rayIsPositive
+                    ? (leftChild, rightChild)    // Ray going positive direction, traverse left first
+                    : (rightChild, leftChild);   // Ray going negative direction, traverse right first
+
+                // Push far node first so near node is processed first (stack is LIFO)
+                stack.Push(new(mesh.PhysicsTree[farId], farId));
+                stack.Push(new(mesh.PhysicsTree[nearId], nearId));
                 continue;
             }
 
@@ -119,7 +133,7 @@ class Rubikon
                 var u = f * Vector3.Dot(s, h);
 
                 // Ray intersection is outside triangle
-                if (u < 0.0f || u > 1.0f)
+                if (u is < 0.0f or > 1.0f)
                 {
                     continue;
                 }
@@ -141,11 +155,15 @@ class Rubikon
                     continue;
                 }
 
-                // We found a valid intersection
-                return new(true, from + dir * t, i);
+                // Update if this is the closest hit
+                if (t < closestT)
+                {
+                    closestT = t;
+                    result = new(true, from + dir * t, i);
+                }
             }
         }
 
-        return new(false, Vector3.Zero, -1);
+        return result;
     }
 }
