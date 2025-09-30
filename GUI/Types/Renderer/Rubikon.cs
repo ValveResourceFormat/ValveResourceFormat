@@ -1,6 +1,8 @@
 
 using System.Linq;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization.KeyValues;
 using Vortice.SpirvCross;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
@@ -17,6 +19,7 @@ class Rubikon
     );
 
     public PhysicsMeshData[] Meshes { get; }
+    public HullDescriptor[] Hulls { get; }
 
     public Rubikon(PhysAggregateData physicsData)
     {
@@ -35,56 +38,90 @@ class Rubikon
 
             Meshes[meshIndex++] = new PhysicsMeshData([.. vertexPositions], [.. triangles], [.. physicsTree], new(capacity: 64));
         }
+
+        Hulls = physicsData.Parts[0].Shape.Hulls;
     }
 
-    public record struct TraceResult(bool Hit, Vector3 HitPosition, int TriangleIndex);
+    public record struct TraceResult(bool Hit, Vector3 HitPosition, Vector3 HitNormal, float Distance, int TriangleIndex)
+    {
+        public TraceResult() : this(false, Vector3.Zero, Vector3.UnitZ, float.MaxValue, -1) { }
+    }
+
+    public readonly struct RayTraceContext
+    {
+        public Vector3 Origin { get; }
+        public Vector3 Direction { get; }
+        public Vector3 InvDirection { get; }
+        public float Length { get; }
+
+        public readonly Vector3 EndPosition => Origin + Direction * Length;
+
+        public RayTraceContext(Vector3 start, Vector3 end)
+        {
+            Origin = start;
+            Direction = Vector3.Normalize(end - start);
+            InvDirection = Vector3.One / Direction;
+            Length = Vector3.Distance(start, end);
+        }
+    }
 
     public TraceResult TraceRay(Vector3 from, Vector3 to)
     {
+        TraceResult closestHit = new();
+
+        RayTraceContext context = new(from, to);
+
         foreach (var mesh in Meshes)
         {
-            var hit = RayIntersectsWithMesh(mesh, from, to);
-            if (hit.Hit)
+            var hit = RayIntersectsWithMesh(mesh, context);
+            if (hit.Hit && hit.Distance < closestHit.Distance)
             {
-                return hit;
+                closestHit = hit;
             }
         }
 
-        return new(false, Vector3.Zero, -1);
+        foreach (var hullDesc in Hulls)
+        {
+            var hull = hullDesc.Shape;
+            var hit = RayIntersectsWithHull(hull, context);
+            if (hit.Hit && hit.Distance < closestHit.Distance)
+            {
+                closestHit = hit;
+            }
+        }
+
+        return closestHit;
     }
 
-    private static TraceResult RayIntersectsWithMesh(PhysicsMeshData mesh, Vector3 from, Vector3 to)
+    private static TraceResult RayIntersectsWithHull(Hull hull, RayTraceContext ray)
     {
-        var dir = Vector3.Normalize(to - from);
-        var invDir = Vector3.One / dir;
-        var tMin = 0.0f;
-        var tMax = Vector3.Distance(from, to);
+        var closestHit = new TraceResult();
 
+        if (!RayIntersectsAABB(ray, hull.Min, hull.Max))
+        {
+            return closestHit;
+        }
+
+        //foreach (var face in hull.Faces)
+        {
+            // 
+        }
+
+        return closestHit;
+    }
+
+    private static TraceResult RayIntersectsWithMesh(PhysicsMeshData mesh, RayTraceContext ray)
+    {
         var stack = mesh.TraversalStack;
         stack.Clear();
         stack.Push((mesh.PhysicsTree[0], 0));
 
-        var closestT = float.MaxValue;
-        var result = new TraceResult(false, Vector3.Zero, -1);
+        var closestHit = new TraceResult();
 
         while (stack.TryPop(out var nodeWithIndex))
         {
             var node = nodeWithIndex.Node;
-            var (min, max) = (node.Min, node.Max);
-
-            // Calculate intersection with AABB using slab method
-            var t1 = (min - from) * invDir;
-            var t2 = (max - from) * invDir;
-
-            var tNear = Vector3.Min(t1, t2);
-            var tFar = Vector3.Max(t1, t2);
-
-            var tNearMax = MathF.Max(tNear.X, MathF.Max(tNear.Y, tNear.Z));
-            var tFarMin = MathF.Min(tFar.X, MathF.Min(tFar.Y, tFar.Z));
-
-            var nodeIntersects = tNearMax <= tFarMin && tFarMin >= tMin && tNearMax <= tMax;
-
-            if (!nodeIntersects)
+            if (!RayIntersectsAABB(ray, node.Min, node.Max))
             {
                 continue;
             }
@@ -94,7 +131,7 @@ class Rubikon
                 var leftChild = nodeWithIndex.Index + 1;
                 var rightChild = nodeWithIndex.Index + (int)node.ChildOffset;
 
-                var rayIsPositive = dir[(int)node.Type] >= 0;
+                var rayIsPositive = ray.Direction[(int)node.Type] >= 0;
                 var (nearId, farId) = rayIsPositive
                     ? (leftChild, rightChild)    // Ray going positive direction, traverse left first
                     : (rightChild, leftChild);   // Ray going negative direction, traverse right first
@@ -116,54 +153,82 @@ class Rubikon
                 var v1 = mesh.VertexPositions[triangle.Y];
                 var v2 = mesh.VertexPositions[triangle.Z];
 
-                // Möller–Trumbore ray-triangle intersection algorithm
-                var edge1 = v1 - v0;
-                var edge2 = v2 - v0;
-                var h = Vector3.Cross(dir, edge2);
-                var a = Vector3.Dot(edge1, h);
-
-                // Ray is parallel to triangle
-                if (Math.Abs(a) < 1e-6f)
-                {
-                    continue;
-                }
-
-                var f = 1.0f / a;
-                var s = from - v0;
-                var u = f * Vector3.Dot(s, h);
-
-                // Ray intersection is outside triangle
-                if (u is < 0.0f or > 1.0f)
-                {
-                    continue;
-                }
-
-                var q = Vector3.Cross(s, edge1);
-                var v = f * Vector3.Dot(dir, q);
-
-                // Ray intersection is outside triangle
-                if (v < 0.0f || u + v > 1.0f)
-                {
-                    continue;
-                }
-
-                var t = f * Vector3.Dot(edge2, q);
-
-                // Ray intersection is behind ray origin or beyond ray end
-                if (t < tMin || t > tMax)
+                if (!RayIntersectsTriangle(ray, v0, v1, v2, out var intersection))
                 {
                     continue;
                 }
 
                 // Update if this is the closest hit
-                if (t < closestT)
+                if (intersection.Distance < closestHit.Distance)
                 {
-                    closestT = t;
-                    result = new(true, from + dir * t, i);
+                    closestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, i);
                 }
             }
         }
 
-        return result;
+        return closestHit;
+    }
+
+    private static bool RayIntersectsAABB(RayTraceContext ray, Vector3 min, Vector3 max)
+    {
+        // Calculate intersection with AABB using slab method
+        var t1 = (min - ray.Origin) * ray.InvDirection;
+        var t2 = (max - ray.Origin) * ray.InvDirection;
+
+        var tNear = Vector3.Min(t1, t2);
+        var tFar = Vector3.Max(t1, t2);
+
+        var tNearMax = MathF.Max(tNear.X, MathF.Max(tNear.Y, tNear.Z));
+        var tFarMin = MathF.Min(tFar.X, MathF.Min(tFar.Y, tFar.Z));
+
+        var intersects = tNearMax <= tFarMin && tFarMin >= 0 && tNearMax <= ray.Length;
+        return intersects;
+    }
+
+    private static bool RayIntersectsTriangle(RayTraceContext ray, Vector3 v0, Vector3 v1, Vector3 v2, out (float Distance, Vector3 Normal) intersection)
+    {
+        // Möller–Trumbore ray-triangle intersection algorithm
+        var edge1 = v1 - v0;
+        var edge2 = v2 - v0;
+        var h = Vector3.Cross(ray.Direction, edge2);
+        var a = Vector3.Dot(edge1, h);
+
+        intersection = (-1, Vector3.Zero);
+
+        // Ray is parallel to triangle
+        if (Math.Abs(a) < 1e-6f)
+        {
+            return false;
+        }
+
+        var f = 1.0f / a;
+        var s = ray.Origin - v0;
+        var u = f * Vector3.Dot(s, h);
+
+        // Ray intersection is outside triangle
+        if (u is < 0.0f or > 1.0f)
+        {
+            return false;
+        }
+
+        var q = Vector3.Cross(s, edge1);
+        var v = f * Vector3.Dot(ray.Direction, q);
+
+        // Ray intersection is outside triangle
+        if (v < 0.0f || u + v > 1.0f)
+        {
+            return false;
+        }
+
+        var t = f * Vector3.Dot(edge2, q);
+
+        // Ray intersection is behind ray origin or beyond ray end
+        if (t < 0 || t > ray.Length)
+        {
+            return false;
+        }
+
+        intersection = (t, Vector3.Normalize(Vector3.Cross(edge1, edge2)));
+        return true;
     }
 }
