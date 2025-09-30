@@ -497,19 +497,19 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 var end = multilineStr.Length;
 
                 //Check the start
-                if (multilineStr.ElementAt(0) == '\n')
+                if (multilineStr[0] == '\n')
                 {
                     start = 1;
                 }
-                else if (multilineStr.ElementAt(0) == '\r' && multilineStr.ElementAt(1) == '\n')
+                else if (multilineStr[0] == '\r' && multilineStr[1] == '\n')
                 {
                     start = 2;
                 }
 
                 //Check the end
-                if (multilineStr.ElementAt(multilineStr.Length - 1) == '\n')
+                if (multilineStr[^1] == '\n')
                 {
-                    if (multilineStr.ElementAt(multilineStr.Length - 2) == '\r')
+                    if (multilineStr[^2] == '\r')
                     {
                         end = multilineStr.Length - 2;
                     }

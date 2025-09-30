@@ -165,6 +165,8 @@ namespace GUI.Types.Renderer
 
                     scene.Add(physSceneNode, true);
                 }
+
+                scene.PhysicsTracer = new Rubikon(phys);
             }
         }
 

@@ -38,6 +38,8 @@ namespace GUI.Types.Renderer
         public WorldLightingInfo LightingInfo { get; }
         public WorldFogInfo FogInfo { get; set; } = new();
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
+        public Rubikon PhysicsTracer { get; set; }
+        public ModelSceneNode PhysicsTraceNodeTest { get; set; }
 
         private UniformBuffer<LightingConstants> lightingBuffer;
 
@@ -67,6 +69,12 @@ namespace GUI.Types.Renderer
 
         public void Initialize()
         {
+            if (PhysicsTracer != null)
+            {
+                PhysicsTraceNodeTest = GLMaterialViewer.CreateEnvCubemapSphere(this);
+                Add(PhysicsTraceNodeTest, true);
+            }
+
             UpdateOctrees();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
@@ -144,6 +152,22 @@ namespace GUI.Types.Renderer
 
         public void Update(Scene.UpdateContext updateContext)
         {
+            if (PhysicsTracer != null)
+            {
+                var start = updateContext.View.Camera.Location;
+                var end = start + updateContext.View.Camera.GetForwardVector() * 1000f;
+
+                var traceResult = PhysicsTracer.TraceRay(start, end);
+                if (traceResult.Hit)
+                {
+                    PhysicsTraceNodeTest.Transform = Matrix4x4.CreateTranslation(traceResult.HitPosition);
+                }
+                else
+                {
+                    PhysicsTraceNodeTest.Transform = Matrix4x4.CreateTranslation(end);
+                }
+            }
+
             foreach (var node in staticNodes)
             {
                 node.Update(updateContext);
