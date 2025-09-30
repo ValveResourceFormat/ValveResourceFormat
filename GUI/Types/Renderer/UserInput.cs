@@ -26,6 +26,7 @@ internal class UserInput
     private float TransitionEndTime = -1f;
     private CameraLite StartingCamera;
     public Camera Camera;
+    public Rubikon? PhysicsWorld { get; set; }
 
     // Orbit controls
     public bool OrbitMode => OrbitTarget != null;
@@ -45,7 +46,7 @@ internal class UserInput
     private const float MaxOrbitDistance = 10000f;
     private const float OrbitZoomSpeed = 0.1f;
 
-    // private TrackedKeys PreviousKeys;
+    private TrackedKeys PreviousKeys;
 
     /// <summary>
     /// Force an input update on the next tick.
@@ -81,10 +82,25 @@ internal class UserInput
 
         if (!OrbitModeAlways)
         {
-            // TODO: Use traces to find the point at which we intersect geo, and use that as orbit target
-            OrbitTarget = keyboardState.HasFlag(TrackedKeys.Alt)
-                ? Camera.Location + Camera.Forward * 100
-                : null;
+            var holdingAlt = keyboardState.HasFlag(TrackedKeys.Alt);
+            var justPressedAlt = holdingAlt && !PreviousKeys.HasFlag(TrackedKeys.Alt);
+
+            if (!holdingAlt)
+            {
+                OrbitTarget = null;
+            }
+            else if (justPressedAlt)
+            {
+                OrbitTarget = null;
+
+                var traceResult = PhysicsWorld?.TraceRay(Camera.Location, Camera.Location + Camera.Forward * 10000f);
+                if (traceResult is { Hit: true, HitPosition: var hitPosition })
+                {
+                    OrbitTarget = hitPosition;
+                }
+
+            }
+
         }
 
         if (OrbitMode)
@@ -101,7 +117,7 @@ internal class UserInput
         renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch, finalCamera.Yaw);
         renderCamera.ClampRotation();
 
-        // PreviousKeys = keyboardState;
+        PreviousKeys = keyboardState;
     }
 
     public void SaveCameraForTransition(float transitionDuration = 1.5f)

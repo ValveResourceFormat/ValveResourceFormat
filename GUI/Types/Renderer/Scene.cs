@@ -32,6 +32,8 @@ namespace GUI.Types.Renderer
         public WorldFogInfo FogInfo { get; set; } = new();
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
 
+        public Rubikon? PhysicsWorld { get; set; }
+
         private UniformBuffer<LightingConstants>? lightingBuffer;
         public UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;

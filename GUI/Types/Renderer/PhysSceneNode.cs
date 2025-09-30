@@ -229,15 +229,10 @@ namespace GUI.Types.Renderer
 
                             var normal = ComputeNormal(a, b, c);
 
-                            // offset along normal to avoid z-fighting with the render surface
-                            var renderOffset = collisionAttributeIndex == 0
-                                ? normal * 0.5f
-                                : Vector3.Zero;
-
                             var offset = verts.Count;
-                            verts.Add(new(a + renderOffset, ColorMesh, normal));
-                            verts.Add(new(b + renderOffset, ColorMesh, normal));
-                            verts.Add(new(c + renderOffset, ColorMesh, normal));
+                            verts.Add(new(a, ColorMesh, normal));
+                            verts.Add(new(b, ColorMesh, normal));
+                            verts.Add(new(c, ColorMesh, normal));
 
                             AddTriangle(inds, offset, 0, 1, 2);
                         }

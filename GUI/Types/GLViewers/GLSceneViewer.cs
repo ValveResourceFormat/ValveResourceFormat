@@ -192,6 +192,11 @@ namespace GUI.Types.GLViewers
         public virtual void PostSceneLoad()
         {
             Scene.Initialize();
+            if (Scene.PhysicsWorld != null)
+            {
+                Input.PhysicsWorld = Scene.PhysicsWorld;
+            }
+
             SkyboxScene?.Initialize();
 
             if (Scene.FogInfo.CubeFogActive)
