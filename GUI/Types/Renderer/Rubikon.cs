@@ -1,10 +1,9 @@
 
 using System.Linq;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization.KeyValues;
-using Vortice.SpirvCross;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
 namespace GUI.Types.Renderer;
@@ -18,8 +17,17 @@ class Rubikon
         Stack<(Node Node, int Index)> TraversalStack
     );
 
+    public record PhysicsHullData(
+        Vector3 Min,
+        Vector3 Max,
+        Vector3[] VertexPositions,
+        Hull.HalfEdge[] HalfEdges,
+        byte[] FaceEdgeIndices,
+        Hull.Plane[] Planes
+    );
+
     public PhysicsMeshData[] Meshes { get; }
-    public HullDescriptor[] Hulls { get; }
+    public PhysicsHullData[] Hulls { get; }
 
     public Rubikon(PhysAggregateData physicsData)
     {
@@ -39,7 +47,31 @@ class Rubikon
             Meshes[meshIndex++] = new PhysicsMeshData([.. vertexPositions], [.. triangles], [.. physicsTree], new(capacity: 64));
         }
 
-        Hulls = physicsData.Parts[0].Shape.Hulls;
+        Hulls = new PhysicsHullData[physicsData.Parts[0].Shape.Hulls.Length];
+        var hullIndex = 0;
+        foreach (var hullDesc in physicsData.Parts[0].Shape.Hulls)
+        {
+            var hull = hullDesc.Shape;
+            // var vertexIndices = hull.GetVertices();
+            var vertexPositions = hull.GetVertexPositions();
+            var halfEdges = hull.GetEdges();
+            var faceEdgeIndices = hull.GetFaces();
+            var planes = hull.GetPlanes();
+
+            // if (vertexIndices.Length == 0)
+            // {
+            //     vertexIndices = Enumerable.Range(0, vertexPositions.Length).Select(i => (byte)i).ToArray();
+            // }
+
+            Hulls[hullIndex++] = new PhysicsHullData(
+                hull.Min, hull.Max,
+                //[.. vertexIndices],
+                [.. vertexPositions],
+                [.. halfEdges],
+                [.. MemoryMarshal.Cast<Hull.Face, byte>(faceEdgeIndices)],
+                [.. planes]
+            );
+        }
     }
 
     public record struct TraceResult(bool Hit, Vector3 HitPosition, Vector3 HitNormal, float Distance, int TriangleIndex)
@@ -69,21 +101,20 @@ class Rubikon
     {
         TraceResult closestHit = new();
 
-        RayTraceContext context = new(from, to);
+        RayTraceContext ray = new(from, to);
 
         foreach (var mesh in Meshes)
         {
-            var hit = RayIntersectsWithMesh(mesh, context);
+            var hit = RayIntersectsWithMesh(ray, mesh);
             if (hit.Hit && hit.Distance < closestHit.Distance)
             {
                 closestHit = hit;
             }
         }
 
-        foreach (var hullDesc in Hulls)
+        foreach (var hull in Hulls)
         {
-            var hull = hullDesc.Shape;
-            var hit = RayIntersectsWithHull(hull, context);
+            var hit = RayIntersectsWithHull(ray, hull);
             if (hit.Hit && hit.Distance < closestHit.Distance)
             {
                 closestHit = hit;
@@ -93,7 +124,7 @@ class Rubikon
         return closestHit;
     }
 
-    private static TraceResult RayIntersectsWithHull(Hull hull, RayTraceContext ray)
+    private static TraceResult RayIntersectsWithHull(RayTraceContext ray, PhysicsHullData hull)
     {
         var closestHit = new TraceResult();
 
@@ -102,15 +133,38 @@ class Rubikon
             return closestHit;
         }
 
-        //foreach (var face in hull.Faces)
+        foreach (var firstEdgeCcw in hull.FaceEdgeIndices)
         {
-            // 
+            var edgeIndex = firstEdgeCcw;
+
+            do
+            {
+                var edge0 = hull.HalfEdges[edgeIndex];
+                var edge1 = hull.HalfEdges[edge0.Next];
+                var edge3 = hull.HalfEdges[edge1.Next];
+
+                // Just do triangle intersection?
+                var v0 = hull.VertexPositions[edge0.Origin];
+                var v1 = hull.VertexPositions[edge1.Origin];
+                var v2 = hull.VertexPositions[edge3.Origin];
+
+                if (RayIntersectsTriangle(ray, v0, v1, v2, out var intersection))
+                {
+                    // Update if this is the closest hit
+                    if (intersection.Distance < closestHit.Distance)
+                    {
+                        closestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, -1);
+                    }
+                }
+
+                edgeIndex = edge0.Next;
+            } while (edgeIndex != firstEdgeCcw);
         }
 
         return closestHit;
     }
 
-    private static TraceResult RayIntersectsWithMesh(PhysicsMeshData mesh, RayTraceContext ray)
+    private static TraceResult RayIntersectsWithMesh(RayTraceContext ray, PhysicsMeshData mesh)
     {
         var stack = mesh.TraversalStack;
         stack.Clear();
