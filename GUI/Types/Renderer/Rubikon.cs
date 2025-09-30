@@ -26,6 +26,15 @@ class Rubikon
         Hull.Plane[] Planes
     );
 
+    public record PhysicsHullData(
+        Vector3 Min,
+        Vector3 Max,
+        Vector3[] VertexPositions,
+        Hull.HalfEdge[] HalfEdges,
+        byte[] FaceEdgeIndices,
+        Hull.Plane[] Planes
+    );
+
     public PhysicsMeshData[] Meshes { get; }
     public PhysicsHullData[] Hulls { get; }
 
@@ -67,7 +76,31 @@ class Rubikon
             );
         }
 
-        Hulls = physicsData.Parts[0].Shape.Hulls;
+        Hulls = new PhysicsHullData[physicsData.Parts[0].Shape.Hulls.Length];
+        var hullIndex = 0;
+        foreach (var hullDesc in physicsData.Parts[0].Shape.Hulls)
+        {
+            var hull = hullDesc.Shape;
+            // var vertexIndices = hull.GetVertices();
+            var vertexPositions = hull.GetVertexPositions();
+            var halfEdges = hull.GetEdges();
+            var faceEdgeIndices = hull.GetFaces();
+            var planes = hull.GetPlanes();
+
+            // if (vertexIndices.Length == 0)
+            // {
+            //     vertexIndices = Enumerable.Range(0, vertexPositions.Length).Select(i => (byte)i).ToArray();
+            // }
+
+            Hulls[hullIndex++] = new PhysicsHullData(
+                hull.Min, hull.Max,
+                //[.. vertexIndices],
+                [.. vertexPositions],
+                [.. halfEdges],
+                [.. MemoryMarshal.Cast<Hull.Face, byte>(faceEdgeIndices)],
+                [.. planes]
+            );
+        }
     }
 
     public record struct TraceResult(bool Hit, Vector3 HitPosition, Vector3 HitNormal, float Distance, int TriangleIndex)
