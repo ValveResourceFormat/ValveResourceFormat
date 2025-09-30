@@ -66,6 +66,8 @@ class Rubikon
                 [.. planes]
             );
         }
+
+        Hulls = physicsData.Parts[0].Shape.Hulls;
     }
 
     public record struct TraceResult(bool Hit, Vector3 HitPosition, Vector3 HitNormal, float Distance, int TriangleIndex)
