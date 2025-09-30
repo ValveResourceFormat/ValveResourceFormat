@@ -69,6 +69,7 @@ namespace GUI.Types.Renderer
             if (PhysicsTracer != null)
             {
                 PhysicsTraceNodeTest = GLMaterialViewer.CreateEnvCubemapSphere(this);
+                PhysicsTraceNodeTest.LayerName = "Debug";
                 Add(PhysicsTraceNodeTest, true);
             }
 
