@@ -21,6 +21,8 @@ public enum TrackedKeys
     Up = 1 << 6,
     Down = 1 << 7,
     Control = 1 << 8,
+    Space = 1 << 9,
+    X = 1 << 10,
 
     MouseLeft = 1 << 30,
     MouseRight = 1 << 31,

@@ -59,6 +59,10 @@ public class UserInput
     private const float MaxOrbitDistance = 10000f;
     private const float OrbitZoomSpeed = 0.1f;
 
+    private readonly PlayerMovement PlayerMovement;
+    public bool NoclipEnabled { get; private set; } = true;
+
+    private TrackedKeys Keys;
     private TrackedKeys PreviousKeys;
     private Vector3 Velocity = Vector3.Zero;
 
@@ -74,10 +78,27 @@ public class UserInput
     {
         Renderer = renderer;
         Camera = new Camera(renderer.RendererContext);
+        PlayerMovement = new PlayerMovement(this);
     }
+
+    /// <summary>
+    /// Checks if a key is currently being held down.
+    /// </summary>
+    public bool Holding(TrackedKeys key) => Keys.HasFlag(key);
+
+    /// <summary>
+    /// Checks if a key was just pressed this frame (pressed now but not last frame).
+    /// </summary>
+    public bool Pressed(TrackedKeys key) => Holding(key) && !PreviousKeys.HasFlag(key);
+
+    /// <summary>
+    /// Checks if a key was just released this frame (not pressed now but was pressed last frame).
+    /// </summary>
+    private bool Released(TrackedKeys key) => !Holding(key) && PreviousKeys.HasFlag(key);
 
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)
     {
+        Keys = keyboardState;
         ForceUpdate = false;
 
         if (!EnableMouseLook)
@@ -96,14 +117,11 @@ public class UserInput
 
         if (!OrbitModeAlways)
         {
-            var holdingAlt = keyboardState.HasFlag(TrackedKeys.Alt);
-            var justPressedAlt = holdingAlt && !PreviousKeys.HasFlag(TrackedKeys.Alt);
-
-            if (!holdingAlt)
+            if (!Holding(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
             }
-            else if (justPressedAlt)
+            else if (Pressed(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
 
@@ -123,10 +141,23 @@ public class UserInput
                     }
                 }
             }
-
         }
 
-        if (OrbitMode)
+        // Handle noclip toggle (X key)
+        if (Pressed(TrackedKeys.X))
+        {
+            NoclipEnabled = !NoclipEnabled;
+            PlayerMovement.Initialize = !NoclipEnabled;
+        }
+
+        if (!NoclipEnabled)
+        {
+            PlayerMovement.ProcessMovement(this, Camera, deltaTime);
+            Camera.Pitch -= MouseDeltaPitchYaw.X;
+            Camera.Yaw -= MouseDeltaPitchYaw.Y;
+            Camera.ClampRotation();
+        }
+        else if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState);
         }

@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -359,5 +361,16 @@ namespace ValveResourceFormat.Renderer
             resource.Read(stream);
             return resource;
         });
+
+        public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
+        {
+            if (ShapeSceneNode.CubemapResource.Value.DataBlock is not Model model)
+            {
+                throw new InvalidDataException("Cubemap resource is not a Model.");
+            }
+
+            var node = new ModelSceneNode(scene, model);
+            return node;
+        }
     }
 }

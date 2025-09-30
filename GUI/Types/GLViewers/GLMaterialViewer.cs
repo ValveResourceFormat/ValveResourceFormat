@@ -100,7 +100,7 @@ namespace GUI.Types.GLViewers
             }
 
             {
-                var sphereMesh = CreateEnvCubemapSphere(Scene);
+                var sphereMesh = ShapeSceneNode.CreateEnvCubemapSphere(Scene);
                 foreach (var renderable in sphereMesh.RenderableMeshes)
                 {
                     renderable.SetMaterialForMaterialViewer(Resource);
@@ -717,17 +717,6 @@ namespace GUI.Types.GLViewers
             }
 
             Input.ForceUpdate = true;
-        }
-
-        public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
-        {
-            if (ShapeSceneNode.CubemapResource.Value.DataBlock is not Model model)
-            {
-                throw new InvalidDataException("Cubemap resource is not a Model.");
-            }
-
-            var node = new ModelSceneNode(scene, model);
-            return node;
         }
 
         private void OnShadersButtonClick(object? s, EventArgs e)
