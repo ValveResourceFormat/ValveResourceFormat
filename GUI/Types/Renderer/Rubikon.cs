@@ -81,20 +81,14 @@ class Rubikon
         foreach (var hullDesc in physicsData.Parts[0].Shape.Hulls)
         {
             var hull = hullDesc.Shape;
-            // var vertexIndices = hull.GetVertices();
             var vertexPositions = hull.GetVertexPositions();
             var halfEdges = hull.GetEdges();
             var faceEdgeIndices = hull.GetFaces();
             var planes = hull.GetPlanes();
 
-            // if (vertexIndices.Length == 0)
-            // {
-            //     vertexIndices = Enumerable.Range(0, vertexPositions.Length).Select(i => (byte)i).ToArray();
-            // }
 
             Hulls[hullIndex++] = new PhysicsHullData(
                 hull.Min, hull.Max,
-                //[.. vertexIndices],
                 [.. vertexPositions],
                 [.. halfEdges],
                 [.. MemoryMarshal.Cast<Hull.Face, byte>(faceEdgeIndices)],
