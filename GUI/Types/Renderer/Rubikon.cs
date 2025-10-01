@@ -52,20 +52,14 @@ class Rubikon
         foreach (var hullDesc in physicsData.Parts[0].Shape.Hulls)
         {
             var hull = hullDesc.Shape;
-            // var vertexIndices = hull.GetVertices();
             var vertexPositions = hull.GetVertexPositions();
             var halfEdges = hull.GetEdges();
             var faceEdgeIndices = hull.GetFaces();
             var planes = hull.GetPlanes();
 
-            // if (vertexIndices.Length == 0)
-            // {
-            //     vertexIndices = Enumerable.Range(0, vertexPositions.Length).Select(i => (byte)i).ToArray();
-            // }
 
             Hulls[hullIndex++] = new PhysicsHullData(
                 hull.Min, hull.Max,
-                //[.. vertexIndices],
                 [.. vertexPositions],
                 [.. halfEdges],
                 [.. MemoryMarshal.Cast<Hull.Face, byte>(faceEdgeIndices)],
@@ -135,18 +129,18 @@ class Rubikon
 
         foreach (var firstEdgeCcw in hull.FaceEdgeIndices)
         {
-            var edgeIndex = firstEdgeCcw;
+            var firstEdge = hull.HalfEdges[firstEdgeCcw];
+            var edgeIndex = firstEdge.Next;
+            var v0 = hull.VertexPositions[firstEdge.Origin];
 
             do
             {
-                var edge0 = hull.HalfEdges[edgeIndex];
-                var edge1 = hull.HalfEdges[edge0.Next];
-                var edge3 = hull.HalfEdges[edge1.Next];
+                var edge1 = hull.HalfEdges[edgeIndex];
+                var edge2 = hull.HalfEdges[edge1.Next];
 
                 // Just do triangle intersection?
-                var v0 = hull.VertexPositions[edge0.Origin];
                 var v1 = hull.VertexPositions[edge1.Origin];
-                var v2 = hull.VertexPositions[edge3.Origin];
+                var v2 = hull.VertexPositions[edge2.Origin];
 
                 if (RayIntersectsTriangle(ray, v0, v1, v2, out var intersection))
                 {
@@ -157,7 +151,7 @@ class Rubikon
                     }
                 }
 
-                edgeIndex = edge0.Next;
+                edgeIndex = edge1.Next;
             } while (edgeIndex != firstEdgeCcw);
         }
 
