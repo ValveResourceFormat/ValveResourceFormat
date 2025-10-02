@@ -831,6 +831,7 @@ namespace GUI.Types.GLViewers
             Keys.ControlKey => TrackedKeys.Control,
             Keys.ShiftKey or Keys.LShiftKey => TrackedKeys.Shift,
             Keys.Menu or Keys.LMenu => TrackedKeys.Alt,
+            Keys.Space => TrackedKeys.Jump,
             _ => TrackedKeys.None,
         };
 
