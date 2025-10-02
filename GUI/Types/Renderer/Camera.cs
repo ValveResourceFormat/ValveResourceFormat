@@ -6,7 +6,8 @@ namespace GUI.Types.Renderer
     class Camera
     {
         private const float MovementSpeed = 300f; // WASD movement, per second
-        private const float AltMovementSpeed = 10f; // Holding shift or alt movement
+
+        private readonly FpsMovement fpsMovement = new();
 
         private readonly float[] SpeedModifiers =
         [
@@ -203,6 +204,12 @@ namespace GUI.Types.Renderer
 
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
+            Location = fpsMovement.ProcessMovement(Location, keyboardState, deltaTime, Pitch, Yaw);
+
+            Yaw -= MathF.PI * mouseDelta.X / WindowSize.X;
+            Pitch -= MathF.PI / AspectRatio * mouseDelta.Y / WindowSize.Y;
+
+            /*
             if ((keyboardState & TrackedKeys.Control) > 0)
             {
                 // Disable camera movement while holding control
@@ -236,6 +243,7 @@ namespace GUI.Types.Renderer
                 Yaw -= MathF.PI * mouseDelta.X / WindowSize.X;
                 Pitch -= MathF.PI / AspectRatio * mouseDelta.Y / WindowSize.Y;
             }
+            */
 
             ClampRotation();
         }
