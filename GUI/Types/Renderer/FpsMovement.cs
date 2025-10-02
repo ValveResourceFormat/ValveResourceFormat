@@ -3,28 +3,30 @@ using GUI.Utils;
 namespace GUI.Types.Renderer;
 
 /// <summary>
-/// FPS-style movement physics ported from Source engine (base gamemovement.cpp + CS:GO speed modifiers)
-/// Implements MOVETYPE_WALK behavior with ground friction, acceleration, jumping
+/// FPS-style movement physics ported from CS:GO source (cs_gamemovement.cpp + gamemovement.cpp)
+/// Implements MOVETYPE_WALK behavior with CS:GO-accurate movement mechanics
 ///
-/// IMPLEMENTED:
+/// IMPLEMENTED FROM CS:GO:
 /// - Split gravity (StartGravity/FinishGravity) for proper integration
-/// - Ground friction and acceleration (base Source engine)
+/// - Ground friction and acceleration with CS:GO scaling (MAX(250, wishspeed))
 /// - Air acceleration with 30 unit/sec cap for air control
-/// - Jumping with proper impulse
+/// - Bunnyhopping prevention (1.1x max speed cap before jumping)
+/// - Jumping with proper impulse (sqrt(2*gravity*jumpheight))
+/// - Walk speed modifier with CS:GO conditional application (only when near walk speed)
+/// - Duck/crouch speed modifier (34% speed, CS:GO)
 /// - Velocity checking (NaN protection) and clamping
-/// - Walk speed modifier (Shift key - 52% speed, CS:GO)
-/// - Duck/crouch speed modifier (Control key - 34% speed, CS:GO)
+/// - WalkMove speed clamping to prevent turning acceleration
 ///
 /// NOT IMPLEMENTED (intentionally simplified):
 /// - Collision detection (uses infinite ground plane at Z=0)
 /// - Water movement/swimming
-/// - Traces/raycasts
-/// - CS:GO exponential acceleration curves (uses base Source engine linear acceleration)
+/// - Traces/raycasts for collision
 /// - Weapon speed modifiers (AWP scoped speed, etc.)
-/// - Bunnyhopping prevention (can gain speed by jumping repeatedly)
 /// - Stamina system (jump height/speed penalties when tired)
+/// - Duck spam penalties and duck speed tracking
 /// - Full duck mechanics (view height changes, collision hull shrinking)
 /// - StayOnGround() for slopes/stairs
+/// - Trailing velocity tracking for accuracy fishtailing
 /// </summary>
 class FpsMovement
 {
@@ -41,6 +43,9 @@ class FpsMovement
     // Speed modifiers from CS:GO (cs_shareddefs.cpp)
     private const float WalkSpeedModifier = 0.52f;        // CS_PLAYER_SPEED_WALK_MODIFIER
     private const float DuckSpeedModifier = 0.34f;        // CS_PLAYER_SPEED_DUCK_MODIFIER
+
+    // Bunnyhopping prevention (CS:GO)
+    private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
     // Movement state
     public Vector3 Velocity { get; private set; }
@@ -77,12 +82,30 @@ class FpsMovement
         // Check for jump
         if ((input & TrackedKeys.Jump) != 0 && !OldButtonJump && OnGround)
         {
+            // Prevent bunnyhopping - cap speed before jumping
+            PreventBunnyJumping();
             CheckJump(deltaTime);
         }
         OldButtonJump = (input & TrackedKeys.Jump) != 0;
 
-        // Calculate wish velocity from input
+        // Track input state for acceleration modifiers
+        var isDucking = (input & TrackedKeys.Control) != 0;
+        var isWalking = (input & TrackedKeys.Shift) != 0 && !isDucking;
+
+        // Calculate wish velocity from input (with speed modifiers for duck/crouch)
         var (wishdir, wishspeed) = CalculateWishVelocity(input, pitch, yaw);
+
+        // Apply walk speed modifier only when near walk speed (CS:GO behavior)
+        // This allows natural deceleration instead of instant capping
+        if (isWalking)
+        {
+            var currentSpeed = Velocity.Length();
+            var walkSpeed = MaxSpeedValue * WalkSpeedModifier;
+            if (currentSpeed < walkSpeed + 25.0f)
+            {
+                wishspeed = MathF.Min(wishspeed, walkSpeed);
+            }
+        }
 
         // Ground or air movement
         if (OnGround)
@@ -90,7 +113,7 @@ class FpsMovement
             // Apply friction before movement
             Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
             Friction(deltaTime);
-            WalkMove(wishdir, wishspeed, deltaTime);
+            WalkMove(wishdir, wishspeed, deltaTime, isDucking, isWalking);
         }
         else
         {
@@ -137,6 +160,33 @@ class FpsMovement
     private void CategorizePosition(ref Vector3 position)
     {
         OnGround = position.Z <= 0.1f; // Small epsilon for floating point
+    }
+
+    /// <summary>
+    /// Prevent excessive speed gain from bunnyhopping
+    /// Ported from cs_gamemovement.cpp PreventBunnyJumping()
+    /// </summary>
+    private void PreventBunnyJumping()
+    {
+        // Speed at which bunny jumping is limited
+        var maxscaledspeed = BunnyjumpMaxSpeedFactor * MaxSpeedValue;
+        if (maxscaledspeed <= 0.0f)
+        {
+            return;
+        }
+
+        // Current player speed
+        var spd = Velocity.Length();
+
+        if (spd <= maxscaledspeed)
+        {
+            return;
+        }
+
+        // Apply this cropping fraction to velocity
+        var fraction = maxscaledspeed / spd;
+
+        Velocity *= fraction;
     }
 
     /// <summary>
@@ -203,18 +253,11 @@ class FpsMovement
             wishspeed = MaxSpeedValue;
         }
 
-        // Apply walk/duck speed modifiers (from CS:GO cs_gamemovement.cpp)
-        var speedModifier = 1.0f;
+        // Apply duck/crouch speed modifier (from CS:GO cs_gamemovement.cpp)
         if ((input & TrackedKeys.Control) != 0) // Duck/crouch
         {
-            speedModifier = DuckSpeedModifier;
+            wishspeed *= DuckSpeedModifier;
         }
-        else if ((input & TrackedKeys.Shift) != 0) // Walk
-        {
-            speedModifier = WalkSpeedModifier;
-        }
-
-        wishspeed *= speedModifier;
 
         return (wishdir, wishspeed);
     }
@@ -263,10 +306,14 @@ class FpsMovement
     }
 
     /// <summary>
-    /// Accelerate in desired direction
-    /// Ported from gamemovement.cpp Accelerate()
+    /// Accelerate in desired direction using CS:GO acceleration
+    /// Ported from cs_gamemovement.cpp Accelerate()
+    ///
+    /// SKIPPED (not relevant without weapons):
+    /// - Exponential acceleration curves (never executes since flZeroToMaxSpeedTime = 0)
+    /// - Trailing velocity tracking
     /// </summary>
-    private void Accelerate(Vector3 wishdir, float wishspeed, float accel, float deltaTime)
+    private void Accelerate(Vector3 wishdir, float wishspeed, float accel, float deltaTime, bool isDucking, bool isWalking)
     {
         // See if we are changing direction a bit
         var currentspeed = Vector3.Dot(Velocity, wishdir);
@@ -280,9 +327,43 @@ class FpsMovement
             return;
         }
 
-        // Determine amount of acceleration (CS:GO uses max 250, wishspeed scaling)
-        var accelScale = MathF.Max(250.0f, wishspeed);
-        var accelspeed = accel * deltaTime * accelScale * SurfaceFriction;
+        if (currentspeed < 0)
+        {
+            currentspeed = 0;
+        }
+
+        // CS:GO acceleration scaling
+        var flMaxSpeed = 250.0f;
+        var fAccelerationScale = MathF.Max(flMaxSpeed, wishspeed);
+        var flGoalSpeed = fAccelerationScale;
+
+        // Apply duck/walk modifiers to acceleration scale and goal speed
+        if (isDucking)
+        {
+            fAccelerationScale *= DuckSpeedModifier;
+            flGoalSpeed *= DuckSpeedModifier;
+        }
+
+        if (isWalking)
+        {
+            fAccelerationScale *= WalkSpeedModifier;
+            flGoalSpeed *= WalkSpeedModifier;
+        }
+
+        // Walk speed gradient clamping
+        // When walking and near goal speed, gradually reduce acceleration to prevent overshooting
+        // Formula: clamp(1.0 - ((currentspeed - (goalspeed-5)) / 5.0), 0.0, 1.0)
+        // Note: Denominator simplifies to 5.0 since (goalspeed - (goalspeed - 5)) = 5
+        var flStoredAccel = accel;
+        if (isWalking && currentspeed > (flGoalSpeed - 5))
+        {
+            var numerator = MathF.Max(0.0f, currentspeed - (flGoalSpeed - 5));
+            var ratio = numerator / 5.0f;  // Simplified from flGoalSpeed - (flGoalSpeed - 5)
+            flStoredAccel *= Math.Clamp(1.0f - ratio, 0.0f, 1.0f);
+        }
+
+        // Simple linear acceleration
+        var accelspeed = flStoredAccel * deltaTime * fAccelerationScale * SurfaceFriction;
 
         // Cap at addspeed
         if (accelspeed > addspeed)
@@ -299,22 +380,33 @@ class FpsMovement
     /// Ported from gamemovement.cpp WalkMove()
     /// Simplified - no traces, assumes flat ground
     /// </summary>
-    private void WalkMove(Vector3 wishdir, float wishspeed, float deltaTime)
+    private void WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking)
     {
         // Set pmove velocity (zero out Z component)
         Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
 
         // Accelerate
-        Accelerate(wishdir, wishspeed, AccelerateValue, deltaTime);
+        Accelerate(wishdir, wishspeed, AccelerateValue, deltaTime, isDucking, isWalking);
 
         Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
 
         // Clamp to max speed to prevent going faster while turning
+        // Important: Clamp to the duck/walk-modified max speed, not base max speed
+        var effectiveMaxSpeed = MaxSpeedValue;
+        if (isDucking)
+        {
+            effectiveMaxSpeed *= DuckSpeedModifier;
+        }
+        else if (isWalking)
+        {
+            effectiveMaxSpeed *= WalkSpeedModifier;
+        }
+
         // Use LengthSquared for performance (avoids sqrt)
-        if (Velocity.LengthSquared() > MaxSpeedValue * MaxSpeedValue)
+        if (Velocity.LengthSquared() > effectiveMaxSpeed * effectiveMaxSpeed)
         {
             var speed = Velocity.Length();
-            Velocity *= MaxSpeedValue / speed;
+            Velocity *= effectiveMaxSpeed / speed;
         }
     }
 
@@ -331,6 +423,7 @@ class FpsMovement
     /// <summary>
     /// Air acceleration - different from ground acceleration
     /// Ported from gamemovement.cpp AirAccelerate()
+    /// Note: CS:GO doesn't apply duck/walk modifiers in air (only ground acceleration)
     /// </summary>
     private void AirAccelerate(Vector3 wishdir, float wishspeed, float accel, float deltaTime)
     {
