@@ -89,7 +89,7 @@ namespace GUI.Forms
                 targetName,
                 inputName,
                 parameter,
-                delay.ToString(NumberFormatInfo.InvariantInfo),
+                delay,
                 stimesToFire
             ]);
         }
