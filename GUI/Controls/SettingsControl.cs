@@ -234,7 +234,6 @@ namespace GUI.Forms
 
             Settings.Config.Theme = themeComboBox.SelectedIndex;
 
-#pragma warning disable WFO5001
             // TODO: SetColorMode requires restart for it to work properly
             //Application.SetColorMode(Settings.GetSystemColor());
         }

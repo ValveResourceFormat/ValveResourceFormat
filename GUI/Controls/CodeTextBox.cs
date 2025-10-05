@@ -90,7 +90,6 @@ namespace GUI.Controls
                 SyntaxHighlighter = new ShaderSyntaxHighlighter(this);
             }
 
-#pragma warning disable WFO5001
             // Fix syntax highlighting colors for dark mode
             if (Application.IsDarkModeEnabled)
             {

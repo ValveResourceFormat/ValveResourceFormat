@@ -62,7 +62,7 @@ namespace GUI.Types.Viewers
                 resourceTemp?.Dispose();
             }
 
-            var resTabs = new ThemedTabControl
+            var resTabs = new TabControl
             {
                 Dock = DockStyle.Fill,
                 Multiline = true,
@@ -231,7 +231,7 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        private static void CreateSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, ThemedTabControl resTabs, ref TabPage? specialTabPage)
+        private static void CreateSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs, ref TabPage? specialTabPage)
         {
             switch (resource.ResourceType)
             {

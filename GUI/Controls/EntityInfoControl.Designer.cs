@@ -33,7 +33,7 @@ namespace GUI.Forms
             var dataGridViewCellStyle1 = new DataGridViewCellStyle();
             var dataGridViewCellStyle2 = new DataGridViewCellStyle();
             var dataGridViewCellStyle3 = new DataGridViewCellStyle();
-            tabControl = new ThemedTabControl();
+            tabControl = new TabControl();
             tabPageProperties = new TabPage();
             dataGridProperties = new DataGridView();
             ColumnName = new DataGridViewTextBoxColumn();
@@ -215,6 +215,6 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn Parameter;
         private DataGridViewTextBoxColumn Delay;
         private DataGridViewTextBoxColumn timesToFire;
-        private ThemedTabControl tabControl;
+        private TabControl tabControl;
     }
 }

@@ -107,13 +107,7 @@ namespace GUI
             Settings.Load();
             consoleTab.InitializeFont();
 
-#pragma warning disable WFO5001
             Application.SetColorMode(Settings.GetSystemColor());
-
-            if (Application.IsDarkModeEnabled)
-            {
-                Log.Warn(nameof(Application), "Dark mode is EXPERIMENTAL. Some controls may have less than ideal colors which will be improved in a future .NET update.");
-            }
 
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 

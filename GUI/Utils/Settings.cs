@@ -6,7 +6,6 @@ using ValveResourceFormat.IO;
 
 #nullable disable
 
-#pragma warning disable WFO5001
 namespace GUI.Utils
 {
     static class Settings

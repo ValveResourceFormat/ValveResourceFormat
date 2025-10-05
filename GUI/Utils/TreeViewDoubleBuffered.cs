@@ -24,7 +24,7 @@ namespace GUI.Utils
                 return;
             }
 
-#pragma warning disable WFO5001
+            // Setting the Explorer theme changes plus buttons to expand folders into arrows
             var theme = Application.IsDarkModeEnabled ? "DarkMode_Explorer" : "Explorer";
 
             PInvoke.SetWindowTheme((HWND)Handle, theme, null);

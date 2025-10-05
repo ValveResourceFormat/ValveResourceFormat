@@ -371,7 +371,7 @@ namespace GUI.Types.Renderer
         }
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
-        private readonly List<RenderableMesh> listWithSingleMesh = [null];
+        private readonly List<RenderableMesh> listWithSingleMesh = new(1);
         private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
         {
             [DepthOnlyProgram.Static] = [],

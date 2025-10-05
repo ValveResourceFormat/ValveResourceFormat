@@ -255,7 +255,7 @@ namespace GUI.Types.Viewers
                 /*
                 TODO: We need to display the bytecode somehow
 
-                tabs = new ThemedTabControl
+                tabs = new TabControl
                 {
                     Dock = DockStyle.Fill,
                 };

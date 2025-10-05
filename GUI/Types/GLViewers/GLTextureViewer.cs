@@ -134,7 +134,6 @@ namespace GUI.Types.GLViewers
             GLLoad += OnLoad;
             GLControl.PreviewKeyDown += OnPreviewKeyDown;
 
-#pragma warning disable WFO5001
             ShowLightBackground = !Application.IsDarkModeEnabled;
 
             SetZoomLabel();

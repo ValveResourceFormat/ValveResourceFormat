@@ -55,7 +55,7 @@ namespace GUI
             newVersionAvailableToolStripMenuItem = new ToolStripMenuItem();
             checkForUpdatesToolStripMenuItem = new ToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
-            mainTabs = new ThemedTabControl();
+            mainTabs = new TabControl();
             tabContextMenuStrip = new ContextMenuStrip(components);
             closeToolStripMenuItem = new ToolStripMenuItem();
             closeToolStripMenuItems = new ToolStripMenuItem();
@@ -518,7 +518,7 @@ namespace GUI
         private ToolStripSeparator toolStripSeparator3;
         private ToolStripSeparator toolStripSeparator4;
         private ToolStripMenuItem openWelcomeScreenToolStripMenuItem;
-        private ThemedTabControl mainTabs;
+        private TabControl mainTabs;
     }
 }
 

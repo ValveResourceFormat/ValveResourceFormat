@@ -846,7 +846,7 @@ namespace GUI.Types.PackageViewer
         {
             mainListView.Visible = false;
 
-            var tabs = new ThemedTabControl
+            var tabs = new TabControl
             {
                 ImageList = MainForm.ImageList,
                 Dock = DockStyle.Fill
