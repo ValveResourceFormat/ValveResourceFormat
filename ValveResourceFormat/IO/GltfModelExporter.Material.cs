@@ -164,8 +164,7 @@ public partial class GltfModelExporter
         // TODO: too many loops over instructions here
         // If this texture contains a MetallicRoughness parameter, also pack Occlusion into the ORM texture for optimization
         // MetallicRoughness will use BG channels, and Occlusion only uses R channel
-        var allRemapInstructions = remapDict.Values.SelectMany(i => i).ToList();
-        if (allRemapInstructions.Any(static i => i.ChannelName == "MetallicRoughness"))
+        if (remapDict.Values.SelectMany(static i => i).Any(static i => i.ChannelName == "MetallicRoughness"))
         {
             ormRedChannelForOcclusion = true;
         }

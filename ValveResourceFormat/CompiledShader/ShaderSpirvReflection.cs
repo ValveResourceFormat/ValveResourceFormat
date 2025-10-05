@@ -407,12 +407,10 @@ public static partial class ShaderSpirvReflection
     public static string GetGlobalBufferMemberName(VfxProgramData program, VfxVariableIndexArray writeSequence,
         int offset)
     {
-        var globalBufferParameters = writeSequence.Globals
+        return writeSequence.Globals
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]))
-            .ToList();
-
-        return globalBufferParameters.FirstOrDefault(fp => fp.Field.Field2 == offset).Param?.Name ?? string.Empty;
+            .FirstOrDefault(fp => fp.Field.Field2 == offset).Param?.Name ?? string.Empty;
     }
 
     // by offset

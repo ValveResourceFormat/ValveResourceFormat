@@ -467,7 +467,23 @@ namespace GUI
             //Work out what tab we're interacting with
             var tabControl = sender as TabControl;
             var tabs = tabControl.TabPages;
-            var thisTab = tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains(e.Location)).First();
+
+            var tabIndex = 0;
+            TabPage thisTab = null;
+
+            for (; tabIndex < tabs.Count; tabIndex++)
+            {
+                if (tabControl.GetTabRect(tabIndex).Contains(e.Location))
+                {
+                    thisTab = tabs[tabIndex];
+                    break;
+                }
+            }
+
+            if (thisTab == null)
+            {
+                return;
+            }
 
             if (e.Button == MouseButtons.Middle)
             {
@@ -475,7 +491,6 @@ namespace GUI
             }
             else if (e.Button == MouseButtons.Right)
             {
-                var tabIndex = GetTabIndex(thisTab);
                 var tabName = thisTab.Text;
 
                 //Can't close tabs to the left/right if there aren't any!
