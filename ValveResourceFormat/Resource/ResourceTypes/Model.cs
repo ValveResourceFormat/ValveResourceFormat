@@ -329,20 +329,6 @@ namespace ValveResourceFormat.ResourceTypes
             return GetMeshGroups().Where((group, index) => ((ulong)(1 << index) & defaultGroupMask) != 0);
         }
 
-        public IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
-        {
-            var groupIndex = GetMeshGroups().ToList().IndexOf(groupName);
-            var meshGroupMasks = Data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
-            if (groupIndex >= 0)
-            {
-                return meshGroupMasks.Select(mask => (mask & 1UL << groupIndex) != 0);
-            }
-            else
-            {
-                return meshGroupMasks.Select(_ => false);
-            }
-        }
-
         KVObject ParseKeyValuesText()
         {
             var keyvaluesString = Data.GetSubCollection("m_modelInfo").GetProperty<string>("m_keyValueText");
