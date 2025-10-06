@@ -3,6 +3,7 @@ namespace ValveResourceFormat
     [Flags]
     public enum VTexFlags
     {
+#pragma warning disable CS1591
         SUGGEST_CLAMPS = 1 << 0,
         SUGGEST_CLAMPT = 1 << 1,
         SUGGEST_CLAMPU = 1 << 2,
@@ -13,5 +14,6 @@ namespace ValveResourceFormat
         PANORAMA_DILATE_COLOR = 1 << 7,
         PANORAMA_CONVERT_TO_YCOCG_DXT5 = 1 << 8,
         CREATE_LINEAR_API_TEXTURE = 1 << 9,
+#pragma warning restore CS1591
     }
 }

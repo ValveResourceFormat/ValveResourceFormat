@@ -4,6 +4,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedFullVector3 : AnimationSegmentDecoder
     {
+        /// <inheritdoc/>
         public override void Read(int frameIndex, Frame outFrame)
         {
             var offset = frameIndex * ElementCount;

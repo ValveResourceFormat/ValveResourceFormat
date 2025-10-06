@@ -5,6 +5,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// </summary>
 public enum LegacyImageFormat
 {
+#pragma warning disable CS1591
     //None = -3, Default = -2,
     RGBA8888 = 0,
     ABGR8888 = 1,
@@ -99,4 +100,5 @@ public enum LegacyImageFormat
     R11_EAC = 90,
     RG11_EAC = 91,
     D32FS8 = 92,
+#pragma warning restore CS1591
 }

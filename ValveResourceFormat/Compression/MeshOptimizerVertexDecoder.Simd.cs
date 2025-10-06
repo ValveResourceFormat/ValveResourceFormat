@@ -1,6 +1,3 @@
-/**
- * C# Port of https://github.com/zeux/meshoptimizer/blob/master/src/vertexcodec.cpp
- */
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -11,6 +8,9 @@ namespace ValveResourceFormat.Compression
 {
     public static partial class MeshOptimizerVertexDecoder
     {
+        /// <summary>
+        /// Gets a value indicating whether hardware acceleration is available for decoding.
+        /// </summary>
         public static bool IsHardwareAccelerated => Vector128.IsHardwareAccelerated && Sse2.IsSupported && Ssse3.IsSupported;
 
         private static readonly byte[] DecodeBytesGroupShuffle = new byte[256 * 8];

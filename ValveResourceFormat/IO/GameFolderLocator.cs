@@ -6,6 +6,9 @@ using ValveKeyValue;
 
 namespace ValveResourceFormat.IO
 {
+    /// <summary>
+    /// Provides methods for locating Steam game installations and libraries.
+    /// </summary>
     public static class GameFolderLocator
     {
         /// <summary>

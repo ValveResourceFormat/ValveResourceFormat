@@ -9,22 +9,71 @@ using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a material resource containing shader parameters and texture references.
+    /// </summary>
     public class Material : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Gets or sets the material name.
+        /// </summary>
         public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the shader name used by this material.
+        /// </summary>
         public string ShaderName { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Gets the integer shader parameters.
+        /// </summary>
         public Dictionary<string, long> IntParams { get; } = [];
+
+        /// <summary>
+        /// Gets the floating-point shader parameters.
+        /// </summary>
         public Dictionary<string, float> FloatParams { get; } = [];
+
+        /// <summary>
+        /// Gets the vector shader parameters.
+        /// </summary>
         public Dictionary<string, Vector4> VectorParams { get; } = [];
+
+        /// <summary>
+        /// Gets the texture shader parameters.
+        /// </summary>
         public Dictionary<string, string> TextureParams { get; } = [];
+
+        /// <summary>
+        /// Gets the integer material attributes.
+        /// </summary>
         public Dictionary<string, long> IntAttributes { get; } = [];
+
+        /// <summary>
+        /// Gets the floating-point material attributes.
+        /// </summary>
         public Dictionary<string, float> FloatAttributes { get; } = [];
+
+        /// <summary>
+        /// Gets the vector material attributes.
+        /// </summary>
         public Dictionary<string, Vector4> VectorAttributes { get; } = [];
+
+        /// <summary>
+        /// Gets the string material attributes.
+        /// </summary>
         public Dictionary<string, string> StringAttributes { get; } = [];
+
+        /// <summary>
+        /// Gets the dynamic expression parameters.
+        /// </summary>
         public Dictionary<string, string> DynamicExpressions { get; } = [];
 
         private VsInputSignature? inputSignature;
+
+        /// <summary>
+        /// Gets the vertex shader input signature defining vertex attributes.
+        /// </summary>
         public VsInputSignature InputSignature
         {
             get
@@ -161,28 +210,63 @@ namespace ValveResourceFormat.ResourceTypes
             return KeyValues3.ParseKVFile(ms).Root;
         }
 
+        /// <summary>
+        /// Represents the vertex shader input signature containing vertex attribute elements.
+        /// </summary>
         public readonly struct VsInputSignature
         {
+            /// <summary>
+            /// An empty input signature with no elements.
+            /// </summary>
             public static readonly VsInputSignature Empty = new();
+
+            /// <summary>
+            /// Gets the array of input signature elements.
+            /// </summary>
             public InputSignatureElement[] Elements { get; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="VsInputSignature"/> struct with no elements.
+            /// </summary>
             public VsInputSignature()
             {
                 Elements = [];
             }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="VsInputSignature"/> struct from data.
+            /// </summary>
+            /// <param name="data">The key-value data containing element definitions.</param>
             public VsInputSignature(KVObject data)
             {
                 Elements = [.. data.GetArray("m_elems").Select(x => new InputSignatureElement(x))];
             }
         }
 
+        /// <summary>
+        /// Represents a single element in the vertex shader input signature.
+        /// </summary>
         [DebuggerDisplay("{Name,nq} ({Semantic,nq})")]
         public readonly struct InputSignatureElement
         {
+            /// <summary>
+            /// Gets the element name.
+            /// </summary>
             public string Name { get; }
+
+            /// <summary>
+            /// Gets the semantic name.
+            /// </summary>
             public string Semantic { get; }
+
+            /// <summary>
+            /// Gets the Direct3D semantic name.
+            /// </summary>
             public string D3DSemanticName { get; }
+
+            /// <summary>
+            /// Gets the Direct3D semantic index.
+            /// </summary>
             public int D3DSemanticIndex { get; }
 
             public InputSignatureElement(KVObject data)
@@ -202,6 +286,13 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Finds an input signature element by Direct3D semantic name and index.
+        /// </summary>
+        /// <param name="insg">The input signature to search.</param>
+        /// <param name="d3dName">The Direct3D semantic name.</param>
+        /// <param name="d3dIndex">The Direct3D semantic index.</param>
+        /// <returns>The matching element, or default if not found.</returns>
         public static InputSignatureElement FindD3DInputSignatureElement(VsInputSignature insg, string d3dName, int d3dIndex)
         {
             foreach (var element in insg.Elements)

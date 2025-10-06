@@ -1,7 +1,11 @@
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Variable source types for shader parameters.
+/// </summary>
 public enum VfxVariableSourceType
 {
+#pragma warning disable CS1591
     __SetByArtist__,
     __Attribute__,
     __FeatureToInt__,
@@ -21,4 +25,5 @@ public enum VfxVariableSourceType
     ExternalDescSet,
     MaterialID,
     MotionVectorsMaxDistance,
+#pragma warning restore CS1591
 }

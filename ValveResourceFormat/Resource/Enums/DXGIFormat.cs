@@ -6,6 +6,7 @@ namespace ValveResourceFormat
     /// </summary>
     public enum DXGI_FORMAT
     {
+#pragma warning disable CS1591
         UNKNOWN = 0,
         R32G32B32A32_TYPELESS = 1,
         R32G32B32A32_FLOAT = 2,
@@ -125,5 +126,6 @@ namespace ValveResourceFormat
         P208 = 130,
         V208 = 131,
         V408 = 132,
+#pragma warning restore CS1591
     }
 }

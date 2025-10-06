@@ -13,10 +13,17 @@ using KVObject = ValveKeyValue.KVObject;
 
 namespace ValveResourceFormat.IO
 {
+    /// <summary>
+    /// Loads game files from VPK packages and disk with automatic path resolution.
+    /// </summary>
     public class GameFileLoader : IFileLoader, IDisposable
     {
         private const string AddonsSuffix = "_addons";
         private const string GameinfoGi = "gameinfo.gi";
+
+        /// <summary>
+        /// The suffix added to compiled file names.
+        /// </summary>
         public const string CompiledFileSuffix = "_c";
 
         private static readonly string[] ModIdentifiers =
@@ -37,13 +44,19 @@ namespace ValveResourceFormat.IO
         private bool AttemptToLoadWorkshopDependencies;
         private bool StoredSurfacePropertyStringTokens;
 
+        /// <summary>
+        /// Gets or sets the current package being processed.
+        /// </summary>
         public Package? CurrentPackage { get; set; }
 
         /// <summary>
-        /// fileName is needed when used by GUI when package has not yet been resolved
+        /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
         /// </summary>
         /// <param name="currentPackage">The current package to search for files in.</param>
         /// <param name="currentFileName">The path on disk to the current file that is being opened.</param>
+        /// <remarks>
+        /// fileName is needed when used by GUI when package has not yet been resolved.
+        /// </remarks>
         public GameFileLoader(Package? currentPackage, string? currentFileName)
         {
             CurrentPackage = currentPackage;
@@ -71,6 +84,9 @@ namespace ValveResourceFormat.IO
 #endif
         }
 
+        /// <summary>
+        /// Releases resources used by this instance.
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -94,12 +110,19 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>
+        /// Finds a file in packages or on disk.
+        /// </summary>
+        /// <param name="file">The file path to find.</param>
+        /// <param name="logNotFound">Whether to log if file is not found.</param>
+        /// <returns>A tuple containing the path on disk, package, and package entry if found.</returns>
         public virtual (string? PathOnDisk, Package? Package, PackageEntry? PackageEntry) FindFile(string file, bool logNotFound = true)
         {
             // Check current package
@@ -212,6 +235,9 @@ namespace ValveResourceFormat.IO
             return (null, null, null);
         }
 
+        /// <summary>
+        /// Loads a shader from disk by finding all its program files.
+        /// </summary>
         protected virtual ShaderCollection LoadShaderFromDisk(string shaderName)
         {
             if (!ShaderPackagesScanned)
@@ -288,6 +314,7 @@ namespace ValveResourceFormat.IO
             return collection;
         }
 
+        /// <inheritdoc/>
         public ShaderCollection LoadShader(string shaderName)
         {
             lock (CachedShadersLock)
@@ -303,6 +330,9 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// Gets a stream for reading a file.
+        /// </summary>
         public Stream? GetFileStream(string file)
         {
             var foundFile = FindFile(file);
@@ -321,8 +351,10 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <inheritdoc/>
         public virtual Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
 
+        /// <inheritdoc/>
         public virtual Resource? LoadFile(string file)
         {
             var resource = new Resource
@@ -388,6 +420,9 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// Ensures surface property string tokens are loaded and stored.
+        /// </summary>
         public void EnsureStringTokenGameKeys()
         {
             if (!StoredSurfacePropertyStringTokens)
@@ -411,6 +446,9 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// Adds a disk path to the search paths.
+        /// </summary>
         public bool AddDiskPathToSearch(string searchPath)
         {
             var success = CurrentGameSearchPaths.Add(searchPath);
@@ -423,6 +461,9 @@ namespace ValveResourceFormat.IO
             return success;
         }
 
+        /// <summary>
+        /// Removes a disk path from the search paths.
+        /// </summary>
         public bool RemoveDiskPathFromSearch(string searchPath)
         {
             var success = CurrentGameSearchPaths.Remove(searchPath);
@@ -435,6 +476,9 @@ namespace ValveResourceFormat.IO
             return success;
         }
 
+        /// <summary>
+        /// Loads and adds a VPK package to the search paths.
+        /// </summary>
         public Package AddPackageToSearch(string searchPath)
         {
             Console.WriteLine($"Preloading vpk \"{searchPath}\"");
@@ -448,16 +492,25 @@ namespace ValveResourceFormat.IO
             return package;
         }
 
+        /// <summary>
+        /// Adds an already loaded package to the search paths.
+        /// </summary>
         public void AddPackageToSearch(Package package)
         {
             CurrentGamePackages.Add(package);
         }
 
+        /// <summary>
+        /// Removes a package from the search paths.
+        /// </summary>
         public bool RemovePackageFromSearch(Package package)
         {
             return CurrentGamePackages.Remove(package);
         }
 
+        /// <summary>
+        /// Finds and loads search paths from gameinfo.gi files.
+        /// </summary>
         protected void FindAndLoadSearchPaths(string? modIdentifierPath = null)
         {
             modIdentifierPath ??= GetModIdentifierFile();
@@ -778,8 +831,11 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Do not use this method, it will be removed in the future in favor of a method in the ValvePak library.
+        /// Gets a stream for reading a package entry.
         /// </summary>
+        /// <remarks>
+        /// Do not use this method, it will be removed in the future in favor of a method in the ValvePak library.
+        /// </remarks>
         public static Stream GetPackageEntryStream(Package package, PackageEntry entry)
         {
             lock (package)

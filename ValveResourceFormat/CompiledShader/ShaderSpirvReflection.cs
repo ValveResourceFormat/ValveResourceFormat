@@ -12,6 +12,9 @@ namespace ValveResourceFormat.CompiledShader;
 
 #nullable disable
 
+/// <summary>
+/// Provides SPIR-V reflection and decompilation utilities for shaders.
+/// </summary>
 public static partial class ShaderSpirvReflection
 {
     private const int TextureStartingPoint = 30;
@@ -21,6 +24,13 @@ public static partial class ShaderSpirvReflection
 
     private const int StorageBufferStartingPoint = 30;
 
+    /// <summary>
+    /// Reflects and decompiles SPIR-V bytecode to a target shader language.
+    /// </summary>
+    /// <param name="vulkanSource">The Vulkan shader source containing SPIR-V bytecode.</param>
+    /// <param name="backend">The target shader language backend.</param>
+    /// <param name="code">The decompiled shader code.</param>
+    /// <returns>True if decompilation succeeded, false otherwise.</returns>
     public static bool ReflectSpirv(VfxShaderFileVulkan vulkanSource, Backend backend, out string code)
     {
         static bool Error(out string code, spvc_context context)
@@ -38,7 +48,7 @@ public static partial class ShaderSpirvReflection
         {
             result = SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.Bytecode, out var parsedIr);
 
-            if (result != Result.Success) // Typically InvalidSPIRV 
+            if (result != Result.Success) // Typically InvalidSPIRV
             {
                 return Error(out code, context);
             }
@@ -287,6 +297,14 @@ public static partial class ShaderSpirvReflection
         }
     }
 
+    /// <summary>
+    /// Gets the variable name for a texture at a given binding point.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="imageBinding">The image binding point.</param>
+    /// <param name="vfxType">The VFX variable type to match.</param>
+    /// <returns>The texture variable name, or "undetermined" if not found.</returns>
     public static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint imageBinding, VfxVariableType vfxType)
     {
@@ -338,6 +356,13 @@ public static partial class ShaderSpirvReflection
         return "undetermined";
     }
 
+    /// <summary>
+    /// Gets the variable name for a sampler at a given binding point.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="samplerBinding">The sampler binding point.</param>
+    /// <returns>The sampler variable name, or "undetermined" if not found.</returns>
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint samplerBinding)
     {
@@ -369,6 +394,13 @@ public static partial class ShaderSpirvReflection
         return samplerSettings.Length > 0 ? samplerSettings[..^2] : "undetermined";
     }
 
+    /// <summary>
+    /// Gets the variable name for a storage buffer at a given binding point.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="bufferBinding">The buffer binding point.</param>
+    /// <returns>The storage buffer variable name, or "undetermined" if not found.</returns>
     public static string GetNameForStorageBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint bufferBinding)
     {
@@ -394,6 +426,14 @@ public static partial class ShaderSpirvReflection
         return "undetermined";
     }
 
+    /// <summary>
+    /// Gets the variable name for a uniform buffer at a given binding point and descriptor set.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="binding">The buffer binding point.</param>
+    /// <param name="set">The descriptor set index.</param>
+    /// <returns>The uniform buffer variable name, or "undetermined" if not found.</returns>
     public static string GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint binding, uint set)
     {
@@ -404,6 +444,13 @@ public static partial class ShaderSpirvReflection
             .FirstOrDefault(fp => fp.Field.Dest == binding && fp.Field.LayoutSet == set).Param?.Name ?? "undetermined";
     }
 
+    /// <summary>
+    /// Gets the member name for a global buffer variable at a given offset.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="offset">The offset in the buffer.</param>
+    /// <returns>The member name, or an empty string if not found.</returns>
     public static string GetGlobalBufferMemberName(VfxProgramData program, VfxVariableIndexArray writeSequence,
         int offset)
     {
@@ -415,6 +462,14 @@ public static partial class ShaderSpirvReflection
 
     // by offset
     // https://github.com/KhronosGroup/SPIRV-Cross/blob/f349c91274b91c1a7c173f2df70ec53080076191/spirv_hlsl.cpp#L2616
+    /// <summary>
+    /// Gets the member name for a buffer variable by index or offset.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="bufferName">The buffer name.</param>
+    /// <param name="index">The member index (optional).</param>
+    /// <param name="offset">The member offset (optional).</param>
+    /// <returns>The member name, or an empty string if not found.</returns>
     public static string GetBufferMemberName(VfxProgramData program, string bufferName, int index = -1,
         int offset = -1)
     {
@@ -439,6 +494,13 @@ public static partial class ShaderSpirvReflection
         return "undetermined";
     }
 
+    /// <summary>
+    /// Gets the name for a shader stage input or output attribute.
+    /// </summary>
+    /// <param name="vsInputElements">The input signature elements array.</param>
+    /// <param name="attributeIndex">The attribute index.</param>
+    /// <param name="input">True if this is an input attribute, false for output.</param>
+    /// <returns>The attribute name from the signature, or a generated name if not found.</returns>
     public static string GetStageAttributeName(Material.InputSignatureElement[] vsInputElements, int attributeIndex,
         bool input)
     {

@@ -8,53 +8,109 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes
 {
 
+    /// <summary>
+    /// Represents an emphasis sample for voice modulation.
+    /// </summary>
     public readonly struct EmphasisSample
     {
+        /// <summary>
+        /// Gets the time of the emphasis sample.
+        /// </summary>
         public float Time { get; }
+
+        /// <summary>
+        /// Gets the emphasis value.
+        /// </summary>
         public float Value { get; }
     }
 
+    /// <summary>
+    /// Represents a phoneme timing tag for lip-sync animation.
+    /// </summary>
     public readonly struct PhonemeTag
     {
+        /// <summary>
+        /// Gets the start time of the phoneme.
+        /// </summary>
         public float StartTime { get; init; }
+
+        /// <summary>
+        /// Gets the end time of the phoneme.
+        /// </summary>
         public float EndTime { get; init; }
+
+        /// <summary>
+        /// Gets the phoneme identifier code.
+        /// </summary>
         public ushort PhonemeCode { get; init; }
     }
 
+    /// <summary>
+    /// Represents a sentence with phoneme and emphasis data for voice playback.
+    /// </summary>
     public class Sentence
     {
+        /// <summary>
+        /// Gets a value indicating whether voice ducking should be applied.
+        /// </summary>
         public bool ShouldVoiceDuck { get; init; }
 
+        /// <summary>
+        /// Gets the phoneme tags for lip-sync.
+        /// </summary>
         public PhonemeTag[] RunTimePhonemes { get; init; }
 
+        /// <summary>
+        /// Gets the emphasis samples for voice modulation.
+        /// </summary>
         public EmphasisSample[] EmphasisSamples { get; init; }
     }
 
+    /// <summary>
+    /// Represents a sound resource containing audio data and metadata.
+    /// </summary>
     public class Sound : Block
     {
+        /// <summary>
+        /// Specifies the audio file container type.
+        /// </summary>
         public enum AudioFileType
         {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
             AAC = 0,
             WAV = 1,
             MP3 = 2,
+#pragma warning restore CS1591
         }
 
+        /// <summary>
+        /// Specifies the audio encoding format for version 4 sound files.
+        /// </summary>
         public enum AudioFormatV4
         {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
             PCM16 = 0,
             PCM8 = 1,
             MP3 = 2,
             ADPCM = 3,
+#pragma warning restore CS1591
         }
 
-        // https://github.com/naudio/NAudio/blob/fb35ce8367f30b8bc5ea84e7d2529e172cf4c381/NAudio.Core/Wave/WaveFormats/WaveFormatEncoding.cs
+        /// <summary>
+        /// Specifies the WAVE audio encoding format.
+        /// </summary>
         public enum WaveAudioFormat
         {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
             Unknown = 0,
             PCM = 1,
             ADPCM = 2,
+#pragma warning restore CS1591
         }
 
+        /// <summary>
+        /// Gets the block type, which is always DATA.
+        /// </summary>
         public override BlockType Type => BlockType.DATA;
 
         /// <summary>
@@ -87,19 +143,44 @@ namespace ValveResourceFormat.ResourceTypes
         /// <value>The audio format.</value>
         public WaveAudioFormat AudioFormat { get; private set; }
 
+        /// <summary>
+        /// Gets the size of each audio sample in bytes.
+        /// </summary>
         public uint SampleSize { get; private set; }
 
+        /// <summary>
+        /// Gets the total number of audio samples.
+        /// </summary>
         public uint SampleCount { get; private set; }
 
+        /// <summary>
+        /// Gets the loop start position in samples.
+        /// </summary>
         public int LoopStart { get; private set; }
 
+        /// <summary>
+        /// Gets the loop end position in samples.
+        /// </summary>
         public int LoopEnd { get; private set; }
 
+        /// <summary>
+        /// Gets the duration of the sound in seconds.
+        /// </summary>
         public float Duration { get; private set; }
 
+        /// <summary>
+        /// Gets the sentence data containing phoneme and emphasis information.
+        /// </summary>
         public Sentence Sentence { get; private set; }
 
-        public byte[] Header { get; private set; } = []; // Mostly for wave files
+        /// <summary>
+        /// Gets the WAVE format header data for ADPCM audio.
+        /// </summary>
+        public byte[] Header { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the size of the streaming audio data in bytes.
+        /// </summary>
         public uint StreamingDataSize { get; private set; }
 
         private BinaryReader Reader => Resource.Reader;

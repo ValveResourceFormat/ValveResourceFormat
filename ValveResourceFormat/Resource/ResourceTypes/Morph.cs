@@ -9,11 +9,29 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a morph (flex) resource containing vertex deformation data.
+    /// </summary>
     public class Morph : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Gets the flex rules that define how controllers affect morphs.
+        /// </summary>
         public FlexRule[] FlexRules { get; private set; }
+
+        /// <summary>
+        /// Gets the flex controllers that drive morph animations.
+        /// </summary>
         public FlexController[] FlexControllers { get; private set; }
+
+        /// <summary>
+        /// Gets the texture containing encoded morph deltas.
+        /// </summary>
         public Texture Texture { get; private set; }
+
+        /// <summary>
+        /// Gets the resource containing the morph texture.
+        /// </summary>
         public Resource TextureResource { get; private set; }
 
         public Morph(BlockType type) : base(type, "MorphSetData_t")

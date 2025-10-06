@@ -6,8 +6,19 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO
 {
+    /// <summary>
+    /// Loads animation data from animation group resources.
+    /// </summary>
     public static class AnimationGroupLoader
     {
+        /// <summary>
+        /// Loads all animations from an animation group resource.
+        /// </summary>
+        /// <param name="resource">The animation group resource to load from.</param>
+        /// <param name="fileLoader">File loader for loading external animation files.</param>
+        /// <param name="skeleton">The skeleton to apply animations to.</param>
+        /// <param name="flexControllers">Flex controllers for facial animations.</param>
+        /// <returns>Collection of loaded animations.</returns>
         public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader, Skeleton skeleton, FlexController[] flexControllers)
         {
             var dataBlock = resource.DataBlock;

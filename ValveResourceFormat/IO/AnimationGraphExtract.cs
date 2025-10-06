@@ -9,12 +9,19 @@ using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Extracts and converts animation graph resources to editable format.
+/// </summary>
 public class AnimationGraphExtract
 {
     private readonly BinaryKV3 resourceData;
     private KVObject graph => resourceData.Data;
     private readonly string outputFileName;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
+    /// </summary>
+    /// <param name="resource">The resource to extract from.</param>
     public AnimationGraphExtract(Resource resource)
     {
         resourceData = (BinaryKV3)resource.DataBlock;
@@ -28,6 +35,10 @@ public class AnimationGraphExtract
         }
     }
 
+    /// <summary>
+    /// Converts the animation graph to a content file.
+    /// </summary>
+    /// <returns>A content file containing the animation graph data.</returns>
     public ContentFile ToContentFile()
     {
         // for newer resources, the class is "CAnimGraphModelBinding"
@@ -45,9 +56,20 @@ public class AnimationGraphExtract
         return contentFile;
     }
 
-    KVObject[] Tags { get; set; }
-    KVObject[] Parameters { get; set; }
+    /// <summary>
+    /// Gets or sets the animation tags.
+    /// </summary>
+    public KVObject[] Tags { get; set; }
 
+    /// <summary>
+    /// Gets or sets the animation parameters.
+    /// </summary>
+    public KVObject[] Parameters { get; set; }
+
+    /// <summary>
+    /// Converts the compiled animation graph to editable version 19 format.
+    /// </summary>
+    /// <returns>The animation graph as a KV3 string in version 19 format.</returns>
     public string ToEditableAnimGraphVersion19()
     {
         var data = graph.GetSubCollection("m_pSharedData");

@@ -6,10 +6,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     {
         public enum HitboxShape
         {
+#pragma warning disable CS1591
             Box,
             Sphere,
             Capsule,
+#pragma warning restore CS1591
         }
+
         public string Name { get; init; }
         public string SurfaceProperty { get; init; }
         public string BoneName { get; init; }

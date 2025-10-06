@@ -19,6 +19,9 @@ using VWorldNode = ValveResourceFormat.ResourceTypes.WorldNode;
 
 namespace ValveResourceFormat.IO
 {
+    /// <summary>
+    /// Exports Valve resources to glTF 2.0 format.
+    /// </summary>
     public partial class GltfModelExporter
     {
         // NOTE: Swaps Y and Z axes - gltf up axis is Y (source engine up is Z)
@@ -29,15 +32,46 @@ namespace ValveResourceFormat.IO
         // https://github.com/KhronosGroup/glTF-Blender-IO/blob/6b29ca135d5255dbfe1dd72424ce7243be73c0be/addons/io_scene_gltf2/blender/com/conversion.py#L20
         private const float PbrWattsTolumens = 683;
 
+        /// <summary>
+        /// Gets or sets the progress reporter for export operations.
+        /// </summary>
         public required IProgress<string> ProgressReporter { get; set; }
+
+        /// <summary>
+        /// Gets the file loader for loading referenced resources.
+        /// </summary>
         public IFileLoader FileLoader { get; }
         private readonly ShaderDataProvider shaderDataProvider;
         private readonly BasicShaderDataProvider shaderDataProviderFallback = new();
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to export animations.
+        /// </summary>
         public bool ExportAnimations { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to export materials.
+        /// </summary>
         public bool ExportMaterials { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to adapt textures for glTF compatibility.
+        /// </summary>
         public bool AdaptTextures { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to save satellite images separately.
+        /// </summary>
         public bool SatelliteImages { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to export extra data.
+        /// </summary>
         public bool ExportExtras { get; set; }
+
+        /// <summary>
+        /// Gets the set of animation names to filter during export.
+        /// </summary>
         public HashSet<string> AnimationFilter { get; } = [];
 
         private string DstDir = string.Empty;
@@ -46,6 +80,9 @@ namespace ValveResourceFormat.IO
         private readonly List<(PhysAggregateData Phys, string Classname, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GltfModelExporter"/> class.
+        /// </summary>
         public GltfModelExporter(IFileLoader fileLoader)
         {
             ArgumentNullException.ThrowIfNull(fileLoader, nameof(fileLoader));
@@ -53,6 +90,9 @@ namespace ValveResourceFormat.IO
             shaderDataProvider = new ShaderDataProvider(fileLoader);
         }
 
+        /// <summary>
+        /// Determines whether the specified resource can be exported to glTF.
+        /// </summary>
         public static bool CanExport(Resource resource) => resource.ResourceType
             is ResourceType.Mesh
             or ResourceType.Model
@@ -246,7 +286,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="resourceName">The name of the resource being exported.</param>
         /// <param name="fileName">Target file name.</param>
-        /// <param name="world">The entity lump resource to export.</param>
+        /// <param name="entityLump">The entity lump resource to export.</param>
         private void ExportToFile(string resourceName, string? fileName, VEntityLump entityLump)
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);

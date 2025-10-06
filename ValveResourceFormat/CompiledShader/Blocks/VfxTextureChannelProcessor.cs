@@ -3,15 +3,28 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
-// ChannelBlocks are always 280 bytes long
+/// <summary>
+/// Processes texture channels for shader inputs.
+/// </summary>
+/// <remarks>
+/// ChannelBlocks are always 280 bytes long
+/// </remarks>
 public class VfxTextureChannelProcessor : ShaderDataBlock
 {
+    /// <summary>Gets the block index.</summary>
     public int BlockIndex { get; }
+    /// <summary>Gets the channel mapping.</summary>
     public ChannelMapping Channel { get; }
+    /// <summary>Gets the input texture indices.</summary>
     public int[] InputTextureIndices { get; } = new int[4];
+    /// <summary>Gets the color space mode.</summary>
     public int ColorMode { get; }
+    /// <summary>Gets the texture processor command name.</summary>
     public string TexProcessorName { get; }
 
+    /// <summary>
+    /// Initializes a new instance from KeyValues data.
+    /// </summary>
     public VfxTextureChannelProcessor(KVObject data, int blockIndex) : base()
     {
         BlockIndex = blockIndex;
@@ -23,6 +36,9 @@ public class VfxTextureChannelProcessor : ShaderDataBlock
         TexProcessorName = data.GetProperty<string>("m_mipProcessingCommand");
     }
 
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public VfxTextureChannelProcessor(BinaryReader datareader, int blockIndex) : base(datareader)
     {
         // VfxTextureChannelProcessor::Unserialize

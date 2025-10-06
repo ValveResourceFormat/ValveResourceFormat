@@ -27,6 +27,10 @@ namespace ValveResourceFormat
         /// </summary>
         public Resource? Resource { get; set; }
 
+        /// <summary>
+        /// Reads the block data from a binary reader.
+        /// </summary>
+        /// <param name="reader">The binary reader to read from.</param>
         public abstract void Read(BinaryReader reader);
 
         /// <summary>

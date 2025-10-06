@@ -128,7 +128,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull vertex indices. Hulls can have up to 255 vertices.
         /// </summary>
-        /// </remarks> Empty for resources compiled before 2023-11-04.</remarks>
+        /// <remarks>Empty for resources compiled before 2023-11-04.</remarks>
         public Span<byte> GetVertices()
         {
             if (!HasExplicitVertexIndices(Data))

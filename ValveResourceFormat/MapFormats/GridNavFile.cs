@@ -10,12 +10,14 @@ namespace ValveResourceFormat.MapFormats
         [Flags]
         public enum GridNavCellFlags : byte
         {
+#pragma warning disable CS1591
             Empty = 0x0,
             Traversable = 0x1,
             Blocked = 0x2,
             HeroBlocking = 0x4,
             CreatureBlocking = 0x8,
             WardBlocking = 0x10
+#pragma warning restore CS1591
         }
 
         public const uint MAGIC = 0xFADEBEAD;

@@ -5,10 +5,18 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Extracts choreography scene data from VCD list resources.
+/// </summary>
 public class ChoreoExtract
 {
     private readonly Resource vcdlistResource;
     private readonly ChoreoSceneFileData choreoDataList;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ChoreoExtract"/> class.
+    /// </summary>
+    /// <param name="vcdlistResource">Resource containing choreography scene data.</param>
     public ChoreoExtract(Resource vcdlistResource)
     {
         var dataBlock = (ChoreoSceneFileData?)vcdlistResource.DataBlock;
@@ -19,6 +27,10 @@ public class ChoreoExtract
         choreoDataList = dataBlock;
     }
 
+    /// <summary>
+    /// Converts choreography data to a content file with individual scene files.
+    /// </summary>
+    /// <returns>Content file containing the choreography scenes.</returns>
     public ContentFile ToContentFile()
     {
         using var indentedTextWriter = new IndentedTextWriter();

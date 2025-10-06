@@ -6,10 +6,16 @@ using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    /// <summary>
+    /// Prints a summary of VCS file contents.
+    /// </summary>
     public class PrintVcsFileSummary
     {
         private readonly OutputFormatterTabulatedData output;
 
+        /// <summary>
+        /// Initializes a new instance and prints the summary.
+        /// </summary>
         public PrintVcsFileSummary(VfxProgramData program, IndentedTextWriter outputWriter)
         {
             output = new OutputFormatterTabulatedData(outputWriter);

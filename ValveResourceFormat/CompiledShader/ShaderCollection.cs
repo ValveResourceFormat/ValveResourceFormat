@@ -8,31 +8,47 @@ namespace ValveResourceFormat.CompiledShader;
 // Disable broken analyzer (Use recommended dispose pattern)
 #pragma warning disable CA2000
 
+/// <summary>
+/// Collection of related shader programs.
+/// </summary>
 public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
 {
+    /// <summary>Gets the features shader.</summary>
     public VfxProgramData? Features
         => Get(VcsProgramType.Features);
+    /// <summary>Gets the vertex shader.</summary>
     public VfxProgramData? Vertex
         => Get(VcsProgramType.VertexShader);
+    /// <summary>Gets the geometry shader.</summary>
     public VfxProgramData? Geometry
         => Get(VcsProgramType.GeometryShader);
+    /// <summary>Gets the domain shader.</summary>
     public VfxProgramData? Domain
         => Get(VcsProgramType.DomainShader);
+    /// <summary>Gets the hull shader.</summary>
     public VfxProgramData? Hull
         => Get(VcsProgramType.HullShader);
+    /// <summary>Gets the pixel shader.</summary>
     public VfxProgramData? Pixel
         => Get(VcsProgramType.PixelShader);
+    /// <summary>Gets the compute shader.</summary>
     public VfxProgramData? Compute
         => Get(VcsProgramType.ComputeShader);
+    /// <summary>Gets the pixel shader render state.</summary>
     public VfxProgramData? PixelShaderRenderState
         => Get(VcsProgramType.PixelShaderRenderState);
+    /// <summary>Gets the raytracing shader.</summary>
     public VfxProgramData? Raytracing
         => Get(VcsProgramType.RaytracingShader);
+    /// <summary>Gets the mesh shader.</summary>
     public VfxProgramData? Mesh
         => Get(VcsProgramType.MeshShader);
 
     private readonly Dictionary<VcsProgramType, VfxProgramData> shaders = new((int)VcsProgramType.Undetermined);
 
+    /// <summary>
+    /// Loads all related shader files for a given shader.
+    /// </summary>
     public static ShaderCollection GetShaderCollection(string targetFilename, Package? vrfPackage)
     {
         ShaderCollection shaderCollection = [];
@@ -100,6 +116,9 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         return shaderCollection;
     }
 
+    /// <summary>
+    /// Adds a shader program to the collection.
+    /// </summary>
     public void Add(VfxProgramData program)
     {
         if (!shaders.TryAdd(program.VcsProgramType, program))
@@ -108,6 +127,9 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets a shader program by type.
+    /// </summary>
     public VfxProgramData? Get(VcsProgramType type)
     {
         if (shaders.TryGetValue(type, out var shader))
@@ -118,16 +140,25 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Returns an enumerator that iterates through the collection.
+    /// </summary>
     public IEnumerator<VfxProgramData> GetEnumerator()
     {
         return shaders.Values.GetEnumerator();
     }
 
+    /// <summary>
+    /// Returns an enumerator that iterates through the collection.
+    /// </summary>
     IEnumerator IEnumerable.GetEnumerator()
     {
         return ((IEnumerable)shaders.Values).GetEnumerator();
     }
 
+    /// <summary>
+    /// Creates a collection from an enumerable of shaders.
+    /// </summary>
     public static ShaderCollection FromEnumerable(IEnumerable<VfxProgramData> shaders)
     {
         var collection = new ShaderCollection();
@@ -140,12 +171,19 @@ public class ShaderCollection : IEnumerable<VfxProgramData>, IDisposable
         return collection;
     }
 
+    /// <summary>
+    /// Disposes all shaders in the collection.
+    /// </summary>
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Releases the unmanaged resources used by the <see cref="ShaderCollection"/> and optionally releases the managed resources.
+    /// </summary>
+    /// <param name="disposing">True to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (disposing)

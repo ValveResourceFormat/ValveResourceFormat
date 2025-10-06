@@ -1,7 +1,11 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Entity field data types.
+    /// </summary>
     public enum EntityFieldType
     {
+#pragma warning disable CS1591
         Void = 0x0,
         Float = 0x1,
         String = 0x2,
@@ -82,5 +86,6 @@ namespace ValveResourceFormat
         EngineTick = 0x4d,
         WorldGroupId = 0x4e,
         GlobalSymbol = 0x4f,
+#pragma warning restore CS1591
     }
 }

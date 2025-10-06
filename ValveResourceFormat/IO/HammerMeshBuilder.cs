@@ -919,7 +919,7 @@ namespace ValveResourceFormat.IO
                     }
                     // if no face merge happened, we can still get prev, but its a bit trickier
                     // we have to circulate away from the opposite boundary, until we find another boundary
-                    /// checking for twin here because of how the circulator works
+                    // checking for twin here because of how the circulator works
                     else
                     {
                         foreach (var heidx in VertexCirculator(oppositePrevBoundary, forward: true))

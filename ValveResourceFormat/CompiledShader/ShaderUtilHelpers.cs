@@ -3,8 +3,16 @@ using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    /// <summary>
+    /// Provides utility helper methods for shader processing and manipulation.
+    /// </summary>
     public static class ShaderUtilHelpers
     {
+        /// <summary>
+        /// Parses a VCS filename to extract shader information.
+        /// </summary>
+        /// <param name="filenamepath">The VCS file path to parse.</param>
+        /// <returns>A tuple containing the shader name, program type, platform type, and shader model type.</returns>
         public static (string ShaderName, VcsProgramType ProgramType, VcsPlatformType PlatformType, VcsShaderModelType ShaderModelType)
             ComputeVCSFileName(string filenamepath)
         {
@@ -68,6 +76,14 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        /// <summary>
+        /// Constructs a VCS filename from shader components.
+        /// </summary>
+        /// <param name="shaderName">The shader name.</param>
+        /// <param name="programType">The program type.</param>
+        /// <param name="platformType">The platform type.</param>
+        /// <param name="shaderModelType">The shader model type.</param>
+        /// <returns>The constructed VCS filename.</returns>
         public static string ComputeVCSFileName(string shaderName,
             VcsProgramType programType, VcsPlatformType platformType, VcsShaderModelType shaderModelType)
         {
@@ -88,6 +104,11 @@ namespace ValveResourceFormat.CompiledShader
                 platformType.ToString().ToLowerInvariant(), shaderModelTypeString, ComputeVcsProgramType(programType)) + ".vcs";
         }
 
+        /// <summary>
+        /// Converts a program type abbreviation string to a VcsProgramType enum value.
+        /// </summary>
+        /// <param name="abbrev">The program type abbreviation (e.g., "vs", "ps", "features").</param>
+        /// <returns>The corresponding VcsProgramType enum value.</returns>
         public static VcsProgramType ComputeVcsProgramType(string abbrev)
         {
             // When adding new types make sure to add a small shader file to the tests folder
@@ -107,6 +128,11 @@ namespace ValveResourceFormat.CompiledShader
             };
         }
 
+        /// <summary>
+        /// Converts a VcsProgramType enum value to its abbreviation string.
+        /// </summary>
+        /// <param name="type">The VcsProgramType enum value.</param>
+        /// <returns>The program type abbreviation (e.g., "vs", "ps", "features").</returns>
         public static string ComputeVcsProgramType(VcsProgramType type)
         {
             // When adding new types make sure to add a small shader file to the tests folder
@@ -126,6 +152,11 @@ namespace ValveResourceFormat.CompiledShader
             };
         }
 
+        /// <summary>
+        /// Shortens a shader parameter name for display purposes.
+        /// </summary>
+        /// <param name="shaderParam">The full shader parameter name.</param>
+        /// <returns>The shortened parameter name.</returns>
         public static string ShortenShaderParam(string shaderParam)
         {
             if (shaderParam.Length <= 4)
@@ -163,6 +194,12 @@ namespace ValveResourceFormat.CompiledShader
             return $"{newName}_{splitName[1][0..1]}";
         }
 
+        /// <summary>
+        /// Combines an integer array into a comma-separated string.
+        /// </summary>
+        /// <param name="ints0">The integer array to combine.</param>
+        /// <param name="includeParenth">Whether to include parentheses around the result.</param>
+        /// <returns>A string representation of the integer array.</returns>
         public static string CombineIntArray(int[] ints0, bool includeParenth = false)
         {
             if (ints0.Length == 0)
@@ -179,6 +216,12 @@ namespace ValveResourceFormat.CompiledShader
             return includeParenth ? $"({valueString})" : $"{valueString}";
         }
 
+        /// <summary>
+        /// Combines an integer array into a space-separated, padded string.
+        /// </summary>
+        /// <param name="ints0">The integer array to combine.</param>
+        /// <param name="padding">The padding width for each value.</param>
+        /// <returns>A padded string representation of the integer array.</returns>
         public static string CombineIntsSpaceSep(int[] ints0, int padding = 5)
         {
             if (ints0.Length == 0)
@@ -195,6 +238,12 @@ namespace ValveResourceFormat.CompiledShader
             return $"{valueString}";
         }
 
+        /// <summary>
+        /// Converts an integer array to a string array, with optional nulled value replacement.
+        /// </summary>
+        /// <param name="ints">The integer array to convert.</param>
+        /// <param name="nulledValue">The value to treat as null and replace with underscore.</param>
+        /// <returns>An array of string representations.</returns>
         public static string[] IntArrayToStrings(int[] ints, int nulledValue = int.MaxValue)
         {
             var stringTokens = new string[ints.Length];
@@ -205,6 +254,12 @@ namespace ValveResourceFormat.CompiledShader
             return stringTokens;
         }
 
+        /// <summary>
+        /// Combines a string array into a space-separated, padded string.
+        /// </summary>
+        /// <param name="strings0">The string array to combine.</param>
+        /// <param name="padding">The padding width for each string.</param>
+        /// <returns>A padded string representation of the string array.</returns>
         public static string CombineStringsSpaceSep(string[] strings0, int padding = 5)
         {
             var combinedString = "";
@@ -215,6 +270,12 @@ namespace ValveResourceFormat.CompiledShader
             return combinedString;
         }
 
+        /// <summary>
+        /// Combines a string array into a comma-separated string.
+        /// </summary>
+        /// <param name="strings0">The string array to combine.</param>
+        /// <param name="includeParenth">Whether to include parentheses around the result.</param>
+        /// <returns>A string representation of the string array.</returns>
         public static string CombineStringArray(string[] strings0, bool includeParenth = false)
         {
             if (strings0.Length == 0)
@@ -231,6 +292,12 @@ namespace ValveResourceFormat.CompiledShader
             return includeParenth ? $"({combinedString})" : $"{combinedString}";
         }
 
+        /// <summary>
+        /// Combines a string array with line breaks at a specified length.
+        /// </summary>
+        /// <param name="strings0">The string array to combine.</param>
+        /// <param name="breakLen">The maximum line length before breaking to a new line.</param>
+        /// <returns>An array of strings broken at the specified length.</returns>
         public static string[] CombineValuesBreakString(string[] strings0, int breakLen)
         {
             List<string> stringCollection = [];
@@ -259,6 +326,12 @@ namespace ValveResourceFormat.CompiledShader
             return [.. stringCollection];
         }
 
+        /// <summary>
+        /// Converts a byte span to a hexadecimal string representation.
+        /// </summary>
+        /// <param name="databytes">The byte data to convert.</param>
+        /// <param name="breakLen">The number of bytes per line (-1 for no breaks).</param>
+        /// <returns>A hexadecimal string representation of the byte data.</returns>
         public static string BytesToString(ReadOnlySpan<byte> databytes, int breakLen = 32)
         {
             if (databytes.Length == 0)
@@ -282,6 +355,11 @@ namespace ValveResourceFormat.CompiledShader
             return bytestring.Trim();
         }
 
+        /// <summary>
+        /// Parses a dynamic expression from bytecode.
+        /// </summary>
+        /// <param name="dynExpDatabytes">The dynamic expression bytecode.</param>
+        /// <returns>The parsed expression string, or an error message if parsing fails.</returns>
         public static string ParseDynamicExpression(byte[] dynExpDatabytes)
         {
             try
@@ -346,6 +424,11 @@ namespace ValveResourceFormat.CompiledShader
             "TextureCubeArrayIndex",
         ];
 
+        /// <summary>
+        /// Converts a VfxVariableType enum value to its string representation.
+        /// </summary>
+        /// <param name="type">The VFX variable type.</param>
+        /// <returns>The string representation of the variable type.</returns>
         public static string GetVfxVariableTypeString(VfxVariableType type)
         {
             var t = (int)type;

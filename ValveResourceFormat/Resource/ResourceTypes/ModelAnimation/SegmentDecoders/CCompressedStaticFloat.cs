@@ -4,6 +4,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedStaticFloat : AnimationSegmentDecoder
     {
+        /// <inheritdoc/>
         public override void Read(int frameIndex, Frame outFrame)
         {
             var floatData = MemoryMarshal.Cast<byte, float>(Data);

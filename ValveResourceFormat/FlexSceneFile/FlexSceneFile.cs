@@ -5,13 +5,25 @@ using System.Text;
 
 namespace ValveResourceFormat.FlexSceneFile
 {
+    /// <summary>
+    /// Represents a Valve flex scene file containing facial animation data.
+    /// </summary>
     public partial class FlexSceneFile
     {
+        /// <summary>
+        /// Represents a flex weight with influence values.
+        /// </summary>
         public struct FlexWeight
         {
+            /// <summary>Gets or sets the weight value.</summary>
             public float Weight { get; set; }
+
+            /// <summary>Gets or sets the influence value.</summary>
             public float Influence { get; set; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="FlexWeight"/> struct.
+            /// </summary>
             public FlexWeight(float weight, float influence)
             {
                 Weight = weight;
@@ -19,21 +31,33 @@ namespace ValveResourceFormat.FlexSceneFile
             }
         }
 
+        /// <summary>
+        /// Represents a flex setting for a phoneme.
+        /// </summary>
         public class FlexSetting
         {
+            /// <summary>Gets the name of the flex setting.</summary>
             public string Name { get; init; }
+
+            /// <summary>Gets the phoneme code.</summary>
             public int Phoneme { get; init; }
             /// <summary>
             /// Maps flex controllers to expression settings. Use <see cref="FlexSceneFile.KeyNames"/> to find the flex controller's key.
             /// </summary>
             public Dictionary<int, FlexWeight> Settings { get; } = [];
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="FlexSetting"/> class.
+            /// </summary>
             public FlexSetting(string name)
             {
                 Name = name;
                 Phoneme = TextToPhoneme(name);
             }
 
+            /// <summary>
+            /// Adds a flex weight for the specified key.
+            /// </summary>
             public void AddWeight(int key, FlexWeight data)
             {
                 Settings.Add(key, data);
@@ -53,12 +77,21 @@ namespace ValveResourceFormat.FlexSceneFile
             }
         }
 
+        /// <summary>
+        /// The magic number for flex scene files.
+        /// </summary>
         public const uint MAGIC = 0x00564645; //EFV\0
+
+        /// <summary>Gets the version of the flex scene file.</summary>
         public int Version { get; private set; }
+
+        /// <summary>Gets the name of the flex scene.</summary>
         public string Name { get; private set; }
 
+        /// <summary>Gets the names of all flex controller keys.</summary>
         public string[] KeyNames { get; private set; }
 
+        /// <summary>Gets all flex settings.</summary>
         public FlexSetting[] FlexSettings { get; private set; }
         private readonly Dictionary<int, int> phonemeToFlexSetting = [];
 
@@ -75,6 +108,9 @@ namespace ValveResourceFormat.FlexSceneFile
             return null;
         }
 
+        /// <summary>
+        /// Reads the flex scene data from the specified stream.
+        /// </summary>
         public void Read(Stream input)
         {
             using var reader = new BinaryReader(input, Encoding.UTF8, true);

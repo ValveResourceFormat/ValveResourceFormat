@@ -21,9 +21,11 @@ public partial class ModelExtract
 
     public enum ModelExtractType
     {
+#pragma warning disable CS1591
         Default,
         Map_PhysicsToRenderMesh,
         Map_AggregateSplit,
+#pragma warning restore CS1591
     }
 
     public ModelExtractType Type { get; init; } = ModelExtractType.Default;

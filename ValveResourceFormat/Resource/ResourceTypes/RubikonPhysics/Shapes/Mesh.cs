@@ -9,10 +9,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
     {
         public enum NodeType
         {
+#pragma warning disable CS1591
             SplitX = 0,
             SplitY = 1,
             SplitZ = 2,
             Leaf = 3,
+#pragma warning restore CS1591
         }
 
         [StructLayout(LayoutKind.Sequential)]

@@ -34,7 +34,7 @@ public class UIFontFilePackage
     /// <summary>
     /// Read the given data.
     /// </summary>
-    /// <param name="filename">The input data.</param>
+    /// <param name="data">The input data.</param>
     public void Read(ReadOnlySpan<byte> data)
     {
         // uifont files:

@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 {
     public enum KVFlag : byte
     {
+#pragma warning disable CS1591
         None = 0,
         Resource = 1,
         ResourceName = 2,
@@ -14,6 +15,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         // There are more types available in the S2 binaries, but they should not be persisted. Look for "The specific type '%s' cannot be persisted"
         MaxPersistedFlag = EntityName,
+#pragma warning restore CS1591
     }
 
     /// <summary>

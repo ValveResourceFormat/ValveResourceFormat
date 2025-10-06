@@ -2,6 +2,7 @@ namespace ValveResourceFormat
 {
     public enum ParticleField
     {
+#pragma warning disable CS1591
         Position,
         LifeDuration,
         PositionPrevious,
@@ -43,5 +44,6 @@ namespace ValveResourceFormat
         ManualAnimationFrame,
         ShaderExtraData1,
         ShaderExtraData2,
+#pragma warning restore CS1591
     }
 }

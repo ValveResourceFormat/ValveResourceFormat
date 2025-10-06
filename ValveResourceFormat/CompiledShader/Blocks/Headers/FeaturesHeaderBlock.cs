@@ -5,14 +5,25 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Header block for shader features files.
+/// </summary>
 public class FeaturesHeaderBlock : ShaderDataBlock
 {
+    /// <summary>Gets the features file version.</summary>
     public int Version { get; }
+    /// <summary>Gets the file description.</summary>
     public string FileDescription { get; }
+    /// <summary>Gets whether this is a development shader.</summary>
     public bool DevShader { get; }
+    /// <summary>Gets the array of available program types.</summary>
     public bool[] AvailablePrograms { get; }
+    /// <summary>Gets the list of shader modes.</summary>
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
 
+    /// <summary>
+    /// Initializes a new instance from KeyValues data.
+    /// </summary>
     public FeaturesHeaderBlock(KVObject data)
     {
         Version = data.GetInt32Property("m_nVersion");
@@ -44,6 +55,9 @@ public class FeaturesHeaderBlock : ShaderDataBlock
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public FeaturesHeaderBlock(BinaryReader datareader, int programTypesCount) : base(datareader)
     {
         Version = datareader.ReadInt32(); // this is probably not a version

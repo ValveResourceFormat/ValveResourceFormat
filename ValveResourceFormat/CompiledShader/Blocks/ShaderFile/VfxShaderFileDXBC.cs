@@ -2,13 +2,18 @@ using System.IO;
 
 namespace ValveResourceFormat.CompiledShader;
 
-/*
- * The DXBC sources only have one header, the offset (which happens to be equal to their source size)
- */
+/// <summary>
+/// DirectX Bytecode (DXBC) shader file.
+/// The DXBC sources only have one header, the offset (which happens to be equal to their source size).
+/// </summary>
 public class VfxShaderFileDXBC : VfxShaderFile
 {
+    /// <inheritdoc/>
     public override string BlockName => "DXBC";
 
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public VfxShaderFileDXBC(BinaryReader datareader, int sourceId, VfxStaticComboData parent)
         : base(datareader, sourceId, parent)
     {
@@ -20,6 +25,9 @@ public class VfxShaderFileDXBC : VfxShaderFile
         HashMD5 = new Guid(datareader.ReadBytes(16));
     }
 
+    /// <summary>
+    /// Initializes a new instance with explicit size and hash.
+    /// </summary>
     public VfxShaderFileDXBC(BinaryReader datareader, int sourceId, int size, Guid hash, VfxStaticComboData parent)
         : base(sourceId, parent)
     {
@@ -28,6 +36,7 @@ public class VfxShaderFileDXBC : VfxShaderFile
         HashMD5 = hash;
     }
 
+    /// <inheritdoc/>
     public override string GetDecompiledFile()
     {
         throw new InvalidOperationException("DXBC decompilation is not supported.");

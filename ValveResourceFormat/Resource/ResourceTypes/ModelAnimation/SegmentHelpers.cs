@@ -23,7 +23,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Read and decode encoded quaternion.
         /// </summary>
-        /// <param name="reader">Binary reader.</param>
+        /// <param name="bytes">The byte stream.</param>
         /// <returns>Quaternion.</returns>
         public static Quaternion ReadQuaternion(ReadOnlySpan<byte> bytes)
         {

@@ -98,13 +98,22 @@ namespace ValveResourceFormat.CompiledShader
      *
      *
      */
+    /// <summary>
+    /// Maps shader configuration states to combo IDs.
+    /// </summary>
     public class ConfigMappingParams
     {
+        /// <summary>
+        /// Initializes a new instance for static configurations.
+        /// </summary>
         public ConfigMappingParams(VfxProgramData program) : this(program, isDynamic: false)
         {
             //
         }
 
+        /// <summary>
+        /// Initializes a new instance for static or dynamic configurations.
+        /// </summary>
         public ConfigMappingParams(VfxProgramData program, bool isDynamic)
         {
             GenerateOffsetAndStateLookups(isDynamic ? program.DynamicComboArray : program.StaticComboArray);
@@ -156,6 +165,9 @@ namespace ValveResourceFormat.CompiledShader
          * getting the config state is not dependent on processing the configuration constraints (but is useful for verification)
          * It is much more efficient to move from a known zframeId to a configuration state
          */
+        /// <summary>
+        /// Gets the configuration state for a given combo ID.
+        /// </summary>
         public int[] GetConfigState(long zframeId)
         {
             var state = new int[nr_states.Length];
@@ -167,6 +179,9 @@ namespace ValveResourceFormat.CompiledShader
             return state;
         }
 
+        /// <summary>
+        /// Calculates a static combo ID from configuration state values.
+        /// </summary>
         public long CalcStaticComboIdFromValues(int[] configState)
         {
             Debug.Assert(configState.Length == nr_states.Length);
@@ -207,6 +222,9 @@ namespace ValveResourceFormat.CompiledShader
          * but not equal or exceeding
          *
          */
+        /// <summary>
+        /// Gets the maximum combo enumeration value.
+        /// </summary>
         public int MaxEnumeration()
         {
             return nr_states[^1] * offsets[^1];
@@ -258,6 +276,9 @@ namespace ValveResourceFormat.CompiledShader
         }
         */
 
+        /// <summary>
+        /// Gets the sum of all state counts.
+        /// </summary>
         public int SumStates
         {
             get

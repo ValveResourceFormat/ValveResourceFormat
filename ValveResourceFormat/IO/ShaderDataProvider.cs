@@ -9,12 +9,31 @@ using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace ValveResourceFormat.IO
 {
+    /// <summary>
+    /// Provides shader data information for materials, including texture input mappings and suffixes.
+    /// </summary>
     public interface IShaderDataProvider
     {
+        /// <summary>
+        /// Gets the input texture channels and names for a given texture type in a material.
+        /// </summary>
+        /// <param name="textureType">The type of texture to query.</param>
+        /// <param name="material">The material containing the texture.</param>
+        /// <returns>A collection of channel mappings and their corresponding input names.</returns>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material);
+
+        /// <summary>
+        /// Gets the file suffix for a given input texture name.
+        /// </summary>
+        /// <param name="inputName">The name of the input texture.</param>
+        /// <param name="material">The material containing the texture.</param>
+        /// <returns>The suffix string for the input texture, or null if not found.</returns>
         public string GetSuffixForInputTexture(string inputName, Material material);
     }
 
+    /// <summary>
+    /// Provides shader data by querying compiled shader files, with optional fallback to basic hardcoded mappings.
+    /// </summary>
     public class ShaderDataProvider : IShaderDataProvider
     {
 #pragma warning disable CA1859 // Use concrete types when possible for improved performance
@@ -22,22 +41,34 @@ namespace ValveResourceFormat.IO
         private readonly IShaderDataProvider basicProvider;
 #pragma warning restore CA1859
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ShaderDataProvider"/> class.
+        /// </summary>
+        /// <param name="fileLoader">The file loader used to load shader files.</param>
+        /// <param name="useFallback">Whether to use the basic provider as a fallback when shader files are unavailable.</param>
         public ShaderDataProvider(IFileLoader fileLoader, bool useFallback = true)
         {
             this.fileLoader = fileLoader;
             basicProvider = useFallback ? new BasicShaderDataProvider() : null;
         }
 
+        /// <inheritdoc/>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
             return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material);
         }
 
+        /// <inheritdoc/>
         public string GetSuffixForInputTexture(string inputName, Material material)
         {
             return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
         }
 
+        /// <summary>
+        /// Extracts the material feature state from integer parameters.
+        /// </summary>
+        /// <param name="material">The material to extract feature state from.</param>
+        /// <returns>A dictionary of feature names (with 'F_' prefix) and their values.</returns>
         public static IDictionary<string, byte> GetMaterialFeatureState(Material material)
             => material.IntParams
                 .Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal))
@@ -119,10 +150,12 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Removes switches that would point to a inexistent static combo.
+        /// Removes switches that would point to a non-existent static combo.
         /// </summary>
-        /// <param name="program">The file that contains the combos, and combo rules</param>
-        /// <returns></returns>
+        /// <param name="program">The file that contains the combos and combo rules.</param>
+        /// <param name="staticConfiguration">The original static configuration.</param>
+        /// <param name="reducedConfiguration">The reduced configuration with invalid switches removed.</param>
+        /// <returns>True if the configuration was modified, false otherwise.</returns>
         public static bool TryReduceStaticConfiguration(VfxProgramData program, int[] staticConfiguration, out int[] reducedConfiguration)
         {
             reducedConfiguration = [.. staticConfiguration];
@@ -321,6 +354,9 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// Gets the file suffix for an input texture by querying the shader file.
+        /// </summary>
         private string GetSuffixForInputTexture_Internal(string inputName, Material material)
         {
             var shader = fileLoader.LoadShader(material.ShaderName);
@@ -339,8 +375,14 @@ namespace ValveResourceFormat.IO
         }
     }
 
+    /// <summary>
+    /// Provides hardcoded shader data mappings for common shaders as a fallback when shader files are unavailable.
+    /// </summary>
     public class BasicShaderDataProvider : IShaderDataProvider
     {
+        /// <summary>
+        /// Hardcoded texture channel mappings for known shader types.
+        /// </summary>
         public static readonly Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>> TextureMappings = new()
         {
             ["global_lit_simple"] = new()
@@ -472,6 +514,9 @@ namespace ValveResourceFormat.IO
             }
         };
 
+        /// <summary>
+        /// Common texture input names and their corresponding file suffixes.
+        /// </summary>
         public static readonly Dictionary<string, string> CommonTextureSuffixes = new()
         {
             { "TextureDetailMask", "_detailmask" },
@@ -495,8 +540,11 @@ namespace ValveResourceFormat.IO
         };
 
         /// <summary>
-        /// Get hardcoded texture inputs. If no mappings are found it will be a single *guessed* RGBA input.
+        /// Gets hardcoded texture inputs. If no mappings are found it will be a single guessed RGBA input.
         /// </summary>
+        /// <param name="textureType">The type of texture to query.</param>
+        /// <param name="material">The material containing the texture.</param>
+        /// <returns>A collection of channel mappings and their corresponding input names.</returns>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
             var shaderName = Path.ChangeExtension(material.ShaderName, null); // strip '.vfx'
@@ -519,11 +567,17 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// Converts a shader texture parameter name to an input texture name.
+        /// </summary>
+        /// <param name="textureType">The shader texture parameter name (e.g., "g_tColor").</param>
+        /// <returns>The input texture name (e.g., "TextureColor").</returns>
         public static string ConvertTextureToInput(string textureType)
         {
             return textureType.Replace("g_t", "Texture", StringComparison.Ordinal);
         }
 
+        /// <inheritdoc/>
         public string GetSuffixForInputTexture(string inputName, Material material)
         {
             foreach (var (commonType, commonSuffix) in CommonTextureSuffixes)
@@ -538,6 +592,14 @@ namespace ValveResourceFormat.IO
             return null;
         }
 
+        /// <summary>
+        /// Attempts to determine the correct texture mapping for shaders with non-static channel assignments.
+        /// </summary>
+        /// <param name="shader">The shader name.</param>
+        /// <param name="textureType">The texture type to resolve.</param>
+        /// <param name="intParams">The material's integer parameters.</param>
+        /// <param name="newTextureType">The resolved texture type name.</param>
+        /// <returns>True if the texture type was resolved, false otherwise.</returns>
         private static bool TryFigureOutNonStaticMap(string shader, string textureType, Dictionary<string, long> intParams, out string newTextureType)
         {
             if (shader == "vr_simple" && textureType == "g_tColor")

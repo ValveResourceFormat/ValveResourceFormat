@@ -5,17 +5,31 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Entry point for a static combo in a VCS file.
+/// </summary>
 public class VfxStaticComboVcsEntry
 {
     private const int LZMA_MAGIC = 0x414D5A4C;
 
+    /// <summary>Gets or sets the parent program data.</summary>
     public required VfxProgramData ParentProgramData { get; init; }
+    /// <summary>Gets or sets the static combo identifier.</summary>
     public long StaticComboId { get; init; }
+    /// <summary>Gets or sets the file offset.</summary>
     public int FileOffset { get; init; }
 
+    /// <summary>
+    /// Resource entry for KeyValues-based files.
+    /// </summary>
     public record ResourceEntry(KVObject ComboData, VfxShaderAttribute[] AllAttributes, KVObject[] ByteCodeDescArray);
+
+    /// <summary>Gets or sets the KeyValues entry.</summary>
     public ResourceEntry? KVEntry { get; init; }
 
+    /// <summary>
+    /// Unserializes the static combo data.
+    /// </summary>
     public VfxStaticComboData Unserialize()
     {
         if (KVEntry is not null)
@@ -40,6 +54,9 @@ public class VfxStaticComboVcsEntry
         return new VfxStaticComboData(pooledStream, StaticComboId, ParentProgramData);
     }
 
+    /// <summary>
+    /// Decompresses the static combo data stream.
+    /// </summary>
     public static PooledMemoryStream GetUncompressedStaticComboDataStream(BinaryReader reader, VfxProgramData programData)
     {
         var compressionTypeOrSize = reader.ReadInt32();

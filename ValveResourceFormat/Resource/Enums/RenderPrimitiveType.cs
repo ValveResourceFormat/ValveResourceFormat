@@ -2,6 +2,7 @@ namespace ValveResourceFormat
 {
     public enum RenderPrimitiveType //: byte
     {
+#pragma warning disable CS1591
         RENDER_PRIM_POINTS = 0x0,
         RENDER_PRIM_LINES = 0x1,
         RENDER_PRIM_LINES_WITH_ADJACENCY = 0x2,
@@ -45,5 +46,6 @@ namespace ValveResourceFormat
         RENDER_PRIM_30_CONTROL_POINT_PATCHLIST = 0x28,
         RENDER_PRIM_31_CONTROL_POINT_PATCHLIST = 0x29,
         RENDER_PRIM_32_CONTROL_POINT_PATCHLIST = 0x2A,
+#pragma warning restore CS1591
     }
 }

@@ -8,14 +8,31 @@ using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    /// <summary>
+    /// Represents a compiled VFX shader program with all its associated data.
+    /// </summary>
     public class VfxProgramData : IDisposable
     {
+        /// <summary>
+        /// Magic number for VCS2 files ("vcs2").
+        /// </summary>
         public const int MAGIC = 0x32736376; // "vcs2"
 
+        /// <summary>
+        /// Gets or sets the binary reader for this shader data.
+        /// </summary>
         public BinaryReader? DataReader { get; set; }
+
         private Stream? BaseStream;
 
+        /// <summary>
+        /// Gets the file path of the shader.
+        /// </summary>
         public string? FilenamePath { get; private set; }
+
+        /// <summary>
+        /// Gets the shader name.
+        /// </summary>
         public string? ShaderName { get; private set; }
 
         /// <summary>
@@ -24,34 +41,117 @@ namespace ValveResourceFormat.CompiledShader
         /// </summary>
         public Resource? Resource { get; private set; }
 
+        /// <summary>
+        /// Gets the VCS program type (e.g., vertex shader, pixel shader).
+        /// </summary>
         public VcsProgramType VcsProgramType { get; private set; } = VcsProgramType.Undetermined;
+
+        /// <summary>
+        /// Gets the VCS platform type (e.g., PC, Vulkan).
+        /// </summary>
         public VcsPlatformType VcsPlatformType { get; private set; } = VcsPlatformType.Undetermined;
+
+        /// <summary>
+        /// Gets the VCS shader model type (e.g., 4.0, 5.0, 6.0).
+        /// </summary>
         public VcsShaderModelType VcsShaderModelType { get; private set; } = VcsShaderModelType.Undetermined;
+
+        /// <summary>
+        /// Gets the features header block for feature files.
+        /// </summary>
         public FeaturesHeaderBlock? FeaturesHeader { get; private set; }
+
+        /// <summary>
+        /// Gets the VCS file format version.
+        /// </summary>
         public int VcsVersion { get; private set; }
+
+        /// <summary>
+        /// Gets the file hash GUID.
+        /// </summary>
         public Guid FileHash { get; private set; }
+
+        /// <summary>
+        /// Gets flags indicating which additional files are present.
+        /// </summary>
         public VcsAdditionalFileFlags AdditionalFiles { get; private set; }
+
+        /// <summary>
+        /// Gets whether this is an S&box shader.
+        /// </summary>
         public bool IsSbox { get; init; }
-        public int VariableSourceMax { get; private set; } // 17 for all up to date files. 14 seen in old test files
+
+        /// <summary>
+        /// Gets the maximum variable source value (17 for up-to-date files, 14 for older files).
+        /// </summary>
+        public int VariableSourceMax { get; private set; }
+
+        /// <summary>
+        /// Gets the list of MD5 hashes.
+        /// </summary>
         public List<Guid> HashesMD5 { get; } = [];
+
+        /// <summary>
+        /// Gets the static combo configuration array.
+        /// </summary>
         public VfxCombo[] StaticComboArray { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the static combo constraint rules.
+        /// </summary>
         public VfxRule[] StaticComboRules { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the dynamic combo configuration array.
+        /// </summary>
         public VfxCombo[] DynamicComboArray { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the dynamic combo constraint rules.
+        /// </summary>
         public VfxRule[] DynamicComboRules { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the variable descriptions array.
+        /// </summary>
         public VfxVariableDescription[] VariableDescriptions { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the texture channel processor configurations.
+        /// </summary>
         public VfxTextureChannelProcessor[] TextureChannelProcessors { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the external constant buffer descriptions.
+        /// </summary>
         public ConstantBufferDescription[] ExtConstantBufferDescriptions { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the vertex shader input signature elements.
+        /// </summary>
         public VsInputSignatureElement[] VSInputSignatures { get; private set; } = [];
 
-        // Zframe data assigned to the ZFrameDataDescription class are key pieces of
-        // information needed to decompress and retrieve zframes (to save processing zframes are only
-        // decompressed on request). This information is organised in zframesLookup by their zframeId's.
-        // Because the zframes appear in the file in ascending order, storing their data in a
-        // sorted dictionary enables retrieval based on the order they are seen; by calling
-        // zframesLookup.ElementAt(zframeIndex). We also retrieve them based on their id using
-        // zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
+        /// <summary>
+        /// Gets the static combo entries dictionary, organized by zframe ID.
+        /// Zframe data contains key information needed to decompress and retrieve zframes.
+        /// The sorted dictionary enables retrieval both by order (using ElementAt) and by ID (using indexer).
+        /// </summary>
+        /// <remarks>
+        /// Zframe data assigned to the ZFrameDataDescription class are key pieces of
+        /// information needed to decompress and retrieve zframes (to save processing zframes are only
+        /// decompressed on request). This information is organised in zframesLookup by their zframeId's.
+        /// Because the zframes appear in the file in ascending order, storing their data in a
+        /// sorted dictionary enables retrieval based on the order they are seen; by calling
+        /// zframesLookup.ElementAt(zframeIndex). We also retrieve them based on their id using
+        /// zframesLookup[zframeId]. Both methods are useful in different contexts (be aware not to mix them up).
+        /// </remarks>
         public SortedDictionary<long, VfxStaticComboVcsEntry> StaticComboEntries { get; } = [];
+
+        /// <summary>
+        /// Gets the static combo cache for efficiently retrieving parsed static combos.
+        /// </summary>
         public StaticCache? StaticComboCache { get; private set; }
+
         private ConfigMappingParams? dBlockConfigGen;
 
         /// <summary>
@@ -63,6 +163,10 @@ namespace ValveResourceFormat.CompiledShader
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>
+        /// Releases the unmanaged resources used by the <see cref="VfxProgramData"/> and optionally releases the managed resources.
+        /// </summary>
+        /// <param name="disposing">True to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -132,6 +236,10 @@ namespace ValveResourceFormat.CompiledShader
             StaticComboCache = new StaticCache(this);
         }
 
+        /// <summary>
+        /// Prints a summary of the shader program data to the console or a provided writer.
+        /// </summary>
+        /// <param name="outputWriter">Optional indented text writer for output.</param>
         public void PrintSummary(IndentedTextWriter? outputWriter = null)
         {
             if (outputWriter == null)
@@ -476,11 +584,21 @@ namespace ValveResourceFormat.CompiledShader
             VcsShaderModelType = vcsFileProperties.ShaderModelType;
         }
 
+        /// <summary>
+        /// Retrieves and unserializes a static combo by its ID.
+        /// </summary>
+        /// <param name="id">The static combo ID.</param>
+        /// <returns>The unserialized static combo data.</returns>
         public VfxStaticComboData GetStaticCombo(long id)
         {
             return StaticComboEntries[id].Unserialize();
         }
 
+        /// <summary>
+        /// Gets the configuration state for a dynamic block.
+        /// </summary>
+        /// <param name="blockId">The block ID.</param>
+        /// <returns>The configuration state array.</returns>
         public int[] GetDBlockConfig(long blockId)
         {
             Debug.Assert(dBlockConfigGen != null);

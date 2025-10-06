@@ -6,12 +6,19 @@ using Vortice.SpirvCross;
 
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Vulkan SPIR-V shader bytecode.
+/// </summary>
 public class VfxShaderFileVulkan : VfxShaderFile
 {
+    /// <summary>Gets the platform name.</summary>
     public override string BlockName => "VULKAN";
+    /// <summary>Gets the shader file version.</summary>
     public int Version { get; private set; }
+    /// <summary>Gets the size of the bytecode.</summary>
     public int BytecodeSize { get; private set; }
 
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public int Unknown1 { get; }
     public byte[]? Unknown2 { get; }
 
@@ -47,7 +54,11 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public short Unknown32 { get; }
     public byte Unknown33 { get; }
     public byte[]? Unknown34 { get; }
+#pragma warning restore CS1591
 
+    /// <summary>
+    /// Initializes a new instance from pre-hashed data.
+    /// </summary>
     public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, Guid hash, VfxStaticComboData parent)
         : base(sourceId, parent)
     {
@@ -56,6 +67,9 @@ public class VfxShaderFileVulkan : VfxShaderFile
         Size = BytecodeSize + 8;
     }
 
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile)
         : base(datareader, sourceId, parent)
     {
@@ -202,6 +216,9 @@ public class VfxShaderFileVulkan : VfxShaderFile
         }
     }
 
+    /// <summary>
+    /// Decompiles SPIR-V bytecode to source code.
+    /// </summary>
     public override string GetDecompiledFile()
     {
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);

@@ -1,7 +1,11 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Resource file block types.
+    /// </summary>
     public enum BlockType : uint
     {
+#pragma warning disable CS1591
         Undefined = 0,
 
         RERL = 'R' | ('E' << 8) | ('R' << 16) | ('L' << 24),
@@ -30,5 +34,6 @@ namespace ValveResourceFormat
         TBUF = 'T' | ('B' << 8) | ('U' << 16) | ('F' << 24),
         MVTX = 'M' | ('V' << 8) | ('T' << 16) | ('X' << 24),
         MIDX = 'M' | ('I' << 8) | ('D' << 16) | ('X' << 24),
+#pragma warning restore CS1591
     }
 }

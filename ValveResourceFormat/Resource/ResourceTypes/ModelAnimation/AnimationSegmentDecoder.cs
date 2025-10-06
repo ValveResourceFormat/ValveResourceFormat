@@ -27,6 +27,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
+        /// <summary>
+        /// Reads and decodes animation data for a specific frame.
+        /// </summary>
+        /// <param name="frameIndex">The index of the frame to read.</param>
+        /// <param name="outFrame">The frame object to populate with decoded data.</param>
         public abstract void Read(int frameIndex, Frame outFrame);
     }
 }

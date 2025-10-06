@@ -5,6 +5,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// </summary>
 public enum ImageFormat
 {
+#pragma warning disable CS1591
     UNKNOWN = -1,
     RGBA8888 = 0,
     ABGR8888 = 1,
@@ -68,4 +69,5 @@ public enum ImageFormat
     R16_UINT = 59,
     R16G16_UINT = 60,
     IMAGE_FORMAT_R11G11B10_FLOAT = 61,
+#pragma warning restore CS1591
 }

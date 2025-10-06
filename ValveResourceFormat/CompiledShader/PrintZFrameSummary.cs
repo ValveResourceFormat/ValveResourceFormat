@@ -4,13 +4,20 @@ using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    /// <summary>
+    /// Prints a summary of shader static combo data.
+    /// </summary>
     public class PrintZFrameSummary
     {
+        /// <summary>Gets or sets the output writer.</summary>
         public IndentedTextWriter OutputWriter { get; set; }
         private readonly VfxStaticComboData StaticCombo;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
+        /// <summary>
+        /// Initializes a new instance and prints the summary.
+        /// </summary>
         public PrintZFrameSummary(VfxStaticComboData staticCombo, IndentedTextWriter outputWriter)
         {
             StaticCombo = staticCombo;
@@ -66,6 +73,9 @@ namespace ValveResourceFormat.CompiledShader
         /*
          * Because the write sequences are often repeated, we only print the unique ones.
          */
+        /// <summary>
+        /// Gets unique write sequences.
+        /// </summary>
         public Dictionary<string, int> GetUniqueWriteSequences()
         {
             Dictionary<string, int> writeSequences = [];
@@ -93,6 +103,9 @@ namespace ValveResourceFormat.CompiledShader
          * write sequence WRITESEQ[0] (configurations may refer to it) otherwise sequences assigned -1 mean the write
          * sequence doesn't contain any data and not needed.
          */
+        /// <summary>
+        /// Maps block IDs to unique sequence IDs.
+        /// </summary>
         public SortedDictionary<int, int> GetBlockToUniqueSequenceMap()
         {
             SortedDictionary<int, int> sequencesMap = new()

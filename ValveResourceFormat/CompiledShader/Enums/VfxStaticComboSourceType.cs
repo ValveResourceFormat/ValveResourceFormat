@@ -1,7 +1,11 @@
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Static combo source types.
+/// </summary>
 public enum VfxStaticComboSourceType
 {
+#pragma warning disable CS1591
     __SET_BY_FEATURE__,
     S_TOOLS_ENABLED,
     S_SHADER_QUALITY,
@@ -16,4 +20,5 @@ public enum VfxStaticComboSourceType
     __SET_BY_FEATURE_NE__,
     S_EXECUTION_REORDERING,
     S_SUPPORTS_DX_11_1,
+#pragma warning restore CS1591
 }

@@ -3,14 +3,23 @@ using System.Text;
 
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// OpenGL GLSL shader file.
+/// </summary>
 public class VfxShaderFileGL : VfxShaderFile
 {
+    /// <summary>Gets the block name.</summary>
     public override string BlockName => "GLSL";
-    public int Arg0 { get; } // always 3
-    // offset2, if present, always observes offset2 == offset + 8
-    // offset2 can also be interpreted as the source-size
+
+    /// <summary>Gets the argument value.</summary>
+    public int Arg0 { get; }
+
+    /// <summary>Gets the shader source code size.</summary>
     public int BytecodeSize { get; } = -1;
 
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public VfxShaderFileGL(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
     {
         if (Size > 0)
@@ -24,6 +33,9 @@ public class VfxShaderFileGL : VfxShaderFile
         HashMD5 = new Guid(datareader.ReadBytes(16));
     }
 
+    /// <summary>
+    /// Gets the decompiled shader file as GLSL source code.
+    /// </summary>
     public override string GetDecompiledFile()
     {
         return Encoding.UTF8.GetString(this.Bytecode);

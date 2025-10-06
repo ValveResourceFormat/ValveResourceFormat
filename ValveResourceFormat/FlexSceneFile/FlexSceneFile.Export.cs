@@ -7,6 +7,9 @@ namespace ValveResourceFormat.FlexSceneFile
 {
     partial class FlexSceneFile
     {
+        /// <summary>
+        /// Returns a string representation of the flex scene file in phonemes format.
+        /// </summary>
         public override string ToString()
         {
             var sb = new StringBuilder();

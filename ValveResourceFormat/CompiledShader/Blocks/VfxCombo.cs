@@ -13,18 +13,32 @@ namespace ValveResourceFormat.CompiledShader;
 /// </remarks>
 public class VfxCombo : ShaderDataBlock
 {
+    /// <summary>Gets the block index.</summary>
     public int BlockIndex { get; }
+    /// <summary>Gets or sets the calculated combo identifier.</summary>
     public long CalculatedComboId { get; set; } // set after loading all combos
+    /// <summary>Gets the combo name.</summary>
     public string Name { get; }
+    /// <summary>Gets the alias name.</summary>
     public string AliasName { get; }
+    /// <summary>Gets the combo type (static or dynamic).</summary>
     public VfxComboType ComboType { get; }
+    /// <summary>Gets the minimum value in the combo range.</summary>
     public int RangeMin { get; }
+    /// <summary>Gets the maximum value in the combo range.</summary>
     public int RangeMax { get; }
+    /// <summary>Gets the combo source type.</summary>
     public int ComboSourceType { get; } // VfxStaticComboSourceType or VfxDynamicComboSourceType
+    /// <summary>Gets the feature comparison value.</summary>
     public int FeatureComparisonValue { get; }
+    /// <summary>Gets the feature index.</summary>
     public int FeatureIndex { get; }
+    /// <summary>Gets the array of state names.</summary>
     public string[] Strings { get; } = [];
 
+    /// <summary>
+    /// Initializes a new instance from KeyValues data.
+    /// </summary>
     public VfxCombo(KVObject data, int blockIndex) : base()
     {
         BlockIndex = blockIndex;
@@ -45,6 +59,9 @@ public class VfxCombo : ShaderDataBlock
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public VfxCombo(BinaryReader datareader, int blockIndex) : base(datareader)
     {
         // CVfxCombo::Unserialize

@@ -7,11 +7,19 @@ using static ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Vertex shader input signature definitions.
+/// </summary>
 public class VsInputSignatureElement : ShaderDataBlock
 {
+    /// <summary>Gets the block index.</summary>
     public int BlockIndex { get; }
+    /// <summary>Gets the array of input signature elements.</summary>
     public InputSignatureElement[] SymbolsDefinition { get; } = [];
 
+    /// <summary>
+    /// Initializes a new instance from KeyValues data.
+    /// </summary>
     public VsInputSignatureElement(KVObject data, int blockIndex) : base()
     {
         BlockIndex = blockIndex;
@@ -26,6 +34,9 @@ public class VsInputSignatureElement : ShaderDataBlock
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public VsInputSignatureElement(BinaryReader datareader, int blockIndex) : base(datareader)
     {
         // VfxUnserializeVsInputSignature

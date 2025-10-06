@@ -7,11 +7,20 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents physics aggregate data containing collision shapes and properties.
+    /// </summary>
     public class PhysAggregateData : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Gets the physics flags.
+        /// </summary>
         public int Flags
             => Data.GetInt32Property("m_nFlags");
 
+        /// <summary>
+        /// Gets the bind pose transformation matrices.
+        /// </summary>
         public Matrix4x4[] BindPose
            => Data.GetArray("m_bindPose")
                 .Select(v => Matrix4x4FromArray(v
@@ -19,12 +28,21 @@ namespace ValveResourceFormat.ResourceTypes
                     .ToArray()))
                 .ToArray();
 
+        /// <summary>
+        /// Gets the physics parts (shapes) in this aggregate.
+        /// </summary>
         public Part[] Parts
             => parts ??= Data.GetArray("m_parts").Select(p => new Part(p)).ToArray();
 
+        /// <summary>
+        /// Gets the surface property hashes for collision materials.
+        /// </summary>
         public uint[] SurfacePropertyHashes
             => Data.GetArray<object>("m_surfacePropertyHashes").Select(Convert.ToUInt32).ToArray();
 
+        /// <summary>
+        /// Gets the collision attributes.
+        /// </summary>
         public IReadOnlyList<KVObject> CollisionAttributes
             => Data.GetArray("m_collisionAttributes");
 

@@ -5,12 +5,24 @@ using ValveKeyValue;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a binary KeyValues1 data block.
+    /// </summary>
     public class BinaryKV1 : Block
     {
+        /// <summary>
+        /// The magic number for binary KeyValues1 format (VBKV).
+        /// </summary>
         public const int MAGIC = 0x564B4256; // VBKV
 
+        /// <summary>
+        /// Gets the block type, which is always DATA.
+        /// </summary>
         public override BlockType Type => BlockType.DATA;
 
+        /// <summary>
+        /// Gets the deserialized KeyValues data.
+        /// </summary>
         public KVObject KeyValues { get; private set; }
 
         public override void Read(BinaryReader reader)

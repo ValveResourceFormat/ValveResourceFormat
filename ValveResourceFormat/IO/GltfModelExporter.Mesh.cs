@@ -413,7 +413,7 @@ public partial class GltfModelExporter
         var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
         VMesh vmesh;
 
-        /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes">
+        /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes" />
         if (embeddedMeshes.Count > 0)
         {
             if (embeddedMeshes.Count > 1)

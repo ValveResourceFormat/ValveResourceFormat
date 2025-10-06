@@ -6,23 +6,56 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    /// <summary>
+    /// Represents data for a static shader combination.
+    /// </summary>
     public class VfxStaticComboData
     {
+        /// <summary>Gets or sets the parent program data.</summary>
         public VfxProgramData? ParentProgramData { get; private set; }
+
+        /// <summary>Gets the static combo identifier.</summary>
         public long StaticComboId { get; }
+
+        /// <summary>Gets the variables from the static combo.</summary>
         public VfxVariableIndexArray VariablesFromStaticCombo { get; }
+
+        /// <summary>Gets the shader attributes.</summary>
         public VfxShaderAttribute[] Attributes { get; } = [];
+
+        /// <summary>Gets the vertex shader inputs.</summary>
         public int[] VShaderInputs { get; } = [];
+
+        /// <summary>Gets the dynamic combo variables.</summary>
         public VfxVariableIndexArray[] DynamicComboVariables { get; } = [];
+
+        /// <summary>Gets the constant buffer bind info slots.</summary>
         public byte[] ConstantBufferBindInfoSlots { get; } = [];
+
+        /// <summary>Gets the constant buffer bind info flags.</summary>
         public byte[] ConstantBufferBindInfoFlags { get; } = [];
+
+        /// <summary>Gets the constant buffer size.</summary>
         public int ConstantBufferSize { get; }
+
+        /// <summary>Gets the first flag byte.</summary>
         public bool Flagbyte0 { get; }
+
+        /// <summary>Gets the second flag byte.</summary>
         public byte Flagbyte1 { get; }
+
+        /// <summary>Gets the third flag byte.</summary>
         public bool Flagbyte2 { get; }
+
+        /// <summary>Gets the shader files for this combo.</summary>
         public VfxShaderFile[] ShaderFiles { get; } = [];
+
+        /// <summary>Gets the dynamic combos render state info.</summary>
         public VfxRenderStateInfo[] DynamicCombos { get; } = [];
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VfxStaticComboData"/> class from a KV object.
+        /// </summary>
         public VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, KVObject[] byteCodeDataArray, VfxProgramData programData)
         {
             ParentProgramData = programData;
@@ -132,6 +165,9 @@ namespace ValveResourceFormat.CompiledShader
             Attributes = [.. data.GetIntegerArray("m_attribIdx").Select(i => attributes[i])];
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VfxStaticComboData"/> class from a stream.
+        /// </summary>
         public VfxStaticComboData(Stream stream, long staticComboId, VfxProgramData programData)
         {
             ParentProgramData = programData;
@@ -299,6 +335,9 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        /// <summary>
+        /// Returns a string description of all attributes.
+        /// </summary>
         public string AttributesStringDescription()
         {
             var attributesString = new StringBuilder();
@@ -310,6 +349,9 @@ namespace ValveResourceFormat.CompiledShader
             return attributesString.ToString();
         }
 
+        /// <summary>
+        /// Disposes resources by clearing the parent program data reference.
+        /// </summary>
         public void Dispose()
         {
             ParentProgramData = null;

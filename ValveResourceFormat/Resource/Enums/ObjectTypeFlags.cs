@@ -3,6 +3,7 @@ namespace ValveResourceFormat
     [Flags]
     public enum ObjectTypeFlags
     {
+#pragma warning disable CS1591
         None = 0x0,
         ImageLod = 0x1,
         GeometryLod = 0x2,
@@ -21,5 +22,6 @@ namespace ValveResourceFormat
         StaticCubeMap = 0x8000,
         DisableVisCulling = 0x10000,
         BakedGeometry = 0x20000,
+#pragma warning restore CS1591
     }
 }

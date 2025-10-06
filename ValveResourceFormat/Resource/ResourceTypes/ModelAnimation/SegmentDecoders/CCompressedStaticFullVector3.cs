@@ -4,6 +4,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     public class CCompressedStaticFullVector3 : AnimationSegmentDecoder
     {
+        /// <inheritdoc/>
         public override void Read(int frameIndex, Frame outFrame)
         {
             var vectorData = MemoryMarshal.Cast<byte, Vector3>(Data);
