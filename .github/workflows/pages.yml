@@ -31,7 +31,7 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Dotnet Setup
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 10.x
 
