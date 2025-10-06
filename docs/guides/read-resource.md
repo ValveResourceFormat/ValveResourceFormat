@@ -1,3 +1,5 @@
+# Read resource
+
 This is a basic example to open a VPK file, read a texture from it, and then export it as a PNG.
 
 ```cs

@@ -27,6 +27,7 @@
         "resource": [
             {
                 "src": "../Misc/Icons",
+                "dest": "images",
                 "files": [
                     "source2viewer_dark.png",
                     "source2viewer.ico"
@@ -36,14 +37,17 @@
 		"output": "_site",
 		"template": [
 			"default",
-			"modern"
+			"modern",
+            "vrf_template"
 		],
 		"globalMetadata": {
 			"_appName": "ValveResourceFormat",
 			"_appTitle": "ValveResourceFormat",
-            "_appLogoPath": "../Misc/Icons/source2viewer_dark.png",
-            "_appFaviconPath": "../Misc/Icons/source2viewer.ico",
+            "_appLogoPath": "images/source2viewer_dark.png",
+            "_appFaviconPath": "images/source2viewer.ico",
+            "_appFooter": "",
 			"_enableSearch": true,
+            "_lang": "en",
 			"pdf": false
 		}
 	}
