@@ -49,6 +49,10 @@
 			"_enableSearch": true,
             "_lang": "en",
 			"pdf": false
-		}
+		},
+        "sitemap": {
+            "baseUrl": "https://s2v.app/ValveResourceFormat/",
+            "changefreq": "weekly"
+        }
 	}
 }
