@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Morph bundle data types.
+    /// </summary>
     public enum MorphBundleType
     {
 #pragma warning disable CS1591

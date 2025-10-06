@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Flags for render mesh draw primitives.
+    /// </summary>
     [Flags]
     public enum RenderMeshDrawPrimitiveFlags
     {

@@ -248,16 +248,30 @@ namespace ValveResourceFormat.IO
         }
     }
 
+    /// <summary>
+    /// Matches vertices between render meshes and physics meshes.
+    /// </summary>
     public class PhysicsVertexMatcher
     {
+        /// <summary>
+        /// Contains physics mesh data and tracks deleted vertices.
+        /// </summary>
         public class PhysMeshData
         {
+            /// <summary>Gets the mesh descriptor.</summary>
             public MeshDescriptor Mesh { get; }
+            /// <summary>Gets the array of vertex positions.</summary>
             public Vector3[] VertexPositions { get; }
+            /// <summary>Gets the array of triangles.</summary>
             public Triangle[] Triangles { get; }
+            /// <summary>Gets the physics tree nodes.</summary>
             public Node[] PhysicsTree { get; }
+            /// <summary>Gets the set of deleted vertex indices.</summary>
             public HashSet<int> DeletedVertexIndices { get; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="PhysMeshData"/> class.
+            /// </summary>
             public PhysMeshData(MeshDescriptor mesh)
             {
                 Mesh = mesh;
@@ -271,8 +285,12 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>Gets the list of physics meshes.</summary>
         public List<PhysMeshData> PhysicsMeshes { get; } = new();
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PhysicsVertexMatcher"/> class.
+        /// </summary>
         public PhysicsVertexMatcher(MeshDescriptor[] meshes)
         {
             for (var i = 0; i < meshes.Length; i++)
@@ -297,7 +315,11 @@ namespace ValveResourceFormat.IO
         */
 
         record struct RnMeshNodeWithIndex(int Index, Node Node);
+        /// <summary>Gets or sets the last set of positions scanned.</summary>
         public object? LastPositions { get; set; }
+        /// <summary>
+        /// Scans physics meshes to find matching vertices from render mesh positions.
+        /// </summary>
         public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions, IProgress<string>? progressReporter)
         {
             for (var i = 0; i < PhysicsMeshes.Count; i++)

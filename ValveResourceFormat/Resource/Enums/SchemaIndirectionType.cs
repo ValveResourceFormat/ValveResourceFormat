@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Schema indirection types for pointer and reference handling.
+    /// </summary>
     public enum SchemaIndirectionType
     {
 #pragma warning disable CS1591

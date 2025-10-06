@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class MBUF : VBIB
     {
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.MBUF;
     }
 }

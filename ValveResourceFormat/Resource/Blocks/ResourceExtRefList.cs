@@ -11,8 +11,12 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceExtRefList : Block
     {
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.RERL;
 
+        /// <summary>
+        /// Represents an external resource reference.
+        /// </summary>
         public class ResourceReferenceInfo
         {
             /// <summary>
@@ -25,6 +29,9 @@ namespace ValveResourceFormat.Blocks
             /// </summary>
             public string Name { get; set; }
 
+            /// <summary>
+            /// Writes the resource reference info as text.
+            /// </summary>
             public void WriteText(IndentedTextWriter writer)
             {
                 writer.WriteLine("ResourceReferenceInfo_t");
@@ -37,8 +44,14 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <summary>
+        /// Gets the list of external resource references.
+        /// </summary>
         public List<ResourceReferenceInfo> ResourceRefInfoList { get; private set; }
 
+        /// <summary>
+        /// Gets the resource name by its identifier.
+        /// </summary>
         public string this[ulong id]
         {
             get
@@ -49,11 +62,15 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ResourceExtRefList"/> class.
+        /// </summary>
         public ResourceExtRefList()
         {
             ResourceRefInfoList = [];
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -89,6 +106,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
@@ -130,6 +148,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("ResourceExtRefList_t");

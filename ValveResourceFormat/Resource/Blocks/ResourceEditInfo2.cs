@@ -13,19 +13,35 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceEditInfo2 : ResourceEditInfo
     {
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.RED2;
 
         private BinaryKV3 BackingData;
 
+        /// <summary>
+        /// Gets the list of weak references.
+        /// </summary>
         public List<string> WeakReferenceList { get; } = [];
+
+        /// <summary>
+        /// Gets the subasset references.
+        /// </summary>
         public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; private set; }
+
+        /// <summary>
+        /// Gets the subasset definitions.
+        /// </summary>
         public Dictionary<string, string[]> SubassetDefinitions { get; private set; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ResourceEditInfo2"/> class.
+        /// </summary>
         public ResourceEditInfo2()
         {
             //
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             var kv3 = new BinaryKV3
@@ -116,11 +132,13 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             BackingData.Serialize(stream);
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             BackingData.WriteText(writer);

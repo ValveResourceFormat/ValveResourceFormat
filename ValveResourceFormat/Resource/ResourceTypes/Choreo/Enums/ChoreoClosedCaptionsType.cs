@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
 {
+    /// <summary>
+    /// Represents the type of closed captions for a choreography event.
+    /// </summary>
     public enum ChoreoClosedCaptionsType
     {
 #pragma warning disable CS1591

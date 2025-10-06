@@ -10,14 +10,24 @@ using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Extracts Source 2 compiled shaders to readable shader code.
+/// </summary>
 public sealed class ShaderExtract
 {
+    /// <summary>
+    /// Configuration parameters for shader extraction.
+    /// </summary>
     public readonly struct ShaderExtractParams
     {
+        /// <summary>Gets a value indicating whether to collapse buffers in an include file.</summary>
         public bool CollapseBuffers_InInclude { get; init; }
+        /// <summary>Gets a value indicating whether to collapse buffers in place.</summary>
         public bool CollapseBuffers_InPlace { get; init; }
+        /// <summary>Gets a value indicating whether to collapse all buffers.</summary>
         // If true, *all* buffers will be collapsed, otherwise only the ones in BuffersToCollapse.
         public bool CollapseAllBuffers { get; init; }
+        /// <summary>Gets the set of buffer names to collapse.</summary>
         public static HashSet<string> BuffersToCollapse =>
         [
             //"PerViewConstantBuffer_t",
@@ -26,9 +36,13 @@ public sealed class ShaderExtract
             //"DotaGlobalParams_t",
         ];
 
+        /// <summary>Gets a value indicating whether to write uncertain enums as integers.</summary>
         public bool ForceWrite_UncertainEnumsAsInts { get; init; }
+        /// <summary>Gets a value indicating whether to disable Hungarian notation type guessing.</summary>
         public bool NoHungarianTypeGuessing { get; init; }
+        /// <summary>Gets a value indicating whether to write parameters in raw format.</summary>
         public bool WriteParametersRaw { get; init; }
+        /// <summary>Gets or sets a value indicating whether static combos can be read.</summary>
         public bool CanReadStaticCombos
         {
             get => StaticComboReadingCap != 0;
@@ -38,8 +52,11 @@ public sealed class ShaderExtract
                 StaticComboReadingCap = value ? cap : 0;
             }
         }
+        /// <summary>Gets the maximum number of static combos to read.</summary>
         public int StaticComboReadingCap { get; init; }
+        /// <summary>Gets a value indicating whether to disable separate globals in static combo attributes.</summary>
         public bool StaticComboAttributes_NoSeparateGlobals { get; init; }
+        /// <summary>Gets a value indicating whether to disable conditional reduce in static combo attributes.</summary>
         public bool StaticComboAttributes_NoConditionalReduce { get; init; }
 
         private static readonly ShaderExtractParams Shared = new()
@@ -47,12 +64,14 @@ public sealed class ShaderExtract
             WriteParametersRaw = true,
         };
 
+        /// <summary>Parameters optimized for shader inspection.</summary>
         public static readonly ShaderExtractParams Inspect = Shared with
         {
             // CollapseBuffers_InPlace = true,
             StaticComboReadingCap = 512,
         };
 
+        /// <summary>Parameters optimized for shader export.</summary>
         public static readonly ShaderExtractParams Export = Shared with
         {
             CollapseAllBuffers = true,
@@ -61,6 +80,7 @@ public sealed class ShaderExtract
         };
     }
 
+    /// <summary>Gets the shader collection.</summary>
     public ShaderCollection Shaders { get; init; }
 
     /// <summary>
@@ -68,15 +88,25 @@ public sealed class ShaderExtract
     /// </summary>
     public Func<VfxShaderFileVulkan, string> SpirvCompiler { get; set; }
 
+    /// <summary>Gets the features program data.</summary>
     public VfxProgramData Features => Shaders.Features;
+    /// <summary>Gets the mesh shader program data.</summary>
     public VfxProgramData Mesh => Shaders.Mesh;
+    /// <summary>Gets the geometry shader program data.</summary>
     public VfxProgramData Geometry => Shaders.Geometry;
+    /// <summary>Gets the vertex shader program data.</summary>
     public VfxProgramData Vertex => Shaders.Vertex;
+    /// <summary>Gets the domain shader program data.</summary>
     public VfxProgramData Domain => Shaders.Domain;
+    /// <summary>Gets the hull shader program data.</summary>
     public VfxProgramData Hull => Shaders.Hull;
+    /// <summary>Gets the pixel shader program data.</summary>
     public VfxProgramData Pixel => Shaders.Pixel;
+    /// <summary>Gets the compute shader program data.</summary>
     public VfxProgramData Compute => Shaders.Compute;
+    /// <summary>Gets the pixel shader render state data.</summary>
     public VfxProgramData PixelShaderRenderState => Shaders.PixelShaderRenderState;
+    /// <summary>Gets the raytracing shader program data.</summary>
     public VfxProgramData Raytracing => Shaders.Raytracing;
 
     private readonly string[] FeatureNames;
@@ -87,14 +117,19 @@ public sealed class ShaderExtract
     private ShaderExtractParams Options;
     private Dictionary<string, IndentedTextWriter> IncludeWriters;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ShaderExtract"/> class.
+    /// </summary>
     public ShaderExtract(Resource resource)
         : this((SboxShader)resource.GetBlockByType(BlockType.SPRV))
     { }
 
+    /// <inheritdoc cref="ShaderExtract(Resource)"/>
     public ShaderExtract(SboxShader sboxShaderCollection)
         : this(sboxShaderCollection.Shaders)
     { }
 
+    /// <inheritdoc cref="ShaderExtract(Resource)"/>
     public ShaderExtract(ShaderCollection shaderCollection)
     {
         Shaders = shaderCollection;
@@ -108,6 +143,9 @@ public sealed class ShaderExtract
         Globals = [.. Features.VariableDescriptions.Select(p => p.Name)];
     }
 
+    /// <summary>
+    /// Converts the shader to a content file with extracted shader code.
+    /// </summary>
     public ContentFile ToContentFile()
     {
         var vfx = ToVFX(ShaderExtractParams.Export);
@@ -125,6 +163,9 @@ public sealed class ShaderExtract
         return extract;
     }
 
+    /// <summary>
+    /// Gets the VFX file name for this shader.
+    /// </summary>
     public string GetVfxFileName()
         => GetVfxNameFromShaderFile(Features);
 
@@ -138,11 +179,17 @@ public sealed class ShaderExtract
         return $"common/{bufferName}.fxc";
     }
 
+    /// <summary>
+    /// Converts the shader to VFX format for inspection.
+    /// </summary>
     public string ToVFX()
     {
         return ToVFXInternal(ShaderExtractParams.Inspect);
     }
 
+    /// <summary>
+    /// Converts the shader to VFX format with includes using specified options.
+    /// </summary>
     public (string VfxContent, IDictionary<string, string> Includes) ToVFX(in ShaderExtractParams options)
     {
         return (ToVFXInternal(options), IncludeWriters.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToString()));
@@ -573,8 +620,12 @@ public sealed class ShaderExtract
         writer.WriteLine("}");
     }
 
+    /// <summary>
+    /// Compares shader configuration keys for equality.
+    /// </summary>
     public class ConfigKeyComparer : IEqualityComparer<int[]>
     {
+        /// <inheritdoc/>
         public bool Equals(int[] x, int[] y)
         {
             return x == null || y == null
@@ -582,6 +633,7 @@ public sealed class ShaderExtract
                 : x.SequenceEqual(y);
         }
 
+        /// <inheritdoc/>
         public int GetHashCode(int[] obj)
         {
             // this will collide with non boolean states, but those are rare
@@ -941,6 +993,9 @@ public sealed class ShaderExtract
         return attributes;
     }
 
+    /// <summary>
+    /// Gets the variant Z-frame parameters from the static combo data.
+    /// </summary>
     public HashSet<int> GetVariantZFrameParameters(VfxStaticComboData zFrameFile)
     {
         var parameters = new HashSet<int>(VariantParameterIndices.Count);

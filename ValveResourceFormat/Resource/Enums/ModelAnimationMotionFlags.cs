@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Model animation motion flags.
+    /// </summary>
     [Flags]
     public enum ModelAnimationMotionFlags
     {

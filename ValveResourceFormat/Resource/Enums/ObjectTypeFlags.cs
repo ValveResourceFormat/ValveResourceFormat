@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Object type flags for world objects.
+    /// </summary>
     [Flags]
     public enum ObjectTypeFlags
     {

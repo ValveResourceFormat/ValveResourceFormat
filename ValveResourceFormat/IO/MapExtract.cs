@@ -12,8 +12,12 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Extracts map data from Source 2 resources into editable formats.
+/// </summary>
 public sealed class MapExtract
 {
+    /// <summary>Gets the folder containing map lumps.</summary>
     public string LumpFolder { get; private set; } = string.Empty;
 
     private IReadOnlyCollection<string> EntityLumpNames { get; set; } = [];
@@ -51,7 +55,9 @@ public sealed class MapExtract
 
     private readonly IFileLoader FileLoader;
 
+    /// <summary>Gets or sets the progress reporter.</summary>
     public IProgress<string>? ProgressReporter { get; set; }
+    /// <summary>Gets the physics vertex matcher used for physics mesh processing.</summary>
     public PhysicsVertexMatcher? PhysVertexMatcher { get; private set; }
 
     //these all seem to be roughly hammer meshes in cs2
@@ -114,6 +120,9 @@ public sealed class MapExtract
         InitWorldExtract(worldResource);
     }
 
+    /// <summary>
+    /// Extracts the lump folder path from a vmap's external resource list.
+    /// </summary>
     public static string GetLumpFolderFromVmapRERL(ResourceExtRefList? rerl)
     {
         if (rerl is null)
@@ -192,6 +201,9 @@ public sealed class MapExtract
         return NormalizePath(path);
     }
 
+    /// <summary>
+    /// Loads the world physics collision data.
+    /// </summary>
     public PhysAggregateData? LoadWorldPhysics()
     {
         if (WorldPhysicsName == null)
@@ -213,6 +225,9 @@ public sealed class MapExtract
         };
     }
 
+    /// <summary>
+    /// Maps tool texture names to their associated collision tag sets.
+    /// </summary>
     // TODO: we should be parsing fgds and collision_*.txt files from game to remain correct.
     public static readonly Dictionary<string, HashSet<string>> ToolTextureMultiTags = new()
     {
@@ -220,6 +235,9 @@ public sealed class MapExtract
         ["invisibleladder"] = ["ladder", "passbullets"],
     };
 
+    /// <summary>
+    /// Gets the tool texture material path for a given surface tag combination.
+    /// </summary>
     public static string GetToolTextureNameForCollisionTags(ModelExtract.SurfaceTagCombo combo)
     {
         var shortenedToolTextureName = GetToolTextureShortenedName_ForInteractStrings(combo.InteractAsStrings);
@@ -227,6 +245,9 @@ public sealed class MapExtract
         return $"materials/tools/tools{shortenedToolTextureName}.vmat";
     }
 
+    /// <summary>
+    /// Gets the shortened tool texture name for a set of interact-as strings.
+    /// </summary>
     public static string GetToolTextureShortenedName_ForInteractStrings(HashSet<string> interactAsStrings)
     {
         var texture = ToolTextureMultiTags.FirstOrDefault(x => x.Value.SetEquals(interactAsStrings)).Key;
@@ -242,6 +263,9 @@ public sealed class MapExtract
         return texture;
     }
 
+    /// <summary>
+    /// Gets the auto-applied tool texture material for an entity class name.
+    /// </summary>
     // These appear in FGD as "auto_apply_material"
     public static string? GetToolTextureForEntity(string? entityClassName)
     {
@@ -262,6 +286,9 @@ public sealed class MapExtract
         };
     }
 
+    /// <summary>
+    /// Converts the map extract to a content file with all dependencies.
+    /// </summary>
     public ContentFile ToContentFile()
     {
         var vmap = new ContentFile
@@ -348,6 +375,9 @@ public sealed class MapExtract
         return $"{LumpFolder}_d.vmap";
     }
 
+    /// <summary>
+    /// Converts the map to a Valve map format as a byte array.
+    /// </summary>
     public byte[] ToValveMap()
     {
         using var datamodel = new Datamodel.Datamodel("vmap", 29);
@@ -1518,8 +1548,14 @@ public sealed class MapExtract
     #endregion Entities
 }
 
+/// <summary>
+/// Extension methods for ElementArray.
+/// </summary>
 public static class ElementArrayExtensions
 {
+    /// <summary>
+    /// Adds an element to the array and returns the element.
+    /// </summary>
     public static T AddReturn<T>(this Datamodel.ElementArray array, T element) where T : Datamodel.Element
     {
         array.Add(element);

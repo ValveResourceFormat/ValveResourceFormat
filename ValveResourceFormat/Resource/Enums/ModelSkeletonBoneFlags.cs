@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Model skeleton bone flags.
+    /// </summary>
     [Flags]
     public enum ModelSkeletonBoneFlags
     {

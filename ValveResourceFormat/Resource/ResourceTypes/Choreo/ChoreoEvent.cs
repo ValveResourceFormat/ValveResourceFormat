@@ -5,34 +5,140 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
+    /// <summary>
+    /// Represents an event in a choreography scene.
+    /// </summary>
     public class ChoreoEvent
     {
+        /// <summary>
+        /// Gets the type of the event.
+        /// </summary>
         public ChoreoEventType Type { get; init; }
+
+        /// <summary>
+        /// Gets the name of the event.
+        /// </summary>
         public string Name { get; init; }
+
+        /// <summary>
+        /// Gets the start time of the event.
+        /// </summary>
         public float StartTime { get; init; }
+
+        /// <summary>
+        /// Gets the end time of the event.
+        /// </summary>
         public float EndTime { get; init; }
+
+        /// <summary>
+        /// Gets the first parameter of the event.
+        /// </summary>
         public string Param1 { get; init; }
+
+        /// <summary>
+        /// Gets the second parameter of the event.
+        /// </summary>
         public string Param2 { get; init; }
+
+        /// <summary>
+        /// Gets the third parameter of the event.
+        /// </summary>
         public string Param3 { get; init; }
+
+        /// <summary>
+        /// Gets the ramp curve data for the event.
+        /// </summary>
         public ChoreoCurveData Ramp { get; init; }
+
+        /// <summary>
+        /// Gets the flags for the event.
+        /// </summary>
         public ChoreoFlags Flags { get; init; }
+
+        /// <summary>
+        /// Gets the distance to target.
+        /// </summary>
         public float DistanceToTarget { get; init; }
+
+        /// <summary>
+        /// Gets the relative tags for the event.
+        /// </summary>
         public ChoreoTag[] RelativeTags { get; init; }
+
+        /// <summary>
+        /// Gets the flex timing tags for the event.
+        /// </summary>
         public ChoreoTag[] FlexTimingTags { get; init; }
+
+        /// <summary>
+        /// Gets the playback time tags for the event.
+        /// </summary>
         public ChoreoTag[] PlaybackTimeTags { get; init; }
+
+        /// <summary>
+        /// Gets the shifted time tags for the event.
+        /// </summary>
         public ChoreoTag[] ShiftedTimeTags { get; init; }
+
+        /// <summary>
+        /// Gets the sequence duration.
+        /// </summary>
         public float SequenceDuration { get; init; }
+
+        /// <summary>
+        /// Gets the relative tag for the event.
+        /// </summary>
         public ChoreoEventRelativeTag RelativeTag { get; init; }
+
+        /// <summary>
+        /// Gets the event flex data.
+        /// </summary>
         public ChoreoEventFlex EventFlex { get; init; }
+
+        /// <summary>
+        /// Gets the loop count for the event.
+        /// </summary>
         public byte LoopCount { get; init; }
+
+        /// <summary>
+        /// Gets the closed captions type.
+        /// </summary>
         public ChoreoClosedCaptionsType ClosedCaptionsType { get; init; }
+
+        /// <summary>
+        /// Gets the closed captions token.
+        /// </summary>
         public string ClosedCaptionsToken { get; init; }
+
+        /// <summary>
+        /// Gets the speak flags for the event.
+        /// </summary>
         public ChoreoSpeakFlags SpeakFlags { get; init; }
+
+        /// <summary>
+        /// Gets the sound start delay.
+        /// </summary>
         public float SoundStartDelay { get; init; }
+
+        /// <summary>
+        /// Gets the ID of the event.
+        /// </summary>
         public int Id { get; init; }
+
+        /// <summary>
+        /// Gets the constrained event ID.
+        /// </summary>
         public int ConstrainedEventId { get; init; }
+
+        /// <summary>
+        /// Gets the preferred name of the event.
+        /// </summary>
         public string PreferredName { get; init; }
 
+        /// <summary>
+        /// Converts this event to a KeyValues object.
+        /// </summary>
+        /// <returns>A KeyValues object representing this event.</returns>
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null);

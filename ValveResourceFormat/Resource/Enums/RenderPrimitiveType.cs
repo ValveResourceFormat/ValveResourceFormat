@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Render primitive types for mesh drawing.
+    /// </summary>
     public enum RenderPrimitiveType //: byte
     {
 #pragma warning disable CS1591

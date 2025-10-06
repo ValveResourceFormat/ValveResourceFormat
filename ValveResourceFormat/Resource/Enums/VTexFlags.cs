@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Valve texture flags.
+    /// </summary>
     [Flags]
     public enum VTexFlags
     {

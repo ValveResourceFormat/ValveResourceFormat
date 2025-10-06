@@ -5,14 +5,44 @@ using System.IO;
 
 namespace ValveResourceFormat.NavMesh
 {
+    /// <summary>
+    /// Represents a navigation mesh area.
+    /// </summary>
     public class NavMeshArea
     {
+        /// <summary>
+        /// Gets or sets the area identifier.
+        /// </summary>
         public uint AreaId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the hull index.
+        /// </summary>
         public byte HullIndex { get; set; }
+
+        /// <summary>
+        /// Gets or sets the dynamic attribute flags.
+        /// </summary>
         public DynamicAttributeFlags DynamicAttributeFlags { get; set; }
+
+        /// <summary>
+        /// Gets or sets the corner vertices.
+        /// </summary>
         public Vector3[] Corners { get; set; }
+
+        /// <summary>
+        /// Gets or sets the connections to other areas.
+        /// </summary>
         public NavMeshConnection[][] Connections { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ladders above this area.
+        /// </summary>
         public uint[] LaddersAbove { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ladders below this area.
+        /// </summary>
         public uint[] LaddersBelow { get; set; }
 
         private static NavMeshConnection[] ReadConnections(BinaryReader binaryReader)
@@ -30,6 +60,9 @@ namespace ValveResourceFormat.NavMesh
             return connections;
         }
 
+        /// <summary>
+        /// Reads the navigation mesh area from a binary reader.
+        /// </summary>
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile, Vector3[][] polygons = null)
         {
             AreaId = binaryReader.ReadUInt32();

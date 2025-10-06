@@ -1,6 +1,8 @@
 namespace ValveResourceFormat
 {
-    // used for particles
+    /// <summary>
+    /// Scalar expression types used for particles.
+    /// </summary>
     public enum ScalarExpressionType
     {
 #pragma warning disable CS1591

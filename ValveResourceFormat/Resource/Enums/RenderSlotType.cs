@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Render slot types for vertex data.
+    /// </summary>
     public enum RenderSlotType
     {
 #pragma warning disable CS1591

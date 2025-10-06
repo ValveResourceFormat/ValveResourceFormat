@@ -1,6 +1,8 @@
 namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
 {
-    //Enum values DO NOT line up with the compiled values. Newer vcd versions are missing the camera event.
+    /// <summary>
+    /// Represents the type of a choreography event. Enum values DO NOT line up with the compiled values. Newer vcd versions are missing the camera event.
+    /// </summary>
     public enum ChoreoEventType
     {
 #pragma warning disable CS1591

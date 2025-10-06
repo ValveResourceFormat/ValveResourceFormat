@@ -12,10 +12,19 @@ using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Represents a content file for textures with an associated bitmap.
+/// </summary>
 public class TextureContentFile : ContentFile
 {
+    /// <summary>
+    /// Gets or initializes the bitmap data.
+    /// </summary>
     public SKBitmap Bitmap { get; init; }
 
+    /// <summary>
+    /// Adds an image sub-file with a custom extraction function.
+    /// </summary>
     public void AddImageSubFile(string fileName, Func<SKBitmap, byte[]> imageExtractFunction)
     {
         var image = new ImageSubFile()
@@ -28,6 +37,7 @@ public class TextureContentFile : ContentFile
         SubFiles.Add(image);
     }
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (!Disposed && disposing)
@@ -39,13 +49,28 @@ public class TextureContentFile : ContentFile
     }
 }
 
+/// <summary>
+/// Represents an image sub-file with a bitmap and extraction function.
+/// </summary>
 public sealed class ImageSubFile : SubFile
 {
+    /// <summary>
+    /// Gets or initializes the bitmap data.
+    /// </summary>
     public SKBitmap Bitmap { get; init; }
+
+    /// <summary>
+    /// Gets or initializes the image extraction function.
+    /// </summary>
     public Func<SKBitmap, byte[]> ImageExtract { get; init; }
+
+    /// <inheritdoc/>
     public override Func<byte[]> Extract => () => ImageExtract(Bitmap);
 }
 
+/// <summary>
+/// Handles extraction of texture resources to various formats.
+/// </summary>
 public sealed class TextureExtract
 {
     private static readonly string[] CubemapNames =
@@ -65,6 +90,9 @@ public sealed class TextureExtract
     private readonly bool isArray;
 
     // Options
+    /// <summary>
+    /// Gets or sets the decode flags for texture extraction.
+    /// </summary>
     public TextureDecoders.TextureCodec DecodeFlags { get; set; } = TextureDecoders.TextureCodec.Auto;
 
     /// <summary>
@@ -72,9 +100,19 @@ public sealed class TextureExtract
     /// </summary>
     public bool IgnoreVtexFile { get; set; }
 
+    /// <summary>
+    /// Gets whether the texture should be exported as EXR format.
+    /// </summary>
     public bool ExportExr => texture.IsHighDynamicRange && !DecodeFlags.HasFlag(TextureDecoders.TextureCodec.ForceLDR);
+
+    /// <summary>
+    /// Gets the output file extension for the texture.
+    /// </summary>
     public string ImageOutputExtension => ExportExr ? ".exr" : ".png";
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TextureExtract"/> class.
+    /// </summary>
     public TextureExtract(Resource resource)
     {
         texture = (Texture)resource.DataBlock;
@@ -170,6 +208,9 @@ public sealed class TextureExtract
         return vtex;
     }
 
+    /// <summary>
+    /// Extracts texture to material map files by unpacking channels.
+    /// </summary>
     public ContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
         // unpacking not supported in these scenarios
@@ -196,6 +237,9 @@ public sealed class TextureExtract
         return vtex;
     }
 
+    /// <summary>
+    /// Gets the appropriate image output extension for a texture.
+    /// </summary>
     public static string GetImageOutputExtension(Texture texture)
     {
         if (texture.IsHighDynamicRange) // todo: also check DecodeFlags for ForceLDR
@@ -222,11 +266,17 @@ public sealed class TextureExtract
     private string GetMksFileName()
         => Path.ChangeExtension(fileName, "mks");
 
+    /// <summary>
+    /// Converts a bitmap to PNG image bytes.
+    /// </summary>
     public static byte[] ToPngImage(SKBitmap bitmap)
     {
         return EncodePng(bitmap);
     }
 
+    /// <summary>
+    /// Converts a subset of a bitmap to PNG image bytes.
+    /// </summary>
     public static byte[] SubsetToPngImage(SKBitmap bitmap, SKRectI spriteRect)
     {
         using var subset = new SKBitmap();
@@ -235,6 +285,9 @@ public sealed class TextureExtract
         return EncodePng(subset);
     }
 
+    /// <summary>
+    /// Converts specific channels of a bitmap to PNG image bytes.
+    /// </summary>
     public static byte[] ToPngImageChannels(SKBitmap bitmap, ChannelMapping channel)
     {
         if (channel.Count == 1)
@@ -313,6 +366,9 @@ public sealed class TextureExtract
         }
     }
 
+    /// <summary>
+    /// Copies a single channel from source pixmap to destination pixmap.
+    /// </summary>
     public static void CopyChannel(SKPixmap srcPixels, ChannelMapping srcChannel, SKPixmap dstPixels, ChannelMapping dstChannel)
     {
         if (srcChannel.Count != 1 || dstChannel.Count != 1)
@@ -368,10 +424,20 @@ public sealed class TextureExtract
     {
         private static readonly SKSamplingOptions SamplingOptions = new(SKFilterMode.Linear, SKMipmapMode.None);
 
+        /// <summary>
+        /// Gets or initializes the default color for unpacked channels.
+        /// </summary>
         public SKColor DefaultColor { get; init; } = SKColors.Black;
+
+        /// <summary>
+        /// Gets the packed bitmap.
+        /// </summary>
         public SKBitmap Bitmap { get; private set; }
         private readonly HashSet<ChannelMapping> Packed = [];
 
+        /// <summary>
+        /// Collects a channel from source pixmap into the packed texture.
+        /// </summary>
         public void Collect(SKPixmap srcPixels, ChannelMapping srcChannel, ChannelMapping dstChannel, string fileName)
         {
             if (!Packed.Add(dstChannel))
@@ -423,6 +489,9 @@ public sealed class TextureExtract
             CopyChannel(srcPixels, srcChannel, dstPixels, dstChannel);
         }
 
+        /// <summary>
+        /// Releases the resources used by the texture packer.
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (Bitmap != null && disposing)
@@ -432,6 +501,7 @@ public sealed class TextureExtract
             }
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);
@@ -453,12 +523,18 @@ public sealed class TextureExtract
         return png.ToArray();
     }
 
+    /// <summary>
+    /// Converts a bitmap to EXR image bytes.
+    /// </summary>
     public static byte[] ToExrImage(SKBitmap bitmap)
     {
         using var pixels = bitmap.PeekPixels();
         return ToExrImage(pixels);
     }
 
+    /// <summary>
+    /// Converts pixmap data to EXR image bytes.
+    /// </summary>
     public static byte[] ToExrImage(SKPixmap pixels)
     {
         var pixelSpan = pixels.GetPixelSpan<SKColorF>();
@@ -472,6 +548,9 @@ public sealed class TextureExtract
         return exrData;
     }
 
+    /// <summary>
+    /// Attempts to extract sprite sheet data and MKS texture script.
+    /// </summary>
     public bool TryGetMksData(out Dictionary<SKRectI, string> sprites, out string mks)
     {
         mks = string.Empty;
@@ -566,6 +645,10 @@ public sealed class TextureExtract
         return GetImageFileName().Replace(Path.DirectorySeparatorChar, '/');
     }
 
+    /// <summary>
+    /// Converts the texture to a Valve texture (vtex) configuration string.
+    /// </summary>
+    /// <returns>A vtex configuration string in KeyValues2 format.</returns>
     public string ToValveTexture()
     {
         var inputTextureFileName = GetInputFileNameForVtex();

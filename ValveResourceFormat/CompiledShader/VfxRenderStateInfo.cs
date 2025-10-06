@@ -546,6 +546,9 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VfxRenderStateInfoPixelShader"/> class from a binary reader.
+    /// </summary>
     public VfxRenderStateInfoPixelShader(BinaryReader datareader) : base(datareader)
     {
         var hasRasterizerState = !datareader.ReadBoolean();

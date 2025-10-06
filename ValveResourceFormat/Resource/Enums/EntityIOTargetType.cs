@@ -1,5 +1,8 @@
 namespace ValveResourceFormat;
 
+/// <summary>
+/// Entity input/output target type specifiers.
+/// </summary>
 public enum EntityIOTargetType
 {
 #pragma warning disable CS1591

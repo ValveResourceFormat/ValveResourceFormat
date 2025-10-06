@@ -1,6 +1,8 @@
 namespace ValveResourceFormat
 {
-    // used for particles
+    /// <summary>
+    /// Vector to float expression types used for particles.
+    /// </summary>
     public enum VectorFloatExpressionType
     {
 #pragma warning disable CS1591

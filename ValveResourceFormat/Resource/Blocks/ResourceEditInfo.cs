@@ -11,16 +11,45 @@ namespace ValveResourceFormat.Blocks
     public class ResourceEditInfo : RawBinary
     {
         // Serialize legacy REDI info by copying raw data from the original resource beacuse we have no plans to support NTRO serialization
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.REDI;
 
+        /// <summary>
+        /// Gets the list of input dependencies.
+        /// </summary>
         public List<InputDependency> InputDependencies { get; } = [];
+
+        /// <summary>
+        /// Gets the list of additional input dependencies.
+        /// </summary>
         public List<InputDependency> AdditionalInputDependencies { get; } = [];
+
+        /// <summary>
+        /// Gets the list of argument dependencies.
+        /// </summary>
         public List<ArgumentDependency> ArgumentDependencies { get; } = [];
+
+        /// <summary>
+        /// Gets the list of special dependencies.
+        /// </summary>
         public List<SpecialDependency> SpecialDependencies { get; } = [];
+
+        /// <summary>
+        /// Gets the list of additional related files.
+        /// </summary>
         public List<AdditionalRelatedFile> AdditionalRelatedFiles { get; } = [];
+
+        /// <summary>
+        /// Gets the list of child resources.
+        /// </summary>
         public List<string> ChildResourceList { get; } = [];
+
+        /// <summary>
+        /// Gets the searchable user data.
+        /// </summary>
         public KVObject SearchableUserData { get; } = new("m_SearchableUserData"); // Maybe these should be split..
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             var subBlock = 0;
@@ -90,6 +119,7 @@ namespace ValveResourceFormat.Blocks
             ReadKeyValues(SearchableUserData, static (reader) => reader.ReadOffsetString(Encoding.UTF8));
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             using var ms = new MemoryStream();

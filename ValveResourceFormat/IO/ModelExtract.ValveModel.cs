@@ -271,6 +271,9 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>
+    /// Converts the model to Valve model format as a string.
+    /// </summary>
     public string ToValveModel()
     {
         var kv = new KVObject(null);

@@ -11,24 +11,60 @@ namespace ValveResourceFormat.Blocks
     public class ResourceIntrospectionManifest : RawBinary
     {
         // Serialize legacy info by copying raw data from the original resource beacuse we have no plans to support NTRO serialization
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.NTRO;
 
+        /// <summary>
+        /// Represents a resource disk structure definition.
+        /// </summary>
         public class ResourceDiskStruct
         {
+            /// <summary>
+            /// Represents a field within a resource disk structure.
+            /// </summary>
             public class Field
             {
+                /// <summary>
+                /// Gets or sets the field name.
+                /// </summary>
                 public string FieldName { get; set; }
+
+                /// <summary>
+                /// Gets or sets the number of elements in the field.
+                /// </summary>
                 public short Count { get; set; }
+
+                /// <summary>
+                /// Gets or sets the offset of the field on disk.
+                /// </summary>
                 public short OnDiskOffset { get; set; }
+
+                /// <summary>
+                /// Gets the list of indirection levels for pointer types.
+                /// </summary>
                 public List<byte> Indirections { get; private set; }
+
+                /// <summary>
+                /// Gets or sets type-specific data.
+                /// </summary>
                 public uint TypeData { get; set; }
+
+                /// <summary>
+                /// Gets or sets the schema field type.
+                /// </summary>
                 public SchemaFieldType Type { get; set; }
 
+                /// <summary>
+                /// Initializes a new instance of the <see cref="Field"/> class.
+                /// </summary>
                 public Field()
                 {
                     Indirections = [];
                 }
 
+                /// <summary>
+                /// Writes the field as text to the provided writer.
+                /// </summary>
                 public void WriteText(IndentedTextWriter writer)
                 {
                     writer.WriteLine("CResourceDiskStructField");
@@ -57,22 +93,67 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
+            /// <summary>
+            /// Gets or sets the introspection version.
+            /// </summary>
             public uint IntrospectionVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets the structure identifier.
+            /// </summary>
             public uint Id { get; set; }
+
+            /// <summary>
+            /// Gets or sets the structure name.
+            /// </summary>
             public string Name { get; set; }
+
+            /// <summary>
+            /// Gets or sets the CRC checksum of the structure on disk.
+            /// </summary>
             public uint DiskCrc { get; set; }
+
+            /// <summary>
+            /// Gets or sets the user-defined version.
+            /// </summary>
             public int UserVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets the size of the structure on disk.
+            /// </summary>
             public ushort DiskSize { get; set; }
+
+            /// <summary>
+            /// Gets or sets the alignment requirement.
+            /// </summary>
             public ushort Alignment { get; set; }
+
+            /// <summary>
+            /// Gets or sets the identifier of the base structure.
+            /// </summary>
             public uint BaseStructId { get; set; }
+
+            /// <summary>
+            /// Gets or sets the structure flags.
+            /// </summary>
             public byte StructFlags { get; set; }
+
+            /// <summary>
+            /// Gets the list of field introspection data.
+            /// </summary>
             public List<Field> FieldIntrospection { get; private set; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ResourceDiskStruct"/> class.
+            /// </summary>
             public ResourceDiskStruct()
             {
                 FieldIntrospection = [];
             }
 
+            /// <summary>
+            /// Writes the structure as text to the provided writer.
+            /// </summary>
             public void WriteText(IndentedTextWriter writer)
             {
                 writer.WriteLine("CResourceDiskStruct");
@@ -104,13 +185,29 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <summary>
+        /// Represents a resource disk enum definition.
+        /// </summary>
         public class ResourceDiskEnum
         {
+            /// <summary>
+            /// Represents a value within a resource disk enum.
+            /// </summary>
             public class Value
             {
+                /// <summary>
+                /// Gets or sets the enum value name.
+                /// </summary>
                 public string EnumValueName { get; set; }
+
+                /// <summary>
+                /// Gets or sets the numeric enum value.
+                /// </summary>
                 public int EnumValue { get; set; }
 
+                /// <summary>
+                /// Writes the enum value as text to the provided writer.
+                /// </summary>
                 public void WriteText(IndentedTextWriter writer)
                 {
                     writer.WriteLine("CResourceDiskEnumValue");
@@ -123,18 +220,47 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
+            /// <summary>
+            /// Gets or sets the introspection version.
+            /// </summary>
             public uint IntrospectionVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets the enum identifier.
+            /// </summary>
             public uint Id { get; set; }
+
+            /// <summary>
+            /// Gets or sets the enum name.
+            /// </summary>
             public string Name { get; set; }
+
+            /// <summary>
+            /// Gets or sets the CRC checksum of the enum on disk.
+            /// </summary>
             public uint DiskCrc { get; set; }
+
+            /// <summary>
+            /// Gets or sets the user-defined version.
+            /// </summary>
             public int UserVersion { get; set; }
+
+            /// <summary>
+            /// Gets the list of enum value introspection data.
+            /// </summary>
             public List<Value> EnumValueIntrospection { get; private set; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ResourceDiskEnum"/> class.
+            /// </summary>
             public ResourceDiskEnum()
             {
                 EnumValueIntrospection = [];
             }
 
+            /// <summary>
+            /// Writes the enum as text to the provided writer.
+            /// </summary>
             public void WriteText(IndentedTextWriter writer)
             {
                 writer.WriteLine("CResourceDiskEnum");
@@ -162,17 +288,31 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <summary>
+        /// Gets the introspection version.
+        /// </summary>
         public uint IntrospectionVersion { get; private set; }
 
+        /// <summary>
+        /// Gets the list of referenced structure definitions.
+        /// </summary>
         public List<ResourceDiskStruct> ReferencedStructs { get; }
+
+        /// <summary>
+        /// Gets the list of referenced enum definitions.
+        /// </summary>
         public List<ResourceDiskEnum> ReferencedEnums { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ResourceIntrospectionManifest"/> class.
+        /// </summary>
         public ResourceIntrospectionManifest()
         {
             ReferencedStructs = [];
             ReferencedEnums = [];
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -316,6 +456,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("CResourceIntrospectionManifest");

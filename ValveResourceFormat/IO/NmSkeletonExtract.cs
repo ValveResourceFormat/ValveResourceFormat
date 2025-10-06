@@ -8,10 +8,16 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Extracts Source 2 skeletons to editable format.
+/// </summary>
 public class NmSkeletonExtract
 {
     private readonly Resource resource;
     private readonly KVObject kvSkeleton;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NmSkeletonExtract"/> class.
+    /// </summary>
     public NmSkeletonExtract(Resource resource)
     {
         this.resource = resource;
@@ -19,6 +25,9 @@ public class NmSkeletonExtract
             ?? throw new InvalidDataException("Resource DataBlock is not a BinaryKV3 or is null.");
         kvSkeleton = resourceData.Data;
     }
+    /// <summary>
+    /// Converts the skeleton to a content file.
+    /// </summary>
     public ContentFile ToContentFile()
     {
         var kv = new KVObject(null);

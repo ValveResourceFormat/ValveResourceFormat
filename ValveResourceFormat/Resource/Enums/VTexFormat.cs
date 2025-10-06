@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Valve texture formats.
+    /// </summary>
     public enum VTexFormat
     {
 #pragma warning disable CS1591

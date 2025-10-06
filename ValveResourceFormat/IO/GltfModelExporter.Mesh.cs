@@ -537,6 +537,9 @@ public partial class GltfModelExporter
         DebugValidateGLTF();
     }
 
+    /// <summary>
+    /// Reads indices from an index buffer and applies a base vertex offset.
+    /// </summary>
     public static int[] ReadIndices(VBIB.OnDiskBufferData indexBuffer, int start, int count, int baseVertex)
     {
         var indices = new int[count];

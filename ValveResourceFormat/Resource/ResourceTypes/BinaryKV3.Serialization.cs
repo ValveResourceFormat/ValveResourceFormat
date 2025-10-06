@@ -74,6 +74,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             if (Data == null)

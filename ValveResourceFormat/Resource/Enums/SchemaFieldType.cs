@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Schema field data types.
+    /// </summary>
     public enum SchemaFieldType
     {
 #pragma warning disable CS1591

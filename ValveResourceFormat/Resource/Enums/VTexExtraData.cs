@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Valve texture extra data types.
+    /// </summary>
     public enum VTexExtraData
     {
 #pragma warning disable CS1591

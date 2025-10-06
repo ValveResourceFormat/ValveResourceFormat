@@ -25,6 +25,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public KVObject KeyValues { get; private set; }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -32,11 +33,13 @@ namespace ValveResourceFormat.ResourceTypes
             KeyValues = KVSerializer.Create(KVSerializationFormat.KeyValues1Binary).Deserialize(reader.BaseStream);
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             using var ms = new MemoryStream();

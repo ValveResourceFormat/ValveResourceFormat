@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
 {
+    /// <summary>
+    /// Flags for choreography events.
+    /// </summary>
     [Flags]
     public enum ChoreoFlags
     {

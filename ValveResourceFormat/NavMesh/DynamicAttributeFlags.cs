@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.NavMesh
 {
+    /// <summary>
+    /// Dynamic attribute flags for navigation meshes.
+    /// </summary>
     [Flags]
     public enum DynamicAttributeFlags : long
     {

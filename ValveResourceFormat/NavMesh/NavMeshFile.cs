@@ -9,33 +9,73 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.NavMesh
 {
+    /// <summary>
+    /// Represents a navigation mesh file.
+    /// </summary>
     public class NavMeshFile
     {
+        /// <summary>
+        /// Magic number for navigation mesh files.
+        /// </summary>
         public const uint MAGIC = 0xFEEDFACE;
 
+        /// <summary>
+        /// Gets or sets the file version.
+        /// </summary>
         public uint Version { get; set; }
+
+        /// <summary>
+        /// Gets or sets the sub-version.
+        /// </summary>
         public uint SubVersion { get; set; }
 
+        /// <summary>
+        /// Gets the navigation mesh areas indexed by area ID.
+        /// </summary>
         public Dictionary<uint, NavMeshArea> Areas { get; private set; }
         private readonly Dictionary<byte, List<NavMeshArea>> HullAreas = [];
+
+        /// <summary>
+        /// Gets the ladders in the navigation mesh.
+        /// </summary>
         public NavMeshLadder[] Ladders { get; private set; }
+
+        /// <summary>
+        /// Gets whether the navigation mesh has been analyzed.
+        /// </summary>
         public bool IsAnalyzed { get; private set; }
+
+        /// <summary>
+        /// Gets the generation parameters.
+        /// </summary>
         public NavMeshGenerationParams GenerationParams { get; private set; }
 
+        /// <summary>
+        /// Gets or sets custom data associated with the navigation mesh.
+        /// </summary>
         public KVObject CustomData { get; set; }
 
+        /// <summary>
+        /// Reads the navigation mesh from a file.
+        /// </summary>
         public void Read(string filename)
         {
             using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             Read(fs);
         }
 
+        /// <summary>
+        /// Reads the navigation mesh from a stream.
+        /// </summary>
         public void Read(Stream stream)
         {
             using var binaryReader = new BinaryReader(stream, Encoding.UTF8, true);
             Read(binaryReader);
         }
 
+        /// <summary>
+        /// Reads the navigation mesh from a binary reader.
+        /// </summary>
         public void Read(BinaryReader binaryReader)
         {
             var magic = binaryReader.ReadUInt32();
@@ -189,16 +229,23 @@ namespace ValveResourceFormat.NavMesh
             }
         }
 
+        /// <summary>
+        /// Gets all navigation mesh areas for the specified hull index.
+        /// </summary>
         public List<NavMeshArea> GetHullAreas(byte hullIndex)
         {
             return HullAreas.GetValueOrDefault(hullIndex);
         }
 
+        /// <summary>
+        /// Gets a navigation mesh area by its identifier.
+        /// </summary>
         public NavMeshArea GetArea(uint areaId)
         {
             return Areas.GetValueOrDefault(areaId);
         }
 
+        /// <inheritdoc/>
         public override string ToString()
         {
             var stringBuilder = new StringBuilder();

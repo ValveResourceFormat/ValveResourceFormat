@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.NavMesh
 {
+    /// <summary>
+    /// Navigation direction type.
+    /// </summary>
     public enum NavDirectionType
     {
 #pragma warning disable CS1591

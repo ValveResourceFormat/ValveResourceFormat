@@ -5,8 +5,14 @@ using System.Text;
 
 namespace ValveResourceFormat.MapFormats
 {
+    /// <summary>
+    /// Represents a Dota 2 grid navigation file.
+    /// </summary>
     public class GridNavFile
     {
+        /// <summary>
+        /// Flags for grid navigation cells.
+        /// </summary>
         [Flags]
         public enum GridNavCellFlags : byte
         {
@@ -20,19 +26,64 @@ namespace ValveResourceFormat.MapFormats
 #pragma warning restore CS1591
         }
 
+        /// <summary>
+        /// Magic number for grid navigation files.
+        /// </summary>
         public const uint MAGIC = 0xFADEBEAD;
 
+        /// <summary>
+        /// Gets the size of each grid cell edge.
+        /// </summary>
         public float EdgeSize { get; private set; }
+
+        /// <summary>
+        /// Gets the X offset of the grid.
+        /// </summary>
         public float OffsetX { get; private set; }
+
+        /// <summary>
+        /// Gets the Y offset of the grid.
+        /// </summary>
         public float OffsetY { get; private set; }
+
+        /// <summary>
+        /// Gets the width of the grid.
+        /// </summary>
         public int Width { get; private set; }
+
+        /// <summary>
+        /// Gets the height of the grid.
+        /// </summary>
         public int Height { get; private set; }
+
+        /// <summary>
+        /// Gets the minimum X coordinate.
+        /// </summary>
         public int MinX { get; private set; }
+
+        /// <summary>
+        /// Gets the minimum Y coordinate.
+        /// </summary>
         public int MinY { get; private set; }
+
+        /// <summary>
+        /// Gets the maximum X coordinate.
+        /// </summary>
         public int MaxX { get; private set; }
+
+        /// <summary>
+        /// Gets the maximum Y coordinate.
+        /// </summary>
         public int MaxY { get; private set; }
+
+        /// <summary>
+        /// Gets the grid cell data.
+        /// </summary>
         public byte[] Grid { get; private set; } = [];
 
+        /// <summary>
+        /// Reads grid navigation data from a stream.
+        /// </summary>
         public void Read(Stream input)
         {
             using var reader = new BinaryReader(input, Encoding.UTF8, true);
@@ -58,12 +109,16 @@ namespace ValveResourceFormat.MapFormats
             Debug.Assert(input.Length - input.Position == 0);
         }
 
+        /// <summary>
+        /// Reads grid navigation data from a file.
+        /// </summary>
         public void Read(string filename)
         {
             using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             Read(fs);
         }
 
+        /// <inheritdoc/>
         public override string ToString()
         {
             var sb = new StringBuilder();

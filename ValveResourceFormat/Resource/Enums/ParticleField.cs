@@ -1,5 +1,8 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Particle field identifiers.
+    /// </summary>
     public enum ParticleField
     {
 #pragma warning disable CS1591

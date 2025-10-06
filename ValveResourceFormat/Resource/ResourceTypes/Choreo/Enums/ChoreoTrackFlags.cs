@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.ResourceTypes.Choreo.Enums
 {
+    /// <summary>
+    /// Flags for choreography flex animation tracks.
+    /// </summary>
     [Flags]
     public enum ChoreoTrackFlags
     {
