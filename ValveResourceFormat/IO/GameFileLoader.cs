@@ -309,7 +309,7 @@ namespace ValveResourceFormat.IO
 
             if (foundFile.PathOnDisk != null)
             {
-                return File.OpenRead(file);
+                return File.OpenRead(foundFile.PathOnDisk);
             }
             else if (foundFile.PackageEntry != null)
             {
