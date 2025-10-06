@@ -10,7 +10,11 @@
 					]
 				}
 			],
-            "output": "api"
+            "output": "api",
+            "outputFormat": "apiPage",
+            "namespaceLayout": "nested",
+            "categoryLayout": "flattened",
+            "enumSortOrder": "declaringOrder"
 		}
 	],
 	"build": {
