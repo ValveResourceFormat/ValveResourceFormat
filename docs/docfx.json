@@ -1,0 +1,50 @@
+{
+	"$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+	"metadata": [
+		{
+			"src": [
+				{
+					"src": "../ValveResourceFormat",
+					"files": [
+						"ValveResourceFormat.csproj"
+					]
+				}
+			],
+            "output": "api"
+		}
+	],
+	"build": {
+		"content": [
+			{
+				"files": [
+					"**/*.{md,yml}"
+				],
+                "exclude": [
+                    "_site/"
+                ]
+			}
+		],
+        "resource": [
+            {
+                "src": "../Misc/Icons",
+                "files": [
+                    "source2viewer_dark.png",
+                    "source2viewer.ico"
+                ]
+            }
+        ],
+		"output": "_site",
+		"template": [
+			"default",
+			"modern"
+		],
+		"globalMetadata": {
+			"_appName": "ValveResourceFormat",
+			"_appTitle": "ValveResourceFormat",
+            "_appLogoPath": "../Misc/Icons/source2viewer_dark.png",
+            "_appFaviconPath": "../Misc/Icons/source2viewer.ico",
+			"_enableSearch": true,
+			"pdf": false
+		}
+	}
+}
