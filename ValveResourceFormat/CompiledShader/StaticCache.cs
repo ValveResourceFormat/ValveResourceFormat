@@ -12,7 +12,7 @@ namespace ValveResourceFormat.CompiledShader
             get => maxCacheSize;
             set
             {
-                maxCacheSize = Math.Min(value, 1);
+                maxCacheSize = Math.Max(value, 1);
                 cache.EnsureCapacity(maxCacheSize);
                 TrimLRU();
             }
