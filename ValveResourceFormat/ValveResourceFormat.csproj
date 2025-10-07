@@ -10,6 +10,7 @@
     <IsAotCompatible>true</IsAotCompatible>
     <NoWarn>$(NoWarn);NU5104;CS8002</NoWarn>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
       <EmbeddedResource Include="Utils\RobotoAscii.ttf" />
