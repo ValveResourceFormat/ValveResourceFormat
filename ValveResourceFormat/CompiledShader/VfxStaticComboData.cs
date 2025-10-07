@@ -11,7 +11,7 @@ namespace ValveResourceFormat.CompiledShader
     /// </summary>
     public class VfxStaticComboData
     {
-        /// <summary>Gets or sets the parent program data.</summary>
+        /// <summary>Gets the parent program data or null after disposal.</summary>
         public VfxProgramData? ParentProgramData { get; private set; }
 
         /// <summary>Gets the static combo identifier.</summary>
@@ -38,13 +38,13 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>Gets the constant buffer size.</summary>
         public int ConstantBufferSize { get; }
 
-        /// <summary>Gets the first flag byte.</summary>
+        /// <summary>Gets whether the first constant-buffer flag is set.</summary>
         public bool Flagbyte0 { get; }
 
         /// <summary>Gets the second flag byte.</summary>
         public byte Flagbyte1 { get; }
 
-        /// <summary>Gets the third flag byte.</summary>
+        /// <summary>Gets whether the third flag is set.</summary>
         public bool Flagbyte2 { get; }
 
         /// <summary>Gets the shader files for this combo.</summary>

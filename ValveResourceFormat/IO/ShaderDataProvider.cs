@@ -82,7 +82,7 @@ namespace ValveResourceFormat.IO
         /// <param name="program">Stage for which the configuration will be generated.</param>
         /// <param name="featureParams">Feature parameters have the 'F_' prefix.</param>
         /// <param name="staticParams">Statics (not tied to a feature) that you want to override. Static parameters have the 'S_' prefix.</param>
-        /// <returns>Static configuration and a generator that can be used to retreive the zframe id.</returns>
+        /// <returns>A tuple containing the static configuration array and the corresponding static combo identifier.</returns>
         public static (int[] StaticConfig, long StaticComboId) GetStaticConfiguration_ForFeatureState(
             VfxProgramData features,
             VfxProgramData program,
@@ -230,9 +230,9 @@ namespace ValveResourceFormat.IO
 
             return [.. GetParameterInputs(determinedParameter, originatingShaderFile)];
 
-            /// <summary>
-            /// Determine which of the parameter variants is the one referenced by the material.
-            /// </summary>
+            // <summary>
+            // Determine which of the parameter variants is the one referenced by the material.
+            // </summary>
             (VfxVariableDescription, VfxProgramData) DetermineParameterReferencedByMaterial(ShaderCollection shader, Material material, string paramName,
                 KeyValuePair<string, byte> forcedStatic = default)
             {

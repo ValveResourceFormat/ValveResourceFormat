@@ -3,24 +3,38 @@ using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents an S&amp;box shader resource.
+    /// </summary>
     public class SboxShader : Block
     {
+        /// <inheritdoc/>
         public override BlockType Type { get; }
+        /// <summary>
+        /// Gets the shader collection.
+        /// </summary>
         public ShaderCollection Shaders { get; } = [];
 
         record struct OnDiskShaderFile(VcsProgramType Type, uint Offset, uint Size);
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SboxShader"/> class.
+        /// </summary>
         public SboxShader()
         {
             // Older files use a DATA block which is equivalent to the newer DXBC
             Type = BlockType.DATA;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SboxShader"/> class.
+        /// </summary>
         public SboxShader(BlockType platformBlockType)
         {
             Type = platformBlockType;
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             ArgumentNullException.ThrowIfNull(Resource);
@@ -70,11 +84,13 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             foreach (var shader in Shaders)

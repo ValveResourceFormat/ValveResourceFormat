@@ -11,16 +11,38 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
-    //Datastructure for a KV Object
+    /// <summary>
+    /// Represents a KeyValue object data structure.
+    /// </summary>
     [DebuggerDisplay("{DebugRepresentation,nq}")]
     [DebuggerTypeProxy(typeof(DebugView))]
     public class KVObject : IEnumerable<KeyValuePair<string, object>>
     {
+        /// <summary>
+        /// Gets the key name of this object.
+        /// </summary>
         public string Key { get; }
+
+        /// <summary>
+        /// Gets the properties dictionary.
+        /// </summary>
         public Dictionary<string, KVValue> Properties { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether this object is an array.
+        /// </summary>
         public bool IsArray { get; }
+
+        /// <summary>
+        /// Gets the number of properties or items in this object.
+        /// </summary>
         public int Count { get; private set; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KVObject"/> class.
+        /// </summary>
+        /// <param name="name">The key name.</param>
+        /// <param name="capacity">The initial capacity.</param>
         public KVObject(string name, int capacity = 0)
         {
             Key = name;
@@ -28,13 +50,23 @@ namespace ValveResourceFormat.Serialization.KeyValues
             Count = 0;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KVObject"/> class.
+        /// </summary>
+        /// <param name="name">The key name.</param>
+        /// <param name="isArray">Whether this object is an array.</param>
+        /// <param name="capacity">The initial capacity.</param>
         public KVObject(string name, bool isArray, int capacity = 0)
             : this(name, capacity)
         {
             IsArray = isArray;
         }
 
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KVObject"/> class with array items.
+        /// </summary>
+        /// <param name="name">The key name.</param>
+        /// <param name="arrayItems">The array items.</param>
         public KVObject(string name, IList<KVValue> arrayItems)
             : this(name, true, arrayItems.Count)
         {
@@ -44,6 +76,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KVObject"/> class with properties.
+        /// </summary>
+        /// <param name="name">The key name.</param>
+        /// <param name="properties">The properties to add.</param>
         public KVObject(string name, params (string Name, object Value)[] properties)
             : this(name, properties.Length)
         {
@@ -53,7 +90,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
-        //Add a property to the structure
+        /// <summary>
+        /// Adds a property to the structure.
+        /// </summary>
+        /// <param name="name">The property name.</param>
+        /// <param name="value">The property value.</param>
         public virtual void AddProperty(string name, KVValue value)
         {
             if (IsArray)
@@ -77,6 +118,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
             Count++;
         }
 
+        /// <summary>
+        /// Adds a property to the structure.
+        /// </summary>
+        /// <param name="name">The property name.</param>
+        /// <param name="value">The property value.</param>
         public void AddProperty(string name, object value)
         {
             AddProperty(name, new KVValue(value));
@@ -88,11 +134,20 @@ namespace ValveResourceFormat.Serialization.KeyValues
             AddProperty(null, item);
         }
 
+        /// <summary>
+        /// Gets the value at the specified array index.
+        /// </summary>
+        /// <param name="arrayIndex">The array index.</param>
+        /// <returns>The value at the specified index.</returns>
         public KVValue this[int arrayIndex]
         {
             get => Properties[arrayIndex.ToString(CultureInfo.InvariantCulture)];
         }
 
+        /// <summary>
+        /// Serializes this object to the specified writer.
+        /// </summary>
+        /// <param name="writer">The writer to serialize to.</param>
         public void Serialize(IndentedTextWriter writer)
         {
             writer.Grow(12 + Count * 3 + (writer.Indent + 1) * Count); // Not exact
@@ -229,8 +284,20 @@ namespace ValveResourceFormat.Serialization.KeyValues
             writer.Write(" = ");
         }
 
+        /// <summary>
+        /// Determines whether this object contains the specified key.
+        /// </summary>
+        /// <param name="name">The key name.</param>
+        /// <returns>True if the key exists; otherwise, false.</returns>
         public bool ContainsKey(string name) => Properties.ContainsKey(name);
 
+        /// <summary>
+        /// Gets a property value by name with type conversion.
+        /// </summary>
+        /// <typeparam name="T">The type to convert to.</typeparam>
+        /// <param name="name">The property name.</param>
+        /// <param name="defaultValue">The default value if the property doesn't exist.</param>
+        /// <returns>The property value or default value.</returns>
         public T GetProperty<T>(string name, T defaultValue = default)
         {
             if (Properties.TryGetValue(name, out var value))
@@ -241,6 +308,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
             return defaultValue;
         }
 
+        /// <summary>
+        /// Gets a property value by name with unchecked type conversion, attempting to parse strings as numbers.
+        /// </summary>
+        /// <typeparam name="T">The type to convert to.</typeparam>
+        /// <param name="name">The property name.</param>
+        /// <param name="defaultValue">The default value if the property doesn't exist.</param>
+        /// <returns>The property value or default value.</returns>
         public T GetPropertyUnchecked<T>(string name, T defaultValue = default)
         {
             if (Properties.TryGetValue(name, out var property))
@@ -264,6 +338,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
             return defaultValue;
         }
 
+        /// <summary>
+        /// Gets an array property by name.
+        /// </summary>
+        /// <typeparam name="T">The element type of the array.</typeparam>
+        /// <param name="name">The property name.</param>
+        /// <returns>The array, or default if the property doesn't exist.</returns>
         public T[] GetArray<T>(string name)
         {
             if (Properties.TryGetValue(name, out var value))
@@ -314,6 +394,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
+        /// <inheritdoc/>
         public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
             => Properties
                 .Select(p => new KeyValuePair<string, object>(p.Key, p.Value.Value))

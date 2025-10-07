@@ -124,9 +124,7 @@ namespace ValveResourceFormat.ClosedCaptions
             return ((IEnumerable<ClosedCaption>)Captions).GetEnumerator();
         }
 
-        /// <summary>
-        /// Converts the captions to a KeyValues1 text format string.
-        /// </summary>
+        /// <inheritdoc/>
         public override string ToString()
         {
             var captionsToExport = new Dictionary<uint, string>(Captions.Count);

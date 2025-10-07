@@ -8,7 +8,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// </summary>
 public class VfxShaderFileGL : VfxShaderFile
 {
-    /// <summary>Gets the block name.</summary>
+    /// <inheritdoc/>
     public override string BlockName => "GLSL";
 
     /// <summary>Gets the argument value.</summary>
@@ -33,9 +33,7 @@ public class VfxShaderFileGL : VfxShaderFile
         HashMD5 = new Guid(datareader.ReadBytes(16));
     }
 
-    /// <summary>
-    /// Gets the decompiled shader file as GLSL source code.
-    /// </summary>
+    /// <inheritdoc/>
     public override string GetDecompiledFile()
     {
         return Encoding.UTF8.GetString(this.Bytecode);

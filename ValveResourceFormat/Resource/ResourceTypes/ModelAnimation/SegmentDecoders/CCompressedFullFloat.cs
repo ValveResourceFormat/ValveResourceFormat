@@ -2,6 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
+    /// <summary>
+    /// Decodes full-precision float animation data.
+    /// </summary>
     public class CCompressedFullFloat : AnimationSegmentDecoder
     {
         /// <inheritdoc/>

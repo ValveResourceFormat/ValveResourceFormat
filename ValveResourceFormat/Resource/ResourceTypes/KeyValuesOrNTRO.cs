@@ -5,27 +5,43 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Block that can contain either KeyValues or NTRO data.
+    /// </summary>
     public class KeyValuesOrNTRO : Block
     {
         private readonly string IntrospectionStructName;
         private readonly BlockType KVBlockType;
+        /// <inheritdoc/>
         public override BlockType Type => KVBlockType;
 
+        /// <summary>
+        /// Gets the parsed data as a KVObject.
+        /// </summary>
         public KVObject Data { get; private set; }
 
         private Block BackingData;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KeyValuesOrNTRO"/> class.
+        /// </summary>
         public KeyValuesOrNTRO()
         {
             KVBlockType = BlockType.DATA;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KeyValuesOrNTRO"/> class with a specific block type and introspection struct name.
+        /// </summary>
+        /// <param name="type">The block type.</param>
+        /// <param name="introspectionStructName">The introspection struct name for NTRO parsing.</param>
         public KeyValuesOrNTRO(BlockType type, string introspectionStructName)
         {
             KVBlockType = type;
             IntrospectionStructName = introspectionStructName;
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             // It is possible to have MDAT block with NTRO in a file, but it will be KV3 anyway.
@@ -56,6 +72,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             if (BackingData is BinaryKV3 dataKv3)
@@ -67,6 +84,7 @@ namespace ValveResourceFormat.ResourceTypes
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             if (BackingData is BinaryKV3 dataKv3)

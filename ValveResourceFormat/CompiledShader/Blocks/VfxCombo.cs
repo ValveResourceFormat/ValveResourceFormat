@@ -6,7 +6,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.CompiledShader;
 
 /// <summary>
-/// Contains a definition for a feature or static configuration.
+/// Contains a definition for a shader combo, whether static, dynamic, or feature-specific.
 /// </summary>
 /// <remarks>
 /// These are usually 152 bytes long. Features may contain names describing each state

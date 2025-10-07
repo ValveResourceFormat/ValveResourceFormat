@@ -11,7 +11,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// </summary>
 public class VfxShaderFileVulkan : VfxShaderFile
 {
-    /// <summary>Gets the platform name.</summary>
+    /// <inheritdoc/>
     public override string BlockName => "VULKAN";
     /// <summary>Gets the shader file version.</summary>
     public int Version { get; private set; }
@@ -216,9 +216,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
         }
     }
 
-    /// <summary>
-    /// Decompiles SPIR-V bytecode to source code.
-    /// </summary>
+    /// <inheritdoc/>
     public override string GetDecompiledFile()
     {
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);

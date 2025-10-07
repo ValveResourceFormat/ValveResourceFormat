@@ -5,56 +5,184 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.ToolsAssetInfo
 {
+    /// <summary>
+    /// Represents tools asset info data from Valve's Source 2 engine.
+    /// </summary>
     public class ToolsAssetInfo
     {
+        /// <summary>
+        /// Represents a file entry in the tools asset info.
+        /// </summary>
         public class File
         {
+            /// <summary>
+            /// Represents an input dependency.
+            /// </summary>
             public readonly struct InputDependency
             {
+                /// <summary>
+                /// Gets the filename.
+                /// </summary>
                 public string Filename { get; init; }
+
+                /// <summary>
+                /// Gets the file CRC.
+                /// </summary>
                 public uint FileCRC { get; init; }
+
+                /// <summary>
+                /// Gets a value indicating whether this dependency is optional.
+                /// </summary>
                 public bool Optional { get; init; }
+
+                /// <summary>
+                /// Gets a value indicating whether the file exists.
+                /// </summary>
                 public bool FileExists { get; init; }
             }
 
+            /// <summary>
+            /// Represents a search path.
+            /// </summary>
             public readonly struct SearchPath
             {
+                /// <summary>
+                /// Gets the filename.
+                /// </summary>
                 public string Filename { get; init; }
 
                 // Valve reads them as 16 bytes
+                /// <summary>
+                /// Gets unknown bits (first 8 bytes).
+                /// </summary>
                 public ulong UnknownBits1 { get; init; }
+
+                /// <summary>
+                /// Gets unknown bits (second 8 bytes).
+                /// </summary>
                 public ulong UnknownBits2 { get; init; }
             }
 
+            /// <summary>
+            /// Represents a special dependency.
+            /// </summary>
             public struct SpecialDependency
             {
+                /// <summary>
+                /// Gets or sets the string value.
+                /// </summary>
                 public string String { get; set; }
+
+                /// <summary>
+                /// Gets or sets the compiler identifier.
+                /// </summary>
                 public string CompilerIdentifier { get; set; }
+
+                /// <summary>
+                /// Gets or sets the fingerprint.
+                /// </summary>
                 public uint Fingerprint { get; set; }
+
+                /// <summary>
+                /// Gets or sets the user data.
+                /// </summary>
                 public uint UserData { get; set; }
             }
 
+            /// <summary>
+            /// Gets or sets a value indicating whether the file needs refresh.
+            /// </summary>
             public bool NeedsRefresh { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether the file is invalid.
+            /// </summary>
             public bool Invalid { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether the file is up to date.
+            /// </summary>
             public bool UpToDate { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether compilation failed.
+            /// </summary>
             public bool CompileFailed { get; set; }
 
+            /// <summary>
+            /// Gets the search paths in the game root.
+            /// </summary>
             public List<SearchPath> SearchPathsGameRoot { get; } = [];
+
+            /// <summary>
+            /// Gets the search paths in the content root.
+            /// </summary>
             public List<SearchPath> SearchPathsContentRoot { get; } = [];
+
+            /// <summary>
+            /// Gets the input dependencies.
+            /// </summary>
             public List<InputDependency> InputDependencies { get; } = [];
+
+            /// <summary>
+            /// Gets the additional input dependencies.
+            /// </summary>
             public List<InputDependency> AdditionalInputDependencies { get; } = [];
+
+            /// <summary>
+            /// Gets the external references.
+            /// </summary>
             public List<string> ExternalReferences { get; } = [];
+
+            /// <summary>
+            /// Gets the child resources.
+            /// </summary>
             public List<string> ChildResources { get; } = [];
+
+            /// <summary>
+            /// Gets the additional related files.
+            /// </summary>
             public List<string> AdditionalRelatedFiles { get; } = [];
+
+            /// <summary>
+            /// Gets the weak references.
+            /// </summary>
             public List<string> WeakReferences { get; } = [];
+
+            /// <summary>
+            /// Gets the special dependencies.
+            /// </summary>
             public List<SpecialDependency> SpecialDependencies { get; } = [];
+
+            /// <summary>
+            /// Gets the searchable user data.
+            /// </summary>
             public Dictionary<string, object> SearchableUserData { get; } = [];
+
+            /// <summary>
+            /// Gets the subasset definitions.
+            /// </summary>
             public Dictionary<string, List<string>> SubassetDefinitions { get; } = [];
+
+            /// <summary>
+            /// Gets the subasset references.
+            /// </summary>
             public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; } = [];
         }
 
+        /// <summary>
+        /// Magic identifier for the file format.
+        /// </summary>
         public const uint MAGIC = 0xC4CCACE8;
+
+        /// <summary>
+        /// Magic identifier for the newer file format.
+        /// </summary>
         public const uint MAGIC2 = 0xC4CCACE9;
+
+        /// <summary>
+        /// Guard value.
+        /// </summary>
         public const uint GUARD = 0x049A48B2;
 
         /// <summary>
@@ -67,6 +195,9 @@ namespace ValveResourceFormat.ToolsAssetInfo
         /// </summary>
         public Dictionary<string, File> Files { get; } = [];
 
+        /// <summary>
+        /// Gets the KV3 segment data, if present.
+        /// </summary>
         public Serialization.KeyValues.KVObject? KV3Segment { get; private set; }
 
         /// <summary>
@@ -497,6 +628,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
             return output;
         }
 
+        /// <inheritdoc/>
         public override string ToString()
         {
             using var ms = new MemoryStream();

@@ -2,6 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
+    /// <summary>
+    /// Decodes static float data that doesn't change per frame.
+    /// </summary>
     public class CCompressedStaticFloat : AnimationSegmentDecoder
     {
         /// <inheritdoc/>

@@ -7,10 +7,14 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a Panorama layout resource.
+    /// </summary>
     public class PanoramaLayout : Panorama
     {
         private BinaryKV3 _layoutContent;
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
@@ -18,6 +22,7 @@ namespace ValveResourceFormat.ResourceTypes
             _layoutContent = Resource.GetBlockByType(BlockType.LaCo) as BinaryKV3;
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             if (_layoutContent == default)

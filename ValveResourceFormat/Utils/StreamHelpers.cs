@@ -9,9 +9,10 @@ namespace ValveResourceFormat
         /// <summary>
         /// Reads a null terminated string.
         /// </summary>
-        /// <returns>String.</returns>
         /// <param name="stream">Stream.</param>
         /// <param name="encoding">Encoding.</param>
+        /// <param name="bufferLengthHint">Initial buffer length used when reading the string.</param>
+        /// <returns>String.</returns>
         public static string ReadNullTermString(this BinaryReader stream, Encoding encoding, int bufferLengthHint = 32)
         {
             if (encoding == Encoding.UTF8)

@@ -10,16 +10,27 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a resource with introspection data.
+    /// </summary>
     public class NTRO : Block
     {
+        /// <summary>
+        /// Gets the output data.
+        /// </summary>
         public KVObject Output { get; private set; }
+        /// <summary>
+        /// Gets or sets the struct name.
+        /// </summary>
         public string StructName { get; init; }
 
         private BinaryReader Reader => Resource.Reader;
         private ResourceIntrospectionManifest IntrospectionManifest;
 
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             IntrospectionManifest = (ResourceIntrospectionManifest)Resource.GetBlockByType(BlockType.NTRO);
@@ -324,11 +335,13 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             new KV3File(Output).WriteText(writer);

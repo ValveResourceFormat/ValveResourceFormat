@@ -126,7 +126,7 @@ namespace ValveResourceFormat.IO
 #endif
 
         /// <summary>
-        /// Export a Valve resource to Gltf.
+        /// Export a Valve resource to glTF.
         /// </summary>
         /// <param name="resource">The resource being exported.</param>
         /// <param name="targetPath">Target file name.</param>
@@ -665,6 +665,7 @@ namespace ValveResourceFormat.IO
         /// refMeshes order so it can be used for getting skeletons.
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
+        /// <param name="name">The base name used when generating mesh names.</param>
         /// <returns>A tuple of meshes and their names.</returns>
         private IEnumerable<(VMesh Mesh, int MeshIndex, string Name)> LoadModelMeshes(VModel model, string name)
         {

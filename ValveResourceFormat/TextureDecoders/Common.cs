@@ -20,9 +20,15 @@ namespace ValveResourceFormat.TextureDecoders
         }*/
     }
 
+    /// <summary>
+    /// Texture codec flags for decoding and color space conversions.
+    /// </summary>
     [Flags]
     public enum TextureCodec
     {
+        /// <summary>
+        /// No codec flags.
+        /// </summary>
         None = 0,
 
         /// <summary>
@@ -52,12 +58,12 @@ namespace ValveResourceFormat.TextureDecoders
         Dxt5nm = 1 << 4,
 
         /// <summary>
-        /// Colors are in linear space. Converts to sRGB gamma space.
+        /// Indicates the texture data is stored in linear color space.
         /// </summary>
         ColorSpaceLinear = 1 << 5,
 
         /// <summary>
-        /// Colors are in sRGB gamma space. Converts to linear space.
+        /// Indicates the texture data is stored in sRGB gamma space.
         /// </summary>
         ColorSpaceSrgb = 1 << 6,
 
@@ -66,6 +72,9 @@ namespace ValveResourceFormat.TextureDecoders
         /// </summary>
         ForceLDR = 1 << 7,
 
+        /// <summary>
+        /// Automatically determine codec flags.
+        /// </summary>
         Auto = 1 << 30,
     }
 

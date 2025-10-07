@@ -194,9 +194,7 @@ namespace ValveResourceFormat.ResourceTypes
             _ => 1,
         };
 
-        /// <summary>
-        /// Gets the block type, which is always DATA for texture blocks.
-        /// </summary>
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
         private BinaryReader Reader => Resource.Reader;
@@ -289,10 +287,7 @@ namespace ValveResourceFormat.ResourceTypes
             ExtraData = [];
         }
 
-        /// <summary>
-        /// Reads the texture data from the specified binary reader.
-        /// </summary>
-        /// <param name="reader">The binary reader to read from.</param>
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -585,6 +580,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="depth">The depth to extract.</param>
         /// <param name="face">The face to extract for cube textures.</param>
         /// <param name="mipLevel">The mip level to extract.</param>
+        /// <param name="decodeFlags">The preferred codec to use when decoding the texture.</param>
         /// <returns>Skia bitmap.</returns>
         public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto)
         {
@@ -634,7 +630,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var skiaBitmap = new SKBitmap(width, height, colorType, SKAlphaType.Unpremul);
 
-            /// GPU decoder calls into <see cref="GetEveryMipLevelTexture"/> which sets the reader offset on its own
+            // GPU decoder calls into <see cref="GetEveryMipLevelTexture"/> which sets the reader offset on its own
             if (HardwareAcceleratedTextureDecoder.Decoder?.Decode(skiaBitmap, Resource, depth, face, mipLevel, decodeFlags) == true)
             {
                 return skiaBitmap;
@@ -1099,19 +1095,13 @@ namespace ValveResourceFormat.ResourceTypes
             return codec;
         }
 
-        /// <summary>
-        /// Serializes the texture block to the specified stream.
-        /// </summary>
-        /// <param name="stream">The stream to serialize to.</param>
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
-        /// <summary>
-        /// Writes a text representation of the texture to the specified writer.
-        /// </summary>
-        /// <param name="writer">The writer to output the text representation to.</param>
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("{0,-12} = {1}", "VTEX Version", Version);

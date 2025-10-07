@@ -3,14 +3,35 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 {
+    /// <summary>
+    /// Represents a physics shape.
+    /// </summary>
     public struct Shape
     {
+        /// <summary>
+        /// Gets or sets the sphere descriptors.
+        /// </summary>
         public SphereDescriptor[] Spheres { get; set; }
+        /// <summary>
+        /// Gets or sets the capsule descriptors.
+        /// </summary>
         public CapsuleDescriptor[] Capsules { get; set; }
+        /// <summary>
+        /// Gets or sets the hull descriptors.
+        /// </summary>
         public HullDescriptor[] Hulls { get; set; }
+        /// <summary>
+        /// Gets or sets the mesh descriptors.
+        /// </summary>
         public MeshDescriptor[] Meshes { get; set; }
+        /// <summary>
+        /// Gets or sets the collision attribute indices.
+        /// </summary>
         public int[] CollisionAttributeIndices { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Shape"/> struct.
+        /// </summary>
         public Shape(KVObject data)
         {
             Spheres = LoadShapeDescriptorArray<SphereDescriptor, Shapes.Sphere>(data, "m_spheres");

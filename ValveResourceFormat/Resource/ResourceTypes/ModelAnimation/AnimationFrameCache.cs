@@ -3,13 +3,23 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    /// <summary>
+    /// Caches animation frames to optimize frame retrieval and interpolation.
+    /// </summary>
     public class AnimationFrameCache
     {
         private Frame PrevFrame;
         private Frame NextFrame;
         private readonly Frame InterpolatedFrame;
+
+        /// <summary>
+        /// Gets the skeleton associated with this frame cache.
+        /// </summary>
         public Skeleton Skeleton { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AnimationFrameCache"/> class.
+        /// </summary>
         public AnimationFrameCache(Skeleton skeleton, FlexController[] flexControllers)
         {
             PrevFrame = new Frame(skeleton, flexControllers);
@@ -32,6 +42,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get the animation frame at a time.
         /// </summary>
+        /// <param name="anim">The animation to interpolate.</param>
         /// <param name="time">The time to get the frame for.</param>
         public Frame GetInterpolatedFrame(Animation anim, float time)
         {

@@ -9,7 +9,14 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 {
+    /// <summary>
+    /// Represents a quantization range with a start value and length.
+    /// </summary>
     public record struct QuantizationRange(float Start, float Length);
+
+    /// <summary>
+    /// Represents compression settings for an animation track.
+    /// </summary>
     public record struct TrackCompressionSetting
     (
         QuantizationRange TranslationRangeX,
@@ -22,20 +29,52 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         bool IsScaleStatic
     );
 
+    /// <summary>
+    /// Represents an animation clip with compressed pose data.
+    /// </summary>
     public class AnimationClip : BinaryKV3
     {
+        /// <summary>
+        /// Gets the name of the animation clip.
+        /// </summary>
         public string Name { get; private set; }
 
+        /// <summary>
+        /// Gets the name of the skeleton this animation is for.
+        /// </summary>
         public string SkeletonName { get; private set; }
+
+        /// <summary>
+        /// Gets the number of frames in the animation.
+        /// </summary>
         public int NumFrames { get; private set; }
+
+        /// <summary>
+        /// Gets the duration of the animation in seconds.
+        /// </summary>
         public float Duration { get; private set; } = 1;
 
+        /// <summary>
+        /// Gets the compressed pose data.
+        /// </summary>
         public byte[] CompressedPoseData { get; private set; }
+
+        /// <summary>
+        /// Gets the compression settings for each animation track.
+        /// </summary>
         public TrackCompressionSetting[] TrackCompressionSettings { get; private set; }
+
+        /// <summary>
+        /// Gets the byte offsets for each compressed pose frame.
+        /// </summary>
         public long[] CompressedPoseOffsets { get; private set; }
 
+        /// <summary>
+        /// Gets the secondary animations associated with this clip.
+        /// </summary>
         public AnimationClip[] SecondaryAnimations { get; private set; } = [];
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
@@ -91,6 +130,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             }
         }
 
+        /// <summary>
+        /// Reads and decompresses a specific frame of animation data into the provided bone array.
+        /// </summary>
+        /// <param name="frameIndex">The index of the frame to read.</param>
+        /// <param name="bones">The array of bones to populate with frame data.</param>
         public void ReadFrame(int frameIndex, FrameBone[] bones)
         {
             var frameData = MemoryMarshal.Cast<byte, ushort>(CompressedPoseData);

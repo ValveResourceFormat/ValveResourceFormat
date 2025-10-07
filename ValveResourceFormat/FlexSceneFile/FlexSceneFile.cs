@@ -66,6 +66,7 @@ namespace ValveResourceFormat.FlexSceneFile
             /// <summary>
             /// Returns expression settings for a flex controller. Use <see cref="FlexSceneFile.KeyNames"/> to find the flex controller's key.
             /// </summary>
+            /// <remarks>Returns the default value when no weight is stored for the supplied key.</remarks>
             public FlexWeight GetWeight(int key)
             {
                 if (Settings.TryGetValue(key, out var weight))

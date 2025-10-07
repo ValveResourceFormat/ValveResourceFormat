@@ -12,8 +12,14 @@ namespace ValveResourceFormat.Serialization.KeyValues;
 // More ids are also stored in the tier0.dll
 //
 
+/// <summary>
+/// Provides lookup for KeyValues3 identifiers.
+/// </summary>
 public static class KV3IDLookup
 {
+    /// <summary>
+    /// Gets the mapping of KV3 names to their GUIDs.
+    /// </summary>
     public static readonly FrozenDictionary<string, Guid> Table = new Dictionary<string, Guid>()
     {
         { "animgraph0", new Guid([0x02, 0x38, 0xB3, 0xF8, 0x19, 0x7E, 0x64, 0x41, 0x9D, 0xD5, 0x2D, 0x3C, 0x9A, 0x19, 0x3C, 0x22]) },

@@ -14,10 +14,19 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a model resource containing meshes, skeleton, and animations.
+    /// </summary>
     public class Model : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Gets the model name.
+        /// </summary>
         public string Name => Data.GetStringProperty("m_name");
 
+        /// <summary>
+        /// Gets the key-values data from the model info.
+        /// </summary>
         [NotNull]
         public KVObject KeyValues
         {
@@ -30,6 +39,9 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Gets the skeleton for this model.
+        /// </summary>
         public Skeleton Skeleton
         {
             get
@@ -38,6 +50,10 @@ namespace ValveResourceFormat.ResourceTypes
                 return cachedSkeleton;
             }
         }
+
+        /// <summary>
+        /// Gets the flex controllers for this model.
+        /// </summary>
         public FlexController[] FlexControllers
         {
             get
@@ -52,7 +68,14 @@ namespace ValveResourceFormat.ResourceTypes
         private Skeleton cachedSkeleton;
         private FlexController[] cachedFlexControllers;
 
+        /// <summary>
+        /// Gets the hitbox sets for this model.
+        /// </summary>
         public Dictionary<string, Hitbox[]> HitboxSets { get; private set; }
+
+        /// <summary>
+        /// Gets the attachments for this model.
+        /// </summary>
         public Dictionary<string, Attachment> Attachments { get; private set; }
 
         private FlexController[] GetFlexControllers()
@@ -75,6 +98,7 @@ namespace ValveResourceFormat.ResourceTypes
             return flexControllers.ToArray();
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
@@ -86,11 +110,19 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Populates cached flex controller data from an externally loaded morph resource.
+        /// </summary>
+        /// <param name="morph">The morph data whose flex controllers should be reused.</param>
         public void SetExternalMorphData(Morph morph)
         {
             cachedFlexControllers ??= morph?.FlexControllers;
         }
 
+        /// <summary>
+        /// Populates cached mesh-related data (flex controllers, hitboxes, attachments) from an external mesh resource.
+        /// </summary>
+        /// <param name="mesh">The mesh providing supplemental data.</param>
         public void SetExternalMeshData(Mesh mesh)
         {
             SetExternalMorphData(mesh.MorphData);
@@ -132,7 +164,10 @@ namespace ValveResourceFormat.ResourceTypes
             return meshRemappingTable;
         }
 
-
+        /// <summary>
+        /// Gets referenced mesh names and their LoD masks.
+        /// </summary>
+        /// <returns>Enumerable of mesh index, mesh name, and LoD mask tuples.</returns>
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
         {
             var refLODGroupMasks = Data.GetIntegerArray("m_refLODGroupMasks");
@@ -152,9 +187,17 @@ namespace ValveResourceFormat.ResourceTypes
             return result;
         }
 
+        /// <summary>
+        /// Gets embedded meshes with their LoD masks.
+        /// </summary>
+        /// <returns>Enumerable of mesh, mesh index, name, and LoD mask tuples.</returns>
         public IEnumerable<(Mesh Mesh, int MeshIndex, string Name, long LoDMask)> GetEmbeddedMeshesAndLoD()
             => GetEmbeddedMeshes().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l.Mesh, l.MeshIndex, l.Name, r));
 
+        /// <summary>
+        /// Gets embedded meshes from the model.
+        /// </summary>
+        /// <returns>Enumerable of mesh, mesh index, and name tuples.</returns>
         public IEnumerable<(Mesh Mesh, int MeshIndex, string Name)> GetEmbeddedMeshes()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
@@ -215,6 +258,10 @@ namespace ValveResourceFormat.ResourceTypes
             return (mesh, meshIndex, name);
         }
 
+        /// <summary>
+        /// Gets embedded physics data from the model.
+        /// </summary>
+        /// <returns>The physics aggregate data, or null if not present.</returns>
         public PhysAggregateData GetEmbeddedPhys()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
@@ -229,12 +276,24 @@ namespace ValveResourceFormat.ResourceTypes
             return (PhysAggregateData)Resource.GetBlockByIndex(physBlockIndex);
         }
 
+        /// <summary>
+        /// Gets referenced physics data names.
+        /// </summary>
+        /// <returns>Enumerable of physics data names.</returns>
         public IEnumerable<string> GetReferencedPhysNames()
             => Data.GetArray<string>("m_refPhysicsData");
 
+        /// <summary>
+        /// Gets referenced animation group names.
+        /// </summary>
+        /// <returns>Enumerable of animation group names.</returns>
         public IEnumerable<string> GetReferencedAnimationGroupNames()
             => Data.GetArray<string>("m_refAnimGroups");
 
+        /// <summary>
+        /// Gets embedded animations from the model.
+        /// </summary>
+        /// <returns>Enumerable of animations.</returns>
         public IEnumerable<Animation> GetEmbeddedAnimations()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
@@ -256,6 +315,11 @@ namespace ValveResourceFormat.ResourceTypes
             return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
 
+        /// <summary>
+        /// Gets animations referenced from other models.
+        /// </summary>
+        /// <param name="fileLoader">The file loader to use.</param>
+        /// <returns>Enumerable of animations.</returns>
         public IEnumerable<Animation> GetReferencedAnimations(IFileLoader fileLoader)
         {
             var refAnimModels = Data.GetArray<string>("m_refAnimIncludeModels");
@@ -287,6 +351,11 @@ namespace ValveResourceFormat.ResourceTypes
             return allAnims;
         }
 
+        /// <summary>
+        /// Gets all animations from this model including embedded, referenced, and animation groups.
+        /// </summary>
+        /// <param name="fileLoader">The file loader to use.</param>
+        /// <returns>Enumerable of all animations.</returns>
         public IEnumerable<Animation> GetAllAnimations(IFileLoader fileLoader)
         {
             if (CachedAnimations != null)
@@ -315,13 +384,25 @@ namespace ValveResourceFormat.ResourceTypes
             return CachedAnimations;
         }
 
+        /// <summary>
+        /// Gets the mesh groups defined in the model.
+        /// </summary>
+        /// <returns>Enumerable of mesh group names.</returns>
         public IEnumerable<string> GetMeshGroups()
             => Data.GetArray<string>("m_meshGroups");
 
+        /// <summary>
+        /// Gets the material groups defined in the model.
+        /// </summary>
+        /// <returns>Enumerable of material group names and their materials.</returns>
         public IEnumerable<(string Name, string[] Materials)> GetMaterialGroups()
            => Data.GetArray<KVObject>("m_materialGroups")
                 .Select(group => (group.GetProperty<string>("m_name"), group.GetArray<string>("m_materials")));
 
+        /// <summary>
+        /// Gets the default mesh groups based on the default mesh group mask.
+        /// </summary>
+        /// <returns>Enumerable of default mesh group names.</returns>
         public IEnumerable<string> GetDefaultMeshGroups()
         {
             var defaultGroupMask = Data.GetUnsignedIntegerProperty("m_nDefaultMeshGroupMask");

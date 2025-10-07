@@ -74,7 +74,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// Gets a property value by name.
             /// </summary>
             /// <param name="name">The property name.</param>
-            /// <returns>The property value or null if not found.</returns>
+            /// <returns>The property value or the default <see cref="KVValue"/> (with <see cref="KVValueType.Null"/>) if not found.</returns>
             public KVValue GetProperty(string name) => Properties.Properties.GetValueOrDefault(name);
 
             /// <summary>

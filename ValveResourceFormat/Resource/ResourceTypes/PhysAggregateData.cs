@@ -48,10 +48,16 @@ namespace ValveResourceFormat.ResourceTypes
 
         private Part[] parts;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PhysAggregateData"/> class.
+        /// </summary>
         public PhysAggregateData()
         {
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PhysAggregateData"/> class.
+        /// </summary>
         public PhysAggregateData(BlockType type) : base(type, "VPhysXAggregateData_t")
         {
         }

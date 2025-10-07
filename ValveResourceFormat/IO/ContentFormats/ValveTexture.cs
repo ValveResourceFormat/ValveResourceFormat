@@ -44,7 +44,7 @@ internal class CDmeVtex : DMElement
 
     /// <summary>
     /// Array of <see cref="CDmeTextureOutputChannel"/> elements describing sets of output channels.
-    /// <summary>
+    /// </summary>
     public Datamodel.ElementArray TextureOutputChannelArray { get; set; } = [];
 
     /// <summary>
@@ -57,9 +57,9 @@ internal class CDmeVtex : DMElement
     /// </summary>
     public bool NoLod { get; set; }
 
-    /// <summary>
-    /// Marks the output file as a hidden asset.
-    /// </summary>
+    // <summary>
+    // Marks the output file as a hidden asset.
+    // </summary>
     //[DMProperty(optional: true)]
     //public bool HiddenAssetFlag { get; set; }
 

@@ -5,12 +5,20 @@ using System.Text;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a sound stack script resource.
+    /// </summary>
     public class SoundStackScript : Block
     {
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
+        /// <summary>
+        /// Gets the sound stack script values.
+        /// </summary>
         public Dictionary<string, string> SoundStackScriptValue { get; private set; } // TODO: be Dictionary<string, SomeKVObject>
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -49,11 +57,13 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             foreach (var entry in SoundStackScriptValue)

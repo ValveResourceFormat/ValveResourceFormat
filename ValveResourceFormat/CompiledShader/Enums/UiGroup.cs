@@ -98,9 +98,7 @@ public struct UiGroup
         return (name, order);
     }
 
-    /// <summary>
-    /// Returns the compact string representation.
-    /// </summary>
+    /// <inheritdoc/>
     public readonly override string ToString()
     {
         return CompactString;

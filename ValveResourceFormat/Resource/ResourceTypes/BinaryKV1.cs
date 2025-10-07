@@ -15,9 +15,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public const int MAGIC = 0x564B4256; // VBKV
 
-        /// <summary>
-        /// Gets the block type, which is always DATA.
-        /// </summary>
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
         /// <summary>

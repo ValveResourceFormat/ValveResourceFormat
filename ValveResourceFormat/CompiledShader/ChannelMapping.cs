@@ -115,25 +115,25 @@ namespace ValveResourceFormat.CompiledShader
             => (byte)(packedValue >> (index * 8) & 0xff);
 
         /// <summary>
-        /// Converts ChannelMapping to byte.
+        /// Returns the first mapped channel component.
         /// </summary>
         public static implicit operator byte(ChannelMapping channelMapping)
             => ToByte(channelMapping);
 
         /// <summary>
-        /// Converts ChannelMapping to byte.
+        /// Returns the first mapped channel component.
         /// </summary>
         public static byte ToByte(ChannelMapping channelMapping)
             => channelMapping.Channels[0];
 
         /// <summary>
-        /// Gets the first channel component.
+        /// Returns the first mapped channel component.
         /// </summary>
         public static byte ToComponent(ChannelMapping channelMapping)
             => channelMapping.Channels[0];
 
         /// <summary>
-        /// Creates a ChannelMapping from channel bytes.
+        /// Creates a ChannelMapping from channel bytes, filling missing slots with <see cref="Channel.NULL"/>.
         /// </summary>
         public static ChannelMapping FromChannels(byte first, byte second = Channel.NULL, byte third = Channel.NULL, byte fourth = Channel.NULL)
         {
@@ -145,9 +145,7 @@ namespace ValveResourceFormat.CompiledShader
             return (ChannelMapping)packedValue;
         }
 
-        /// <summary>
-        /// Converts to string representation (e.g. "RGBA").
-        /// </summary>
+        /// <inheritdoc/>
         public override string ToString()
         {
             Span<char> chars = stackalloc char[Count];
@@ -183,9 +181,7 @@ namespace ValveResourceFormat.CompiledShader
         public static bool operator !=(ChannelMapping left, ChannelMapping right)
             => !left.Channels.SequenceEqual(right.Channels);
 
-        /// <summary>
-        /// Determines whether the specified object is equal to this instance.
-        /// </summary>
+        /// <inheritdoc/>
         public override bool Equals(object? obj)
             => Equals(obj as ChannelMapping);
 
@@ -195,9 +191,7 @@ namespace ValveResourceFormat.CompiledShader
         public bool Equals(ChannelMapping? other)
             => other is not null && this == other;
 
-        /// <summary>
-        /// Returns a hash code for this instance.
-        /// </summary>
+        /// <inheritdoc/>
         public override int GetHashCode()
             => HashCode.Combine(PackedValue);
     }

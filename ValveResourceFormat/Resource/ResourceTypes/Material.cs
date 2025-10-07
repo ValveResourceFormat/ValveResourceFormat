@@ -65,7 +65,7 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, string> StringAttributes { get; } = [];
 
         /// <summary>
-        /// Gets the dynamic expression parameters.
+        /// Gets the evaluated dynamic expressions for dynamic scalar and texture parameters.
         /// </summary>
         public Dictionary<string, string> DynamicExpressions { get; } = [];
 
@@ -88,7 +88,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
@@ -162,6 +162,10 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Gets the shader arguments from integer parameters starting with "F_".
+        /// </summary>
+        /// <returns>Dictionary of shader argument names and values.</returns>
         public Dictionary<string, byte> GetShaderArguments()
         {
             var arguments = new Dictionary<string, byte>();
@@ -269,6 +273,10 @@ namespace ValveResourceFormat.ResourceTypes
             /// </summary>
             public int D3DSemanticIndex { get; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="InputSignatureElement"/> struct from data.
+            /// </summary>
+            /// <param name="data">The key-value data containing element definition.</param>
             public InputSignatureElement(KVObject data)
             {
                 Name = data.GetProperty<string>("m_pName");
@@ -277,6 +285,13 @@ namespace ValveResourceFormat.ResourceTypes
                 D3DSemanticIndex = (int)data.GetIntegerProperty("m_nD3DSemanticIndex");
             }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="InputSignatureElement"/> struct with specified values.
+            /// </summary>
+            /// <param name="name">The element name.</param>
+            /// <param name="semantic">The semantic name.</param>
+            /// <param name="d3dSemanticName">The Direct3D semantic name.</param>
+            /// <param name="d3dSemanticIndex">The Direct3D semantic index.</param>
             public InputSignatureElement(string name, string semantic, string d3dSemanticName, int d3dSemanticIndex)
             {
                 Name = name;

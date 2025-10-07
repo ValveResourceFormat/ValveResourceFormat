@@ -76,7 +76,7 @@ namespace ValveResourceFormat
         /// Resource files have a FileSize in the metadata, however
         /// certain file types such as sounds have streaming audio data come
         /// after the resource file, and the size is specified within the DATA block.
-        /// This property attemps to return the correct size.
+        /// This property attempts to return the correct size.
         /// </summary>
         public uint FullFileSize
         {

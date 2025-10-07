@@ -5,8 +5,14 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
+    /// <summary>
+    /// Represents a mesh shape.
+    /// </summary>
     public readonly struct Mesh
     {
+        /// <summary>
+        /// The node type for mesh BVH nodes.
+        /// </summary>
         public enum NodeType
         {
 #pragma warning disable CS1591
@@ -17,9 +23,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 #pragma warning restore CS1591
         }
 
+        /// <summary>
+        /// Represents a node in the mesh BVH.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Node
         {
+            /// <summary>
+            /// The minimum bounds.
+            /// </summary>
             public readonly Vector3 Min;
             private readonly uint PackedTypeChildOffset;
 
@@ -33,6 +45,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public uint ChildOffset => PackedTypeChildOffset & 0x3FFFFFFF;
 
+            /// <summary>
+            /// The maximum bounds.
+            /// </summary>
             public readonly Vector3 Max;
 
             /// <summary>
@@ -40,6 +55,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public readonly uint TriangleOffset;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Node"/> struct.
+            /// </summary>
             public Node(KVObject data)
             {
                 Min = data.GetSubCollection("m_vMin").ToVector3();
@@ -49,6 +67,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Represents a triangle in the mesh.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Triangle
         {
@@ -59,6 +80,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// <summary>The Z component of the triangle.</summary>
             public readonly int Z;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Triangle"/> struct.
+            /// </summary>
             public Triangle(KVObject data)
             {
                 var indices = data.GetArray<object>("m_nIndex").Select(Convert.ToInt32).ToArray();
@@ -74,7 +98,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Gets the minimum bounds.
+        /// </summary>
         public Vector3 Min { get; }
+        /// <summary>
+        /// Gets the maximum bounds.
+        /// </summary>
         public Vector3 Max { get; }
 
 
@@ -87,8 +117,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// Fraction 0..1 of coverage along YZ,ZX,XY sides of AABB
         /// </summary>
         public Vector3 OrthographicAreas { get; }
+        /// <summary>
+        /// Gets the raw data.
+        /// </summary>
         public KVObject Data { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Mesh"/> struct.
+        /// </summary>
         public Mesh(KVObject data)
         {
             Data = data;

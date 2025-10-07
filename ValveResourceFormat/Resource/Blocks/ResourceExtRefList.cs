@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Blocks
         public List<ResourceReferenceInfo> ResourceRefInfoList { get; private set; }
 
         /// <summary>
-        /// Gets the resource name by its identifier.
+        /// Gets the resource name mapped to the specified identifier, or <c>null</c> if missing.
         /// </summary>
         public string this[ulong id]
         {

@@ -15,7 +15,7 @@ namespace ValveResourceFormat.IO
         /// Represents an installed Steam app (game, tool, application, etc.)
         /// </summary>
         /// <param name="AppID">AppID of the app.</param>
-        /// <param name="AppName">Name of the path.</param>
+        /// <param name="AppName">Name of the app.</param>
         /// <param name="SteamPath">Path to the root of the Steam library where this app is installed. ("C:/Steam/steamapps")</param>
         /// <param name="GamePath">Full path to the installation directory of the app. ("C:/Steam/steamapps/common/dota 2 beta")</param>
         public record struct SteamLibraryGameInfo(int AppID, string AppName, string SteamPath, string GamePath);
@@ -107,7 +107,7 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Find all installed games in in all Steam library folders.
+        /// Find all installed games in all Steam library folders.
         /// </summary>
         /// <returns>A list of all installed Steam games.</returns>
         public static List<SteamLibraryGameInfo> FindAllSteamGames()

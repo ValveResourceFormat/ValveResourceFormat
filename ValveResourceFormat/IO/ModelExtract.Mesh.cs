@@ -38,12 +38,12 @@ partial class ModelExtract
     public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; } = [];
 
     /// <summary>
-    /// Gets or sets the physics surface property names.
+    /// Gets the physics surface property names discovered in the aggregate data.
     /// </summary>
     public string[] PhysicsSurfaceNames { get; private set; }
 
     /// <summary>
-    /// Gets or sets the physics collision tags.
+    /// Gets the physics collision tag sets associated with the current aggregate data.
     /// </summary>
     public HashSet<string>[] PhysicsCollisionTags { get; private set; }
 
@@ -609,7 +609,7 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Converts a mesh to DMX format.
+    /// Converts a Rubikon mesh shape to DMX mesh format.
     /// </summary>
     public static byte[] ToDmxMesh(RnShapes.Mesh mesh, string name,
         string uniformSurface,

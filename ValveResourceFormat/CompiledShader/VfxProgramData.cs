@@ -77,7 +77,7 @@ namespace ValveResourceFormat.CompiledShader
         public VcsAdditionalFileFlags AdditionalFiles { get; private set; }
 
         /// <summary>
-        /// Gets whether this is an S&box shader.
+        /// Gets whether this is an S&amp;box shader.
         /// </summary>
         public bool IsSbox { get; init; }
 
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.CompiledShader
         private ConfigMappingParams? dBlockConfigGen;
 
         /// <summary>
-        /// Releases binary reader.
+        /// Releases streams, readers, and any cached combo data.
         /// </summary>
         public void Dispose()
         {

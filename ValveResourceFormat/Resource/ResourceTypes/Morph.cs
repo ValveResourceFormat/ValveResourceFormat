@@ -34,16 +34,25 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public Resource TextureResource { get; private set; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Morph"/> class.
+        /// </summary>
         public Morph(BlockType type) : base(type, "MorphSetData_t")
         {
         }
 
+        /// <summary>
+        /// Gets the number of morphs.
+        /// </summary>
         public int GetMorphCount()
         {
             var flexDesc = Data.GetArray("m_FlexDesc");
             return flexDesc.Length;
         }
 
+        /// <summary>
+        /// Gets the list of flex descriptors.
+        /// </summary>
         public List<string> GetFlexDescriptors()
         {
             var flexDesc = Data.GetArray("m_FlexDesc");
@@ -58,6 +67,9 @@ namespace ValveResourceFormat.ResourceTypes
             return result;
         }
 
+        /// <summary>
+        /// Gets the flex vertex data as a dictionary mapping flex names to vertex positions.
+        /// </summary>
         public Dictionary<string, Vector3[]> GetFlexVertexData()
         {
             var flexData = new Dictionary<string, Vector3[]>();
@@ -156,6 +168,9 @@ namespace ValveResourceFormat.ResourceTypes
             return flexData;
         }
 
+        /// <summary>
+        /// Loads flex data from the file loader.
+        /// </summary>
         public void LoadFlexData(IFileLoader fileLoader)
         {
             var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
@@ -257,6 +272,9 @@ namespace ValveResourceFormat.ResourceTypes
             return kvObj as KVObject;
         }
 
+        /// <summary>
+        /// Gets the morph data collection.
+        /// </summary>
         public KVObject GetMorphDatas()
         {
             return GetMorphKeyValueCollection(Data, "m_morphDatas");

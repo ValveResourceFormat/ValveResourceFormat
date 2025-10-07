@@ -2,6 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
+    /// <summary>
+    /// Decodes delta-compressed Vector3 animation data with a base value and half-precision deltas.
+    /// </summary>
     public class CCompressedDeltaVector3 : AnimationSegmentDecoder
     {
         /// <inheritdoc/>

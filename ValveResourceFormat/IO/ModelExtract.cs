@@ -37,7 +37,7 @@ public partial class ModelExtract
 #pragma warning restore CS1591
     }
 
-    /// <summary>Gets or sets the extraction type.</summary>
+    /// <summary>Gets the extraction type to apply when generating assets.</summary>
     public ModelExtractType Type { get; init; } = ModelExtractType.Default;
 
     /// <summary>

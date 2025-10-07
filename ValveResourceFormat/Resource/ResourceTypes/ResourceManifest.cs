@@ -6,12 +6,20 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a resource manifest.
+    /// </summary>
     public class ResourceManifest : Block
     {
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
+        /// <summary>
+        /// Gets the list of resources in the manifest.
+        /// </summary>
         public List<List<string>> Resources { get; private set; } = [];
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -81,11 +89,13 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             GetPrintabaleObject().WriteText(writer);

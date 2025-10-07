@@ -357,12 +357,12 @@ public static partial class ShaderSpirvReflection
     }
 
     /// <summary>
-    /// Gets the variable name for a sampler at a given binding point.
+    /// Builds a descriptive sampler name for a given binding point.
     /// </summary>
     /// <param name="program">The shader program data.</param>
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="samplerBinding">The sampler binding point.</param>
-    /// <returns>The sampler variable name, or "undetermined" if not found.</returns>
+    /// <returns>A concatenated sampler state description, or "undetermined" if no sampler is bound at the slot.</returns>
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint samplerBinding)
     {
@@ -469,7 +469,7 @@ public static partial class ShaderSpirvReflection
     /// <param name="bufferName">The buffer name.</param>
     /// <param name="index">The member index (optional).</param>
     /// <param name="offset">The member offset (optional).</param>
-    /// <returns>The member name, or an empty string if not found.</returns>
+    /// <returns>The member name when found, <see cref="string.Empty"/> when the buffer is unknown, or "undetermined" when no selector is supplied.</returns>
     public static string GetBufferMemberName(VfxProgramData program, string bufferName, int index = -1,
         int offset = -1)
     {

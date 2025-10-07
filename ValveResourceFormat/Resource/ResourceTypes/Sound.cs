@@ -108,9 +108,7 @@ namespace ValveResourceFormat.ResourceTypes
 #pragma warning restore CS1591
         }
 
-        /// <summary>
-        /// Gets the block type, which is always DATA.
-        /// </summary>
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
         /// <summary>
@@ -185,6 +183,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private BinaryReader Reader => Resource.Reader;
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -277,6 +276,9 @@ namespace ValveResourceFormat.ResourceTypes
             ReadPhonemeStream(reader, sentenceOffset);
         }
 
+        /// <summary>
+        /// Constructs sound data from the control block.
+        /// </summary>
         public bool ConstructFromCtrl()
         {
             Offset = Resource.FileSize;
@@ -481,11 +483,13 @@ namespace ValveResourceFormat.ResourceTypes
             return stream;
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine($"SoundType: {SoundType}");

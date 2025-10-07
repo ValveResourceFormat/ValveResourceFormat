@@ -1,9 +1,16 @@
 namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 {
+    /// <summary>
+    /// Flex operation that performs N-way blending between values.
+    /// </summary>
     public class FlexOpNWay : FlexOp
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FlexOpNWay"/> class.
+        /// </summary>
         public FlexOpNWay(float data) : base(data) { }
 
+        /// <inheritdoc/>
         public override void Run(in FlexRuleContext context)
         {
             var tController = BitConverter.SingleToInt32Bits(context.Stack.Pop());

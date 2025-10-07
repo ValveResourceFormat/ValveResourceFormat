@@ -2,16 +2,31 @@
 
 namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 {
+    /// <summary>
+    /// Base class for flex operations.
+    /// </summary>
     public abstract class FlexOp
     {
+        /// <summary>
+        /// Gets the data associated with this operation.
+        /// </summary>
         public float Data { get; private set; }
+        /// <summary>
+        /// Executes the flex operation.
+        /// </summary>
         public abstract void Run(in FlexRuleContext context);
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FlexOp"/> class.
+        /// </summary>
         protected FlexOp(float data)
         {
             Data = data;
         }
 
+        /// <summary>
+        /// Builds a flex operation from an opcode and data.
+        /// </summary>
         public static FlexOp Build(string opCode, int data)
         {
             var floatData = BitConverter.Int32BitsToSingle(data);

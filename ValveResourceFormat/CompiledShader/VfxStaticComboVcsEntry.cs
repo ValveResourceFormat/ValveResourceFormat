@@ -143,6 +143,7 @@ public class VfxStaticComboVcsEntry
     }
 
 #if false
+    /// <inheritdoc/>
     public override string ToString()
     {
         var comprDesc = CompressionType switch

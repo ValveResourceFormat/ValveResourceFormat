@@ -339,7 +339,7 @@ internal class CDmePolygonMeshDataArray : DMElement
 {
     public int Size { get; set; }
     /// <summary>
-    /// Array of <see cref="CDmePolygonMeshDataStream"/>.
+    /// Array of <see cref="CDmePolygonMeshDataStream{T}"/>.
     /// </summary>
     public Datamodel.ElementArray Streams { get; } = [];
 }
@@ -349,7 +349,7 @@ internal class CDmePolygonMeshSubdivisionData : DMElement
 {
     public Datamodel.IntArray SubdivisionLevels { get; } = [];
     /// <summary>
-    /// Array of <see cref="CDmePolygonMeshDataStream"/>.
+    /// Array of <see cref="CDmePolygonMeshDataStream{T}"/>.
     /// </summary>
     public Datamodel.ElementArray Streams { get; } = [];
 }

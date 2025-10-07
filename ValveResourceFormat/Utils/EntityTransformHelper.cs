@@ -3,8 +3,18 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Utils
 {
+    /// <summary>
+    /// Helper methods for entity transformations.
+    /// </summary>
     public static class EntityTransformHelper
     {
+        /// <summary>
+        /// Extracts scale, rotation, and position components from an entity's transformation.
+        /// </summary>
+        /// <param name="entity">The entity to extract from.</param>
+        /// <param name="scaleVector">The scale vector.</param>
+        /// <param name="rotationMatrix">The rotation matrix.</param>
+        /// <param name="positionVector">The position vector.</param>
         public static void DecomposeTransformationMatrix(Entity entity, out Vector3 scaleVector, out Matrix4x4 rotationMatrix, out Vector3 positionVector)
         {
             scaleVector = entity.GetVector3Property("scales");
@@ -14,6 +24,11 @@ namespace ValveResourceFormat.Utils
             rotationMatrix = CreateRotationMatrixFromEulerAngles(pitchYawRoll);
         }
 
+        /// <summary>
+        /// Creates a rotation matrix from Euler angles (pitch, yaw, roll).
+        /// </summary>
+        /// <param name="pitchYawRoll">The Euler angles.</param>
+        /// <returns>The rotation matrix.</returns>
         public static Matrix4x4 CreateRotationMatrixFromEulerAngles(Vector3 pitchYawRoll)
         {
             Matrix4x4 rotationMatrix;
@@ -25,6 +40,11 @@ namespace ValveResourceFormat.Utils
             return rotationMatrix;
         }
 
+        /// <summary>
+        /// Calculates the full transformation matrix for an entity.
+        /// </summary>
+        /// <param name="entity">The entity.</param>
+        /// <returns>The transformation matrix.</returns>
         public static Matrix4x4 CalculateTransformationMatrix(Entity entity)
         {
             DecomposeTransformationMatrix(entity, out var scaleVector, out var rotationMatrix, out var positionVector);
@@ -35,6 +55,11 @@ namespace ValveResourceFormat.Utils
             return scaleMatrix * rotationMatrix * positionMatrix;
         }
 
+        /// <summary>
+        /// Parses a string representation of a Vector3.
+        /// </summary>
+        /// <param name="input">The input string.</param>
+        /// <returns>The parsed vector.</returns>
         public static Vector3 ParseVector(string input)
         {
             if (string.IsNullOrEmpty(input))

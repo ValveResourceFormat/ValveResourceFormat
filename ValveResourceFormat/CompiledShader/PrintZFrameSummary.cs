@@ -74,7 +74,7 @@ namespace ValveResourceFormat.CompiledShader
          * Because the write sequences are often repeated, we only print the unique ones.
          */
         /// <summary>
-        /// Gets unique write sequences.
+        /// Builds a lookup of unique write sequences, keyed by their serialized payload.
         /// </summary>
         public Dictionary<string, int> GetUniqueWriteSequences()
         {

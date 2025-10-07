@@ -97,9 +97,7 @@ public class VfxShaderAttribute
 
     }
 
-    /// <summary>
-    /// Returns a string representation of the attribute.
-    /// </summary>
+    /// <inheritdoc/>
     public override string ToString()
     {
         if (DynExpression != null)

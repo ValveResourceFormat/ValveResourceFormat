@@ -5,15 +5,28 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    /// <summary>
+    /// Represents a model skeleton with bones arranged in a hierarchy.
+    /// </summary>
     public class Skeleton
     {
+        /// <summary>
+        /// Gets the root bones of the skeleton.
+        /// </summary>
         public Bone[] Roots { get; private set; }
+
+        /// <summary>
+        /// Gets all bones in the skeleton.
+        /// </summary>
         public Bone[] Bones { get; private set; }
 
+        /// <summary>
+        /// Gets the root bone for cloth simulation, if present.
+        /// </summary>
         public Bone ClothSimulationRoot { get; private set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Skeleton"/> class.
+        /// Creates a skeleton from model data.
         /// </summary>
         public static Skeleton FromModelData(KVObject modelData)
         {
@@ -27,6 +40,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"));
         }
 
+        /// <summary>
+        /// Creates a skeleton from skeleton-specific data.
+        /// </summary>
         public static Skeleton FromSkeletonData(KVObject nmSkeleton)
         {
             var boneNames = nmSkeleton.GetArray<string>("m_boneIDs");

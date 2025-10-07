@@ -2,6 +2,9 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
+    /// <summary>
+    /// Flags for KeyValue values.
+    /// </summary>
     public enum KVFlag : byte
     {
 #pragma warning disable CS1591
@@ -23,16 +26,38 @@ namespace ValveResourceFormat.Serialization.KeyValues
     /// </summary>
     public readonly struct KVValue
     {
+        /// <summary>
+        /// Gets the value type.
+        /// </summary>
         public readonly KVValueType Type { get; } = KVValueType.Null;
+
+        /// <summary>
+        /// Gets the value flag.
+        /// </summary>
         public readonly KVFlag Flag { get; }
+
+        /// <summary>
+        /// Gets the value.
+        /// </summary>
         public readonly object? Value { get; } = null;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KVValue"/> struct.
+        /// </summary>
+        /// <param name="type">The value type.</param>
+        /// <param name="value">The value.</param>
         public KVValue(KVValueType type, object value)
         {
             Type = type;
             Value = value;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KVValue"/> struct.
+        /// </summary>
+        /// <param name="type">The value type.</param>
+        /// <param name="flag">The value flag.</param>
+        /// <param name="value">The value.</param>
         public KVValue(KVValueType type, KVFlag flag, object value)
         {
             Type = type;
@@ -40,6 +65,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
             Value = value;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KVValue"/> struct, inferring the type from the value.
+        /// </summary>
+        /// <param name="value">The value.</param>
         public KVValue(object? value)
         {
             if (value is KVValue v)

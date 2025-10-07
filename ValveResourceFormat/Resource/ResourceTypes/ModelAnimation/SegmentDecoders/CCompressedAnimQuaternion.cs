@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
+    /// <summary>
+    /// Decodes compressed quaternion animation data.
+    /// </summary>
     public class CCompressedAnimQuaternion : AnimationSegmentDecoder
     {
         /// <inheritdoc/>

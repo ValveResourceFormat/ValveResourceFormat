@@ -164,7 +164,7 @@ public class DmeFaceSet : DMElement
     public Datamodel.IntArray Faces { get; } = [];
 
     /// <summary>
-    /// Gets or sets the material for this face set.
+    /// Gets the material definition associated with this face set.
     /// </summary>
     public DmeMaterial Material { get; } = new() { Name = "material" };
 

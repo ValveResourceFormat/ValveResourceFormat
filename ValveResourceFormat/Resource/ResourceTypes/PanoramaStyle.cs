@@ -5,10 +5,14 @@ using System.Text;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a Panorama style resource.
+    /// </summary>
     public class PanoramaStyle : Panorama
     {
         private BinaryKV3 SourceMap;
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
@@ -16,6 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
             SourceMap = Resource.GetBlockByType(BlockType.SrMa) as BinaryKV3;
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             if (SourceMap != default && SourceMap.Data.GetProperty<object>("DBITSLC") is not null)
