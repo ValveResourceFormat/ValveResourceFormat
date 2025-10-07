@@ -1,2 +1,3 @@
-- name: Read resource
-  href: read-resource.md
+- name: Introduction
+  href: ../index.md
+- href: read-resource.md
