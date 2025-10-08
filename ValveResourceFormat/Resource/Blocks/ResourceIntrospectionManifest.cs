@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceIntrospectionManifest : RawBinary
     {
-        // Serialize legacy info by copying raw data from the original resource beacuse we have no plans to support NTRO serialization
+        // Serialize legacy info by copying raw data from the original resource because we have no plans to support NTRO serialization
         /// <inheritdoc/>
         public override BlockType Type => BlockType.NTRO;
 

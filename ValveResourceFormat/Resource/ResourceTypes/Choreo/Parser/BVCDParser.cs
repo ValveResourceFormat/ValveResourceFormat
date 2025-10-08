@@ -195,7 +195,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 OutType = toCurve
             };
 
-            //There's two more bytes here, but only curve type and zero value can be set from (v9) faceposer. Is there something else here for newer versions?
+            //There are two more bytes here, but only curve type and zero value can be set from (v9) faceposer. Is there something else here for newer versions?
             var unk = reader.ReadUInt16();
             Debug.Assert(unk == 0);
 

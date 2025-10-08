@@ -395,8 +395,8 @@ namespace ValveResourceFormat.IO
         }
     }
     //the bulk of the work is done in the AddFace() function
-    //GenerateMesh() just loops trough the vertex, halfedge and face lists and writes their data to the vmap in the correct format
-    //we could technically get rid of this function and write data to the vmap as its generated
+    //GenerateMesh() just loops through the vertex, halfedge and face lists and writes their data to the vmap in the correct format
+    //we could technically get rid of this function and write data to the vmap as it's generated
     //but that seems quite inelegant since if the AddFace() algo changes, the code for writing to vmap has to change/move
     internal class HammerMeshBuilder
     {
@@ -856,7 +856,7 @@ namespace ValveResourceFormat.IO
             }
 
             // link boundary half edges
-            // TODO: it would be nice to find a way to generalize this code so theres no code duplication for
+            // TODO: it would be nice to find a way to generalize this code so there's no code duplication for
             // linking prev/next boundaries, maybe even find a way to only have to link next with some smart logic
             // because right now if you have a triangle, processing 2/3 of its edges will also link the 3rd edge
             // but then the algorithm still goes over the 3rd edge linking it, couldn't figure out nice logic to avoid that
@@ -903,7 +903,7 @@ namespace ValveResourceFormat.IO
 
                     // if the destvert of the half edge related with the vertex is the same as our origin vertex
                     // and it doesn't have a next (valid prev)
-                    // and it's next HAS A FACE (boundary that got overriden as inner)
+                    // and it's next HAS A FACE (boundary that got overridden as inner)
                     // store the boundary with an inner as next for later
                     if (he.destVert == boundary.origVert)
                     {
@@ -939,7 +939,7 @@ namespace ValveResourceFormat.IO
                         halfEdgeModifier.ChangeHalfEdgePrev(boundary, potentialBoundaryWithAnInnerAsNextIdx);
                         halfEdgeModifier.ChangeHalfEdgeNext(HalfEdges[potentialBoundaryWithAnInnerAsNextIdx], boundaryIdx);
                     }
-                    // if no face merge happened, we can still get prev, but its a bit trickier
+                    // if no face merge happened, we can still get prev, but it's a bit trickier
                     // we have to circulate away from the opposite boundary, until we find another boundary
                     // checking for twin here because of how the circulator works
                     else

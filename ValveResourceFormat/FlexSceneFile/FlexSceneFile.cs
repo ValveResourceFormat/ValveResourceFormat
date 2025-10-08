@@ -139,7 +139,7 @@ namespace ValveResourceFormat.FlexSceneFile
             var flexSettingIndex = reader.ReadInt32(); //Position - Start of flex settings for each phoneme
             reader.BaseStream.Position += 4; // [nameindex] Position - Filename string
             reader.BaseStream.Position += 4; // [numindexes] Number of indexes in the indexindex map
-            reader.BaseStream.Position += 4; // [indexindex] Position - numindexes number of int32's, seems to be used only by flexsettings to point to it's own id
+            reader.BaseStream.Position += 4; // [indexindex] Position - numindexes number of int32's, seems to be used only by flexsettings to point to its own id
             var numKeys = reader.ReadInt32(); //Number of used flex controllers ($keys in phonemes.txt)
             var keyNameIndex = reader.ReadInt32(); //Position - Points to numKeys number of positions, which point to each flex controller's string
             reader.BaseStream.Position += 4; // [keymappingindex] Position - Points to numKeys * 4 number of 0xFF bytes in all cases found

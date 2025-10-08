@@ -27,7 +27,7 @@ namespace CLI
     public partial class Decompiler
     {
         private readonly Dictionary<string, ResourceStat> stats = [];
-        private readonly Dictionary<string, string> uniqueSpecialDependancies = [];
+        private readonly Dictionary<string, string> uniqueSpecialDependencies = [];
         private readonly HashSet<string> unknownEntityKeys = [];
         private HashSet<string>? knownEntityKeys;
 
@@ -390,9 +390,9 @@ namespace CLI
                 if (StatsPrintUniqueDependencies)
                 {
                     Console.WriteLine();
-                    Console.WriteLine("Unique special dependancies:");
+                    Console.WriteLine("Unique special dependencies:");
 
-                    foreach (var stat in uniqueSpecialDependancies)
+                    foreach (var stat in uniqueSpecialDependencies)
                     {
                         Console.WriteLine($"{stat.Key} in {stat.Value}");
                     }
@@ -1538,11 +1538,11 @@ namespace CLI
 
             if (resource.EditInfo != null)
             {
-                lock (uniqueSpecialDependancies)
+                lock (uniqueSpecialDependencies)
                 {
                     foreach (var dep in resource.EditInfo.SpecialDependencies)
                     {
-                        uniqueSpecialDependancies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
+                        uniqueSpecialDependencies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
                     }
                 }
             }

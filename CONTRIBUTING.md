@@ -16,7 +16,7 @@ actually load and test the new files.
 
 ## Shaders
 
-If you are modifying shaders, you need to run shader validator to ensure all shaders compile sucessfully, as we use runtime compilation.
+If you are modifying shaders, you need to run shader validator to ensure all shaders compile successfully, as we use runtime compilation.
 To perform full validation:
 ```sh
 dotnet run --project misc/shadervalidator

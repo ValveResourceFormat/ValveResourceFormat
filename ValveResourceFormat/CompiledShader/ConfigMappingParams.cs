@@ -128,7 +128,7 @@ namespace ValveResourceFormat.CompiledShader
          * nr_states =  [1    2    2    2    2    2    2    2    3    2    2    2]
          *
          * Note S_TOOLS_ENABLED only has one state (which is off). It appears to be disabled (possibly
-         * because it is a dev parameter), it's also possible that it is controlled by an external arguments.
+         * because it is a dev parameter), it's also possible that it is controlled by external arguments.
          *
          *
          * for blur_pcgl_30_ps.vcs (core)

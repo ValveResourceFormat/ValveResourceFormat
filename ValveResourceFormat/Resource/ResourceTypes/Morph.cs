@@ -226,7 +226,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (flexOps.Any(op => op == null))
             {
-                //There's an unimplemented flexop type in this rule, let's make a flexrule that sets the morph to zero instead to avoid exceptions.
+                //There is an unimplemented flexop type in this rule, let's make a flexrule that sets the morph to zero instead to avoid exceptions.
                 flexOps = [new FlexOpConst(0f)];
             }
 

@@ -140,7 +140,7 @@ namespace GUI.Types.ParticleRenderer
     }
 
     // Particle Float
-    // Note that the per-particle parameters are not useable in intializers, so we don't need to account for that somehow
+    // Note that the per-particle parameters are not usable in initializers, so we don't need to account for that somehow
     class PerParticleNumberProvider : INumberProvider
     {
         private readonly ParticleField field;

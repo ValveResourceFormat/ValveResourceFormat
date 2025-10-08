@@ -209,7 +209,7 @@ namespace Tests
          *   => return is always implied and mandatory
          *
          * In the places where myvar appears the identifier (51 A2 54 EA) is the same (it is the murmur32 of the string).
-         * 0x19 retrieves its value and 0x1F retrives it's existence (true/false) or in float rep (1.0/0.0)
+         * 0x19 retrieves its value and 0x1F retrieves its existence (true/false) or in float rep (1.0/0.0)
          *
          */
         [Test]
