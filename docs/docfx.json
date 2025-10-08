@@ -49,7 +49,7 @@
 			"_appTitle": "ValveResourceFormat",
             "_appLogoPath": "images/source2viewer_dark.png",
             "_appFaviconPath": "images/source2viewer.ico",
-            "_appFooter": "",
+            "_appFooter": "This project is not affiliated with Valve Software. Source 2 is a trademark and/or registered trademark of Valve Corporation.",
 			"_enableSearch": true,
             "_lang": "en",
 			"pdf": false
