@@ -69,7 +69,7 @@ public class AnimationGraphExtract
     /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
     /// </summary>
-    /// <returns>The animation graph as a KV3 string in version 19 format.</returns>
+    /// <returns>The animation graph as a <see cref="KV3File"/> string in version 19 format.</returns>
     public string ToEditableAnimGraphVersion19()
     {
         var data = graph.GetSubCollection("m_pSharedData");

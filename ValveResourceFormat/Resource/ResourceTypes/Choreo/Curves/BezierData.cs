@@ -48,9 +48,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
         public float OutWeight { get; set; }
 
         /// <summary>
-        /// Converts this Bezier data to a KeyValue.
+        /// Converts this Bezier data to a <see cref="KVValue"/>.
         /// </summary>
-        /// <returns>A KeyValue representing this Bezier data.</returns>
+        /// <returns>A <see cref="KVValue"/> representing this Bezier data.</returns>
         public readonly KVValue ToKeyValue()
         {
             var kv = new KVObject(null);

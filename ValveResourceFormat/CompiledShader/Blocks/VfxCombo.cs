@@ -37,7 +37,7 @@ public class VfxCombo : ShaderDataBlock
     public string[] Strings { get; } = [];
 
     /// <summary>
-    /// Initializes a new instance from KeyValues data.
+    /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
     public VfxCombo(KVObject data, int blockIndex) : base()
     {

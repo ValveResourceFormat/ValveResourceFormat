@@ -28,7 +28,7 @@ public class VfxShaderAttribute
     public object? ConstValue { get; }
 
     /// <summary>
-    /// Initializes a new instance from KeyValues data.
+    /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
     public VfxShaderAttribute(KVObject data)
     {

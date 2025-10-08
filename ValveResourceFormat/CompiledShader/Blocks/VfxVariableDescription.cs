@@ -128,9 +128,9 @@ public class VfxVariableDescription : ShaderDataBlock
     public bool IsLayerConstant { get; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="VfxVariableDescription"/> class from KeyValues data.
+    /// Initializes a new instance of the <see cref="VfxVariableDescription"/> class from <see cref="KVObject"/> data.
     /// </summary>
-    /// <param name="data">The KeyValues object containing variable data.</param>
+    /// <param name="data">The <see cref="KVObject"/> containing variable data.</param>
     /// <param name="blockIndex">The block index for this variable.</param>
     public VfxVariableDescription(KVObject data, int blockIndex) : base()
     {

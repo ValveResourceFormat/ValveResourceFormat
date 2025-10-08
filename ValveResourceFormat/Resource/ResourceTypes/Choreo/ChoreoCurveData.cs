@@ -38,9 +38,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         }
 
         /// <summary>
-        /// Converts this curve data to a KeyValues object.
+        /// Converts this curve data to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A KeyValues object representing this curve data.</returns>
+        /// <returns>A <see cref="KVObject"/> representing this curve data.</returns>
         //TODO: This doesn't print edges, though they're not part of the ramp object in .vcds either.
         //Maybe return an array of kvobjects instead? That'd be different from the other choreo classes though.
         public KVObject ToKeyValues()

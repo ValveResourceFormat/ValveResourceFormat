@@ -65,9 +65,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         public bool TranslationOnly { get; init; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Hitbox"/> class from KeyValues data.
+        /// Initializes a new instance of the <see cref="Hitbox"/> class from <see cref="KVObject"/> data.
         /// </summary>
-        /// <param name="data">The KeyValues data containing hitbox information.</param>
+        /// <param name="data">The <see cref="KVObject"/> containing hitbox information.</param>
         public Hitbox(KVObject data)
         {
             Name = data.GetStringProperty("m_name");

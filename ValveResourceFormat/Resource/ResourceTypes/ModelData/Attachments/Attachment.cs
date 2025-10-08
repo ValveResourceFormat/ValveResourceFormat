@@ -66,9 +66,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
         public int Length => influences.Length;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="Attachment"/> class from KeyValues data.
+        /// Initializes a new instance of the <see cref="Attachment"/> class from <see cref="KVObject"/> data.
         /// </summary>
-        /// <param name="attachmentData">The KeyValues data containing attachment information.</param>
+        /// <param name="attachmentData">The <see cref="KVObject"/> containing attachment information.</param>
         public Attachment(KVObject attachmentData)
         {
             var valueData = attachmentData.GetSubCollection("value") ?? attachmentData;

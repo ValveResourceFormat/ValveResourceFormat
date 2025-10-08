@@ -6,7 +6,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
-    /// Block that can contain either KeyValues or NTRO data.
+    /// Block that can contain either <see cref="KVObject"/> or <see cref="NTRO"/> data.
     /// </summary>
     public class KeyValuesOrNTRO : Block
     {
@@ -16,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes
         public override BlockType Type => KVBlockType;
 
         /// <summary>
-        /// Gets the parsed data as a KVObject.
+        /// Gets the parsed data as a <see cref="KVObject"/>.
         /// </summary>
         public KVObject Data { get; private set; }
 
@@ -34,7 +34,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Initializes a new instance of the <see cref="KeyValuesOrNTRO"/> class with a specific block type and introspection struct name.
         /// </summary>
         /// <param name="type">The block type.</param>
-        /// <param name="introspectionStructName">The introspection struct name for NTRO parsing.</param>
+        /// <param name="introspectionStructName">The introspection struct name for <see cref="NTRO"/> parsing.</param>
         public KeyValuesOrNTRO(BlockType type, string introspectionStructName)
         {
             KVBlockType = type;

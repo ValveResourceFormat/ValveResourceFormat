@@ -30,9 +30,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         }
 
         /// <summary>
-        /// Converts this edge to a KeyValues object.
+        /// Converts this edge to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A KeyValues object representing this edge.</returns>
+        /// <returns>A <see cref="KVObject"/> representing this edge.</returns>
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null);

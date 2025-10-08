@@ -72,9 +72,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         }
 
         /// <summary>
-        /// Converts this scene to a KeyValues object.
+        /// Converts this scene to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A KeyValues object representing this scene.</returns>
+        /// <returns>A <see cref="KVObject"/> representing this scene.</returns>
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null);

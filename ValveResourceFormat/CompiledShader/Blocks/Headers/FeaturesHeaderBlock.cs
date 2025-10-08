@@ -22,7 +22,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public List<(string Name, string Shader, string StaticConfig, int Value)> Modes { get; } = [];
 
     /// <summary>
-    /// Initializes a new instance from KeyValues data.
+    /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
     public FeaturesHeaderBlock(KVObject data)
     {

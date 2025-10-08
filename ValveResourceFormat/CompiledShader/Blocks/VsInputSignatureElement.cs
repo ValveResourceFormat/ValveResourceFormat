@@ -18,7 +18,7 @@ public class VsInputSignatureElement : ShaderDataBlock
     public InputSignatureElement[] SymbolsDefinition { get; } = [];
 
     /// <summary>
-    /// Initializes a new instance from KeyValues data.
+    /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
     public VsInputSignatureElement(KVObject data, int blockIndex) : base()
     {

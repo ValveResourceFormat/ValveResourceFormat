@@ -23,7 +23,7 @@ public class VfxTextureChannelProcessor : ShaderDataBlock
     public string TexProcessorName { get; }
 
     /// <summary>
-    /// Initializes a new instance from KeyValues data.
+    /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
     public VfxTextureChannelProcessor(KVObject data, int blockIndex) : base()
     {

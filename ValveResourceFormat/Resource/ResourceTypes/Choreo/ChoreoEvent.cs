@@ -136,9 +136,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         public string PreferredName { get; init; }
 
         /// <summary>
-        /// Converts this event to a KeyValues object.
+        /// Converts this event to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A KeyValues object representing this event.</returns>
+        /// <returns>A <see cref="KVObject"/> representing this event.</returns>
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null);

@@ -48,9 +48,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
         public readonly string OutTypeName => Interpolators[OutType];
 
         /// <summary>
-        /// Converts this curve type to a KeyValue.
+        /// Converts this curve type to a <see cref="KVValue"/>.
         /// </summary>
-        /// <returns>A KeyValue representing this curve type.</returns>
+        /// <returns>A <see cref="KVValue"/> representing this curve type.</returns>
         public readonly KVValue ToKeyValue()
         {
             var curveType = $"curve_{InTypeName}_to_curve_{OutTypeName}";

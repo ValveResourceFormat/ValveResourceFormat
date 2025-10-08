@@ -76,9 +76,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         }
 
         /// <summary>
-        /// Converts this sample to a KeyValues object.
+        /// Converts this sample to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A KeyValues object representing this sample.</returns>
+        /// <returns>A <see cref="KVObject"/> representing this sample.</returns>
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null);

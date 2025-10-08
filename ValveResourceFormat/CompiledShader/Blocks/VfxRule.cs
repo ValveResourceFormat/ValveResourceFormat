@@ -29,7 +29,7 @@ public class VfxRule : ShaderDataBlock
     private const int MaxArgs = 16;
 
     /// <summary>
-    /// Initializes a new instance from KeyValues data.
+    /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
     public VfxRule(KVObject data, int blockIndex) : base()
     {

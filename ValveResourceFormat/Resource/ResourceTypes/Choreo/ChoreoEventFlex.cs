@@ -24,9 +24,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         }
 
         /// <summary>
-        /// Converts this event flex to a KeyValues object.
+        /// Converts this event flex to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A KeyValues object representing this event flex.</returns>
+        /// <returns>A <see cref="KVObject"/> representing this event flex.</returns>
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null, true, Tracks.Length);

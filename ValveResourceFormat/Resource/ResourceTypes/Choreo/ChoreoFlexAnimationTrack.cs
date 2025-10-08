@@ -60,9 +60,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         }
 
         /// <summary>
-        /// Converts this track to a KeyValues object.
+        /// Converts this track to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A KeyValues object representing this track.</returns>
+        /// <returns>A <see cref="KVObject"/> representing this track.</returns>
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null);

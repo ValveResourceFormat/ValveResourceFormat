@@ -38,9 +38,9 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         }
 
         /// <summary>
-        /// Converts this channel to a KeyValues object.
+        /// Converts this channel to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A KeyValues object representing this channel.</returns>
+        /// <returns>A <see cref="KVObject"/> representing this channel.</returns>
         public KVObject ToKeyValues()
         {
             var kv = new KVObject(null);
