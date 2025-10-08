@@ -37,6 +37,9 @@ public class VfxShaderFileDXBC : VfxShaderFile
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// DXBC decompilation is not supported. This method always throws an InvalidOperationException.
+    /// </remarks>
     public override string GetDecompiledFile()
     {
         throw new InvalidOperationException("DXBC decompilation is not supported.");

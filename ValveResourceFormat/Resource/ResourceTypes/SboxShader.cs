@@ -91,6 +91,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Lists all shader program types contained in the collection.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             foreach (var shader in Shaders)

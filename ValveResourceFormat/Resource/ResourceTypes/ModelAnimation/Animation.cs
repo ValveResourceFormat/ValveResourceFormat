@@ -362,6 +362,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the animation name.
+        /// </remarks>
         public override string ToString()
         {
             return Name;

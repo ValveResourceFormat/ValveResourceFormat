@@ -11,6 +11,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         public FlexOpConst(float data) : base(data) { }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Pushes the constant data value onto the stack.
+        /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
             context.Stack.Push(Data);

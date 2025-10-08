@@ -490,6 +490,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs sound metadata including sample rate, format, and channel information.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine($"SoundType: {SoundType}");

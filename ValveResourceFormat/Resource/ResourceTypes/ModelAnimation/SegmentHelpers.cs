@@ -14,6 +14,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public static implicit operator Vector3(Half3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the vector components formatted as "&lt;X Y Z&gt;" with 3 decimal places.
+        /// </remarks>
         public readonly override string ToString() => $"<{X:0.000} {Y:0.000} {Z:0.000}>";
     }
 

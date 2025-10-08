@@ -100,6 +100,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the Panorama data as UTF-8 encoded text.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.Write(Encoding.UTF8.GetString(Data));

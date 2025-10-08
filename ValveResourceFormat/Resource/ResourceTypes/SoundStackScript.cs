@@ -64,6 +64,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Writes each sound stack script entry with its name as a comment.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             foreach (var entry in SoundStackScriptValue)

@@ -38,6 +38,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Converts the binary KeyValues to text format and writes it.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             using var ms = new MemoryStream();

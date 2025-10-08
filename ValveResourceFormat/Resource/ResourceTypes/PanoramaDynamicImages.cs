@@ -9,6 +9,9 @@ namespace ValveResourceFormat.ResourceTypes
     {
         // TODO: This might need to live in `Panorama`
         /// <inheritdoc/>
+        /// <remarks>
+        /// Lists all dynamic images with their dimensions and metadata.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine($"CRC: {CRC32:X8}");

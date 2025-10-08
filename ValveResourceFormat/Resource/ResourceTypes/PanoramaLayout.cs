@@ -23,6 +23,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the layout content in a formatted XML-like structure.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             if (_layoutContent == default)

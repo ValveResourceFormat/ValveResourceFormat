@@ -246,6 +246,9 @@ namespace ValveResourceFormat.NavMesh
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns a formatted summary of the navigation mesh including version, area count, and generation parameters.
+        /// </remarks>
         public override string ToString()
         {
             var stringBuilder = new StringBuilder();

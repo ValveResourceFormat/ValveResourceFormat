@@ -875,6 +875,9 @@ namespace ValveResourceFormat.Blocks
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs information about vertex and index buffers including their attributes and formats.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("Vertex buffers:");

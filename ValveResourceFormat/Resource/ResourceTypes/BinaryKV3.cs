@@ -1120,6 +1120,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Converts the binary KV3 data to text format and writes it.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             GetKV3File().WriteText(writer);

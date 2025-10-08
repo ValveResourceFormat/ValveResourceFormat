@@ -217,6 +217,9 @@ public class VfxShaderFileVulkan : VfxShaderFile
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Decompiles SPIR-V bytecode to HLSL or GLSL using SPIRV-Cross reflection, attempting multiple backends until successful.
+    /// </remarks>
     public override string GetDecompiledFile()
     {
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);

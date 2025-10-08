@@ -96,6 +96,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the resource manifest as a KV3 object.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             GetPrintabaleObject().WriteText(writer);

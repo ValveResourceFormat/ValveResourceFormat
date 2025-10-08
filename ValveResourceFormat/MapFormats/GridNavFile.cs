@@ -119,6 +119,9 @@ namespace ValveResourceFormat.MapFormats
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns a formatted grid visualization with dimensions, bounds, and cell representations.
+        /// </remarks>
         public override string ToString()
         {
             var sb = new StringBuilder();

@@ -149,6 +149,9 @@ namespace ValveResourceFormat.Blocks
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the external reference list in a structured format showing resource IDs and names.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("ResourceExtRefList_t");

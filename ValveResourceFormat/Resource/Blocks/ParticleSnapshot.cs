@@ -164,6 +164,9 @@ namespace ValveResourceFormat.Blocks
             public float[] Weights { get; set; }
 
             /// <inheritdoc/>
+            /// <remarks>
+            /// Returns a space-separated list of joint-weight pairs in format: (JointName: Weight).
+            /// </remarks>
             public override string ToString()
                 => string.Join(' ', Enumerable.Range(0, 4)
                     .Select(i => $"({JointNames[i]}: {Weights[i]})"));

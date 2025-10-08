@@ -146,6 +146,9 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the channel letters (e.g., "RGBA", "RG", "A") or a hexadecimal representation if no channels are mapped.
+        /// </remarks>
         public override string ToString()
         {
             Span<char> chars = stackalloc char[Count];

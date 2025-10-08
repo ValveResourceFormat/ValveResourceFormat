@@ -113,6 +113,9 @@ partial class ModelExtract
         public string StringMaterial => string.Join('+', InteractAsStrings) + '$' + SurfacePropName;
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the hash code of the string material representation.
+        /// </remarks>
         public override int GetHashCode() => StringMaterial.GetHashCode(StringComparison.OrdinalIgnoreCase);
 
         /// <summary>

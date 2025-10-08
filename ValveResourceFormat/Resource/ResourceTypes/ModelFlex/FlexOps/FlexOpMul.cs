@@ -11,6 +11,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         public FlexOpMul(float data) : base(data) { }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Pops two values from the stack and pushes their product.
+        /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
             var v1 = context.Stack.Pop();

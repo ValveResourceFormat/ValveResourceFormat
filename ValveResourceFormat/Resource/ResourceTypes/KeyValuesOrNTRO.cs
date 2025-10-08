@@ -85,6 +85,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Writes the data as KV3 text format, regardless of the backing data source.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             if (BackingData is BinaryKV3 dataKv3)

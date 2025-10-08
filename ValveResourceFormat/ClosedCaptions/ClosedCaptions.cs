@@ -125,6 +125,9 @@ namespace ValveResourceFormat.ClosedCaptions
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Exports the captions to KeyValues1 text format (VCD format).
+        /// </remarks>
         public override string ToString()
         {
             var captionsToExport = new Dictionary<uint, string>(Captions.Count);

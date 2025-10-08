@@ -23,6 +23,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Throws NotImplementedException as this is an unknown data block type.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             throw new NotImplementedException($"Unknown data block for resource type {ResourceType}");

@@ -98,6 +98,9 @@ public class VfxShaderAttribute
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Returns a formatted string with the attribute name, hash, type, parameter index, and either the dynamic expression or constant value.
+    /// </remarks>
     public override string ToString()
     {
         if (DynExpression != null)

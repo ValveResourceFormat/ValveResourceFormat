@@ -8,6 +8,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     public class CCompressedFullFloat : AnimationSegmentDecoder
     {
         /// <inheritdoc/>
+        /// <remarks>
+        /// Reads full-precision float data directly from the data buffer.
+        /// </remarks>
         public override void Read(int frameIndex, Frame outFrame)
         {
             var offset = frameIndex * ElementCount;

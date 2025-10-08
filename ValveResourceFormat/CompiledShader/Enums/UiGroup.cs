@@ -99,6 +99,9 @@ public struct UiGroup
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the compact string representation of the UI group.
+    /// </remarks>
     public readonly override string ToString()
     {
         return CompactString;

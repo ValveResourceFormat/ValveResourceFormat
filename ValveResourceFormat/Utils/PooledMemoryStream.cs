@@ -31,6 +31,9 @@ public sealed class PooledMemoryStream : MemoryStream
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the pooled buffer to the ArrayPool when disposing.
+    /// </remarks>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);

@@ -53,12 +53,18 @@ namespace ValveResourceFormat.IO
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns texture inputs for the specified texture type, falling back to basic provider if available.
+        /// </remarks>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
             return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material);
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the filename suffix for the input texture, falling back to basic provider if available.
+        /// </remarks>
         public string GetSuffixForInputTexture(string inputName, Material material)
         {
             return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
@@ -578,6 +584,9 @@ namespace ValveResourceFormat.IO
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Provides a filename suffix based on common texture type conventions.
+        /// </remarks>
         public string GetSuffixForInputTexture(string inputName, Material material)
         {
             foreach (var (commonType, commonSuffix) in CommonTextureSuffixes)

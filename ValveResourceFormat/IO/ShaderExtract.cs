@@ -634,6 +634,9 @@ public sealed class ShaderExtract
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Generates a hash code by treating the array as a bit field.
+        /// </remarks>
         public int GetHashCode(int[] obj)
         {
             // this will collide with non boolean states, but those are rare

@@ -21,6 +21,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Writes the style content with optional source map decoding and formatting.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             if (SourceMap != default && SourceMap.Data.GetProperty<object>("DBITSLC") is not null)

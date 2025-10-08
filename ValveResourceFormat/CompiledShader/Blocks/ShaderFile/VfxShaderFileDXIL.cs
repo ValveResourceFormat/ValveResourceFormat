@@ -39,6 +39,9 @@ public class VfxShaderFileDXIL : VfxShaderFile
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// DXIL decompilation is not supported. This method always throws an InvalidOperationException.
+    /// </remarks>
     public override string GetDecompiledFile()
     {
         throw new InvalidOperationException("DXIL decompilation is not supported.");

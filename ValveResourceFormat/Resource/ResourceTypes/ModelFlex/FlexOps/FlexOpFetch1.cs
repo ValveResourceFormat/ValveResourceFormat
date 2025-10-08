@@ -20,6 +20,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Pushes the controller value onto the stack.
+        /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
             context.Stack.Push(context.ControllerValues[ControllerId]);

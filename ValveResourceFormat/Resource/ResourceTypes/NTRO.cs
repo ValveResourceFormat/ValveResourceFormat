@@ -342,6 +342,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Converts the NTRO data to KV3 format and writes it as text.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             new KV3File(Output).WriteText(writer);

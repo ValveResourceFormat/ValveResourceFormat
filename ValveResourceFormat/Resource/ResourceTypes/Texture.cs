@@ -1102,6 +1102,9 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs detailed texture metadata including dimensions, format, and flags.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("{0,-12} = {1}", "VTEX Version", Version);

@@ -34,6 +34,9 @@ public class VfxShaderFileGL : VfxShaderFile
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the GLSL shader source code as a UTF-8 string.
+    /// </remarks>
     public override string GetDecompiledFile()
     {
         return Encoding.UTF8.GetString(this.Bytecode);

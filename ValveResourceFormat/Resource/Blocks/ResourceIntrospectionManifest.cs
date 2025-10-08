@@ -457,6 +457,9 @@ namespace ValveResourceFormat.Blocks
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the introspection manifest showing all referenced structures and enums with their fields.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("CResourceIntrospectionManifest");

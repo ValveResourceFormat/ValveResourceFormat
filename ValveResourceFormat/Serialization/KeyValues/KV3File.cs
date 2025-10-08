@@ -49,6 +49,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the KV3 file as formatted text with encoding and format comments.
+        /// </remarks>
         public override string ToString()
         {
             using var writer = new IndentedTextWriter();

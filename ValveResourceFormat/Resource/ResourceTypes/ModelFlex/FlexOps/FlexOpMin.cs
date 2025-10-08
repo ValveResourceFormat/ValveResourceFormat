@@ -11,6 +11,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         public FlexOpMin(float data) : base(data) { }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Pops two values from the stack and pushes the minimum value.
+        /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
             var v1 = context.Stack.Pop();
