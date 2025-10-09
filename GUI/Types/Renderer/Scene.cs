@@ -48,6 +48,7 @@ namespace GUI.Types.Renderer
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
+        public bool IsSkyboxMap { get; set; }
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -492,18 +493,6 @@ namespace GUI.Types.Renderer
 
         public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
         {
-            if (!renderContext.View.EnableOcclusionCulling)
-            {
-                if (occlusionDirty)
-                {
-                    ClearOccludedStateRecursive(StaticOctree.Root);
-                    occlusionDirty = false;
-                    LastFrustum = -1;
-                }
-
-                return;
-            }
-
             occlusionDirty = true;
 
             GL.ColorMask(false, false, false, false);
@@ -513,7 +502,7 @@ namespace GUI.Types.Renderer
             depthOnlyShader.Use();
             GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
 
-            var maxTests = 128;
+            var maxTests = 1024;
             var maxDepth = 8;
             TestOctantsRecursive(StaticOctree.Root, renderContext.Camera.Location, ref maxTests, maxDepth);
 
@@ -525,81 +514,140 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.CullFace);
         }
 
-        private static void TestOctantsRecursive(Octree.Node octant, Vector3 cameraPosition, ref int maxTests, int maxDepth)
+        private static void TestOctantsRecursive(Octree.Node parentNode, Vector3 cameraPosition, ref int maxTests, int maxDepth)
         {
-            foreach (var octreeNode in octant.Children)
-            {
-                if (octreeNode.FrustumCulled)
-                {
-                    octreeNode.OcclusionCulled = false;
-                    octreeNode.OcculsionQuerySubmitted = false;
-                    continue;
-                }
-
-                if (!octreeNode.HasChildren)
-                {
-                    continue;
-                }
-
-                if (octreeNode.Region.Contains(cameraPosition))
-                {
-                    // if the camera is inside the octant, we can skip the occlusion test, however we still need to test the children
-                    TestOctantsRecursive(octreeNode, cameraPosition, ref maxTests, --maxDepth);
-
-                    octreeNode.OcclusionCulled = false;
-                    octreeNode.OcculsionQuerySubmitted = false;
-                    continue;
-                }
-
-                if (octreeNode.OcculsionQuerySubmitted)
-                {
-                    var visible = -1;
-                    GL.GetQueryObject(
-                        octreeNode.OcclusionQueryHandle,
-                        GetQueryObjectParam.QueryResultNoWait,
-                        out visible
-                    );
-
-                    octreeNode.OcclusionCulled = visible == 0;
-                    octreeNode.OcculsionQuerySubmitted = visible == -1;
-
-                    if (visible == 1)
-                    {
-                        TestOctantsRecursive(octreeNode, cameraPosition, ref maxTests, --maxDepth);
-                    }
-
-                    continue;
-                }
-
-                // Octree node passed frustum test, contains elements, and was not waiting for a previous query
-
-                if (octreeNode.OcclusionQueryHandle == -1)
-                {
-                    octreeNode.OcclusionQueryHandle = GL.GenQuery();
-                }
-
-                octreeNode.OcculsionQuerySubmitted = true;
-                maxTests--;
-
-                GL.VertexAttrib4(
-                    0,
-                    octreeNode.Region.Min.X,
-                    octreeNode.Region.Min.Y,
-                    octreeNode.Region.Min.Z,
-                    octreeNode.Region.Size.X
-                );
-
-                GL.VertexAttribI2(1, maxDepth, maxTests);
-
-                GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
-                GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
-                GL.EndQuery(QueryTarget.AnySamplesPassedConservative);
-            }
+            Span<bool> testChildren = stackalloc bool[8];
 
             if (maxTests < 0 || maxDepth < 0)
             {
                 return;
             }
+
+            for (var i = 0; i < parentNode.Children.Length; i++)
+            {
+                var node = parentNode.Children[i];
+                if (node.FrustumCulled)
+                {
+                    node.OcclusionCulled = false;
+                    node.OcculsionQuerySubmitted = false;
+                    continue;
+                }
+
+                // This skips leaf octants, not sure if helps
+                // if (!node.HasChildren)
+                // {
+                //     continue;
+                // }
+
+                if (node.Region.Intersects(new AABB(cameraPosition, 4f)))
+                {
+                    // if the camera is inside the octant, we can skip the occlusion test, however we still need to test the children
+                    testChildren[i] = true;
+                    node.OcclusionCulled = false;
+                    node.OcculsionQuerySubmitted = false;
+                    continue;
+                }
+
+                if (!node.OcclusionCulled)
+                {
+                    testChildren[i] = true;
+                }
+
+                // Queried on a previous frame, waiting for result
+                if (node.OcculsionQuerySubmitted)
+                {
+                    //TryGetOcclusionTestResult(node);
+                    continue;
+                }
+
+                // Octree node passed frustum test, contains subregions, and was not waiting for a previous query
+                maxTests = SubmitOctreeNodeQuery(maxTests, maxDepth, node);
+            }
+
+            for (var i = 0; i < parentNode.Children.Length; i++)
+            {
+                if (testChildren[i])
+                {
+                    TestOctantsRecursive(parentNode.Children[i], cameraPosition, ref maxTests, maxDepth - 1);
+                }
+            }
+        }
+
+        private static int SubmitOctreeNodeQuery(int maxTests, int maxDepth, Octree.Node octreeNode)
+        {
+            if (octreeNode.OcclusionQueryHandle == -1)
+            {
+                octreeNode.OcclusionQueryHandle = GL.GenQuery();
+            }
+
+            octreeNode.OcculsionQuerySubmitted = true;
+            maxTests--;
+
+            GL.VertexAttrib4(
+                0,
+                octreeNode.Region.Min.X,
+                octreeNode.Region.Min.Y,
+                octreeNode.Region.Min.Z,
+                octreeNode.Region.Size.X
+            );
+
+#if DEBUG
+            GL.VertexAttribI2(1, maxDepth, maxTests);
+#endif
+
+            GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
+            GL.EndQuery(QueryTarget.AnySamplesPassedConservative);
+
+            return maxTests;
+        }
+
+        public void GetOcclusionTestResults(bool occlusionEnabled)
+        {
+            if (!occlusionDirty)
+            {
+                return;
+            }
+
+            if (!occlusionEnabled)
+            {
+                ClearOccludedStateRecursive(StaticOctree.Root);
+                occlusionDirty = false;
+                LastFrustum = -1;
+                return;
+            }
+
+            static void CheckOcclusionQueries(Octree.Node root)
+            {
+                foreach (var child in root.Children)
+                {
+                    if (child.OcculsionQuerySubmitted)
+                    {
+                        TryGetOcclusionTestResult(child);
+                    }
+
+                    if (child.HasChildren)
+                    {
+                        CheckOcclusionQueries(child);
+                    }
+                }
+            }
+
+            CheckOcclusionQueries(StaticOctree.Root);
+        }
+
+        private static bool TryGetOcclusionTestResult(Octree.Node node)
+        {
+            var visible = -1;
+            GL.GetQueryObject(
+                node.OcclusionQueryHandle,
+                GetQueryObjectParam.QueryResultNoWait,
+                out visible
+            );
+
+            node.OcclusionCulled = visible == 0;
+            node.OcculsionQuerySubmitted = visible == -1;
+            return visible != -1;
         }
 
         public void RenderTranslucentLayer(RenderContext renderContext)

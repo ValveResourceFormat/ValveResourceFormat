@@ -361,6 +361,8 @@ namespace GUI.Types.Renderer
                 selectedNodeRenderer.Update();
 
                 Scene.SetupSceneShadows(Camera, ShadowDepthBuffer.Width);
+                Scene.GetOcclusionTestResults(EnableOcclusionCulling);
+
                 Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
                 SkyboxScene?.CollectSceneDrawCalls(Camera, lockedCullFrustum);
             }

@@ -218,7 +218,7 @@ namespace GUI.Types.Renderer
                     AddBox(vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
                     ShapeSceneNode.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
-                    if (viewer.Scene.LightingInfo.LightingData.IsSkybox == 0u)
+                    if (!viewer.Scene.IsSkyboxMap)
                     {
                         RemoveLightProbeDebugGrid();
                         node.LightProbeBinding.CrateDebugGridSpheres();
