@@ -81,8 +81,7 @@ namespace GUI.Types.Renderer
             public int MeshId = -1;
             public int ShaderId = -1;
             public int ShaderProgramId = -1;
-            public int CubeMapArrayIndices = -1;
-            public int CubeMapArrayLength = -1;
+            public int CubeMapBitmaskVisiblity = -1;
             public int MorphCompositeTexture = -1;
             public int MorphCompositeTextureSize = -1;
             public int MorphVertexIdOffset = -1;
@@ -166,8 +165,7 @@ namespace GUI.Types.Renderer
                         if (shader.Parameters.ContainsKey("S_SCENE_CUBEMAP_TYPE"))
                         {
                             uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
-                            uniforms.CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices");
-                            uniforms.CubeMapArrayLength = shader.GetUniformLocation("g_iEnvMapArrayLength");
+                            uniforms.CubeMapBitmaskVisiblity = shader.GetUniformLocation("g_nEnvMapVisibility");
                         }
 
                         if (shader.Parameters.ContainsKey("F_MORPH_SUPPORTED"))
@@ -242,21 +240,23 @@ namespace GUI.Types.Renderer
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
             }
 
-            if (uniforms.CubeMapArrayIndices != -1 && request.Node.EnvMapIds != null)
+            if (uniforms.CubeMapBitmaskVisiblity != -1)
             {
-                if (config.NeedsCubemapBinding && request.Node.EnvMaps.Count > 0)
-                {
-                    var envmap = request.Node.EnvMaps[0].EnvMapTexture;
-                    var envmapDataIndex = request.Node.EnvMapIds[0];
+                var isSteamVrEnvMaps = config.NeedsCubemapBinding && request.Node.EnvMaps.Count > 0;
+                var v = request.Node.ShaderEnvMapVisibility.ToTuple();
 
-                    SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap);
-                    GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayIndices, envmapDataIndex);
-                }
-                else
+                if (isSteamVrEnvMaps)
                 {
-                    GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayLength, request.Node.EnvMapIds.Length);
-                    GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
+                    var envmap = request.Node.EnvMaps[0];
+                    v = ((uint)envmap.ShaderIndex, 0u, 0u, 0u);
+                    SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap.EnvMapTexture);
                 }
+
+                GL.ProgramUniform4(
+                    (uint)shader.Program,
+                    uniforms.CubeMapBitmaskVisiblity,
+                    v.Item1, v.Item2, v.Item3, v.Item4
+                );
             }
 
             if (uniforms.LightProbeVolumeData != -1 && request.Node.LightProbeBinding is { } lightProbe)

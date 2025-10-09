@@ -47,7 +47,7 @@ namespace GUI.Types.Renderer
         public Scene Scene { get; }
 
         public List<SceneEnvMap> EnvMaps { get; set; } = [];
-        public int[]? EnvMapIds { get; set; }
+        public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; }
         public Vector3? LightingOrigin { get; set; }
         public int OverlayRenderOrder { get; set; }
         public int CubeMapPrecomputedHandshake { get; set; }

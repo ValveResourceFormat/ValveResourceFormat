@@ -808,12 +808,12 @@ namespace GUI.Types.Renderer
 
             LightingInfo.LightingData.EnvMapSizeConstants = new Vector4(firstTexture.NumMipLevels - 1, firstTexture.Depth, 0, 0);
 
-            int ArrayIndexCompare(SceneEnvMap a, SceneEnvMap b) => a.ArrayIndex.CompareTo(b.ArrayIndex);
+            int IndoorPriorityCompare(SceneEnvMap a, SceneEnvMap b) => b.IndoorOutdoorLevel.CompareTo(a.IndoorOutdoorLevel);
             int HandShakeCompare(SceneEnvMap a, SceneEnvMap b) => a.HandShake.CompareTo(b.HandShake);
 
             LightingInfo.EnvMaps.Sort(LightingInfo.CubemapType switch
             {
-                CubemapType.CubemapArray => ArrayIndexCompare,
+                CubemapType.CubemapArray => IndoorPriorityCompare,
                 _ => HandShakeCompare
             });
 
@@ -828,11 +828,6 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                if (LightingInfo.CubemapType == CubemapType.CubemapArray)
-                {
-                    Debug.Assert(envMap.ArrayIndex == i, "Envmap array index mismatch");
-                }
-
                 StaticOctree.Root.Query(envMap.BoundingBox, nodes);
                 DynamicOctree.Root.Query(envMap.BoundingBox, nodes); // TODO: This should actually be done dynamically
 
@@ -842,6 +837,7 @@ namespace GUI.Types.Renderer
                 }
 
                 UpdateGpuEnvmapData(envMap, i);
+                envMap.ShaderIndex = i;
                 i++;
 
                 nodes.Clear();
@@ -917,19 +913,7 @@ namespace GUI.Types.Renderer
                     return aDistance.CompareTo(bDistance);
                 });
 
-                /*
-                const int max = 16;
-                if (node.EnvMaps.Count > max)
-                {
-                    Log.Warn("Renderer", $"Performance warning: more than {max} envmaps binned for node {node.DebugName}");
-                }
-                */
-
-                node.EnvMapIds = LightingInfo.CubemapType switch
-                {
-                    CubemapType.CubemapArray => node.EnvMaps.Select(x => x.ArrayIndex).ToArray(),
-                    _ => node.EnvMaps.Select(e => LightingInfo.EnvMaps.IndexOf(e)).ToArray()
-                };
+                node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
 
 #if DEBUG
                 if (preComputed != default)
@@ -971,7 +955,7 @@ namespace GUI.Types.Renderer
             }
 
             LightingInfo.LightingData.EnvMapWorldToLocal[index] = invertedTransform;
-            LightingInfo.LightingData.EnvMapBoxMins[index] = new Vector4(envMap.LocalBoundingBox.Min, 0);
+            LightingInfo.LightingData.EnvMapBoxMins[index] = new Vector4(envMap.LocalBoundingBox.Min, envMap.ArrayIndex);
             LightingInfo.LightingData.EnvMapBoxMaxs[index] = new Vector4(envMap.LocalBoundingBox.Max, 0);
             LightingInfo.LightingData.EnvMapEdgeInvEdgeWidth[index] = new Vector4(envMap.EdgeFadeDists, 0);
             LightingInfo.LightingData.EnvMapProxySphere[index] = new Vector4(envMap.Transform.Translation, envMap.ProjectionMode);

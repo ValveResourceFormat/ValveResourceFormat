@@ -6,7 +6,7 @@ namespace GUI.Types.Renderer.Buffers
     public class LightingConstants
     {
         public const int MAX_LIGHTS = 256;
-        public const int MAX_ENVMAPS = 144;
+        public const int MAX_ENVMAPS = 128;
 
         public Vector2 LightmapUvScale;
         public uint IsSkybox;
