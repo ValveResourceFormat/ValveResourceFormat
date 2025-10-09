@@ -156,16 +156,18 @@ namespace GUI.Types.Renderer
             if (PhysicsTracer != null)
             {
                 var start = updateContext.View.Camera.Location;
-                var end = start + updateContext.View.Camera.GetForwardVector() * 1000f;
+                var end = start + updateContext.View.Camera.GetForwardVector() * 512f;
 
-                var traceResult = PhysicsTracer.TraceRay(start, end);
+                var traceResult = PhysicsTracer.TraceAABB(start, end, PhysicsTraceNodeTest.LocalBoundingBox);
                 if (traceResult.Hit)
                 {
                     PhysicsTraceNodeTest.Transform = Matrix4x4.CreateTranslation(traceResult.HitPosition);
+                    PhysicsTraceNodeTest.Tint = new Vector4(0, 1, 0, 1);
                 }
                 else
                 {
                     PhysicsTraceNodeTest.Transform = Matrix4x4.CreateTranslation(end);
+                    PhysicsTraceNodeTest.Tint = new Vector4(1, 0, 0, 1);
                 }
             }
 
