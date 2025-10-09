@@ -493,6 +493,11 @@ namespace GUI.Types.Renderer
 
         public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
         {
+            if (!renderContext.View.EnableOcclusionCulling)
+            {
+                return;
+            }
+
             occlusionDirty = true;
 
             GL.ColorMask(false, false, false, false);
