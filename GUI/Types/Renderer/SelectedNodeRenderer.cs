@@ -185,11 +185,14 @@ namespace GUI.Types.Renderer
                     AddBox(vertices, node.Transform, node.LocalBoundingBox, Color32.White, showSize: true);
                 }
 
-                if (debugCubeMaps && node.EnvMapIds != null)
+                if (debugCubeMaps)
                 {
                     var tiedEnvmaps = viewer.Scene.LightingInfo.CubemapType switch
                     {
-                        Scene.CubemapType.CubemapArray => node.EnvMapIds.Select(id => viewer.Scene.LightingInfo.EnvMaps[id]),
+                        Scene.CubemapType.CubemapArray => node.ShaderEnvMapVisibility
+                            .GetVisibleShaderIndices()
+                            .Select(shaderId => viewer.Scene.LightingInfo.EnvMaps.FirstOrDefault(env => env.ShaderIndex == shaderId))
+                            .OfType<SceneEnvMap>(),
                         _ => node.EnvMaps
                     };
 
@@ -206,7 +209,7 @@ namespace GUI.Types.Renderer
                             continue;
                         }
 
-                        var fractionToTen = (float)i / 10;
+                        var fractionToTen = Math.Min((float)i / 10, 1.0f);
                         var color = new Utils.Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
                         ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
                         i++;
