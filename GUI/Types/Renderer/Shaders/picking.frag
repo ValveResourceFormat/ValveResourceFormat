@@ -9,11 +9,13 @@
 #define renderMode_ShaderId 0
 #define renderMode_ShaderProgramId 0
 
-uniform uint sceneObjectId;
-uniform uint meshId;
-uniform uint shaderId;
-uniform uint shaderProgramId;
 uniform uint isSkybox;
+uniform uvec4 objectMeshShaderProgram;
+
+uint sceneObjectId = objectMeshShaderProgram.x;
+uint meshId = objectMeshShaderProgram.y;
+uint shaderId = objectMeshShaderProgram.z;
+uint shaderProgramId = objectMeshShaderProgram.w;
 
 #if F_DEBUG_PICKER == 1
     out vec4 outputColor;

@@ -77,10 +77,7 @@ namespace GUI.Types.Renderer
             public int Transform = -1;
             public int IsInstancing = -1;
             public int Tint = -1;
-            public int ObjectId = -1;
-            public int MeshId = -1;
-            public int ShaderId = -1;
-            public int ShaderProgramId = -1;
+            public int ObjectMeshShaderProgram = -1;
             public int CubeMapBitmaskVisiblity = -1;
             public int MorphCompositeTexture = -1;
             public int MorphCompositeTextureSize = -1;
@@ -186,10 +183,7 @@ namespace GUI.Types.Renderer
 
                         if (shader.Name == "vrf.picking")
                         {
-                            uniforms.ObjectId = shader.GetUniformLocation("sceneObjectId");
-                            uniforms.MeshId = shader.GetUniformLocation("meshId");
-                            uniforms.ShaderId = shader.GetUniformLocation("shaderId");
-                            uniforms.ShaderProgramId = shader.GetUniformLocation("shaderProgramId");
+                            uniforms.ObjectMeshShaderProgram = shader.GetUniformLocation("objectMeshShaderProgram");
                         }
 
                         shader.Use();
@@ -232,12 +226,13 @@ namespace GUI.Types.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Draw(Shader shader, ref Uniforms uniforms, ref Config config, BatchRequest request)
         {
-            if (uniforms.ObjectId != -1)
+            if (uniforms.ObjectMeshShaderProgram != -1)
             {
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, request.Call.Material.Shader.NameHash);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
+                GL.ProgramUniform4(
+                    (uint)shader.Program,
+                    uniforms.ObjectMeshShaderProgram,
+                    (uint)request.Node.Id, (uint)request.Mesh.MeshIndex, (uint)request.Call.Material.Shader.NameHash, (uint)request.Call.Material.Shader.Program
+                );
             }
 
             if (uniforms.CubeMapBitmaskVisiblity != -1)
