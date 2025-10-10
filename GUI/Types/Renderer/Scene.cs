@@ -40,7 +40,7 @@ namespace GUI.Types.Renderer
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
 
         private UniformBuffer<LightingConstants> lightingBuffer;
-
+        private UniformBuffer<LightProbeVolumeArray> lpvBuffer;
 
         public VrfGuiContext GuiContext { get; }
         public Octree StaticOctree { get; }
@@ -69,9 +69,11 @@ namespace GUI.Types.Renderer
         public void Initialize()
         {
             UpdateOctrees();
+            CreateBuffers();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
-            CreateBuffers();
+
+            UpdateBuffers();
 
             OutlineShader = GuiContext.ShaderLoader.LoadShader("vrf.outline");
         }
@@ -174,16 +176,20 @@ namespace GUI.Types.Renderer
             {
                 Data = LightingInfo.LightingData
             };
+
+            lpvBuffer = new(ReservedBufferSlots.LightProbe);
         }
 
         public void UpdateBuffers()
         {
             lightingBuffer.Update();
+            lpvBuffer.Update();
         }
 
         public void SetSceneBuffers()
         {
             lightingBuffer.BindBufferBase();
+            lpvBuffer.BindBufferBase();
         }
 
         private readonly List<SceneNode> CullResults = [];
@@ -768,6 +774,7 @@ namespace GUI.Types.Renderer
 
             var nodes = new List<SceneNode>();
 
+            var i = 0;
             foreach (var probe in sortedLightProbes)
             {
                 StaticOctree.Root.Query(probe.BoundingBox, nodes);
@@ -778,7 +785,12 @@ namespace GUI.Types.Renderer
                     node.LightProbeBinding ??= probe;
                 }
 
+                probe.ShaderIndex = i;
+                var data = probe.CalculateGpuProbeData(LightingInfo.LightProbeType == LightProbeType.ProbeAtlas);
+                lpvBuffer.Data.Probes[i] = data;
+
                 nodes.Clear();
+                i++;
             }
 
             // Assign random probe to any node that does not have any light probes to fix the flickering,
@@ -962,6 +974,7 @@ namespace GUI.Types.Renderer
         public void Dispose()
         {
             lightingBuffer?.Dispose();
+            lpvBuffer?.Dispose();
         }
     }
 }

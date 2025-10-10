@@ -23,66 +23,7 @@
         uniform sampler2DArray g_tDirectLightShadows;
     #endif
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-
-    uniform sampler3D g_tLPV_Irradiance;
-
-    #if (S_LIGHTMAP_VERSION_MINOR == 1)
-        uniform sampler3D g_tLPV_Indices;
-        uniform sampler3D g_tLPV_Scalars;
-    #elif (S_LIGHTMAP_VERSION_MINOR >= 2)
-        uniform sampler3D g_tLPV_Shadows;
-    #endif
-
-    layout(std140, binding = 2) uniform LightProbeVolume
-    {
-        uniform mat4 g_matLightProbeVolumeWorldToLocal;
-        #if (S_SCENE_PROBE_TYPE == 1)
-            vec4 g_vLightProbeVolumeLayer0TextureMin;
-            vec4 g_vLightProbeVolumeLayer0TextureMax;
-        #elif (S_SCENE_PROBE_TYPE == 2)
-            vec4 g_vLightProbeVolumeBorderMin;
-            vec4 g_vLightProbeVolumeBorderMax;
-            vec4 g_vLightProbeVolumeAtlasScale;
-            vec4 g_vLightProbeVolumeAtlasOffset;
-        #endif
-    };
-
-    vec3 CalculateProbeSampleCoords(vec3 fragPosition)
-    {
-        vec3 vLightProbeLocalPos = mat4x3(g_matLightProbeVolumeWorldToLocal) * vec4(fragPosition, 1.0);
-        return vLightProbeLocalPos;
-    }
-
-    vec3 CalculateProbeShadowCoords(vec3 fragPosition)
-    {
-        vec3 vLightProbeLocalPos = CalculateProbeSampleCoords(fragPosition);
-
-        #if (S_SCENE_PROBE_TYPE == 2)
-            vLightProbeLocalPos = fma(saturate(vLightProbeLocalPos), g_vLightProbeVolumeAtlasScale.xyz, g_vLightProbeVolumeAtlasOffset.xyz);
-        #endif
-
-        return vLightProbeLocalPos;
-    }
-
-    vec3 CalculateProbeIndirectCoords(vec3 fragPosition)
-    {
-        vec3 indirectCoords = CalculateProbeSampleCoords(fragPosition);
-
-        #if (S_SCENE_PROBE_TYPE == 1)
-            indirectCoords.z /= 6;
-            // clamp(indirectCoords, g_vLightProbeVolumeLayer0TextureMin.xyz, g_vLightProbeVolumeLayer0TextureMax.xyz);
-        #elif (S_SCENE_PROBE_TYPE == 2)
-            indirectCoords.z /= 6;
-            indirectCoords = clamp(indirectCoords, g_vLightProbeVolumeBorderMin.xyz, g_vLightProbeVolumeBorderMax.xyz);
-
-            indirectCoords.z *= 6;
-            indirectCoords = fma(indirectCoords, g_vLightProbeVolumeAtlasScale.xyz, g_vLightProbeVolumeAtlasOffset.xyz);
-
-            indirectCoords.z /= 6;
-        #endif
-
-        return indirectCoords;
-    }
+    #include "lighting.lpv.glsl"
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     in vec3 vPerVertexLightingOut;
 #endif
@@ -288,26 +229,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     lighting.SpecularOcclusion = vAHDData.a;
 
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-    vec3 vIndirectSampleCoords = CalculateProbeIndirectCoords(mat.PositionWS);
-
-    // Take up to 3 samples along the normal direction
-    vec3 vDepthSliceOffsets = mix(vec3(0, 1, 2) / 6.0, vec3(3, 4, 5) / 6.0, step(mat.AmbientNormal, vec3(0.0)));
-    vec3 vAmbient[3];
-
-    vec3 vNormalSquared = pow2(mat.AmbientNormal);
-
-    lighting.DiffuseIndirect = vec3(0.0);
-
-    for (int i = 0; i < 3; i++)
-    {
-        vAmbient[i] = textureLod(g_tLPV_Irradiance, vIndirectSampleCoords + vec3(0, 0, vDepthSliceOffsets[i]), 0.0).rgb;
-        lighting.DiffuseIndirect += vAmbient[i] * vNormalSquared[i];
-    }
-
-    // SteamVR Home lpv irradiance is RGBM Dxt5
-    #if (S_LIGHTMAP_VERSION_MINOR == 0)
-        lighting.DiffuseIndirect = pow2(lighting.DiffuseIndirect); // not bothering with RGBM
-    #endif
+    lighting.DiffuseIndirect = ComputeLightProbeShading(mat);
 
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
