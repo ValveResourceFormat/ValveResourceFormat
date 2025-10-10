@@ -40,6 +40,7 @@ namespace GUI.Types.Renderer
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
 
         private UniformBuffer<LightingConstants> lightingBuffer;
+        public UniformBuffer<EnvMapArray> envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray> lpvBuffer;
 
         public VrfGuiContext GuiContext { get; }
@@ -177,18 +178,21 @@ namespace GUI.Types.Renderer
                 Data = LightingInfo.LightingData
             };
 
+            envMapBuffer = new(ReservedBufferSlots.EnvironmentMap);
             lpvBuffer = new(ReservedBufferSlots.LightProbe);
         }
 
         public void UpdateBuffers()
         {
             lightingBuffer.Update();
+            envMapBuffer.Update();
             lpvBuffer.Update();
         }
 
         public void SetSceneBuffers()
         {
             lightingBuffer.BindBufferBase();
+            envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
         }
 
@@ -834,9 +838,9 @@ namespace GUI.Types.Renderer
 
             foreach (var envMap in LightingInfo.EnvMaps)
             {
-                if (i >= LightingConstants.MAX_ENVMAPS)
+                if (i >= EnvMapArray.MAX_ENVMAPS)
                 {
-                    Log.Error(nameof(WorldLoader), $"Envmap array index {i} is too large, skipping! Max: {LightingConstants.MAX_ENVMAPS}");
+                    Log.Error(nameof(WorldLoader), $"Envmap array index {i} is too large, skipping! Max: {EnvMapArray.MAX_ENVMAPS}");
                     continue;
                 }
 
@@ -961,26 +965,32 @@ namespace GUI.Types.Renderer
 
         private void UpdateGpuEnvmapData(SceneEnvMap envMap, int index)
         {
-            if (!Matrix4x4.Invert(envMap.Transform, out var invertedTransform))
+            if (!Matrix4x4.Invert(envMap.Transform, out var worldToLocal))
             {
                 throw new InvalidOperationException("Matrix invert failed");
             }
 
-            LightingInfo.LightingData.EnvMapWorldToLocal[index] = invertedTransform;
-            LightingInfo.LightingData.EnvMapBoxMins[index] = new Vector4(envMap.LocalBoundingBox.Min, envMap.ArrayIndex);
-            LightingInfo.LightingData.EnvMapBoxMaxs[index] = new Vector4(envMap.LocalBoundingBox.Max, 0);
-            LightingInfo.LightingData.EnvMapEdgeInvEdgeWidth[index] = new Vector4(envMap.EdgeFadeDists, 0);
-            LightingInfo.LightingData.EnvMapProxySphere[index] = new Vector4(envMap.Transform.Translation, envMap.ProjectionMode);
-            LightingInfo.LightingData.EnvMapColorRotated[index] = new Vector4(envMap.Tint, 0);
+            var boundsExtend = new Vector3(0.02f);
 
-            // TODO
-            LightingInfo.LightingData.EnvMapNormalizationSH[index] = new Vector4(0, 0, 0, 1);
+            envMapBuffer.Data.EnvMaps[index] = new EnvMapData
+            {
+                WorldToLocal = worldToLocal,
+                BoxMins = envMap.LocalBoundingBox.Min - boundsExtend,
+                ArrayIndex = (uint)envMap.ArrayIndex,
+                BoxMaxs = envMap.LocalBoundingBox.Max + boundsExtend,
+                InvEdgeWidth = new Vector4(Vector3.One / (envMap.EdgeFadeDists + boundsExtend), 0),
+                Origin = envMap.Transform.Translation,
+                ProjectionType = (uint)envMap.ProjectionMode,
+                Color = envMap.Tint,
+                NormalizationSH = new Vector4(0, 0, 0, 1)
+            };
         }
 
         public void Dispose()
         {
             lightingBuffer?.Dispose();
             lpvBuffer?.Dispose();
+            envMapBuffer?.Dispose();
         }
     }
 }
