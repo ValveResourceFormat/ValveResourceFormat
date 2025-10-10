@@ -69,7 +69,7 @@ namespace GUI.Types.Renderer
         {
             public int AnimationData = -1;
             public int EnvmapTexture = -1;
-            public int LightProbeVolumeData = -1;
+            public int VisibleLightProbeVolume = -1;
             public int LPVIrradianceTexture = -1;
             public int LPVIndicesTexture = -1;
             public int LPVScalarsTexture = -1;
@@ -177,7 +177,7 @@ namespace GUI.Types.Renderer
 
                         if (shader.Parameters.ContainsKey("D_BAKED_LIGHTING_FROM_PROBE"))
                         {
-                            uniforms.LightProbeVolumeData = shader.GetUniformBlockIndex("LightProbeVolume");
+                            uniforms.VisibleLightProbeVolume = shader.GetUniformBlockIndex("g_nVisibleLPV");
                             uniforms.LPVIrradianceTexture = shader.GetUniformLocation("g_tLPV_Irradiance");
                             uniforms.LPVIndicesTexture = shader.GetUniformLocation("g_tLPV_Indices");
                             uniforms.LPVScalarsTexture = shader.GetUniformLocation("g_tLPV_Scalars");
@@ -259,10 +259,8 @@ namespace GUI.Types.Renderer
                 );
             }
 
-            if (uniforms.LightProbeVolumeData != -1 && request.Node.LightProbeBinding is { } lightProbe)
+            if (uniforms.VisibleLightProbeVolume != -1 && request.Node.LightProbeBinding is { } lightProbe)
             {
-                lightProbe.SetGpuProbeData(config.LightProbeType == Scene.LightProbeType.ProbeAtlas);
-
                 if (config.LightProbeType == Scene.LightProbeType.IndividualProbes)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.Probe1, uniforms.LPVIrradianceTexture, lightProbe.Irradiance);
@@ -277,6 +275,8 @@ namespace GUI.Types.Renderer
                         SetInstanceTexture(shader, ReservedTextureSlots.Probe2, uniforms.LPVShadowsTexture, lightProbe.DirectLightShadows);
                     }
                 }
+
+                GL.ProgramUniform1((uint)shader.Program, uniforms.VisibleLightProbeVolume, lightProbe.ShaderIndex);
             }
 
             if (uniforms.AnimationData != -1)

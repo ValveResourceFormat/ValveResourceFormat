@@ -1,8 +1,5 @@
-using System.Buffers;
-using System.Runtime.InteropServices;
 using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer;
@@ -50,7 +47,7 @@ class SceneLightProbe : SceneNode
 
     public float VoxelSize { get; set; }
 
-    private int bufferHandle = -1;
+    public int ShaderIndex { get; set; }
 
 
     public SceneLightProbe(Scene scene, AABB bounds) : base(scene)
@@ -121,71 +118,39 @@ class SceneLightProbe : SceneNode
         }
     }
 
-    public void SetGpuProbeData(bool isProbeAtlas)
+    public LightProbeVolume CalculateGpuProbeData(bool isProbeAtlas)
     {
-#if false // for debugging
-        if (bufferHandle > -1)
+        if (!Matrix4x4.Invert(Transform, out var worldToLocal))
         {
-            GL.DeleteBuffer(bufferHandle);
-            bufferHandle = -1;
-        }
-#endif
-
-        // Note: does not expect the data to change within the probe's lifetime
-        if (bufferHandle == -1)
-        {
-            GL.CreateBuffers(1, out bufferHandle);
-
-            var size = 16 + (isProbeAtlas ? 16 : 8);
-            var data = ArrayPool<float>.Shared.Rent(size);
-
-            try
-            {
-                if (!Matrix4x4.Invert(Transform, out var worldToLocal))
-                {
-                    throw new InvalidOperationException("Matrix invert failed");
-                }
-
-                var normalizedMatrix = worldToLocal *
-                    Matrix4x4.CreateTranslation(-LocalBoundingBox.Min) *
-                    Matrix4x4.CreateScale(Vector3.One / LocalBoundingBox.Size);
-
-                MemoryMarshal.Write(MemoryMarshal.Cast<float, byte>(data.AsSpan()[0..16]), in normalizedMatrix);
-
-                if (isProbeAtlas)
-                {
-                    var half = Vector3.One * 0.5f;
-                    var depthDivide = Vector3.One with { Z = 1f / 6 };
-
-                    var textureDims = new Vector3(DirectLightShadows.Width, DirectLightShadows.Height, DirectLightShadows.Depth);
-                    var atlasDims = AtlasOffset + AtlasSize;
-
-                    var borderMin = half * depthDivide / textureDims;
-                    var borderMax = (textureDims - half) * depthDivide / textureDims;
-                    var scale = AtlasSize / textureDims;
-                    var offset = AtlasOffset / textureDims;
-
-                    var vectors = MemoryMarshal.Cast<float, Vector4>(data.AsSpan()[16..32]);
-                    vectors[0] = new Vector4(borderMin, 0);
-                    vectors[1] = new Vector4(borderMax, 0);
-                    vectors[2] = new Vector4(scale, 0);
-                    vectors[3] = new Vector4(offset, 0);
-                }
-                else
-                {
-                    var vectors = MemoryMarshal.Cast<float, Vector4>(data.AsSpan()[16..24]);
-                    vectors[0] = Vector4.Zero; // Layer0TextureMin
-                    vectors[1] = Vector4.Zero; // Layer0TextureMax
-                }
-
-                GL.NamedBufferData(bufferHandle, size * sizeof(float), data, BufferUsageHint.StaticDraw);
-            }
-            finally
-            {
-                ArrayPool<float>.Shared.Return(data);
-            }
+            throw new InvalidOperationException("Matrix invert failed");
         }
 
-        GL.BindBufferBase(BufferRangeTarget.UniformBuffer, (int)ReservedBufferSlots.LightProbe, bufferHandle);
+        var data = new LightProbeVolume
+        {
+            WorldToLocalVolumeNormalized = worldToLocal *
+                Matrix4x4.CreateTranslation(-LocalBoundingBox.Min) *
+                Matrix4x4.CreateScale(Vector3.One / LocalBoundingBox.Size)
+        };
+
+        if (isProbeAtlas)
+        {
+            var half = Vector3.One * 0.5f;
+            var depthDivide = Vector3.One with { Z = 1f / 6 };
+
+            var textureDims = new Vector3(DirectLightShadows.Width, DirectLightShadows.Height, DirectLightShadows.Depth);
+            var atlasDims = AtlasOffset + AtlasSize;
+
+            var borderMin = half * depthDivide / textureDims;
+            var borderMax = (textureDims - half) * depthDivide / textureDims;
+            var scale = AtlasSize / textureDims;
+            var offset = AtlasOffset / textureDims;
+
+            data.BorderMin = new Vector4(borderMin, 0);
+            data.BorderMax = new Vector4(borderMax, 0);
+            data.AtlasScale = new Vector4(scale, 0);
+            data.AtlasOffset = new Vector4(offset, 0);
+        }
+
+        return data;
     }
 }
