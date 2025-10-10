@@ -26,27 +26,6 @@ namespace GUI.Types.Renderer.Buffers
 
         public Vector4 EnvMapSizeConstants;
 
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_ENVMAPS)]
-        public readonly Matrix4x4[] EnvMapWorldToLocal;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_ENVMAPS)]
-        public readonly Vector4[] EnvMapBoxMins;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_ENVMAPS)]
-        public readonly Vector4[] EnvMapBoxMaxs;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_ENVMAPS)]
-        public readonly Vector4[] EnvMapEdgeInvEdgeWidth;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_ENVMAPS)]
-        public readonly Vector4[] EnvMapProxySphere;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_ENVMAPS)]
-        public readonly Vector4[] EnvMapColorRotated;
-
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_ENVMAPS)]
-        public readonly Vector4[] EnvMapNormalizationSH;
-
         public LightingConstants()
         {
             NumLights = new uint[4];
@@ -57,13 +36,6 @@ namespace GUI.Types.Renderer.Buffers
             LightColor_Brightness = new Vector4[MAX_LIGHTS];
             LightSpotInnerOuterCosines = new Vector4[MAX_LIGHTS];
             LightFallOff = new Vector4[MAX_LIGHTS];
-            EnvMapWorldToLocal = new Matrix4x4[MAX_ENVMAPS];
-            EnvMapBoxMins = new Vector4[MAX_ENVMAPS];
-            EnvMapBoxMaxs = new Vector4[MAX_ENVMAPS];
-            EnvMapEdgeInvEdgeWidth = new Vector4[MAX_ENVMAPS];
-            EnvMapProxySphere = new Vector4[MAX_ENVMAPS];
-            EnvMapColorRotated = new Vector4[MAX_ENVMAPS];
-            EnvMapNormalizationSH = new Vector4[MAX_ENVMAPS];
         }
     }
 }

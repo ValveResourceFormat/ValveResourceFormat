@@ -13,7 +13,7 @@ struct LightProbeVolume
 
 uniform int g_nVisibleLPV;
 
-layout(std140, binding = 2) uniform LightProbeVolumeArray
+layout(std140, binding = 3) uniform LightProbeVolumeArray
 {
     LightProbeVolume g_LPV[MAX_LIGHT_PROBES];
 };

@@ -4,6 +4,7 @@ public enum ReservedBufferSlots
 {
     View = 0,
     Lighting = 1,
-    LightProbe = 2,
-    Transforms = 3,
+    EnvironmentMap = 2,
+    LightProbe = 3,
+    Transforms = 10,
 }

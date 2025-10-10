@@ -4,7 +4,7 @@ uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
 
-layout(std140, binding = 3) readonly buffer g_transformBuffer
+layout(std140, binding = 10) readonly buffer g_transformBuffer
 {
     mat3x4 transforms[];
 };

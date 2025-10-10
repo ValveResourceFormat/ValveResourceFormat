@@ -78,7 +78,7 @@ namespace GUI.Types.Renderer
                 var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
 
                 sunAngles += delta;
-                Scene.LightingInfo.LightingData.EnvMapWorldToLocal[0] *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
+                Scene.envMapBuffer.Data.EnvMaps[0].WorldToLocal *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
                 UpdateSunAngles();
                 Scene.UpdateBuffers();
             }

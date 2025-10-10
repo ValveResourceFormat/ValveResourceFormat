@@ -1,7 +1,6 @@
 #version 460
 
 #define MAX_LIGHTS 256
-#define MAX_ENVMAPS 128
 
 layout(std140, binding = 1) uniform LightingConstants {
     vec2 g_vLightmapUvScale;
@@ -18,11 +17,4 @@ layout(std140, binding = 1) uniform LightingConstants {
     vec4[MAX_LIGHTS] g_vLightFallOff;
 
     vec4 g_vEnvMapSizeConstants;
-    mat4 g_matEnvMapWorldToLocal[MAX_ENVMAPS];
-    vec4[MAX_ENVMAPS] g_vEnvMapBoxMins;
-    vec4[MAX_ENVMAPS] g_vEnvMapBoxMaxs;
-    vec4[MAX_ENVMAPS] g_vEnvMapEdgeFadeDists;
-    vec4[MAX_ENVMAPS] g_vEnvMapProxySphere;
-    vec4[MAX_ENVMAPS] g_vEnvMapColorRotated;
-    vec4[MAX_ENVMAPS] g_vEnvMapNormalizationSH;
 };
