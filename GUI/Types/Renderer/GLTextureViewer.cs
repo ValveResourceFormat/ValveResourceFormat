@@ -920,8 +920,13 @@ namespace GUI.Types.Renderer
         private void UploadBitmap(SKBitmap bitmap)
         {
             Debug.Assert(bitmap != null);
+            texture = LoadBitmapTexture(bitmap);
+            InvalidateRender();
+        }
 
-            texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
+        public static RenderTexture LoadBitmapTexture(SKBitmap bitmap)
+        {
+            var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
 
             var isHdr = bitmap.ColorType == HdrBitmapColorType;
             var store = GLTextureDecoder.GetImageExportFormat(isHdr);
@@ -929,7 +934,7 @@ namespace GUI.Types.Renderer
             GL.TextureStorage2D(texture.Handle, 1, store.SizedInternalFormat, texture.Width, texture.Height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, store.PixelFormat, store.PixelType, bitmap.GetPixels());
 
-            InvalidateRender();
+            return texture;
         }
 
         private void GenerateNewSvgBitmap()

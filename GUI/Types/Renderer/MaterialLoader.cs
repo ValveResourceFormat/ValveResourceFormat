@@ -174,6 +174,12 @@ namespace GUI.Types.Renderer
             var data = (Texture?)textureResource.DataBlock;
             Debug.Assert(data != null);
 
+            if (data.IsRawAnyImage)
+            {
+                using var bitmap = data.GenerateBitmap();
+                return GLTextureViewer.LoadBitmapTexture(bitmap);
+            }
+
             var target = TextureTarget.Texture2D;
             var is3d = false;
             var clampModeS = (data.Flags & VTexFlags.SUGGEST_CLAMPS) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
