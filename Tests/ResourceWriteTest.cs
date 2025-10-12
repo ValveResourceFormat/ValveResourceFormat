@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -80,6 +81,22 @@ namespace Tests
 
             resource.Read(file);
             return resource;
+        }
+
+
+        [Test]
+        public void WriteTextureResourceFromScratch()
+        {
+            using var resource = new Resource(ResourceType.Texture, 0)
+            {
+                FileName = "my_texture.vtex_c",
+            };
+
+            resource.Blocks.Add(new ResourceEditInfo2());
+            resource.Blocks.Add(new Texture());
+
+            using var fs = File.Create("my_texture.vtex_c");
+            resource.Serialize(fs);
         }
     }
 }

@@ -14,7 +14,7 @@ namespace ValveResourceFormat
         Model = 0x8,
         BlockLight = 0x10,
         NoShadows = 0x20,
-        WorldspaceTexureBlend = 0x40,
+        WorldspaceTexureBlend = 0x40, // do not fix typo, it's in the original enum
         DisabledInLowQuality = 0x80,
         NoSunShadows = 0x100,
         RenderWithDynamic = 0x200,

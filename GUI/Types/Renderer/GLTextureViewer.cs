@@ -115,7 +115,6 @@ namespace GUI.Types.Renderer
         private int LastRenderHash;
         private int NumRendersLastHash;
 
-        const int DefaultSelection = 3;
         static readonly (ChannelMapping Channels, ChannelSplitting ChannelSplitMode, string ChoiceString)[] ChannelsComboBoxOrder = [
             (ChannelMapping.R, ChannelSplitting.None, "Red"),
             (ChannelMapping.G, ChannelSplitting.None, "Green"),
@@ -163,9 +162,8 @@ namespace GUI.Types.Renderer
 
         public GLTextureViewer(VrfGuiContext guiContext, SKSvg svg) : this(guiContext)
         {
-            AddChannelsComboBox();
-
             SetSvg(svg);
+            AddChannelsComboBox();
         }
 
         public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : this(guiContext)
@@ -203,13 +201,12 @@ namespace GUI.Types.Renderer
 
             if (Resource.ResourceType == ResourceType.PanoramaVectorGraphic)
             {
-                AddChannelsComboBox();
-
                 using var ms = new MemoryStream(((Panorama)resource.DataBlock).Data);
                 var svg = new SKSvg();
                 svg.Load(ms);
 
                 SetSvg(svg);
+                AddChannelsComboBox();
 
                 return;
             }
@@ -381,12 +378,6 @@ namespace GUI.Types.Renderer
         {
             var channelsComboBox = AddSelection("Channels", (name, index) =>
             {
-                if (texture == null)
-                {
-                    return;
-                }
-
-
                 SelectedChannels = ChannelsComboBoxOrder[index].Channels;
                 var splitMode = ChannelsComboBoxOrder[index].ChannelSplitMode;
 
@@ -410,7 +401,9 @@ namespace GUI.Types.Renderer
                 channelsComboBox.Items.Add(ChannelsComboBoxOrder[i].ChoiceString);
             }
 
-            channelsComboBox.SelectedIndex = DefaultSelection;
+            channelsComboBox.SelectedIndex = Svg != null
+                ? Array.FindIndex(ChannelsComboBoxOrder, channel => channel.ChoiceString == "Transparent")
+                : Array.FindIndex(ChannelsComboBoxOrder, channel => channel.ChoiceString == "Opaque");
 
             var samplingComboBox = AddSelection("Sampling", (name, index) =>
             {
@@ -441,6 +434,11 @@ namespace GUI.Types.Renderer
         /// <param name="oldTextureSize">The texture size before changing viewer state.</param>
         private void TextureDimensionsChanged(Vector2 oldTextureSize)
         {
+            if (texture == null)
+            {
+                return;
+            }
+
             TextureScaleChangeTime = 0f;
             TextureScaleOld = TextureScale;
 
