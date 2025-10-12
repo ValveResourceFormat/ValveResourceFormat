@@ -1,5 +1,7 @@
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes;
@@ -1211,44 +1213,16 @@ namespace ValveResourceFormat.IO
 
             var baseVertex = Vertices.Count;
 
-            Vector3[] positions = [];
-            Vector2[] texcoords = [];
-            Vector3[] normals = [];
-            Vector4[] tangents = [];
-            Vector4[] VertexPaintBlendParams = [];
-            Vector4[] VertexPaintTintColor = [];
+            var positions = GetElementArraySafe<Vector3>(vertexdata, "position$0");
+            var texcoords = GetElementArraySafe<Vector2>(vertexdata, "texcoord$0");
+            var normals = GetElementArraySafe<Vector3>(vertexdata, "normal$0");
+            var tangents = GetElementArraySafe<Vector4>(vertexdata, "tangent$0");
+            var VertexPaintBlendParams = GetElementArraySafe<Vector4>(vertexdata, "VertexPaintBlendParams$0");
+            var VertexPaintTintColor = GetElementArraySafe<Vector4>(vertexdata, "VertexPaintTintColor$0");
 
-            foreach (var stream in vertexdata)
+            if (positions == null || positions.Count == 0)
             {
-                if (stream.Key == "position$0")
-                {
-                    positions = (Vector3[])stream.Value!;
-                }
-
-                if (stream.Key == "texcoord$0")
-                {
-                    texcoords = (Vector2[])stream.Value!;
-                }
-
-                if (stream.Key == "normal$0")
-                {
-                    normals = (Vector3[])stream.Value!;
-                }
-
-                if (stream.Key == "tangent$0")
-                {
-                    tangents = (Vector4[])stream.Value!;
-                }
-
-                if (stream.Key == "VertexPaintBlendParams$0")
-                {
-                    VertexPaintBlendParams = (Vector4[])stream.Value!;
-                }
-
-                if (stream.Key == "VertexPaintTintColor$0")
-                {
-                    VertexPaintTintColor = (Vector4[])stream.Value!;
-                }
+                throw new InvalidDataException("AddRenderMesh() trying to process a mesh with no vertices!");
             }
 
             List<Tuple<List<int>, DmeFaceSet>> faceList = [];
@@ -1264,7 +1238,7 @@ namespace ValveResourceFormat.IO
             if (PhysicsVertexMatcher != null && PhysicsVertexMatcher.LastPositions != positions)
             {
                 PhysicsVertexMatcher.LastPositions = positions;
-                PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches(positions.AsSpan(), ProgressReporter);
+                PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches(positions.ToArray().AsSpan(), ProgressReporter);
             }
 
             foreach (var faceset in facesets.Cast<DmeFaceSet>())
@@ -1312,15 +1286,32 @@ namespace ValveResourceFormat.IO
 
             foreach (var kv in newVertexStreamsIndexDict)
             {
-                newVertices.Add(positions[kv.Key]);
-                newTexcoords.Add(texcoords[kv.Key]);
-                newNormals.Add(normals[kv.Key]);
-                newTangents.Add(tangents[kv.Key]);
-                if (VertexPaintBlendParams.Length != 0)
+                if (positions != null && positions.Count != 0)
+                {
+                    newVertices.Add(positions[kv.Key]);
+                }
+
+                if (texcoords != null && texcoords.Count != 0)
+                {
+                    newTexcoords.Add(texcoords[kv.Key]);
+                }
+
+                if (normals != null && normals.Count != 0)
+                {
+                    newNormals.Add(normals[kv.Key]);
+                }
+
+                if (tangents != null && tangents.Count != 0)
+                {
+                    newTangents.Add(tangents[kv.Key]);
+                }
+
+                if (VertexPaintBlendParams != null && VertexPaintBlendParams.Count != 0)
                 {
                     newVertexPaintBlendParams.Add(VertexPaintBlendParams[kv.Key]);
                 }
-                if (VertexPaintTintColor.Length != 0)
+
+                if (VertexPaintTintColor != null && VertexPaintTintColor.Count != 0)
                 {
                     newVertexPaintTintColor.Add(VertexPaintTintColor[kv.Key]);
                 }
@@ -1472,6 +1463,16 @@ namespace ValveResourceFormat.IO
             };
 
             return stream;
+        }
+
+        static IList<T>? GetElementArraySafe<T>(Element Element, string elementName)
+        {
+            if (Element.ContainsKey(elementName))
+            {
+                return Element.GetArray<T>(elementName);
+            }
+
+            return null;
         }
     }
 }
