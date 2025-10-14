@@ -91,7 +91,8 @@ partial class ModelExtract
             }
         };
 
-        dmx.Save(stream, "keyvalues2", 4);
+        //dmx.Save(stream, "keyvalues2", 4);
+        dmx.Save(stream, "binary", 9); //Fixes vnmskel decomp
 
         return stream.ToArray();
     }
