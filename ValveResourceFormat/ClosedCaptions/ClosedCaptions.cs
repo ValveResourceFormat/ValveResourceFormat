@@ -8,19 +8,35 @@ using ValveKeyValue;
 
 namespace ValveResourceFormat.ClosedCaptions
 {
+    /// <summary>
+    /// Represents a collection of closed captions from a VCCD file.
+    /// </summary>
     public class ClosedCaptions : IEnumerable<ClosedCaption>
     {
+        /// <summary>
+        /// Magic number for VCCD files ("VCCD").
+        /// </summary>
         public const int MAGIC = 0x44434356; // "VCCD"
 
+        /// <summary>
+        /// Gets the list of captions.
+        /// </summary>
         public List<ClosedCaption> Captions { get; private set; }
 
         private string FileName;
 
+        /// <summary>
+        /// Returns an enumerator that iterates through the captions.
+        /// </summary>
         public IEnumerator<ClosedCaption> GetEnumerator()
         {
             return ((IEnumerable<ClosedCaption>)Captions).GetEnumerator();
         }
 
+        /// <summary>
+        /// Gets a caption by its key.
+        /// </summary>
+        /// <param name="key">The caption key.</param>
         public ClosedCaption this[string key]
         {
             get
@@ -31,8 +47,7 @@ namespace ValveResourceFormat.ClosedCaptions
         }
 
         /// <summary>
-        /// Opens and reads the given filename.
-        /// The file is held open until the object is disposed.
+        /// Opens the specified file and reads all caption entries into memory.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
@@ -43,9 +58,9 @@ namespace ValveResourceFormat.ClosedCaptions
         }
 
         /// <summary>
-        /// Reads the given <see cref="Stream"/>.
+        /// Reads caption data from the provided stream.
         /// </summary>
-        /// <param name="filename">The filename <see cref="string"/>.</param>
+        /// <param name="filename">The name of the caption file (used for metadata only).</param>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filename, Stream input)
         {
@@ -101,11 +116,18 @@ namespace ValveResourceFormat.ClosedCaptions
             }
         }
 
+        /// <summary>
+        /// Returns an enumerator that iterates through the captions.
+        /// </summary>
         IEnumerator IEnumerable.GetEnumerator()
         {
             return ((IEnumerable<ClosedCaption>)Captions).GetEnumerator();
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Exports the captions to KeyValues1 text format (VCD format).
+        /// </remarks>
         public override string ToString()
         {
             var captionsToExport = new Dictionary<uint, string>(Captions.Count);

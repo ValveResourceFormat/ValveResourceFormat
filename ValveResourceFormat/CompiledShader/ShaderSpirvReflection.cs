@@ -12,6 +12,9 @@ namespace ValveResourceFormat.CompiledShader;
 
 #nullable disable
 
+/// <summary>
+/// Provides SPIR-V reflection and decompilation utilities for shaders.
+/// </summary>
 public static partial class ShaderSpirvReflection
 {
     private const int TextureStartingPoint = 30;
@@ -21,20 +24,37 @@ public static partial class ShaderSpirvReflection
 
     private const int StorageBufferStartingPoint = 30;
 
-    public static string ReflectSpirv(VfxShaderFileVulkan vulkanSource, Backend backend)
+    /// <summary>
+    /// Reflects and decompiles SPIR-V bytecode to a target shader language.
+    /// </summary>
+    /// <param name="vulkanSource">The Vulkan shader source containing SPIR-V bytecode.</param>
+    /// <param name="backend">The target shader language backend.</param>
+    /// <param name="code">The decompiled shader code.</param>
+    /// <returns>True if decompilation succeeded, false otherwise.</returns>
+    public static bool ReflectSpirv(VfxShaderFileVulkan vulkanSource, Backend backend, out string code)
     {
-        SpirvCrossApi.spvc_context_create(out var context).CheckResult();
+        static bool Error(out string code, spvc_context context)
+        {
+            var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
+            code = lastError ?? string.Empty;
+            return false;
+        }
+
+        var result = SpirvCrossApi.spvc_context_create(out var context);
 
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);
 
         try
         {
-            SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.Bytecode, out var parsedIr).CheckResult();
-            SpirvCrossApi
-                .spvc_context_create_compiler(context, backend, parsedIr, CaptureMode.TakeOwnership, out var compiler)
-                .CheckResult();
+            result = SpirvCrossApi.spvc_context_parse_spirv(context, vulkanSource.Bytecode, out var parsedIr);
 
-            SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options).CheckResult();
+            if (result != Result.Success) // Typically InvalidSPIRV
+            {
+                return Error(out code, context);
+            }
+
+            result = SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, CaptureMode.TakeOwnership, out var compiler);
+            result = SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options);
 
             if (backend == Backend.GLSL)
             {
@@ -51,11 +71,11 @@ public static partial class ShaderSpirvReflection
                 SpirvCrossApi.spvc_compiler_options_set_uint(options, CompilerOption.HLSLUseEntryPointName, 1);
             }
 
-            SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options).CheckResult();
+            result = SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
 
             if (vulkanSource.ParentCombo.ParentProgramData.VcsProgramType is not VcsProgramType.RaytracingShader)
             {
-                SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources).CheckResult();
+                result = SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources);
 
                 RenameResource(compiler, resources, SpirvResourceType.SeparateImage, vulkanSource);
                 RenameResource(compiler, resources, SpirvResourceType.SeparateSamplers, vulkanSource);
@@ -67,7 +87,12 @@ public static partial class ShaderSpirvReflection
                 RenameResource(compiler, resources, SpirvResourceType.StageOutput, vulkanSource);
             }
 
-            SpirvCrossApi.spvc_compiler_compile(compiler, out var code).CheckResult();
+            result = SpirvCrossApi.spvc_compiler_compile(compiler, out code);
+
+            if (result != Result.Success)
+            {
+                return Error(out code, context);
+            }
 
             if (backend == Backend.HLSL)
             {
@@ -91,23 +116,14 @@ public static partial class ShaderSpirvReflection
             buffer.WriteLine();
             buffer.WriteLine(code);
         }
-        catch (SpirvCrossException e)
-        {
-            var lastError = SpirvCrossApi.spvc_context_get_last_error_string(context);
-            if (!string.IsNullOrEmpty(lastError))
-            {
-                throw new SpirvCrossException(lastError, e);
-            }
-
-            throw;
-        }
         finally
         {
             SpirvCrossApi.spvc_context_release_allocations(context);
             SpirvCrossApi.spvc_context_destroy(context);
         }
 
-        return buffer.ToString();
+        code = buffer.ToString();
+        return result == Result.Success;
     }
 
     private static void RenameResource(spvc_compiler compiler, spvc_resources resources, SpirvResourceType resourceType,
@@ -281,14 +297,22 @@ public static partial class ShaderSpirvReflection
         }
     }
 
+    /// <summary>
+    /// Gets the variable name for a texture at a given binding point.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="imageBinding">The image binding point.</param>
+    /// <param name="vfxType">The VFX variable type to match.</param>
+    /// <returns>The texture variable name, or "undetermined" if not found.</returns>
     public static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint imageBinding, VfxVariableType vfxType)
     {
-        var semgent1Params = writeSequence.Segment1
+        var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]));
 
-        foreach (var field in writeSequence.Segment1)
+        foreach (var field in writeSequence.RenderState)
         {
             var variable = program.VariableDescriptions[field.VariableIndex];
 
@@ -332,16 +356,23 @@ public static partial class ShaderSpirvReflection
         return "undetermined";
     }
 
+    /// <summary>
+    /// Builds a descriptive sampler name for a given binding point.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="samplerBinding">The sampler binding point.</param>
+    /// <returns>A concatenated sampler state description, or "undetermined" if no sampler is bound at the slot.</returns>
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint samplerBinding)
     {
-        var semgent1Params = writeSequence.Segment1
+        var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]));
 
         var samplerSettings = string.Empty;
 
-        foreach (var field in writeSequence.Segment1)
+        foreach (var field in writeSequence.RenderState)
         {
             var param = program.VariableDescriptions[field.VariableIndex];
 
@@ -363,14 +394,21 @@ public static partial class ShaderSpirvReflection
         return samplerSettings.Length > 0 ? samplerSettings[..^2] : "undetermined";
     }
 
+    /// <summary>
+    /// Gets the variable name for a storage buffer at a given binding point.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="bufferBinding">The buffer binding point.</param>
+    /// <returns>The storage buffer variable name, or "undetermined" if not found.</returns>
     public static string GetNameForStorageBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint bufferBinding)
     {
-        var semgent1Params = writeSequence.Segment1
+        var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]));
 
-        foreach (var field in writeSequence.Segment1)
+        foreach (var field in writeSequence.RenderState)
         {
             var param = program.VariableDescriptions[field.VariableIndex];
 
@@ -388,29 +426,50 @@ public static partial class ShaderSpirvReflection
         return "undetermined";
     }
 
+    /// <summary>
+    /// Gets the variable name for a uniform buffer at a given binding point and descriptor set.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="binding">The buffer binding point.</param>
+    /// <param name="set">The descriptor set index.</param>
+    /// <returns>The uniform buffer variable name, or "undetermined" if not found.</returns>
     public static string GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint binding, uint set)
     {
-        return writeSequence.Segment1
+        return writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]))
             .Where(fp => fp.Param.VfxType is VfxVariableType.Cbuffer)
             .FirstOrDefault(fp => fp.Field.Dest == binding && fp.Field.LayoutSet == set).Param?.Name ?? "undetermined";
     }
 
+    /// <summary>
+    /// Gets the member name for a global buffer variable at a given offset.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="writeSequence">The write sequence containing variable indices.</param>
+    /// <param name="offset">The offset in the buffer.</param>
+    /// <returns>The member name, or an empty string if not found.</returns>
     public static string GetGlobalBufferMemberName(VfxProgramData program, VfxVariableIndexArray writeSequence,
         int offset)
     {
-        var globalBufferParameters = writeSequence.Globals
+        return writeSequence.Globals
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]))
-            .ToList();
-
-        return globalBufferParameters.FirstOrDefault(fp => fp.Field.Field2 == offset).Param?.Name ?? string.Empty;
+            .FirstOrDefault(fp => fp.Field.Field2 == offset).Param?.Name ?? string.Empty;
     }
 
     // by offset
     // https://github.com/KhronosGroup/SPIRV-Cross/blob/f349c91274b91c1a7c173f2df70ec53080076191/spirv_hlsl.cpp#L2616
+    /// <summary>
+    /// Gets the member name for a buffer variable by index or offset.
+    /// </summary>
+    /// <param name="program">The shader program data.</param>
+    /// <param name="bufferName">The buffer name.</param>
+    /// <param name="index">The member index (optional).</param>
+    /// <param name="offset">The member offset (optional).</param>
+    /// <returns>The member name when found, <see cref="string.Empty"/> when the buffer is unknown, or "undetermined" when no selector is supplied.</returns>
     public static string GetBufferMemberName(VfxProgramData program, string bufferName, int index = -1,
         int offset = -1)
     {
@@ -435,6 +494,13 @@ public static partial class ShaderSpirvReflection
         return "undetermined";
     }
 
+    /// <summary>
+    /// Gets the name for a shader stage input or output attribute.
+    /// </summary>
+    /// <param name="vsInputElements">The input signature elements array.</param>
+    /// <param name="attributeIndex">The attribute index.</param>
+    /// <param name="input">True if this is an input attribute, false for output.</param>
+    /// <returns>The attribute name from the signature, or a generated name if not found.</returns>
     public static string GetStageAttributeName(Material.InputSignatureElement[] vsInputElements, int attributeIndex,
         bool input)
     {

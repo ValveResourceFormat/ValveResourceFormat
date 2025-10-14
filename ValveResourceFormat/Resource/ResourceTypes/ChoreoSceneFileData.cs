@@ -8,14 +8,30 @@ using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents choreography scene file data.
+    /// </summary>
     public class ChoreoSceneFileData : Block
     {
+        /// <summary>
+        /// Magic number for LZMA-compressed choreography data.
+        /// </summary>
         public const uint MAGIC_LZMA = 0x414D5A4C; //LZMA
+
+        /// <summary>
+        /// Gets the version of the choreography file format.
+        /// </summary>
         public int Version { get; private set; }
+
+        /// <summary>
+        /// Gets the choreography scenes in this file.
+        /// </summary>
         public ChoreoScene[] Scenes { get; private set; }
 
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -28,6 +44,7 @@ namespace ValveResourceFormat.ResourceTypes
             Scenes = ReadScenes(reader, sceneCount, strings);
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             foreach (var item in Scenes)
@@ -147,6 +164,7 @@ namespace ValveResourceFormat.ResourceTypes
             return strings;
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");

@@ -11,12 +11,21 @@ using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Extracts Source 2 materials to editable vmat format.
+/// </summary>
 public sealed class MaterialExtract
 {
+    /// <summary>
+    /// Information about how to unpack a texture channel.
+    /// </summary>
     public readonly struct UnpackInfo
     {
+        /// <summary>Gets the texture type.</summary>
         public string TextureType { get; init; }
+        /// <summary>Gets the file name.</summary>
         public string FileName { get; init; }
+        /// <summary>Gets the channel mapping.</summary>
         public Channel Channel { get; init; }
     }
 
@@ -28,6 +37,9 @@ public sealed class MaterialExtract
     private readonly IFileLoader fileLoader;
     private readonly IShaderDataProvider shaderDataProvider;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MaterialExtract"/> class.
+    /// </summary>
     public MaterialExtract(Material material, ResourceEditInfo editInfo, IFileLoader fileLoader,
         IShaderDataProvider shaderDataProvider = null)
     {
@@ -38,6 +50,7 @@ public sealed class MaterialExtract
         this.shaderDataProvider = shaderDataProvider ?? new BasicShaderDataProvider();
     }
 
+    /// <inheritdoc cref="MaterialExtract(Material, ResourceEditInfo, IFileLoader, IShaderDataProvider)"/>
     public MaterialExtract(Resource resource, IFileLoader fileLoader = null)
         : this((Material)resource.DataBlock, resource.EditInfo, fileLoader)
     {
@@ -47,6 +60,9 @@ public sealed class MaterialExtract
         }
     }
 
+    /// <summary>
+    /// Converts the material to a content file with associated textures.
+    /// </summary>
     public ContentFile ToContentFile()
     {
         var vmat = new ContentFile
@@ -87,6 +103,9 @@ public sealed class MaterialExtract
         return vmat;
     }
 
+    /// <summary>
+    /// Generates the output texture file name from a compiled texture path.
+    /// </summary>
     public static string OutTextureName(string texturePath, bool keepOriginalExtension, bool hdr, string desiredSuffix = null)
     {
         if (!texturePath.EndsWith(".vtex", StringComparison.OrdinalIgnoreCase))
@@ -136,6 +155,9 @@ public sealed class MaterialExtract
         return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : extension);
     }
 
+    /// <summary>
+    /// Gets the texture unpacking information for a material texture parameter.
+    /// </summary>
     public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Texture texture, bool omitDefaults, bool omitUniforms)
     {
         var isInput0 = true;
@@ -178,6 +200,9 @@ public sealed class MaterialExtract
         }
     }
 
+    /// <summary>
+    /// Converts the material to Valve material format as a string.
+    /// </summary>
     public string ToValveMaterial()
     {
         var root = new KVObject("Layer0", [])

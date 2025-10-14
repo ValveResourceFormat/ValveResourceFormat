@@ -1,16 +1,24 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using Vortice.SpirvCross;
 
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Vulkan SPIR-V shader bytecode.
+/// </summary>
 public class VfxShaderFileVulkan : VfxShaderFile
 {
+    /// <inheritdoc/>
     public override string BlockName => "VULKAN";
-    public int Version { get; }
-    public int BytecodeSize { get; }
+    /// <summary>Gets the shader file version.</summary>
+    public int Version { get; private set; }
+    /// <summary>Gets the size of the bytecode.</summary>
+    public int BytecodeSize { get; private set; }
 
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     public int Unknown1 { get; }
     public byte[]? Unknown2 { get; }
 
@@ -46,21 +54,29 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public short Unknown32 { get; }
     public byte Unknown33 { get; }
     public byte[]? Unknown34 { get; }
+#pragma warning restore CS1591
 
-    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile) : base(datareader, sourceId, parent)
+    /// <summary>
+    /// Initializes a new instance from pre-hashed data.
+    /// </summary>
+    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, Guid hash, VfxStaticComboData parent)
+        : base(sourceId, parent)
+    {
+        HashMD5 = hash;
+        Unserialize(datareader);
+        Size = BytecodeSize + 8;
+    }
+
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
+    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile)
+        : base(datareader, sourceId, parent)
     {
         // CVfxShaderFile::Unserialize
         if (Size > 0)
         {
-            Version = datareader.ReadInt32();
-
-            UnexpectedMagicException.Assert(Version >= 2 && Version <= 6, Version);
-
-            BytecodeSize = datareader.ReadInt32();
-            if (BytecodeSize > 0)
-            {
-                Bytecode = datareader.ReadBytes(BytecodeSize);
-            }
+            Unserialize(datareader);
         }
 
         if (Size > 0 && !isMobile && false)
@@ -184,10 +200,26 @@ public class VfxShaderFileVulkan : VfxShaderFile
 
         var actuallyRead = datareader.BaseStream.Position - Start - 4;
         Debug.Assert(actuallyRead == Size);
-
         HashMD5 = new Guid(datareader.ReadBytes(16));
     }
 
+    private void Unserialize(BinaryReader datareader)
+    {
+        Version = datareader.ReadInt32();
+
+        UnexpectedMagicException.Assert(Version >= 2 && Version <= 6, Version);
+
+        BytecodeSize = datareader.ReadInt32();
+        if (BytecodeSize > 0)
+        {
+            Bytecode = datareader.ReadBytes(BytecodeSize);
+        }
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Decompiles SPIR-V bytecode to HLSL or GLSL using SPIRV-Cross reflection, attempting multiple backends until successful.
+    /// </remarks>
     public override string GetDecompiledFile()
     {
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);
@@ -196,26 +228,26 @@ public class VfxShaderFileVulkan : VfxShaderFile
         for (var i = 0; i < backendsToTry.Length; i++)
         {
             var backend = backendsToTry[i];
-            try
+            var success = ShaderSpirvReflection.ReflectSpirv(this, backend, out var code);
+            if (success)
             {
-                buffer.Write(ShaderSpirvReflection.ReflectSpirv(this, backend));
+                buffer.Write(code);
                 break;
             }
-            catch (Exception e)
-            {
-                buffer.WriteLine($"// SPIR-V reflection failed for backend {backend}:");
-                foreach (var line in e.Message.AsSpan().EnumerateLines())
-                {
-                    buffer.Write("// ");
-                    buffer.WriteLine(line);
-                }
 
-                if (i < backendsToTry.Length - 1)
-                {
-                    buffer.WriteLine("// ");
-                    buffer.WriteLine($"// Re-attempting reflection with the {backendsToTry[i + 1]} backend.");
-                    buffer.WriteLine();
-                }
+            buffer.WriteLine($"// SPIR-V reflection failed for backend {backend}:");
+
+            foreach (var line in code.AsSpan().EnumerateLines())
+            {
+                buffer.Write("// ");
+                buffer.WriteLine(line);
+            }
+
+            if (i < backendsToTry.Length - 1)
+            {
+                buffer.WriteLine("// ");
+                buffer.WriteLine($"// Re-attempting reflection with the {backendsToTry[i + 1]} backend.");
+                buffer.WriteLine();
             }
         }
 

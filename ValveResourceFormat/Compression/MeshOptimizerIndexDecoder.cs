@@ -1,11 +1,12 @@
-/**
- * C# Port of https://github.com/zeux/meshoptimizer/blob/master/src/indexcodec.cpp
- */
 using System.Buffers.Binary;
 using System.IO;
 
 namespace ValveResourceFormat.Compression
 {
+    /// <summary>
+    /// Provides decoding functionality for mesh optimizer index buffers.
+    /// </summary>
+    /// <seealso href="https://github.com/zeux/meshoptimizer/blob/master/src/indexcodec.cpp">This is a C# port of meshoptimizer.</seealso>
     public static class MeshOptimizerIndexDecoder
     {
         private const byte IndexHeader = 0xe0;
@@ -75,6 +76,9 @@ namespace ValveResourceFormat.Compression
             }
         }
 
+        /// <summary>
+        /// Decodes an index buffer from compressed format.
+        /// </summary>
         public static byte[] DecodeIndexBuffer(int indexCount, int indexSize, Span<byte> buffer)
         {
             if (indexCount % 3 != 0)

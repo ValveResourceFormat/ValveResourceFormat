@@ -27,7 +27,7 @@ namespace CLI
     public partial class Decompiler
     {
         private readonly Dictionary<string, ResourceStat> stats = [];
-        private readonly Dictionary<string, string> uniqueSpecialDependancies = [];
+        private readonly Dictionary<string, string> uniqueSpecialDependencies = [];
         private readonly HashSet<string> unknownEntityKeys = [];
         private HashSet<string>? knownEntityKeys;
 
@@ -390,9 +390,9 @@ namespace CLI
                 if (StatsPrintUniqueDependencies)
                 {
                     Console.WriteLine();
-                    Console.WriteLine("Unique special dependancies:");
+                    Console.WriteLine("Unique special dependencies:");
 
-                    foreach (var stat in uniqueSpecialDependancies)
+                    foreach (var stat in uniqueSpecialDependencies)
                     {
                         Console.WriteLine($"{stat.Key} in {stat.Value}");
                     }
@@ -756,14 +756,18 @@ namespace CLI
                         zframe.Value.Unserialize();
                     }
 
-                    var id = $"Shader version {shader.VcsVersion}";
-
-                    if (originalPath != null)
+                    // Shader resources already store stats
+                    if (shader.Resource == null)
                     {
-                        path = $"{originalPath} -> {path}";
-                    }
+                        var id = $"Binary shader version {shader.VcsVersion}";
 
-                    AddStat(id, id, path);
+                        if (originalPath != null)
+                        {
+                            path = $"{originalPath} -> {path}";
+                        }
+
+                        AddStat(id, id, path);
+                    }
                 }
             }
             catch (Exception e)
@@ -1213,8 +1217,8 @@ namespace CLI
                     package.ReadEntry(file, rawFileData);
 
                     // Not a file that can be decompiled, or no decompilation was requested
-                    var isVcsFile = totalLength >= 4
-                                    && BitConverter.ToUInt32(rawFileData.AsSpan()[..4]) == VfxProgramData.MAGIC;
+                    var isVcsFile = type == "vcs";
+
                     if (!Decompile || !type.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) && !isVcsFile)
                     {
                         if (OutputFile != null)
@@ -1521,17 +1525,24 @@ namespace CLI
                         }
                     }
                     break;
+                case ResourceType.Shader:
+                    {
+                        var stream = resource.Reader!.BaseStream;
+                        stream.Seek(0, SeekOrigin.Begin);
+                        ParseVCS(path, stream, originalPath);
+                        break;
+                    }
             }
 
             AddStatLocal(info);
 
             if (resource.EditInfo != null)
             {
-                lock (uniqueSpecialDependancies)
+                lock (uniqueSpecialDependencies)
                 {
                     foreach (var dep in resource.EditInfo.SpecialDependencies)
                     {
-                        uniqueSpecialDependancies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
+                        uniqueSpecialDependencies[$"{dep.CompilerIdentifier} \"{dep.String}\""] = path;
                     }
                 }
             }

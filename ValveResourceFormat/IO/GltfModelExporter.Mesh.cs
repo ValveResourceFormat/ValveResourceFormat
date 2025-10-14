@@ -413,7 +413,7 @@ public partial class GltfModelExporter
         var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
         VMesh vmesh;
 
-        /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes">
+        // TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes" />
         if (embeddedMeshes.Count > 0)
         {
             if (embeddedMeshes.Count > 1)
@@ -537,6 +537,9 @@ public partial class GltfModelExporter
         DebugValidateGLTF();
     }
 
+    /// <summary>
+    /// Reads indices from an index buffer and applies a base vertex offset.
+    /// </summary>
     public static int[] ReadIndices(VBIB.OnDiskBufferData indexBuffer, int start, int count, int baseVertex)
     {
         var indices = new int[count];

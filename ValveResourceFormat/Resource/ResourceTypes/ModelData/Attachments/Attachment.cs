@@ -4,20 +4,54 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 {
+    /// <summary>
+    /// Represents an attachment point on a model with associated influences.
+    /// </summary>
     public class Attachment : IEnumerable<Attachment.Influence>
     {
+        /// <summary>
+        /// Represents an influence on an attachment.
+        /// </summary>
         public readonly struct Influence
         {
+            /// <summary>
+            /// Gets the name of the influence.
+            /// </summary>
             public string Name { get; init; }
+
+            /// <summary>
+            /// Gets the offset of the influence.
+            /// </summary>
             public Vector3 Offset { get; init; }
+
+            /// <summary>
+            /// Gets the rotation of the influence.
+            /// </summary>
             public Quaternion Rotation { get; init; }
+
+            /// <summary>
+            /// Gets the weight of the influence.
+            /// </summary>
             public float Weight { get; init; }
         }
 
+        /// <summary>
+        /// Gets the name of the attachment.
+        /// </summary>
         public string Name { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether rotation should be ignored for this attachment.
+        /// </summary>
         public bool IgnoreRotation { get; init; }
 
         private readonly Influence[] influences;
+
+        /// <summary>
+        /// Gets the influence at the specified index.
+        /// </summary>
+        /// <param name="i">The index of the influence.</param>
+        /// <returns>The influence at the specified index.</returns>
         public Influence this[int i]
         {
             get
@@ -25,8 +59,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
                 return influences[i];
             }
         }
+
+        /// <summary>
+        /// Gets the number of influences in this attachment.
+        /// </summary>
         public int Length => influences.Length;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Attachment"/> class from <see cref="KVObject"/> data.
+        /// </summary>
+        /// <param name="attachmentData">The <see cref="KVObject"/> containing attachment information.</param>
         public Attachment(KVObject attachmentData)
         {
             var valueData = attachmentData.GetSubCollection("value") ?? attachmentData;
@@ -54,6 +96,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             }
         }
 
+        /// <inheritdoc/>
         public IEnumerator<Influence> GetEnumerator()
         {
             for (var i = 0; i < influences.Length; i++)
@@ -62,6 +105,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             }
         }
 
+        /// <inheritdoc/>
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();

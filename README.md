@@ -17,6 +17,7 @@ This repository is split into three components:
 - **Library** - Provides public API to parse resource files and some helpers.
 
 ⚒ [View the official website for downloads](https://valveresourceformat.github.io/).
+ℹ️ [View the library documentation here](https://s2v.app/ValveResourceFormat/api/ValveResourceFormat.html).
 
 ## Join our Discord
 

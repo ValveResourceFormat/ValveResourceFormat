@@ -1,8 +1,14 @@
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Shader variable data types.
+/// </summary>
+/// <remarks>
 /// When updating this enum, make sure to update <see cref="ShaderUtilHelpers.VfxVariableTypeToString"/>
+/// </remarks>
 public enum VfxVariableType
 {
+#pragma warning disable CS1591
     Void = 0,
     Float = 1,
     Float2 = 2,
@@ -51,4 +57,5 @@ public enum VfxVariableType
     TextureCubeIndex = 45,
     Texture2DArrayIndex = 46,
     TextureCubeArrayIndex = 47,
+#pragma warning restore CS1591
 }

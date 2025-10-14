@@ -22,6 +22,9 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
+    /// <summary>
+    /// Provides methods for parsing KeyValues3 files.
+    /// </summary>
     public static class KeyValues3
     {
         private enum State
@@ -69,12 +72,18 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
         }
 
+        /// <summary>
+        /// Parses a KeyValues3 file from the specified filename.
+        /// </summary>
         public static KV3File ParseKVFile(string filename)
         {
             using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
             return ParseKVFile(fileStream);
         }
 
+        /// <summary>
+        /// Parses a KeyValues3 file from the specified stream.
+        /// </summary>
         public static KV3File ParseKVFile(Stream stream)
         {
             var parser = new Parser

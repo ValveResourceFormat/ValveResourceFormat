@@ -17,18 +17,54 @@ namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
 {
+    /// <summary>
+    /// Gets the list of physics hulls to be extracted with their output file names.
+    /// </summary>
     public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of physics meshes to be extracted with their output file names.
+    /// </summary>
     public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of render meshes to be extracted.
+    /// </summary>
     public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the material input signatures for mapping DirectX semantic names.
+    /// </summary>
     public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; } = [];
 
+    /// <summary>
+    /// Gets the physics surface property names discovered in the aggregate data.
+    /// </summary>
     public string[] PhysicsSurfaceNames { get; private set; }
+
+    /// <summary>
+    /// Gets the physics collision tag sets associated with the current aggregate data.
+    /// </summary>
     public HashSet<string>[] PhysicsCollisionTags { get; private set; }
 
+    /// <summary>
+    /// Gets the set of surface tag combinations.
+    /// </summary>
     public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
+
+    /// <summary>
+    /// Gets or initializes the function to provide render material names for physics surface tags.
+    /// </summary>
     public Func<SurfaceTagCombo, string> PhysicsToRenderMaterialNameProvider { get; init; }
+
+    /// <summary>
+    /// Gets or sets the translation offset for the model.
+    /// </summary>
     public Vector3 Translation { get; set; }
 
+    /// <summary>
+    /// Options for extracting a render mesh to datamodel format.
+    /// </summary>
     public readonly struct DatamodelRenderMeshExtractOptions
     {
         /// <summary>
@@ -47,6 +83,9 @@ partial class ModelExtract
         public int[] BoneRemapTable { get; init; }
     }
 
+    /// <summary>
+    /// Configuration for extracting a render mesh.
+    /// </summary>
     public record struct RenderMeshExtractConfiguration(
         Mesh Mesh,
         string Name,
@@ -56,14 +95,32 @@ partial class ModelExtract
         ImportFilter ImportFilter = default
     );
 
+    /// <summary>
+    /// Represents a combination of surface property and collision tags.
+    /// </summary>
     public sealed record SurfaceTagCombo(string SurfacePropName, HashSet<string> InteractAsStrings)
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SurfaceTagCombo"/> record.
+        /// </summary>
         public SurfaceTagCombo(string surfacePropName, string[] collisionTags)
             : this(surfacePropName, new HashSet<string>(collisionTags))
         { }
 
+        /// <summary>
+        /// Gets the string representation of the material.
+        /// </summary>
         public string StringMaterial => string.Join('+', InteractAsStrings) + '$' + SurfacePropName;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the hash code of the string material representation.
+        /// </remarks>
         public override int GetHashCode() => StringMaterial.GetHashCode(StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Determines whether the specified <see cref="SurfaceTagCombo"/> is equal to the current instance.
+        /// </summary>
         public bool Equals(SurfaceTagCombo other) => GetHashCode() == other.GetHashCode();
     }
 
@@ -201,6 +258,9 @@ partial class ModelExtract
         ));
     }
 
+    /// <summary>
+    /// Extracts content files from an aggregate model resource, splitting by draw calls.
+    /// </summary>
     public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, Vector3[] drawOrigins, int drawCallCount)
     {
         var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit };
@@ -253,6 +313,9 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>
+    /// Gets the fragment model name for a draw call index.
+    /// </summary>
     public static string GetFragmentModelName(string aggModelName, int drawCallIndex)
     {
         const string vmdlExt = ".vmdl";
@@ -363,6 +426,9 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>
+    /// Converts a mesh to DMX format.
+    /// </summary>
     public static byte[] ToDmxMesh(Mesh mesh, string name, DatamodelRenderMeshExtractOptions options = default)
     {
         using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
@@ -372,6 +438,9 @@ partial class ModelExtract
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Converts a mesh to a datamodel mesh representation.
+    /// </summary>
     public static Datamodel.Datamodel ConvertMeshToDatamodelMesh(Mesh mesh, string name, DatamodelRenderMeshExtractOptions options)
     {
         var mdat = mesh.Data;
@@ -467,6 +536,9 @@ partial class ModelExtract
         return datamodel;
     }
 
+    /// <summary>
+    /// Converts a physics hull descriptor to DMX format.
+    /// </summary>
     public byte[] ToDmxMesh(HullDescriptor hull)
     {
         var uniformSurface = PhysicsSurfaceNames[hull.SurfacePropertyIndex];
@@ -476,6 +548,9 @@ partial class ModelExtract
         return ToDmxMesh(hull.Shape, hull.UserFriendlyName, uniformSurface, uniformCollisionTags, fixRenderMeshCompileCrash);
     }
 
+    /// <summary>
+    /// Converts a physics mesh descriptor to DMX format.
+    /// </summary>
     public byte[] ToDmxMesh(MeshDescriptor mesh)
     {
         var uniformSurface = PhysicsSurfaceNames[mesh.SurfacePropertyIndex];
@@ -484,6 +559,9 @@ partial class ModelExtract
         return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName, uniformSurface, uniformCollisionTags, PhysicsSurfaceNames, fixRenderMeshCompileCrash);
     }
 
+    /// <summary>
+    /// Converts a Rubikon hull shape to DMX mesh format.
+    /// </summary>
     public static byte[] ToDmxMesh(RnShapes.Hull hull, string name,
         string uniformSurface,
         HashSet<string> uniformCollisionTags,
@@ -533,6 +611,9 @@ partial class ModelExtract
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Converts a Rubikon mesh shape to DMX mesh format.
+    /// </summary>
     public static byte[] ToDmxMesh(RnShapes.Mesh mesh, string name,
         string uniformSurface,
         HashSet<string> uniformCollisionTags,

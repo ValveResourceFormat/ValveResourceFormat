@@ -305,16 +305,20 @@ namespace GUI.Types.Renderer
 
             if (isTranslucent)
             {
-                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                GL.Disable(EnableCap.CullFace);
 
+                // Lines
+                GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
+                GL.Disable(EnableCap.Blend);
+                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+
+                // Triangles
+                GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
+                GL.Enable(EnableCap.Blend);
+                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 GL.Enable(EnableCap.PolygonOffsetLine);
                 GL.Enable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffsetClamp(0, 100, 0.005f);
-
-                GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
-
-                // triangles
-                GL.Disable(EnableCap.CullFace);
 
                 GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 

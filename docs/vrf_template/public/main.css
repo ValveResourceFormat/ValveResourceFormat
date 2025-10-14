@@ -1,0 +1,21 @@
+:root {
+    scrollbar-gutter: stable;
+}
+
+:root[data-bs-theme=dark] {
+    --bs-body-bg: #0c121c;
+    --bs-link-color-rgb: 99, 161, 255;
+    scrollbar-color: rgb(71 168 255 / 50%) #0c121c;
+}
+
+:root[data-bs-theme=dark] body > header {
+    background: rgb(38 48 64 / 24%) !important;
+    border-bottom: 1px solid rgb(71 168 255 / 30%) !important;
+    backdrop-filter: blur(10px);
+}
+
+#logo {
+    width: 50px;
+	height: 50px;
+	margin-right: 10px;
+}

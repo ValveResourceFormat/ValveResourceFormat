@@ -21,7 +21,7 @@ namespace GUI.Types.Renderer
 
         public static int CompareCustomPipeline(Request a, Request b)
         {
-            const int CustomRenderSortId = int.MinValue + 100_000;
+            const int CustomRenderSortId = 500 * -RenderMaterial.PerShaderSortIdRange;
 
             return (a.Call, b.Call) switch
             {
@@ -133,6 +133,7 @@ namespace GUI.Types.Renderer
                 {
                     if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline)
                     {
+                        material?.PostRender();
                         request.Node.Render(context);
                         shader = null;
                         material = null;

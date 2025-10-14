@@ -3,11 +3,24 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    /// <summary>
+    /// Represents a data channel in an animation, mapping bones or flex controllers to animation elements.
+    /// </summary>
     public class AnimationDataChannel
     {
-        public int[] RemapTable { get; } // Bone ID => Element Index
+        /// <summary>
+        /// Gets the remap table that maps bone or flex controller IDs to element indices.
+        /// </summary>
+        public int[] RemapTable { get; }
+
+        /// <summary>
+        /// Gets the attribute type of this channel.
+        /// </summary>
         public AnimationChannelAttribute Attribute { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AnimationDataChannel"/> class.
+        /// </summary>
         public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, KVObject dataChannel)
         {
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");

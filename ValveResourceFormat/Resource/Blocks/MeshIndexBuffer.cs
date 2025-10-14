@@ -5,5 +5,6 @@ namespace ValveResourceFormat.Blocks;
 /// </summary>
 public class MeshIndexBuffer : RawBinary
 {
+    /// <inheritdoc/>
     public override BlockType Type => BlockType.MIDX;
 }

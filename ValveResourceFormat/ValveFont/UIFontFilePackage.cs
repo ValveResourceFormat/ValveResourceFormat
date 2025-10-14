@@ -3,6 +3,9 @@ using System.Security.Cryptography;
 
 namespace ValveResourceFormat.ValveFont;
 
+/// <summary>
+/// Represents a UI font file package.
+/// </summary>
 public class UIFontFilePackage
 {
     private static readonly byte[] FontKey =
@@ -13,11 +16,24 @@ public class UIFontFilePackage
         0xBB, 0xA1, 0xAF, 0x92, 0xE7, 0xA0, 0xAC, 0x8D,
     ];
 
+    /// <summary>
+    /// Gets the list of font files in this package.
+    /// </summary>
     public List<FontFile> FontFiles { get; } = [];
 
+    /// <summary>
+    /// Represents a font file within the package.
+    /// </summary>
     public class FontFile
     {
+        /// <summary>
+        /// Gets or initializes the file name.
+        /// </summary>
         public required string FileName { get; init; }
+
+        /// <summary>
+        /// Gets or initializes the OpenType font data.
+        /// </summary>
         public required byte[] OpenTypeFontData { get; init; }
     }
 
@@ -34,7 +50,7 @@ public class UIFontFilePackage
     /// <summary>
     /// Read the given data.
     /// </summary>
-    /// <param name="filename">The input data.</param>
+    /// <param name="data">The input data.</param>
     public void Read(ReadOnlySpan<byte> data)
     {
         // uifont files:

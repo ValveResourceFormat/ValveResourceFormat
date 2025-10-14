@@ -5,8 +5,14 @@ using SkiaSharp;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Generates placeholder textures for auto-generated physics surfaces.
+/// </summary>
 public static class MapAutoPhysTextureGenerator
 {
+    /// <summary>
+    /// Generates a texture with the surface name for auto physics.
+    /// </summary>
     public static SKBitmap GenerateTexture(string surfaceName)
     {
         using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ValveResourceFormat.Utils.RobotoAscii.ttf");

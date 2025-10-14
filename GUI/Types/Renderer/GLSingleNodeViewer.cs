@@ -30,14 +30,14 @@ namespace GUI.Types.Renderer
         public override void PreSceneLoad()
         {
             base.PreSceneLoad();
-            LoadDefaultEnviromentMap();
+            LoadDefaultEnvironmentMap();
         }
 
         protected override void LoadScene()
         {
         }
 
-        private void LoadDefaultEnviromentMap()
+        private void LoadDefaultEnvironmentMap()
         {
             var assembly = Assembly.GetExecutingAssembly();
             using var stream = assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");

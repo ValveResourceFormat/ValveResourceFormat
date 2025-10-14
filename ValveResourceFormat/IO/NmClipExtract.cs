@@ -6,11 +6,17 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
+/// <summary>
+/// Extracts Source 2 animation clips to editable format.
+/// </summary>
 public class NmClipExtract
 {
     private readonly Resource resource;
     private readonly AnimationClip clip;
     private readonly IFileLoader fileLoader;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NmClipExtract"/> class.
+    /// </summary>
     public NmClipExtract(Resource resource, IFileLoader fileLoader)
     {
         this.resource = resource;
@@ -19,6 +25,9 @@ public class NmClipExtract
         this.fileLoader = fileLoader;
     }
 
+    /// <summary>
+    /// Converts the animation clip to a content file.
+    /// </summary>
     public ContentFile ToContentFile()
     {
         var contentFile = new ContentFile();

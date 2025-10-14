@@ -8,6 +8,9 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 namespace ValveResourceFormat.IO
 {
+    /// <summary>
+    /// Represents a content file extracted from a compiled resource.
+    /// </summary>
     public class ContentFile : IDisposable
     {
         /// <summary>
@@ -45,8 +48,14 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public List<ContentFile> AdditionalFiles { get; init; } = [];
 
+        /// <summary>
+        /// Gets a value indicating whether this instance has been disposed.
+        /// </summary>
         protected bool Disposed { get; private set; }
 
+        /// <summary>
+        /// Adds a sub-file to be extracted alongside the main content file.
+        /// </summary>
         public void AddSubFile(string fileName, Func<byte[]> extractMethod)
         {
             var subFile = new SubFile
@@ -58,6 +67,9 @@ namespace ValveResourceFormat.IO
             SubFiles.Add(subFile);
         }
 
+        /// <summary>
+        /// Releases resources used by this instance.
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (!Disposed && disposing)
@@ -71,6 +83,7 @@ namespace ValveResourceFormat.IO
             Disposed = true;
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(disposing: true);
@@ -78,12 +91,22 @@ namespace ValveResourceFormat.IO
         }
     }
 
+    /// <summary>
+    /// Represents a sub-file that is part of a content file extraction.
+    /// </summary>
     public class SubFile
     {
+        /// <summary>
+        /// Gets or sets the file name (relative to the content file).
+        /// </summary>
         /// <remarks>
         /// This is relative to the content file.
         /// </remarks>
         public string FileName { get; set; }
+
+        /// <summary>
+        /// Gets or sets the extraction function that returns the file data.
+        /// </summary>
         public virtual Func<byte[]> Extract { get; set; }
     }
 
@@ -92,9 +115,13 @@ namespace ValveResourceFormat.IO
     /// </summary>
     public class TrackingFileLoader : IFileLoader
     {
+        /// <summary>
+        /// Gets the set of file paths that have been loaded.
+        /// </summary>
         public HashSet<string> LoadedFilePaths { get; } = [];
         private readonly IFileLoader fileLoader;
 
+        /// <inheritdoc/>
         public Resource LoadFile(string file)
         {
             var resource = fileLoader.LoadFile(file);
@@ -109,22 +136,32 @@ namespace ValveResourceFormat.IO
             return resource;
         }
 
+        /// <inheritdoc/>
         public Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, GameFileLoader.CompiledFileSuffix));
 
+        /// <inheritdoc/>
         public ShaderCollection LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TrackingFileLoader"/> class.
+        /// </summary>
         public TrackingFileLoader(IFileLoader fileLoader)
         {
             this.fileLoader = fileLoader;
         }
     }
 
+    /// <summary>
+    /// Provides methods for extracting content files from compiled resources.
+    /// </summary>
     public static class FileExtract
     {
         /// <summary>
         /// Extract content file from a compiled resource.
         /// </summary>
         /// <param name="resource">The resource to be extracted or decompiled.</param>
+        /// <param name="fileLoader">The file loader for resolving dependencies.</param>
+        /// <param name="progress">Optional progress reporter.</param>
         public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string> progress = null)
         {
             var contentFile = new ContentFile();
@@ -245,6 +282,7 @@ namespace ValveResourceFormat.IO
         /// Extract content file from a non-resource stream.
         /// </summary>
         /// <param name="stream">Stream to be extracted or decompiled.</param>
+        /// <param name="fileName">The file name for context.</param>
         public static ContentFile ExtractNonResource(Stream stream, string fileName)
         {
             Span<byte> buffer = stackalloc byte[4];
@@ -265,15 +303,24 @@ namespace ValveResourceFormat.IO
             };
         }
 
+        /// <summary>
+        /// Attempts to extract content from a non-resource stream.
+        /// </summary>
         public static bool TryExtractNonResource(Stream stream, string fileName, out ContentFile contentFile)
         {
             contentFile = ExtractNonResource(stream, fileName);
             return contentFile != null;
         }
 
+        /// <summary>
+        /// Determines whether the resource is a child resource.
+        /// </summary>
         public static bool IsChildResource(Resource resource)
             => resource.EditInfo.SearchableUserData.GetProperty<long>("IsChildResource") == 1;
 
+        /// <summary>
+        /// Gets the appropriate file extension for the extracted resource.
+        /// </summary>
         public static string GetExtension(Resource resource)
         {
             // When updating this, don't forget to update ExtractProgressForm

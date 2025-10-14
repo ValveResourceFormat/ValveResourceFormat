@@ -12,6 +12,9 @@ namespace ValveResourceFormat
     /// </summary>
     public class Resource : IDisposable
     {
+        /// <summary>
+        /// The known and expected header version for resource files.
+        /// </summary>
         public const ushort KnownHeaderVersion = 12;
 
         private FileStream? FileStream;
@@ -73,7 +76,7 @@ namespace ValveResourceFormat
         /// Resource files have a FileSize in the metadata, however
         /// certain file types such as sounds have streaming audio data come
         /// after the resource file, and the size is specified within the DATA block.
-        /// This property attemps to return the correct size.
+        /// This property attempts to return the correct size.
         /// </summary>
         public uint FullFileSize
         {
@@ -126,6 +129,10 @@ namespace ValveResourceFormat
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>
+        /// Releases the resources used by the <see cref="Resource"/>.
+        /// </summary>
+        /// <param name="disposing">True to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -164,7 +171,7 @@ namespace ValveResourceFormat
         /// <param name="verifyFileSize">Whether to verify that the stream was correctly consumed.</param>
         /// <param name="leaveOpen">Whether to leave the stream open after the object is disposed.</param>
         /// <remarks>
-        /// The <see cref="input"/> stream must remain open while accessing data from this resource,
+        /// The input stream must remain open while accessing data from this resource,
         /// as some operations may perform reads lazily from the stream at call time.
         /// </remarks>
         public void Read(Stream input, bool verifyFileSize = true, bool leaveOpen = false)
@@ -180,7 +187,7 @@ namespace ValveResourceFormat
 
             if (FileSize == VfxProgramData.MAGIC)
             {
-                throw new InvalidDataException("Use ShaderFile() class to parse compiled shader files.");
+                throw new InvalidDataException($"Use {nameof(VfxProgramData)}() class to parse legacy compiled shader files.");
             }
 
             HeaderVersion = Reader.ReadUInt16();
@@ -424,7 +431,6 @@ namespace ValveResourceFormat
             }
 
             var end = stream.Position;
-            stream.Position = start;
 
             // Update file size
             var fileSize = end - start;
@@ -434,9 +440,19 @@ namespace ValveResourceFormat
                 throw new InvalidDataException("File size exceeds 32-bit integer.");
             }
 
+            stream.SetLength(fileSize);
+            stream.Position = start;
+
             writer.Write((uint)fileSize);
+            writer.Flush();
         }
 
+        /// <summary>
+        /// Gets a block by its index in the blocks list.
+        /// </summary>
+        /// <param name="index">The zero-based index of the block.</param>
+        /// <returns>The block at the specified index.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the index is out of range.</exception>
         public Block GetBlockByIndex(int index)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(index);
@@ -445,6 +461,11 @@ namespace ValveResourceFormat
             return Blocks[index];
         }
 
+        /// <summary>
+        /// Gets the first block of the specified type.
+        /// </summary>
+        /// <param name="type">The type of block to retrieve.</param>
+        /// <returns>The first block of the specified type, or null if not found.</returns>
         public Block? GetBlockByType(BlockType type)
         {
             foreach (var block in Blocks)
@@ -458,6 +479,11 @@ namespace ValveResourceFormat
             return null;
         }
 
+        /// <summary>
+        /// Determines whether the resource contains a block of the specified type.
+        /// </summary>
+        /// <param name="type">The type of block to check for.</param>
+        /// <returns>True if a block of the specified type exists; otherwise, false.</returns>
         public bool ContainsBlockType(BlockType type)
         {
             foreach (var block in Blocks)

@@ -7,11 +7,13 @@ namespace ValveResourceFormat.Blocks;
 /// </summary>
 public abstract class RawBinary : Block
 {
+    /// <inheritdoc/>
     public override void Read(BinaryReader reader)
     {
         // Binary data is not read into memory upon load
     }
 
+    /// <inheritdoc/>
     public override void Serialize(Stream stream)
     {
         if (Resource?.Reader == null)
@@ -26,6 +28,7 @@ public abstract class RawBinary : Block
         stream.Write(data);
     }
 
+    /// <inheritdoc/>
     public override void WriteText(IndentedTextWriter writer)
     {
         writer.WriteLine("Not yet.");

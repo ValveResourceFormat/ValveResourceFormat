@@ -2,9 +2,16 @@ using System.Text;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents Panorama dynamic images resource.
+    /// </summary>
     public class PanoramaDynamicImages : Panorama
     {
         // TODO: This might need to live in `Panorama`
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Lists all dynamic images with their dimensions and metadata.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine($"CRC: {CRC32:X8}");

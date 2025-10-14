@@ -9,20 +9,66 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    /// <summary>
+    /// Represents a model animation with frame data, events, and movement information.
+    /// </summary>
     public class Animation
     {
+        /// <summary>
+        /// Gets the name of the animation.
+        /// </summary>
         public string Name { get; }
+
+        /// <summary>
+        /// Gets the frames per second of the animation.
+        /// </summary>
         public float Fps { get; }
+
+        /// <summary>
+        /// Gets the total number of frames in the animation.
+        /// </summary>
         public int FrameCount { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the animation loops.
+        /// </summary>
         public bool IsLooping { get; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the animation is hidden.
+        /// </summary>
         public bool Hidden { get; init; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this is a delta animation.
+        /// </summary>
         public bool Delta { get; init; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this animation is in world space.
+        /// </summary>
         public bool Worldspace { get; init; }
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
+
+        /// <summary>
+        /// Gets the movement data for this animation.
+        /// </summary>
         public AnimationMovement[] Movements { get; }
+
+        /// <summary>
+        /// Gets the events defined in this animation.
+        /// </summary>
         public AnimationEvent[] Events { get; }
+
+        /// <summary>
+        /// Gets the activities associated with this animation.
+        /// </summary>
         public AnimationActivity[] Activities { get; }
+
+        /// <summary>
+        /// Gets the sequence parameters for this animation.
+        /// </summary>
         public AnimationSequenceParams SequenceParams { get; }
 
         private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
@@ -68,6 +114,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             SequenceParams = new AnimationSequenceParams(sequenceParams);
         }
 
+        /// <summary>
+        /// Creates animation instances from the provided animation data and decode key.
+        /// </summary>
         public static IEnumerable<Animation> FromData(KVObject animationData, KVObject decodeKey,
             Skeleton skeleton, FlexController[] flexControllers)
         {
@@ -166,6 +215,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 .ToArray();
         }
 
+        /// <summary>
+        /// Creates animation instances from a resource file.
+        /// </summary>
         public static IEnumerable<Animation> FromResource(Resource resource, KVObject decodeKey, Skeleton skeleton, FlexController[] flexControllers)
             => FromData(GetAnimationData(resource), decodeKey, skeleton, flexControllers);
 
@@ -191,13 +243,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return Movements.Length - 1;
         }
 
+        /// <summary>
+        /// Determines whether this animation has movement data.
+        /// </summary>
         public bool HasMovementData()
         {
             return Movements.Length > 0;
         }
 
         /// <summary>
-        /// Returns interpolated root motion data
+        /// Returns interpolated root motion data at the specified time.
         /// </summary>
         public AnimationMovement.MovementData GetMovementOffsetData(float time)
         {
@@ -210,6 +265,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return AnimationMovement.Lerp(movement, nextMovement, time);
         }
 
+        /// <summary>
+        /// Returns interpolated root motion data at the specified frame.
+        /// </summary>
         public AnimationMovement.MovementData GetMovementOffsetData(int frame)
         {
             if (!HasMovementData())
@@ -256,8 +314,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             t = Math.Min(1f, elapsedTime / movementDuration);
         }
 
+        /// <summary>
+        /// Gets the animation clip data for ModelAnimation2 format.
+        /// </summary>
         public AnimationClip Clip { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Animation"/> class from an animation clip.
+        /// </summary>
         public Animation(AnimationClip clip)
         {
             Name = clip.Name;
@@ -270,6 +334,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Activities = [];
         }
 
+        /// <summary>
+        /// Decodes animation data for the specified frame.
+        /// </summary>
         public void DecodeFrame(Frame outFrame)
         {
             if (Clip != null)
@@ -294,6 +361,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the animation name.
+        /// </remarks>
         public override string ToString()
         {
             return Name;

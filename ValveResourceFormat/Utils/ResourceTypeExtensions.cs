@@ -4,6 +4,9 @@ using ValveResourceFormat.IO;
 
 namespace ValveResourceFormat;
 
+/// <summary>
+/// Extension methods for <see cref="ResourceType"/>.
+/// </summary>
 public static class ResourceTypeExtensions
 {
     /// <summary>

@@ -6,33 +6,99 @@ using System.Text;
 
 namespace ValveResourceFormat.NavMesh
 {
+    /// <summary>
+    /// Navigation mesh generation parameters.
+    /// </summary>
     public class NavMeshGenerationParams
     {
+        /// <summary>
+        /// Gets or sets the navigation generation version.
+        /// </summary>
         public int NavGenVersion { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to use project defaults.
+        /// </summary>
         public bool UseProjectDefaults { get; set; }
 
+        /// <summary>
+        /// Gets or sets the tile size.
+        /// </summary>
         public float TileSize { get; set; }
 
+        /// <summary>
+        /// Gets or sets the cell size.
+        /// </summary>
         public float CellSize { get; set; }
+
+        /// <summary>
+        /// Gets or sets the cell height.
+        /// </summary>
         public float CellHeight { get; set; }
 
+        /// <summary>
+        /// Gets or sets the minimum region size.
+        /// </summary>
         public int MinRegionSize { get; set; }
+
+        /// <summary>
+        /// Gets or sets the merged region size.
+        /// </summary>
         public int MergedRegionSize { get; set; }
 
+        /// <summary>
+        /// Gets or sets the mesh sample distance.
+        /// </summary>
         public float MeshSampleDistance { get; set; }
+
+        /// <summary>
+        /// Gets or sets the maximum sample error.
+        /// </summary>
         public float MaxSampleError { get; set; }
 
+        /// <summary>
+        /// Gets or sets the maximum edge length.
+        /// </summary>
         public int MaxEdgeLength { get; set; }
+
+        /// <summary>
+        /// Gets or sets the maximum edge error.
+        /// </summary>
         public float MaxEdgeError { get; set; }
+
+        /// <summary>
+        /// Gets or sets the vertices per polygon.
+        /// </summary>
         public int VertsPerPoly { get; set; }
 
+        /// <summary>
+        /// Gets or sets the small area on edge removal threshold.
+        /// </summary>
         public float SmallAreaOnEdgeRemoval { get; set; }
 
+        /// <summary>
+        /// Gets or sets the hull preset name.
+        /// </summary>
         public string HullPresetName { get; set; }
+
+        /// <summary>
+        /// Gets or sets the hull definitions file path.
+        /// </summary>
         public string HullDefinitionsFile { get; set; }
+
+        /// <summary>
+        /// Gets or sets the hull count.
+        /// </summary>
         public int HullCount { get; set; }
+
+        /// <summary>
+        /// Gets or sets the hull parameters.
+        /// </summary>
         public NavMeshGenerationHullParams[] HullParams { get; set; }
 
+        /// <summary>
+        /// Reads generation parameters from a binary reader.
+        /// </summary>
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
             NavGenVersion = binaryReader.ReadInt32();

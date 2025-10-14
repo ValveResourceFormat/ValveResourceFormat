@@ -16,7 +16,7 @@ actually load and test the new files.
 
 ## Shaders
 
-If you are modifying shaders, you need to run shader validator to ensure all shaders compile sucessfully, as we use runtime compilation.
+If you are modifying shaders, you need to run shader validator to ensure all shaders compile successfully, as we use runtime compilation.
 To perform full validation:
 ```sh
 dotnet run --project misc/shadervalidator
@@ -82,8 +82,8 @@ This is required for correct material extraction. These mappings are used as a f
 
 ## Making a new release
 
-### With a node script
-1. Run `node Misc/release.mjs X.X`
+### With a script
+1. Run `dotnet run misc/release.cs X.X`
 2. `git push --follow-tags`
 
 ### Manually

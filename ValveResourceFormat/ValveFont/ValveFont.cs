@@ -3,6 +3,9 @@ using System.Text;
 
 namespace ValveResourceFormat.ValveFont
 {
+    /// <summary>
+    /// Provides functionality to read Valve font files.
+    /// </summary>
 #pragma warning disable CA1822 // statics
     public class ValveFont
     {

@@ -6,22 +6,48 @@ using System.Text;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a Panorama UI resource.
+    /// </summary>
     public class Panorama : Block
     {
+        /// <summary>
+        /// Represents a name entry.
+        /// </summary>
         public class NameEntry
         {
+            /// <summary>
+            /// Gets or sets the name.
+            /// </summary>
             public string Name { get; set; }
+            /// <summary>
+            /// Gets or sets the first unknown value.
+            /// </summary>
             public uint Unknown1 { get; set; } // TODO: unconfirmed
+            /// <summary>
+            /// Gets or sets the second unknown value.
+            /// </summary>
             public uint Unknown2 { get; set; } // TODO: unconfirmed
         }
 
+        /// <summary>
+        /// Gets the list of name entries.
+        /// </summary>
         public List<NameEntry> Names { get; } = [];
 
+        /// <summary>
+        /// Gets the raw data.
+        /// </summary>
         public byte[] Data { get; private set; }
+        /// <summary>
+        /// Gets the CRC32 checksum.
+        /// </summary>
         public uint CRC32 { get; private set; }
 
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -61,6 +87,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             if (IsPlaintext())
@@ -72,6 +99,10 @@ namespace ValveResourceFormat.ResourceTypes
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the Panorama data as UTF-8 encoded text.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.Write(Encoding.UTF8.GetString(Data));

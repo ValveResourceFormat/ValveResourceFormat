@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 

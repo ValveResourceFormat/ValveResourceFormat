@@ -1,11 +1,12 @@
-/**
- * C# Port of https://github.com/zeux/meshoptimizer/blob/master/src/vertexcodec.cpp
- */
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Compression
 {
+    /// <summary>
+    /// Provides decoding functionality for mesh optimizer vertex buffers.
+    /// </summary>
+    /// <seealso href="https://github.com/zeux/meshoptimizer/blob/master/src/vertexcodec.cpp">This is a C# port of meshoptimizer.</seealso>
     public static partial class MeshOptimizerVertexDecoder
     {
         private const byte VertexHeader = 0xa0;
@@ -211,6 +212,9 @@ namespace ValveResourceFormat.Compression
             return data;
         }
 
+        /// <summary>
+        /// Decodes a vertex buffer from compressed format.
+        /// </summary>
         public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, Span<byte> buffer, bool useSimd = true)
         {
             if (vertexSize <= 0 || vertexSize > 256)

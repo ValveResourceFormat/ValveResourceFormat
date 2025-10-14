@@ -21,21 +21,13 @@ namespace ValveResourceFormat
         private int indentLevel;
         private bool tabsPending;
 
-        /// <summary>
-        /// Gets the encoding for the text writer to use.
-        /// </summary>
-        /// <returns>
-        /// An <see cref="System.Text.Encoding" /> that indicates the encoding for the text writer to use.
-        /// </returns>
+        /// <inheritdoc/>
         public override Encoding Encoding
         {
             get { return writer.Encoding; }
         }
 
-        /// <summary>
-        /// Gets or sets the new line character to use.
-        /// </summary>
-        /// <returns> The new line character to use. </returns>
+        /// <inheritdoc/>
         [AllowNull]
         public override string NewLine
         {
@@ -97,6 +89,7 @@ namespace ValveResourceFormat
             writer.Flush();
         }
 
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing && writerIsOwned)

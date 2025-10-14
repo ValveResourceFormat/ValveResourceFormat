@@ -9,6 +9,9 @@ namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter
 {
+    /// <summary>
+    /// Manages the writing of skeletal animation data to glTF format.
+    /// </summary>
     public class AnimationWriter
     {
         Skeleton Skeleton { get; init; }
@@ -19,6 +22,9 @@ public partial class GltfModelExporter
         AnimationChannelWriter<Vector3> PositionWriter;
         AnimationChannelWriter<Vector3> ScaleWriter;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AnimationWriter"/> class.
+        /// </summary>
         public AnimationWriter(Skeleton skeleton, FlexController[] flexControllers)
         {
             Skeleton = skeleton;
@@ -29,6 +35,9 @@ public partial class GltfModelExporter
             ScaleWriter = AnimationChannelWriter<Vector3>.Create(BoneCount);
         }
 
+        /// <summary>
+        /// Writes a skeletal animation to the glTF model.
+        /// </summary>
         public void WriteAnimation(ModelRoot model, Node[] joints, VAnim animation)
         {
             Debug.Assert(joints.Length == BoneCount);

@@ -9,6 +9,9 @@ namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
 {
+    /// <summary>
+    /// Gets the list of animations to be extracted with their output file names.
+    /// </summary>
     public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
     private void EnqueueAnimations()
@@ -32,9 +35,15 @@ partial class ModelExtract
             .Replace('\\', '/');
     }
 
+    /// <summary>
+    /// Converts an animation to DMX format.
+    /// </summary>
     public static byte[] ToDmxAnim(Model model, Animation anim)
         => ToDmxAnim(model.Skeleton, model.FlexControllers, anim);
 
+    /// <summary>
+    /// Converts an animation to DMX format using skeleton and flex controllers.
+    /// </summary>
     public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);

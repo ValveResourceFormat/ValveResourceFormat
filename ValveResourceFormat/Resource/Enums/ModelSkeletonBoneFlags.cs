@@ -1,8 +1,12 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Model skeleton bone flags.
+    /// </summary>
     [Flags]
     public enum ModelSkeletonBoneFlags
     {
+#pragma warning disable CS1591
         NoBoneFlags = 0x0,
         BoneFlexDriver = 0x4,
         Cloth = 0x8,
@@ -27,5 +31,6 @@ namespace ValveResourceFormat
         Procedural = 0x400000,
 
         ProceduralCloth = Cloth | Procedural, // Added by VRF
+#pragma warning restore CS1591
     }
 }

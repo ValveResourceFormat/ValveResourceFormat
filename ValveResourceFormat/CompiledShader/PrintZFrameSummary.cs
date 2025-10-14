@@ -4,13 +4,20 @@ using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    /// <summary>
+    /// Prints a summary of shader static combo data.
+    /// </summary>
     public class PrintZFrameSummary
     {
+        /// <summary>Gets or sets the output writer.</summary>
         public IndentedTextWriter OutputWriter { get; set; }
         private readonly VfxStaticComboData StaticCombo;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
+        /// <summary>
+        /// Initializes a new instance and prints the summary.
+        /// </summary>
         public PrintZFrameSummary(VfxStaticComboData staticCombo, IndentedTextWriter outputWriter)
         {
             StaticCombo = staticCombo;
@@ -66,6 +73,9 @@ namespace ValveResourceFormat.CompiledShader
         /*
          * Because the write sequences are often repeated, we only print the unique ones.
          */
+        /// <summary>
+        /// Builds a lookup of unique write sequences, keyed by their serialized payload.
+        /// </summary>
         public Dictionary<string, int> GetUniqueWriteSequences()
         {
             Dictionary<string, int> writeSequences = [];
@@ -93,6 +103,9 @@ namespace ValveResourceFormat.CompiledShader
          * write sequence WRITESEQ[0] (configurations may refer to it) otherwise sequences assigned -1 mean the write
          * sequence doesn't contain any data and not needed.
          */
+        /// <summary>
+        /// Maps block IDs to unique sequence IDs.
+        /// </summary>
         public SortedDictionary<int, int> GetBlockToUniqueSequenceMap()
         {
             SortedDictionary<int, int> sequencesMap = new()
@@ -124,10 +137,10 @@ namespace ValveResourceFormat.CompiledShader
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
-            tabulatedData.DefineHeaders(StaticCombo.VariablesFromStaticCombo.FieldsCount > 0 ?
+            tabulatedData.DefineHeaders(StaticCombo.VariablesFromStaticCombo.Fields.Length > 0 ?
                 ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)] :
                 emptyRow);
-            if (StaticCombo.VariablesFromStaticCombo.FieldsCount > 0)
+            if (StaticCombo.VariablesFromStaticCombo.Fields.Length > 0)
             {
                 tabulatedData.AddTabulatedRow(emptyRow);
             }
@@ -155,7 +168,7 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintParamWriteSequence(VfxVariableIndexArray dataBlock, OutputFormatterTabulatedData tabulatedData)
         {
             PrintParamWriteSequenceSegment(dataBlock.Evaluated, 0, tabulatedData);
-            PrintParamWriteSequenceSegment(dataBlock.Segment1, 1, tabulatedData);
+            PrintParamWriteSequenceSegment(dataBlock.RenderState, 1, tabulatedData);
             PrintParamWriteSequenceSegment(dataBlock.Globals, 2, tabulatedData);
         }
 
@@ -229,7 +242,9 @@ namespace ValveResourceFormat.CompiledShader
             }
             OutputWriter.WriteLine();
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
-            var gpuSourceName = StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant();
+            var gpuSourceName = StaticCombo.ShaderFiles.Length > 0
+                ? StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant()
+                : "unknown";
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
                     ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)] :
@@ -251,7 +266,12 @@ namespace ValveResourceFormat.CompiledShader
                 var configIdText = $"0x{blockId:X2}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
                 var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"SEQ[{writeSequences[blockId]}]";
-                var blockSource = blockIdToSource[blockId];
+                var blockSource = blockIdToSource.GetValueOrDefault(blockId);
+                if (blockSource is null)
+                {
+                    return;
+                }
+
                 var sourceLink = $"{blockSource.ShaderFileId:X2}";
                 var vsInputs = isVertexShader ? StaticCombo.VShaderInputs[block.ShaderFileId] : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS[{vsInputs}]" : "[none]";
@@ -289,7 +309,10 @@ namespace ValveResourceFormat.CompiledShader
             Dictionary<long, VfxShaderFile> blockIdToSource = [];
             foreach (var endBlock in zframeFile.DynamicCombos)
             {
-                blockIdToSource.Add(endBlock.DynamicComboId, zframeFile.ShaderFiles[endBlock.ShaderFileId]);
+                if (endBlock.ShaderFileId != -1)
+                {
+                    blockIdToSource.Add(endBlock.DynamicComboId, zframeFile.ShaderFiles[endBlock.ShaderFileId]);
+                }
             }
             return blockIdToSource;
         }
@@ -297,7 +320,7 @@ namespace ValveResourceFormat.CompiledShader
         private void PrintSourceSummary()
         {
             OutputWriter.WriteLine("source bytes/flags");
-            OutputWriter.WriteLine($"{StaticCombo.Flags0}      // size?");
+            OutputWriter.WriteLine($"{StaticCombo.ConstantBufferSize}      // Constant Buffer Size");
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte0}       //");
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte1}       // added with v66");
             OutputWriter.WriteLine($"{StaticCombo.Flagbyte2}       //");

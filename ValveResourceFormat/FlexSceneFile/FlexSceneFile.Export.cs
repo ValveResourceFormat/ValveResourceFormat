@@ -7,6 +7,10 @@ namespace ValveResourceFormat.FlexSceneFile
 {
     partial class FlexSceneFile
     {
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Exports the flex scene to VFlex format used by Source Engine for facial animation data.
+        /// </remarks>
         public override string ToString()
         {
             var sb = new StringBuilder();

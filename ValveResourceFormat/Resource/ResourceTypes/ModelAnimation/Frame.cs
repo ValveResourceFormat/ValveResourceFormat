@@ -2,14 +2,34 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    /// <summary>
+    /// Represents a single frame of animation data.
+    /// </summary>
     public class Frame
     {
+        /// <summary>
+        /// Gets or sets the frame index.
+        /// </summary>
         public int FrameIndex { get; set; } = 1;
+
+        /// <summary>
+        /// Gets the bone transforms for this frame.
+        /// </summary>
         public FrameBone[] Bones { get; }
+
+        /// <summary>
+        /// Gets the flex controller data for this frame.
+        /// </summary>
         public float[] Datas { get; }
 
+        /// <summary>
+        /// Gets or sets the movement data for this frame.
+        /// </summary>
         public AnimationMovement.MovementData Movement { get; set; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Frame"/> class.
+        /// </summary>
         public Frame(Skeleton skeleton, FlexController[] flexControllers)
         {
             Bones = new FrameBone[skeleton.Bones.Length];
@@ -17,6 +37,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Clear(skeleton);
         }
 
+        /// <summary>
+        /// Sets a Vector3 attribute for a bone in this frame.
+        /// </summary>
         public void SetAttribute(int bone, AnimationChannelAttribute attribute, Vector3 data)
         {
             switch (attribute)
@@ -33,6 +56,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
+        /// <summary>
+        /// Sets a Quaternion attribute for a bone in this frame.
+        /// </summary>
         public void SetAttribute(int bone, AnimationChannelAttribute attribute, Quaternion data)
         {
             switch (attribute)
@@ -49,6 +75,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
+        /// <summary>
+        /// Sets a float attribute for a bone or flex controller in this frame.
+        /// </summary>
         public void SetAttribute(int bone, AnimationChannelAttribute attribute, float data)
         {
             switch (attribute)

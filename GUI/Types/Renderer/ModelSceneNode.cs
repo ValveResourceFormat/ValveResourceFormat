@@ -395,7 +395,7 @@ namespace GUI.Types.Renderer
 
         private IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
         {
-            var groupIndex = meshGroups.ToList().IndexOf(groupName);
+            var groupIndex = Array.IndexOf(meshGroups, groupName);
             if (groupIndex >= 0)
             {
                 return meshGroupMasks.Select(mask => (mask & 1UL << groupIndex) != 0);

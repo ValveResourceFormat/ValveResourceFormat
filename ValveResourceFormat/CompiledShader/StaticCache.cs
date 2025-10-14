@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.CompiledShader
 {
+    /// <summary>
+    /// LRU cache for shader static combo data.
+    /// </summary>
     public sealed class StaticCache : IDisposable
     {
         private readonly VfxProgramData Program;
@@ -7,12 +10,15 @@ namespace ValveResourceFormat.CompiledShader
         private readonly LinkedList<long> lru = new();
         private int maxCacheSize = 1;
 
+        /// <summary>
+        /// Gets or sets the maximum number of cached static combos.
+        /// </summary>
         public int MaxCachedFrames
         {
             get => maxCacheSize;
             set
             {
-                maxCacheSize = Math.Min(value, 1);
+                maxCacheSize = Math.Max(value, 1);
                 cache.EnsureCapacity(maxCacheSize);
                 TrimLRU();
             }
@@ -27,6 +33,9 @@ namespace ValveResourceFormat.CompiledShader
             Program = program;
         }
 
+        /// <summary>
+        /// Gets the static combo data for the specified ID.
+        /// </summary>
         public VfxStaticComboData Get(long staticComboId)
         {
             lock (Program)
@@ -46,6 +55,9 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        /// <summary>
+        /// Ensures the cache has at least the specified capacity.
+        /// </summary>
         public void EnsureCapacity(int capacity)
         {
             MaxCachedFrames = Math.Max(capacity, MaxCachedFrames);
@@ -68,6 +80,9 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
+        /// <summary>
+        /// Disposes all cached data.
+        /// </summary>
         public void Dispose()
         {
             foreach (var zFrame in cache.Values)

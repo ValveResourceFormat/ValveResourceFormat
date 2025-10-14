@@ -219,3 +219,5 @@ FakesAssemblies/
 _Pvt_Extensions
 
 Tests/lcov.info
+/docs/_site/
+/docs/api/

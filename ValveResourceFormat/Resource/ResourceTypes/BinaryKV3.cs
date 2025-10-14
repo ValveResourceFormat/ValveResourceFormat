@@ -12,22 +12,66 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a binary KeyValues3 data block.
+    /// </summary>
     public partial class BinaryKV3 : Block
     {
         private readonly BlockType KVBlockType;
+
+        /// <inheritdoc/>
         public override BlockType Type => KVBlockType;
 
+        /// <summary>
+        /// Magic number for VKV3 format.
+        /// </summary>
         public const int MAGIC0 = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
+
+        /// <summary>
+        /// Magic number for KV3 version 1.
+        /// </summary>
         public const int MAGIC1 = 0x4B563301; // KV3\x01
+
+        /// <summary>
+        /// Magic number for KV3 version 2.
+        /// </summary>
         public const int MAGIC2 = 0x4B563302; // KV3\x02
+
+        /// <summary>
+        /// Magic number for KV3 version 3.
+        /// </summary>
         public const int MAGIC3 = 0x4B563303; // KV3\x03
+
+        /// <summary>
+        /// Magic number for KV3 version 4.
+        /// </summary>
         public const int MAGIC4 = 0x4B563304; // KV3\x04
+
+        /// <summary>
+        /// Magic number for KV3 version 5.
+        /// </summary>
         public const int MAGIC5 = 0x4B563305; // KV3\x05
 
+        /// <summary>
+        /// Checks if the given magic number represents a binary KV3 format.
+        /// </summary>
+        /// <param name="magic">The magic number to check.</param>
+        /// <returns>True if the magic number is a valid binary KV3 format.</returns>
         public static bool IsBinaryKV3(uint magic) => magic is MAGIC0 or MAGIC1 or MAGIC2 or MAGIC3 or MAGIC4 or MAGIC5;
 
+        /// <summary>
+        /// Gets the deserialized KeyValues3 data.
+        /// </summary>
         public KVObject Data { get; private set; }
+
+        /// <summary>
+        /// Gets the encoding identifier for this KV3 data.
+        /// </summary>
         public KV3ID? Encoding { get; private set; }
+
+        /// <summary>
+        /// Gets the format identifier for this KV3 data.
+        /// </summary>
         public KV3ID Format { get; private set; }
 
         private class Buffers
@@ -50,16 +94,29 @@ namespace ValveResourceFormat.ResourceTypes
             public Buffers AuxiliaryBuffer;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BinaryKV3"/> class with DATA block type.
+        /// </summary>
         public BinaryKV3()
         {
             KVBlockType = BlockType.DATA;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BinaryKV3"/> class with the specified block type.
+        /// </summary>
+        /// <param name="type">The block type.</param>
         public BinaryKV3(BlockType type)
         {
             KVBlockType = type;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BinaryKV3"/> class with the specified data and format.
+        /// </summary>
+        /// <param name="data">The KeyValues3 data.</param>
+        /// <param name="format">The format identifier.</param>
+        /// <param name="blockType">The block type.</param>
         public BinaryKV3(KVObject data, KV3ID format, BlockType blockType = BlockType.Undefined)
         {
             KVBlockType = blockType;
@@ -67,6 +124,7 @@ namespace ValveResourceFormat.ResourceTypes
             Format = format;
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             if (KVBlockType != BlockType.Undefined)
@@ -1050,6 +1108,10 @@ namespace ValveResourceFormat.ResourceTypes
             return new KVValue(realType, flag, data);
         }
 
+        /// <summary>
+        /// Gets the KeyValues3 data as a KV3File object.
+        /// </summary>
+        /// <returns>A KV3File object containing the data and format.</returns>
 #pragma warning disable CA1024 // Use properties where appropriate
         public KV3File GetKV3File()
 #pragma warning restore CA1024 // Use properties where appropriate
@@ -1057,6 +1119,10 @@ namespace ValveResourceFormat.ResourceTypes
             return new KV3File(Data, format: Format);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Converts the binary KV3 data to text format and writes it.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             GetKV3File().WriteText(writer);
@@ -1081,6 +1147,12 @@ namespace ValveResourceFormat.ResourceTypes
             offset &= ~alignment;
         }
 
+        /// <summary>
+        /// Converts binary KV3 data to text format. This method is exposed for unmanaged callers.
+        /// </summary>
+        /// <param name="dataPtr">Pointer to the binary KV3 data.</param>
+        /// <param name="dataLength">Length of the binary data.</param>
+        /// <returns>Pointer to the text representation of the KV3 data.</returns>
         [UnmanagedCallersOnly(EntryPoint = "ConvertBinaryKV3ToText")]
         public static IntPtr ConvertBinaryKV3ToText(IntPtr dataPtr, int dataLength)
         {

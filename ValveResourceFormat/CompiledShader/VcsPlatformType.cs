@@ -6,8 +6,12 @@ namespace ValveResourceFormat.CompiledShader
      * X360, MAC are not implemented
      *
      */
+    /// <summary>
+    /// Shader target platforms.
+    /// </summary>
     public enum VcsPlatformType
     {
+#pragma warning disable CS1591
         VULKAN,
         PC,
         PCGL,
@@ -17,5 +21,6 @@ namespace ValveResourceFormat.CompiledShader
         IOS_VULKAN,
         ANDROID_VULKAN,
         Undetermined,
+#pragma warning restore CS1591
     }
 }

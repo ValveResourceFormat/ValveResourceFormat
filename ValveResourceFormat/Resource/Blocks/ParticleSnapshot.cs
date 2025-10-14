@@ -14,12 +14,20 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ParticleSnapshot : Block
     {
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.SNAP;
 
+        /// <summary>
+        /// Gets the number of particles.
+        /// </summary>
         public uint NumParticles { get; private set; }
 
+        /// <summary>
+        /// Gets the particle attribute data by name and type.
+        /// </summary>
         public IReadOnlyDictionary<(string Name, string Type), IEnumerable> AttributeData { get; private set; }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("{0:X8}", Offset);
@@ -38,6 +46,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -139,11 +148,25 @@ namespace ValveResourceFormat.Blocks
             return result;
         }
 
+        /// <summary>
+        /// Represents skinning data for a particle.
+        /// </summary>
         public class SkinningData
         {
+            /// <summary>
+            /// Gets or sets the joint names.
+            /// </summary>
             public string[] JointNames { get; set; }
+
+            /// <summary>
+            /// Gets or sets the joint weights.
+            /// </summary>
             public float[] Weights { get; set; }
 
+            /// <inheritdoc/>
+            /// <remarks>
+            /// Returns a space-separated list of joint-weight pairs in format: (JointName: Weight).
+            /// </remarks>
             public override string ToString()
                 => string.Join(' ', Enumerable.Range(0, 4)
                     .Select(i => $"({JointNames[i]}: {Weights[i]})"));
@@ -179,6 +202,7 @@ namespace ValveResourceFormat.Blocks
             return result;
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");

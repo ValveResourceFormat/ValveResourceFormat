@@ -1,8 +1,14 @@
 namespace ValveResourceFormat
 {
-    // Friendly names are used
+    /// <summary>
+    /// Resource file types.
+    /// </summary>
+    /// <remarks>
+    /// Friendly names are used
+    /// </remarks>
     public enum ResourceType
     {
+#pragma warning disable CS1591
         Unknown = 0,
 
         [Extension("vanim")]
@@ -174,5 +180,6 @@ namespace ValveResourceFormat
 
         [Extension("vcs")]
         Shader,
+#pragma warning restore CS1591
     }
 }

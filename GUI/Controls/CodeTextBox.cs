@@ -145,7 +145,7 @@ namespace GUI.Controls
 
         public static CodeTextBox CreateFromException(Exception exception)
         {
-            var text = $"Unhandled exception occured while trying to open this file:\n{exception.Message}\n\nTry using latest dev build to see if the issue persists.\n\n{exception}\n\nSource 2 Viewer Version: {Application.ProductVersion}";
+            var text = $"Unhandled exception occurred while trying to open this file:\n{exception.Message}\n\nTry using latest dev build to see if the issue persists.\n\n{exception}\n\nSource 2 Viewer Version: {Application.ProductVersion}";
 
             var control = new CodeTextBox(text, HighlightLanguage.None)
             {

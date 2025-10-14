@@ -113,7 +113,7 @@ partial class ModelExtract
         IEnumerable<KVObject> children;
         if (node.GetStringProperty("_class") == "AnimConstraintParent")
         {
-            //Parent constrants only have a single slave and it's not a child node in the .vmdl
+            //Parent constraints only have a single slave and it's not a child node in the .vmdl
             children = targets;
 
             var constrainedBoneData = boneConstraint.GetArray("m_slaves")[0];
@@ -271,6 +271,9 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>
+    /// Converts the model to Valve model format as a string.
+    /// </summary>
     public string ToValveModel()
     {
         var kv = new KVObject(null);

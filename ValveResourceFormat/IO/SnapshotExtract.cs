@@ -6,20 +6,30 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Extracts Source 2 particle snapshots to editable vsnap format.
+/// </summary>
 public sealed class SnapshotExtract
 {
     private readonly ParticleSnapshot snap;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SnapshotExtract"/> class.
+    /// </summary>
     public SnapshotExtract(ParticleSnapshot snap)
     {
         this.snap = snap;
     }
 
+    /// <inheritdoc cref="SnapshotExtract(ParticleSnapshot)"/>
     public SnapshotExtract(Resource resource)
         : this((ParticleSnapshot)resource.GetBlockByType(BlockType.SNAP))
     {
     }
 
+    /// <summary>
+    /// Converts the snapshot to a content file.
+    /// </summary>
     public ContentFile ToContentFile()
     {
         var vsnap = new ContentFile
@@ -30,6 +40,9 @@ public sealed class SnapshotExtract
         return vsnap;
     }
 
+    /// <summary>
+    /// Converts the snapshot to vsnap format string.
+    /// </summary>
     public string ToValveSnap()
     {
         var outKV3 = new KVObject(null);

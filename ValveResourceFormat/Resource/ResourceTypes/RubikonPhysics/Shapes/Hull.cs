@@ -6,17 +6,29 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
+    /// <summary>
+    /// Represents a convex hull shape.
+    /// </summary>
     public readonly struct Hull
     {
+        /// <summary>
+        /// Represents a plane in the hull.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Plane
         {
+            /// <summary>
+            /// The plane normal.
+            /// </summary>
             public readonly Vector3 Normal;
             /// <summary>
             /// The plane offset such that P: n*x - d = 0
             /// </summary>
             public readonly float Offset;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Plane"/> struct.
+            /// </summary>
             public Plane(KVObject data)
             {
                 Normal = data.GetSubCollection("m_vNormal").ToVector3();
@@ -24,6 +36,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Represents a half-edge in the hull mesh.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct HalfEdge
         {
@@ -31,10 +46,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// Next edge index in CCW circular list around face
             /// </summary>
             public readonly byte Next;
+            /// <summary>
+            /// The twin edge index.
+            /// </summary>
             public readonly byte Twin;
+            /// <summary>
+            /// The origin vertex index.
+            /// </summary>
             public readonly byte Origin;
+            /// <summary>
+            /// The face index.
+            /// </summary>
             public readonly byte Face;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="HalfEdge"/> struct.
+            /// </summary>
             public HalfEdge(KVObject data)
             {
                 Next = data.GetByteProperty("m_nNext");
@@ -44,6 +71,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Represents a face in the hull mesh.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Face
         {
@@ -52,17 +82,32 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public readonly byte Edge;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Face"/> struct.
+            /// </summary>
             public Face(KVObject data)
             {
                 Edge = data.GetByteProperty("m_nEdge");
             }
         }
 
+        /// <summary>
+        /// Represents a region in the hull.
+        /// </summary>
         public class Region
         {
+            /// <summary>
+            /// Gets the region nodes.
+            /// </summary>
             public object[] Nodes { get; }
+            /// <summary>
+            /// Gets the region data.
+            /// </summary>
             public KVObject Data { get; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Region"/> class.
+            /// </summary>
             public Region(KVObject data)
             {
                 Data = data;
@@ -84,6 +129,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Gets the centroid of the hull.
+        /// </summary>
         public Vector3 Centroid { get; }
 
         /// <summary>
@@ -91,6 +139,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// </summary>
         public float MaxAngularRadius { get; }
 
+        /// <summary>
+        /// Gets the region SVM data.
+        /// </summary>
         public Region RegionSVM { get; }
 
         /// <summary>
@@ -98,13 +149,28 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// </summary>
         public Vector3 OrthographicAreas { get; }
 
+        /// <summary>
+        /// Gets the volume of the hull.
+        /// </summary>
         public float Volume { get; }
 
         //public AABB Bounds { get; set; }
+        /// <summary>
+        /// Gets the minimum bounds.
+        /// </summary>
         public Vector3 Min { get; }
+        /// <summary>
+        /// Gets the maximum bounds.
+        /// </summary>
         public Vector3 Max { get; }
+        /// <summary>
+        /// Gets the raw data.
+        /// </summary>
         public KVObject Data { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Hull"/> struct.
+        /// </summary>
         public Hull(KVObject data)
         {
             Centroid = data.GetSubCollection("m_vCentroid").ToVector3();
@@ -128,7 +194,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull vertex indices. Hulls can have up to 255 vertices.
         /// </summary>
-        /// </remarks> Empty for resources compiled before 2023-11-04.</remarks>
+        /// <remarks>Empty for resources compiled before 2023-11-04.</remarks>
         public Span<byte> GetVertices()
         {
             if (!HasExplicitVertexIndices(Data))

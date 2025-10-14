@@ -4,11 +4,20 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a post-processing resource.
+    /// </summary>
     public class PostProcessing : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PostProcessing"/> class.
+        /// </summary>
         public PostProcessing() : base(BlockType.DATA, "PostProcessingResource_t")
         { }
 
+        /// <summary>
+        /// Gets the tonemap parameters.
+        /// </summary>
         public KVObject GetTonemapParams()
         {
             if (Data.GetProperty<bool>("m_bHasTonemapParams"))
@@ -19,6 +28,9 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        /// <summary>
+        /// Gets the bloom parameters.
+        /// </summary>
         public KVObject GetBloomParams()
         {
             if (Data.GetProperty<bool>("m_bHasBloomParams"))
@@ -29,6 +41,9 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        /// <summary>
+        /// Gets the vignette parameters.
+        /// </summary>
         public KVObject GetVignetteParams()
         {
             if (Data.GetProperty<bool>("m_bHasVignetteParams"))
@@ -39,6 +54,9 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        /// <summary>
+        /// Gets the local contrast parameters.
+        /// </summary>
         public KVObject GetLocalContrastParams()
         {
             if (Data.GetProperty<bool>("m_bHasLocalContrastParams"))
@@ -49,6 +67,9 @@ namespace ValveResourceFormat.ResourceTypes
             return null;
         }
 
+        /// <summary>
+        /// Determines whether color correction is enabled.
+        /// </summary>
         public bool HasColorCorrection()
         {
             if (Data.Properties.TryGetValue("m_bHasColorCorrection", out var value))
@@ -59,12 +80,21 @@ namespace ValveResourceFormat.ResourceTypes
             return true; // Assumed true pre Aperture Desk Job
         }
 
+        /// <summary>
+        /// Gets the color correction LUT dimension.
+        /// </summary>
         public int GetColorCorrectionLUTDimension()
             => Data.GetInt32Property("m_nColorCorrectionVolumeDim");
 
+        /// <summary>
+        /// Gets the color correction LUT data.
+        /// </summary>
         public byte[] GetColorCorrectionLUT()
             => Data.GetProperty<byte[]>("m_colorCorrectionVolumeData");
 
+        /// <summary>
+        /// Gets the RAW data format of the color correction LUT.
+        /// </summary>
         public byte[] GetRAWData()
         {
             var lut = GetColorCorrectionLUT().Clone() as byte[];
@@ -84,6 +114,9 @@ namespace ValveResourceFormat.ResourceTypes
             return lut[..j];
         }
 
+        /// <summary>
+        /// Converts this post-processing resource to Valve post-processing format.
+        /// </summary>
         public string ToValvePostProcessing(bool preloadLookupTable = false, string lutFileName = "")
         {
             var outKV3 = new KVObject(null);

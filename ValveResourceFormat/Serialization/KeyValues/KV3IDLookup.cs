@@ -12,8 +12,14 @@ namespace ValveResourceFormat.Serialization.KeyValues;
 // More ids are also stored in the tier0.dll
 //
 
+/// <summary>
+/// Provides lookup for <see cref="KeyValues3"/> identifiers.
+/// </summary>
 public static class KV3IDLookup
 {
+    /// <summary>
+    /// Gets the mapping of <see cref="KV3ID"/> names to their GUIDs.
+    /// </summary>
     public static readonly FrozenDictionary<string, Guid> Table = new Dictionary<string, Guid>()
     {
         { "animgraph0", new Guid([0x02, 0x38, 0xB3, 0xF8, 0x19, 0x7E, 0x64, 0x41, 0x9D, 0xD5, 0x2D, 0x3C, 0x9A, 0x19, 0x3C, 0x22]) },
@@ -202,7 +208,7 @@ public static class KV3IDLookup
     }.ToFrozenDictionary();
 
     /// <summary>
-    /// Lookups a KV3 ID in the lookup table, will throw <see cref="ArgumentException"/> if not found.
+    /// Lookups a <see cref="KV3ID"/> in the lookup table, will throw <see cref="ArgumentException"/> if not found.
     /// </summary>
     public static KV3ID Get(string name)
     {
@@ -215,7 +221,7 @@ public static class KV3IDLookup
     }
 
     /// <summary>
-    /// Lookup a KV3 ID in the lookup table, will return a <see cref="KV3ID"/> with name set to "vrfunknown" if not found.
+    /// Lookup a <see cref="KV3ID"/> in the lookup table, will return a <see cref="KV3ID"/> with name set to "vrfunknown" if not found.
     /// </summary>
     public static KV3ID GetByValue(Guid value)
     {

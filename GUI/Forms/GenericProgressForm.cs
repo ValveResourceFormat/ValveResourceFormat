@@ -72,7 +72,7 @@ namespace GUI.Forms
                     {
                         var exceptions = t.Exception.Flatten().InnerExceptions;
 
-                        SetProgress($"An exception occured, view console tab for more information. ({(exceptions.Count > 0 ? exceptions[0].Message : t.Exception.InnerException.Message)})");
+                        SetProgress($"An exception occurred, view console tab for more information. ({(exceptions.Count > 0 ? exceptions[0].Message : t.Exception.InnerException.Message)})");
 
                         foreach (var exception in exceptions)
                         {

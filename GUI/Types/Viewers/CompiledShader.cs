@@ -149,6 +149,12 @@ namespace GUI.Types.Viewers
                             comboNode.Tag = combo;
                             CreateStaticComboNodes(combo, comboNode);
 
+                            // Program files that do not store any ShaderFiles
+                            if (program.VcsProgramType == VcsProgramType.PixelShaderRenderState)
+                            {
+                                continue;
+                            }
+
                             var shaderFile = combo.ShaderFiles[0];
 
                             if (shaderFile.Bytecode.Length > 0)

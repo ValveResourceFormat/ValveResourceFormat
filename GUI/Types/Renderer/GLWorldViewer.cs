@@ -36,6 +36,7 @@ namespace GUI.Types.Renderer
         {
             this.world = world;
             this.isFromVmap = isFromVmap;
+            EnableOcclusionCulling = isFromVmap;
         }
 
         public GLWorldViewer(VrfGuiContext guiContext, WorldNode worldNode)

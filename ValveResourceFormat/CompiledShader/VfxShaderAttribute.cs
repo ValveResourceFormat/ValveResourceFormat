@@ -1,20 +1,64 @@
+using System.Globalization;
 using System.IO;
 using System.Text;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Shader attribute with name, type, and value or expression.
+/// </summary>
 public class VfxShaderAttribute
 {
+    /// <summary>Gets the attribute name.</summary>
     public string Name0 { get; }
+    /// <summary>Gets the Murmur2 hash of the name.</summary>
     public uint Murmur32 { get; }
+    /// <summary>Gets the variable type.</summary>
     public VfxVariableType VfxType { get; }
+    /// <summary>Gets the linked parameter index.</summary>
     public short LinkedParameterIndex { get; }
+    /// <summary>Gets the dynamic expression length.</summary>
     public int DynExpLen { get; } = -1;
+    /// <summary>Gets the dynamic expression bytecode.</summary>
     public byte[]? DynExpression { get; }
+    /// <summary>Gets the constant value.</summary>
     public object? ConstValue { get; }
 
+    /// <summary>
+    /// Initializes a new instance from <see cref="KVObject"/> data.
+    /// </summary>
+    public VfxShaderAttribute(KVObject data)
+    {
+        Name0 = data.GetProperty<string>("m_Name");
+        VfxType = (VfxVariableType)data.GetInt32Property("m_type");
+        LinkedParameterIndex = (short)data.GetInt32Property("m_nVariableBinding");
+
+        var value = data.GetProperty<object?>("m_value");
+        ConstValue = VfxType switch
+        {
+            VfxVariableType.Int => Convert.ToInt32(value, CultureInfo.InvariantCulture),
+            VfxVariableType.Float when value is KVObject { IsArray: true } kv => kv.ToVector2()[0],
+            VfxVariableType.Float2 when value is KVObject { IsArray: true } kv => kv.ToVector2(),
+            VfxVariableType.Float3 when value is KVObject { IsArray: true } kv => kv.ToVector3(),
+            VfxVariableType.Float4 when value is KVObject { IsArray: true } kv => kv.ToVector4(),
+            _ => value,
+        };
+
+        if (data.GetArray<byte>("m_expr") is byte[] expression)
+        {
+            DynExpLen = expression.Length;
+            DynExpression = expression;
+        }
+
+        Murmur32 = StringToken.Store(Name0);
+    }
+
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public VfxShaderAttribute(BinaryReader datareader)
     {
         Name0 = datareader.ReadNullTermString(Encoding.UTF8);
@@ -53,6 +97,10 @@ public class VfxShaderAttribute
 
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns a formatted string with the attribute name, hash, type, parameter index, and either the dynamic expression or constant value.
+    /// </remarks>
     public override string ToString()
     {
         if (DynExpression != null)

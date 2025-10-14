@@ -1024,7 +1024,11 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            SkyboxScene = new Scene(guiContext);
+            SkyboxScene = new Scene(guiContext)
+            {
+                IsSkyboxMap = true
+            };
+
             SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
 
             var skyboxResult = new WorldLoader(skyboxWorldData, SkyboxScene);

@@ -1,0 +1,62 @@
+{
+	"$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+	"metadata": [
+		{
+			"src": [
+				{
+					"src": "../ValveResourceFormat",
+					"files": [
+						"ValveResourceFormat.csproj"
+					]
+				}
+			],
+            "output": "api",
+            "outputFormat": "apiPage",
+            "namespaceLayout": "nested",
+            "categoryLayout": "flattened",
+            "enumSortOrder": "declaringOrder"
+		}
+	],
+	"build": {
+		"content": [
+			{
+				"files": [
+					"**/*.{md,yml}"
+				],
+                "exclude": [
+                    "_site/"
+                ]
+			}
+		],
+        "resource": [
+            {
+                "src": "../Misc/Icons",
+                "dest": "images",
+                "files": [
+                    "source2viewer_dark.png",
+                    "source2viewer.ico"
+                ]
+            }
+        ],
+		"output": "_site",
+		"template": [
+			"default",
+			"modern",
+            "vrf_template"
+		],
+		"globalMetadata": {
+			"_appName": "ValveResourceFormat",
+			"_appTitle": "ValveResourceFormat",
+            "_appLogoPath": "images/source2viewer_dark.png",
+            "_appFaviconPath": "images/source2viewer.ico",
+            "_appFooter": "This project is not affiliated with Valve Software. Source 2 is a trademark and/or registered trademark of Valve Corporation.",
+			"_enableSearch": true,
+            "_lang": "en",
+			"pdf": false
+		},
+        "sitemap": {
+            "baseUrl": "https://s2v.app/ValveResourceFormat/",
+            "changefreq": "weekly"
+        }
+	}
+}

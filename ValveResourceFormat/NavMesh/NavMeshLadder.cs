@@ -4,22 +4,79 @@ using System.IO;
 
 namespace ValveResourceFormat.NavMesh
 {
+    /// <summary>
+    /// Represents a ladder in a navigation mesh.
+    /// </summary>
     public class NavMeshLadder
     {
+        /// <summary>
+        /// Gets or sets the ladder identifier.
+        /// </summary>
         public uint Id { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ladder width.
+        /// </summary>
         public float Width { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ladder length.
+        /// </summary>
         public float Length { get; set; }
+
+        /// <summary>
+        /// Gets or sets the top position.
+        /// </summary>
         public Vector3 Top { get; set; }
+
+        /// <summary>
+        /// Gets or sets the bottom position.
+        /// </summary>
         public Vector3 Bottom { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ladder direction.
+        /// </summary>
         public NavDirectionType Direction { get; set; }
+
+        /// <summary>
+        /// Gets or sets the top forward area.
+        /// </summary>
         public NavMeshArea TopForwardArea { get; set; }
+
+        /// <summary>
+        /// Gets or sets the top left area.
+        /// </summary>
         public NavMeshArea TopLeftArea { get; set; }
+
+        /// <summary>
+        /// Gets or sets the top right area.
+        /// </summary>
         public NavMeshArea TopRightArea { get; set; }
+
+        /// <summary>
+        /// Gets or sets the top behind area.
+        /// </summary>
         public NavMeshArea TopBehindArea { get; set; }
+
+        /// <summary>
+        /// Gets or sets the bottom area.
+        /// </summary>
         public NavMeshArea BottomArea { get; set; }
+
+        /// <summary>
+        /// Gets or sets the bottom left area.
+        /// </summary>
         public NavMeshArea BottomLeftArea { get; set; }
+
+        /// <summary>
+        /// Gets or sets the bottom right area.
+        /// </summary>
         public NavMeshArea BottomRightArea { get; set; }
 
+        /// <summary>
+        /// Reads the ladder from a binary reader.
+        /// </summary>
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
         {
             Id = binaryReader.ReadUInt32();

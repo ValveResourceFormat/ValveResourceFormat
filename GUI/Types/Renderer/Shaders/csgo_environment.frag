@@ -388,7 +388,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
     #endif
 
-    mat.AmbientOcclusion = LevelsAdjust(mat.AmbientOcclusion, aoLevels);
+    mat.AmbientOcclusion = mix(aoLevels.x, aoLevels.z, pow(max(mat.AmbientOcclusion, 0.0), max(aoLevels.y, 0.001)));
 
     // Normals and Roughness
     mat.NormalMap = DecodeHemiOctahedronNormal(normal.rg);
@@ -443,7 +443,7 @@ void main()
 
     ApplyFog(combinedLighting, mat.PositionWS);
 
-    outputColor.rgb = combinedLighting;
+    outputColor = vec4(combinedLighting, mat.Opacity);
 
     if (HandleMaterialRenderModes(outputColor, mat)
     || HandleLightingRenderModes(outputColor, mat, lighting)

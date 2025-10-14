@@ -2,13 +2,23 @@ using System.IO;
 
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// DirectX Intermediate Language (DXIL) shader file.
+/// </summary>
 public class VfxShaderFileDXIL : VfxShaderFile
 {
+    /// <inheritdoc/>
     public override string BlockName => "DXIL";
-    public int Arg0 { get; } // always 3
-    public int Arg1 { get; } // always 0xFFFF or 0xFFFE
+    /// <summary>Gets the first argument (always 3).</summary>
+    public int Arg0 { get; }
+    /// <summary>Gets the second argument (always 0xFFFF or 0xFFFE).</summary>
+    public int Arg1 { get; }
+    /// <summary>Gets the header size in bytes.</summary>
     public int HeaderBytes { get; }
 
+    /// <summary>
+    /// Initializes a new instance from a binary reader.
+    /// </summary>
     public VfxShaderFileDXIL(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
     {
         if (Size > 0)
@@ -28,6 +38,10 @@ public class VfxShaderFileDXIL : VfxShaderFile
         HashMD5 = new Guid(datareader.ReadBytes(16));
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// DXIL decompilation is not supported. This method always throws an InvalidOperationException.
+    /// </remarks>
     public override string GetDecompiledFile()
     {
         throw new InvalidOperationException("DXIL decompilation is not supported.");

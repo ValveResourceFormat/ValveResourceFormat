@@ -9,15 +9,38 @@ using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents an entity lump resource containing entity definitions and their properties.
+    /// </summary>
     public class EntityLump : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Represents a single entity with its properties and connections.
+        /// </summary>
         public class Entity
         {
+            /// <summary>
+            /// Gets the entity properties collection.
+            /// </summary>
             public KVObject Properties { get; } = new(null);
             // public KVObject Attributes { get; } = new(null);
+            /// <summary>
+            /// Gets or sets the entity connections (inputs/outputs).
+            /// </summary>
             public List<KVObject> Connections { get; internal set; }
+            /// <summary>
+            /// Gets or initializes the parent entity lump that contains this entity.
+            /// </summary>
             public EntityLump ParentLump { get; init; }
 
+            /// <summary>
+            /// Gets a strongly-typed property value by name, returning a default value if not found or on error.
+            /// </summary>
+            /// <typeparam name="T">The type to convert the property value to.</typeparam>
+            /// <param name="name">The property name.</param>
+            /// <param name="defaultValue">The default value to return if the property is not found or conversion fails.</param>
+            /// <returns>The property value or the default value.</returns>
+            /// <exception cref="InvalidOperationException">Thrown when attempting to use Vector3 type (use GetVector3Property instead).</exception>
             public T GetProperty<T>(string name, T defaultValue = default)
             {
                 if (typeof(T) == typeof(Vector3))
@@ -37,13 +60,36 @@ namespace ValveResourceFormat.ResourceTypes
 
             //public bool TryGetProperty<T>(string name, out T property) => Properties.TryGetProperty(name, out property);
 
+            /// <summary>
+            /// Gets a strongly-typed struct property value by name without type checking.
+            /// </summary>
+            /// <typeparam name="T">The struct type to convert the property value to.</typeparam>
+            /// <param name="name">The property name.</param>
+            /// <param name="defaultValue">The default value to return if the property is not found.</param>
+            /// <returns>The property value or the default value.</returns>
             public T GetPropertyUnchecked<T>(string name, T defaultValue = default) where T : struct
                 => Properties.GetPropertyUnchecked(name, defaultValue);
 
+            /// <summary>
+            /// Gets a property value by name.
+            /// </summary>
+            /// <param name="name">The property name.</param>
+            /// <returns>The property value or the default <see cref="KVValue"/> (with <see cref="KVValueType.Null"/>) if not found.</returns>
             public KVValue GetProperty(string name) => Properties.Properties.GetValueOrDefault(name);
 
+            /// <summary>
+            /// Determines whether the entity contains a property with the specified name.
+            /// </summary>
+            /// <param name="name">The property name to check.</param>
+            /// <returns>True if the property exists, false otherwise.</returns>
             public bool ContainsKey(string name) => Properties.Properties.ContainsKey(name);
 
+            /// <summary>
+            /// Gets a Vector3 property value by name.
+            /// </summary>
+            /// <param name="name">The property name.</param>
+            /// <param name="defaultValue">The default value to return if the property is not found.</param>
+            /// <returns>The Vector3 property value or the default value.</returns>
             public Vector3 GetVector3Property(string name, Vector3 defaultValue = default)
             {
                 if (Properties.Properties.TryGetValue(name, out var value))
@@ -62,6 +108,11 @@ namespace ValveResourceFormat.ResourceTypes
                 return defaultValue;
             }
 
+            /// <summary>
+            /// Gets a Color32 property value as a normalized Vector3 (0-1 range).
+            /// </summary>
+            /// <param name="key">The property name.</param>
+            /// <returns>The normalized color vector (0-1 range).</returns>
             public Vector3 GetColor32Property(string key)
             {
                 var defaultColor = new Vector3(255f);
@@ -69,13 +120,24 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Gets the name of this entity lump.
+        /// </summary>
         public string Name => Data.GetProperty<string>("m_name");
 
+        /// <summary>
+        /// Gets the names of child entity lumps.
+        /// </summary>
+        /// <returns>An array of child entity lump names.</returns>
         public string[] GetChildEntityNames()
         {
             return Data.GetArray<string>("m_childLumps");
         }
 
+        /// <summary>
+        /// Gets all entities contained in this entity lump.
+        /// </summary>
+        /// <returns>A list of entities.</returns>
         public List<Entity> GetEntities()
             => Data.GetArray("m_entityKeyValues")
                 .Select(ParseEntityProperties)
@@ -226,6 +288,10 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
+        /// <summary>
+        /// Converts the entity lump to a human-readable string representation.
+        /// </summary>
+        /// <returns>A formatted string containing all entities and their properties.</returns>
         public string ToEntityDumpString()
         {
             var knownKeys = StringToken.InvertedTable;
@@ -313,6 +379,10 @@ namespace ValveResourceFormat.ResourceTypes
             return builder.ToString();
         }
 
+        /// <summary>
+        /// Converts the entity lump to a Forge Game Data (FGD) format string.
+        /// </summary>
+        /// <returns>An FGD-formatted string containing entity class definitions.</returns>
         public string ToForgeGameData()
         {
             var knownKeys = StringToken.InvertedTable;

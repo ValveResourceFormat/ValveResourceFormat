@@ -5,10 +5,19 @@ using System.Text;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
+    /// <summary>
+    /// Evaluates and decompiles VFX dynamic expressions.
+    /// </summary>
     public class VfxEval
     {
-        // parsed data assigned here
+        /// <summary>
+        /// Gets the parsed dynamic expression result as a string.
+        /// </summary>
         public string DynamicExpressionResult { get; private set; }
+
+        /// <summary>
+        /// Gets the original dynamic expression binary blob.
+        /// </summary>
         public byte[] DynamicExpressionBlob { get; private set; }
 
         // parse the input one line at a time
@@ -143,7 +152,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private readonly Stack<uint> OffsetAtBranchExits = new();
         private readonly Dictionary<uint, string> LocalVariableNames = [];
 
+        /// <summary>
+        /// Gets the list of render attributes used in the expression.
+        /// </summary>
         public IReadOnlyList<string> RenderAttributesUsed { get; }
+
+        /// <summary>
+        /// Gets the enum mapper function.
+        /// </summary>
         public Func<int, string> EnumMapper { get; }
 
 
@@ -153,6 +169,12 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private readonly IReadOnlyList<string> Features;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VfxEval"/> class.
+        /// </summary>
+        /// <param name="binaryBlob">The binary blob to parse.</param>
+        /// <param name="omitReturnStatement">Whether to omit the return statement in the output.</param>
+        /// <param name="features">The list of features.</param>
         public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
         {
             OmitReturnStatement = omitReturnStatement;
@@ -160,6 +182,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ParseExpression(binaryBlob);
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VfxEval"/> class.
+        /// </summary>
+        /// <param name="binaryBlob">The binary blob to parse.</param>
+        /// <param name="renderAttributesUsed">The list of render attributes used.</param>
+        /// <param name="omitReturnStatement">Whether to omit the return statement in the output.</param>
+        /// <param name="features">The list of features.</param>
+        /// <param name="enumMapper">The enum mapper function.</param>
         public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed,
             bool omitReturnStatement = false,
             IReadOnlyList<string> features = null,

@@ -16,41 +16,105 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class VBIB : Block
     {
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.VBIB;
 
+        /// <summary>
+        /// Gets the list of vertex buffers.
+        /// </summary>
         public List<OnDiskBufferData> VertexBuffers { get; }
+
+        /// <summary>
+        /// Gets the list of index buffers.
+        /// </summary>
         public List<OnDiskBufferData> IndexBuffers { get; }
 
 #pragma warning disable CA1051 // Do not declare visible instance fields
+        /// <summary>
+        /// Represents buffer data stored on disk.
+        /// </summary>
         public struct OnDiskBufferData
         {
+            /// <summary>
+            /// Number of elements in the buffer.
+            /// </summary>
             public uint ElementCount;
-            //stride for vertices. Type for indices
+
+            /// <summary>
+            /// Size of each element in bytes. For vertex buffers, this is the stride. For index buffers, this is the type size.
+            /// </summary>
             public uint ElementSizeInBytes;
-            //Vertex attribs. Empty for index buffers
+
+            /// <summary>
+            /// Input layout fields describing vertex attributes. Empty for index buffers.
+            /// </summary>
             public RenderInputLayoutField[] InputLayoutFields;
+
+            /// <summary>
+            /// Raw buffer data.
+            /// </summary>
             public byte[] Data;
         }
 
+        /// <summary>
+        /// Represents a field in the render input layout.
+        /// </summary>
         public struct RenderInputLayoutField
         {
+            /// <summary>
+            /// Semantic name of the attribute (e.g., "POSITION", "NORMAL", "TEXCOORD").
+            /// </summary>
             public string SemanticName;
+
+            /// <summary>
+            /// Semantic index for the attribute.
+            /// </summary>
             public int SemanticIndex;
+
+            /// <summary>
+            /// Data format of the attribute.
+            /// </summary>
             public DXGI_FORMAT Format;
+
+            /// <summary>
+            /// Byte offset of the attribute within the vertex.
+            /// </summary>
             public uint Offset;
+
+            /// <summary>
+            /// Input slot index.
+            /// </summary>
             public int Slot;
+
+            /// <summary>
+            /// Type of the input slot.
+            /// </summary>
             public RenderSlotType SlotType;
+
+            /// <summary>
+            /// Number of instances to draw using the same per-instance data before advancing by one element.
+            /// </summary>
             public int InstanceStepRate;
+
+            /// <summary>
+            /// Shader semantic name.
+            /// </summary>
             public string ShaderSemantic;
         }
 #pragma warning restore CA1051 // Do not declare visible instance fields
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VBIB"/> class.
+        /// </summary>
         public VBIB()
         {
             VertexBuffers = [];
             IndexBuffers = [];
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VBIB"/> class from a resource and KV data.
+        /// </summary>
         public VBIB(Resource resource, KVObject data) : this()
         {
             Resource = resource;
@@ -82,6 +146,7 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
@@ -326,6 +391,9 @@ namespace ValveResourceFormat.Blocks
             TEXCOORD - R16G16B16A16_FLOAT      vec4
         */
 
+        /// <summary>
+        /// Extracts scalar (single float) attribute data from a vertex buffer.
+        /// </summary>
         public static float[] GetScalarAttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             if (attribute.Format != DXGI_FORMAT.R32_FLOAT)
@@ -338,6 +406,9 @@ namespace ValveResourceFormat.Blocks
             return result;
         }
 
+        /// <summary>
+        /// Extracts 2D vector attribute data from a vertex buffer.
+        /// </summary>
         public static Vector2[] GetVector2AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             var result = new Vector2[vertexBuffer.ElementCount];
@@ -397,6 +468,9 @@ namespace ValveResourceFormat.Blocks
             return result;
         }
 
+        /// <summary>
+        /// Extracts 3D vector attribute data from a vertex buffer.
+        /// </summary>
         public static Vector3[] GetVector3AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             if (attribute.Format != DXGI_FORMAT.R32G32B32_FLOAT)
@@ -409,6 +483,9 @@ namespace ValveResourceFormat.Blocks
             return result;
         }
 
+        /// <summary>
+        /// Extracts 4D vector attribute data from a vertex buffer.
+        /// </summary>
         public static Vector4[] GetVector4AttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             var result = new Vector4[vertexBuffer.ElementCount];
@@ -465,7 +542,9 @@ namespace ValveResourceFormat.Blocks
             return result;
         }
 
-        // Tangents array will be empty if it not compressed
+        /// <summary>
+        /// Extracts normal and tangent data from a vertex buffer. Tangent array will be empty if normals are not compressed.
+        /// </summary>
         public static (Vector3[] Normals, Vector4[] Tangents) GetNormalTangentArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             if (attribute.Format == DXGI_FORMAT.R32G32B32_FLOAT)
@@ -501,6 +580,9 @@ namespace ValveResourceFormat.Blocks
             throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
         }
 
+        /// <summary>
+        /// Extracts blend indices from a vertex buffer, optionally remapping them using the provided table.
+        /// </summary>
         public static ushort[] GetBlendIndicesArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute, int[] remapTable = null)
         {
             var numJoints = attribute.Format is DXGI_FORMAT.R32G32B32A32_SINT or DXGI_FORMAT.R16G16B16A16_UINT ? 8 : 4;
@@ -590,6 +672,9 @@ namespace ValveResourceFormat.Blocks
             return indices;
         }
 
+        /// <summary>
+        /// Extracts blend weights from a vertex buffer.
+        /// </summary>
         public static Vector4[] GetBlendWeightsArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
         {
             var numVectors = attribute.Format is DXGI_FORMAT.R16G16B16A16_UNORM ? 2 : 1;
@@ -783,11 +868,16 @@ namespace ValveResourceFormat.Blocks
             return (normals, tangents);
         }
 
+        /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
             throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs information about vertex and index buffers including their attributes and formats.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("Vertex buffers:");
@@ -826,6 +916,9 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <summary>
+        /// Gets the element size and count for a given render input layout field format.
+        /// </summary>
         public static (int ElementSize, int ElementCount) GetFormatInfo(RenderInputLayoutField attribute)
         {
             // :VertexAttributeFormat - When adding new attribute here, also implement it in the renderer - GPUMeshBufferCache

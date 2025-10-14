@@ -1,4 +1,4 @@
-/**
+/*
  * Zstd dictionary format
  * ----------------------
  *

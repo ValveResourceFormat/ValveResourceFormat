@@ -7,6 +7,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Extracts Source 2 models to editable vmdl/dmx format.
+/// </summary>
 public partial class ModelExtract
 {
     private readonly Resource modelResource;
@@ -15,19 +18,31 @@ public partial class ModelExtract
     private readonly IFileLoader fileLoader;
     private readonly string fileName;
 
+    /// <summary>
+    /// Filter configuration for import operations.
+    /// </summary>
 #pragma warning disable CA2227 // Collection properties should be read only
     public record struct ImportFilter(bool ExcludeByDefault, HashSet<string> Filter);
 #pragma warning restore CA2227 // Collection properties should be read only
 
+    /// <summary>
+    /// Specifies the type of model extraction.
+    /// </summary>
     public enum ModelExtractType
     {
+#pragma warning disable CS1591
         Default,
         Map_PhysicsToRenderMesh,
         Map_AggregateSplit,
+#pragma warning restore CS1591
     }
 
+    /// <summary>Gets the extraction type to apply when generating assets.</summary>
     public ModelExtractType Type { get; init; } = ModelExtractType.Default;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ModelExtract"/> class.
+    /// </summary>
     public ModelExtract(Resource modelResource, IFileLoader fileLoader)
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
@@ -55,6 +70,7 @@ public partial class ModelExtract
         EnqueueAnimations();
     }
 
+    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
     /// <summary>
     /// Extract a single mesh to vmdl+dmx.
     /// </summary>
@@ -66,6 +82,7 @@ public partial class ModelExtract
         this.fileName = Path.ChangeExtension(fileName, ".vmdl");
     }
 
+    /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
     public ModelExtract(PhysAggregateData physAggregateData, string fileName)
     {
         this.physAggregateData = physAggregateData;
@@ -73,6 +90,9 @@ public partial class ModelExtract
         EnqueueMeshes();
     }
 
+    /// <summary>
+    /// Converts the model to a content file with associated meshes and animations.
+    /// </summary>
     public ContentFile ToContentFile()
     {
         var vmdl = new ContentFile
@@ -122,5 +142,8 @@ public partial class ModelExtract
         return vmdl;
     }
 
+    /// <summary>
+    /// Gets the model name from either the model resource or the file name.
+    /// </summary>
     public string ModelName => model?.Name ?? fileName;
 }
