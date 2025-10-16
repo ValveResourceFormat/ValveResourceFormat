@@ -21,7 +21,7 @@ struct EnvMapData
     vec3 Origin;
     uint ProjectionType;
     vec3 Color;
-    uint AssociatedLPV;
+    int AssociatedLPV;
     vec4 NormalizationSH;
 };
 

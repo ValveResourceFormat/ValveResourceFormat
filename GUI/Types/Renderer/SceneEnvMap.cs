@@ -28,6 +28,8 @@ class SceneEnvMap : SceneNode
 
     public int ShaderIndex { get; set; }
 
+    public SceneLightProbe? AssociatedLightProbe { get; set; }
+
     [InlineArray(4)]
     public struct EnvMapVisibility128
     {

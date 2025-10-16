@@ -974,6 +974,7 @@ namespace GUI.Types.Renderer
                 Origin = envMap.Transform.Translation,
                 ProjectionType = (uint)envMap.ProjectionMode,
                 Color = envMap.Tint,
+                AssociatedLPV = envMap.AssociatedLightProbe?.ShaderIndex ?? -1,
                 NormalizationSH = new Vector4(0, 0, 0, 1)
             };
         }

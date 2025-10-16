@@ -4,7 +4,11 @@
 //? #include "texturing.glsl"
 //? #include "pbr.glsl"
 
-#define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
+#include "lighting_common.glsl"
+#include "shadowmapping.glsl"
+
+#include "pbr.glsl"
+#include "environment.glsl"
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec3 vLightmapUVScaled;
@@ -28,12 +32,6 @@
     in vec3 vPerVertexLightingOut;
 #endif
 
-#include "lighting_common.glsl"
-#include "shadowmapping.glsl"
-
-#include "pbr.glsl"
-#include "environment.glsl"
-
 // https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
 float attenuate_cusp(float s, float falloff)
 {
@@ -53,7 +51,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             vec4 dls = texture(g_tDirectLightStrengths, mat.LightmapUv);
             vec4 dli = texture(g_tDirectLightIndices, mat.LightmapUv);
         #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-            vec3 vLightProbeShadowCoords = CalculateProbeShadowCoords(mat.PositionWS);
+            vec3 vLightProbeShadowCoords = CalculateProbeShadowCoords(g_LPV[g_nVisibleLPV], mat.PositionWS);
             vec4 dls = textureLod(g_tLPV_Scalars, vLightProbeShadowCoords, 0.0);
             vec4 dli = textureLod(g_tLPV_Indices, vLightProbeShadowCoords, 0.0);
         #else
@@ -103,8 +101,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
             dlsh = textureLod(g_tDirectLightShadows, mat.LightmapUv, 0.0);
         #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-            vec3 vLightProbeShadowCoords = CalculateProbeShadowCoords(mat.PositionWS);
-            dlsh = textureLod(g_tLPV_Shadows, vLightProbeShadowCoords, 0.0);
+            dlsh = GetProbeShadows(mat);
         #endif
 
         for(uint uShadowIndex = 0; uShadowIndex < 4; ++uShadowIndex)

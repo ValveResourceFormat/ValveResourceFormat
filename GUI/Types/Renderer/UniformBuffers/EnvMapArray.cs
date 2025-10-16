@@ -5,7 +5,7 @@ namespace GUI.Types.Renderer.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public struct EnvMapData
     {
-        public Matrix4x4 WorldToLocal;
+        public Matrix4x4 WorldToLocal; // todo: mat4x3
         public Vector3 BoxMins;
         public uint ArrayIndex;
         public Vector3 BoxMaxs;
@@ -14,7 +14,7 @@ namespace GUI.Types.Renderer.Buffers
         public Vector3 Origin;
         public uint ProjectionType;
         public Vector3 Color;
-        public uint AssociatedLPV;
+        public int AssociatedLPV;
         public Vector4 NormalizationSH;
     }
 

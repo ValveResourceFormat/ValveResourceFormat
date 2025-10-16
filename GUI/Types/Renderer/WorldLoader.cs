@@ -585,6 +585,7 @@ namespace GUI.Types.Renderer
                     }
 
                     var indoorOutdoorLevel = entity.GetPropertyUnchecked("indoor_outdoor_level", 0);
+                    SceneEnvMap? envMap = null;
 
                     if (classname != "env_light_probe_volume")
                     {
@@ -596,7 +597,7 @@ namespace GUI.Types.Renderer
                         var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
                         var isCustomTexture = entity.GetProperty<string>("customcubemaptexture") != null;
 
-                        var envMap = new SceneEnvMap(scene, bounds)
+                        envMap = new SceneEnvMap(scene, bounds)
                         {
                             LayerName = layerName,
                             Transform = transformationMatrix,
@@ -630,6 +631,11 @@ namespace GUI.Types.Renderer
                             IndoorOutdoorLevel = indoorOutdoorLevel,
                             VoxelSize = entity.GetPropertyUnchecked<float>("voxel_size")
                         };
+
+                        if (envMap != null)
+                        {
+                            envMap.AssociatedLightProbe = lightProbe;
+                        }
 
                         var dliName = entity.GetProperty<string>("lightprobetexture_dli");
                         var dlsName = entity.GetProperty<string>("lightprobetexture_dls");
