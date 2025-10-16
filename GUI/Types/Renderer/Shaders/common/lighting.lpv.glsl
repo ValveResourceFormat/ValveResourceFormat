@@ -129,7 +129,7 @@ vec4 GetProbeShadows(in MaterialProperties_t mat)
                 mat4x3 envMapWorldToLocal = mat4x3(envData.WorldToLocal);
                 vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
-                vec3 envInvEdgeWidth = 1.0 / envData.InvEdgeWidth.xyz;
+                vec3 envInvEdgeWidth = envData.InvEdgeWidth.xyz;
                 vec3 envmapClampedFadeMax = saturate((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth);
                 vec3 envmapClampedFadeMin = saturate((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth);
                 float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
@@ -186,7 +186,7 @@ vec3 ComputeLightProbeShading(in MaterialProperties_t mat)
                 mat4x3 envMapWorldToLocal = mat4x3(envData.WorldToLocal);
                 vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
-                vec3 envInvEdgeWidth = 1.0 / envData.InvEdgeWidth.xyz;
+                vec3 envInvEdgeWidth = envData.InvEdgeWidth.xyz;
                 vec3 envmapClampedFadeMax = saturate((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth);
                 vec3 envmapClampedFadeMin = saturate((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth);
                 float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));

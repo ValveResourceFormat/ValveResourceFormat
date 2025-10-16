@@ -964,13 +964,15 @@ namespace GUI.Types.Renderer
                 throw new InvalidOperationException("Matrix invert failed");
             }
 
+            var boundsExtend = new Vector3(0.02f);
+
             envMapBuffer.Data.EnvMaps[index] = new EnvMapData
             {
                 WorldToLocal = worldToLocal,
-                BoxMins = envMap.LocalBoundingBox.Min,
+                BoxMins = envMap.LocalBoundingBox.Min - boundsExtend,
                 ArrayIndex = (uint)envMap.ArrayIndex,
-                BoxMaxs = envMap.LocalBoundingBox.Max,
-                InvEdgeWidth = new Vector4(envMap.EdgeFadeDists, 0),
+                BoxMaxs = envMap.LocalBoundingBox.Max + boundsExtend,
+                InvEdgeWidth = new Vector4(Vector3.One / (envMap.EdgeFadeDists + boundsExtend), 0),
                 Origin = envMap.Transform.Translation,
                 ProjectionType = (uint)envMap.ProjectionMode,
                 Color = envMap.Tint,

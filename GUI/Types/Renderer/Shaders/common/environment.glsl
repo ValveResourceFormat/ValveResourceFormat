@@ -216,18 +216,16 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
 
             EnvMapData envData = envMaps[envMapIndex];
             bool isBoxProjection = envData.ProjectionType == 1u;
-            vec3 envMapBoxMin = envData.BoxMins - vec3(0.02);
-            vec3 envMapBoxMax = envData.BoxMaxs + vec3(0.02);
+            vec3 envMapBoxMin = envData.BoxMins;
+            vec3 envMapBoxMax = envData.BoxMaxs;
             mat4x3 envMapWorldToLocal = mat4x3(envData.WorldToLocal);
             vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
             float weight = 1.0f;
 
             const bool bUseCubemapBlending = S_LIGHTMAP_VERSION_MINOR >= 2;
-            vec3 dists = envData.InvEdgeWidth.xyz;
-
             if (bUseCubemapBlending && isBoxProjection)
             {
-                vec3 envInvEdgeWidth = 1.0 / dists;
+                vec3 envInvEdgeWidth = envData.InvEdgeWidth.xyz;
                 vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
                 vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
                 float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
