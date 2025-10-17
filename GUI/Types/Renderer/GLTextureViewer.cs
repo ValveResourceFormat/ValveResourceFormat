@@ -230,6 +230,20 @@ namespace GUI.Types.Renderer
 
             if (textureData.NumMipLevels > 1)
             {
+                string GetMipLevelSizeString(int mipLevel)
+                {
+                    var mipWidth = Math.Max(1, textureData.Width >> mipLevel);
+                    var mipHeight = Math.Max(1, textureData.Height >> mipLevel);
+
+                    if ((textureData.Flags & VTexFlags.VOLUME_TEXTURE) != 0)
+                    {
+                        var mipDepth = Math.Max(1, textureData.Depth >> mipLevel);
+                        return $"(#{mipLevel}) {mipWidth}x{mipHeight}x{mipDepth}";
+                    }
+
+                    return $"(#{mipLevel}) {mipWidth}x{mipHeight}";
+                }
+
                 var mipComboBox = AddSelection("Mip level", (name, index) =>
                 {
                     SelectedMip = index;
@@ -253,7 +267,8 @@ namespace GUI.Types.Renderer
                     }
                 });
 
-                mipComboBox.Items.AddRange(Enumerable.Range(0, textureData.NumMipLevels).Select(x => $"#{x}").ToArray());
+                mipComboBox.Items.AddRange(
+                    [.. Enumerable.Range(0, textureData.NumMipLevels).Select(GetMipLevelSizeString)]);
                 mipComboBox.SelectedIndex = 0;
             }
 
