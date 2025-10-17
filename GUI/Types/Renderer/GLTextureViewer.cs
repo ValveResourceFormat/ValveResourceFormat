@@ -561,6 +561,12 @@ namespace GUI.Types.Renderer
         protected override SKBitmap ReadPixelsToBitmap()
         {
             var size = ActualTextureSize;
+
+            if (SelectedMip > 0)
+            {
+                size /= 1 << SelectedMip;
+            }
+
             var bitmap = new SKBitmap((int)size.X, (int)size.Y, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
             try
@@ -1086,7 +1092,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform2("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
 
             var (scale, position) = captureFullSizeImage
-                ? (1f, Vector2.Zero)
+                ? (1f / (1 << SelectedMip), Vector2.Zero)
                 : GetCurrentPositionAndScale();
 
             shader.SetUniform1("g_bCapturingScreenshot", captureFullSizeImage);
