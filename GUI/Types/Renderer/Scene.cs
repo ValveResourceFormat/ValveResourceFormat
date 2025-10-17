@@ -508,8 +508,9 @@ namespace GUI.Types.Renderer
             GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
 
             var maxTests = 1024;
+            var startDepth = 3;
             var maxDepth = 8;
-            TestOctantsRecursive(StaticOctree.Root, renderContext.Camera.Location, ref maxTests, maxDepth);
+            TestOctantsRecursive(StaticOctree.Root, renderContext.Camera.Location, ref maxTests, startDepth, maxDepth);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
@@ -519,7 +520,7 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.CullFace);
         }
 
-        private static void TestOctantsRecursive(Octree.Node parentNode, Vector3 cameraPosition, ref int maxTests, int maxDepth)
+        private static void TestOctantsRecursive(Octree.Node parentNode, Vector3 cameraPosition, ref int maxTests, int startDepth, int maxDepth)
         {
             Span<bool> testChildren = stackalloc bool[8];
 
@@ -558,6 +559,11 @@ namespace GUI.Types.Renderer
                     testChildren[i] = true;
                 }
 
+                if (startDepth > 0)
+                {
+                    continue;
+                }
+
                 // Queried on a previous frame, waiting for result
                 if (node.OcculsionQuerySubmitted)
                 {
@@ -573,7 +579,7 @@ namespace GUI.Types.Renderer
             {
                 if (testChildren[i])
                 {
-                    TestOctantsRecursive(parentNode.Children[i], cameraPosition, ref maxTests, maxDepth - 1);
+                    TestOctantsRecursive(parentNode.Children[i], cameraPosition, ref maxTests, startDepth - 1, maxDepth - 1);
                 }
             }
         }

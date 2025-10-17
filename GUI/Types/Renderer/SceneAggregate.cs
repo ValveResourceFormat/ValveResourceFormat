@@ -119,6 +119,12 @@ namespace GUI.Types.Renderer
                 var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
                 var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
                 var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
+                var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
+
+                if (lodGroupMask > 1)
+                {
+                    continue;
+                }
 
                 var fragment = new Fragment(Scene, this, drawBounds)
                 {
