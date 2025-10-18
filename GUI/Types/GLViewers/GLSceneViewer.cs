@@ -40,7 +40,7 @@ namespace GUI.Types.GLViewers
         private SceneBackground baseBackground;
         private OctreeDebugRenderer staticOctreeRenderer;
         private OctreeDebugRenderer dynamicOctreeRenderer;
-        protected SelectedNodeRenderer SelectedNodeRenderer;
+        public SelectedNodeRenderer SelectedNodeRenderer;
         private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
         public Framebuffer ShadowDepthBuffer { get; private set; }
         public Framebuffer FramebufferCopy { get; private set; }
