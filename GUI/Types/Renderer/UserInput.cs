@@ -48,6 +48,10 @@ internal class UserInput
     private const float MaxOrbitDistance = 10000f;
     private const float OrbitZoomSpeed = 0.1f;
 
+    public readonly FpsMovement FpsMovement = new();
+    public bool NoclipEnabled { get; private set; } = true;
+    private bool OldToggleNoclipButton;
+
     private TrackedKeys PreviousKeys;
     private Vector3 Velocity = Vector3.Zero;
 
@@ -103,10 +107,22 @@ internal class UserInput
                 }
 
             }
-
         }
 
-        if (OrbitMode)
+        // Handle noclip toggle (X key)
+        if ((keyboardState & TrackedKeys.ToggleNoclip) != 0 && !OldToggleNoclipButton)
+        {
+            NoclipEnabled = !NoclipEnabled;
+        }
+
+        OldToggleNoclipButton = (keyboardState & TrackedKeys.ToggleNoclip) != 0;
+
+
+        if (!NoclipEnabled)
+        {
+            Camera.Location = FpsMovement.ProcessMovement(Camera.Location, keyboardState, deltaTime, Camera.Pitch, Camera.Yaw)
+        }
+        else if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState);
         }

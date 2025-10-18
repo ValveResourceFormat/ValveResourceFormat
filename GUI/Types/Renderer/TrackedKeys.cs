@@ -16,6 +16,7 @@ enum TrackedKeys
     Down = 1 << 7,
     Control = 1 << 8,
     Jump = 1 << 9,
+    ToggleNoclip = 1 << 10,
 
     MouseLeft = 1 << 30,
     MouseRight = 1 << 31,
