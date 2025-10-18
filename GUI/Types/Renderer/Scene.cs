@@ -38,8 +38,19 @@ namespace GUI.Types.Renderer
         public WorldLightingInfo LightingInfo { get; }
         public WorldFogInfo FogInfo { get; set; } = new();
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
+        public class PhysicsTraceTest
+        {
+            public Vector3 Start { get; init; }
+            public Vector3 End { get; init; }
+            public AABB TraceAABB { get; init; }
+            public float? MaxHitDistance { get; init; }
+            public string Name { get; init; }
+            public ModelSceneNode VisualizerNode { get; set; }
+        }
+
         public Rubikon PhysicsTracer { get; set; }
-        public ModelSceneNode PhysicsTraceNodeTest { get; set; }
+        public ModelSceneNode CameraTraceNodeTest { get; set; }
+        public List<PhysicsTraceTest> PhysicsTraceTests { get; set; }
 
         private UniformBuffer<LightingConstants> lightingBuffer;
 
@@ -71,9 +82,33 @@ namespace GUI.Types.Renderer
         {
             if (PhysicsTracer != null)
             {
-                PhysicsTraceNodeTest = GLMaterialViewer.CreateEnvCubemapSphere(this);
-                PhysicsTraceNodeTest.LayerName = "Debug";
-                Add(PhysicsTraceNodeTest, true);
+                // Camera-based dynamic trace
+                CameraTraceNodeTest = GLMaterialViewer.CreateEnvCubemapSphere(this);
+                CameraTraceNodeTest.LayerName = "Debug";
+                Add(CameraTraceNodeTest, true);
+
+                // Initialize test cases list
+                PhysicsTraceTests = [];
+
+                // Add test cases
+                PhysicsTraceTests.Add(new PhysicsTraceTest
+                {
+                    Name = "Ancient Box Wedge",
+                    Start = new Vector3(-1659.2748f, 938.33185f, 90.12526f),
+                    End = new Vector3(-2145.249f, 786.0423f, 37.391777f),
+                    TraceAABB = new AABB(new Vector3(-8, -8, -8), new Vector3(8, 8, 8)),
+                    MaxHitDistance = 84f, // Expected: <= ~84, Actual: 86.04998
+                });
+
+                // Create visualizer nodes for each test case
+                foreach (var test in PhysicsTraceTests)
+                {
+                    var node = GLMaterialViewer.CreateEnvCubemapSphere(this);
+                    node.LayerName = "Debug";
+                    Add(node, true);
+
+                    test.VisualizerNode = node;
+                }
             }
 
             UpdateOctrees();
@@ -155,19 +190,68 @@ namespace GUI.Types.Renderer
         {
             if (PhysicsTracer != null)
             {
+                // Camera-based trace
                 var start = updateContext.View.Camera.Location;
                 var end = start + updateContext.View.Camera.GetForwardVector() * 512f;
 
-                var traceResult = PhysicsTracer.TraceAABB(start, end, PhysicsTraceNodeTest.LocalBoundingBox);
+                var traceResult = PhysicsTracer.TraceAABB(start, end, CameraTraceNodeTest.LocalBoundingBox);
                 if (traceResult.Hit)
                 {
-                    PhysicsTraceNodeTest.Transform = Matrix4x4.CreateTranslation(traceResult.HitPosition);
-                    PhysicsTraceNodeTest.Tint = new Vector4(0, 1, 0, 1);
+                    CameraTraceNodeTest.Transform = Matrix4x4.CreateTranslation(traceResult.HitPosition);
+                    CameraTraceNodeTest.Tint = new Vector4(0, 1, 0, 1);
                 }
                 else
                 {
-                    PhysicsTraceNodeTest.Transform = Matrix4x4.CreateTranslation(end);
-                    PhysicsTraceNodeTest.Tint = new Vector4(1, 0, 0, 1);
+                    CameraTraceNodeTest.Transform = Matrix4x4.CreateTranslation(end);
+                    CameraTraceNodeTest.Tint = new Vector4(1, 0, 0, 1);
+                }
+
+                CameraTraceNodeTest.IsSelected = true;
+                //updateContext.View.selectedNodeRenderer.SelectNode(CameraTraceNodeTest);
+
+                var debugText = updateContext.View.selectedNodeRenderer.ScreenDebugText;
+                debugText = string.Empty;
+
+                void AddDebugTextLine(string text, int lineNumber, Color32 color)
+                {
+                    debugText += $"{text}\n";
+                    updateContext.View.TextRenderer.AddText(new TextRenderer.TextRenderRequest
+                    {
+                        Text = text,
+                        X = 10,
+                        Y = 10 + lineNumber * 18,
+                        Scale = 10,
+                        Color = color,
+                    });
+                }
+
+                // Process all test cases
+                for (var i = 0; i < PhysicsTraceTests.Count; i++)
+                {
+                    var test = PhysicsTraceTests[i];
+                    var testResult = PhysicsTracer.TraceAABB(test.Start, test.End, test.TraceAABB);
+
+                    if (testResult.Hit)
+                    {
+                        test.VisualizerNode.Transform = Matrix4x4.CreateTranslation(testResult.HitPosition);
+
+                        if (test.MaxHitDistance.HasValue)
+                        {
+                            var distanceOk = testResult.Distance <= test.MaxHitDistance.Value;
+                            AddDebugTextLine($"{test.Name} Hit Distance: {testResult.Distance}, Expected: <={test.MaxHitDistance}", i,
+                                distanceOk ? new Color32(0, 255, 0) : new Color32(255, 0, 0));
+                        }
+                        else
+                        {
+                            AddDebugTextLine($"{test.Name} Hit Distance: {testResult.Distance}", i, Color32.Yellow);
+                        }
+                    }
+                    else
+                    {
+                        AddDebugTextLine($"{test.Name} No hit!", i, Color32.White);
+                    }
+
+                    updateContext.View.selectedNodeRenderer.SelectNode(test.VisualizerNode);
                 }
             }
 

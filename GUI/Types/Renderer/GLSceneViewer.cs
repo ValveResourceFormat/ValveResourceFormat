@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
         private SceneBackground baseBackground;
         private OctreeDebugRenderer staticOctreeRenderer;
         private OctreeDebugRenderer dynamicOctreeRenderer;
-        protected SelectedNodeRenderer selectedNodeRenderer;
+        public SelectedNodeRenderer selectedNodeRenderer;
 
         public enum DepthOnlyProgram
         {
