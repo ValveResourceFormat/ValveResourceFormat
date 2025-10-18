@@ -10,11 +10,12 @@ namespace GUI.Types.Renderer;
 
 class Rubikon
 {
+    private const int STACK_SIZE = 64;
+
     public record PhysicsMeshData(
         Vector3[] VertexPositions,
         Triangle[] Triangles,
-        Node[] PhysicsTree,
-        Stack<(Node Node, int Index)> TraversalStack
+        Node[] PhysicsTree
     );
 
     public record PhysicsHullData(
@@ -44,7 +45,7 @@ class Rubikon
             var triangles = mesh.Shape.GetTriangles();
             var physicsTree = mesh.Shape.ParseNodes();
 
-            Meshes[meshIndex++] = new PhysicsMeshData([.. vertexPositions], [.. triangles], [.. physicsTree], new(capacity: 64));
+            Meshes[meshIndex++] = new PhysicsMeshData([.. vertexPositions], [.. triangles], [.. physicsTree]);
         }
 
         Hulls = new PhysicsHullData[physicsData.Parts[0].Shape.Hulls.Length];
@@ -203,14 +204,15 @@ class Rubikon
 
     private static TraceResult RayIntersectsWithMesh(RayTraceContext ray, PhysicsMeshData mesh)
     {
-        var stack = mesh.TraversalStack;
-        stack.Clear();
-        stack.Push((mesh.PhysicsTree[0], 0));
+        Span<(Node Node, int Index)> stack = stackalloc (Node Node, int Index)[STACK_SIZE];
+        var stackCount = 0;
+        stack[stackCount++] = (mesh.PhysicsTree[0], 0);
 
         var closestHit = new TraceResult();
 
-        while (stack.TryPop(out var nodeWithIndex))
+        while (stackCount > 0)
         {
+            var nodeWithIndex = stack[--stackCount];
             var node = nodeWithIndex.Node;
             if (!RayIntersectsAABB(ray, node.Min, node.Max))
             {
@@ -228,8 +230,8 @@ class Rubikon
                     : (rightChild, leftChild);   // Ray going negative direction, traverse right first
 
                 // Push far node first so near node is processed first (stack is LIFO)
-                stack.Push(new(mesh.PhysicsTree[farId], farId));
-                stack.Push(new(mesh.PhysicsTree[nearId], nearId));
+                stack[stackCount++] = new(mesh.PhysicsTree[farId], farId);
+                stack[stackCount++] = new(mesh.PhysicsTree[nearId], nearId);
                 continue;
             }
 
@@ -325,16 +327,17 @@ class Rubikon
 
     private static TraceResult AABBTraceMesh(AABBTraceContext trace, PhysicsMeshData mesh)
     {
-        var stack = mesh.TraversalStack;
-        stack.Clear();
-        stack.Push((mesh.PhysicsTree[0], 0));
+        Span<(Node Node, int Index)> stack = stackalloc (Node Node, int Index)[STACK_SIZE];
+        var stackCount = 0;
+        stack[stackCount++] = (mesh.PhysicsTree[0], 0);
 
         var closestHit = new TraceResult();
 
         var ray = new RayTraceContext(trace.Origin, trace.End);
 
-        while (stack.TryPop(out var nodeWithIndex))
+        while (stackCount > 0)
         {
+            var nodeWithIndex = stack[--stackCount];
             var node = nodeWithIndex.Node;
 
             // Expand node AABB by trace half extents for conservative culling
@@ -354,8 +357,8 @@ class Rubikon
                     : (rightChild, leftChild);
 
                 // Push far node first so near node is processed first (stack is LIFO)
-                stack.Push(new(mesh.PhysicsTree[farId], farId));
-                stack.Push(new(mesh.PhysicsTree[nearId], nearId));
+                stack[stackCount++] = new(mesh.PhysicsTree[farId], farId);
+                stack[stackCount++] = new(mesh.PhysicsTree[nearId], nearId);
                 continue;
             }
 
