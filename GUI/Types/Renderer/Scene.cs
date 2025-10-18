@@ -35,8 +35,8 @@ namespace GUI.Types.Renderer
         {
             public Vector3 Start { get; init; }
             public Vector3 End { get; init; }
-            public AABB TraceAABB { get; init; }
             public float? MaxHitDistance { get; init; }
+            public int[] ExpectedTriangles { get; init; }
             public string Name { get; init; }
             public ModelSceneNode VisualizerNode { get; set; }
         }
@@ -90,11 +90,19 @@ namespace GUI.Types.Renderer
                 // Add test cases
                 PhysicsTraceTests.Add(new PhysicsTraceTest
                 {
+                    Name = "Standard trace with ground mesh",
+                    Start = new Vector3(-1660.5786f, 887.1664f, 80.74834f),
+                    End = new Vector3(-1428.382f, 550.8793f, -227.69887f),
+                    MaxHitDistance = 34.445838f,
+                });
+
+                PhysicsTraceTests.Add(new PhysicsTraceTest
+                {
                     Name = "Ancient Box Wedge",
                     Start = new Vector3(-1659.2748f, 938.33185f, 90.12526f),
                     End = new Vector3(-2145.249f, 786.0423f, 37.391777f),
-                    TraceAABB = new AABB(new Vector3(-8, -8, -8), new Vector3(8, 8, 8)),
-                    MaxHitDistance = 84f, // Expected: <= ~84, Actual: 86.04998
+                    MaxHitDistance = 60f, // Current bad value: 86.04998
+                    ExpectedTriangles = [391177, 391174],
                 });
 
                 // Create visualizer nodes for each test case
@@ -189,25 +197,6 @@ namespace GUI.Types.Renderer
         {
             if (PhysicsTracer != null)
             {
-                // Camera-based trace
-                var start = updateContext.View.Camera.Location;
-                var end = start + updateContext.View.Camera.GetForwardVector() * 512f;
-
-                var traceResult = PhysicsTracer.TraceAABB(start, end, CameraTraceNodeTest.LocalBoundingBox);
-                if (traceResult.Hit)
-                {
-                    CameraTraceNodeTest.Transform = Matrix4x4.CreateTranslation(traceResult.HitPosition);
-                    CameraTraceNodeTest.Tint = new Vector4(0, 1, 0, 1);
-                }
-                else
-                {
-                    CameraTraceNodeTest.Transform = Matrix4x4.CreateTranslation(end);
-                    CameraTraceNodeTest.Tint = new Vector4(1, 0, 0, 1);
-                }
-
-                CameraTraceNodeTest.IsSelected = true;
-                //updateContext.View.selectedNodeRenderer.SelectNode(CameraTraceNodeTest);
-
                 var debugText = updateContext.View.selectedNodeRenderer.ScreenDebugText;
                 debugText = string.Empty;
 
@@ -228,16 +217,28 @@ namespace GUI.Types.Renderer
                 for (var i = 0; i < PhysicsTraceTests.Count; i++)
                 {
                     var test = PhysicsTraceTests[i];
-                    var testResult = PhysicsTracer.TraceAABB(test.Start, test.End, test.TraceAABB);
+                    var testResult = PhysicsTracer.TraceAABB(test.Start, test.End, test.VisualizerNode.LocalBoundingBox);
 
                     if (testResult.Hit)
                     {
                         test.VisualizerNode.Transform = Matrix4x4.CreateTranslation(testResult.HitPosition);
 
+                        // trace backwards from hitpos to ensure we didn't cross any geometry
+                        var backTraceResult = PhysicsTracer.TraceAABB(
+                            testResult.HitPosition + Vector3.Normalize((test.Start - test.End)) * 1e-3f,
+                            test.Start,
+                            test.VisualizerNode.LocalBoundingBox
+                        );
+
+                        var backT = backTraceResult.Hit ?
+                            backTraceResult.Distance / (testResult.HitPosition - test.Start).Length()
+                            : 1f;
+                        var backTStatus = backT >= 0.9999f ? "GOOD" : "BAD (likely crossed geometry)";
+
                         if (test.MaxHitDistance.HasValue)
                         {
                             var distanceOk = testResult.Distance <= test.MaxHitDistance.Value;
-                            AddDebugTextLine($"{test.Name} Hit Distance: {testResult.Distance}, Expected: <={test.MaxHitDistance}", i,
+                            AddDebugTextLine($"{test.Name} Hit Distance: {testResult.Distance}, Expected: <={test.MaxHitDistance}, Back Trace Time: {backT} {backTStatus}", i,
                                 distanceOk ? new Color32(0, 255, 0) : new Color32(255, 0, 0));
                         }
                         else
@@ -250,8 +251,29 @@ namespace GUI.Types.Renderer
                         AddDebugTextLine($"{test.Name} No hit!", i, Color32.White);
                     }
 
+                    test.VisualizerNode.IsSelected = true;
                     updateContext.View.selectedNodeRenderer.SelectNode(test.VisualizerNode);
                 }
+
+
+                // Camera-based trace
+                var start = updateContext.View.Camera.Location + updateContext.View.Camera.GetForwardVector() * 10f;
+                var end = start + updateContext.View.Camera.GetForwardVector() * 512f;
+
+                var traceResult = PhysicsTracer.TraceAABB(start, end, CameraTraceNodeTest.LocalBoundingBox);
+                if (traceResult.Hit)
+                {
+                    CameraTraceNodeTest.Transform = Matrix4x4.CreateTranslation(traceResult.HitPosition);
+                    CameraTraceNodeTest.Tint = new Vector4(0, 1, 0, 1);
+                }
+                else
+                {
+                    CameraTraceNodeTest.Transform = Matrix4x4.CreateTranslation(end);
+                    CameraTraceNodeTest.Tint = new Vector4(1, 0, 0, 1);
+                }
+
+                CameraTraceNodeTest.IsSelected = true;
+                //updateContext.View.selectedNodeRenderer.SelectNode(CameraTraceNodeTest);
             }
 
             foreach (var node in staticNodes)
