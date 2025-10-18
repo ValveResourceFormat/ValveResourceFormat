@@ -7,7 +7,7 @@ namespace GUI.Types.Renderer
     {
         private const float MovementSpeed = 300f; // WASD movement, per second
 
-        private readonly FpsMovement fpsMovement = new();
+        public readonly FpsMovement FpsMovement = new();
 
         private readonly float[] SpeedModifiers =
         [
@@ -204,7 +204,7 @@ namespace GUI.Types.Renderer
 
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
-            Location = fpsMovement.ProcessMovement(Location, keyboardState, deltaTime, Pitch, Yaw);
+            Location = FpsMovement.ProcessMovement(Location, keyboardState, deltaTime, Pitch, Yaw);
 
             Yaw -= MathF.PI * mouseDelta.X / WindowSize.X;
             Pitch -= MathF.PI / AspectRatio * mouseDelta.Y / WindowSize.Y;

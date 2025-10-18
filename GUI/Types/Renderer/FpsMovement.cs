@@ -16,11 +16,10 @@ namespace GUI.Types.Renderer;
 /// - Duck/crouch speed modifier (34% speed, CS:GO)
 /// - Velocity checking (NaN protection) and clamping
 /// - WalkMove speed clamping to prevent turning acceleration
+/// - Swept AABB collision detection using Rubikon physics
 ///
 /// NOT IMPLEMENTED (intentionally simplified):
-/// - Collision detection (uses infinite ground plane at Z=0)
 /// - Water movement/swimming
-/// - Traces/raycasts for collision
 /// - Weapon speed modifiers (AWP scoped speed, etc.)
 /// - Stamina system (jump height/speed penalties when tired)
 /// - Duck spam penalties and duck speed tracking
@@ -30,6 +29,13 @@ namespace GUI.Types.Renderer;
 /// </summary>
 class FpsMovement
 {
+    // Player collision hull from CS:GO (in Source units)
+    // Standing hull: 32x32x72 (16 units radius, 72 units tall)
+    // Ducked hull: 32x32x54 (16 units radius, 54 units tall)
+    // Note: Hull is centered horizontally but extends from feet (Z=0) upward
+    private static readonly AABB PlayerHullStanding = new(new Vector3(-16, -16, 0), new Vector3(16, 16, 72));
+    private static readonly AABB PlayerHullDucked = new(new Vector3(-16, -16, 0), new Vector3(16, 16, 54));
+
     // Movement constants from Source engine (movevars_shared.cpp)
     private const float GravityValue = 800f;              // sv_gravity
     private const float FrictionValue = 5.2f;             // sv_friction
@@ -47,10 +53,14 @@ class FpsMovement
     // Bunnyhopping prevention (CS:GO)
     private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
+    // Collision constants
+    private const float SurfaceEpsilon = 0.03125f;        // Minimum distance from surfaces (1/32 unit) to prevent getting stuck
+
     // Movement state
     public Vector3 Velocity { get; private set; }
     private bool OnGround;
     private bool OldButtonJump;
+    private Rubikon? Physics;
 
     // Surface properties (simplified - always 1.0 for now)
     private const float SurfaceFriction = 1.0f;
@@ -62,6 +72,11 @@ class FpsMovement
         OldButtonJump = false;
     }
 
+    public void SetPhysics(Rubikon physics)
+    {
+        Physics = physics;
+    }
+
     /// <summary>
     /// Main movement tick - processes input and updates position/velocity
     /// </summary>
@@ -69,8 +84,12 @@ class FpsMovement
     {
         var position = currentPosition;
 
+        // Track input state for acceleration modifiers and collision hull
+        var isDucking = (input & TrackedKeys.Control) != 0;
+        var isWalking = (input & TrackedKeys.Shift) != 0 && !isDucking;
+
         // Categorize position (check if on ground)
-        CategorizePosition(ref position);
+        CategorizePosition(ref position, isDucking);
 
         // StartGravity - add gravity at start of frame (like Source does)
         if (!OnGround)
@@ -87,10 +106,6 @@ class FpsMovement
             CheckJump(deltaTime);
         }
         OldButtonJump = (input & TrackedKeys.Jump) != 0;
-
-        // Track input state for acceleration modifiers
-        var isDucking = (input & TrackedKeys.Control) != 0;
-        var isWalking = (input & TrackedKeys.Shift) != 0 && !isDucking;
 
         // Calculate wish velocity from input (with speed modifiers for duck/crouch)
         var (wishdir, wishspeed) = CalculateWishVelocity(input, pitch, yaw);
@@ -124,16 +139,10 @@ class FpsMovement
         CheckVelocity(ref position);
 
         // Update position based on velocity (in Source this happens inside TryPlayerMove)
-        position += Velocity * deltaTime;
-
-        // Enforce ground plane (infinite plane at Z=0)
-        if (position.Z < 0)
-        {
-            position = new Vector3(position.X, position.Y, 0);
-        }
+        position = TryPlayerMove(position, Velocity * deltaTime, isDucking);
 
         // Recategorize position after movement (now that position is updated)
-        CategorizePosition(ref position);
+        CategorizePosition(ref position, isDucking);
 
         // Check velocity again for NaN/bounds
         CheckVelocity(ref position);
@@ -155,11 +164,128 @@ class FpsMovement
     }
 
     /// <summary>
-    /// Check if player is on ground (simplified - infinite plane at Z=0)
+    /// Check if player is on ground using swept AABB trace
+    /// Traces down based on current downward velocity to detect ground contact
     /// </summary>
-    private void CategorizePosition(ref Vector3 position)
+    private void CategorizePosition(ref Vector3 position, bool isDucking)
     {
-        OnGround = position.Z <= 0.1f; // Small epsilon for floating point
+        if (Physics == null)
+        {
+            // Fallback: simple ground plane at Z=0
+            OnGround = position.Z <= 0.1f;
+            return;
+        }
+
+        // Get player AABB based on ducking state
+        var aabb = isDucking ? PlayerHullDucked : PlayerHullStanding;
+
+        // Calculate trace distance based on downward velocity
+        // Trace slightly further than we'd move in one frame to catch ground
+        var downwardVelocity = MathF.Min(0, Velocity.Z); // Get downward component (negative Z)
+        var traceDistance = MathF.Abs(downwardVelocity) * 0.016f; // Assume ~60fps for trace distance
+
+        // Minimum trace distance to always check for ground contact
+        // Source uses 2 units as minimum distance for ground checks
+        traceDistance = MathF.Max(2.0f, traceDistance);
+
+        // Trace down from current position to check for ground
+        var traceStart = position;
+        var traceEnd = position + new Vector3(0, 0, -traceDistance);
+
+        var result = Physics.TraceAABB(traceStart, traceEnd, aabb);
+
+        if (result.Hit)
+        {
+            OnGround = true;
+            // Snap to ground if very close, but maintain epsilon distance from surface
+            if (result.Distance < 0.1f)
+            {
+                position = result.HitPosition + result.HitNormal * SurfaceEpsilon;
+            }
+        }
+        else
+        {
+            OnGround = false;
+        }
+    }
+
+    /// <summary>
+    /// Perform swept AABB collision detection for player movement
+    /// Returns the final position after collision resolution
+    /// </summary>
+    private Vector3 TryPlayerMove(Vector3 start, Vector3 delta, bool isDucking)
+    {
+        if (Physics == null || delta.LengthSquared() < 1e-6f)
+        {
+            // No physics or no movement - fallback to simple movement
+            var newPos = start + delta;
+            if (newPos.Z < 0)
+            {
+                newPos = new Vector3(newPos.X, newPos.Y, 0);
+            }
+            return newPos;
+        }
+
+        // Get player AABB based on ducking state
+        var aabb = isDucking ? PlayerHullDucked : PlayerHullStanding;
+
+        var end = start + delta;
+        var result = Physics.TraceAABB(start, end, aabb);
+
+        if (!result.Hit)
+        {
+            // No collision - move freely
+            return end;
+        }
+
+        // Collision detected - move to hit position but maintain epsilon distance from surface
+        var position = result.HitPosition + result.HitNormal * SurfaceEpsilon;
+
+        // Calculate remaining movement after initial collision
+        var remainingTime = 1.0f - result.Distance;
+        if (remainingTime > 0)
+        {
+            // Project remaining velocity onto the collision plane (slide)
+            var normal = result.HitNormal;
+            var remainingDelta = delta * remainingTime;
+
+            // Remove component of velocity along normal (don't move into surface)
+            var projection = Vector3.Dot(remainingDelta, normal);
+            if (projection < 0)
+            {
+                remainingDelta -= normal * projection;
+
+                // Try to slide with remaining velocity
+                if (remainingDelta.LengthSquared() > 1e-6f)
+                {
+                    var slideResult = Physics.TraceAABB(position, position + remainingDelta, aabb);
+                    if (!slideResult.Hit)
+                    {
+                        position += remainingDelta;
+                    }
+                    else
+                    {
+                        position = slideResult.HitPosition + slideResult.HitNormal * SurfaceEpsilon;
+
+                        // Update velocity - remove component along hit normal
+                        var velProjection = Vector3.Dot(Velocity, slideResult.HitNormal);
+                        if (velProjection < 0)
+                        {
+                            Velocity -= slideResult.HitNormal * velProjection;
+                        }
+                    }
+                }
+            }
+
+            // Update velocity based on initial collision normal
+            var velProj = Vector3.Dot(Velocity, normal);
+            if (velProj < 0)
+            {
+                Velocity -= normal * velProj;
+            }
+        }
+
+        return position;
     }
 
     /// <summary>
@@ -355,7 +481,7 @@ class FpsMovement
         // Formula: clamp(1.0 - ((currentspeed - (goalspeed-5)) / 5.0), 0.0, 1.0)
         // Note: Denominator simplifies to 5.0 since (goalspeed - (goalspeed - 5)) = 5
         var flStoredAccel = accel;
-        if (isWalking && currentspeed > (flGoalSpeed - 5))
+        if (isWalking && currentspeed > flGoalSpeed - 5)
         {
             var numerator = MathF.Max(0.0f, currentspeed - (flGoalSpeed - 5));
             var ratio = numerator / 5.0f;  // Simplified from flGoalSpeed - (flGoalSpeed - 5)

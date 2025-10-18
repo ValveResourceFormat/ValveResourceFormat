@@ -225,6 +225,11 @@ namespace GUI.Types.Renderer
         public virtual void PostSceneLoad()
         {
             Scene.Initialize();
+            if (Scene.PhysicsTracer != null)
+            {
+                Camera.FpsMovement.SetPhysics(Scene.PhysicsTracer);
+            }
+
             SkyboxScene?.Initialize();
 
             if (Scene.FogInfo.CubeFogActive)
