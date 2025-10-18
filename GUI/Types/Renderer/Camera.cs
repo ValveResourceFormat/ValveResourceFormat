@@ -8,6 +8,8 @@ namespace GUI.Types.Renderer
         private const float MovementSpeed = 300f; // WASD movement, per second
 
         public readonly FpsMovement FpsMovement = new();
+        public bool NoclipEnabled { get; private set; } = true; // Start with noclip enabled (original behavior)
+        private bool OldToggleNoclipButton;
 
         private readonly float[] SpeedModifiers =
         [
@@ -204,7 +206,23 @@ namespace GUI.Types.Renderer
 
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
-            Location = FpsMovement.ProcessMovement(Location, keyboardState, deltaTime, Pitch, Yaw);
+            // Handle noclip toggle (X key)
+            if ((keyboardState & TrackedKeys.ToggleNoclip) != 0 && !OldToggleNoclipButton)
+            {
+                NoclipEnabled = !NoclipEnabled;
+            }
+            OldToggleNoclipButton = (keyboardState & TrackedKeys.ToggleNoclip) != 0;
+
+            // Use FPS movement physics if noclip is disabled, otherwise use simple noclip movement
+            if (!NoclipEnabled)
+            {
+                Location = FpsMovement.ProcessMovement(Location, keyboardState, deltaTime, Pitch, Yaw);
+            }
+            else
+            {
+                // Original noclip movement (simple free-fly)
+                HandleKeyboardInput(deltaTime, keyboardState);
+            }
 
             Yaw -= MathF.PI * mouseDelta.X / WindowSize.X;
             Pitch -= MathF.PI / AspectRatio * mouseDelta.Y / WindowSize.Y;
