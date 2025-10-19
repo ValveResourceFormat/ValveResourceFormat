@@ -292,5 +292,10 @@ namespace GUI.Forms
                 MessageBoxIcon.Information
             );
         }
+
+        private void SettingsControl_Leave(object sender, EventArgs e)
+        {
+            Settings.Save();
+        }
     }
 }
