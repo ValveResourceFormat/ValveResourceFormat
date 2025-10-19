@@ -21,6 +21,7 @@ namespace GUI.Types.Renderer
         private CheckBox rootMotionCheckBox;
         private CheckBox showSkeletonCheckbox;
         private ComboBox hitboxComboBox;
+        private Label animationTimeLabel;
         private GLViewerTrackBarControl animationTrackBar;
         private GLViewerTrackBarControl slowmodeTrackBar;
         public CheckedListBox meshGroupListBox { get; private set; }
@@ -54,6 +55,7 @@ namespace GUI.Types.Renderer
             {
                 animationComboBox?.Dispose();
                 animationPlayPause?.Dispose();
+                animationTimeLabel?.Dispose();
                 animationTrackBar?.Dispose();
                 slowmodeTrackBar?.Dispose();
                 meshGroupListBox?.Dispose();
@@ -76,6 +78,12 @@ namespace GUI.Types.Renderer
                     enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
                 });
             }
+
+            animationTimeLabel = new Label()
+            {
+                AutoSize = true,
+            };
+            AddControl(animationTimeLabel);
 
             animationPlayPause = AddCheckBox("Autoplay", true, isChecked =>
             {
@@ -307,7 +315,23 @@ namespace GUI.Types.Renderer
                 else if (animationTrackBar.TrackBar.Value != frame)
                 {
                     animationTrackBar.TrackBar.Value = frame;
+
                 }
+
+                if (animationController.ActiveAnimation == null)
+                {
+                    animationTimeLabel.Text = string.Empty;
+                    return;
+                }
+
+                var frameCount = animationController.ActiveAnimation.FrameCount;
+                var fps = animationController.ActiveAnimation.Fps;
+                var frameNumber = animationController.Frame + 1;
+
+                var totalTime = frameCount / fps;
+                animationTimeLabel.Text = $"Frame: {frameNumber,4} / {frameCount}\n" +
+                    $"Time: {frameNumber / fps:F2} / {totalTime:F2}\n" +
+                    $"FPS: {fps:F2}\n";
             });
         }
 
