@@ -17,7 +17,7 @@ namespace GUI.Controls
 
         private void fileAssociationButton_Click(object sender, EventArgs e)
         {
-            SettingsForm.RegisterFileAssociation();
+            SettingsControl.RegisterFileAssociation();
 
             fileAssociationButton.Text = "File association has been registered";
         }

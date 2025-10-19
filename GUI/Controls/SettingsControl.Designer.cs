@@ -1,6 +1,6 @@
 namespace GUI.Forms
 {
-    partial class SettingsForm
+    partial class SettingsControl
     {
         /// <summary>
         /// Required designer variable.
@@ -67,9 +67,9 @@ namespace GUI.Forms
             groupBox4.SuspendLayout();
             footerPanel.SuspendLayout();
             SuspendLayout();
-            // 
+            //
             // vsyncCheckBox
-            // 
+            //
             vsyncCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             vsyncCheckBox.AutoSize = true;
             vsyncCheckBox.Location = new System.Drawing.Point(15, 227);
@@ -79,18 +79,18 @@ namespace GUI.Forms
             vsyncCheckBox.Text = "Vertical Sync";
             vsyncCheckBox.UseVisualStyleBackColor = true;
             vsyncCheckBox.CheckedChanged += OnVsyncValueChanged;
-            // 
+            //
             // gamePaths
-            // 
+            //
             gamePaths.FormattingEnabled = true;
             gamePaths.Location = new System.Drawing.Point(16, 36);
             gamePaths.Margin = new System.Windows.Forms.Padding(0);
             gamePaths.Name = "gamePaths";
             gamePaths.Size = new System.Drawing.Size(501, 123);
             gamePaths.TabIndex = 1;
-            // 
+            //
             // gamePathsAdd
-            // 
+            //
             gamePathsAdd.Location = new System.Drawing.Point(16, 168);
             gamePathsAdd.Margin = new System.Windows.Forms.Padding(0, 9, 8, 9);
             gamePathsAdd.Name = "gamePathsAdd";
@@ -99,9 +99,9 @@ namespace GUI.Forms
             gamePathsAdd.Text = "Add .vpk or gameinfo.gi";
             gamePathsAdd.UseVisualStyleBackColor = true;
             gamePathsAdd.Click += GamePathAdd;
-            // 
+            //
             // gamePathsRemove
-            // 
+            //
             gamePathsRemove.Location = new System.Drawing.Point(429, 168);
             gamePathsRemove.Margin = new System.Windows.Forms.Padding(8, 9, 0, 9);
             gamePathsRemove.Name = "gamePathsRemove";
@@ -110,9 +110,9 @@ namespace GUI.Forms
             gamePathsRemove.Text = "Remove";
             gamePathsRemove.UseVisualStyleBackColor = true;
             gamePathsRemove.Click += GamePathRemoveClick;
-            // 
+            //
             // gamePathsAddFolder
-            // 
+            //
             gamePathsAddFolder.Location = new System.Drawing.Point(244, 168);
             gamePathsAddFolder.Margin = new System.Windows.Forms.Padding(8, 9, 8, 9);
             gamePathsAddFolder.Name = "gamePathsAddFolder";
@@ -121,9 +121,9 @@ namespace GUI.Forms
             gamePathsAddFolder.Text = "Add folder";
             gamePathsAddFolder.UseVisualStyleBackColor = true;
             gamePathsAddFolder.Click += GamePathAddFolder;
-            // 
+            //
             // maxTextureSizeLabel
-            // 
+            //
             maxTextureSizeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeLabel.AutoSize = true;
             maxTextureSizeLabel.Location = new System.Drawing.Point(15, 134);
@@ -131,9 +131,9 @@ namespace GUI.Forms
             maxTextureSizeLabel.Size = new System.Drawing.Size(111, 19);
             maxTextureSizeLabel.TabIndex = 0;
             maxTextureSizeLabel.Text = "Max texture size:";
-            // 
+            //
             // maxTextureSizeInput
-            // 
+            //
             maxTextureSizeInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
             maxTextureSizeInput.Location = new System.Drawing.Point(170, 132);
@@ -144,9 +144,9 @@ namespace GUI.Forms
             maxTextureSizeInput.TabIndex = 5;
             maxTextureSizeInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
             maxTextureSizeInput.ValueChanged += OnMaxTextureSizeValueChanged;
-            // 
+            //
             // fovInput
-            // 
+            //
             fovInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             fovInput.DecimalPlaces = 6;
             fovInput.Location = new System.Drawing.Point(170, 81);
@@ -157,9 +157,9 @@ namespace GUI.Forms
             fovInput.TabIndex = 6;
             fovInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
             fovInput.ValueChanged += OnFovValueChanged;
-            // 
+            //
             // fovLabel
-            // 
+            //
             fovLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             fovLabel.AutoSize = true;
             fovLabel.Location = new System.Drawing.Point(15, 83);
@@ -167,9 +167,9 @@ namespace GUI.Forms
             fovLabel.Size = new System.Drawing.Size(87, 19);
             fovLabel.TabIndex = 4;
             fovLabel.Text = "Vertical FOV:";
-            // 
+            //
             // antiAliasingLabel
-            // 
+            //
             antiAliasingLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             antiAliasingLabel.AutoSize = true;
             antiAliasingLabel.Location = new System.Drawing.Point(15, 36);
@@ -177,9 +177,9 @@ namespace GUI.Forms
             antiAliasingLabel.Size = new System.Drawing.Size(88, 19);
             antiAliasingLabel.TabIndex = 6;
             antiAliasingLabel.Text = "Anti-aliasing:";
-            // 
+            //
             // antiAliasingComboBox
-            // 
+            //
             antiAliasingComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             antiAliasingComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             antiAliasingComboBox.FormattingEnabled = true;
@@ -188,9 +188,9 @@ namespace GUI.Forms
             antiAliasingComboBox.Size = new System.Drawing.Size(100, 25);
             antiAliasingComboBox.TabIndex = 7;
             antiAliasingComboBox.SelectedIndexChanged += OnAntiAliasingValueChanged;
-            // 
+            //
             // registerAssociationButton
-            // 
+            //
             registerAssociationButton.Location = new System.Drawing.Point(15, 174);
             registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             registerAssociationButton.Name = "registerAssociationButton";
@@ -199,9 +199,9 @@ namespace GUI.Forms
             registerAssociationButton.Text = "Register .vpk file association";
             registerAssociationButton.UseVisualStyleBackColor = true;
             registerAssociationButton.Click += OnRegisterAssociationButtonClick;
-            // 
+            //
             // displayFpsCheckBox
-            // 
+            //
             displayFpsCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             displayFpsCheckBox.AutoSize = true;
             displayFpsCheckBox.Location = new System.Drawing.Point(15, 274);
@@ -211,9 +211,9 @@ namespace GUI.Forms
             displayFpsCheckBox.Text = "Display FPS";
             displayFpsCheckBox.UseVisualStyleBackColor = true;
             displayFpsCheckBox.CheckedChanged += OnDisplayFpsValueChanged;
-            // 
+            //
             // groupBox1
-            // 
+            //
             groupBox1.AutoSize = true;
             groupBox1.Controls.Add(gamePathsRemove);
             groupBox1.Controls.Add(gamePathsAddFolder);
@@ -227,9 +227,9 @@ namespace GUI.Forms
             groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
             groupBox1.Text = "Game content search paths";
-            // 
+            //
             // groupBox2
-            // 
+            //
             groupBox2.AutoSize = true;
             groupBox2.Controls.Add(displayFpsCheckBox);
             groupBox2.Controls.Add(setFovTo4by3Button);
@@ -250,9 +250,9 @@ namespace GUI.Forms
             groupBox2.TabIndex = 2;
             groupBox2.TabStop = false;
             groupBox2.Text = "Video settings";
-            // 
+            //
             // setFovTo4by3Button
-            // 
+            //
             setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
             setFovTo4by3Button.Location = new System.Drawing.Point(293, 78);
             setFovTo4by3Button.Name = "setFovTo4by3Button";
@@ -261,9 +261,9 @@ namespace GUI.Forms
             setFovTo4by3Button.Text = "4:3";
             setFovTo4by3Button.UseVisualStyleBackColor = true;
             setFovTo4by3Button.Click += OnSetFovTo4by3ButtonClick;
-            // 
+            //
             // shadowResolutionInput
-            // 
+            //
             shadowResolutionInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             shadowResolutionInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
             shadowResolutionInput.Location = new System.Drawing.Point(170, 180);
@@ -273,9 +273,9 @@ namespace GUI.Forms
             shadowResolutionInput.Size = new System.Drawing.Size(100, 25);
             shadowResolutionInput.TabIndex = 12;
             shadowResolutionInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
-            // 
+            //
             // shadowResolutionLabel
-            // 
+            //
             shadowResolutionLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             shadowResolutionLabel.AutoSize = true;
             shadowResolutionLabel.Location = new System.Drawing.Point(15, 182);
@@ -283,9 +283,9 @@ namespace GUI.Forms
             shadowResolutionLabel.Size = new System.Drawing.Size(125, 19);
             shadowResolutionLabel.TabIndex = 11;
             shadowResolutionLabel.Text = "Shadow resolution:";
-            // 
+            //
             // groupBox3
-            // 
+            //
             groupBox3.AutoSize = true;
             groupBox3.Controls.Add(textViewerFontSizeLabel);
             groupBox3.Controls.Add(registerAssociationButton);
@@ -301,9 +301,9 @@ namespace GUI.Forms
             groupBox3.TabIndex = 3;
             groupBox3.TabStop = false;
             groupBox3.Text = "Explorer";
-            // 
+            //
             // textViewerFontSizeLabel
-            // 
+            //
             textViewerFontSizeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             textViewerFontSizeLabel.AutoSize = true;
             textViewerFontSizeLabel.Location = new System.Drawing.Point(15, 78);
@@ -311,9 +311,9 @@ namespace GUI.Forms
             textViewerFontSizeLabel.Size = new System.Drawing.Size(134, 19);
             textViewerFontSizeLabel.TabIndex = 15;
             textViewerFontSizeLabel.Text = "Text viewer font size:";
-            // 
+            //
             // textViewerFontSize
-            // 
+            //
             textViewerFontSize.Anchor = System.Windows.Forms.AnchorStyles.Left;
             textViewerFontSize.Location = new System.Drawing.Point(209, 76);
             textViewerFontSize.Maximum = new decimal(new int[] { 24, 0, 0, 0 });
@@ -323,9 +323,9 @@ namespace GUI.Forms
             textViewerFontSize.TabIndex = 16;
             textViewerFontSize.Value = new decimal(new int[] { 8, 0, 0, 0 });
             textViewerFontSize.ValueChanged += OnTextViewerFontSizeValueChanged;
-            // 
+            //
             // openExplorerOnStartCheckbox
-            // 
+            //
             openExplorerOnStartCheckbox.AutoSize = true;
             openExplorerOnStartCheckbox.Location = new System.Drawing.Point(15, 124);
             openExplorerOnStartCheckbox.Name = "openExplorerOnStartCheckbox";
@@ -334,9 +334,9 @@ namespace GUI.Forms
             openExplorerOnStartCheckbox.Text = "Open explorer on start";
             openExplorerOnStartCheckbox.UseVisualStyleBackColor = true;
             openExplorerOnStartCheckbox.CheckedChanged += OnOpenExplorerOnStartValueChanged;
-            // 
+            //
             // themeComboBox
-            // 
+            //
             themeComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             themeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             themeComboBox.FormattingEnabled = true;
@@ -345,9 +345,9 @@ namespace GUI.Forms
             themeComboBox.Size = new System.Drawing.Size(100, 25);
             themeComboBox.TabIndex = 14;
             themeComboBox.SelectedIndexChanged += OnThemeSelectedIndexChanged;
-            // 
+            //
             // themeLabel
-            // 
+            //
             themeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             themeLabel.AutoSize = true;
             themeLabel.Location = new System.Drawing.Point(15, 32);
@@ -355,9 +355,9 @@ namespace GUI.Forms
             themeLabel.Size = new System.Drawing.Size(158, 19);
             themeLabel.TabIndex = 13;
             themeLabel.Text = "Theme (requires restart):";
-            // 
+            //
             // groupBox4
-            // 
+            //
             groupBox4.AutoSize = true;
             groupBox4.Controls.Add(quickPreviewCheckbox);
             groupBox4.Controls.Add(quickPreviewSoundsCheckbox);
@@ -369,9 +369,9 @@ namespace GUI.Forms
             groupBox4.TabIndex = 4;
             groupBox4.TabStop = false;
             groupBox4.Text = "Quick file preview";
-            // 
+            //
             // quickPreviewCheckbox
-            // 
+            //
             quickPreviewCheckbox.AutoSize = true;
             quickPreviewCheckbox.Location = new System.Drawing.Point(16, 39);
             quickPreviewCheckbox.Name = "quickPreviewCheckbox";
@@ -380,9 +380,9 @@ namespace GUI.Forms
             quickPreviewCheckbox.Text = "Preview files after selecting";
             quickPreviewCheckbox.UseVisualStyleBackColor = true;
             quickPreviewCheckbox.CheckedChanged += OnQuickPreviewCheckboxChanged;
-            // 
+            //
             // quickPreviewSoundsCheckbox
-            // 
+            //
             quickPreviewSoundsCheckbox.AutoSize = true;
             quickPreviewSoundsCheckbox.Location = new System.Drawing.Point(16, 78);
             quickPreviewSoundsCheckbox.Name = "quickPreviewSoundsCheckbox";
@@ -391,9 +391,9 @@ namespace GUI.Forms
             quickPreviewSoundsCheckbox.Text = "Auto play sounds";
             quickPreviewSoundsCheckbox.UseVisualStyleBackColor = true;
             quickPreviewSoundsCheckbox.CheckedChanged += OnQuickPreviewSoundsCheckboxChanged;
-            // 
+            //
             // footerLabel
-            // 
+            //
             footerLabel.Dock = System.Windows.Forms.DockStyle.Fill;
             footerLabel.ForeColor = System.Drawing.SystemColors.InactiveCaption;
             footerLabel.Location = new System.Drawing.Point(0, 0);
@@ -402,18 +402,18 @@ namespace GUI.Forms
             footerLabel.TabIndex = 5;
             footerLabel.Text = "No regrets, Mr. Freeman";
             footerLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
+            //
             // footerPanel
-            // 
+            //
             footerPanel.Controls.Add(footerLabel);
             footerPanel.Dock = System.Windows.Forms.DockStyle.Top;
             footerPanel.Location = new System.Drawing.Point(16, 978);
             footerPanel.Name = "footerPanel";
             footerPanel.Size = new System.Drawing.Size(535, 100);
             footerPanel.TabIndex = 6;
-            // 
-            // SettingsForm
-            // 
+            //
+            // SettingsControl
+            //
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 17F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             AutoScroll = true;
@@ -426,13 +426,10 @@ namespace GUI.Forms
             Font = new System.Drawing.Font("Segoe UI", 10F);
             Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             MinimumSize = new System.Drawing.Size(300, 221);
-            Name = "SettingsForm";
+            Name = "SettingsControl";
             Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
-            ShowIcon = false;
-            ShowInTaskbar = false;
-            StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             Text = "Settings";
-            Load += SettingsForm_Load;
+            Load += SettingsControl_Load;
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).EndInit();
             ((System.ComponentModel.ISupportInitialize)fovInput).EndInit();
             groupBox1.ResumeLayout(false);

@@ -381,7 +381,7 @@ namespace GUI
             mainTabs.SelectTab(tab);
         }
 
-        private void RegisterVpkFileAssociationToolStripMenuItem_Click(object sender, EventArgs e) => SettingsForm.RegisterFileAssociation();
+        private void RegisterVpkFileAssociationToolStripMenuItem_Click(object sender, EventArgs e) => SettingsControl.RegisterFileAssociation();
 
         private void OnVpkCreateFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {

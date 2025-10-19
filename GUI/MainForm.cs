@@ -520,8 +520,35 @@ namespace GUI
 
         private void OnSettingsItemClick(object sender, EventArgs e)
         {
-            using var form = new SettingsForm();
-            form.ShowDialog(this);
+            foreach (TabPage tabPage in mainTabs.TabPages)
+            {
+                if (tabPage.Text == "Settings")
+                {
+                    mainTabs.SelectTab(tabPage);
+                    return;
+                }
+            }
+
+            var seettingsTab = new TabPage("Settings")
+            {
+                ToolTipText = "Settings",
+                ImageIndex = ImageListLookup["_settings"],
+            };
+
+            try
+            {
+                seettingsTab.Controls.Add(new SettingsControl
+                {
+                    Dock = DockStyle.Fill,
+                });
+                mainTabs.TabPages.Insert(1, seettingsTab);
+                mainTabs.SelectTab(seettingsTab);
+                seettingsTab = null;
+            }
+            finally
+            {
+                seettingsTab?.Dispose();
+            }
         }
 
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)

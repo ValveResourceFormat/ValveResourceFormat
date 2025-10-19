@@ -8,22 +8,16 @@ using Microsoft.Win32;
 
 namespace GUI.Forms
 {
-    partial class SettingsForm : Form
+    partial class SettingsControl : UserControl
     {
         private static readonly int[] AntiAliasingSampleOptions = [0, 2, 4, 8, 16];
 
-        public SettingsForm()
+        public SettingsControl()
         {
             InitializeComponent();
         }
 
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            base.OnFormClosing(e);
-            Settings.Save();
-        }
-
-        private void SettingsForm_Load(object sender, EventArgs e)
+        private void SettingsControl_Load(object sender, EventArgs e)
         {
             foreach (var path in Settings.Config.GameSearchPaths)
             {
