@@ -500,7 +500,7 @@ namespace GUI
                 //For UX purposes, hide the option to close the console also (this is disabled later in code too)
                 closeToolStripMenuItem.Visible = tabIndex != 0;
 
-                var canExport = tabName != "Console" && tabName != "Explorer";
+                var canExport = thisTab.Tag is ExportData exportData;
                 exportAsIsToolStripMenuItem.Visible = canExport;
                 decompileExportToolStripMenuItem.Visible = canExport;
 
