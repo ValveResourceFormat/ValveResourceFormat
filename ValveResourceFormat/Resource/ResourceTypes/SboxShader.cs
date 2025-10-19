@@ -66,21 +66,40 @@ namespace ValveResourceFormat.ResourceTypes
                 return ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, shaderModelType);
             }
 
-            foreach (var onDiskShaderFile in shaderFiles)
+            var tempShaders = new List<VfxProgramData>(ShaderFileCount);
+
+            try
             {
-                if (onDiskShaderFile.Offset == 0)
+                foreach (var onDiskShaderFile in shaderFiles)
                 {
-                    continue;
+                    if (onDiskShaderFile.Offset == 0)
+                    {
+                        continue;
+                    }
+
+                    reader.BaseStream.Position = Offset + onDiskShaderFile.Offset;
+
+                    var name = GetVcsCompatibleFileName(onDiskShaderFile.Type);
+                    var stream = new MemoryStream(reader.ReadBytes((int)onDiskShaderFile.Size));
+
+                    var shaderFile = new VfxProgramData { IsSbox = true };
+                    tempShaders.Add(shaderFile);
+                    shaderFile.Read(name, stream);
+                }
+            }
+            catch
+            {
+                foreach (var shader in tempShaders)
+                {
+                    shader.Dispose();
                 }
 
-                reader.BaseStream.Position = Offset + onDiskShaderFile.Offset;
+                tempShaders.Clear();
+            }
 
-                var name = GetVcsCompatibleFileName(onDiskShaderFile.Type);
-                var stream = new MemoryStream(reader.ReadBytes((int)onDiskShaderFile.Size));
-
-                var shaderFile = new VfxProgramData { IsSbox = true };
-                shaderFile.Read(name, stream);
-                Shaders.Add(shaderFile);
+            foreach (var shader in tempShaders)
+            {
+                Shaders.Add(shader);
             }
         }
 
