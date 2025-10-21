@@ -496,9 +496,12 @@ namespace GUI.Types.Renderer
                     SkyboxScene.RenderOpaqueLayer(renderContext);
                 }
 
-                using (new GLDebugGroup("2D Sky Render"))
+                if (!IsWireframe)
                 {
-                    Skybox2D.Render();
+                    using (new GLDebugGroup("2D Sky Render"))
+                    {
+                        Skybox2D.Render();
+                    }
                 }
 
                 if (renderContext.Framebuffer == MainFramebuffer)
