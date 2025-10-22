@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Utils;
 /// <summary>
 /// A memory stream that uses ArrayPool for buffer management.
 /// </summary>
-public sealed class PooledMemoryStream : MemoryStream
+internal sealed class PooledMemoryStream : MemoryStream
 {
     /// <remarks>
     /// The buffer length is larger than requested. Use BufferSpan for correct size.
