@@ -174,16 +174,19 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public List<SimpleVertex> ExternalVertices = [];
+        public List<SimpleVertex> Vertices => vertices;
+
         public void Update(Scene.RenderContext renderContext, Scene.UpdateContext updateContext)
         {
-            disableDepth = selectedNodes.Count > 1;
+            disableDepth = true;//selectedNodes.Count > 1;
 
-            if (selectedNodes.Count == 0)
-            {
-                // We don't need to reupload an empty array
-                vertexCount = 0;
-                return;
-            }
+            //if (selectedNodes.Count == 0)
+            //{
+            //    // We don't need to reupload an empty array
+            //    vertexCount = 0;
+            //    return;
+            //}
 
             foreach (var node in selectedNodes)
             {

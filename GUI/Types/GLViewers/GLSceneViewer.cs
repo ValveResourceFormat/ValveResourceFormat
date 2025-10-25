@@ -194,6 +194,8 @@ namespace GUI.Types.GLViewers
             if (Scene.PhysicsWorld != null)
             {
                 Input.PhysicsWorld = Scene.PhysicsWorld;
+                Scene.PhysicsTracer.SelectedNodeRenderer = SelectedNodeRenderer;
+                Scene.PhysicsTracer.DebugTriangleIndices = [391177/*, 391174*/];
             }
 
             SkyboxScene?.Initialize();
