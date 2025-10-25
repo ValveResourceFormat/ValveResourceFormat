@@ -252,8 +252,8 @@ namespace GUI.Types.Renderer
                         AddDebugTextLine($"{test.Name} No hit!", i, Color32.White);
                     }
 
-                    test.VisualizerNode.IsSelected = true;
-                    updateContext.View.selectedNodeRenderer.SelectNode(test.VisualizerNode);
+                    //test.VisualizerNode.IsSelected = true;
+                    //updateContext.View.selectedNodeRenderer.SelectNode(test.VisualizerNode);
                 }
 
 
@@ -273,7 +273,7 @@ namespace GUI.Types.Renderer
                     CameraTraceNodeTest.Tint = new Vector4(1, 0, 0, 1);
                 }
 
-                CameraTraceNodeTest.IsSelected = true;
+                //CameraTraceNodeTest.IsSelected = true;
                 //updateContext.View.selectedNodeRenderer.SelectNode(CameraTraceNodeTest);
             }
 

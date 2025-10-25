@@ -228,6 +228,8 @@ namespace GUI.Types.Renderer
             if (Scene.PhysicsTracer != null)
             {
                 Camera.FpsMovement.SetPhysics(Scene.PhysicsTracer);
+                Scene.PhysicsTracer.SelectedNodeRenderer = selectedNodeRenderer;
+                Scene.PhysicsTracer.DebugTriangleIndices = [391177/*, 391174*/];
             }
 
             SkyboxScene?.Initialize();
