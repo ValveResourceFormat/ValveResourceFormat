@@ -722,6 +722,7 @@ namespace GUI.Controls
             Keys.LShiftKey => TrackedKeys.Shift,
             Keys.LMenu => TrackedKeys.Alt,
             Keys.Space => TrackedKeys.Jump,
+            Keys.X => TrackedKeys.ToggleNoclip,
             _ => TrackedKeys.None,
         };
 

@@ -43,7 +43,7 @@ namespace GUI.Types.Renderer
         private SceneBackground baseBackground;
         private OctreeDebugRenderer staticOctreeRenderer;
         private OctreeDebugRenderer dynamicOctreeRenderer;
-        protected SelectedNodeRenderer selectedNodeRenderer;
+        public SelectedNodeRenderer selectedNodeRenderer;
 
         public enum DepthOnlyProgram
         {
@@ -228,6 +228,8 @@ namespace GUI.Types.Renderer
             if (Scene.PhysicsTracer != null)
             {
                 Camera.FpsMovement.SetPhysics(Scene.PhysicsTracer);
+                Scene.PhysicsTracer.SelectedNodeRenderer = selectedNodeRenderer;
+                Scene.PhysicsTracer.DebugTriangleIndices = [391177/*, 391174*/];
             }
 
             SkyboxScene?.Initialize();
