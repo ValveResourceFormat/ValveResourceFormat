@@ -38,13 +38,13 @@ namespace GUI.Types.Viewers
                 stream.ReadExactly(input);
             }
 
-            var textSpan = GetTextFromBytes(input.AsSpan());
+            var text = GetTextFromBytes(input.AsSpan());
 
-            if (!textSpan.IsEmpty)
+            if (!string.IsNullOrEmpty(text))
             {
                 var textTab = new TabPage("Text");
-                var text = CodeTextBox.Create(System.Text.Encoding.UTF8.GetString(textSpan));
-                textTab.Controls.Add(text);
+                var textBox = CodeTextBox.Create(text);
+                textTab.Controls.Add(textBox);
                 resTabs.TabPages.Add(textTab);
                 resTabs.SelectedTab = textTab;
             }
@@ -57,12 +57,40 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        public static ReadOnlySpan<byte> GetTextFromBytes(ReadOnlySpan<byte> span)
+        public static string? GetTextFromBytes(ReadOnlySpan<byte> span)
         {
+            if (span.Length >= 4 && span[0] == 0xFF && span[1] == 0xFE && span[2] == 0x00 && span[3] == 0x00)  // UTF-32 LE BOM
+            {
+                var enc = new System.Text.UTF32Encoding(bigEndian: false, byteOrderMark: true);
+                return enc.GetString(span[4..]);
+            }
+
+            if (span.Length >= 4 && span[0] == 0x00 && span[1] == 0x00 && span[2] == 0xFE && span[3] == 0xFF) // UTF-32 BE BOM
+            {
+                var enc = new System.Text.UTF32Encoding(bigEndian: true, byteOrderMark: true);
+                return enc.GetString(span[4..]);
+            }
+
+            if (span.Length >= 2 && span[0] == 0xFF && span[1] == 0xFE) // UTF-16 LE BOM
+            {
+                return System.Text.Encoding.Unicode.GetString(span[2..]);
+            }
+
+            if (span.Length >= 2 && span[0] == 0xFE && span[1] == 0xFF) // UTF-16 BE BOM
+            {
+                var enc = new System.Text.UnicodeEncoding(bigEndian: true, byteOrderMark: true);
+                return enc.GetString(span[2..]);
+            }
+
+            if (span.Length >= 3 && span[0] == 0xEF && span[1] == 0xBB && span[2] == 0xBF) // UTF-8 BOM
+            {
+                return System.Text.Encoding.UTF8.GetString(span[3..]);
+            }
+
             var firstNullByte = span.IndexOf((byte)0);
             if (firstNullByte < 0)
             {
-                return span; // No null bytes found
+                return System.Text.Encoding.UTF8.GetString(span); // No null bytes found
             }
 
             if (firstNullByte == 0)
@@ -80,8 +108,8 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            // Only trailing nulls, trim them
-            return span[..firstNullByte];
+            // Only trailing nulls, trim them and decode as UTF-8
+            return System.Text.Encoding.UTF8.GetString(span[..firstNullByte]);
         }
     }
 }

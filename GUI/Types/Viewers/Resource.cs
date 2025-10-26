@@ -443,11 +443,11 @@ namespace GUI.Types.Viewers
             resource.Reader.BaseStream.Position = block.Offset;
             var input = resource.Reader.ReadBytes((int)block.Size);
 
-            var textSpan = ByteViewer.GetTextFromBytes(input.AsSpan());
+            var text = ByteViewer.GetTextFromBytes(input.AsSpan());
 
-            if (!textSpan.IsEmpty)
+            if (!string.IsNullOrEmpty(text))
             {
-                var textBox = CodeTextBox.Create(System.Text.Encoding.UTF8.GetString(textSpan));
+                var textBox = CodeTextBox.Create(text);
                 blockTab.Controls.Add(textBox);
                 return;
             }
