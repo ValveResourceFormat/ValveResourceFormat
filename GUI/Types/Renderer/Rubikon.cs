@@ -142,11 +142,11 @@ class Rubikon
         TraceResult closestHit = new();
         var halfExtents = aabb.Size * 0.5f;
         var trace = new AABBTraceContext(from, to, halfExtents);
-
+        AABB test;
         // Check against all meshes
         foreach (var mesh in Meshes)
         {
-            var hit = AABBTraceMesh(trace, mesh);
+            var hit = AABBTraceMesh1(trace, mesh);
             if (hit.Hit && hit.Distance < closestHit.Distance)
             {
                 closestHit = hit;
@@ -398,6 +398,8 @@ class Rubikon
         return closestHit;
     }
 
+    
+
     /// <summary>
     /// Performs swept AABB vs triangle collision detection using the Minkowski sum approach.
     /// This effectively expands the triangle by the AABB half extents and performs a ray cast.
@@ -620,5 +622,121 @@ class Rubikon
 
         // Test if point is inside triangle
         return w0 >= -EPSILON && w1 >= -EPSILON && w2 >= -EPSILON;
+    }
+
+
+    private static TraceResult AABBTraceMesh1(AABBTraceContext trace, PhysicsMeshData mesh)
+    {
+        Span<(Node Node, int Index)> stack = stackalloc (Node Node, int Index)[STACK_SIZE];
+        var stackCount = 0;
+        stack[stackCount++] = (mesh.PhysicsTree[0], 0);
+
+        var closestHit = new TraceResult();
+
+        var ray = new RayTraceContext(trace.Origin, trace.End);
+
+        //we just need to check what BVH nodes intersect with this first
+        AABB traceAABB = new AABB(trace.Origin - trace.HalfExtents, trace.Origin + trace.HalfExtents);
+
+        while (stackCount > 0)
+        {
+            var nodeWithIndex = stack[--stackCount];
+            var node = nodeWithIndex.Node;
+
+
+            //much cheaper than doing ray-aabb (?) 
+            if (!traceAABB.Intersects(new AABB(node.Min, node.Max)))
+            {
+                continue;
+            }
+
+            if (!RayIntersectsAABB(ray, node.Min - trace.HalfExtents, node.Max + trace.HalfExtents))
+            {
+                continue;
+            }
+
+            if (node.Type != NodeType.Leaf)
+            {
+                var leftChild = nodeWithIndex.Index + 1;
+                var rightChild = nodeWithIndex.Index + (int)node.ChildOffset;
+
+                var rayIsPositive = ray.Direction[(int)node.Type] >= 0;
+                var (nearId, farId) = rayIsPositive
+                    ? (leftChild, rightChild)
+                    : (rightChild, leftChild);
+
+                // Push far node first so near node is processed first (stack is LIFO)
+                stack[stackCount++] = new(mesh.PhysicsTree[farId], farId);
+                stack[stackCount++] = new(mesh.PhysicsTree[nearId], nearId);
+                continue;
+            }
+
+            // Process triangles in leaf node
+            var count = (int)node.ChildOffset;
+            var startIndex = (int)node.TriangleOffset;
+
+            Vector3 hitPoint = new Vector3(0);
+            Vector3 hitNormal = new Vector3(0);
+            float hitDistance = float.PositiveInfinity;
+
+            for (var i = startIndex; i < startIndex + count; i++)
+            {
+                var triangle = mesh.Triangles[i];
+                var v0 = mesh.VertexPositions[triangle.X];
+                var v1 = mesh.VertexPositions[triangle.Y];
+                var v2 = mesh.VertexPositions[triangle.Z];
+
+                if (!CornerAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance))
+                {
+                    continue;
+                }
+
+                // Skip if we're already past a closer hit
+                if (hitDistance >= closestHit.Distance)
+                {
+                    continue;
+                }
+
+                // Update closest hit
+                closestHit = new(true, hitPoint, hitNormal, hitDistance, i);
+
+                // Early out if we hit at the very start
+                if (hitDistance < 1e-6f)
+                {
+                    return closestHit;
+                }
+            }
+        }
+
+        return closestHit;
+    }
+
+    private static bool CornerAgainstTri(
+        AABBTraceContext trace,
+        Vector3 v0, Vector3 v1, Vector3 v2,
+        ref Vector3 hitPoint,
+        ref Vector3 normal,
+        ref float distance)
+    {
+        //goal: figure out the 1 in 8 corners that can actually hit the tri (its the one whos 3 axis signs is equal to signs(triangle normal) * sign(dot(normal, movedirection))
+        //thats the only corner that could collide without having intersection beforehand.
+
+        var edge1 = v1 - v0;
+        var edge2 = v2 - v0;
+        var triangleNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
+        Vector3 triNormSign = new Vector3(Math.Sign(triangleNormal.X), Math.Sign(triangleNormal.Y), Math.Sign(triangleNormal.Z));
+        Vector3 cornerCoords = trace.Origin + Vector3.Multiply(triNormSign, trace.HalfExtents) * Vector3.Dot(triangleNormal, trace.Direction);
+
+        RayTraceContext ray = new RayTraceContext(cornerCoords, trace.Direction);
+
+        bool DoesHit = RayIntersectsTriangle(ray, v0, v1, v2, out var intersection);
+
+        if (DoesHit)
+        {
+            normal = triangleNormal;
+            distance = intersection.Distance;
+            return true;
+        }
+        return false;
     }
 }
