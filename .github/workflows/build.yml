@@ -96,63 +96,63 @@ jobs:
       run: dotnet build Misc/MiscVrfProjects.slnx
 
     - name: Upload GUI
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'windows-latest'
       with:
         name: Source2Viewer
         path: GUI/bin/Release/win-x64/publish
 
     - name: Upload nupkg
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'windows-latest'
       with:
         name: nupkg
         path: 'ValveResourceFormat/bin/Release/*.nupkg'
 
     - name: Upload CLI (Windows x64)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'windows-latest'
       with:
         name: cli-windows-x64
         path: CLI/bin/Release/win-x64/publish
 
     - name: Upload CLI (Windows arm64)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'windows-11-arm'
       with:
         name: cli-windows-arm64
         path: CLI/bin/Release/win-arm64/publish
 
     - name: Upload CLI (Linux x64)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'ubuntu-latest'
       with:
         name: cli-linux-x64
         path: CLI/bin/Release/linux-x64/publish
 
     - name: Upload CLI (Linux arm)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'ubuntu-latest'
       with:
         name: cli-linux-arm
         path: CLI/bin/Release/linux-arm/publish
 
     - name: Upload CLI (Linux arm64)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'ubuntu-24.04-arm'
       with:
         name: cli-linux-arm64
         path: CLI/bin/Release/linux-arm64/publish
 
     - name: Upload CLI (macOS x64)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'macos-latest'
       with:
         name: cli-macos-x64
         path: CLI/bin/Release/osx-x64/publish
 
     - name: Upload CLI (macOS arm64)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: matrix.os == 'macos-latest'
       with:
         name: cli-macos-arm64
@@ -185,7 +185,7 @@ jobs:
 
     - name: Upload binaries to be signed
       id: signpath-artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: signpath-to-be-signed
         retention-days: 1
