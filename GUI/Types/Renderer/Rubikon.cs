@@ -1,4 +1,5 @@
 
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using GUI.Utils;
@@ -760,8 +761,8 @@ class Rubikon
         return w0 >= -EPSILON && w1 >= -EPSILON && w2 >= -EPSILON;
     }
 
-
-    private static TraceResult AABBTraceMesh1(AABBTraceContext trace, PhysicsMeshData mesh)
+    
+    private TraceResult AABBTraceMesh1(AABBTraceContext trace, PhysicsMeshData mesh)
     {
         Span<(Node Node, int Index)> stack = stackalloc (Node Node, int Index)[STACK_SIZE];
         var stackCount = 0;
@@ -771,21 +772,12 @@ class Rubikon
 
         var ray = new RayTraceContext(trace.Origin, trace.End);
 
-        //we just need to check what BVH nodes intersect with this first
-        AABB traceAABB = new AABB(trace.Origin - trace.HalfExtents, trace.Origin + trace.HalfExtents);
-
         while (stackCount > 0)
         {
             var nodeWithIndex = stack[--stackCount];
             var node = nodeWithIndex.Node;
 
-
-            //much cheaper than doing ray-aabb (?) 
-            if (!traceAABB.Intersects(new AABB(node.Min, node.Max)))
-            {
-                continue;
-            }
-
+            // Expand node AABB by trace half extents for conservative culling
             if (!RayIntersectsAABB(ray, node.Min - trace.HalfExtents, node.Max + trace.HalfExtents))
             {
                 continue;
@@ -811,16 +803,27 @@ class Rubikon
             var count = (int)node.ChildOffset;
             var startIndex = (int)node.TriangleOffset;
 
-            Vector3 hitPoint = new Vector3(0);
-            Vector3 hitNormal = new Vector3(0);
-            float hitDistance = float.PositiveInfinity;
-
             for (var i = startIndex; i < startIndex + count; i++)
             {
                 var triangle = mesh.Triangles[i];
                 var v0 = mesh.VertexPositions[triangle.X];
                 var v1 = mesh.VertexPositions[triangle.Y];
                 var v2 = mesh.VertexPositions[triangle.Z];
+
+                // Debug visualization for specific triangles
+                trace.DebugVisualize = false;
+                if (DebugTriangleIndices.Contains(i) && SelectedNodeRenderer != null)
+                {
+                    //DrawExpandedTriangleDebug(trace, v0, v1, v2);
+                    trace.DebugVisualize = true;
+                    ShapeSceneNode.AddLine(SelectedNodeRenderer.Vertices, v0, v1, Color32.Orange);
+                    ShapeSceneNode.AddLine(SelectedNodeRenderer.Vertices, v1, v2, Color32.Orange);
+                    ShapeSceneNode.AddLine(SelectedNodeRenderer.Vertices, v2, v0, Color32.Orange);
+                }
+
+                Vector3 hitPoint = new Vector3(0);
+                Vector3 hitNormal = new Vector3(0);
+                float hitDistance = float.PositiveInfinity;
 
                 if (!CornerAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance))
                 {
@@ -861,9 +864,10 @@ class Rubikon
         var edge2 = v2 - v0;
         var triangleNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
         Vector3 triNormSign = new Vector3(Math.Sign(triangleNormal.X), Math.Sign(triangleNormal.Y), Math.Sign(triangleNormal.Z));
-        Vector3 cornerCoords = trace.Origin + Vector3.Multiply(triNormSign, trace.HalfExtents) * Vector3.Dot(triangleNormal, trace.Direction);
+        Vector3 cornerCoords = trace.Origin + Vector3.Multiply(triNormSign, trace.HalfExtents) * Math.Sign(Vector3.Dot(triangleNormal, trace.Direction));
 
-        RayTraceContext ray = new RayTraceContext(cornerCoords, trace.Direction);
+        //RayTraceContext ray = new RayTraceContext(cornerCoords, trace.Direction);
+        RayTraceContext ray = new RayTraceContext(trace.Origin, trace.Direction);
 
         bool DoesHit = RayIntersectsTriangle(ray, v0, v1, v2, out var intersection);
 
@@ -871,6 +875,7 @@ class Rubikon
         {
             normal = triangleNormal;
             distance = intersection.Distance;
+            hitPoint = trace.Origin + trace.Direction * distance;
             return true;
         }
         return false;
