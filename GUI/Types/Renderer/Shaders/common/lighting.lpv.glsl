@@ -85,7 +85,7 @@ vec3 ComputeLightProbeShading(in MaterialProperties_t mat)
 
     // SteamVR Home lpv irradiance is RGBM Dxt5
     #if (S_LIGHTMAP_VERSION_MINOR == 0)
-        indirectDiffuse = pow2(lighting.DiffuseIndirect); // not bothering with RGBM
+        indirectDiffuse = pow2(indirectDiffuse); // not bothering with RGBM
     #endif
 
     return indirectDiffuse;
