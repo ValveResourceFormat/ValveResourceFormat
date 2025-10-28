@@ -326,11 +326,12 @@ namespace GUI.Types.Renderer
 
                 var frameCount = animationController.ActiveAnimation.FrameCount;
                 var fps = animationController.ActiveAnimation.Fps;
+                var totalTime = frameCount / fps;
+                var time = animationController.Time % totalTime;
                 var frameNumber = animationController.Frame + 1;
 
-                var totalTime = frameCount / fps;
                 animationTimeLabel.Text = $"Frame: {frameNumber,4} / {frameCount}\n" +
-                    $"Time: {frameNumber / fps:F2} / {totalTime:F2}\n" +
+                    $"Time: {time:F2} / {totalTime:F2}\n" +
                     $"FPS: {fps:F2}\n";
             });
         }
