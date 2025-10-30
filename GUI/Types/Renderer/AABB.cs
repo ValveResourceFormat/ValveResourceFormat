@@ -30,25 +30,25 @@ namespace GUI.Types.Renderer
         public bool Contains(Vector3 point)
         {
             return
-                point.X >= Min.X && point.X <= Max.X &&
-                point.Y >= Min.Y && point.Y <= Max.Y &&
-                point.Z >= Min.Z && point.Z <= Max.Z;
+                Min.X <= point.X && point.X <= Max.X &&
+                Min.Y <= point.Y && point.Y <= Max.Y &&
+                Min.Z <= point.Z && point.Z <= Max.Z;
         }
 
         public bool Intersects(in AABB other)
         {
             return
-                other.Max.X >= Min.X && other.Min.X <= Max.X &&
-                other.Max.Y >= Min.Y && other.Min.Y <= Max.Y &&
-                other.Max.Z >= Min.Z && other.Min.Z <= Max.Z;
+                Min.X <= other.Max.X && other.Min.X <= Max.X &&
+                Min.Y <= other.Max.Y && other.Min.Y <= Max.Y &&
+                Min.Z <= other.Max.Z && other.Min.Z <= Max.Z;
         }
 
         public bool Contains(in AABB other)
         {
             return
-                other.Min.X >= Min.X && other.Max.X <= Max.X &&
-                other.Min.Y >= Min.Y && other.Max.Y <= Max.Y &&
-                other.Min.Z >= Min.Z && other.Max.Z <= Max.Z;
+                Min.X <= other.Min.X && other.Max.X <= Max.X &&
+                Min.Y <= other.Min.Y && other.Max.Y <= Max.Y &&
+                Min.Z <= other.Min.Z && other.Max.Z <= Max.Z;
         }
 
         public AABB Union(in AABB other)
