@@ -46,7 +46,7 @@ Developers can integrate ValveResourceFormat into their own projects via [NuGet]
 
 Source 2 Viewer supports **all Source 2 games**, including:
 
-- **Counter-Strike 2** (CS2)
+- **Counter-Strike 2**
 - **Dota 2**
 - **Deadlock**
 - **Half-Life: Alyx**
@@ -55,7 +55,6 @@ Source 2 Viewer supports **all Source 2 games**, including:
 - **Artifact**
 - **Dota Underlords**
 - **The Lab**
-- **Aperture Hand Lab**
 
 Supports Source 2 games updated through current release versions. [See complete game list on SteamDB.](https://steamdb.info/tech/Engine/Source2/)
 
