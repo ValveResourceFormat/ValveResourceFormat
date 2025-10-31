@@ -122,7 +122,7 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            node ??= CreateEnvCubemapSphere(Scene);
+            node ??= CreateCubeVMDL(Scene);
 
             foreach (var renderable in node.RenderableMeshes)
             {
@@ -132,11 +132,24 @@ namespace GUI.Types.Renderer
             return node;
         }
 
-        public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
+        public static ModelSceneNode CreateCubeVMDL(Scene scene)
         {
-            var node = new ModelSceneNode(scene, (Model)CubemapResource.Value.DataBlock);
+            var node = new ModelSceneNode(scene, (Model)CubeVMDLResource.Value.DataBlock);
             return node;
         }
+
+        public static Lazy<ValveResourceFormat.Resource> CubeVMDLResource = new(() =>
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream($"GUI.Utils.placeholder_box.vmdl_c");
+            var resource = new ValveResourceFormat.Resource()
+            {
+                FileName = "placeholder_box.vmdl_c"
+            };
+
+            resource.Read(stream);
+            return resource;
+        });
 
         public static Lazy<ValveResourceFormat.Resource> CubemapResource = new(() =>
         {
