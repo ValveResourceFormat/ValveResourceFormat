@@ -56,6 +56,11 @@ namespace GUI.Types.Renderer
             return new AABB(Vector3.Min(Min, other.Min), Vector3.Max(Max, other.Max));
         }
 
+        public AABB Encapsulate(in Vector3 point)
+        {
+            return new AABB(Vector3.Min(Min, point), Vector3.Max(Max, point));
+        }
+
         public AABB Translate(in Vector3 offset)
         {
             return new AABB(Min + offset, Max + offset);
