@@ -34,7 +34,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Animgraph 2 graph for animation behavior. Graph variations have a vnmgraph.+variationname suffix.
         /// </summary>
-        [Extension("vnmgrph")]
+        [Extension("vnmgraph")]
         NmGraph,
 
         /// <summary>
@@ -54,6 +54,12 @@ namespace ValveResourceFormat
         /// </summary>
         [Extension("vnmclip")]
         NmClip,
+
+        /// <summary>
+        /// Animgraph 2 IK rig. Can contain IK rig data.
+        /// </summary>
+        [Extension("vnmikrig")]
+        NmIKRig,
 
         /// <summary>
         /// Action list for surface property impact effects.
@@ -194,6 +200,12 @@ namespace ValveResourceFormat
         ChoreoSceneFileData,
 
         /// <summary>
+        /// Choreo scene file.
+        /// </summary>
+        [Extension("vcd")]
+        ChoreoSceneResource,
+
+        /// <summary>
         /// Panorama UI element.
         /// </summary>
         /// <remarks>
@@ -296,7 +308,7 @@ namespace ValveResourceFormat
         /// <summary>
         /// Pulse graph definition created in the Pulse Editor.
         /// </summary>
-        [Extension("pulse")]
+        [Extension("vpulse")]
         PulseGraphDef,
 
         /// <summary>
