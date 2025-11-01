@@ -404,11 +404,62 @@ namespace GUI.Types.Renderer
 
             return drawCall;
         }
+
+        private RenderableMesh(string name, AABB bounds, VrfGuiContext guiContext)
+        {
+            Name = name;
+            BoundingBox = bounds;
+            this.guiContext = guiContext;
+        }
+
+        /// <summary>
+        public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, VrfGuiContext guiContext)
+        {
+            var mesh = new RenderableMesh(name, bounds, guiContext);
+            var gpuVbib = guiContext.MeshBufferCache.CreateVertexIndexBuffers(name, vertexIndexBuffers);
+
+            var drawCall = new DrawCall()
+            {
+                Material = material,
+                MeshBuffers = guiContext.MeshBufferCache,
+                MeshName = name,
+                PrimitiveType = PrimitiveType.Triangles,
+            };
+
+            var vb = vertexIndexBuffers.VertexBuffers[0];
+            var ib = vertexIndexBuffers.IndexBuffers[0];
+
+            drawCall.VertexCount = vb.ElementCount;
+            drawCall.StartIndex = 0;
+            drawCall.IndexCount = (int)ib.ElementCount;
+            drawCall.IndexType = DrawElementsType.UnsignedInt;
+
+            drawCall.VertexBuffers =
+            [
+                new VertexDrawBuffer()
+                {
+                    Handle = gpuVbib.VertexBuffers[0],
+                    ElementSizeInBytes = vb.ElementSizeInBytes,
+                    InputLayoutFields = vb.InputLayoutFields,
+                }
+            ];
+
+            drawCall.IndexBuffer = new IndexDrawBuffer()
+            {
+                Handle = gpuVbib.IndexBuffers[0],
+            };
+
+            mesh.DrawCallsOpaque.Add(drawCall);
+            return mesh;
+        }
     }
 
-    internal interface IRenderableMeshCollection
+    internal abstract class MeshCollectionNode : SceneNode
     {
-        static List<RenderableMesh> Empty = [];
-        List<RenderableMesh> RenderableMeshes { get; }
+        protected MeshCollectionNode(Scene scene) : base(scene)
+        {
+        }
+
+        public List<RenderableMesh> RenderableMeshes { get; protected set; }
     }
 }

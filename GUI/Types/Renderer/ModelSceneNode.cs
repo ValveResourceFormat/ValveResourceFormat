@@ -11,7 +11,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
-    class ModelSceneNode : SceneNode, IRenderableMeshCollection
+    class ModelSceneNode : MeshCollectionNode
     {
         public Vector4 Tint
         {
@@ -34,7 +34,6 @@ namespace GUI.Types.Renderer
         }
 
         public readonly AnimationController AnimationController;
-        public List<RenderableMesh> RenderableMeshes { get; private set; } = [];
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
         public bool HasMeshes => meshRenderers.Count > 0;
 

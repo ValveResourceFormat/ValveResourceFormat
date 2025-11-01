@@ -7,6 +7,7 @@ using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using Resource = ValveResourceFormat.Resource;
 
 #nullable disable
 
@@ -107,10 +108,17 @@ namespace GUI.Types.GLViewers
 #endif
         }
 
-        private ModelSceneNode CreatePreviewModel()
+        public override void PostSceneLoad()
+        {
+            base.PostSceneLoad();
+            // todo: adjust position based on selected fov.
+            Camera.SetLocationPitchYaw(new Vector3(21.5f, 0, 0), 0, MathUtils.ToRadians(180f));
+        }
+
+        private MeshCollectionNode CreatePreviewModel()
         {
             var material = (Material)Resource.DataBlock;
-            ModelSceneNode node = null;
+            MeshCollectionNode node = null;
 
             if (material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
             {
@@ -122,7 +130,11 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            node ??= CreateEnvCubemapSphere(Scene);
+            node ??= MeshSceneNode.CreateQuadMesh(Scene, "MaterialPreviewQuad", GuiContext.MaterialLoader.LoadMaterial(Resource), new Vector2(32));
+            node.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f))
+                * Matrix4x4.CreateRotationY(MathUtils.ToRadians(90f));
+
+            //node ??= CreateEnvCubemapSphere(Scene);
 
             foreach (var renderable in node.RenderableMeshes)
             {

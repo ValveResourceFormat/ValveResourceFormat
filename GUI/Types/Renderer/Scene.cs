@@ -291,7 +291,7 @@ namespace GUI.Types.Renderer
             // Collect mesh calls
             foreach (var node in cullResults)
             {
-                if (node is IRenderableMeshCollection meshCollection)
+                if (node is MeshCollectionNode meshCollection)
                 {
                     foreach (var mesh in meshCollection.RenderableMeshes)
                     {
@@ -405,7 +405,7 @@ namespace GUI.Types.Renderer
             {
                 List<RenderableMesh> meshes;
 
-                if (node is IRenderableMeshCollection meshCollection)
+                if (node is MeshCollectionNode meshCollection)
                 {
                     meshes = meshCollection.RenderableMeshes;
                 }
