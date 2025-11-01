@@ -597,6 +597,7 @@ namespace ValveResourceFormat
                 "Animgraph" => ResourceType.AnimationGraph,
                 "AnimGroup" => ResourceType.AnimationGroup,
                 "ChoreoSceneFileData" => ResourceType.ChoreoSceneFileData,
+                "ChoreoSceneResource" => ResourceType.ChoreoSceneResource,
                 "CSGOEconItem" => ResourceType.EconItem,
                 "CSGOItem" => ResourceType.EconItem,
                 "DotaHeroList" => ResourceType.DotaHeroList,
@@ -609,6 +610,7 @@ namespace ValveResourceFormat
                 "NmGraph" => ResourceType.NmGraph,
                 "NmGraphVariation" => ResourceType.NmGraphVariation,
                 "NmSkeleton" => ResourceType.NmSkeleton,
+                "NmIKRig" => ResourceType.NmIKRig,
                 "Panorama" => input.String switch
                 {
                     "Panorama Style Compiler Version" => ResourceType.PanoramaStyle,
