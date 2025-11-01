@@ -282,16 +282,10 @@ namespace ValveResourceFormat
         ResponseRules,
 
         /// <summary>
-        /// CS2 economy item.
-        /// </summary>
-        [Extension("csgoitem")]
-        CSGOItem,
-
-        /// <summary>
         /// CS2 economy item created in the CS2 Item Editor.
         /// </summary>
         [Extension("econitem")]
-        CSGOEconItem,
+        EconItem,
 
         /// <summary>
         /// Artifact item from items_game.txt.
