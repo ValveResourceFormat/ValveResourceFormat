@@ -561,7 +561,7 @@ namespace GUI.Types.Viewers
                         break;
                     }
 
-                case ResourceType.Snap:
+                case ResourceType.ParticleSnapshot:
                     {
                         if (!FileExtract.IsChildResource(resource))
                         {

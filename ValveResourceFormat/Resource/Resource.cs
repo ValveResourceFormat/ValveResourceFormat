@@ -617,7 +617,7 @@ namespace ValveResourceFormat
                     "Panorama Dynamic Images Compiler Version" => ResourceType.PanoramaDynamicImages,
                     _ => ResourceType.Panorama,
                 },
-                "Psf" => ResourceType.ParticleSnapshot,
+                "Psf" => ResourceType.ParticleSnapshotLegacy,
                 "PulseGraphDef" => ResourceType.PulseGraphDef,
                 "RenderMesh" => ResourceType.Mesh,
                 "ResponseRules" => ResourceType.ResponseRules,

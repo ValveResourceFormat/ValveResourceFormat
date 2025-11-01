@@ -243,13 +243,13 @@ namespace ValveResourceFormat
         /// Legacy particle snapshot.
         /// </summary>
         [Extension("vpsf")]
-        ParticleSnapshot,
+        ParticleSnapshotLegacy,
 
         /// <summary>
         /// Particle snapshot reference.
         /// </summary>
         [Extension("vsnap")]
-        Snap,
+        ParticleSnapshot,
 
         /// <summary>
         /// Map definition.
