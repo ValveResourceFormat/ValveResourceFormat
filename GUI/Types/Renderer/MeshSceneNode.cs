@@ -62,10 +62,16 @@ namespace GUI.Types.Renderer
 
             Span<Vertex> vertices =
             [
-                new(new(-half.X, -half.Y, 0f), new(0f, 1f), Color32.Red),
-                new(new(half.X, -half.Y, 0f), new(1f, 1f), Color32.Red),
-                new(new(half.X, half.Y, 0f), new(1f, 0f), Color32.White),
-                new(new(-half.X, half.Y, 0f), new(0f, 0f), Color32.White)
+                new(new(-half.X, half.Y, 0f), new(0f, 0f), Color32.Black with { A = 0 }),
+                new(new(half.X, half.Y, 0f), new(1f, 0f), Color32.Black),
+                new(new(-half.X, half.Y / 2f, 0f), new(0f, 0.25f), Color32.Green with { A = 0 }),
+                new(new(half.X, half.Y / 2f, 0f), new(1f, 0.25f), Color32.Green),
+                new(new(-half.X, 0f, 0f), new(0f, 0.5f), Color32.White with { A = 0 }),
+                new(new(half.X, 0f, 0f), new(1f, 0.5f),  Color32.White ),
+                new(new(-half.X, -half.Y / 2f, 0f), new(0f, 0.75f), Color32.Red with { A = 0 }),
+                new(new(half.X, -half.Y / 2f, 0f), new(1f, 0.75f), Color32.Red),
+                new(new(-half.X, -half.Y, 0f), new(0f, 1f), Color32.Blue with { A = 0}),
+                new(new(half.X, -half.Y, 0f), new(1f, 1f), Color32.Blue),
             ];
 
             var bounds = new AABB();
@@ -76,8 +82,14 @@ namespace GUI.Types.Renderer
 
             Span<uint> indices =
             [
-                0, 1, 2,
-                0, 2, 3,
+                2, 3, 1,
+                2, 1, 0,
+                4, 5, 3,
+                4, 3, 2,
+                6, 7, 5,
+                6, 5, 4,
+                8, 9, 7,
+                8, 7, 6,
             ];
 
             // Vertex buffer with interleaved data
