@@ -153,6 +153,7 @@ namespace CLI
             bool dump_unknown_entity_keys = false
         )
         {
+            // When you modify the arguments, don't forget to update the command-line.md documentation file too.
             InputFile = stats && input.Equals("steam", StringComparison.OrdinalIgnoreCase) ? "steam" : Path.GetFullPath(input);
             OutputFile = output;
             Decompile = decompile;
