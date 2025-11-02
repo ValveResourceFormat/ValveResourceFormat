@@ -50,6 +50,8 @@ namespace Tests
                 resources.Add(Path.GetFileName(file), resource);
 
                 Assert.That(resource.ResourceType, Is.Not.EqualTo(ResourceType.Unknown));
+                Assert.That(resource.ResourceType, Is.EqualTo(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(file.AsSpan()))));
+
 
                 // Verify extension
                 var extension = Path.GetExtension(file);
