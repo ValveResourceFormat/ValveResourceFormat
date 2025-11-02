@@ -113,6 +113,9 @@ namespace GUI.Types.GLViewers
             base.PostSceneLoad();
             // todo: adjust position based on selected fov.
             Camera.SetLocationPitchYaw(new Vector3(21.5f, 0, 0), 0, MathUtils.ToRadians(180f));
+            sunAngles = new Vector2(19, 196);
+            UpdateSunAngles();
+            Scene.UpdateBuffers();
         }
 
         private MeshCollectionNode CreatePreviewModel()
@@ -130,7 +133,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            node ??= MeshSceneNode.CreateQuadMesh(Scene, "MaterialPreviewQuad", GuiContext.MaterialLoader.LoadMaterial(Resource), new Vector2(32));
+            node ??= MeshSceneNode.CreateMaterialPreviewQuad(Scene, GuiContext.MaterialLoader.LoadMaterial(Resource), new Vector2(32));
             node.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f))
                 * Matrix4x4.CreateRotationY(MathUtils.ToRadians(90f));
 
