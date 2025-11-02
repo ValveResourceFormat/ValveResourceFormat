@@ -23,6 +23,7 @@ namespace GUI.Types.Renderer
         private readonly TabControl Tabs;
         private TableLayoutPanel ParamsTable;
         private RenderMaterial renderMat;
+        private MeshSceneNode previewNode;
 
         public GLMaterialViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource, TabControl tabs) : base(guiContext)
         {
@@ -48,14 +49,13 @@ namespace GUI.Types.Renderer
         {
             base.LoadScene();
 
-            var node = CreatePreviewModel();
+            previewNode = CreatePreviewModel();
 
             Scene.ShowToolsMaterials = true;
-            Scene.Add(node, false);
+            Scene.Add(previewNode, false);
 
-#if DEBUG
             // Assume cubemap model only has one opaque draw call
-            var mesh = node.RenderableMeshes[0];
+            var mesh = previewNode.RenderableMeshes[0];
             var drawCall = mesh.DrawCallsOpaque.Concat(mesh.DrawCallsBlended).First();
 
             drawCall.Material.Shader.EnsureLoaded();
@@ -65,9 +65,8 @@ namespace GUI.Types.Renderer
                 var currentvalue = drawCall.Material.Material.FloatParams.GetValueOrDefault(paramName, initialValue);
 
                 var row = ParamsTable.RowCount;
-                ParamsTable.RowCount = row + 2;
-                ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
-                ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
+                ParamsTable.RowCount = row + 1;
+                ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
 
                 ParamsTable.Controls.Add(new Label()
                 {
@@ -79,10 +78,10 @@ namespace GUI.Types.Renderer
                 var currentParamName = paramName;
                 var input = new NumericUpDown
                 {
-                    Width = ParamsTable.Width / 2,
+                    Dock = DockStyle.Fill,
                     Minimum = decimal.MinValue,
                     Maximum = decimal.MaxValue,
-                    DecimalPlaces = 6,
+                    DecimalPlaces = 3,
                     Increment = 0.1M,
                     Value = (decimal)initialValue
                 };
@@ -104,9 +103,8 @@ namespace GUI.Types.Renderer
                         input.Value -= input.Increment;
                     }
                 };
-                ParamsTable.Controls.Add(input, 0, row + 1);
+                ParamsTable.Controls.Add(input, 1, row);
             }
-#endif
         }
 
         public override void PostSceneLoad()
@@ -126,10 +124,10 @@ namespace GUI.Types.Renderer
             Scene.UpdateBuffers();
         }
 
-        private MeshCollectionNode CreatePreviewModel()
+        private MeshSceneNode CreatePreviewModel()
         {
             var material = (Material)Resource.DataBlock;
-            MeshCollectionNode node = null;
+            MeshSceneNode node = null;
 
             if (material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
             {
@@ -137,7 +135,8 @@ namespace GUI.Types.Renderer
 
                 if (previewModelResource != null)
                 {
-                    node = new ModelSceneNode(Scene, (Model)previewModelResource.DataBlock);
+                    // For preview models, we can't directly use ModelSceneNode, so fall back to the quad
+                    // node = new ModelSceneNode(Scene, (Model)previewModelResource.DataBlock);
                 }
             }
 
@@ -237,19 +236,76 @@ namespace GUI.Types.Renderer
 
         protected override void InitializeControl()
         {
+            // Make controls panel wider for material parameters
+            ViewerSplitContainer.SplitterDistance = 400;
+
             AddRenderModeSelectionControl();
+
+            AddDivider();
+
+            var renderColorRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                Height = 30,
+            };
+            renderColorRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
+            renderColorRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
+
+            renderColorRow.Controls.Add(new Label()
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                Text = "Render Color"
+            }, 0, 0);
+
+            var colorButton = new Button
+            {
+                Dock = DockStyle.Fill,
+                BackColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat,
+            };
+            colorButton.Click += (sender, e) =>
+            {
+                using var colorDialog = new ColorDialog
+                {
+                    Color = colorButton.BackColor,
+                    FullOpen = true
+                };
+
+                if (colorDialog.ShowDialog() == DialogResult.OK)
+                {
+                    colorButton.BackColor = colorDialog.Color;
+                    if (previewNode != null)
+                    {
+                        var color = colorDialog.Color;
+                        previewNode.Tint = new Vector4(
+                            color.R / 255f,
+                            color.G / 255f,
+                            color.B / 255f,
+                            color.A / 255f
+                        );
+                    }
+                }
+            };
+            renderColorRow.Controls.Add(colorButton, 1, 0);
+
+            AddControl(renderColorRow);
 
             ParamsTable = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                AutoScroll = true,
-                Width = 220,
-                Height = 300,
+                AutoSize = true,
             };
-            AddControl(ParamsTable);
 
-            ParamsTable.ColumnCount = 1;
-            ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize, 1));
+            AddDivider();
+            AddControl(ParamsTable);
+            AddDivider();
+
+            ParamsTable.ColumnCount = 2;
+            ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
+            ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
         }
     }
 }

@@ -37,6 +37,7 @@ namespace GUI.Controls
         private static ParallelShaderCompileType ParallelShaderCompileSupport;
 
         protected override Panel ControlsPanel => controlsPanel;
+        protected SplitContainer ViewerSplitContainer => splitContainer;
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
         public GLControl GLControl { get; }
