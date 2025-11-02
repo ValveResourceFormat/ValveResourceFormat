@@ -38,6 +38,7 @@
     <EmbeddedResource Include="Utils\industrial_sunset_puresky.vtex_c" />
     <EmbeddedResource Include="Utils\ggx_integrate_brdf_lut_schlick.vtex_c" />
     <EmbeddedResource Include="Utils\blue_noise_256.vtex_c" />
+    <EmbeddedResource Include="Utils\placeholder_box.vmdl_c" />
     <EmbeddedResource Include="Utils\env_cubemap.vmdl_c" />
     <EmbeddedResource Include="Utils\sky_furnace.vtex_c" />
     <EmbeddedResource Include="Utils\jetbrains_mono_msdf.png" />
