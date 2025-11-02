@@ -468,7 +468,7 @@ void main()
 #if defined(csgo_environment_blend_vfx)
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
-        outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rga);
+        outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rgb);
     }
 #endif
 }
