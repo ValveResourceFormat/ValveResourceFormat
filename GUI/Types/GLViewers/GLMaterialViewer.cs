@@ -22,6 +22,7 @@ namespace GUI.Types.GLViewers
         private readonly ValveResourceFormat.Resource Resource;
         private readonly TabControl Tabs;
         private TableLayoutPanel ParamsTable;
+        private RenderMaterial renderMat;
 
         public GLMaterialViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource, TabControl tabs) : base(guiContext)
         {
@@ -114,6 +115,13 @@ namespace GUI.Types.GLViewers
             // todo: adjust position based on selected fov.
             Camera.SetLocationPitchYaw(new Vector3(21.5f, 0, 0), 0, MathUtils.ToRadians(180f));
             sunAngles = new Vector2(19, 196);
+
+            if (renderMat.IsCs2Water)
+            {
+                Camera.SetLocationPitchYaw(new Vector3(27.720367f, -0.7101173f, 22.564936f), -0.59182787f, 9.421663f);
+                sunAngles = new Vector2(54, -9);
+            }
+
             UpdateSunAngles();
             Scene.UpdateBuffers();
         }
@@ -133,16 +141,21 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            node ??= MeshSceneNode.CreateMaterialPreviewQuad(Scene, GuiContext.MaterialLoader.LoadMaterial(Resource), new Vector2(32));
-            node.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f))
-                * Matrix4x4.CreateRotationY(MathUtils.ToRadians(90f));
+            renderMat = GuiContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
+            node ??= MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
+            node.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f));
+
+            var isHorizontalPlaneMaterial = renderMat.IsCs2Water;
+            if (!isHorizontalPlaneMaterial)
+            {
+                node.Transform *= Matrix4x4.CreateRotationY(MathUtils.ToRadians(90f));
+            }
 
             //node ??= CreateEnvCubemapSphere(Scene);
-
-            foreach (var renderable in node.RenderableMeshes)
-            {
-                renderable.SetMaterialForMaterialViewer(Resource);
-            }
+            //foreach (var renderable in node.RenderableMeshes)
+            //{
+            //    renderable.SetMaterialForMaterialViewer(Resource);
+            //}
 
             return node;
         }

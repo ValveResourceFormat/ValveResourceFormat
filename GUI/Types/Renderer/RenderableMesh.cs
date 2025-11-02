@@ -460,6 +460,6 @@ namespace GUI.Types.Renderer
         {
         }
 
-        public List<RenderableMesh> RenderableMeshes { get; protected set; }
+        public List<RenderableMesh> RenderableMeshes { get; protected set; } = [];
     }
 }
