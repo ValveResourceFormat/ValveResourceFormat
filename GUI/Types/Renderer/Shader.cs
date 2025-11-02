@@ -226,6 +226,27 @@ namespace GUI.Types.Renderer
             return location;
         }
 
+        public int GetRegisterSize(string name)
+        {
+            if (Uniforms.TryGetValue(name, out var uniform))
+            {
+                return uniform.Type switch
+                {
+                    ActiveUniformType.FloatVec2 or ActiveUniformType.IntVec2 or ActiveUniformType.UnsignedIntVec2 or ActiveUniformType.BoolVec2 => 2,
+                    ActiveUniformType.FloatVec3 or ActiveUniformType.IntVec3 or ActiveUniformType.UnsignedIntVec3 or ActiveUniformType.BoolVec3 => 3,
+                    ActiveUniformType.FloatVec4 or ActiveUniformType.IntVec4 or ActiveUniformType.UnsignedIntVec4 or ActiveUniformType.BoolVec4 => 4,
+                    _ => 1,
+                };
+            }
+
+            return 4;
+        }
+
+        public bool IsBooleanParameter(string paramName)
+        {
+            return Uniforms.TryGetValue(paramName, out var uniform) && uniform.Type == ActiveUniformType.Bool;
+        }
+
         public void SetUniform1(string name, float value)
         {
             var uniformLocation = GetUniformLocation(name);
