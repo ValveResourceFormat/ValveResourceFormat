@@ -38,8 +38,6 @@ namespace GUI.Types.GLViewers
             Resource = resource;
             Tabs = tabs;
 
-            AddShaderButton();
-
             Camera.ModifySpeed(0);
         }
 
@@ -550,6 +548,12 @@ namespace GUI.Types.GLViewers
             var material = (Material)Resource.DataBlock;
             var featureState = ShaderDataProvider.GetMaterialFeatureState(material);
 
+            if (Tabs == null)
+            {
+                // todo: open in new tab when we're in preivew
+                return;
+            }
+
             var loadingTabPage = new TabPage(material.ShaderName);
             var loadingFile = new LoadingFile();
             loadingTabPage.Controls.Add(loadingFile);
@@ -585,11 +589,6 @@ namespace GUI.Types.GLViewers
 
         private void AddShaderButton()
         {
-            if (Tabs == null)
-            {
-                return; // Will be null when previewing a file
-            }
-
             var button = new Button
             {
                 Text = "Decompile shader",
@@ -606,8 +605,11 @@ namespace GUI.Types.GLViewers
             // Make controls panel wider for material parameters
             ViewerSplitContainer.SplitterDistance = 450;
 
+            SuspendLayout();
             AddRenderModeSelectionControl();
+            AddDivider();
 
+            AddShaderButton();
             AddDivider();
 
             var renderColorRow = new TableLayoutPanel
@@ -674,6 +676,7 @@ namespace GUI.Types.GLViewers
             ParamsTable.ColumnCount = 2;
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            ResumeLayout();
         }
     }
 }

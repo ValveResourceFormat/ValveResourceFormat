@@ -1,3 +1,5 @@
+using System.Windows.Forms;
+
 namespace GUI.Controls
 {
     partial class GLViewerSelectionControl
@@ -70,5 +72,6 @@ namespace GUI.Controls
 
         private System.Windows.Forms.Label selectionNameLabel;
         private System.Windows.Forms.ComboBox comboBox;
+        private TableLayoutPanel layoutPanel;
     }
 }
