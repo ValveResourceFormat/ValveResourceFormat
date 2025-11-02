@@ -657,7 +657,7 @@ namespace GUI.Types.Renderer
 
                 renderModeCurrentIndex = i;
                 SetRenderMode(renderMode.Name);
-            });
+            }, true, true);
 
             renderModeBoldFont = new Font(renderModeComboBox.Font, FontStyle.Bold);
             renderModeComboBox.DrawMode = DrawMode.OwnerDrawFixed;

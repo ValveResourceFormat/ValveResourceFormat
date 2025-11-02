@@ -36,9 +36,9 @@ namespace GUI.Controls
             return checkbox.CheckBox;
         }
 
-        public ComboBox AddSelection(string name, Action<string, int> changeCallback)
+        public ComboBox AddSelection(string name, Action<string, int> changeCallback, bool horizontal = false, bool fill = false)
         {
-            var selectionControl = new GLViewerSelectionControl(name);
+            var selectionControl = new GLViewerSelectionControl(name, horizontal, fill);
 
             ControlsPanel.Controls.Add(selectionControl);
 
