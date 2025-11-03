@@ -1,6 +1,5 @@
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
-using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Forms;
 using System.Drawing;
@@ -9,18 +8,7 @@ namespace GUI.Forms
 {
     public partial class BetterColorPicker : Form
     {
-        public class ColorChangedEventArgs : EventArgs
-        {
-            public Color Color { get; private set; }
-
-            public ColorChangedEventArgs(Color color)
-            {
-                this.Color = color;
-            }
-        }
-
-        public delegate void ColorChangedEventHandler(object sender, ColorChangedEventArgs e);
-        public event ColorChangedEventHandler? ColorChanged;
+        private readonly Action<Color>? ColorChanged;
 
         protected override void OnCreateControl()
         {
@@ -38,7 +26,7 @@ namespace GUI.Forms
         private Color OldPickerColor;
 
         public Color PickedColor { get; private set; } = Color.White;
-        private Color OldColor = Color.White;
+        private readonly Color OldColor = Color.White;
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
@@ -46,7 +34,7 @@ namespace GUI.Forms
             Cursor = Cursors.Default;
         }
 
-        public BetterColorPicker(Color startColor)
+        public BetterColorPicker(Color startColor, Action<Color> colorChanged)
         {
             InitializeComponent();
 
@@ -72,6 +60,7 @@ namespace GUI.Forms
 
             UpdateAllControls();
             UpdateTextBoxes();
+            ColorChanged = colorChanged;
         }
 
         public void UpdateAllControls(bool updateSliderValue = true)
@@ -99,7 +88,7 @@ namespace GUI.Forms
 
             if (PickedColor != OldPickerColor)
             {
-                ColorChanged?.Invoke(this, new ColorChangedEventArgs(PickedColor));
+                ColorChanged?.Invoke(PickedColor);
             }
 
             OldPickerColor = PickedColor;
@@ -120,6 +109,7 @@ namespace GUI.Forms
         {
             DialogResult = DialogResult.OK;
             PickedColor = ColorFromHSV(H, S, V);
+            ColorChanged?.Invoke(PickedColor);
             Close();
         }
 
@@ -213,7 +203,7 @@ namespace GUI.Forms
             if (DialogResult == DialogResult.Cancel)
             {
                 PickedColor = OldColor;
-                ColorChanged?.Invoke(this, new ColorChangedEventArgs(PickedColor));
+                ColorChanged?.Invoke(PickedColor);
             }
 
             base.OnFormClosing(e);
