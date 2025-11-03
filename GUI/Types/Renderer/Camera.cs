@@ -185,6 +185,60 @@ namespace GUI.Types.Renderer
             ClampRotation();
         }
 
+
+        public void FrameObject(Vector3 objectPosition, float width, float height, float depth)
+        {
+            var fov = GetFOV();
+            var halfFovVertical = fov * 0.5f;
+            var halfFovHorizontal = MathF.Atan(MathF.Tan(halfFovVertical) * AspectRatio);
+
+            var forward = GetForwardVector();
+            var right = GetRightVector();
+            var up = GetUpVector();
+
+            var halfWidth = width * 0.5f;
+            var halfHeight = height * 0.5f;
+            var halfDepth = depth * 0.5f;
+
+            // this calculate the apparent size in screen space by projecting onto camera axis
+            var maxHorizontalExtent = 0f;
+            var maxVerticalExtent = 0f;
+
+            for (int i = 0; i < 8; i++)
+            {
+                var corner = new Vector3(
+                    (i & 1) != 0 ? halfWidth : -halfWidth,
+                    (i & 2) != 0 ? halfHeight : -halfHeight,
+                    (i & 4) != 0 ? halfDepth : -halfDepth
+                );
+
+                var horizontalDist = MathF.Abs(Vector3.Dot(corner, right));
+                var verticalDist = MathF.Abs(Vector3.Dot(corner, up));
+
+                maxHorizontalExtent = MathF.Max(maxHorizontalExtent, horizontalDist);
+                maxVerticalExtent = MathF.Max(maxVerticalExtent, verticalDist);
+            }
+
+            var distanceForVerticalFov = maxVerticalExtent / MathF.Tan(halfFovVertical);
+            var distanceForHorizontalFov = maxHorizontalExtent / MathF.Tan(halfFovHorizontal);
+
+            var distance = MathF.Max(distanceForVerticalFov, distanceForHorizontalFov);
+
+            Location = objectPosition - forward * distance;
+
+            LookAt(objectPosition);
+        }
+
+        public void FrameObjectFromAngle(Vector3 objectPosition, float width, float height, float depth,
+            float yaw, float pitch)
+        {
+            Yaw = yaw;
+            Pitch = pitch;
+            ClampRotation();
+
+            FrameObject(objectPosition, width, height, depth);
+        }
+
         public void SetFromTransformMatrix(Matrix4x4 matrix)
         {
             Location = matrix.Translation;

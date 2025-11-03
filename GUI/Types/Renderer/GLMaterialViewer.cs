@@ -489,13 +489,12 @@ namespace GUI.Types.Renderer
         public override void PostSceneLoad()
         {
             base.PostSceneLoad();
-            // todo: adjust position based on selected fov.
-            Camera.SetLocationPitchYaw(new Vector3(21.5f, 0, 0), 0, MathUtils.ToRadians(180f));
             sunAngles = new Vector2(19, 196);
+            Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
 
             if (renderMat.IsCs2Water)
             {
-                Camera.SetLocationPitchYaw(new Vector3(27.720367f, -0.7101173f, 22.564936f), -0.59182787f, 9.421663f);
+                Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, MathUtils.ToRadians(-90f));
                 sunAngles = new Vector2(54, -9);
             }
 
