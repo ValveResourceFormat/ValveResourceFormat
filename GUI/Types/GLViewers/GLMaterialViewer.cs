@@ -8,9 +8,8 @@ using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using Resource = ValveResourceFormat.Resource;
-using ContentAlignment = System.Drawing.ContentAlignment;
 using System.Drawing;
-
+using ValveResourceFormat.CompiledShader;
 #nullable disable
 
 namespace GUI.Types.GLViewers
@@ -26,7 +25,8 @@ namespace GUI.Types.GLViewers
             Float,
             Int,
             Vector,
-            Bool
+            Bool,
+            Color,
         }
 
         private enum ParameterPresence
@@ -76,7 +76,7 @@ namespace GUI.Types.GLViewers
             drawCall.Material.Shader.EnsureLoaded();
 
             // Collect all parameters with their types and sort them together
-            var allParams = new List<(string name, object value, ParamType type)>();
+            var allParams = new List<(string name, object value, ParamType type, VfxVariableDescription vfx)>();
 
             var materialParams = drawCall.Material.Material;
             var shaderParams = drawCall.Material.Shader.Default.Material;
@@ -87,6 +87,13 @@ namespace GUI.Types.GLViewers
             allParameterNames.UnionWith(shaderParams.FloatParams.Keys);
             allParameterNames.UnionWith(shaderParams.IntParams.Keys);
             allParameterNames.UnionWith(shaderParams.VectorParams.Keys);
+
+            var vcsShader = GuiContext.FileLoader.LoadShader(drawCall.Material.Material.ShaderName);
+            var vcsDescriptionByName = new Dictionary<string, VfxVariableDescription>(vcsShader.Features.VariableDescriptions.Length);
+            foreach (var varDesc in vcsShader.Features.VariableDescriptions)
+            {
+                vcsDescriptionByName[varDesc.Name] = varDesc;
+            }
 
             // Process all parameters
             foreach (var paramName in allParameterNames)
@@ -104,12 +111,14 @@ namespace GUI.Types.GLViewers
                     _ => ParameterPresence.Both,
                 };
 
+                var vfxDescription = vcsDescriptionByName.GetValueOrDefault(paramName);
+
                 // Handle float parameters
                 if (materialParams.FloatParams.ContainsKey(paramName) || shaderParams.FloatParams.ContainsKey(paramName))
                 {
                     var value = materialParams.FloatParams.GetValueOrDefault(paramName,
                         shaderParams.FloatParams.GetValueOrDefault(paramName));
-                    allParams.Add((paramName, (value, parameterPresence), ParamType.Float));
+                    allParams.Add((paramName, (value, parameterPresence), ParamType.Float, vfxDescription));
                     continue;
                 }
 
@@ -123,12 +132,12 @@ namespace GUI.Types.GLViewers
                         || paramName.StartsWith("F_", StringComparison.OrdinalIgnoreCase) && value is 0 or 1)
                     {
                         var boolValue = Convert.ToBoolean(value);
-                        allParams.Add((paramName, (boolValue, parameterPresence), ParamType.Bool));
+                        allParams.Add((paramName, (boolValue, parameterPresence), ParamType.Bool, vfxDescription));
                     }
                     else
                     {
                         var int32Value = Convert.ToInt32(value);
-                        allParams.Add((paramName, (int32Value, parameterPresence), ParamType.Int));
+                        allParams.Add((paramName, (int32Value, parameterPresence), ParamType.Int, vfxDescription));
                     }
                     continue;
                 }
@@ -139,34 +148,28 @@ namespace GUI.Types.GLViewers
                     var value = materialParams.VectorParams.GetValueOrDefault(paramName,
                         shaderParams.VectorParams.GetValueOrDefault(paramName));
                     var componentCount = drawCall.Material.Shader.GetRegisterSize(paramName);
-                    allParams.Add((paramName, (value, componentCount, parameterPresence), ParamType.Vector));
+                    allParams.Add((paramName, (value, componentCount, parameterPresence), ParamType.Vector, vfxDescription));
                 }
-            }
-
-            // Helper function to extract number from parameter name end
-            static int GetParamNumber(string name)
-            {
-                var match = System.Text.RegularExpressions.Regex.Match(name, @"\d+$");
-                return match.Success ? int.Parse(match.Value) : -1;
             }
 
             // Sort and group parameters
             var sortedParams = allParams
-                .OrderBy(p => GetParamNumber(p.name))
+                .OrderBy(p => p.vfx?.UiGroup.Heading)
+                .ThenBy(p => p.vfx?.UiGroup.HeadingOrder)
+                .ThenBy(p => p.vfx?.UiGroup.Group)
+                .ThenBy(p => p.vfx?.UiGroup.GroupOrder)
+                .ThenBy(p => p.vfx?.UiGroup.VariableOrder)
                 .ThenBy(p => p.name)
                 .ToList();
 
-            var currentLayer = -1;
+            var currentHeading = string.Empty;
 
             // Add parameters to UI with layer headers
-            foreach (var (paramName, value, type) in sortedParams)
+            foreach (var (paramName, value, type, vfxDescription) in sortedParams)
             {
-                var paramNumber = GetParamNumber(paramName);
-
-                // Add layer header if we're starting a new numbered group
-                if (paramNumber != -1 && paramNumber != currentLayer)
+                if (vfxDescription != null && vfxDescription.UiGroup.Heading != currentHeading)
                 {
-                    currentLayer = paramNumber;
+                    currentHeading = vfxDescription.UiGroup.Heading;
 
                     var headerRow = ParamsTable.RowCount;
                     ParamsTable.RowCount = headerRow + 1;
@@ -174,12 +177,12 @@ namespace GUI.Types.GLViewers
 
                     var header = new Label
                     {
-                        Text = $"Layer {paramNumber}",
+                        Text = currentHeading,
                         Dock = DockStyle.Fill,
-                        Font = new System.Drawing.Font(Font, System.Drawing.FontStyle.Bold),
+                        Font = new Font(Font, FontStyle.Bold),
                         TextAlign = ContentAlignment.MiddleLeft,
-                        BackColor = System.Drawing.SystemColors.ControlLight,
-                        ForeColor = System.Drawing.SystemColors.ControlText
+                        BackColor = SystemColors.ControlLight,
+                        ForeColor = SystemColors.ControlText
                     };
 
                     var headerCell = new TableLayoutPanel
@@ -187,7 +190,7 @@ namespace GUI.Types.GLViewers
                         Dock = DockStyle.Fill,
                         Margin = new Padding(0),
                         Padding = new Padding(10, 5, 0, 5),
-                        BackColor = System.Drawing.SystemColors.ControlLight
+                        BackColor = SystemColors.ControlLight
                     };
                     headerCell.Controls.Add(header);
 
@@ -341,11 +344,11 @@ namespace GUI.Types.GLViewers
 
                     if (e.Delta > 0)
                     {
-                        input.Value -= input.Increment;
+                        input.Value += input.Increment;
                     }
                     else if (e.Delta < 0)
                     {
-                        input.Value += input.Increment;
+                        input.Value -= input.Increment;
                     }
                 };
 
@@ -499,11 +502,11 @@ namespace GUI.Types.GLViewers
 
                     if (e.Delta > 0)
                     {
-                        input.Value -= input.Increment;
+                        input.Value += input.Increment;
                     }
                     else if (e.Delta < 0)
                     {
-                        input.Value += input.Increment;
+                        input.Value -= input.Increment;
                     }
                 };
 
@@ -534,11 +537,11 @@ namespace GUI.Types.GLViewers
 
                     if (e.Delta > 0)
                     {
-                        input.Value -= input.Increment;
+                        input.Value += input.Increment;
                     }
                     else if (e.Delta < 0)
                     {
-                        input.Value += input.Increment;
+                        input.Value -= input.Increment;
                     }
                 };
 

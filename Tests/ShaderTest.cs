@@ -498,6 +498,7 @@ namespace Tests
             {
                 ["heading,10/2"] = new("heading", 10, variableOrder: 2),
                 ["heading,12/group,12/5"] = new("heading", 12, "group", 12, 5),
+                ["Interaction Effects, 500,20"] = new("Interaction Effects", headingOrder: 500),
 
                 [string.Empty] = new(),
                 ["h,1/g,2"] = new("h", 1, variableOrder: 2),
@@ -506,7 +507,7 @@ namespace Tests
                 ["h"] = new("h"),
 
                 ["//////"] = new(),
-                ["z,z,z/z,z,z,z/z,z,z,z/,z,z,z"] = new(heading: "z,z", group: "z,z,z"),
+                ["z,z,z/z,z,z,z/z,z,z,z/,z,z,z"] = new(heading: "z,z,z", group: "z,z,z,z"),
             };
 
             foreach (var (compactString, expected) in testCases)

@@ -86,23 +86,27 @@ public struct UiGroup
     {
         var name = string.Empty;
         var order = 0;
-        var byComma = bySlash.Split(",", 2, StringSplitOptions.TrimEntries);
-        for (var j = 0; j < byComma.Length; j++)
+        var parts = bySlash.Split(",", StringSplitOptions.TrimEntries);
+
+        for (var i = 0; i < parts.Length; i++)
         {
-            if (!int.TryParse(byComma[j], out order))
+            if (int.TryParse(parts[i], out var parsedOrder))
             {
-                name = byComma[j];
+                order = parsedOrder;
+                name = i > 0 ? string.Join(",", parts[..i]).Trim() : string.Empty;
+                return (name, order);
             }
         }
 
-        return (name, order);
+        name = bySlash.Trim();
+        return (name, 0);
     }
 
     /// <inheritdoc/>
     /// <remarks>
     /// Returns the compact string representation of the UI group.
     /// </remarks>
-    public readonly override string ToString()
+    public override readonly string ToString()
     {
         return CompactString;
     }
