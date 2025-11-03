@@ -28,6 +28,14 @@ namespace GUI.Types.GLViewers
             Vector,
             Bool
         }
+
+        private enum ParameterPresence
+        {
+            MaterialOnly,
+            ShaderOnly,
+            Both
+        }
+
         private readonly ValveResourceFormat.Resource Resource;
         private readonly TabControl Tabs;
         private TableLayoutPanel ParamsTable;
@@ -70,36 +78,69 @@ namespace GUI.Types.GLViewers
             // Collect all parameters with their types and sort them together
             var allParams = new List<(string name, object value, ParamType type)>();
 
-            // Add float parameters
-            foreach (var (paramName, initialValue) in drawCall.Material.Shader.Default.Material.FloatParams)
-            {
-                var currentValue = drawCall.Material.Material.FloatParams.GetValueOrDefault(paramName, initialValue);
-                allParams.Add((paramName, currentValue, ParamType.Float));
-            }
+            var materialParams = drawCall.Material.Material;
+            var shaderParams = drawCall.Material.Shader.Default.Material;
 
-            // Add int parameters
-            foreach (var (paramName, initialValue) in drawCall.Material.Shader.Default.Material.IntParams)
-            {
-                var currentValue = drawCall.Material.Material.IntParams.GetValueOrDefault(paramName, initialValue);
-                if (drawCall.Material.Shader.IsBooleanParameter(paramName)
-                    || paramName.StartsWith("F_", StringComparison.OrdinalIgnoreCase) && initialValue is 0 or 1)
-                {
-                    var boolValue = Convert.ToBoolean(currentValue);
-                    allParams.Add((paramName, boolValue, ParamType.Bool));
-                }
-                else
-                {
-                    var int32Value = Convert.ToInt32(currentValue);
-                    allParams.Add((paramName, int32Value, ParamType.Int));
-                }
-            }
+            var allParameterNames = new HashSet<string>(materialParams.FloatParams.Keys);
+            allParameterNames.UnionWith(materialParams.IntParams.Keys);
+            allParameterNames.UnionWith(materialParams.VectorParams.Keys);
+            allParameterNames.UnionWith(shaderParams.FloatParams.Keys);
+            allParameterNames.UnionWith(shaderParams.IntParams.Keys);
+            allParameterNames.UnionWith(shaderParams.VectorParams.Keys);
 
-            // Add vector parameters
-            foreach (var (paramName, initialValue) in drawCall.Material.Shader.Default.Material.VectorParams)
+            // Process all parameters
+            foreach (var paramName in allParameterNames)
             {
-                var currentValue = drawCall.Material.Material.VectorParams.GetValueOrDefault(paramName, initialValue);
-                var componentCount = drawCall.Material.Shader.GetRegisterSize(paramName);
-                allParams.Add((paramName, (currentValue, componentCount), ParamType.Vector));
+                var inMaterial = materialParams.FloatParams.ContainsKey(paramName) ||
+                    materialParams.IntParams.ContainsKey(paramName) ||
+                    materialParams.VectorParams.ContainsKey(paramName);
+                var inShader = shaderParams.FloatParams.ContainsKey(paramName) ||
+                    shaderParams.IntParams.ContainsKey(paramName) ||
+                    shaderParams.VectorParams.ContainsKey(paramName);
+                var parameterPresence = (inShader, inMaterial) switch
+                {
+                    (false, true) => ParameterPresence.MaterialOnly,
+                    (true, false) => ParameterPresence.ShaderOnly,
+                    _ => ParameterPresence.Both,
+                };
+
+                // Handle float parameters
+                if (materialParams.FloatParams.ContainsKey(paramName) || shaderParams.FloatParams.ContainsKey(paramName))
+                {
+                    var value = materialParams.FloatParams.GetValueOrDefault(paramName,
+                        shaderParams.FloatParams.GetValueOrDefault(paramName));
+                    allParams.Add((paramName, (value, parameterPresence), ParamType.Float));
+                    continue;
+                }
+
+                // Handle int/bool parameters
+                if (materialParams.IntParams.ContainsKey(paramName) || shaderParams.IntParams.ContainsKey(paramName))
+                {
+                    var value = materialParams.IntParams.GetValueOrDefault(paramName,
+                        shaderParams.IntParams.GetValueOrDefault(paramName));
+
+                    if (drawCall.Material.Shader.IsBooleanParameter(paramName)
+                        || paramName.StartsWith("F_", StringComparison.OrdinalIgnoreCase) && value is 0 or 1)
+                    {
+                        var boolValue = Convert.ToBoolean(value);
+                        allParams.Add((paramName, (boolValue, parameterPresence), ParamType.Bool));
+                    }
+                    else
+                    {
+                        var int32Value = Convert.ToInt32(value);
+                        allParams.Add((paramName, (int32Value, parameterPresence), ParamType.Int));
+                    }
+                    continue;
+                }
+
+                // Handle vector parameters
+                if (materialParams.VectorParams.ContainsKey(paramName) || shaderParams.VectorParams.ContainsKey(paramName))
+                {
+                    var value = materialParams.VectorParams.GetValueOrDefault(paramName,
+                        shaderParams.VectorParams.GetValueOrDefault(paramName));
+                    var componentCount = drawCall.Material.Shader.GetRegisterSize(paramName);
+                    allParams.Add((paramName, (value, componentCount, parameterPresence), ParamType.Vector));
+                }
             }
 
             // Helper function to extract number from parameter name end
@@ -157,38 +198,45 @@ namespace GUI.Types.GLViewers
                 switch (type)
                 {
                     case ParamType.Float:
+                        var (floatVal, floatPresence) = ((float, ParameterPresence))value;
                         AddNumericParameter(
                             paramName,
-                            (decimal)(float)value,
+                            (decimal)floatVal,
                             ParamType.Float,
-                            v => drawCall.Material.Material.FloatParams[paramName] = (float)v);
+                            v => drawCall.Material.Material.FloatParams[paramName] = (float)v,
+                            floatPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Int:
+                        var (intVal, intPresence) = ((int, ParameterPresence))value;
                         AddNumericParameter(
                             paramName,
-                            (int)value,
+                            intVal,
                             ParamType.Int,
-                            v => drawCall.Material.Material.IntParams[paramName] = (int)v);
+                            v => drawCall.Material.Material.IntParams[paramName] = (int)v,
+                            intPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Bool:
+                        var (boolVal, boolPresence) = ((bool, ParameterPresence))value;
                         AddBooleanParameter(
                             paramName,
-                            (bool)value,
-                            v => drawCall.Material.Material.IntParams[paramName] = v ? 1 : 0);
+                            boolVal,
+                            v => drawCall.Material.Material.IntParams[paramName] = v ? 1 : 0,
+                            boolPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Vector:
-                        var (vector, count) = ((Vector4, int))value;
+                        var (vector, count, vectorPresence) = ((Vector4, int, ParameterPresence))value;
                         AddVectorParameter(
                             paramName,
                             count,
                             vector,
-                            v => drawCall.Material.Material.VectorParams[paramName] = v);
+                            v => drawCall.Material.Material.VectorParams[paramName] = v,
+                            vectorPresence != ParameterPresence.MaterialOnly);
                         break;
                 }
             }
         }
 
-        private void AddBooleanParameter(string paramName, bool initialValue, Action<bool> onValueChanged)
+        private void AddBooleanParameter(string paramName, bool initialValue, Action<bool> onValueChanged, bool isEnabled = true)
         {
             var row = ParamsTable.RowCount;
             ParamsTable.RowCount = row + 1;
@@ -196,13 +244,16 @@ namespace GUI.Types.GLViewers
 
             var displayName = NormalizeParameterName(paramName);
 
-            ParamsTable.Controls.Add(new Label()
+            var label = new Label()
             {
                 Dock = DockStyle.Fill,
                 AutoSize = false,
                 Text = displayName,
-                TextAlign = ContentAlignment.MiddleRight
-            }, 0, row);
+                TextAlign = ContentAlignment.MiddleRight,
+                ForeColor = isEnabled ? SystemColors.ControlText : SystemColors.GrayText
+            };
+
+            ParamsTable.Controls.Add(label, 0, row);
 
             var checkbox = new CheckBox
             {
@@ -210,6 +261,7 @@ namespace GUI.Types.GLViewers
                 Checked = initialValue,
                 AutoSize = true,
                 Margin = new Padding(10, 0, 0, 0),
+                Enabled = isEnabled
             };
 
             checkbox.CheckedChanged += (sender, e) =>
@@ -220,7 +272,7 @@ namespace GUI.Types.GLViewers
             ParamsTable.Controls.Add(checkbox, 1, row);
         }
 
-        private void AddVectorParameter(string paramName, int componentCount, Vector4 value, Action<Vector4> onValueChanged)
+        private void AddVectorParameter(string paramName, int componentCount, Vector4 value, Action<Vector4> onValueChanged, bool isEnabled = true)
         {
             var row = ParamsTable.RowCount;
             ParamsTable.RowCount = row + 1;
@@ -228,13 +280,16 @@ namespace GUI.Types.GLViewers
 
             var displayName = NormalizeParameterName(paramName);
 
-            ParamsTable.Controls.Add(new Label()
+            var label = new Label()
             {
                 Dock = DockStyle.Fill,
                 AutoSize = false,
                 Text = displayName,
-                TextAlign = ContentAlignment.MiddleRight
-            }, 0, row);
+                TextAlign = ContentAlignment.MiddleRight,
+                ForeColor = isEnabled ? SystemColors.ControlText : SystemColors.GrayText
+            };
+
+            ParamsTable.Controls.Add(label, 0, row);
 
             var inputRow = new TableLayoutPanel
             {
@@ -263,6 +318,7 @@ namespace GUI.Types.GLViewers
                     DecimalPlaces = 3,
                     Increment = 0.1M,
                     Value = (decimal)(index == 0 ? value.X : index == 1 ? value.Y : index == 2 ? value.Z : value.W),
+                    Enabled = isEnabled,
                 };
 
                 input.ValueChanged += (sender, e) =>
@@ -355,7 +411,7 @@ namespace GUI.Types.GLViewers
             return result.ToString().Trim();
         }
 
-        private void AddNumericParameter(string paramName, decimal initialValue, ParamType paramType, Action<decimal> onValueChanged)
+        private void AddNumericParameter(string paramName, decimal initialValue, ParamType paramType, Action<decimal> onValueChanged, bool isEnabled = true)
         {
             var row = ParamsTable.RowCount;
             ParamsTable.RowCount = row + 1;
@@ -363,13 +419,16 @@ namespace GUI.Types.GLViewers
 
             var displayName = NormalizeParameterName(paramName);
 
-            ParamsTable.Controls.Add(new Label()
+            var label = new Label()
             {
                 Dock = DockStyle.Fill,
                 AutoSize = false,
                 Text = displayName,
-                TextAlign = ContentAlignment.MiddleRight
-            }, 0, row);
+                TextAlign = ContentAlignment.MiddleRight,
+                ForeColor = isEnabled ? SystemColors.ControlText : SystemColors.GrayText
+            };
+
+            ParamsTable.Controls.Add(label, 0, row);
 
             var inputRow = new TableLayoutPanel
             {
@@ -393,6 +452,7 @@ namespace GUI.Types.GLViewers
                     Maximum = sliderMax,
                     TickStyle = TickStyle.None,
                     Value = sliderValue,
+                    Enabled = isEnabled,
                 };
 
                 var input = new NumericUpDown
@@ -403,6 +463,7 @@ namespace GUI.Types.GLViewers
                     DecimalPlaces = 3,
                     Increment = 0.1M,
                     Value = initialValue,
+                    Enabled = isEnabled,
                 };
 
                 var updatingFromSlider = false;
@@ -461,6 +522,7 @@ namespace GUI.Types.GLViewers
                     DecimalPlaces = 0,
                     Increment = 1M,
                     Value = initialValue,
+                    Enabled = isEnabled,
                 };
 
                 input.ValueChanged += (sender, e) => onValueChanged(input.Value);
