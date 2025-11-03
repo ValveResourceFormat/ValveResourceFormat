@@ -634,44 +634,29 @@ namespace GUI.Types.GLViewers
             var colorButton = new Button
             {
                 Dock = DockStyle.Fill,
-                BackColor = System.Drawing.Color.White,
+                BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
             };
             colorButton.Click += (sender, e) =>
             {
                 var oldColor = colorButton.BackColor;
 
-                using (var picker = new BetterColorPicker(colorButton.BackColor))
+                using var picker = new BetterColorPicker(colorButton.BackColor, (pickedColor) =>
                 {
-                    picker.ColorChanged += (sender, args) =>
-                    {
-                        colorButton.BackColor = args.Color;
-                        if (previewNode != null)
-                        {
-                            previewNode.Tint = new Vector4(
-                                args.Color.R / 255f,
-                                args.Color.G / 255f,
-                                args.Color.B / 255f,
-                                args.Color.A / 255f
-                            );
-                        }
-                    };
-
-                    var result = picker.ShowDialog();
-
-                    var outColor = (result == DialogResult.OK) ? picker.PickedColor : oldColor;
-
-                    colorButton.BackColor = outColor;
                     if (previewNode != null)
                     {
                         previewNode.Tint = new Vector4(
-                            outColor.R / 255f,
-                            outColor.G / 255f,
-                            outColor.B / 255f,
-                            outColor.A / 255f
+                            pickedColor.R / 255f,
+                            pickedColor.G / 255f,
+                            pickedColor.B / 255f,
+                            pickedColor.A / 255f
                         );
                     }
-                }
+
+                    colorButton.BackColor = pickedColor;
+                });
+
+                picker.ShowDialog();
             };
             renderColorRow.Controls.Add(colorButton, 1, 0);
 
