@@ -695,7 +695,7 @@ namespace GUI.Forms
             Padding = new Padding(4);
             SizeGripStyle = SizeGripStyle.Hide;
             StartPosition = FormStartPosition.CenterParent;
-            Text = "Colour Picker";
+            Text = "Color Picker";
             TopMost = true;
             Load += BetterColorPicker_Load;
             tableLayoutPanel2.ResumeLayout(false);
