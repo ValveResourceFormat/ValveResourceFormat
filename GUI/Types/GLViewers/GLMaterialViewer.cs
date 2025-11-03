@@ -36,13 +36,14 @@ namespace GUI.Types.GLViewers
             Both
         }
 
-        private readonly ValveResourceFormat.Resource Resource;
+        private readonly Resource Resource;
         private readonly TabControl Tabs;
+        private Button openShaderButton;
         private TableLayoutPanel ParamsTable;
         private RenderMaterial renderMat;
         private MeshSceneNode previewNode;
 
-        public GLMaterialViewer(VrfGuiContext guiContext, ValveResourceFormat.Resource resource, TabControl tabs) : base(guiContext)
+        public GLMaterialViewer(VrfGuiContext guiContext, Resource resource, TabControl tabs) : base(guiContext)
         {
             Resource = resource;
             Tabs = tabs;
@@ -55,6 +56,7 @@ namespace GUI.Types.GLViewers
             if (disposing)
             {
                 ParamsTable?.Dispose();
+                openShaderButton?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -88,11 +90,14 @@ namespace GUI.Types.GLViewers
             allParameterNames.UnionWith(shaderParams.IntParams.Keys);
             allParameterNames.UnionWith(shaderParams.VectorParams.Keys);
 
+            var vcsDescriptionByName = new Dictionary<string, VfxVariableDescription>();
             var vcsShader = GuiContext.FileLoader.LoadShader(drawCall.Material.Material.ShaderName);
-            var vcsDescriptionByName = new Dictionary<string, VfxVariableDescription>(vcsShader.Features.VariableDescriptions.Length);
-            foreach (var varDesc in vcsShader.Features.VariableDescriptions)
+            if (vcsShader.Features != null)
             {
-                vcsDescriptionByName[varDesc.Name] = varDesc;
+                foreach (var varDesc in vcsShader.Features.VariableDescriptions)
+                {
+                    vcsDescriptionByName[varDesc.Name] = varDesc;
+                }
             }
 
             // Process all parameters
@@ -648,6 +653,11 @@ namespace GUI.Types.GLViewers
             node ??= MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
             node.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f));
 
+            if (openShaderButton != null)
+            {
+                openShaderButton.Text = renderMat.Material.ShaderName;
+            }
+
             var isHorizontalPlaneMaterial = renderMat.IsCs2Water;
             if (!isHorizontalPlaneMaterial)
             {
@@ -715,15 +725,15 @@ namespace GUI.Types.GLViewers
 
         private void AddShaderButton()
         {
-            var button = new Button
+            openShaderButton = new Button
             {
-                Text = "Decompile shader",
+                Text = $"Open Shader",
                 AutoSize = true,
             };
 
-            button.Click += OnShadersButtonClick;
+            openShaderButton.Click += OnShadersButtonClick;
 
-            AddControl(button);
+            AddControl(openShaderButton);
         }
 
         static Color Vector4ToColor(Vector4 v)
