@@ -367,7 +367,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
             vec2(max(height.r, height2.r), height3.r),
             vec2(max(g_flHeightMapScale1, g_flHeightMapScale2), g_flHeightMapScale3),
             vec2(max(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2), g_flHeightMapZeroPoint3),
-            vec4(vColorBlendValues.y, vColorBlendValues.w, 0.0, 0.0)
+            vec4(vColorBlendValues.y, 0.0, 0.0, vColorBlendValues.w)
         );
 
         color = color * (1.0 - weights3.y) + color3 * weights3.y;
