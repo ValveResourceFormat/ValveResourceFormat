@@ -148,7 +148,16 @@ namespace GUI.Types.GLViewers
                     var value = materialParams.VectorParams.GetValueOrDefault(paramName,
                         shaderParams.VectorParams.GetValueOrDefault(paramName));
                     var componentCount = drawCall.Material.Shader.GetRegisterSize(paramName);
-                    allParams.Add((paramName, (value, componentCount, parameterPresence), ParamType.Vector, vfxDescription));
+
+                    if (vfxDescription?.UiType == UiType.Color)
+                    {
+                        value.W = 1f;
+                        allParams.Add((paramName, (value, parameterPresence), ParamType.Color, vfxDescription));
+                    }
+                    else
+                    {
+                        allParams.Add((paramName, (value, componentCount, parameterPresence), ParamType.Vector, vfxDescription));
+                    }
                 }
             }
 
@@ -234,6 +243,15 @@ namespace GUI.Types.GLViewers
                             vector,
                             v => drawCall.Material.Material.VectorParams[paramName] = v,
                             vectorPresence != ParameterPresence.MaterialOnly);
+                        break;
+
+                    case ParamType.Color:
+                        var (colorVec, colorPresence) = ((Vector4, ParameterPresence))value;
+                        AddColorParameter(
+                            paramName,
+                            Vector4ToColor(colorVec),
+                            c => drawCall.Material.Material.VectorParams[paramName] = ColorToVector4(c),
+                            colorPresence != ParameterPresence.MaterialOnly);
                         break;
                 }
             }
@@ -412,6 +430,49 @@ namespace GUI.Types.GLViewers
             }
 
             return result.ToString().Trim();
+        }
+
+        private void AddColorParameter(string paramName, Color initialColor, Action<Color> onValueChanged, bool isEnabled = true)
+        {
+            var row = ParamsTable.RowCount;
+            ParamsTable.RowCount = row + 1;
+            ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
+
+            var displayName = NormalizeParameterName(paramName);
+
+            var label = new Label()
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                Text = displayName,
+                TextAlign = ContentAlignment.MiddleRight,
+                ForeColor = isEnabled ? SystemColors.ControlText : SystemColors.GrayText
+            };
+
+            ParamsTable.Controls.Add(label, 0, row);
+
+            var colorButton = new Button
+            {
+                Dock = DockStyle.Fill,
+                BackColor = initialColor,
+                FlatStyle = FlatStyle.Flat,
+                Enabled = isEnabled,
+                Padding = new Padding(2),
+                MinimumSize = new Size(0, 20),
+            };
+
+            colorButton.Click += (sender, e) =>
+            {
+                using var picker = new BetterColorPicker(colorButton.BackColor, (pickedColor) =>
+                {
+                    colorButton.BackColor = pickedColor;
+                    onValueChanged(pickedColor);
+                });
+
+                picker.ShowDialog();
+            };
+
+            ParamsTable.Controls.Add(colorButton, 1, row);
         }
 
         private void AddNumericParameter(string paramName, decimal initialValue, ParamType paramType, Action<decimal> onValueChanged, bool isEnabled = true)
@@ -665,6 +726,20 @@ namespace GUI.Types.GLViewers
             AddControl(button);
         }
 
+        static Color Vector4ToColor(Vector4 v)
+        {
+            return Color.FromArgb(
+                (int)(v.W * 255),
+                (int)(v.X * 255),
+                (int)(v.Y * 255),
+                (int)(v.Z * 255));
+        }
+
+        static Vector4 ColorToVector4(Color c)
+        {
+            return Vector4.Create(c.R, c.G, c.B, c.A) / 255f;
+        }
+
         protected override void InitializeControl()
         {
             // Make controls panel wider for material parameters
@@ -709,12 +784,7 @@ namespace GUI.Types.GLViewers
                 {
                     if (previewNode != null)
                     {
-                        previewNode.Tint = new Vector4(
-                            pickedColor.R / 255f,
-                            pickedColor.G / 255f,
-                            pickedColor.B / 255f,
-                            pickedColor.A / 255f
-                        );
+                        previewNode.Tint = ColorToVector4(pickedColor);
                     }
 
                     colorButton.BackColor = pickedColor;
