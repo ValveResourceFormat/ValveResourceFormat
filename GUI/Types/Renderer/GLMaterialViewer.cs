@@ -9,6 +9,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using Resource = ValveResourceFormat.Resource;
 using ContentAlignment = System.Drawing.ContentAlignment;
+using System.Drawing;
 
 #nullable disable
 
@@ -651,23 +652,36 @@ namespace GUI.Types.Renderer
             };
             colorButton.Click += (sender, e) =>
             {
-                using var colorDialog = new ColorDialog
-                {
-                    Color = colorButton.BackColor,
-                    FullOpen = true
-                };
+                var oldColor = colorButton.BackColor;
 
-                if (colorDialog.ShowDialog() == DialogResult.OK)
+                using (var picker = new BetterColorPicker(colorButton.BackColor))
                 {
-                    colorButton.BackColor = colorDialog.Color;
+                    picker.ColorChanged += (sender, args) =>
+                    {
+                        colorButton.BackColor = args.Color;
+                        if (previewNode != null)
+                        {
+                            previewNode.Tint = new Vector4(
+                                args.Color.R / 255f,
+                                args.Color.G / 255f,
+                                args.Color.B / 255f,
+                                args.Color.A / 255f
+                            );
+                        }
+                    };
+
+                    var result = picker.ShowDialog();
+
+                    var outColor = (result == DialogResult.OK) ? picker.PickedColor : oldColor;
+
+                    colorButton.BackColor = outColor;
                     if (previewNode != null)
                     {
-                        var color = colorDialog.Color;
                         previewNode.Tint = new Vector4(
-                            color.R / 255f,
-                            color.G / 255f,
-                            color.B / 255f,
-                            color.A / 255f
+                            outColor.R / 255f,
+                            outColor.G / 255f,
+                            outColor.B / 255f,
+                            outColor.A / 255f
                         );
                     }
                 }
