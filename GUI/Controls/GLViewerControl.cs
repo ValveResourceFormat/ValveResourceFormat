@@ -107,6 +107,7 @@ namespace GUI.Controls
             GLControl.MouseDown += OnMouseDown;
             GLControl.MouseMove += OnMouseMove;
             GLControl.MouseWheel += OnMouseWheel;
+            GLControl.PreviewKeyDown += OnPreviewKeyDown;
             GLControl.KeyDown += OnKeyDown;
             GLControl.KeyUp += OnKeyUp;
             GLControl.GotFocus += OnGotFocus;
@@ -140,9 +141,18 @@ namespace GUI.Controls
 #endif
         }
 
+        private void OnPreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        {
+            // Sink all inputs into gl control to prevent shortcuts like Ctrl+W and just pressing Alt going to parent
+            e.IsInputKey = true;
+        }
+
         protected virtual void OnKeyDown(object sender, KeyEventArgs e)
         {
             CurrentlyPressedKeys |= RemapKey(e.KeyCode);
+
+            e.Handled = true;
+            e.SuppressKeyPress = true;
 
             if (e.KeyData == (Keys.Control | Keys.C))
             {
@@ -231,6 +241,7 @@ namespace GUI.Controls
             GLControl.MouseDown -= OnMouseDown;
             GLControl.MouseMove -= OnMouseMove;
             GLControl.MouseWheel -= OnMouseWheel;
+            GLControl.PreviewKeyDown -= OnPreviewKeyDown;
             GLControl.KeyDown -= OnKeyDown;
             GLControl.KeyUp -= OnKeyUp;
             GLControl.GotFocus -= OnGotFocus;
