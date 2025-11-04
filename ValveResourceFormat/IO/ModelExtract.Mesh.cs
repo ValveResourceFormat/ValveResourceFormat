@@ -633,7 +633,7 @@ partial class ModelExtract
             var materialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
             GenerateTriangleFaceSet(dag, 0, triangles.Length, materialName);
         }
-        else
+        else if (dag.Shape is DmeMesh dmeMesh)
         {
             Debug.Assert(mesh.Materials.Length == triangles.Length);
             Debug.Assert(surfaceList.Length > 0);
@@ -652,10 +652,7 @@ partial class ModelExtract
                         Name = surface + '$' + surfaceIndex
                     };
                     faceSet.Material.MaterialName = new SurfaceTagCombo(surface, uniformCollisionTags).StringMaterial;
-                    if (dag.Shape is DmeMesh dmeMesh)
-                    {
-                        dmeMesh.FaceSets.Add(faceSet);
-                    }
+                    dmeMesh.FaceSets.Add(faceSet);
                 }
 
                 faceSet.Faces.Add(t * 3);
