@@ -41,7 +41,18 @@ namespace GUI.Types.GLViewers
         private Button openShaderButton;
         private TableLayoutPanel ParamsTable;
         private RenderMaterial renderMat;
-        private MeshSceneNode previewNode;
+        private ComboBox previewObjectComboBox;
+
+        private enum PreviewObjectType
+        {
+            Quad,
+            Sphere,
+            CustomModel
+        }
+
+        private PreviewObjectType currentPreviewObject = PreviewObjectType.Quad;
+        private readonly Dictionary<PreviewObjectType, MeshCollectionNode> previewObjects = [];
+        private MeshCollectionNode previewNode => previewObjects[currentPreviewObject];
 
         public GLMaterialViewer(VrfGuiContext guiContext, Resource resource, TabControl tabs) : base(guiContext)
         {
@@ -57,6 +68,7 @@ namespace GUI.Types.GLViewers
             {
                 ParamsTable?.Dispose();
                 openShaderButton?.Dispose();
+                previewObjectComboBox?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -66,12 +78,68 @@ namespace GUI.Types.GLViewers
         {
             base.LoadScene();
 
-            previewNode = CreatePreviewModel();
-
             Scene.ShowToolsMaterials = true;
-            Scene.Add(previewNode, false);
+            renderMat = GuiContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
 
-            // Assume cubemap model only has one opaque draw call
+            if (openShaderButton != null)
+            {
+                openShaderButton.Text = renderMat.Material.ShaderName;
+            }
+
+            var selectedIndex = (int)PreviewObjectType.Quad;
+            {
+                var planeMesh = MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
+                planeMesh.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f));
+
+                var isHorizontalPlaneMaterial = renderMat.IsCs2Water;
+                if (!isHorizontalPlaneMaterial)
+                {
+                    planeMesh.Transform *= Matrix4x4.CreateRotationY(MathUtils.ToRadians(90f));
+                }
+
+                Scene.Add(planeMesh, false);
+                previewObjects[PreviewObjectType.Quad] = planeMesh;
+            }
+
+            {
+                var sphereMesh = CreateEnvCubemapSphere(Scene);
+                foreach (var renderable in sphereMesh.RenderableMeshes)
+                {
+                    renderable.SetMaterialForMaterialViewer(Resource);
+                }
+
+                Scene.Add(sphereMesh, false);
+                previewObjects[PreviewObjectType.Sphere] = sphereMesh;
+            }
+
+            var material = (Material)Resource.DataBlock;
+            if (material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
+            {
+                var previewModelResource = GuiContext.FileLoader.LoadFileCompiled(previewModel);
+
+                if (previewModelResource != null)
+                {
+                    var customModel = new ModelSceneNode(Scene, (Model)previewModelResource.DataBlock);
+
+                    foreach (var renderable in customModel.RenderableMeshes)
+                    {
+                        renderable.SetMaterialForMaterialViewer(Resource);
+                    }
+
+                    Scene.Add(customModel, false);
+                    previewObjects[PreviewObjectType.CustomModel] = customModel;
+                    selectedIndex = (int)PreviewObjectType.CustomModel;
+                }
+            }
+
+            previewObjectComboBox.Items.AddRange([.. Enum.GetNames<PreviewObjectType>().Where(n => previewObjects.ContainsKey(Enum.Parse<PreviewObjectType>(n)))]);
+            previewObjectComboBox.SelectedIndex = selectedIndex;
+
+            CreateMaterialEditControls();
+        }
+
+        private void CreateMaterialEditControls()
+        {
             var mesh = previewNode.RenderableMeshes[0];
             var drawCall = mesh.DrawCallsOpaque.Concat(mesh.DrawCallsBlended).First();
 
@@ -621,56 +689,28 @@ namespace GUI.Types.GLViewers
         {
             base.PostSceneLoad();
             sunAngles = new Vector2(19, 196);
-            Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
 
-            if (renderMat.IsCs2Water)
-            {
-                Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, MathUtils.ToRadians(-90f));
-                sunAngles = new Vector2(54, -9);
-            }
+            Camera.OrbitModeAlways = true;
 
             UpdateSunAngles();
             Scene.UpdateBuffers();
         }
 
-        private MeshSceneNode CreatePreviewModel()
+
+        protected override void OnResize()
         {
-            var material = (Material)Resource.DataBlock;
-            MeshSceneNode node = null;
+            base.OnResize();
 
-            if (material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
+            Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
+            if (renderMat.IsCs2Water)
             {
-                var previewModelResource = GuiContext.LoadFileCompiled(previewModel);
-
-                if (previewModelResource != null)
-                {
-                    // For preview models, we can't directly use ModelSceneNode, so fall back to the quad
-                    // node = new ModelSceneNode(Scene, (Model)previewModelResource.DataBlock);
-                }
+                Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, MathUtils.ToRadians(-90f));
             }
 
-            renderMat = GuiContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
-            node ??= MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
-            node.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f));
-
-            if (openShaderButton != null)
+            if (previewNode != null)
             {
-                openShaderButton.Text = renderMat.Material.ShaderName;
+                Camera.EnableOrbitMode(previewNode.BoundingBox.Center);
             }
-
-            var isHorizontalPlaneMaterial = renderMat.IsCs2Water;
-            if (!isHorizontalPlaneMaterial)
-            {
-                node.Transform *= Matrix4x4.CreateRotationY(MathUtils.ToRadians(90f));
-            }
-
-            //node ??= CreateEnvCubemapSphere(Scene);
-            //foreach (var renderable in node.RenderableMeshes)
-            //{
-            //    renderable.SetMaterialForMaterialViewer(Resource);
-            //}
-
-            return node;
         }
 
         public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
@@ -745,6 +785,21 @@ namespace GUI.Types.GLViewers
                 (int)(v.Z * 255));
         }
 
+        private void RenderMeshPreview_SelectionChanged(object sender, EventArgs e)
+        {
+            foreach (var node in previewObjects.Values)
+            {
+                node.LayerEnabled = false;
+            }
+
+            if (Scene != null && previewObjectComboBox.SelectedIndex >= 0)
+            {
+                currentPreviewObject = Enum.Parse<PreviewObjectType>(previewObjectComboBox.SelectedItem.ToString());
+                previewNode.LayerEnabled = true;
+                OnResize();
+            }
+        }
+
         static Vector4 ColorToVector4(Color c)
         {
             return Vector4.Create(c.R, c.G, c.B, c.A) / 255f;
@@ -762,17 +817,18 @@ namespace GUI.Types.GLViewers
             AddShaderButton();
             AddDivider();
 
-            var renderColorRow = new TableLayoutPanel
+            var previewControls = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
                 ColumnCount = 2,
-                Height = 30,
+                RowCount = 2,
+                Height = 60,
             };
-            renderColorRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            renderColorRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            previewControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            previewControls.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
 
-            renderColorRow.Controls.Add(new Label()
+            previewControls.Controls.Add(new Label()
             {
                 Dock = DockStyle.Fill,
                 AutoSize = false,
@@ -802,9 +858,27 @@ namespace GUI.Types.GLViewers
 
                 picker.ShowDialog();
             };
-            renderColorRow.Controls.Add(colorButton, 1, 0);
+            previewControls.Controls.Add(colorButton, 1, 0);
 
-            AddControl(renderColorRow);
+            previewControls.Controls.Add(new Label()
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                Text = "Render Mesh",
+                TextAlign = ContentAlignment.MiddleRight
+            }, 0, 1);
+
+            previewObjectComboBox = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+
+            previewObjectComboBox.SelectedIndexChanged += RenderMeshPreview_SelectionChanged;
+
+            previewControls.Controls.Add(previewObjectComboBox, 1, 1);
+
+            AddControl(previewControls);
 
             ParamsTable = new TableLayoutPanel
             {

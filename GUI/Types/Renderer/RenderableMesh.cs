@@ -456,6 +456,8 @@ namespace GUI.Types.Renderer
 
     internal abstract class MeshCollectionNode : SceneNode
     {
+        public abstract Vector4 Tint { get; set; }
+
         protected MeshCollectionNode(Scene scene) : base(scene)
         {
         }

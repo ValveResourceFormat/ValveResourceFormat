@@ -13,7 +13,7 @@ namespace GUI.Types.Renderer
 {
     class ModelSceneNode : MeshCollectionNode
     {
-        public Vector4 Tint
+        public override Vector4 Tint
         {
             get
             {

@@ -8,7 +8,7 @@ namespace GUI.Types.Renderer
 {
     class MeshSceneNode : MeshCollectionNode
     {
-        public Vector4 Tint
+        public override Vector4 Tint
         {
             get => RenderableMeshes[0].Tint;
             set => RenderableMeshes[0].Tint = value;
