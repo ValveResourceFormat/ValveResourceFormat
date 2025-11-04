@@ -19,7 +19,8 @@ namespace GUI.Types.Renderer
         ];
         private int CurrentSpeedModifier = 2;
 
-        private const float TransitionDuration = 1.5f;
+        private float Uptime;
+        private float TransitionDuration = 1.5f;
         private float TransitionEndTime = -1f;
         private float TransitionOldPitch;
         private float TransitionOldYaw;
@@ -55,14 +56,14 @@ namespace GUI.Types.Renderer
         }
 
 
-        private (Vector3 Location, float Pitch, float Yaw) GetCurrentLocationWithTransition(float uptime)
+        private (Vector3 Location, float Pitch, float Yaw) GetCurrentLocationWithTransition()
         {
-            if (TransitionEndTime < uptime)
+            if (TransitionEndTime < Uptime)
             {
                 return (Location, Pitch, Yaw);
             }
 
-            var time = 1f - MathF.Pow((TransitionEndTime - uptime) / TransitionDuration, 5f); // easeOutQuint
+            var time = 1f - MathF.Pow((TransitionEndTime - Uptime) / TransitionDuration, 5f); // easeOutQuint
 
             var location = Vector3.Lerp(TransitionOldLocation, Location, time);
             var pitch = float.Lerp(TransitionOldPitch, Pitch, time);
@@ -73,7 +74,8 @@ namespace GUI.Types.Renderer
 
         public void RecalculateMatrices(float uptime)
         {
-            var (location, pitch, yaw) = GetCurrentLocationWithTransition(uptime);
+            Uptime = uptime;
+            var (location, pitch, yaw) = GetCurrentLocationWithTransition();
 
             var yawSin = MathF.Sin(yaw);
             var yawCos = MathF.Cos(yaw);
@@ -216,10 +218,11 @@ namespace GUI.Types.Renderer
             Pitch = MathF.Asin(dir.Z);
         }
 
-        public void SaveCurrentForTransition(float uptime)
+        public void SaveCurrentForTransition(float transitionDuration = 1.5f)
         {
-            (TransitionOldLocation, TransitionOldPitch, TransitionOldYaw) = GetCurrentLocationWithTransition(uptime);
-            TransitionEndTime = uptime + TransitionDuration;
+            (TransitionOldLocation, TransitionOldPitch, TransitionOldYaw) = GetCurrentLocationWithTransition();
+            TransitionDuration = transitionDuration;
+            TransitionEndTime = Uptime + transitionDuration;
         }
 
         public void SetOrbitTarget(Vector3 target)
@@ -257,8 +260,9 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            OrbitDistance *= 1f + (delta * OrbitZoomSpeed);
+            OrbitDistance *= 1f + delta * OrbitZoomSpeed;
             OrbitDistance = Math.Clamp(OrbitDistance, MinOrbitDistance, MaxOrbitDistance);
+            SaveCurrentForTransition(transitionDuration: 0.5f);
             UpdateOrbitLocation();
         }
 
@@ -353,7 +357,7 @@ namespace GUI.Types.Renderer
         {
             if (OrbitMode)
             {
-                OrbitZoom(delta * 0.01f);
+                OrbitZoom(-delta * 0.01f);
                 return OrbitDistance;
             }
             else
