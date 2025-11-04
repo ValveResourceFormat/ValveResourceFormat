@@ -526,9 +526,16 @@ namespace GUI.Types.Renderer
             var filter = "PNG Image|*.png|JPG Image|*.jpg";
             var alternativeImageFormatIndex = 2;
 
+            var isHdrTexture = Resource?.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
+
             if (Svg != null)
             {
                 filter = $"SVG (Scalable Vector Graphics)|*.svg|{filter}";
+                alternativeImageFormatIndex++;
+            }
+            else if (isHdrTexture)
+            {
+                filter = "EXR Image|*.exr|" + filter;
                 alternativeImageFormatIndex++;
             }
 
@@ -556,6 +563,13 @@ namespace GUI.Types.Renderer
                 return;
             }
 
+            if (isHdrTexture && saveFileDialog.FilterIndex == 1)
+            {
+                using var hdrBitmap = ReadPixelsToBitmap(hdr: true);
+                fs.Write(ValveResourceFormat.IO.TextureExtract.ToExrImage(hdrBitmap));
+                return;
+            }
+
             // TODO: nonpow2 sizes?
             using var bitmap = ReadPixelsToBitmap();
             var format = SKEncodedImageFormat.Png;
@@ -575,6 +589,11 @@ namespace GUI.Types.Renderer
 
         protected override SKBitmap ReadPixelsToBitmap()
         {
+            return ReadPixelsToBitmap(hdr: false);
+        }
+
+        protected SKBitmap ReadPixelsToBitmap(bool hdr = false)
+        {
             var size = ActualTextureSize;
 
             if (SelectedMip > 0)
@@ -582,7 +601,8 @@ namespace GUI.Types.Renderer
                 size /= 1 << SelectedMip;
             }
 
-            var bitmap = new SKBitmap((int)size.X, (int)size.Y, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            var bitmapFormat = hdr ? HdrBitmapColorType : DefaultBitmapColorType;
+            var bitmap = new SKBitmap((int)size.X, (int)size.Y, bitmapFormat, SKAlphaType.Unpremul);
 
             try
             {
@@ -591,14 +611,25 @@ namespace GUI.Types.Renderer
                 // extract pixels from framebuffer
                 GL.Viewport(0, 0, bitmap.Width, bitmap.Height);
 
+                var fboFormat = GLTextureDecoder.GetPreferredFramebufferFormat(hdr);
+
+                if (SaveAsFbo != null)
+                {
+                    if (SaveAsFbo.ColorFormat != fboFormat)
+                    {
+                        SaveAsFbo.Delete();
+                        SaveAsFbo = null;
+                    }
+                    else
+                    {
+                        SaveAsFbo.Resize(bitmap.Width, bitmap.Height);
+                    }
+                }
+
                 if (SaveAsFbo == null)
                 {
-                    SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), bitmap.Width, bitmap.Height, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
+                    SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), bitmap.Width, bitmap.Height, 0, fboFormat, null);
                     SaveAsFbo.Initialize();
-                }
-                else
-                {
-                    SaveAsFbo.Resize(bitmap.Width, bitmap.Height);
                 }
 
                 SaveAsFbo.BindAndClear(FramebufferTarget.DrawFramebuffer);
@@ -610,7 +641,7 @@ namespace GUI.Types.Renderer
 
                 SaveAsFbo.Bind(FramebufferTarget.ReadFramebuffer);
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, SaveAsFbo.ColorFormat.PixelFormat, SaveAsFbo.ColorFormat.PixelType, pixels);
 
                 var bitmapToReturn = bitmap;
                 bitmap = null;
