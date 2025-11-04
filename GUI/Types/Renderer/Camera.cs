@@ -252,7 +252,10 @@ namespace GUI.Types.Renderer
 
         public void OrbitZoom(float delta)
         {
-            if (!OrbitMode) return;
+            if (!OrbitMode)
+            {
+                return;
+            }
 
             OrbitDistance *= 1f + (delta * OrbitZoomSpeed);
             OrbitDistance = Math.Clamp(OrbitDistance, MinOrbitDistance, MaxOrbitDistance);
@@ -267,14 +270,6 @@ namespace GUI.Types.Renderer
 
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
-            if (keyboardState.HasFlag(TrackedKeys.Control))
-            {
-                // Disable camera movement while holding control
-                // This is used by single node viewer to change sun angle,
-                // and if you press Ctrl+W, the tab will close anyway
-                return;
-            }
-
             if (keyboardState.HasFlag(TrackedKeys.Alt))
             {
                 EnableOrbitMode();
@@ -306,6 +301,7 @@ namespace GUI.Types.Renderer
                 OrbitTarget += panOffset;
                 Location += panOffset;
             }
+
             if (keyboardState.HasFlag(TrackedKeys.MouseLeft))
             {
                 Yaw -= MathF.PI * mouseDelta.X / WindowSize.X;
@@ -318,6 +314,7 @@ namespace GUI.Types.Renderer
             {
                 OrbitZoom(-deltaTime * 10);
             }
+
             if (keyboardState.HasFlag(TrackedKeys.Back))
             {
                 OrbitZoom(deltaTime * 10);
