@@ -91,8 +91,7 @@ partial class ModelExtract
             }
         };
 
-        //dmx.Save(stream, "keyvalues2", 4);
-        dmx.Save(stream, "binary", 9); //Fixes vnmskel decomp
+        dmx.Save(stream, "binary", 9);
 
         return stream.ToArray();
     }
@@ -104,6 +103,8 @@ partial class ModelExtract
 
         transforms = new DmeTransform[skeleton.Bones.Length];
         var boneDags = new DmeJoint[skeleton.Bones.Length];
+
+        dmeSkeleton.JointList.Add(dmeSkeleton);
 
         foreach (var bone in skeleton.Bones)
         {
@@ -118,6 +119,8 @@ partial class ModelExtract
 
             boneDags[bone.Index] = dag;
             transforms[bone.Index] = dag.Transform;
+
+            dmeSkeleton.JointList.Add(dag);
         }
 
         foreach (var bone in skeleton.Bones)
