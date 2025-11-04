@@ -88,6 +88,9 @@ uniform sampler2D g_tTintMask;
 
     uniform float g_flVertexAmbientOcclusionPower = 1.0;
     uniform float g_flVertexAmbientOcclusionAmount = 0.0;
+#endif
+
+#if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
     uniform int F_DISABLE_TRANSMISSIVE_SHADOWS = 0;
     uniform int F_USE_ALBEDO_FOR_TRANSMISSIVE = 0;
     uniform sampler2D g_tTransmissiveColor; // SrgbRead(true)
@@ -552,11 +555,11 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #if defined(foliage_vfx_common)
         vec4 vFoliageParams = clamp(vFoliageParamsOut, vec4(0.001), vec4(1.0));
         mat.AmbientOcclusion *= mix(1.0, pow(vFoliageParams.w, g_flVertexAmbientOcclusionPower), g_flVertexAmbientOcclusionAmount);
+    #endif
 
-        #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
-            vec3 vTransmissiveColor = texture(g_tTransmissiveColor, texCoord).rgb;
-            mat.TransmissiveColor = F_USE_ALBEDO_FOR_TRANSMISSIVE == 1 ? mat.Albedo : vTransmissiveColor;
-        #endif
+    #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
+        vec3 vTransmissiveColor = texture(g_tTransmissiveColor, texCoord).rgb;
+        mat.TransmissiveColor = F_USE_ALBEDO_FOR_TRANSMISSIVE == 1 ? mat.Albedo : vTransmissiveColor;
     #endif
 
 #if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
