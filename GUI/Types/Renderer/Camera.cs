@@ -29,6 +29,14 @@ namespace GUI.Types.Renderer
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
 
+        // Orbit controls
+        public bool OrbitMode { get; set; }
+        public Vector3 OrbitTarget { get; set; }
+        public float OrbitDistance { get; private set; }
+        private const float MinOrbitDistance = 1f;
+        private const float MaxOrbitDistance = 10000f;
+        private const float OrbitZoomSpeed = 0.1f;
+
         private Matrix4x4 ProjectionMatrix;
         public Matrix4x4 CameraViewMatrix { get; private set; }
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
@@ -42,6 +50,8 @@ namespace GUI.Types.Renderer
             Location = Vector3.One;
             SetViewportSize(16, 9);
             LookAt(Vector3.Zero);
+
+            OrbitDistance = Vector3.Distance(Location, OrbitTarget);
         }
 
 
@@ -162,11 +172,18 @@ namespace GUI.Types.Renderer
             CameraViewMatrix = fromOther.CameraViewMatrix;
             ViewProjectionMatrix = fromOther.ViewProjectionMatrix;
             ViewFrustum.Update(ViewProjectionMatrix);
+            OrbitMode = fromOther.OrbitMode;
+            OrbitTarget = fromOther.OrbitTarget;
+            OrbitDistance = fromOther.OrbitDistance;
         }
 
         public void SetLocation(Vector3 location)
         {
             Location = location;
+            if (OrbitMode)
+            {
+                OrbitDistance = Vector3.Distance(Location, OrbitTarget);
+            }
         }
 
         public void SetLocationPitchYaw(Vector3 location, float pitch, float yaw)
@@ -174,6 +191,10 @@ namespace GUI.Types.Renderer
             Location = location;
             Pitch = pitch;
             Yaw = yaw;
+            if (OrbitMode)
+            {
+                OrbitDistance = Vector3.Distance(Location, OrbitTarget);
+            }
         }
 
         public void LookAt(Vector3 target)
@@ -201,9 +222,52 @@ namespace GUI.Types.Renderer
             TransitionEndTime = uptime + TransitionDuration;
         }
 
+        public void SetOrbitTarget(Vector3 target)
+        {
+            OrbitTarget = target;
+            OrbitDistance = Vector3.Distance(Location, OrbitTarget);
+        }
+
+        public void EnableOrbitMode(Vector3? target = null)
+        {
+            OrbitMode = true;
+
+            if (target != null)
+            {
+                OrbitTarget = target.Value;
+            }
+            else
+            {
+                //TODO: Use traces to find the point at which we intersect geo, and use that as orbit target
+                OrbitTarget = Location + GetForwardVector() * 100;
+            }
+
+            OrbitDistance = Vector3.Distance(Location, OrbitTarget);
+        }
+
+        public void DisableOrbitMode()
+        {
+            OrbitMode = false;
+        }
+
+        public void OrbitZoom(float delta)
+        {
+            if (!OrbitMode) return;
+
+            OrbitDistance *= 1f + (delta * OrbitZoomSpeed);
+            OrbitDistance = Math.Clamp(OrbitDistance, MinOrbitDistance, MaxOrbitDistance);
+            UpdateOrbitLocation();
+        }
+
+        private void UpdateOrbitLocation()
+        {
+            var forward = GetForwardVector();
+            Location = OrbitTarget - forward * OrbitDistance;
+        }
+
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
-            if ((keyboardState & TrackedKeys.Control) > 0)
+            if (keyboardState.HasFlag(TrackedKeys.Control))
             {
                 // Disable camera movement while holding control
                 // This is used by single node viewer to change sun angle,
@@ -211,21 +275,64 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            if ((keyboardState & TrackedKeys.Shift) > 0)
+            if (keyboardState.HasFlag(TrackedKeys.Alt))
+            {
+                EnableOrbitMode();
+            }
+            else
+            {
+                DisableOrbitMode();
+            }
+
+            if (OrbitMode)
+            {
+                HandleOrbitMode(deltaTime, keyboardState, mouseDelta);
+            }
+            else
+            {
+                HandleFreeMode(deltaTime, keyboardState, mouseDelta);
+            }
+
+            ClampRotation();
+        }
+
+        private void HandleOrbitMode(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
+        {
+            if (keyboardState.HasFlag(TrackedKeys.MouseRight))
+            {
+                var speed = deltaTime * OrbitDistance / 2;
+                var panOffset = GetRightVector() * speed * -mouseDelta.X;
+
+                OrbitTarget += panOffset;
+                Location += panOffset;
+            }
+            if (keyboardState.HasFlag(TrackedKeys.MouseLeft))
+            {
+                Yaw -= MathF.PI * mouseDelta.X / WindowSize.X;
+                Pitch -= MathF.PI / AspectRatio * mouseDelta.Y / WindowSize.Y;
+
+                UpdateOrbitLocation();
+            }
+
+            if (keyboardState.HasFlag(TrackedKeys.Forward))
+            {
+                OrbitZoom(-deltaTime * 10);
+            }
+            if (keyboardState.HasFlag(TrackedKeys.Back))
+            {
+                OrbitZoom(deltaTime * 10);
+            }
+        }
+
+        private void HandleFreeMode(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
+        {
+            if (keyboardState.HasFlag(TrackedKeys.Shift))
             {
                 // Camera truck and pedestal movement (blender calls this pan)
                 var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
                 Location += GetUpVector() * speed * -mouseDelta.Y;
                 Location += GetRightVector() * speed * mouseDelta.X;
-            }
-            else if ((keyboardState & TrackedKeys.Alt) > 0)
-            {
-                // Move forward or backwards when holding alt
-                var totalDelta = mouseDelta.X + (mouseDelta.Y * -1);
-                var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
-
-                Location += GetForwardVector() * totalDelta * speed;
             }
             else
             {
@@ -236,8 +343,6 @@ namespace GUI.Types.Renderer
                 Yaw -= MathF.PI * mouseDelta.X / WindowSize.X;
                 Pitch -= MathF.PI / AspectRatio * mouseDelta.Y / WindowSize.Y;
             }
-
-            ClampRotation();
         }
 
         public float ModifySpeed(float subRange)
@@ -247,60 +352,68 @@ namespace GUI.Types.Renderer
             return SpeedModifiers[CurrentSpeedModifier];
         }
 
-        public float ModifySpeed(bool increase)
+        public float OnMouseWheel(float delta)
         {
-            if (increase)
+            if (OrbitMode)
             {
-                CurrentSpeedModifier += 1;
-
-                if (CurrentSpeedModifier >= SpeedModifiers.Length)
-                {
-                    CurrentSpeedModifier = SpeedModifiers.Length - 1;
-                }
+                OrbitZoom(delta * 0.01f);
+                return OrbitDistance;
             }
             else
             {
-                CurrentSpeedModifier -= 1;
-
-                if (CurrentSpeedModifier < 0)
+                if (delta > 0)
                 {
-                    CurrentSpeedModifier = 0;
-                }
-            }
+                    CurrentSpeedModifier += 1;
 
-            return SpeedModifiers[CurrentSpeedModifier];
+                    if (CurrentSpeedModifier >= SpeedModifiers.Length)
+                    {
+                        CurrentSpeedModifier = SpeedModifiers.Length - 1;
+                    }
+                }
+                else
+                {
+                    CurrentSpeedModifier -= 1;
+
+                    if (CurrentSpeedModifier < 0)
+                    {
+                        CurrentSpeedModifier = 0;
+                    }
+                }
+
+                return SpeedModifiers[CurrentSpeedModifier];
+            }
         }
 
         private void HandleKeyboardInput(float deltaTime, TrackedKeys keyboardState)
         {
             var speed = MovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
 
-            if ((keyboardState & TrackedKeys.Forward) > 0)
+            if (keyboardState.HasFlag(TrackedKeys.Forward))
             {
                 Location += GetForwardVector() * speed;
             }
 
-            if ((keyboardState & TrackedKeys.Back) > 0)
+            if (keyboardState.HasFlag(TrackedKeys.Back))
             {
                 Location -= GetForwardVector() * speed;
             }
 
-            if ((keyboardState & TrackedKeys.Right) > 0)
+            if (keyboardState.HasFlag(TrackedKeys.Right))
             {
                 Location += GetRightVector() * speed;
             }
 
-            if ((keyboardState & TrackedKeys.Left) > 0)
+            if (keyboardState.HasFlag(TrackedKeys.Left))
             {
                 Location -= GetRightVector() * speed;
             }
 
-            if ((keyboardState & TrackedKeys.Down) > 0)
+            if (keyboardState.HasFlag(TrackedKeys.Down))
             {
                 Location += new Vector3(0, 0, -speed);
             }
 
-            if ((keyboardState & TrackedKeys.Up) > 0)
+            if (keyboardState.HasFlag(TrackedKeys.Up))
             {
                 Location += new Vector3(0, 0, speed);
             }

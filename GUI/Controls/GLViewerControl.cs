@@ -381,9 +381,16 @@ namespace GUI.Controls
 
         protected virtual void OnMouseWheel(object sender, MouseEventArgs e)
         {
-            var modifier = Camera.ModifySpeed(e.Delta > 0);
+            var modifier = Camera.OnMouseWheel(e.Delta);
 
-            SetMoveSpeedOrZoomLabel($"Move speed: {modifier:0.0}x (scroll to change)");
+            if (Camera.OrbitMode)
+            {
+                SetMoveSpeedOrZoomLabel($"Orbit distance: {modifier:0.0} (scroll to change)");
+            }
+            else
+            {
+                SetMoveSpeedOrZoomLabel($"Move speed: {modifier:0.0}x (scroll to change)");
+            }
         }
 
         protected void SetMoveSpeedOrZoomLabel(string text) => moveSpeed.Text = text;
