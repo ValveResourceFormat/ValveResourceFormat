@@ -150,7 +150,7 @@ class Rubikon
         TraceResult closestHit = new();
         var halfExtents = aabb.Size * 0.5f;
         var trace = new AABBTraceContext(from, to, halfExtents);
-        AABB test;
+
         // Check against all meshes
         foreach (var mesh in Meshes)
         {
