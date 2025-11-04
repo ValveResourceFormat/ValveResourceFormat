@@ -622,8 +622,10 @@ public sealed class MapExtract
                     PhysicsVertexMatcher = PhysVertexMatcher,
                     ProgressReporter = ProgressReporter,
                 };
-                var meshShape = dag.Shape;
-                builder.AddRenderMesh(meshShape, offset);
+                if (dag.Shape is DmeMesh meshShape)
+                {
+                    builder.AddRenderMesh(meshShape, offset);
+                }
                 var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
 
                 if (!string.IsNullOrEmpty(entityClassname))

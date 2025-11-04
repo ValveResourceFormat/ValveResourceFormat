@@ -573,7 +573,10 @@ partial class ModelExtract
         // n-gon face set
         var faceSet = new DmeFaceSet() { Name = "hull faces" };
         faceSet.Material.MaterialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
-        dag.Shape.FaceSets.Add(faceSet);
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
 
         var edges = hull.GetEdges();
         var faces = hull.GetFaces();
@@ -630,7 +633,7 @@ partial class ModelExtract
             var materialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
             GenerateTriangleFaceSet(dag, 0, triangles.Length, materialName);
         }
-        else
+        else if (dag.Shape is DmeMesh dmeMesh)
         {
             Debug.Assert(mesh.Materials.Length == triangles.Length);
             Debug.Assert(surfaceList.Length > 0);
@@ -649,7 +652,7 @@ partial class ModelExtract
                         Name = surface + '$' + surfaceIndex
                     };
                     faceSet.Material.MaterialName = new SurfaceTagCombo(surface, uniformCollisionTags).StringMaterial;
-                    dag.Shape.FaceSets.Add(faceSet);
+                    dmeMesh.FaceSets.Add(faceSet);
                 }
 
                 faceSet.Faces.Add(t * 3);
@@ -714,9 +717,13 @@ partial class ModelExtract
         transformList.Transforms.Add(new DmeTransform());
         dmeModel.BaseStates.Add(transformList);
 
-        dag.Shape.Name = name;
-        dag.Shape.CurrentState = vertexData;
-        dag.Shape.BaseStates.Add(vertexData);
+        var shape = new DmeMesh
+        {
+            Name = name,
+            CurrentState = vertexData
+        };
+        shape.BaseStates.Add(vertexData);
+        dag.Shape = shape;
 
         return dag;
     }
@@ -733,7 +740,10 @@ partial class ModelExtract
     private static void GenerateTriangleFaceSet(DmeDag dag, int triangleStart, int triangleEnd, string material)
     {
         var faceSet = new DmeFaceSet() { Name = triangleStart + "-" + triangleEnd };
-        dag.Shape.FaceSets.Add(faceSet);
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
 
         for (var i = triangleStart; i < triangleEnd; i++)
         {
@@ -750,7 +760,10 @@ partial class ModelExtract
         string material, string name)
     {
         var faceSet = new DmeFaceSet() { Name = name };
-        dag.Shape.FaceSets.Add(faceSet);
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
 
         for (var i = 0; i < indices.Length; i += 3)
         {

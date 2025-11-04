@@ -23,6 +23,18 @@ internal class DmeModel : DMElement
 }
 
 /// <summary>
+/// Represents an abstract shape
+/// </summary>
+[CamelCaseProperties]
+public class DmeShape : DMElement
+{
+    /// <summary>
+    /// Gets or sets a value indicating whether this mesh is visible.
+    /// </summary>
+    public bool Visible { get; set; } = true;
+}
+
+/// <summary>
 /// Represents a transformation element with position and orientation.
 /// </summary>
 [CamelCaseProperties]
@@ -87,7 +99,7 @@ public class DmeDag : DMElement
     /// <summary>
     /// Gets the mesh shape of this DAG node.
     /// </summary>
-    public DmeMesh Shape { get; } = [];
+    public DmeShape Shape { get; set; } = [];
 
     /// <summary>
     /// Gets or sets a value indicating whether this node is visible.
@@ -109,13 +121,8 @@ public class DmeDag : DMElement
 /// Represents a mesh with vertex data and face sets.
 /// </summary>
 [CamelCaseProperties]
-public class DmeMesh : DMElement
+public class DmeMesh : DmeShape
 {
-    /// <summary>
-    /// Gets or sets a value indicating whether this mesh is visible.
-    /// </summary>
-    public bool Visible { get; set; } = true;
-
     /// <summary>
     /// Gets or sets the bind state of the mesh.
     /// </summary>
