@@ -32,6 +32,7 @@ namespace GUI.Types.Renderer
 
         // Orbit controls
         public bool OrbitMode { get; set; }
+        public bool OrbitModeAlways { get; set; }
         public Vector3 OrbitTarget { get; set; }
         public float OrbitDistance { get; private set; }
         private const float MinOrbitDistance = 1f;
@@ -328,13 +329,16 @@ namespace GUI.Types.Renderer
 
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
-            if (keyboardState.HasFlag(TrackedKeys.Alt))
+            if (!OrbitModeAlways)
             {
-                EnableOrbitMode();
-            }
-            else
-            {
-                DisableOrbitMode();
+                if (keyboardState.HasFlag(TrackedKeys.Alt))
+                {
+                    EnableOrbitMode();
+                }
+                else
+                {
+                    DisableOrbitMode();
+                }
             }
 
             if (OrbitMode)

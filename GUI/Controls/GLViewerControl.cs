@@ -261,7 +261,7 @@ namespace GUI.Controls
         {
             if (GLControl.Visible)
             {
-                HandleResize();
+                OnResize();
 
                 if (Form.ActiveForm != null)
                 {
@@ -517,7 +517,7 @@ namespace GUI.Controls
                 throw;
             }
 
-            HandleResize();
+            OnResize();
 
             lastUpdate = Stopwatch.GetTimestamp();
         }
@@ -665,11 +665,11 @@ namespace GUI.Controls
                 return;
             }
 
-            HandleResize();
+            OnResize();
             GLControl.Invalidate();
         }
 
-        private void HandleResize()
+        protected virtual void OnResize()
         {
             var (w, h) = (GLControl.Width, GLControl.Height);
 
@@ -719,7 +719,7 @@ namespace GUI.Controls
             }
 
             lastUpdate = Stopwatch.GetTimestamp();
-            HandleResize();
+            OnResize();
             GLControl.Invalidate();
         }
 
