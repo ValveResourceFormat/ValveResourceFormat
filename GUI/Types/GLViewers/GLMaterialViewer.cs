@@ -245,6 +245,7 @@ namespace GUI.Types.GLViewers
                 .ToList();
 
             var currentHeading = string.Empty;
+            ParamsTable.SuspendLayout();
 
             // Add parameters to UI with layer headers
             foreach (var (paramName, value, type, vfxDescription) in sortedParams)
@@ -328,6 +329,8 @@ namespace GUI.Types.GLViewers
                         break;
                 }
             }
+
+            ParamsTable.ResumeLayout();
         }
 
         private void AddBooleanParameter(string paramName, bool initialValue, Action<bool> onValueChanged, bool isEnabled = true)
