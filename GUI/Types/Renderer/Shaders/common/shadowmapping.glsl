@@ -30,5 +30,11 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
     }
 
     shadow /= 9.0;
-    return 1 - shadow;
+
+    vec2 distFromEdge = min(vec2(1.0) - abs(projCoords.xy), vec2(1.0));
+    float edgeDistance = min(distFromEdge.x, distFromEdge.y);
+    float edgeFadeOut = smoothstep(0.0, 0.08, edgeDistance);
+    shadow *= edgeFadeOut;
+    
+    return 1.0 - shadow;
 }
