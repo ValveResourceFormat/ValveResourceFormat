@@ -73,6 +73,17 @@ Source 2 Viewer is used by:
 - **Students & Educators** - Learn about game development and asset pipelines
 - **Enthusiasts** - Explore and appreciate the artistry behind Source 2 games
 
+### Production Use in s&box
+
+ValveResourceFormat is used in production by **[s&box](https://sbox.game/)** (a Source 2 game platform by Facepunch Studios). Despite having access to the Source 2 source engine code, Facepunch uses VRF on their backend to scan and extract information from assets.
+
+In their [asset system](https://sbox.game/news/asset-system#asset-information), VRF is used to:
+- **Automatically scan uploaded assets** without requiring republishing
+- **Extract and verify metadata** from models and materials
+- **[Retroactively tag and sort assets](https://sbox.game/news/march2022)** in their marketplace
+
+This demonstrates VRF's reliability—even developers with official Source 2 SDK access choose VRF for programmatic asset processing.
+
 ---
 
 ## Frequently Asked Questions
