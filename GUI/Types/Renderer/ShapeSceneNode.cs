@@ -303,6 +303,8 @@ namespace GUI.Types.Renderer
 
             GL.BindVertexArray(vaoHandle);
 
+            GL.DepthFunc(DepthFunction.Gequal);
+
             if (isTranslucent)
             {
                 GL.Disable(EnableCap.CullFace);
@@ -318,7 +320,7 @@ namespace GUI.Types.Renderer
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
                 GL.Enable(EnableCap.PolygonOffsetLine);
                 GL.Enable(EnableCap.PolygonOffsetFill);
-                GL.PolygonOffsetClamp(0, 100, 0.005f);
+                GL.PolygonOffsetClamp(2, 100, 0.05f);
 
                 GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
@@ -331,6 +333,8 @@ namespace GUI.Types.Renderer
             {
                 GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
             }
+
+            GL.DepthFunc(DepthFunction.Greater);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
