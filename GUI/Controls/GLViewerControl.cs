@@ -519,6 +519,9 @@ namespace GUI.Controls
 
             OnResize();
 
+            // Bind paint event at the end of the processing loop so that first paint event has correctly sized gl control
+            BeginInvoke(OnFirstPaint);
+
             lastUpdate = Stopwatch.GetTimestamp();
         }
 
@@ -704,6 +707,12 @@ namespace GUI.Controls
 
             Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
+        }
+
+
+        protected virtual void OnFirstPaint()
+        {
+            //
         }
 
         private void OnAppActivated(object sender, EventArgs e)
