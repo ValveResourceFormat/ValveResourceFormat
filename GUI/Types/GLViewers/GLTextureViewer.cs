@@ -1020,12 +1020,9 @@ namespace GUI.Types.GLViewers
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
 
             GLLoad -= OnLoad;
-
-            // Bind paint event at the end of the processing loop so that first paint event has correctly sized gl control
-            BeginInvoke(FirstPaint);
         }
 
-        private void FirstPaint()
+        protected override void OnFirstPaint()
         {
             if (GLControl.Width < ActualTextureSize.X || GLControl.Height < ActualTextureSize.Y || Svg != null)
             {

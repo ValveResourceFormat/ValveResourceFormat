@@ -708,10 +708,8 @@ namespace GUI.Types.GLViewers
         }
 
 
-        protected override void OnResize()
+        protected override void OnFirstPaint()
         {
-            base.OnResize();
-
             Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
             if (renderMat.IsCs2Water)
             {
