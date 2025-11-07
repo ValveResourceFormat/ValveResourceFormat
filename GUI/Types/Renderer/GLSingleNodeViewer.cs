@@ -73,6 +73,7 @@ namespace GUI.Types.Renderer
 
         protected override void OnPaint(object sender, RenderEventArgs e)
         {
+            Camera.EnableMouseLook = true;
             if ((CurrentlyPressedKeys & TrackedKeys.Control) != 0)
             {
                 var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
@@ -81,6 +82,7 @@ namespace GUI.Types.Renderer
                 Scene.envMapBuffer.Data.EnvMaps[0].WorldToLocal *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
                 UpdateSunAngles();
                 Scene.UpdateBuffers();
+                Camera.EnableMouseLook = false;
             }
 
             base.OnPaint(sender, e);

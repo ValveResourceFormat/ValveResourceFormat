@@ -30,6 +30,8 @@ namespace GUI.Types.Renderer
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
 
+        public bool EnableMouseLook { get; set; }
+
         // Orbit controls
         public bool OrbitMode { get; set; }
         public bool OrbitModeAlways { get; set; }
@@ -329,6 +331,11 @@ namespace GUI.Types.Renderer
 
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
+            if (!EnableMouseLook)
+            {
+                mouseDelta = new Point(0, 0);
+            }
+
             if (!OrbitModeAlways)
             {
                 if (keyboardState.HasFlag(TrackedKeys.Alt))
