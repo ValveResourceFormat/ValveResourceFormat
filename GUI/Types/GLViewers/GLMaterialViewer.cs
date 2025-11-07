@@ -298,7 +298,11 @@ namespace GUI.Types.GLViewers
                             paramName,
                             intVal,
                             ParamType.Int,
-                            v => drawCall.Material.Material.IntParams[paramName] = (int)v,
+                            v =>
+                            {
+                                drawCall.Material.Material.IntParams[paramName] = (int)v;
+                                drawCall.Material.LoadRenderState();
+                            },
                             intPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Bool:
@@ -306,7 +310,11 @@ namespace GUI.Types.GLViewers
                         AddBooleanParameter(
                             paramName,
                             boolVal,
-                            v => drawCall.Material.Material.IntParams[paramName] = v ? 1 : 0,
+                            v =>
+                            {
+                                drawCall.Material.Material.IntParams[paramName] = v ? 1 : 0;
+                                drawCall.Material.LoadRenderState();
+                            },
                             boolPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Vector:
