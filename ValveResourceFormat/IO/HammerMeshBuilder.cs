@@ -223,6 +223,10 @@ namespace ValveResourceFormat.IO
                 {
                     vertexStreams.texcoords.Add(vertexStreams.texcoords[vertex]);
                 }
+                if (vertexStreams.texcoords1.Count > 0)
+                {
+                    vertexStreams.texcoords1.Add(vertexStreams.texcoords1[vertex]);
+                }
                 if (vertexStreams.normals.Count > 0)
                 {
                     vertexStreams.normals.Add(vertexStreams.normals[vertex]);
@@ -440,6 +444,7 @@ namespace ValveResourceFormat.IO
         {
             public List<Vector3> positions = [];
             public List<Vector2> texcoords = [];
+            public List<Vector2> texcoords1 = [];
             public List<Vector3> normals = [];
             public List<Vector4> tangents = [];
             public List<Vector4> VertexPaintBlendParams = [];
@@ -482,11 +487,13 @@ namespace ValveResourceFormat.IO
             mesh.FaceData.Streams.Add(faceFlags);
 
             var texcoords = CreateStream<Datamodel.Vector2Array, Vector2>(1, "texcoord:0");
+            var texcoords1 = CreateStream<Datamodel.Vector2Array, Vector2>(1, "texcoord:1", "texcoord1");
             var vertexpaintblendparams = CreateStream<Datamodel.Vector4Array, Vector4>(1, "VertexPaintBlendParams:0");
             var vertexpainttintcolor = CreateStream<Datamodel.Vector4Array, Vector4>(1, "VertexPaintTintColor:0");
             var normals = CreateStream<Datamodel.Vector3Array, Vector3>(1, "normal:0");
             var tangents = CreateStream<Datamodel.Vector4Array, Vector4>(1, "tangent:0");
             mesh.FaceVertexData.Streams.Add(texcoords);
+            mesh.FaceVertexData.Streams.Add(texcoords1);
             mesh.FaceVertexData.Streams.Add(vertexpaintblendparams);
             mesh.FaceVertexData.Streams.Add(vertexpainttintcolor);
             mesh.FaceVertexData.Streams.Add(normals);
@@ -544,6 +551,7 @@ namespace ValveResourceFormat.IO
                 var normal = Vector3.Zero;
                 var tangent = Vector4.Zero;
                 var uv = Vector2.Zero;
+                var uv1 = Vector2.Zero;
                 var vertexPaintBlendParams = Vector4.Zero;
                 var vertexPaintTintColor = Vector4.Zero;
 
@@ -580,6 +588,15 @@ namespace ValveResourceFormat.IO
                         uv = vertexStreams.texcoords[startVertex.MasterStreamIndex];
                     }
 
+                    if (vertexStreams.texcoords1.Count == 0)
+                    {
+                        uv1 = CalculateTriplanarUVs(vertexStreams.positions[startVertex.MasterStreamIndex], normal);
+                    }
+                    else
+                    {
+                        uv1 = vertexStreams.texcoords1[startVertex.MasterStreamIndex];
+                    }
+
                     if (vertexStreams.VertexPaintBlendParams.Count != 0)
                     {
                         vertexPaintBlendParams = vertexStreams.VertexPaintBlendParams[startVertex.MasterStreamIndex];
@@ -594,6 +611,7 @@ namespace ValveResourceFormat.IO
                 normals.Data.Add(normal);
                 tangents.Data.Add(tangent);
                 texcoords.Data.Add(uv);
+                texcoords1.Data.Add(uv1);
                 vertexpaintblendparams.Data.Add(vertexPaintBlendParams);
                 vertexpainttintcolor.Data.Add(vertexPaintTintColor);
             }
@@ -1215,6 +1233,7 @@ namespace ValveResourceFormat.IO
 
             var positions = GetElementArraySafe<Vector3>(vertexdata, "position$0");
             var texcoords = GetElementArraySafe<Vector2>(vertexdata, "texcoord$0");
+            var texcoords1 = GetElementArraySafe<Vector2>(vertexdata, "texcoord$1");
             var normals = GetElementArraySafe<Vector3>(vertexdata, "normal$0");
             var tangents = GetElementArraySafe<Vector4>(vertexdata, "tangent$0");
             var VertexPaintBlendParams = GetElementArraySafe<Vector4>(vertexdata, "VertexPaintBlendParams$0");
@@ -1229,6 +1248,7 @@ namespace ValveResourceFormat.IO
             Dictionary<int, int> newVertexStreamsIndexDict = [];
             List<Vector3> newVertices = [];
             List<Vector2> newTexcoords = [];
+            List<Vector2> newTexcoords1 = [];
             List<Vector3> newNormals = [];
             List<Vector4> newTangents = [];
             List<Vector4> newVertexPaintBlendParams = [];
@@ -1296,6 +1316,11 @@ namespace ValveResourceFormat.IO
                     newTexcoords.Add(texcoords[kv.Key]);
                 }
 
+                if (texcoords1 != null && texcoords1.Count != 0)
+                {
+                    newTexcoords1.Add(texcoords1[kv.Key]);
+                }
+
                 if (normals != null && normals.Count != 0)
                 {
                     newNormals.Add(normals[kv.Key]);
@@ -1321,6 +1346,7 @@ namespace ValveResourceFormat.IO
             {
                 positions = newVertices,
                 texcoords = newTexcoords,
+                texcoords1 = newTexcoords1,
                 normals = newNormals,
                 tangents = newTangents,
                 VertexPaintBlendParams = newVertexPaintBlendParams,
@@ -1439,7 +1465,7 @@ namespace ValveResourceFormat.IO
             return (newTriangles, newVertices);
         }
 
-        public static CDmePolygonMeshDataStream<T> CreateStream<TArray, T>(int dataStateFlags, string name, params T[] data)
+        public static CDmePolygonMeshDataStream<T> CreateStream<TArray, T>(int dataStateFlags, string name, string? standardAttributeName = null, params T[] data)
             where TArray : Datamodel.Array<T>, new()
             where T : notnull
         {
@@ -1450,12 +1476,13 @@ namespace ValveResourceFormat.IO
                 dmArray.Add(item);
             }
 
+
             var stream = new CDmePolygonMeshDataStream<T>
             {
                 Name = name,
-                StandardAttributeName = name[..^2],
+                StandardAttributeName = string.IsNullOrEmpty(standardAttributeName) ? name[..^2] : standardAttributeName,
                 SemanticName = name[..^2],
-                SemanticIndex = 0,
+                SemanticIndex = int.Parse(name[^1].ToString()),
                 VertexBufferLocation = 0,
                 DataStateFlags = dataStateFlags,
                 SubdivisionBinding = null,
