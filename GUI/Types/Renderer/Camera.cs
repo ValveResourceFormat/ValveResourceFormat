@@ -5,19 +5,22 @@ namespace GUI.Types.Renderer
 {
     class Camera
     {
-        private const float MovementSpeed = 300f; // WASD movement, per second
+        private const float MovementSpeed = 200f; // WASD movement, per second
         private const float AltMovementSpeed = 10f; // Holding shift or alt movement
 
         private readonly float[] SpeedModifiers =
         [
             0.1f,
+            0.3f,
             0.5f,
+            0.8f,
             1.0f,
+            1.5f,
             2.0f,
             5.0f,
             10.0f,
         ];
-        private int CurrentSpeedModifier = 2;
+        private int CurrentSpeedModifier = 4;
 
         private float Uptime;
         private float TransitionDuration = 1.5f;
@@ -30,7 +33,7 @@ namespace GUI.Types.Renderer
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
 
-        public bool EnableMouseLook { get; set; }
+        public bool EnableMouseLook { get; set; } = true;
 
         // Orbit controls
         public bool OrbitMode { get; set; }
