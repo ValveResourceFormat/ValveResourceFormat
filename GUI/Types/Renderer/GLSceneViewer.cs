@@ -624,6 +624,11 @@ namespace GUI.Types.Renderer
 
         protected void AddWireframeToggleControl()
         {
+            if (this is GLMaterialViewer)
+            {
+                return;
+            }
+
             AddCheckBox("Show Wireframe", false, (v) => IsWireframe = v);
         }
 
