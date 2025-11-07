@@ -50,17 +50,17 @@ namespace GUI.Types.Renderer
         public required Shader Shader { get; init; }
         public Material Material { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = [];
-        public bool IsOverlay { get; }
-        public bool IsToolsMaterial { get; }
-        public bool IsCs2Water { get; }
-        public bool DoNotCastShadows { get; }
+        public bool IsOverlay { get; private set; }
+        public bool IsToolsMaterial { get; private set; }
+        public bool IsCs2Water { get; private set; }
+        public bool DoNotCastShadows { get; private set; }
 
         public bool IsTranslucent => blendMode >= BlendMode.Translucent;
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
 
-        private readonly BlendMode blendMode;
-        private readonly bool isRenderBackfaces;
-        private readonly bool hasDepthBias;
+        private BlendMode blendMode;
+        private bool isRenderBackfaces;
+        private bool hasDepthBias;
         private int textureUnit;
 
         [SetsRequiredMembers]
@@ -145,7 +145,15 @@ namespace GUI.Types.Renderer
         RenderMaterial(Material material)
         {
             Material = material;
+            LoadRenderState();
+        }
 
+        /// <summary>
+        /// Load or reload render state from material data.
+        /// </summary>
+        public void LoadRenderState()
+        {
+            var material = Material;
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
             isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
