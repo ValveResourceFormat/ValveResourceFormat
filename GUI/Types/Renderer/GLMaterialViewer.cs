@@ -818,7 +818,7 @@ namespace GUI.Types.Renderer
             {
                 currentPreviewObject = Enum.Parse<PreviewObjectType>(previewObjectComboBox.SelectedItem.ToString());
                 previewNode.LayerEnabled = true;
-                OnResize();
+                OnFirstPaint();
             }
         }
 
