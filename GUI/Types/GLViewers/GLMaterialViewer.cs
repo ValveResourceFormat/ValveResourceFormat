@@ -805,7 +805,7 @@ namespace GUI.Types.GLViewers
             {
                 currentPreviewObject = Enum.Parse<PreviewObjectType>(previewObjectComboBox.SelectedItem.ToString());
                 previewNode.LayerEnabled = true;
-                OnResize();
+                OnFirstPaint();
             }
         }
 
