@@ -44,9 +44,14 @@ namespace GUI.Types.Renderer
                 selectedNodes.RemoveAt(selectedNode);
                 node.IsSelected = false;
 
-                if (selectedNodes.Count == 0)
+                if (node.LightProbeBinding is { } probe)
                 {
-                    RemoveLightProbeDebugGrid();
+                    var probeStillInUse = selectedNodes.Any(n => n.LightProbeBinding == probe);
+
+                    if (!probeStillInUse)
+                    {
+                        probe.RemoveDebugGridSpheres();
+                    }
                 }
             }
             else
@@ -58,12 +63,13 @@ namespace GUI.Types.Renderer
 
         public void SelectNode(SceneNode? node, bool forceDisableDepth = false)
         {
-            selectedNodes.ForEach(n => n.IsSelected = false);
+            RemoveAllLightProbeDebugGrid();
+
+            selectedNodes.ForEach(static n => n.IsSelected = false);
             selectedNodes.Clear();
 
             if (node == null)
             {
-                RemoveLightProbeDebugGrid();
                 vertexCount = 0;
                 return;
             }
@@ -224,11 +230,7 @@ namespace GUI.Types.Renderer
                     AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
                     ShapeSceneNode.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
-                    if (!renderContext.Scene.IsSkyboxMap) // TODO: Scene is NOT the SkyboxScene so this is never true
-                    {
-                        RemoveLightProbeDebugGrid();
-                        node.LightProbeBinding.CrateDebugGridSpheres();
-                    }
+                    node.LightProbeBinding.CrateDebugGridSpheres();
                 }
 
                 if (node.EntityData != null)
@@ -307,9 +309,12 @@ namespace GUI.Types.Renderer
             vertices.Clear();
         }
 
-        private static void RemoveLightProbeDebugGrid()
+        private void RemoveAllLightProbeDebugGrid()
         {
-            //scene.LightingInfo.LightProbes.ForEach(static probe => probe.RemoveDebugGridSpheres());
+            foreach (var node in selectedNodes)
+            {
+                node.LightProbeBinding?.RemoveDebugGridSpheres();
+            }
         }
 
         public void Render()
@@ -346,7 +351,10 @@ namespace GUI.Types.Renderer
             debugCubeMaps = mode == "Cubemaps";
             debugLightProbes = mode is "Irradiance" or "Illumination";
 
-            RemoveLightProbeDebugGrid();
+            if (!debugLightProbes)
+            {
+                RemoveAllLightProbeDebugGrid();
+            }
         }
     }
 }

@@ -41,7 +41,6 @@ namespace GUI.Types.Renderer
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
-        public bool IsSkyboxMap { get; set; }
         public bool EnableOcclusionCulling { get; set; }
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
