@@ -1419,7 +1419,7 @@ public sealed class ShaderExtract
             annotations.Add($"OutputFormat({format});");
         }
 
-        annotations.Add($"SrgbRead({(param.SrgbRead ? "false" : "true")});");
+        annotations.Add($"SrgbRead({(param.SrgbRead ? "true" : "false")});");
 
         const string Sampler = "Sampler";
         var typeString = param.VfxType.ToString();

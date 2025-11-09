@@ -20,7 +20,7 @@ public static partial class ShaderSpirvReflection
     private const int TextureStartingPoint = 30;
     private const int TextureIndexStartingPoint = 30;
 
-    private const int SamplerStartingPoint = 42;
+    private const int SamplerStartingPoint = 14;
 
     private const int StorageBufferStartingPoint = 30;
 
