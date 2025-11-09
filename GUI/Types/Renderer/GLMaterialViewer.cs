@@ -1,6 +1,5 @@
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Windows.Forms;
 using GUI.Forms;
 using GUI.Types.Viewers;
@@ -134,22 +133,9 @@ namespace GUI.Types.Renderer
 
         public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
         {
-            var node = new ModelSceneNode(scene, (Model)CubemapResource.Value.DataBlock);
+            var node = new ModelSceneNode(scene, (Model)ShapeSceneNode.CubemapResource.Value.DataBlock);
             return node;
         }
-
-        public static Lazy<ValveResourceFormat.Resource> CubemapResource = new(() =>
-        {
-            var assembly = Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
-            var resource = new ValveResourceFormat.Resource()
-            {
-                FileName = "env_cubemap.vmdl_c"
-            };
-
-            resource.Read(stream);
-            return resource;
-        });
 
         private void OnShadersButtonClick(object s, EventArgs e)
         {

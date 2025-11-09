@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Reflection;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -337,5 +339,19 @@ namespace GUI.Types.Renderer
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
+
+        public static Lazy<ValveResourceFormat.Resource> CubemapResource = new(() =>
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
+            var resource = new ValveResourceFormat.Resource()
+            {
+                FileName = "env_cubemap.vmdl_c"
+            };
+
+            Debug.Assert(stream != null);
+            resource.Read(stream);
+            return resource;
+        });
     }
 }

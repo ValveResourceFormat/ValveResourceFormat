@@ -439,16 +439,16 @@ namespace GUI.Types.Renderer
             // Void
             if (pickingResponse.PixelInfo.ObjectId == 0)
             {
-                selectedNodeRenderer.SelectNode(null);
-                selectedNodeRenderer.ScreenDebugText = string.Empty;
+                SelectedNodeRenderer.SelectNode(null);
+                SelectedNodeRenderer.ScreenDebugText = string.Empty;
                 return;
             }
 
             if (pickingResponse.Intent == PickingTexture.PickingIntent.Select)
             {
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
-                selectedNodeRenderer.SelectNode(sceneNode);
-                selectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+                SelectedNodeRenderer.SelectNode(sceneNode);
+                SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
                 return;
             }
 

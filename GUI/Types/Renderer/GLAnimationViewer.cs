@@ -53,7 +53,11 @@ namespace GUI.Types.Renderer
                 };
 
                 Scene.Add(skeletonSceneNode, true);
-                skeletonSceneNode.Update(new(0f, this)); // update bbox for viewer
+                skeletonSceneNode.Update(new Scene.UpdateContext
+                {
+                    TextRenderer = TextRenderer,
+                    Timestep = 0f,
+                }); // update bbox for viewer
             }
 
             void LoadClip(AnimationClip clip, string skeletonName, bool firstTime = true)

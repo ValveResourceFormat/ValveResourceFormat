@@ -64,7 +64,7 @@ namespace GUI.Types.Renderer
             slowmodeTrackBar.TrackBar.Maximum = 100;
             slowmodeTrackBar.TrackBar.Value = 100;
 
-            AddCheckBox("Show render bounds", ShowRenderBounds, value => selectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
+            AddCheckBox("Show render bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)

@@ -194,7 +194,7 @@ namespace GUI.Types.Renderer
 
                         shader.Use();
 
-                        foreach (var (slot, name, texture) in context.View.Textures)
+                        foreach (var (slot, name, texture) in context.Textures)
                         {
                             shader.SetTexture((int)slot, name, texture);
                         }

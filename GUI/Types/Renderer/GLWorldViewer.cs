@@ -36,7 +36,7 @@ namespace GUI.Types.Renderer
         {
             this.world = world;
             this.isFromVmap = isFromVmap;
-            EnableOcclusionCulling = isFromVmap;
+            Scene.EnableOcclusionCulling = isFromVmap;
         }
 
         public GLWorldViewer(VrfGuiContext guiContext, WorldNode worldNode)
@@ -224,7 +224,7 @@ namespace GUI.Types.Renderer
                 AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                 AddCheckBox("Color Correction", postProcessRenderer.ColorCorrectionEnabled, v => postProcessRenderer.ColorCorrectionEnabled = v);
                 AddCheckBox("Experimental Lights", false, v => viewBuffer.Data.ExperimentalLightsEnabled = v);
-                AddCheckBox("Occlusion Culling", EnableOcclusionCulling, (v) => EnableOcclusionCulling = v);
+                AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
 
                 if (result.SkyboxScene != null)
                 {
@@ -354,7 +354,7 @@ namespace GUI.Types.Renderer
         {
             ArgumentNullException.ThrowIfNull(node);
 
-            selectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+            SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
 
             var bbox = node.BoundingBox;
             var size = bbox.Size;
@@ -520,7 +520,7 @@ namespace GUI.Types.Renderer
             // Void
             if (pixelInfo.ObjectId == 0 || pixelInfo.Unused2 != 0)
             {
-                selectedNodeRenderer.SelectNode(null);
+                SelectedNodeRenderer.SelectNode(null);
                 return;
             }
 
@@ -536,11 +536,11 @@ namespace GUI.Types.Renderer
             {
                 if ((ModifierKeys & Keys.Control) > 0)
                 {
-                    selectedNodeRenderer.ToggleNode(sceneNode);
+                    SelectedNodeRenderer.ToggleNode(sceneNode);
                 }
                 else
                 {
-                    selectedNodeRenderer.SelectNode(sceneNode);
+                    SelectedNodeRenderer.SelectNode(sceneNode);
                 }
 
                 //Update the entity properties window if it was opened

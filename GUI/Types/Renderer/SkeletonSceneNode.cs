@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
 
             foreach (var root in skeleton.Roots)
             {
-                DrawSkeletonRecursive(root, vertices, context.View.TextRenderer, animationController);
+                DrawSkeletonRecursive(root, vertices, context.TextRenderer, animationController);
             }
 
             AABB bounds = default;

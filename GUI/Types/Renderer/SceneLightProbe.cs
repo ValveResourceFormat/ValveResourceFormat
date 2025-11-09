@@ -65,7 +65,7 @@ class SceneLightProbe : SceneNode
             return;
         }
 
-        DebugGridSpheres = new SceneAggregate(Scene, (Model)GLMaterialViewer.CubemapResource.Value.DataBlock)
+        DebugGridSpheres = new SceneAggregate(Scene, (Model)ShapeSceneNode.CubemapResource.Value.DataBlock)
         {
             LightProbeVolumePrecomputedHandshake = LightProbeVolumePrecomputedHandshake,
             LightProbeBinding = this,

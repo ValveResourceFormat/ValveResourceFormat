@@ -1,10 +1,8 @@
-using System.Diagnostics;
 using System.Linq;
 using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
-using static GUI.Types.Renderer.GLSceneViewer;
 
 #nullable disable
 
@@ -14,24 +12,18 @@ namespace GUI.Types.Renderer
     {
         public readonly struct UpdateContext
         {
-            public GLSceneViewer View { get; }
-            public float Timestep { get; }
-
-            public UpdateContext(float timestep, GLSceneViewer view)
-            {
-                View = view;
-                Timestep = timestep;
-            }
+            public TextRenderer TextRenderer { get; init; }
+            public float Timestep { get; init; }
         }
 
         public struct RenderContext
         {
-            public GLSceneViewer View { get; init; }
             public Scene Scene { get; set; }
-            public Camera Camera { get; set; }
+            public Camera Camera { get; init; }
             public Framebuffer Framebuffer { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader ReplacementShader { get; set; }
+            public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; init; }
         }
 
         public Dictionary<string, byte> RenderAttributes { get; } = [];
@@ -50,6 +42,7 @@ namespace GUI.Types.Renderer
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
         public bool IsSkyboxMap { get; set; }
+        public bool EnableOcclusionCulling { get; set; }
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -503,7 +496,7 @@ namespace GUI.Types.Renderer
 
         public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
         {
-            if (!renderContext.View.EnableOcclusionCulling)
+            if (!EnableOcclusionCulling)
             {
                 return;
             }
@@ -623,14 +616,14 @@ namespace GUI.Types.Renderer
             return maxTests;
         }
 
-        public void GetOcclusionTestResults(bool occlusionEnabled)
+        public void GetOcclusionTestResults()
         {
             if (!occlusionDirty)
             {
                 return;
             }
 
-            if (!occlusionEnabled)
+            if (!EnableOcclusionCulling)
             {
                 ClearOccludedStateRecursive(StaticOctree.Root);
                 occlusionDirty = false;
