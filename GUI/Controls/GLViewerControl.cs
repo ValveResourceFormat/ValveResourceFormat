@@ -17,25 +17,6 @@ namespace GUI.Controls
 {
     partial class GLViewerControl : ControlPanelView
     {
-        public const int OpenGlVersionMajor = 4;
-        public const int OpenGlVersionMinor = 6;
-
-        public static Version OpenGlVersion = new(OpenGlVersionMajor, OpenGlVersionMinor);
-
-#if DEBUG
-        public static ContextFlags OpenGlFlags => ContextFlags.ForwardCompatible | ContextFlags.Debug;
-#else
-        public static ContextFlags OpenGlFlags => ContextFlags.ForwardCompatible;
-#endif
-
-        private enum ParallelShaderCompileType : byte
-        {
-            None,
-            Arb,
-            Khr,
-        }
-        private static ParallelShaderCompileType ParallelShaderCompileSupport;
-
         protected override Panel ControlsPanel => controlsPanel;
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -82,8 +63,8 @@ namespace GUI.Controls
 
             var settings = new NativeWindowSettings()
             {
-                APIVersion = OpenGlVersion,
-                Flags = OpenGlFlags,
+                APIVersion = GLEnvironment.RequiredVersion,
+                Flags = GLEnvironment.Flags,
                 RedBits = 8,
                 GreenBits = 8,
                 BlueBits = 8,
@@ -458,7 +439,7 @@ namespace GUI.Controls
             GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityHigh, 0, Array.Empty<int>(), true);
 #endif
 
-            CheckOpenGL();
+            GLEnvironment.Initialize();
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
             GLDefaultFramebuffer = Framebuffer.GetGLDefaultFramebuffer();
 
@@ -481,11 +462,11 @@ namespace GUI.Controls
             GL.ClearDepth(0.0f);
 
             // Parallel shader compilation, 0xFFFFFFFF requests an implementation-specific maximum
-            if (ParallelShaderCompileSupport == ParallelShaderCompileType.Khr)
+            if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Khr)
             {
                 GL.Khr.MaxShaderCompilerThreads(uint.MaxValue);
             }
-            else if (ParallelShaderCompileSupport == ParallelShaderCompileType.Arb)
+            else if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Arb)
             {
                 GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
             }
@@ -765,50 +746,5 @@ namespace GUI.Controls
             GLControl.Invalidate();
         }
 #endif
-
-        public static void CheckOpenGL()
-        {
-            if (Settings.GpuRendererAndDriver != null)
-            {
-                return;
-            }
-
-            var minor = GL.GetInteger(GetPName.MinorVersion);
-            var major = GL.GetInteger(GetPName.MajorVersion);
-
-            var gpu = $"GPU: {GL.GetString(StringName.Renderer)}, Driver: {GL.GetString(StringName.Version)}";
-
-            Settings.GpuRendererAndDriver = gpu;
-
-            Log.Debug("OpenGL", $"{gpu}, OS: {Environment.OSVersion}");
-
-            MaterialLoader.MaxTextureMaxAnisotropy = GL.GetFloat((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
-
-            if (major < OpenGlVersionMajor || minor < OpenGlVersionMinor)
-            {
-                throw new NotSupportedException($"Source 2 Viewer requires OpenGL {OpenGlVersionMajor}.{OpenGlVersionMinor}, but you have {major}.{minor}.");
-            }
-
-            var extensionCount = GL.GetInteger(GetPName.NumExtensions);
-            var extensions = new HashSet<string>(extensionCount);
-            for (var i = 0; i < extensionCount; i++)
-            {
-                var extension = GL.GetString(StringNameIndexed.Extensions, i);
-                extensions.Add(extension);
-            }
-
-            if (extensions.Contains("GL_KHR_parallel_shader_compile"))
-            {
-                ParallelShaderCompileSupport = ParallelShaderCompileType.Khr;
-            }
-            else if (extensions.Contains("GL_ARB_parallel_shader_compile"))
-            {
-                ParallelShaderCompileSupport = ParallelShaderCompileType.Arb;
-            }
-            else
-            {
-                Log.Warn("OpenGL", "Parallel shader compilation is not supported.");
-            }
-        }
     }
 }

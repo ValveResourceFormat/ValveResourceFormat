@@ -407,14 +407,14 @@ namespace GUI.Types.Renderer
 
             using var window = new NativeWindow(new()
             {
-                APIVersion = GLViewerControl.OpenGlVersion,
-                Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                APIVersion = GLEnvironment.RequiredVersion,
+                Flags = GLEnvironment.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
                 StartVisible = false,
             });
 
             window.MakeCurrent();
 
-            GLViewerControl.CheckOpenGL();
+            GLEnvironment.Initialize();
 
             foreach (var shader in shaders)
             {

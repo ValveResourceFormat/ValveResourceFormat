@@ -124,8 +124,8 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         GLWindowContext = new NativeWindow(new()
         {
-            APIVersion = GLViewerControl.OpenGlVersion,
-            Flags = GLViewerControl.OpenGlFlags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+            APIVersion = GLEnvironment.RequiredVersion,
+            Flags = GLEnvironment.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
             StartVisible = false,
             StartFocused = false,
             ClientSize = new(4, 4),
@@ -135,7 +135,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         GLWindowContext.MakeCurrent();
 
-        GLViewerControl.CheckOpenGL();
+        GLEnvironment.Initialize();
         Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
         Framebuffer.Initialize();
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));

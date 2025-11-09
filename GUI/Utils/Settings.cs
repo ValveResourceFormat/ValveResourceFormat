@@ -73,8 +73,6 @@ namespace GUI.Utils
         public static event EventHandler RefreshCamerasOnSave;
         public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave.Invoke(null, null);
 
-        public static string GpuRendererAndDriver;
-
         public static void Load()
         {
             SettingsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Source2Viewer");

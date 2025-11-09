@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
-using GUI.Utils;
 
 namespace GUI.Forms
 {
@@ -15,7 +14,7 @@ namespace GUI.Forms
             InitializeComponent();
 
             // Start the decoder thread so that it fetches the opengl version and is ready for the version copy
-            if (Settings.GpuRendererAndDriver == null && HardwareAcceleratedTextureDecoder.Decoder is GLTextureDecoder decoder)
+            if (GLEnvironment.GpuRendererAndDriver == null && HardwareAcceleratedTextureDecoder.Decoder is GLTextureDecoder decoder)
             {
                 decoder.StartThread();
             }
@@ -70,9 +69,9 @@ namespace GUI.Forms
 
             output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
 
-            if (Utils.Settings.GpuRendererAndDriver != null)
+            if (GLEnvironment.GpuRendererAndDriver != null)
             {
-                output.Append(CultureInfo.InvariantCulture, $" ({Utils.Settings.GpuRendererAndDriver})");
+                output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
             }
 
             Clipboard.SetText(output.ToString());
