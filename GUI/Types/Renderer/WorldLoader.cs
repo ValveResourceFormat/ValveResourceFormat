@@ -208,7 +208,7 @@ namespace GUI.Types.Renderer
                 if (LightmapNameToUniformName.TryGetValue(name, out var uniformName))
                 {
                     var srgbRead = name == "irradiance";
-                    var renderTexture = guiContext.MaterialLoader.GetTexture(lightmap, srgbRead);
+                    var renderTexture = MaterialLoader.GetTexture(lightmap, guiContext, srgbRead);
                     result.Lightmaps[uniformName] = renderTexture;
                     MaterialLoader.ReservedTextures.Add(uniformName);
 
@@ -366,7 +366,7 @@ namespace GUI.Types.Renderer
                         };
                         using var skyMaterial = guiContext.LoadFileCompiled(skyname);
 
-                        Skybox2D = new SceneSkybox2D(guiContext.MaterialLoader.LoadMaterial(skyMaterial))
+                        Skybox2D = new SceneSkybox2D(MaterialLoader.LoadMaterial(skyMaterial, guiContext))
                         {
                             Tint = tintColor,
                             Transform = rotation,
@@ -483,7 +483,7 @@ namespace GUI.Types.Renderer
                         if (fogSource == 0) // Cubemap From Texture, Disabled in CS2
                         {
                             var textureName = entity.GetProperty<string>("cubemapfogtexture");
-                            fogTexture = guiContext.MaterialLoader.GetTexture(textureName);
+                            fogTexture = MaterialLoader.GetTexture(textureName, guiContext);
                         }
                         else
                         {
@@ -518,7 +518,7 @@ namespace GUI.Types.Renderer
                             if (!string.IsNullOrEmpty(material))
                             {
                                 using var matFile = guiContext.LoadFileCompiled(material);
-                                var mat = guiContext.MaterialLoader.LoadMaterial(matFile);
+                                var mat = MaterialLoader.LoadMaterial(matFile, guiContext);
 
                                 if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
                                 {
@@ -588,9 +588,7 @@ namespace GUI.Types.Renderer
 
                     if (classname != "env_light_probe_volume")
                     {
-                        var envMapTexture = guiContext.MaterialLoader.GetTexture(
-                            entity.GetProperty<string>("cubemaptexture")
-                        );
+                        var envMapTexture = MaterialLoader.GetTexture(entity.GetProperty<string>("cubemaptexture"), guiContext);
 
                         var arrayIndex = entity.GetPropertyUnchecked("array_index", 0);
                         var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
@@ -616,10 +614,7 @@ namespace GUI.Types.Renderer
 
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
                     {
-                        var irradianceTexture = guiContext.MaterialLoader.GetTexture(
-                            entity.GetProperty<string>("lightprobetexture"),
-                            srgbRead: true
-                        );
+                        var irradianceTexture = MaterialLoader.GetTexture(entity.GetProperty<string>("lightprobetexture"), guiContext, srgbRead: true);
 
                         var lightProbe = new SceneLightProbe(scene, bounds)
                         {
@@ -637,13 +632,13 @@ namespace GUI.Types.Renderer
 
                         if (dlsName != null)
                         {
-                            lightProbe.DirectLightScalars = guiContext.MaterialLoader.GetTexture(dlsName);
+                            lightProbe.DirectLightScalars = MaterialLoader.GetTexture(dlsName, guiContext);
                             lightProbe.DirectLightScalars.SetWrapMode(TextureWrapMode.ClampToEdge);
                         }
 
                         if (dliName != null)
                         {
-                            lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
+                            lightProbe.DirectLightIndices = MaterialLoader.GetTexture(dliName, guiContext);
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                             lightProbe.DirectLightIndices.SetWrapMode(TextureWrapMode.ClampToEdge);
                         }
@@ -656,7 +651,7 @@ namespace GUI.Types.Renderer
 
                         if (dlsdName != null)
                         {
-                            lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
+                            lightProbe.DirectLightShadows = MaterialLoader.GetTexture(dlsdName, guiContext);
                             lightProbe.DirectLightShadows.SetWrapMode(TextureWrapMode.ClampToEdge);
 
                             lightProbe.AtlasSize = new Vector3(

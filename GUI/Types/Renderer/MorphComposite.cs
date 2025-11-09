@@ -41,7 +41,7 @@ namespace GUI.Types.Renderer
 
         public MorphComposite(VrfGuiContext vrfGuiContext, Morph morph)
         {
-            morphAtlas = vrfGuiContext.MaterialLoader.LoadTexture(morph.TextureResource);
+            morphAtlas = MaterialLoader.LoadTexture(morph.TextureResource);
             shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.morph_composite");
 
             var width = morph.Data.GetInt32Property("m_nWidth");

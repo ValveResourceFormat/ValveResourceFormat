@@ -50,7 +50,6 @@ namespace GUI.Controls
         public Camera Camera { get; protected set; }
         public Types.Renderer.TextRenderer TextRenderer { get; protected set; }
 
-
         public event EventHandler<RenderEventArgs> GLPaint;
         public event EventHandler GLLoad;
 

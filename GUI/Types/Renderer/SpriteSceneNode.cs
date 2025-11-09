@@ -25,7 +25,7 @@ namespace GUI.Types.Renderer
         public SpriteSceneNode(Scene scene, VrfGuiContext vrfGuiContext, Resource resource, Vector3 position)
             : base(scene)
         {
-            material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
+            material = MaterialLoader.LoadMaterial(resource, vrfGuiContext);
 
             // Forcefully clamp sprites so they don't render extra pixels on edges
             foreach (var texture in material.Textures.Values)

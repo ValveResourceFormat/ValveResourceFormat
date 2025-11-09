@@ -160,7 +160,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private bool DecodeTexture(DecodeRequest request)
     {
         var sw = Stopwatch.StartNew();
-        var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
+        var inputTexture = MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
 
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 

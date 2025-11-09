@@ -963,7 +963,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
+            texture = MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
             InvalidateRender();
         }
 

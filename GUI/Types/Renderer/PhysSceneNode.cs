@@ -326,7 +326,7 @@ namespace GUI.Types.Renderer
 
         private void SetToolTexture(string toolMaterialName)
         {
-            ToolTexture = Scene.GuiContext.MaterialLoader.GetMaterial(toolMaterialName, null).Textures.GetValueOrDefault("g_tColor");
+            ToolTexture = MaterialLoader.GetMaterial(toolMaterialName, null, Scene.GuiContext).Textures.GetValueOrDefault("g_tColor");
         }
 
         private static Vector3 ComputeNormal(Vector3 a, Vector3 b, Vector3 c)

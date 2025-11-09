@@ -110,7 +110,7 @@ namespace GUI.Types.Renderer
                     var staticParams = materialData.GetShaderArguments();
                     var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
-                    drawCall.SetNewMaterial(guiContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
+                    drawCall.SetNewMaterial(MaterialLoader.GetMaterial(replacementName, dynamicParams, guiContext));
                 }
             }
         }
@@ -132,7 +132,7 @@ namespace GUI.Types.Renderer
                 var staticParams = materialData.GetShaderArguments();
                 var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
-                drawCall.SetNewMaterial(guiContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams));
+                drawCall.SetNewMaterial(MaterialLoader.LoadMaterial(resourceMaterial, guiContext, dynamicParams));
 
                 // Ignore overlays in material viewer, since there is nothing to overlay.
                 if (drawCall.Material.IsTranslucent)
@@ -224,7 +224,7 @@ namespace GUI.Types.Renderer
                         shaderArguments.Add("D_BAKED_LIGHTING_FROM_PROBE", 1);
                     }
 
-                    var material = guiContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
+                    var material = MaterialLoader.GetMaterial(materialName, shaderArguments, guiContext);
 
                     var drawCall = CreateDrawCall(objectDrawCall, material, vbib, gpuVbib);
                     if (i < objectDrawBounds.Length)

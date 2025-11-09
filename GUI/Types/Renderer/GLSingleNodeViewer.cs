@@ -48,7 +48,7 @@ namespace GUI.Types.Renderer
             };
             resource.Read(stream);
 
-            var texture = Scene.GuiContext.MaterialLoader.LoadTexture(resource);
+            var texture = MaterialLoader.LoadTexture(resource);
             var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
             {
                 Transform = Matrix4x4.Identity,

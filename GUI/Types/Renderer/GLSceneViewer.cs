@@ -180,7 +180,7 @@ namespace GUI.Types.Renderer
                 }
 
                 // TODO: add annoying force clamp for lut
-                Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", GuiContext.MaterialLoader.LoadTexture(brdfLutResource)));
+                Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", MaterialLoader.LoadTexture(brdfLutResource)));
             }
             finally
             {
@@ -192,7 +192,7 @@ namespace GUI.Types.Renderer
             using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
             cubeFogResource.Read(cubeFogStream);
 
-            var defaultCubeTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
+            var defaultCubeTexture = MaterialLoader.LoadTexture(cubeFogResource);
             Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
 
 
@@ -211,7 +211,7 @@ namespace GUI.Types.Renderer
                     blueNoiseResource.Read(blueNoiseStream);
                 }
 
-                var blueNoise = GuiContext.MaterialLoader.LoadTexture(blueNoiseResource);
+                var blueNoise = MaterialLoader.LoadTexture(blueNoiseResource);
                 postProcessRenderer.BlueNoise = blueNoise;
                 Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
             }
@@ -322,7 +322,7 @@ namespace GUI.Types.Renderer
             PreSceneLoad();
             LoadScene();
             timer.Stop();
-            Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {GuiContext.ShaderLoader.ShaderCount}, materials: {GuiContext.MaterialLoader.MaterialCount}");
+            Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {GuiContext.ShaderLoader.ShaderCount}, materials: {MaterialLoader.MaterialCount}");
 
             PostSceneLoad();
 

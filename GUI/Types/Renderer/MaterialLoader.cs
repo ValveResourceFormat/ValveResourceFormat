@@ -11,19 +11,18 @@ using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace GUI.Types.Renderer
 {
-    class MaterialLoader
+    static class MaterialLoader
     {
-        private readonly Dictionary<ulong, RenderMaterial> Materials = [];
-        private readonly Dictionary<string, RenderTexture> Textures = [];
-        private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
-        private readonly VrfGuiContext VrfGuiContext;
-        private RenderTexture? ErrorTexture;
-        private RenderTexture? DefaultNormal;
-        private RenderTexture? DefaultMask;
+        private static readonly Dictionary<ulong, RenderMaterial> Materials = [];
+        private static readonly Dictionary<string, RenderTexture> Textures = [];
+        private static readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
+        private static RenderTexture? ErrorTexture;
+        private static RenderTexture? DefaultNormal;
+        private static RenderTexture? DefaultMask;
         public static float MaxTextureMaxAnisotropy { get; set; }
-        public int MaterialCount => Materials.Count;
+        public static int MaterialCount => Materials.Count;
 
-        private readonly Dictionary<string, string[]> TextureAliases = new()
+        private static readonly Dictionary<string, string[]> TextureAliases = new()
         {
             ["g_tLayer2Color"] = ["g_tColorB", "g_tColor2"],
             ["g_tColor"] = ["g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC", "g_tGlassDust"],
@@ -32,19 +31,15 @@ namespace GUI.Types.Renderer
             ["g_tAmbientOcclusion"] = ["g_tLayer1AmbientOcclusion"],
         };
 
-        public MaterialLoader(VrfGuiContext guiContext)
-        {
-            VrfGuiContext = guiContext;
-        }
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
-        public RenderMaterial GetMaterial(string name, Dictionary<string, byte>? shaderArguments)
+        public static RenderMaterial GetMaterial(string name, Dictionary<string, byte>? shaderArguments, VrfGuiContext VrfGuiContext)
         {
             // HL:VR has a world node that has a draw call with no material
             if (name == null)
             {
-                return GetErrorMaterial();
+                return GetErrorMaterial(VrfGuiContext);
             }
 
             Span<byte> valueSpan = stackalloc byte[1];
@@ -72,18 +67,18 @@ namespace GUI.Types.Renderer
             }
 
             var resource = VrfGuiContext.LoadFileCompiled(name);
-            mat = LoadMaterial(resource, shaderArguments);
+            mat = LoadMaterial(resource, VrfGuiContext, shaderArguments);
 
             Materials.Add(cacheKey, mat);
 
             return mat;
         }
 
-        public RenderMaterial LoadMaterial(Resource resource, Dictionary<string, byte>? shaderArguments = null)
+        public static RenderMaterial LoadMaterial(Resource resource, VrfGuiContext VrfGuiContext, Dictionary<string, byte>? shaderArguments = null)
         {
             if (resource == null)
             {
-                return GetErrorMaterial();
+                return GetErrorMaterial(VrfGuiContext);
             }
 
             var vrfMaterial = (VrfMaterial?)resource.DataBlock;
@@ -96,7 +91,7 @@ namespace GUI.Types.Renderer
 
             foreach (var (textureName, texturePath) in mat.Material.TextureParams)
             {
-                if (TryBindTexture(mat, textureName, texturePath))
+                if (TryBindTexture(mat, textureName, texturePath, VrfGuiContext))
                 {
                     continue;
                 }
@@ -110,7 +105,7 @@ namespace GUI.Types.Renderer
 
                     if (aliases.Contains(textureName))
                     {
-                        if (TryBindTexture(mat, possibleAlias, texturePath))
+                        if (TryBindTexture(mat, possibleAlias, texturePath, VrfGuiContext))
                         {
                             break;
                         }
@@ -118,12 +113,12 @@ namespace GUI.Types.Renderer
                 }
             }
 
-            bool TryBindTexture(RenderMaterial mat, string name, string path)
+            bool TryBindTexture(RenderMaterial mat, string name, string path, VrfGuiContext VrfGuiContext)
             {
                 if (mat.Shader.GetUniformLocation(name) != -1)
                 {
                     var srgbRead = mat.Shader.SrgbUniforms.Contains(name);
-                    mat.Textures[name] = GetTexture(path, srgbRead, anisotropicFiltering: true);
+                    mat.Textures[name] = GetTexture(path, VrfGuiContext, srgbRead, anisotropicFiltering: true);
                     return true;
                 }
 
@@ -134,7 +129,7 @@ namespace GUI.Types.Renderer
         }
 
 
-        public RenderTexture GetTexture(string name, bool srgbRead = false, bool anisotropicFiltering = false)
+        public static RenderTexture GetTexture(string name, VrfGuiContext VrfGuiContext, bool srgbRead = false, bool anisotropicFiltering = false)
         {
             // TODO: Create texture view for srgb textures
             var cache = srgbRead ? TexturesSrgb : Textures;
@@ -144,7 +139,7 @@ namespace GUI.Types.Renderer
                 return tex;
             }
 
-            tex = LoadTexture(name, srgbRead);
+            tex = LoadTexture(name, VrfGuiContext, srgbRead);
             cache.Add(name, tex);
 
             if (anisotropicFiltering && MaxTextureMaxAnisotropy >= 4)
@@ -155,7 +150,7 @@ namespace GUI.Types.Renderer
             return tex;
         }
 
-        private RenderTexture LoadTexture(string name, bool srgbRead = false)
+        private static RenderTexture LoadTexture(string name, VrfGuiContext VrfGuiContext, bool srgbRead = false)
         {
             var textureResource = VrfGuiContext.LoadFileCompiled(name);
 
@@ -168,7 +163,7 @@ namespace GUI.Types.Renderer
         }
 
 #pragma warning disable CA1822 // Mark members as static
-        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool isViewerRequest = false)
+        public static RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool isViewerRequest = false)
 #pragma warning restore CA1822 // Mark members as static
         {
             var data = (Texture?)textureResource.DataBlock;
@@ -348,13 +343,13 @@ namespace GUI.Types.Renderer
 
         public static readonly HashSet<string> ReservedTextures = [.. Enum.GetNames<ReservedTextureSlots>(), "g_tLPV"];
 
-        private RenderMaterial GetErrorMaterial()
+        private static RenderMaterial GetErrorMaterial(VrfGuiContext VrfGuiContext)
         {
             var errorMat = new RenderMaterial(VrfGuiContext.ShaderLoader.LoadShader("vrf.error"));
             return errorMat;
         }
 
-        public RenderTexture GetErrorTexture()
+        public static RenderTexture GetErrorTexture()
         {
             if (ErrorTexture == null)
             {
@@ -378,8 +373,8 @@ namespace GUI.Types.Renderer
         }
 
         private static RenderTexture CreateSolidTexture(byte r, byte g, byte b) => GenerateColorTexture(1, 1, [r, g, b]);
-        public RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
-        public RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
+        public static RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
+        public static RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
 
         private static RenderTexture GenerateColorTexture(int width, int height, byte[] color)
         {

@@ -69,11 +69,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (textureName == null)
             {
-                texture = vrfGuiContext.MaterialLoader.GetErrorTexture();
+                texture = MaterialLoader.GetErrorTexture();
             }
             else
             {
-                texture = vrfGuiContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
+                texture = MaterialLoader.GetTexture(textureName, guiContext, srgbRead: true);
             }
 
 #if DEBUG

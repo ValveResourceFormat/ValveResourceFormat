@@ -21,7 +21,6 @@ namespace GUI.Types.Renderer
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
         public RenderMaterial Default;
-        protected MaterialLoader MaterialLoader { get; init; }
 
         public readonly Dictionary<string, int> Attributes = [];
 
@@ -34,7 +33,6 @@ namespace GUI.Types.Renderer
             Name = name;
             NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
             Default = new RenderMaterial(this);
-            MaterialLoader = guiContext.MaterialLoader;
         }
 
         public bool EnsureLoaded()

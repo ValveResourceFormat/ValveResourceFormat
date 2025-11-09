@@ -25,7 +25,6 @@ namespace GUI.Utils
             }
         }
 
-        public MaterialLoader MaterialLoader { get; }
         public ShaderLoader ShaderLoader { get; private set; }
         public GPUMeshBufferCache MeshBufferCache { get; }
         public AdvancedGuiFileLoader FileLoader { get; private set; }
@@ -46,7 +45,6 @@ namespace GUI.Utils
 
         public VrfGuiContext()
         {
-            MaterialLoader = new MaterialLoader(this);
             ShaderLoader = new ShaderLoader(this);
             MeshBufferCache = new GPUMeshBufferCache();
         }
