@@ -6,6 +6,10 @@ namespace GUI.Utils
     public record struct Color32(uint PackedValue)
     {
         public static readonly Color32 White = new(0xFFFFFFFF);
+        public static readonly Color32 Red = new(1f, 0f, 0f, 1f);
+        public static readonly Color32 Green = new(0f, 1f, 0f, 1f);
+        public static readonly Color32 Blue = new(0f, 0f, 1f, 1f);
+        public static readonly Color32 Black = new(0f, 0f, 0f, 1f);
         public static readonly Color32 Yellow = new(1f, 1f, 0f, 1f);
 
         public Color32(byte r, byte g, byte b) : this(r, g, b, 255) { }

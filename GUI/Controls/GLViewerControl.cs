@@ -18,6 +18,7 @@ namespace GUI.Controls
     partial class GLViewerControl : ControlPanelView
     {
         protected override Panel ControlsPanel => controlsPanel;
+        protected SplitContainer ViewerSplitContainer => splitContainer;
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
         public GLControl GLControl { get; }
@@ -241,7 +242,7 @@ namespace GUI.Controls
         {
             if (GLControl.Visible)
             {
-                HandleResize();
+                OnResize();
 
                 if (Form.ActiveForm != null)
                 {
@@ -497,7 +498,10 @@ namespace GUI.Controls
                 throw;
             }
 
-            HandleResize();
+            OnResize();
+
+            // Bind paint event at the end of the processing loop so that first paint event has correctly sized gl control
+            BeginInvoke(OnFirstPaint);
 
             lastUpdate = Stopwatch.GetTimestamp();
         }
@@ -645,11 +649,11 @@ namespace GUI.Controls
                 return;
             }
 
-            HandleResize();
+            OnResize();
             GLControl.Invalidate();
         }
 
-        private void HandleResize()
+        protected virtual void OnResize()
         {
             var (w, h) = (GLControl.Width, GLControl.Height);
 
@@ -686,6 +690,12 @@ namespace GUI.Controls
             Picker?.Resize(w, h);
         }
 
+
+        protected virtual void OnFirstPaint()
+        {
+            //
+        }
+
         private void OnAppActivated(object sender, EventArgs e)
         {
             GLControl.Invalidate();
@@ -699,7 +709,7 @@ namespace GUI.Controls
             }
 
             lastUpdate = Stopwatch.GetTimestamp();
-            HandleResize();
+            OnResize();
             GLControl.Invalidate();
         }
 

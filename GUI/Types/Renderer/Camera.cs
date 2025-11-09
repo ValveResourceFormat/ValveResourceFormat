@@ -5,19 +5,22 @@ namespace GUI.Types.Renderer
 {
     class Camera
     {
-        private const float MovementSpeed = 300f; // WASD movement, per second
+        private const float MovementSpeed = 200f; // WASD movement, per second
         private const float AltMovementSpeed = 10f; // Holding shift or alt movement
 
         private readonly float[] SpeedModifiers =
         [
             0.1f,
+            0.3f,
             0.5f,
+            0.8f,
             1.0f,
+            1.5f,
             2.0f,
             5.0f,
             10.0f,
         ];
-        private int CurrentSpeedModifier = 2;
+        private int CurrentSpeedModifier = 4;
 
         private float Uptime;
         private float TransitionDuration = 1.5f;
@@ -30,8 +33,11 @@ namespace GUI.Types.Renderer
         public float Pitch { get; private set; }
         public float Yaw { get; private set; }
 
+        public bool EnableMouseLook { get; set; } = true;
+
         // Orbit controls
         public bool OrbitMode { get; set; }
+        public bool OrbitModeAlways { get; set; }
         public Vector3 OrbitTarget { get; set; }
         public float OrbitDistance { get; private set; }
         private const float MinOrbitDistance = 1f;
@@ -208,6 +214,60 @@ namespace GUI.Types.Renderer
             ClampRotation();
         }
 
+
+        public void FrameObject(Vector3 objectPosition, float width, float height, float depth)
+        {
+            var fov = GetFOV();
+            var halfFovVertical = fov * 0.5f;
+            var halfFovHorizontal = MathF.Atan(MathF.Tan(halfFovVertical) * AspectRatio);
+
+            var forward = GetForwardVector();
+            var right = GetRightVector();
+            var up = GetUpVector();
+
+            var halfWidth = width * 0.5f;
+            var halfHeight = height * 0.5f;
+            var halfDepth = depth * 0.5f;
+
+            // this calculate the apparent size in screen space by projecting onto camera axis
+            var maxHorizontalExtent = 0f;
+            var maxVerticalExtent = 0f;
+
+            for (int i = 0; i < 8; i++)
+            {
+                var corner = new Vector3(
+                    (i & 1) != 0 ? halfWidth : -halfWidth,
+                    (i & 2) != 0 ? halfHeight : -halfHeight,
+                    (i & 4) != 0 ? halfDepth : -halfDepth
+                );
+
+                var horizontalDist = MathF.Abs(Vector3.Dot(corner, right));
+                var verticalDist = MathF.Abs(Vector3.Dot(corner, up));
+
+                maxHorizontalExtent = MathF.Max(maxHorizontalExtent, horizontalDist);
+                maxVerticalExtent = MathF.Max(maxVerticalExtent, verticalDist);
+            }
+
+            var distanceForVerticalFov = maxVerticalExtent / MathF.Tan(halfFovVertical);
+            var distanceForHorizontalFov = maxHorizontalExtent / MathF.Tan(halfFovHorizontal);
+
+            var distance = MathF.Max(distanceForVerticalFov, distanceForHorizontalFov);
+
+            Location = objectPosition - forward * distance;
+
+            LookAt(objectPosition);
+        }
+
+        public void FrameObjectFromAngle(Vector3 objectPosition, float width, float height, float depth,
+            float yaw, float pitch)
+        {
+            Yaw = yaw;
+            Pitch = pitch;
+            ClampRotation();
+
+            FrameObject(objectPosition, width, height, depth);
+        }
+
         public void SetFromTransformMatrix(Matrix4x4 matrix)
         {
             Location = matrix.Translation;
@@ -274,13 +334,21 @@ namespace GUI.Types.Renderer
 
         public void Tick(float deltaTime, TrackedKeys keyboardState, Point mouseDelta)
         {
-            if (keyboardState.HasFlag(TrackedKeys.Alt))
+            if (!EnableMouseLook)
             {
-                EnableOrbitMode();
+                mouseDelta = new Point(0, 0);
             }
-            else
+
+            if (!OrbitModeAlways)
             {
-                DisableOrbitMode();
+                if (keyboardState.HasFlag(TrackedKeys.Alt))
+                {
+                    EnableOrbitMode();
+                }
+                else
+                {
+                    DisableOrbitMode();
+                }
             }
 
             if (OrbitMode)
