@@ -137,10 +137,10 @@ class FpsMovement
 
         // Check velocity for NaN/bounds
         CheckVelocity(ref position);
-
+        Vector3 prevPosition = position;
         // Update position based on velocity (in Source this happens inside TryPlayerMove)
-        position = TryPlayerMove(position, Velocity * deltaTime, isDucking);
-
+        position = TryPlayerMove2(position, Velocity * deltaTime, isDucking);
+        
         // Recategorize position after movement (now that position is updated)
         CategorizePosition(ref position, isDucking);
 
@@ -181,27 +181,19 @@ class FpsMovement
 
         // Calculate trace distance based on downward velocity
         // Trace slightly further than we'd move in one frame to catch ground
-        var downwardVelocity = MathF.Min(0, Velocity.Z); // Get downward component (negative Z)
-        var traceDistance = MathF.Abs(downwardVelocity) * 0.016f; // Assume ~60fps for trace distance
-
-        // Minimum trace distance to always check for ground contact
-        // Source uses 2 units as minimum distance for ground checks
-        traceDistance = MathF.Max(2.0f, traceDistance);
 
         // Trace down from current position to check for ground
         var traceStart = position;
-        var traceEnd = position + new Vector3(0, 0, -traceDistance);
+        var traceEnd = position + new Vector3(0, 0, -2);
 
         var result = Physics.TraceAABB(traceStart, traceEnd, aabb);
 
-        if (result.Hit)
+
+        if (result.Hit && result.HitNormal.Z > 0.8f && Velocity.Z < 140.0f)
         {
             OnGround = true;
             // Snap to ground if very close, but maintain epsilon distance from surface
-            if (result.Distance < 0.1f)
-            {
-                position = result.HitPosition + result.HitNormal * SurfaceEpsilon;
-            }
+            position = result.HitPosition + result.HitNormal * SurfaceEpsilon;
         }
         else
         {
@@ -286,6 +278,72 @@ class FpsMovement
         }
 
         return position;
+    }
+
+    private Vector3 TryPlayerMove2(Vector3 start, Vector3 delta, bool isDucking)
+    {
+        //H7per: should this be LengthSquared <= 1e-6f to the second power?
+        if (Physics == null)
+        {
+            // No physics or no movement - fallback to simple movement
+            var newPos = start + delta;
+            if (newPos.Z < 0)
+            {
+                newPos = new Vector3(newPos.X, newPos.Y, 0);
+            }
+            return newPos;
+        }
+
+        if (delta.LengthSquared() < 1e-6f)
+        {
+            return start;
+        }
+
+        // Get player AABB based on ducking state
+        var aabb = isDucking ? PlayerHullDucked : PlayerHullStanding;
+
+        int numbumps = 4;
+        int bumpcount = 0;
+
+        //this is a bit scuffed, RollingDistance should not be needed but eh
+        Vector3 RollingPosition = start;
+        Vector3 RollingDelta = delta;
+        float RollingDistance = delta.Length();
+
+        float RemainingFraction = 1.0f;
+
+        for (bumpcount = 0; bumpcount < numbumps; bumpcount++)
+        {
+            var result = Physics.TraceAABB(RollingPosition, RollingPosition + RollingDelta, aabb);
+
+            if (!result.Hit)
+            {
+                RollingPosition += RollingDelta;
+                return RollingPosition;
+            }
+            else
+            {
+                result.Distance = Math.Max(result.Distance + SurfaceEpsilon / Vector3.Dot(Vector3.Normalize(RollingDelta), result.HitNormal), 0.0f);
+
+
+                float Fraction = result.Distance / RollingDistance;
+                RollingPosition += RollingDelta * Fraction;
+                RemainingFraction -= Fraction * RemainingFraction;
+
+                RollingDelta -= result.HitNormal * Vector3.Dot(result.HitNormal, RollingDelta);
+                //RollingDelta *= RemainingFraction;
+                Velocity -= result.HitNormal * Vector3.Dot(result.HitNormal, Velocity);
+
+                RollingDistance = RollingDelta.Length();
+            }
+            if (RemainingFraction <= 0)
+            {
+                return RollingPosition;
+            }
+        }
+
+        return RollingPosition;
+
     }
 
     /// <summary>

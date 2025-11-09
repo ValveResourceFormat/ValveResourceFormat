@@ -40,7 +40,7 @@ class Rubikon
     public Rubikon(PhysAggregateData physicsData)
     {
         var worldMeshes = physicsData.Parts[0].Shape.Meshes
-            .Where(m => physicsData.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default")
+            //.Where(m => physicsData.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default")
             .ToArray();
 
         Meshes = new PhysicsMeshData[worldMeshes.Length];
@@ -167,7 +167,28 @@ class Rubikon
             }
         }
 
+        //TODO: Do we want trace handling that guarantees the position is short of an intersection? The math for that is annoying so I will just ignore it for now.
+
+        if (VertsInsideAABB(new AABB(closestHit.HitPosition - trace.HalfExtents, closestHit.HitPosition + trace.HalfExtents)))
+        {
+            Console.WriteLine("ALARM");
+        }
+
         return closestHit;
+    }
+
+    public bool VertsInsideAABB(AABB aabb)
+    {
+        foreach (var mesh in Meshes)
+        {
+            bool hit = MeshVertsInsideAABB(aabb, mesh);
+
+            if (hit)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static TraceResult RayIntersectsWithHull(RayTraceContext ray, PhysicsHullData hull)
@@ -708,6 +729,15 @@ class Rubikon
         return Vector3.Distance(point, projection);
     }
 
+    public static bool PointInAABB(AABB aabb, Vector3 point)
+    {
+        bool inside = false;
+        inside = aabb.Min[0] < point[0] && aabb.Max[0] > point[0];
+        inside &= aabb.Min[1] < point[1] && aabb.Max[1] > point[1];
+        inside &= aabb.Min[2] < point[2] && aabb.Max[2] > point[2];
+        return inside;
+    }
+
     public static bool PointInTriangle(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
     {
         const float EPSILON = 1e-6f;
@@ -824,9 +854,9 @@ class Rubikon
 
                 Vector3 hitPoint = new Vector3(0);
                 Vector3 hitNormal = new Vector3(0);
-                float hitDistance = float.PositiveInfinity;
+                float hitDistance = trace.Length;
 
-                bool hasHit;
+                bool hasHit = false;
                 hasHit = CornerAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
                 hasHit = hasHit || EdgeAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
                 hasHit = hasHit || AabbAgainstVert(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
@@ -997,7 +1027,67 @@ class Rubikon
 
         return hasHit;
     }
+    public static bool MeshVertsInsideAABB(AABB aabb, PhysicsMeshData mesh)
+    {
+        Span<(Node Node, int Index)> stack = stackalloc (Node Node, int Index)[STACK_SIZE];
+        var stackCount = 0;
+        stack[stackCount++] = (mesh.PhysicsTree[0], 0);
 
+        var closestHit = new TraceResult();
+
+
+        while (stackCount > 0)
+        {
+            var nodeWithIndex = stack[--stackCount];
+            var node = nodeWithIndex.Node;
+
+            // Expand node AABB by trace half extents for conservative culling
+
+            if (aabb.Intersects(new AABB(node.Min, node.Max)))
+            {
+                continue;
+            }
+
+            if (node.Type != NodeType.Leaf)
+            {
+                var leftChild = nodeWithIndex.Index + 1;
+                var rightChild = nodeWithIndex.Index + (int)node.ChildOffset;
+
+                //can't be bothered with this, we really don't gaf about the order here, efficiency is for nerds
+                var rayIsPositive = true;
+                var (nearId, farId) = rayIsPositive
+                    ? (leftChild, rightChild)
+                    : (rightChild, leftChild);
+
+                // Push far node first so near node is processed first (stack is LIFO)
+                stack[stackCount++] = new(mesh.PhysicsTree[farId], farId);
+                stack[stackCount++] = new(mesh.PhysicsTree[nearId], nearId);
+                continue;
+            }
+
+            // Process triangles in leaf node
+            var count = (int)node.ChildOffset;
+            var startIndex = (int)node.TriangleOffset;
+
+            for (var i = startIndex; i < startIndex + count; i++)
+            {
+                var triangle = mesh.Triangles[i];
+                var v0 = mesh.VertexPositions[triangle.X];
+                var v1 = mesh.VertexPositions[triangle.Y];
+                var v2 = mesh.VertexPositions[triangle.Z];
+
+                bool hasHit =   PointInAABB(aabb, v0);
+                hasHit      |=  PointInAABB(aabb, v1);
+                hasHit      |=  PointInAABB(aabb, v2);
+
+                if(hasHit)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     private static bool AabbAgainstVert(
         AABBTraceContext trace,
@@ -1037,7 +1127,7 @@ class Rubikon
             var tNearMax = tNear[tNearMaxIndex];
 
             var tFarMin = MathF.Min(tFar.X, MathF.Min(tFar.Y, tFar.Z));
-            if (tNearMax <= tFarMin && tFarMin >= 0 && tNearMax <= trace.Length)
+            if (tNearMax <= tFarMin && tFarMin > 0 && tNearMax <= trace.Length)
             {
                 intersects = true;
                 if (tNearMax < distance)
