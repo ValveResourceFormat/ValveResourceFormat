@@ -1,2 +1,5 @@
 # Rename Decompile to CLI
 91628ecf6d443532bf533f66010590434bae3006
+
+# Move all GL viewer controls to separate folder
+a1ecfa1c39efd5ef3d6954bd448fb734f9d560bc
