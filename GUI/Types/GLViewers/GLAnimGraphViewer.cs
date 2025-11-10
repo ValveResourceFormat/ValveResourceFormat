@@ -3,7 +3,7 @@ using ValveResourceFormat.ResourceTypes;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     class GLAnimGraphViewer : GLModelViewer
     {

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Renderer;
 using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -12,7 +13,7 @@ using ValveResourceFormat;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     internal abstract class GLSceneViewer : GLViewerControl, IDisposable
     {
@@ -644,7 +645,7 @@ namespace GUI.Types.Renderer
 
                 if (renderMode.IsHeader)
                 {
-                    renderModeComboBox.SelectedIndex = renderModeCurrentIndex > i ? (i - 1) : (i + 1);
+                    renderModeComboBox.SelectedIndex = renderModeCurrentIndex > i ? i - 1 : i + 1;
                     return;
                 }
 

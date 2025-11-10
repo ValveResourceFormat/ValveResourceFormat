@@ -1,12 +1,13 @@
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.NavMesh;
 using static GUI.Types.Renderer.PickingTexture;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     class GLNavMeshViewer : GLSceneViewer
     {

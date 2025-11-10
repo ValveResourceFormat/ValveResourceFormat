@@ -1,10 +1,11 @@
 using GUI.Controls;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     /// <summary>
     /// GL Render control with particle controls (control points? particle counts?).

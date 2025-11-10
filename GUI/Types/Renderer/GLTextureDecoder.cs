@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
-using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;

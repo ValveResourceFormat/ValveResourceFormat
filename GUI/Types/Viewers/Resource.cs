@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Audio;
-using GUI.Types.Renderer;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;

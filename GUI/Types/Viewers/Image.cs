@@ -1,6 +1,6 @@
 using System.IO;
 using System.Windows.Forms;
-using GUI.Types.Renderer;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
 using Svg.Skia;

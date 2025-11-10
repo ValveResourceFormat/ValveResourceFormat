@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -17,7 +18,7 @@ using static ValveResourceFormat.ResourceTypes.Texture;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     class GLTextureViewer : GLViewerControl
     {
@@ -477,7 +478,7 @@ namespace GUI.Types.Renderer
                 var value = (TextureCodec)values.GetValue(flag);
                 var name = Enum.GetName(value);
 
-                var isCombinedFlag = (value & (value - 1)) != 0;
+                var isCombinedFlag = (value & value - 1) != 0;
                 var skipFlags = TextureCodec.None | TextureCodec.Auto;
 
                 if (isCombinedFlag || skipFlags.HasFlag(value))

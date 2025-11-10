@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Forms;
+using GUI.Types.Renderer;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.IO;
@@ -9,7 +10,7 @@ using ValveResourceFormat.ResourceTypes;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     /// <summary>
     /// GL Render control with material controls (render modes maybe at some point?).

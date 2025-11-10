@@ -1,4 +1,5 @@
 using System.Reflection;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -6,7 +7,7 @@ using ValveResourceFormat;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     /// <summary>
     /// GL Render control with model controls (render mode, animation panels).

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -7,7 +8,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     class GLAnimationViewer : GLModelViewer
     {

@@ -1,7 +1,8 @@
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     class GLMeshViewer : GLSingleNodeViewer
     {

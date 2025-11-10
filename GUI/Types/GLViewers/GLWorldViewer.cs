@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
+using GUI.Types.Renderer;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.IO;
@@ -13,7 +14,7 @@ using static GUI.Types.Renderer.PickingTexture;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     /// <summary>
     /// GL Render control with world controls (render mode, camera selection).
