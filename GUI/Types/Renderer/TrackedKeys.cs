@@ -1,4 +1,4 @@
-namespace GUI.Utils;
+namespace GUI.Types.Renderer;
 
 [Flags]
 enum TrackedKeys
