@@ -696,9 +696,11 @@ namespace GUI.Types.PackageViewer
                     // Walk up the directories in the file path to collect all the virtual nodes
                     if (!string.IsNullOrWhiteSpace(item.PackageEntry.DirectoryName))
                     {
-                        foreach (var subPathSpan in item.PackageEntry.DirectoryName.AsSpan().Split([Package.DirectorySeparatorChar]))
+                        var directoryName = item.PackageEntry.DirectoryName.AsSpan();
+
+                        foreach (var subPathRange in directoryName.Split([Package.DirectorySeparatorChar]))
                         {
-                            var subPath = subPathSpan.ToString();
+                            var subPath = directoryName[subPathRange].ToString();
 
                             if (!pkgNode.Folders.TryGetValue(subPath, out var subNode))
                             {
@@ -917,12 +919,11 @@ namespace GUI.Types.PackageViewer
             var inputPath = searchTextBox.Text
                 .Replace(Path.DirectorySeparatorChar, Package.DirectorySeparatorChar)
                 .AsSpan()
-                .Trim(Package.DirectorySeparatorChar)
-                .Split([Package.DirectorySeparatorChar]);
+                .Trim(Package.DirectorySeparatorChar);
 
-            foreach (var segment in inputPath)
+            foreach (var segmentRange in inputPath.Split([Package.DirectorySeparatorChar]))
             {
-                var name = segment.ToString();
+                var name = inputPath[segmentRange].ToString();
 
                 if (node.Folders.TryGetValue(name, out var nextNode))
                 {
