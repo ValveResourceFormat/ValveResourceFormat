@@ -297,12 +297,13 @@ namespace GUI.Types.PackageViewer
 
             foreach (var subPathRange in directorySpan.Split([Package.DirectorySeparatorChar]))
             {
-                var subPath = directorySpan[subPathRange].ToString();
+                var subPath = directorySpan[subPathRange];
 
-                if (!currentNode.Folders.TryGetValue(subPath, out var subNode))
+                if (!currentNode.Folders.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(subPath, out var subNode))
                 {
-                    var toAdd = new VirtualPackageNode(subPath, size, currentNode);
-                    currentNode.Folders.Add(subPath, toAdd);
+                    var subPathString = subPath.ToString();
+                    var toAdd = new VirtualPackageNode(subPathString, size, currentNode);
+                    currentNode.Folders.Add(subPathString, toAdd);
                     currentNode = toAdd;
                 }
                 else
