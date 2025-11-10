@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -10,8 +11,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-
-#nullable disable
 
 namespace GUI.Types.Viewers
 {
@@ -69,7 +68,7 @@ namespace GUI.Types.Viewers
                 Multiline = true,
             };
 
-            void OnTabDisposed(object sender, EventArgs e)
+            void OnTabDisposed(object? sender, EventArgs e)
             {
                 resTabs.Disposed -= OnTabDisposed;
 
@@ -78,7 +77,7 @@ namespace GUI.Types.Viewers
 
             resTabs.Disposed += OnTabDisposed;
 
-            TabPage specialTabPage = null;
+            TabPage? specialTabPage = null;
             var selectData = true;
 
             try
@@ -125,7 +124,7 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
-                if (block.Type == BlockType.RERL)
+                if (block.Type == BlockType.RERL && block is ResourceExtRefList externalReferences)
                 {
                     var externalRefs = new DataGridView
                     {
@@ -137,8 +136,7 @@ namespace GUI.Types.Viewers
                         AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                         DataSource =
                             new BindingSource(
-                                new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences
-                                    .ResourceRefInfoList), null),
+                                new BindingList<ResourceExtRefList.ResourceReferenceInfo>(externalReferences.ResourceRefInfoList), string.Empty),
                     };
 
                     AddDataGridExternalRefAction(vrfGuiContext.FileLoader, externalRefs, "Name");
@@ -165,7 +163,7 @@ namespace GUI.Types.Viewers
                             DataSource =
                                 new BindingSource(
                                     new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(
-                                        ((ResourceIntrospectionManifest)block).ReferencedStructs), null),
+                                        ((ResourceIntrospectionManifest)block).ReferencedStructs), string.Empty),
                         };
 
                         var externalRefsTab = new TabPage("Introspection Manifest: Structs");
@@ -186,7 +184,7 @@ namespace GUI.Types.Viewers
                             DataSource =
                                 new BindingSource(
                                     new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(
-                                        ((ResourceIntrospectionManifest)block).ReferencedEnums), null),
+                                        ((ResourceIntrospectionManifest)block).ReferencedEnums), string.Empty),
                         };
 
                         var externalRefsTab = new TabPage("Introspection Manifest: Enums");
@@ -233,7 +231,7 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        private static void CreateSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, ThemedTabControl resTabs, ref TabPage specialTabPage)
+        private static void CreateSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, ThemedTabControl resTabs, ref TabPage? specialTabPage)
         {
             switch (resource.ResourceType)
             {
@@ -247,7 +245,7 @@ namespace GUI.Types.Viewers
                     }
 
                 case ResourceType.Panorama:
-                    if (((Panorama)resource.DataBlock).Names.Count > 0)
+                    if (resource.DataBlock is Panorama { Names.Count: > 0 })
                     {
                         var nameControl = new DataGridView
                         {
@@ -258,7 +256,7 @@ namespace GUI.Types.Viewers
                             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                             DataSource =
                                 new BindingSource(
-                                    new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), null),
+                                    new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), string.Empty),
                         };
                         specialTabPage = new TabPage("PANORAMA NAMES");
                         specialTabPage.Controls.Add(nameControl);
@@ -267,11 +265,12 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Particle:
+                    if (resource.DataBlock is ParticleSystem particleData)
                     {
                         specialTabPage = new TabPage("PARTICLE");
-                        specialTabPage.Controls.Add(new GLParticleViewer(vrfGuiContext, (ParticleSystem)resource.DataBlock));
-                        break;
+                        specialTabPage.Controls.Add(new GLParticleViewer(vrfGuiContext, particleData));
                     }
+                    break;
 
                 case ResourceType.Sound:
                     if (resource.ContainsBlockType(BlockType.DATA))
@@ -284,64 +283,85 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Map:
                     {
+                        Debug.Assert(resource.FileName != null);
                         var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
-                        if (mapResource != null)
+                        if (mapResource != null && mapResource.DataBlock is World mapWorldData)
                         {
-                            specialTabPage = new TabPage("MAP");
-                            specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock, isFromVmap: true));
+                            var mapTab = new TabPage("MAP");
+                            mapTab.Controls.Add(new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true));
+
+                            void OnMapDisposed(object? sender, EventArgs e)
+                            {
+                                mapTab.Disposed -= OnMapDisposed;
+
+                                mapResource.Dispose();
+                            }
+
+                            mapTab.Disposed += OnMapDisposed;
+                            specialTabPage = mapTab;
+                        }
+                        else
+                        {
+                            mapResource?.Dispose();
                         }
                         break;
                     }
 
                 case ResourceType.World:
+                    if (resource.DataBlock is World worldData)
                     {
                         specialTabPage = new TabPage("MAP");
-                        specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock));
-                        break;
+                        specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, worldData));
                     }
+                    break;
 
                 case ResourceType.WorldNode:
+                    if (resource.DataBlock is WorldNode worldNodeData)
                     {
                         specialTabPage = new TabPage("WORLD NODE");
-                        specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock));
-                        break;
+                        specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, worldNodeData));
                     }
+                    break;
 
                 case ResourceType.Model:
+                    if (resource.DataBlock is Model modelData)
                     {
                         specialTabPage = new TabPage("MODEL");
-                        specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock));
-                        break;
+                        specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, modelData));
                     }
+                    break;
 
                 case ResourceType.Mesh:
+                    if (resource.DataBlock is Mesh meshData)
                     {
                         specialTabPage = new TabPage("MESH");
-                        specialTabPage.Controls.Add(new GLMeshViewer(vrfGuiContext, (Mesh)resource.DataBlock));
-                        break;
+                        specialTabPage.Controls.Add(new GLMeshViewer(vrfGuiContext, meshData));
                     }
+                    break;
 
                 case ResourceType.EntityLump:
+                    if (resource.DataBlock is EntityLump entityLumpData)
                     {
                         specialTabPage = new TabPage("Entities");
-                        specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, ((EntityLump)resource.DataBlock).GetEntities()));
-
-                        break;
+                        specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, entityLumpData.GetEntities()));
                     }
+                    break;
 
                 case ResourceType.SmartProp:
+                    if (resource.DataBlock is SmartProp smartPropData)
                     {
                         specialTabPage = new TabPage("SMART PROP");
-                        specialTabPage.Controls.Add(new GLSmartPropViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
-                        break;
+                        specialTabPage.Controls.Add(new GLSmartPropViewer(vrfGuiContext, smartPropData));
                     }
+                    break;
 
                 case ResourceType.AnimationGraph:
+                    if (resource.DataBlock is AnimGraph animGraphData)
                     {
                         specialTabPage = new TabPage("ANIMATION GRAPH");
-                        specialTabPage.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
-                        break;
+                        specialTabPage.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, animGraphData));
                     }
+                    break;
 
                 case ResourceType.NmClip:
                     {
@@ -359,7 +379,7 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Material:
                     {
-                        if (((Material)resource.DataBlock).ShaderName == "sky.vfx")
+                        if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
                         {
                             var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
                             specialTabPage = new TabPage("SKYBOX");
@@ -373,11 +393,12 @@ namespace GUI.Types.Viewers
                     }
 
                 case ResourceType.PhysicsCollisionMesh:
+                    if (resource.DataBlock is PhysAggregateData physAggregateData)
                     {
                         specialTabPage = new TabPage("PHYSICS");
-                        specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock));
-                        break;
+                        specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, physAggregateData));
                     }
+                    break;
 
                 case ResourceType.ChoreoSceneFileData:
                     {
@@ -406,19 +427,18 @@ namespace GUI.Types.Viewers
         }
 
         public static void AddDataGridExternalRefAction(AdvancedGuiFileLoader guiFileLoader, DataGridView dataGrid,
-            string columnName, Action<bool> secondAction = null)
+            string columnName, Action<bool>? secondAction = null)
         {
-            void OnCellDoubleClick(object sender, DataGridViewCellEventArgs e)
+            void OnCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
             {
-                if (e.RowIndex < 0)
+                if (e.RowIndex < 0 || sender is not DataGridView grid)
                 {
                     return;
                 }
 
-                var grid = (DataGridView)sender;
                 var row = grid.Rows[e.RowIndex];
                 var colName = columnName;
-                var name = (string)row.Cells[colName].Value;
+                var name = (string)row.Cells[colName].Value!;
 
                 Log.Debug(nameof(Resource), $"Opening {name} from external refs");
 
@@ -437,7 +457,7 @@ namespace GUI.Types.Viewers
                 secondAction?.Invoke(bFound);
             }
 
-            void OnDisposed(object o, EventArgs e)
+            void OnDisposed(object? sender, EventArgs e)
             {
                 dataGrid.CellDoubleClick -= OnCellDoubleClick;
                 dataGrid.Disposed -= OnDisposed;
@@ -449,6 +469,8 @@ namespace GUI.Types.Viewers
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
+            Debug.Assert(resource.Reader != null);
+
             resource.Reader.BaseStream.Position = block.Offset;
             var input = resource.Reader.ReadBytes((int)block.Size);
 
@@ -539,17 +561,20 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.EntityLump:
+                    if (resource.DataBlock is EntityLump entityLump)
                     {
-                        var entityLump = (EntityLump)resource.DataBlock;
                         IViewer.AddContentTab(resTabs, "FGD", entityLump.ToForgeGameData());
                         IViewer.AddContentTab(resTabs, "Entities-Text", entityLump.ToEntityDumpString(), true);
                         // force select the new entities tab for now
                         resTabs.SelectedTab = resTabs.TabPages[0];
-                        break;
                     }
+                    break;
 
                 case ResourceType.PostProcessing:
-                    IViewer.AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)resource.DataBlock).ToValvePostProcessing());
+                    if (resource.DataBlock is PostProcessing postProcessingData)
+                    {
+                        IViewer.AddContentTab(resTabs, "Reconstructed vpost", postProcessingData.ToValvePostProcessing());
+                    }
                     break;
 
                 case ResourceType.Texture:

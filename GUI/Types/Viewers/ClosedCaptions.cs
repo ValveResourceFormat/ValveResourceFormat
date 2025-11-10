@@ -5,8 +5,6 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ClosedCaptions;
 
-#nullable disable
-
 namespace GUI.Types.Viewers
 {
     class ClosedCaptions : IViewer
@@ -43,7 +41,7 @@ namespace GUI.Types.Viewers
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                DataSource = new BindingSource(new BindingList<ClosedCaption>(captions.Captions), null),
+                DataSource = new BindingSource(new BindingList<ClosedCaption>(captions.Captions), string.Empty),
                 ScrollBars = ScrollBars.Both,
             };
             tabPage.Controls.Add(control);

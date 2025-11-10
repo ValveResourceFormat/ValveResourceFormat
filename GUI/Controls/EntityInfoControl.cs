@@ -15,12 +15,12 @@ namespace GUI.Forms
             InitializeComponent();
         }
 
-        public EntityInfoControl(AdvancedGuiFileLoader? guiFileLoader) : this()
+        public EntityInfoControl(AdvancedGuiFileLoader guiFileLoader) : this()
         {
             ResourceAddDataGridExternalRef(guiFileLoader);
         }
 
-        public void ResourceAddDataGridExternalRef(AdvancedGuiFileLoader? guiFileLoader)
+        public void ResourceAddDataGridExternalRef(AdvancedGuiFileLoader guiFileLoader)
         {
             Resource.AddDataGridExternalRefAction(guiFileLoader, dataGridProperties, ColumnValue.Name, (referenceFound) =>
             {
