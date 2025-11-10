@@ -730,6 +730,7 @@ namespace GUI
                     }
                     finally
                     {
+                        t.Result.Dispose(); // Dispose the temporary TabPage since we copied the controls over
                         tab.ResumeLayout();
                     }
 

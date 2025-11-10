@@ -69,6 +69,15 @@ namespace GUI.Types.Viewers
                 Multiline = true,
             };
 
+            void OnTabDisposed(object sender, EventArgs e)
+            {
+                resTabs.Disposed -= OnTabDisposed;
+
+                resource?.Dispose();
+            }
+
+            resTabs.Disposed += OnTabDisposed;
+
             TabPage specialTabPage = null;
             var selectData = true;
 
