@@ -1,10 +1,9 @@
+using System.IO;
 using System.Linq;
 using GUI.Types.Renderer.Buffers;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-
-#nullable disable
 
 namespace GUI.Types.Renderer
 {
@@ -13,16 +12,16 @@ namespace GUI.Types.Renderer
         public RenderableMesh RenderMesh { get; }
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
-        public StorageBuffer InstanceTransformsGpu { get; private set; }
+        public StorageBuffer? InstanceTransformsGpu { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
 
         internal sealed class Fragment : SceneNode
         {
-            public SceneNode Parent { get; init; }
-            public RenderableMesh RenderMesh { get; init; }
-            public DrawCall DrawCall { get; init; }
+            public required SceneNode Parent { get; init; }
+            public required RenderableMesh RenderMesh { get; init; }
+            public required DrawCall DrawCall { get; init; }
 
             public Vector4 Tint { get; set; } = Vector4.One;
 
@@ -61,12 +60,13 @@ namespace GUI.Types.Renderer
                 }
 
                 var newResource = Scene.GuiContext.LoadFileCompiled(refMesh.MeshName);
-                if (newResource == null)
+
+                if (newResource == null || newResource.DataBlock is not Mesh meshData)
                 {
-                    return;
+                    throw new InvalidDataException($"Failed to load {refMesh.MeshName}");
                 }
 
-                RenderMesh = new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, model, isAggregate: true);
+                RenderMesh = new RenderableMesh(meshData, refMesh.MeshIndex, Scene, model, isAggregate: true);
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;

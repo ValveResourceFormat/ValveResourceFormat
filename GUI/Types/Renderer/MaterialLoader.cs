@@ -40,7 +40,7 @@ namespace GUI.Types.Renderer
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
-        public RenderMaterial GetMaterial(string name, Dictionary<string, byte>? shaderArguments)
+        public RenderMaterial GetMaterial(string? name, Dictionary<string, byte>? shaderArguments)
         {
             // HL:VR has a world node that has a draw call with no material
             if (name == null)

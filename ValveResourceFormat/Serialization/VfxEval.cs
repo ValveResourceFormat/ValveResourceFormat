@@ -1,7 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
-
-#nullable disable
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
@@ -160,14 +159,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <summary>
         /// Gets the enum mapper function.
         /// </summary>
-        public Func<int, string> EnumMapper { get; }
+        public Func<int, string>? EnumMapper { get; }
 
 
         // The 'return' keyword in the last line of a dynamic expression is optional (it is implied where absent)
         // OmitReturnStatement controls whether it is shown
         private readonly bool OmitReturnStatement;
 
-        private readonly IReadOnlyList<string> Features;
+        private readonly IReadOnlyList<string>? Features;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VfxEval"/> class.
@@ -175,10 +174,11 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <param name="binaryBlob">The binary blob to parse.</param>
         /// <param name="omitReturnStatement">Whether to omit the return statement in the output.</param>
         /// <param name="features">The list of features.</param>
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string>? features = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
+            RenderAttributesUsed = [];
             ParseExpression(binaryBlob);
         }
 
@@ -192,8 +192,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <param name="enumMapper">The enum mapper function.</param>
         public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed,
             bool omitReturnStatement = false,
-            IReadOnlyList<string> features = null,
-            Func<int, string> enumMapper = null)
+            IReadOnlyList<string>? features = null,
+            Func<int, string>? enumMapper = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
@@ -204,6 +204,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ParseExpression(binaryBlob);
         }
 
+        [MemberNotNull(nameof(DynamicExpressionBlob), nameof(DynamicExpressionResult))]
         private void ParseExpression(byte[] binaryBlob)
         {
             DynamicExpressionBlob = binaryBlob;
@@ -215,12 +216,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 ProcessOps((OPCODE)dataReader.ReadByte(), dataReader);
             }
 
-            foreach (var expression in DynamicExpressionList)
-            {
-                DynamicExpressionResult += $"{expression}\n";
-            }
-
-            DynamicExpressionResult = DynamicExpressionResult.Trim();
+            DynamicExpressionResult = string.Join("\n", DynamicExpressionList);
         }
 
         private void ProcessOps(OPCODE op, BinaryReader dataReader)

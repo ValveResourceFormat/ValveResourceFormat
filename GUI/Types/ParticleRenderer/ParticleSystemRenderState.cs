@@ -1,5 +1,3 @@
-#nullable disable
-
 namespace GUI.Types.ParticleRenderer
 {
     /// <summary>
@@ -9,7 +7,7 @@ namespace GUI.Types.ParticleRenderer
     {
         public static readonly ParticleSystemRenderState Default = new();
 
-        public ParticleRenderer Data { get; init; }
+        public ParticleRenderer? Data { get; init; }
 
         // Properties
         public long ParticleCount { get; set; }

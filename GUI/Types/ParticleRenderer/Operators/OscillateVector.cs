@@ -56,7 +56,7 @@ namespace GUI.Types.ParticleRenderer.Operators
                     ? particle.NormalizedAge
                     : particle.Age;
 
-                if (particleSystemState.Data.BehaviorVersion == 10)
+                if (particleSystemState.Data?.BehaviorVersion == 10)
                 {
                     var startTime = ParticleCollection.RandomBetween(particle.ParticleID, startTimeMin, startTimeMax);
                     var endTime = ParticleCollection.RandomBetween(particle.ParticleID, endTimeMin, endTimeMax);

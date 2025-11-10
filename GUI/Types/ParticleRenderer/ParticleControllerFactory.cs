@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using GUI.Types.ParticleRenderer.Emitters;
 using GUI.Types.ParticleRenderer.ForceGenerators;
 using GUI.Types.ParticleRenderer.Initializers;
@@ -6,8 +7,6 @@ using GUI.Types.ParticleRenderer.PreEmissionOperators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
-
-#nullable disable
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -139,7 +138,7 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
             };
 
-        public static bool TryCreateEmitter(string name, KVObject emitterInfo, out ParticleFunctionEmitter emitter)
+        public static bool TryCreateEmitter(string name, KVObject emitterInfo, [MaybeNullWhen(false)] out ParticleFunctionEmitter emitter)
         {
             if (EmitterDictionary.TryGetValue(name, out var factory))
             {
@@ -151,7 +150,7 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateInitializer(string name, KVObject initializerInfo, out ParticleFunctionInitializer initializer)
+        public static bool TryCreateInitializer(string name, KVObject initializerInfo, [MaybeNullWhen(false)] out ParticleFunctionInitializer initializer)
         {
             if (InitializerDictionary.TryGetValue(name, out var factory))
             {
@@ -163,7 +162,7 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateOperator(string name, KVObject operatorInfo, out ParticleFunctionOperator @operator)
+        public static bool TryCreateOperator(string name, KVObject operatorInfo, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
         {
             if (OperatorDictionary.TryGetValue(name, out var factory))
             {
@@ -175,7 +174,7 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, out ParticleFunctionOperator @operator)
+        public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
         {
             if (ForceGeneratorDictionary.TryGetValue(name, out var factory))
             {
@@ -187,7 +186,7 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateRender(string name, KVObject rendererInfo, VrfGuiContext vrfGuiContext, out ParticleFunctionRenderer renderer)
+        public static bool TryCreateRender(string name, KVObject rendererInfo, VrfGuiContext vrfGuiContext, [MaybeNullWhen(false)] out ParticleFunctionRenderer renderer)
         {
             if (RendererDictionary.TryGetValue(name, out var factory))
             {
@@ -198,7 +197,7 @@ namespace GUI.Types.ParticleRenderer
             renderer = default;
             return false;
         }
-        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, out ParticleFunctionPreEmissionOperator preEmissionOperator)
+        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
         {
             if (PreEmissionOperatorDictionary.TryGetValue(name, out var factory))
             {

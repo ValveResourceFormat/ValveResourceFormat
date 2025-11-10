@@ -5,8 +5,6 @@ using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 record struct ParticleDefinitionParser(KVObject Data)
 {
     private readonly T GetValueOrDefault<T>(string key, Func<string, T> parsingMethod, T @default)
@@ -26,7 +24,7 @@ record struct ParticleDefinitionParser(KVObject Data)
             return [];
         }
 
-        return Data.GetArray(k).Select(item => new ParticleDefinitionParser(item)).ToArray();
+        return [.. Data.GetArray(k).Select(static item => new ParticleDefinitionParser(item))];
     }
 
     private readonly float Float(string k) => Data.GetFloatProperty(k);
@@ -45,11 +43,11 @@ record struct ParticleDefinitionParser(KVObject Data)
     public readonly Vector3 Vector3(string key, Vector3 @default = default) => GetValueOrDefault(key, Vector3, @default);
 
     private readonly T Enum<T>(string k) where T : Enum => Data.GetEnumValue<T>(k);
-    public readonly T Enum<T>(string key, T @default = default) where T : Enum
+    public readonly T Enum<T>(string key, T @default = default) where T : struct, Enum
         => GetValueOrDefault(key, Enum<T>, @default);
 
     private readonly T EnumNormalized<T>(string k) where T : Enum => Data.GetEnumValue<T>(k, true);
-    public readonly T EnumNormalized<T>(string key, T @default = default) where T : Enum
+    public readonly T EnumNormalized<T>(string key, T @default = default) where T : struct, Enum
         => GetValueOrDefault(key, EnumNormalized<T>, @default);
 
     private readonly ParticleField ParticleField(string k) => (ParticleField)Data.GetIntegerProperty(k);

@@ -8,8 +8,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     [DebuggerDisplay("{Name}")]
@@ -24,7 +22,7 @@ namespace GUI.Types.Renderer
         public List<DrawCall> DrawCallsBlended { get; } = [];
         private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
-        public StorageBuffer BoneMatricesGpu { get; private set; }
+        public StorageBuffer? BoneMatricesGpu { get; private set; }
         public int MeshBoneOffset { get; private set; }
         public int MeshBoneCount { get; private set; }
         public int BoneWeightCount { get; private set; }
@@ -32,10 +30,10 @@ namespace GUI.Types.Renderer
         public string Name { get; }
         public int MeshIndex { get; }
 
-        public FlexStateManager FlexStateManager { get; }
+        public FlexStateManager? FlexStateManager { get; }
 
-        public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model model = null,
-            Dictionary<string, string> initialMaterialTable = null, Morph morph = null, bool isAggregate = false)
+        public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model? model = null,
+            Dictionary<string, string>? initialMaterialTable = null, Morph? morph = null, bool isAggregate = false)
         {
             guiContext = scene.GuiContext;
 
@@ -146,7 +144,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        private void ConfigureDrawCalls(Scene scene, VBIB vbib, KVObject[] sceneObjects, Dictionary<string, string> materialReplacementTable, bool isAggregate)
+        private void ConfigureDrawCalls(Scene scene, VBIB vbib, KVObject[] sceneObjects, Dictionary<string, string>? materialReplacementTable, bool isAggregate)
         {
             if (vbib.VertexBuffers.Count == 0)
             {
@@ -362,7 +360,7 @@ namespace GUI.Types.Renderer
                             newInputLayout.Add(inputField);
                         }
 
-                        vertexBuffer.InputLayoutFields = newInputLayout.ToArray();
+                        vertexBuffer.InputLayoutFields = [.. newInputLayout];
                     }
 
                     drawCall.VertexBuffers[bindingIndex++] = vertexBuffer;

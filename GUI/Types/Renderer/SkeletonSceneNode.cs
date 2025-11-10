@@ -3,8 +3,6 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
-#nullable disable
-
 namespace GUI.Types.Renderer
 {
     class SkeletonSceneNode : SceneNode

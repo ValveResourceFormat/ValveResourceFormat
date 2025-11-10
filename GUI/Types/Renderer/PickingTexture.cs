@@ -1,10 +1,9 @@
+using System.Diagnostics;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
 namespace GUI.Types.Renderer;
-
-#nullable disable
 
 class PickingTexture : Framebuffer
 {
@@ -33,7 +32,7 @@ class PickingTexture : Framebuffer
 
     public event EventHandler<PickingResponse> OnPicked;
     public Shader Shader { get; }
-    public Shader DebugShader { get; private set; }
+    public Shader? DebugShader { get; private set; }
     public bool ActiveNextFrame { get; private set; }
 
     private int CursorPositionX;
@@ -100,6 +99,8 @@ class PickingTexture : Framebuffer
 
         height = Height - height; // flip y
         var pixelInfo = new PixelInfo();
+
+        Debug.Assert(ColorFormat is not null);
 
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.ColorAttachment0);
         GL.ReadPixels(width, height, 1, 1, ColorFormat.PixelFormat, ColorFormat.PixelType, ref pixelInfo);

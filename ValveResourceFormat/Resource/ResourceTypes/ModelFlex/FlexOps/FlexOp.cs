@@ -1,5 +1,3 @@
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 {
     /// <summary>
@@ -27,7 +25,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         /// <summary>
         /// Builds a flex operation from an opcode and data.
         /// </summary>
-        public static FlexOp Build(string opCode, int data)
+        public static FlexOp? Build(string opCode, int data)
         {
             var floatData = BitConverter.Int32BitsToSingle(data);
             var flexOp = opCode switch
@@ -41,7 +39,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
                 "FLEX_OP_MUL" => new FlexOpMul(floatData),
                 "FLEX_OP_DIV" => new FlexOpDiv(floatData),
                 "FLEX_OP_NWAY" => new FlexOpNWay(data),
-                _ => (FlexOp)null,
+                _ => (FlexOp?)null,
             };
 
 #if DEBUG

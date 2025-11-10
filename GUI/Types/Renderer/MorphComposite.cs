@@ -1,11 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-
-#nullable disable
 
 namespace GUI.Types.Renderer
 {
@@ -144,6 +143,7 @@ namespace GUI.Types.Renderer
             GL.VertexArrayAttribBinding(vao, rangesLocation, 0);
         }
 
+        [MemberNotNull(nameof(allVertices), nameof(morphRects))]
         private void FillVertices(Morph morph)
         {
             var morphDatas = morph.GetMorphDatas();
