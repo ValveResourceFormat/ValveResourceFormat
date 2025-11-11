@@ -501,9 +501,9 @@ namespace GUI.Types.PackageViewer
                     var processed = 0;
 
                     // This does not need to be perfect, ValvePak reports a string per file, and success strings.
-                    var maximum = package.ArchiveMD5Entries.Count + 2;
+                    var maximum = package.AccessPackFileHashes.Count + 2;
 
-                    if (package.ArchiveMD5Entries.Count == 0)
+                    if (package.AccessPackFileHashes.Count == 0)
                     {
                         maximum += package.Entries.Sum(x => x.Value.Count);
                     }
@@ -547,7 +547,7 @@ namespace GUI.Types.PackageViewer
                         package.VerifyChunkHashes(progressReporter);
                     }
 
-                    if (!cancellationToken.IsCancellationRequested && package.ArchiveMD5Entries.Count == 0)
+                    if (!cancellationToken.IsCancellationRequested && package.AccessPackFileHashes.Count == 0)
                     {
                         package.VerifyFileChecksums(progressReporter);
                     }
@@ -569,9 +569,10 @@ namespace GUI.Types.PackageViewer
                 }
                 catch (Exception e)
                 {
+                    Log.Error(nameof(Package), $"Failed to verify package contents: {e.Message}");
+
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        Log.Error(nameof(Package), $"Failed to verify package contents: {e.Message}");
                         return;
                     }
 

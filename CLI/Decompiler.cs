@@ -1149,9 +1149,9 @@ namespace CLI
                 }
             });
 
-            if (package.ArchiveMD5Entries.Count > 0)
+            if (package.AccessPackFileHashes.Count > 0)
             {
-                maximum = package.ArchiveMD5Entries.Count;
+                maximum = package.AccessPackFileHashes.Count;
 
                 Console.WriteLine("Verifying chunk hashes...");
 

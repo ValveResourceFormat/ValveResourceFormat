@@ -22,10 +22,10 @@
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.5" />
     <PackageReference Include="SkiaSharp" Version="3.119.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.0" />
-    <PackageReference Include="System.IO.Hashing" Version="9.0.9" />
+    <PackageReference Include="System.IO.Hashing" Version="9.0.11" />
     <PackageReference Include="TinyBCSharp" Version="0.1.2" />
     <PackageReference Include="ValveKeyValue" Version="0.20.0.417" />
-    <PackageReference Include="ValvePak" Version="3.0.3.132" />
+    <PackageReference Include="ValvePak" Version="4.0.0.142" />
     <PackageReference Include="Vortice.SpirvCross" Version="1.5.3" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.6" />
     <PackageReference Include="KeyValues2" Version="0.8.0" />
