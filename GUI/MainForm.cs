@@ -682,7 +682,14 @@ namespace GUI
             var loadingFile = new LoadingFile();
             tab.Controls.Add(loadingFile);
 
-            var task = Task.Factory.StartNew(() => ProcessFile(vrfGuiContext, file, viewMode));
+            Application.DoEvents();
+
+            var currentContext = TaskScheduler.FromCurrentSynchronizationContext();
+            var task = Task.Factory.StartNew(
+                () => ProcessFile(vrfGuiContext, file, viewMode),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                currentContext);
 
             task.ContinueWith(
                 t =>
@@ -700,7 +707,7 @@ namespace GUI
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted,
-                TaskScheduler.FromCurrentSynchronizationContext());
+                currentContext);
 
             task.ContinueWith(
                 t =>
@@ -734,7 +741,7 @@ namespace GUI
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnRanToCompletion,
-                TaskScheduler.FromCurrentSynchronizationContext());
+                currentContext);
 
             task.ContinueWith(t =>
                 {
@@ -750,7 +757,7 @@ namespace GUI
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.None,
-                TaskScheduler.FromCurrentSynchronizationContext());
+                currentContext);
         }
 
         private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, ResourceViewMode viewMode)
