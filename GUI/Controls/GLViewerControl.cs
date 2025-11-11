@@ -29,6 +29,7 @@ namespace GUI.Controls
 
         public float Uptime { get; private set; }
         public Camera Camera { get; protected set; }
+        public UserInput Input { get; protected set; }
         public Types.Renderer.TextRenderer TextRenderer { get; protected set; }
 
 
@@ -60,6 +61,7 @@ namespace GUI.Controls
             InitializeComponent();
 
             Camera = new Camera();
+            Input = new UserInput();
 
             var settings = new NativeWindowSettings()
             {
@@ -373,9 +375,9 @@ namespace GUI.Controls
 
         protected virtual void OnMouseWheel(object sender, MouseEventArgs e)
         {
-            var modifier = Camera.OnMouseWheel(e.Delta);
+            var modifier = Input.OnMouseWheel(e.Delta);
 
-            if (Camera.OrbitMode)
+            if (Input.OrbitMode)
             {
                 SetMoveSpeedOrZoomLabel($"Orbit distance: {modifier:0.0} (scroll to change)");
             }
@@ -529,7 +531,7 @@ namespace GUI.Controls
             var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
             Uptime += frameTime;
 
-            if (MouseOverRenderArea && !isTextureViewer)
+            if ((MouseOverRenderArea || Input.ForceUpdate) && !isTextureViewer)
             {
                 var pressedKeys = CurrentlyPressedKeys;
                 var modifierKeys = ModifierKeys;
@@ -544,12 +546,12 @@ namespace GUI.Controls
                     pressedKeys |= TrackedKeys.Alt;
                 }
 
-                Camera.Tick(frameTime, pressedKeys, MouseDelta);
+                Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Camera);
                 LastMouseDelta = MouseDelta;
                 MouseDelta = Point.Empty;
             }
 
-            Camera.RecalculateMatrices(Uptime);
+            Camera.RecalculateMatrices();
 
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 

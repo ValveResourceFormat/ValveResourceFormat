@@ -47,8 +47,8 @@ namespace GUI.Types.GLViewers
         {
             base.OnLoad(sender, e);
 
-            Camera.SetLocation(new Vector3(200, 200, 200));
-            Camera.LookAt(Vector3.Zero);
+            Input.TargetCamera.SetLocation(new Vector3(200, 200, 200));
+            Input.TargetCamera.LookAt(Vector3.Zero);
         }
 
         protected override void InitializeControl()

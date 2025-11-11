@@ -29,7 +29,7 @@ namespace GUI.Types.GLViewers
 
             AddShaderButton();
 
-            Camera.ModifySpeed(0);
+            Input.ModifySpeed(0);
         }
 
         protected override void Dispose(bool disposing)

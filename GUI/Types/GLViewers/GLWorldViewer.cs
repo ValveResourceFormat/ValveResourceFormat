@@ -93,8 +93,8 @@ namespace GUI.Types.GLViewers
             {
                 if (index > 0)
                 {
-                    Camera.SaveCurrentForTransition();
-                    Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
+                    Input.SaveCurrentForTransition();
+                    Input.TargetCamera.SetFromTransformMatrix(CameraMatrices[index - 1]);
                 }
             });
 
@@ -161,8 +161,8 @@ namespace GUI.Types.GLViewers
                 yaw = float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture) * MathF.PI / 180f;
             }
 
-            Camera.SaveCurrentForTransition();
-            Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
+            Input.SaveCurrentForTransition();
+            Input.TargetCamera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
         }
 
         private void OnRestoreCameraRequest(object sender, RestoreCameraRequestEvent e)
@@ -171,8 +171,8 @@ namespace GUI.Types.GLViewers
             {
                 if (savedFloats.Length == 5)
                 {
-                    Camera.SaveCurrentForTransition();
-                    Camera.SetLocationPitchYaw(
+                    Input.SaveCurrentForTransition();
+                    Input.TargetCamera.SetLocationPitchYaw(
                         new Vector3(savedFloats[0], savedFloats[1], savedFloats[2]),
                         savedFloats[3],
                         savedFloats[4]);
@@ -296,8 +296,8 @@ namespace GUI.Types.GLViewers
                     cameraComboBox.SelectedIndex = 0;
                     cameraComboBox.EndUpdate();
 
-                    Camera.SetFromTransformMatrix(result.CameraMatrices[0]);
-                    Camera.SetLocation(Camera.Location + Camera.GetForwardVector() * 10f); // Escape the camera model
+                    Input.TargetCamera.SetFromTransformMatrix(result.CameraMatrices[0]);
+                    Input.TargetCamera.SetLocation(Camera.Location + Camera.GetForwardVector() * 15f); // Escape the camera model
                     cameraSet = true;
                 }
 
@@ -308,8 +308,8 @@ namespace GUI.Types.GLViewers
             {
                 cameraComboBox.Parent.Dispose();
 
-                Camera.SetLocation(new Vector3(256));
-                Camera.LookAt(Vector3.Zero);
+                Input.TargetCamera.SetLocation(new Vector3(256));
+                Input.TargetCamera.LookAt(Vector3.Zero);
             }
 
             if (worldNode != null)
@@ -364,9 +364,9 @@ namespace GUI.Types.GLViewers
             var cameraHeight = bbox.Center.Y + size.Y * 2f;
 
             var location = new Vector3(bbox.Center.X + distance, cameraHeight, bbox.Center.Z + distance);
-            Camera.SaveCurrentForTransition();
-            Camera.SetLocation(location);
-            Camera.LookAt(bbox.Center);
+            Input.SaveCurrentForTransition();
+            Input.TargetCamera.SetLocation(location);
+            Input.TargetCamera.LookAt(bbox.Center);
 
             // Ensure the node is visible
             if (!node.LayerEnabled)
@@ -595,8 +595,8 @@ namespace GUI.Types.GLViewers
                 var unscaledZ = transform.M33 / scaleZ;
                 var pitch = MathF.Asin(-unscaledZ);
 
-                viewerControl.Camera.CopyFrom(Camera);
-                viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+                viewerControl.Input.TargetCamera.CopyFrom(Camera);
+                viewerControl.Input.TargetCamera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
 
                 if (viewerControl is not GLModelViewer glModelViewer || sceneNode is not ModelSceneNode worldModel)
                 {
