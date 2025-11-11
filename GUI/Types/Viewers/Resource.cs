@@ -139,7 +139,7 @@ namespace GUI.Types.Viewers
                                 new BindingList<ResourceExtRefList.ResourceReferenceInfo>(externalReferences.ResourceRefInfoList), string.Empty),
                     };
 
-                    AddDataGridExternalRefAction(vrfGuiContext.FileLoader, externalRefs, "Name");
+                    AddDataGridExternalRefAction(vrfGuiContext, externalRefs, "Name");
 
                     var externalRefsTab = new TabPage("External Refs");
                     externalRefsTab.Controls.Add(externalRefs);
@@ -426,7 +426,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public static void AddDataGridExternalRefAction(AdvancedGuiFileLoader guiFileLoader, DataGridView dataGrid,
+        public static void AddDataGridExternalRefAction(VrfGuiContext vrfGuiContext, DataGridView dataGrid,
             string columnName, Action<bool>? secondAction = null)
         {
             void OnCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
@@ -442,10 +442,10 @@ namespace GUI.Types.Viewers
 
                 Log.Debug(nameof(Resource), $"Opening {name} from external refs");
 
-                var foundFile = guiFileLoader.FindFileWithContext(name + GameFileLoader.CompiledFileSuffix);
+                var foundFile = vrfGuiContext.FindFileWithContext(name + GameFileLoader.CompiledFileSuffix);
                 if (foundFile.Context == null)
                 {
-                    foundFile = guiFileLoader.FindFileWithContext(name);
+                    foundFile = vrfGuiContext.FindFileWithContext(name);
                 }
 
                 var bFound = foundFile.Context != null;
@@ -557,7 +557,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.Material:
                     var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
                     var textBox = (CodeTextBox)vmatTab.Controls[0];
-                    Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext.FileLoader).ToValveMaterial());
+                    Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext).ToValveMaterial());
                     break;
 
                 case ResourceType.EntityLump:

@@ -399,7 +399,7 @@ namespace GUI.Types.Renderer
 
         public static void ValidateShadersCore(IProgress<string> progressReporter, string? filter = null)
         {
-            using var context = new VrfGuiContext(null, null);
+            using var context = new VrfGuiContext(string.Empty, null);
             using var loader = new ShaderLoader(context);
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 

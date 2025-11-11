@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using GUI.Types.Renderer;
@@ -26,6 +27,7 @@ namespace GUI.Types.GLViewers
                 clip = animationClip;
 
                 var skeletonResource = guiContext.LoadFileCompiled(animationClip.SkeletonName);
+                Debug.Assert(skeletonResource != null);
                 SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
             }
             else
@@ -64,6 +66,7 @@ namespace GUI.Types.GLViewers
             void LoadClip(AnimationClip clip, string skeletonName, bool firstTime = true)
             {
                 var skeletonResource = GuiContext.LoadFileCompiled(clip.SkeletonName);
+                Debug.Assert(skeletonResource != null);
                 SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
                 LoadSkeleton(firstTime);
                 SetAnimationControllerUpdateHandler();

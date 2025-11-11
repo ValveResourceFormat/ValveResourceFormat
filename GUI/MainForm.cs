@@ -395,7 +395,7 @@ namespace GUI
             var tab = mainTabs.SelectedTab;
             if (tab is not null && tab.Tag is ExportData exportData)
             {
-                var (newFileContext, packageEntry) = exportData.VrfGuiContext.FileLoader.FindFileWithContext(
+                var (newFileContext, packageEntry) = exportData.VrfGuiContext.FindFileWithContext(
                     exportData.PackageEntry?.GetFullPath() ?? exportData.VrfGuiContext.FileName
                 );
                 OpenFile(newFileContext, packageEntry);
@@ -766,7 +766,7 @@ namespace GUI
 
             if (entry != null)
             {
-                stream = AdvancedGuiFileLoader.GetPackageEntryStream(vrfGuiContext.ParentGuiContext.CurrentPackage, entry);
+                stream = GameFileLoader.GetPackageEntryStream(vrfGuiContext.ParentGuiContext.CurrentPackage, entry);
 
                 if (stream.Length >= magicData.Length)
                 {

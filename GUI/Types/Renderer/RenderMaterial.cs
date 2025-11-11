@@ -84,7 +84,7 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    shader = guiContext.FileLoader.LoadShader(material.ShaderName);
+                    shader = guiContext.LoadShader(material.ShaderName);
                 }
                 catch (UnexpectedMagicException e)
                 {

@@ -30,6 +30,7 @@ namespace GUI.Types.GLViewers
                     case "CSmartPropElement_Model":
                         {
                             using var resource = GuiContext.LoadFileCompiled(child.GetStringProperty("m_sModelName"));
+                            Debug.Assert(resource != null);
                             var model = (Model?)resource.DataBlock;
                             Debug.Assert(model != null);
 
@@ -60,6 +61,7 @@ namespace GUI.Types.GLViewers
                                 }
 
                                 using var resource = GuiContext.LoadFileCompiled(pickOneChild.GetStringProperty("m_sModelName"));
+                                Debug.Assert(resource != null);
                                 var model = (Model?)resource.DataBlock;
                                 Debug.Assert(model != null);
 

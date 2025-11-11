@@ -77,7 +77,7 @@ namespace GUI.Forms
             if (decompile)
             {
                 // We need to know what files were handled by the glTF exporter
-                var trackingFileLoader = new TrackingFileLoader(exportData.VrfGuiContext.FileLoader);
+                var trackingFileLoader = new TrackingFileLoader(exportData.VrfGuiContext);
 
                 gltfExporter = new GltfModelExporter(trackingFileLoader)
                 {
@@ -325,7 +325,7 @@ namespace GUI.Forms
                     extractProgressBar.Value = 100 - (int)(filesToExtract.Count / (float)initialCount * 100.0f);
                 }).ConfigureAwait(false);
 
-                var stream = AdvancedGuiFileLoader.GetPackageEntryStream(exportData.VrfGuiContext.CurrentPackage, packageFile);
+                var stream = GameFileLoader.GetPackageEntryStream(exportData.VrfGuiContext.CurrentPackage, packageFile);
                 var outFilePath = Path.Combine(path, fileFullName);
                 var outFolder = Path.GetDirectoryName(outFilePath);
 
@@ -421,7 +421,7 @@ namespace GUI.Forms
 
             try
             {
-                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader, progressReporter);
+                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext, progressReporter);
 
                 if (contentFile.Data != null)
                 {

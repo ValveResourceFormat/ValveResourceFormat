@@ -15,14 +15,14 @@ namespace GUI.Forms
             InitializeComponent();
         }
 
-        public EntityInfoControl(AdvancedGuiFileLoader guiFileLoader) : this()
+        public EntityInfoControl(VrfGuiContext vrfGuiContext) : this()
         {
-            ResourceAddDataGridExternalRef(guiFileLoader);
+            ResourceAddDataGridExternalRef(vrfGuiContext);
         }
 
-        public void ResourceAddDataGridExternalRef(AdvancedGuiFileLoader guiFileLoader)
+        public void ResourceAddDataGridExternalRef(VrfGuiContext vrfGuiContext)
         {
-            Resource.AddDataGridExternalRefAction(guiFileLoader, dataGridProperties, ColumnValue.Name, (referenceFound) =>
+            Resource.AddDataGridExternalRefAction(vrfGuiContext, dataGridProperties, ColumnValue.Name, (referenceFound) =>
             {
                 if (referenceFound)
                 {

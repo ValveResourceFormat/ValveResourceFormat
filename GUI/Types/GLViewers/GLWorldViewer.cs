@@ -395,7 +395,7 @@ namespace GUI.Types.GLViewers
             var isEntity = sceneNode.EntityData != null;
             if (entityInfoForm == null)
             {
-                entityInfoForm = new EntityInfoForm(GuiContext.FileLoader);
+                entityInfoForm = new EntityInfoForm(GuiContext);
                 entityInfoForm.Show();
                 entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick += OnEntityInfoOutputsCellDoubleClick;
                 entityInfoForm.EntityInfoControl.Disposed += OnEntityInfoFormDisposed;
@@ -574,7 +574,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            var foundFile = GuiContext.FileLoader.FindFileWithContext(filename + GameFileLoader.CompiledFileSuffix);
+            var foundFile = GuiContext.FindFileWithContext(filename + GameFileLoader.CompiledFileSuffix);
 
             if (foundFile.Context == null)
             {

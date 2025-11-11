@@ -7,13 +7,13 @@ namespace GUI.Forms
     {
         public EntityInfoControl EntityInfoControl;
 
-        public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader)
+        public EntityInfoForm(VrfGuiContext vrfGuiContext)
         {
             Width = 800;
             Height = 450;
             Text = "EntityInfoForm";
 
-            EntityInfoControl = new(guiFileLoader);
+            EntityInfoControl = new(vrfGuiContext);
 
             EntityInfoControl.Dock = DockStyle.Fill;
             Controls.Add(EntityInfoControl);

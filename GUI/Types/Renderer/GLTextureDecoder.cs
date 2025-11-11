@@ -48,7 +48,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
     }
 
-    private readonly VrfGuiContext guiContext = new();
+    private readonly VrfGuiContext guiContext = new(null, null);
     private readonly BlockingCollection<DecodeRequest> decodeQueue = [];
     private readonly Lock threadStartupLock = new();
 

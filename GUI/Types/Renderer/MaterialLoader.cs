@@ -80,7 +80,7 @@ namespace GUI.Types.Renderer
             return mat;
         }
 
-        public RenderMaterial LoadMaterial(Resource resource, Dictionary<string, byte>? shaderArguments = null)
+        public RenderMaterial LoadMaterial(Resource? resource, Dictionary<string, byte>? shaderArguments = null)
         {
             if (resource == null)
             {

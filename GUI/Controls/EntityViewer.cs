@@ -36,7 +36,7 @@ namespace GUI.Types.Viewers
             Entities = entities;
             SelectEntityFunc = selectAndFocusEntity;
             EntityInfo.OutputsGrid.CellDoubleClick += EntityInfoGrid_CellDoubleClick;
-            EntityInfo.ResourceAddDataGridExternalRef(guiContext.FileLoader);
+            EntityInfo.ResourceAddDataGridExternalRef(guiContext);
 
             UpdateGrid();
         }

@@ -114,7 +114,7 @@ namespace GUI.Types.GLViewers
 
             if (material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
             {
-                var previewModelResource = GuiContext.FileLoader.LoadFileCompiled(previewModel);
+                var previewModelResource = GuiContext.LoadFileCompiled(previewModel);
 
                 if (previewModelResource != null)
                 {
@@ -153,7 +153,7 @@ namespace GUI.Types.GLViewers
 
             try
             {
-                var shaders = GuiContext.FileLoader.LoadShader(material.ShaderName);
+                var shaders = GuiContext.LoadShader(material.ShaderName);
 
                 var tabPage = viewer.Create(
                     shaders,

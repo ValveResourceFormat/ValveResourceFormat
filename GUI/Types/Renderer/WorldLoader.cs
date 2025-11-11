@@ -964,14 +964,14 @@ namespace GUI.Types.Renderer
 
             // Maps have to be packed in a vpk?
             var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
-            var vpkFound = guiContext.FileLoader.FindFile(vpkFile);
+            var vpkFound = guiContext.FindFile(vpkFile);
             Package? package;
 
             // Load the skybox map vpk and make it searchable in the file loader
             if (vpkFound.PathOnDisk != null)
             {
                 // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
-                package = guiContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
+                package = guiContext.AddPackageToSearch(vpkFound.PathOnDisk);
             }
             else if (vpkFound.PackageEntry != null)
             {
@@ -992,7 +992,7 @@ namespace GUI.Types.Renderer
                     package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                     package.Read(stream);
 
-                    guiContext.FileLoader.AddPackageToSearch(package);
+                    guiContext.AddPackageToSearch(package);
 
                     package = null;
                 }
@@ -1019,7 +1019,7 @@ namespace GUI.Types.Renderer
             {
                 if (package != null)
                 {
-                    guiContext.FileLoader.RemovePackageFromSearch(package);
+                    guiContext.RemovePackageFromSearch(package);
                 }
                 return;
             }
@@ -1059,7 +1059,7 @@ namespace GUI.Types.Renderer
 
             if (package != null)
             {
-                guiContext.FileLoader.RemovePackageFromSearch(package);
+                guiContext.RemovePackageFromSearch(package);
             }
         }
 
@@ -1068,7 +1068,7 @@ namespace GUI.Types.Renderer
             var navFilePath = Path.ChangeExtension(guiContext.FileName, ".nav");
             try
             {
-                using var navFileStream = guiContext.FileLoader.GetFileStream(navFilePath);
+                using var navFileStream = guiContext.GetFileStream(navFilePath);
                 if (navFileStream != null)
                 {
                     NavMesh = new NavMeshFile();
