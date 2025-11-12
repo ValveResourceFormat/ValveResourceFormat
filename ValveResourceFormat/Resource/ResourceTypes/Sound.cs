@@ -288,7 +288,6 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (soundClass != "CVoiceContainerDefault")
             {
-                Console.Error.WriteLine($"Unsupported sound file: {soundClass}");
                 return false;
             }
 

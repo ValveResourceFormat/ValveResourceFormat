@@ -3,6 +3,7 @@ using System.Text;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
 
@@ -195,13 +196,21 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Sound:
+                    if (resource.DataBlock is Sound soundData)
                     {
-                        using var soundStream = ((Sound)resource.DataBlock).GetSoundStream();
+                        using var soundStream = soundData.GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
                         contentFile.Data = [.. buffer];
-
-                        break;
                     }
+                    else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
+                    {
+                        // TODO: We may want to cleanup m_vSound (recursively) since it contains random garbage if not actually used
+                        var wrappedData = new KVObject("root");
+                        wrappedData.AddProperty("VrfExportedSound", ctrlData.Data);
+                        contentFile.Data = Encoding.UTF8.GetBytes(new KV3File(wrappedData).ToString());
+                    }
+
+                    break;
 
                 case ResourceType.Texture:
                     contentFile = new TextureExtract(resource).ToContentFile();
@@ -344,10 +353,17 @@ namespace ValveResourceFormat.IO
                     }
 
                 case ResourceType.Sound:
-                    switch (((Sound)resource.DataBlock).SoundType)
+                    if (resource.DataBlock is Sound soundData)
                     {
-                        case Sound.AudioFileType.MP3: return "mp3";
-                        case Sound.AudioFileType.WAV: return "wav";
+                        switch (soundData.SoundType)
+                        {
+                            case Sound.AudioFileType.MP3: return "mp3";
+                            case Sound.AudioFileType.WAV: return "wav";
+                        }
+                    }
+                    else
+                    {
+                        return "vsnd";
                     }
 
                     break;

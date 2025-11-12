@@ -17,6 +17,7 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.TextureDecoders;
 using ValveResourceFormat.ToolsAssetInfo;
 using ValveResourceFormat.Utils;
@@ -1435,9 +1436,15 @@ namespace CLI
                     break;
 
                 case ResourceType.Sound:
-                    var sound = (Sound?)resource.DataBlock;
-                    Debug.Assert(sound != null);
-                    info = sound.SoundType.ToString();
+                    if (resource.DataBlock is Sound soundData)
+                    {
+                        info = soundData.SoundType.ToString();
+                    }
+                    else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
+                    {
+                        info = ctrlData.Data.GetStringProperty("_class");
+                    }
+
                     break;
 
                 case ResourceType.EntityLump:
