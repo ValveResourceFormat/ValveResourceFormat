@@ -107,7 +107,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 #if DEBUG
                 if (!Properties.TryAdd(name, value))
                 {
-                    Console.WriteLine($"This KV3 object contains a duplicate key: {name} with value {value}");
+                    Console.WriteLine($"This KV3 object contains a duplicate key: {name} with value {value.Value}:\n{new StackTrace()}");
                     Properties[name] = value;
                 }
 #else

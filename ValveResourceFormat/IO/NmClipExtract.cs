@@ -113,7 +113,7 @@ public class NmClipExtract
         foreach (var (key, value) in kvCompiledEvent)
         {
             // These were already handled and shouldn't be copied over.
-            if (key is "m_flStartTimeSeconds" or "m_flDurationSeconds")
+            if (key is "_class" or "m_flStartTimeSeconds" or "m_flDurationSeconds")
             {
                 continue;
             }

@@ -278,7 +278,7 @@ public class AnimationGraphExtract
 
             if (key is "m_tags")
             {
-                if (className is "CSequence" or "CCycleControlClip")
+                if (className is "CSequence" or "CCycleControlClip" or "CBlend2D")
                 {
                     // this is tag spans like so:
                     // {
