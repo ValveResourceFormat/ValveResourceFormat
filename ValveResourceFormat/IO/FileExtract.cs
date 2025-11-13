@@ -201,6 +201,18 @@ namespace ValveResourceFormat.IO
                         using var soundStream = soundData.GetSoundStream();
                         soundStream.TryGetBuffer(out var buffer);
                         contentFile.Data = [.. buffer];
+
+                        // TODO: Refactor this into a SoundExtract?
+                        if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
+                        {
+                            var wrappedData = new KVObject("root");
+                            wrappedData.AddProperty("VrfExportedSound", ctrlData.Data);
+                            contentFile.AdditionalFiles.Add(new ContentFile
+                            {
+                                FileName = Path.GetFileNameWithoutExtension(resource.FileName) + ".vsnd",
+                                Data = Encoding.UTF8.GetBytes(new KV3File(wrappedData).ToString())
+                            });
+                        }
                     }
                     else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                     {
