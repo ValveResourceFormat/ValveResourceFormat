@@ -363,6 +363,13 @@ namespace GUI.Types.Viewers
                     }
                     break;
 
+                case ResourceType.NmGraph:
+                    {
+                        specialTabPage = new TabPage("ANIMATION GRAPH");
+                        specialTabPage.Controls.Add(new AnimationGraphViewer(vrfGuiContext, ((BinaryKV3)resource.DataBlock).Data));
+                        break;
+                    }
+
                 case ResourceType.NmClip:
                     {
                         specialTabPage = new TabPage("ANIMATION CLIP");
