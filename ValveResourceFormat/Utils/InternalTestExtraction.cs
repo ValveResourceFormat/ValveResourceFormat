@@ -16,7 +16,9 @@ namespace ValveResourceFormat.Utils
         /// which allows us to quickly find exceptions when running --stats using Decompiler over an entire game folder,
         /// as well it is used in tests to quickly verify.
         /// </summary>
-        internal static void Test(Resource resource)
+        /// <param name="resource">The resource to test.</param>
+        /// <param name="fileLoader">Optional file loader for loading dependencies. If null, uses NullFileLoader.</param>
+        internal static void Test(Resource resource, IFileLoader? fileLoader = null)
         {
             switch (resource.ResourceType)
             {
@@ -106,7 +108,7 @@ namespace ValveResourceFormat.Utils
             try
             {
                 // Test extraction code flow
-                using var contentFile = FileExtract.Extract(resource, new NullFileLoader());
+                using var contentFile = FileExtract.Extract(resource, fileLoader ?? new NullFileLoader());
 
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {

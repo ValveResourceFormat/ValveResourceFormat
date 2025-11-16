@@ -63,6 +63,7 @@ namespace CLI
 
         // The options below are for collecting stats and testing exporting, this is mostly intended for VRF developers, not end users.
         private bool CollectStats;
+        private bool StatsWithLoader;
         private bool StatsPrintFilePaths;
         private bool StatsPrintUniqueDependencies;
         private bool StatsCollectParticles;
@@ -114,6 +115,7 @@ namespace CLI
         /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
         /// <param name="tools_asset_info_short">Whether to print only file paths for tools_asset_info files.</param>
         /// <param name="stats">Collect stats on all input files and then print them. Use "-i steam" to scan all Steam libraries.</param>
+        /// <param name="stats_with_loader">When using --stats, use GameFileLoader to load dependencies.</param>
         /// <param name="stats_print_files">When using --stats, print example file names for each stat.</param>
         /// <param name="stats_unique_deps">When using --stats, print all unique dependencies that were found.</param>
         /// <param name="stats_particles">When using --stats, collect particle operators, renderers, emitters, initializers.</param>
@@ -146,6 +148,7 @@ namespace CLI
             bool tools_asset_info_short = false,
 
             bool stats = false,
+            bool stats_with_loader = false,
             bool stats_print_files = false,
             bool stats_unique_deps = false,
             bool stats_particles = false,
@@ -179,6 +182,7 @@ namespace CLI
             ToolsAssetInfoShort = tools_asset_info_short;
 
             CollectStats = stats;
+            StatsWithLoader = stats_with_loader;
             StatsPrintFilePaths = stats_print_files;
             StatsPrintUniqueDependencies = stats_unique_deps;
             StatsCollectParticles = stats_particles;
@@ -218,6 +222,21 @@ namespace CLI
             {
                 Console.Error.WriteLine("Do not use --stats with --output.");
                 return 1;
+            }
+
+            if (StatsWithLoader)
+            {
+                if (!CollectStats)
+                {
+                    Console.Error.WriteLine("--stats_with_loader requires --stats to be enabled.");
+                    return 1;
+                }
+
+                if (MaxParallelismThreads > 1)
+                {
+                    Console.WriteLine("--threads does not currently work with --stats_with_loader.");
+                    return 1;
+                }
             }
 
             if (!Decompile && (GltfExportFormat != null || GltfExportAnimations || GltfExportMaterials || GltfExportAdaptTextures || GltfExportExtras))
@@ -465,13 +484,13 @@ namespace CLI
             return paths;
         }
 
-        private void ProcessFile(string path)
+        private void ProcessFile(string path, IFileLoader? fileLoader = null)
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
-            ProcessFile(path, fs);
+            ProcessFile(path, fs, null, fileLoader);
         }
 
-        private void ProcessFile(string path, Stream stream, string? originalPath = null)
+        private void ProcessFile(string path, Stream stream, string? originalPath = null, IFileLoader? fileLoader = null)
         {
             lock (ConsoleWriterLock)
             {
@@ -607,12 +626,12 @@ namespace CLI
 
                 if (CollectStats)
                 {
-                    TestAndCollectStats(resource, path, originalPath);
+                    TestAndCollectStats(resource, path, originalPath, fileLoader);
                 }
 
                 if (OutputFile != null)
                 {
-                    using var fileLoader = new GameFileLoader(null, resource.FileName);
+                    using var outputFileLoader = new GameFileLoader(null, resource.FileName);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
@@ -622,11 +641,11 @@ namespace CLI
                         outFilePath = Path.ChangeExtension(outFilePath, GltfExportFormat);
                         Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
 
-                        CreateGltfExporter(fileLoader).Export(resource, outFilePath);
+                        CreateGltfExporter(outputFileLoader).Export(resource, outFilePath);
                         return;
                     }
 
-                    using var contentFile = DecompileResource(resource, fileLoader);
+                    using var contentFile = DecompileResource(resource, outputFileLoader);
 
                     var extensionNew = Path.GetExtension(outFilePath);
                     if (extensionNew.Length == 0 || extensionNew[1..] != extension)
@@ -1019,12 +1038,14 @@ namespace CLI
                     }
                     else
                     {
+                        using var fileLoader = StatsWithLoader ? new GameFileLoader(package, package.FileName) : null;
+
                         while (queue.TryDequeue(out var file))
                         {
                             package.ReadEntry(file, out var output);
 
                             using var entryStream = new MemoryStream(output);
-                            ProcessFile(file.GetFullPath(), entryStream, path);
+                            ProcessFile(file.GetFullPath(), entryStream, path, fileLoader);
                         }
                     }
                 }
@@ -1410,7 +1431,7 @@ namespace CLI
         /// This method tries to run through all the code paths for a particular resource,
         /// which allows us to quickly find exceptions when running --stats over an entire game folder.
         /// </summary>
-        private void TestAndCollectStats(Resource resource, string path, string? originalPath)
+        private void TestAndCollectStats(Resource resource, string path, string? originalPath, IFileLoader? fileLoader = null)
         {
             if (originalPath != null)
             {
@@ -1564,11 +1585,11 @@ namespace CLI
                 stringWriter.GetStringBuilder().Clear();
             }
 
-            InternalTestExtraction.Test(resource);
+            InternalTestExtraction.Test(resource, fileLoader);
 
             if (GltfTest && GltfModelExporter.CanExport(resource) && resource.ResourceType != ResourceType.Map)
             {
-                var gltfModelExporter = new GltfModelExporter(new NullFileLoader())
+                var gltfModelExporter = new GltfModelExporter(fileLoader ?? new NullFileLoader())
                 {
                     ExportMaterials = false,
                     ExportExtras = GltfExportExtras,
