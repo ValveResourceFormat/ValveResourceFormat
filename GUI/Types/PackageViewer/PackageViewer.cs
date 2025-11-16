@@ -21,6 +21,7 @@ namespace GUI.Types.PackageViewer
 #pragma warning restore CA1001
     {
         private TreeViewWithSearchResults TreeView;
+        private VirtualPackageNode VirtualRoot;
         private BetterTreeNode LastContextTreeNode;
         private bool IsEditingPackage; // TODO: Allow editing existing vpks (but not chunked ones)
 
@@ -59,6 +60,16 @@ namespace GUI.Types.PackageViewer
             }
 
             vrfGuiContext.CurrentPackage = package;
+
+            VirtualRoot = new VirtualPackageNode("root", 0, null);
+
+            foreach (var fileType in vrfGuiContext.CurrentPackage.Entries)
+            {
+                foreach (var file in fileType.Value)
+                {
+                    BetterTreeView.AddFileNode(VirtualRoot, file);
+                }
+            }
         }
 
         public TabPage Create()
@@ -75,7 +86,7 @@ namespace GUI.Types.PackageViewer
         {
             // create a TreeView with search capabilities, register its events, and add it to the tab
             TreeView = new TreeViewWithSearchResults(this);
-            TreeView.InitializeTreeViewFromPackage(vrfGuiContext);
+            TreeView.InitializeTreeViewFromPackage(vrfGuiContext, VirtualRoot);
             TreeView.OpenPackageEntry += VPK_OpenFile;
             TreeView.OpenContextMenu += VPK_OnContextMenu;
             TreeView.PreviewFile += VPK_PreviewFile;

@@ -227,9 +227,10 @@ namespace GUI.Types.PackageViewer
         /// <summary>
         /// Initializes the TreeView in the control with the contents of the passed Package. Contents are sorted and expanded by default.
         /// </summary>
-        internal void InitializeTreeViewFromPackage(VrfGuiContext vrfGuiContext)
+        internal void InitializeTreeViewFromPackage(VrfGuiContext vrfGuiContext, VirtualPackageNode rootVirtual)
         {
             mainListView.VrfGuiContext = vrfGuiContext;
+            mainTreeView.Root = rootVirtual;
 
             var control = mainTreeView;
             control.BeginUpdate();
@@ -252,17 +253,6 @@ namespace GUI.Types.PackageViewer
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
             var vpkImage = MainForm.ImageListLookup["vpk"];
-
-            var rootVirtual = new VirtualPackageNode("root", 0, null);
-            mainTreeView.Root = rootVirtual;
-
-            foreach (var fileType in vrfGuiContext.CurrentPackage.Entries)
-            {
-                foreach (var file in fileType.Value)
-                {
-                    BetterTreeView.AddFileNode(rootVirtual, file);
-                }
-            }
 
             var root = new BetterTreeNode(name, rootVirtual)
             {
