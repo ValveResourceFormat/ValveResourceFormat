@@ -685,10 +685,25 @@ namespace GUI
             Application.DoEvents();
 
             var currentContext = TaskScheduler.FromCurrentSynchronizationContext();
-            var task = Task.Factory.StartNew(
-                () => ProcessFile(vrfGuiContext, file, viewMode),
+            var taskLoad = ProcessFile(vrfGuiContext, file, viewMode);
+
+            var task = taskLoad.ContinueWith(
+                t =>
+                {
+                    Cursor.Current = Cursors.WaitCursor;
+
+                    try
+                    {
+                        var viewer = t.Result;
+                        return viewer.Create();
+                    }
+                    finally
+                    {
+                        Cursor.Current = Cursors.Default;
+                    }
+                },
                 CancellationToken.None,
-                TaskCreationOptions.LongRunning,
+                TaskContinuationOptions.OnlyOnRanToCompletion,
                 currentContext);
 
             task.ContinueWith(
@@ -733,11 +748,11 @@ namespace GUI
                     {
                         t.Result.Dispose(); // Dispose the temporary TabPage since we copied the controls over
                         tab.ResumeLayout();
+
+                        Cursor.Current = Cursors.Default;
                     }
 
                     ShowHideSearch();
-
-                    Cursor.Current = Cursors.Default;
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnRanToCompletion,
@@ -760,8 +775,10 @@ namespace GUI
                 currentContext);
         }
 
-        private static TabPage ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, ResourceViewMode viewMode)
+        private static async Task<Types.Viewers.IViewer> ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, ResourceViewMode viewMode)
         {
+            await Task.Yield();
+
             Stream stream = null;
             Span<byte> magicData = stackalloc byte[6];
 
@@ -790,78 +807,95 @@ namespace GUI
 
             if (Types.PackageViewer.PackageViewer.IsAccepted(magic))
             {
-                var tab = new PackageViewer().Create(vrfGuiContext, stream);
-
-                return tab;
+                var viewer = new PackageViewer(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.CompiledShader.IsAccepted(magic))
             {
-                var viewer = new Types.Viewers.CompiledShader();
-
-                try
-                {
-                    var tab = viewer.Create(vrfGuiContext, stream);
-                    viewer = null;
-                    return tab;
-                }
-                finally
-                {
-                    viewer?.Dispose();
-                }
+                var viewer = new Types.Viewers.CompiledShader(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.ClosedCaptions.IsAccepted(magic))
             {
-                return new Types.Viewers.ClosedCaptions().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.ClosedCaptions(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.ToolsAssetInfo.IsAccepted(magic))
             {
-                return new Types.Viewers.ToolsAssetInfo().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.ToolsAssetInfo(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.FlexSceneFile.IsAccepted(magic))
             {
-                return new Types.Viewers.FlexSceneFile().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.FlexSceneFile(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.NavView.IsAccepted(magic))
             {
-                return new Types.Viewers.NavView().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.NavView(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.BinaryKeyValues3.IsAccepted(magic))
             {
-                return new Types.Viewers.BinaryKeyValues3().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.BinaryKeyValues3(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.BinaryKeyValues2.IsAccepted(magic, vrfGuiContext.FileName))
             {
-                return new Types.Viewers.BinaryKeyValues2().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.BinaryKeyValues2(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.BinaryKeyValues1.IsAccepted(magic))
             {
-                return new Types.Viewers.BinaryKeyValues1().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.BinaryKeyValues1(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
             {
-                return new Types.Viewers.Resource().Create(vrfGuiContext, stream, viewMode, verifyFileSize: entry == null || entry.CRC32 > 0);
+                var viewer = new Types.Viewers.Resource(vrfGuiContext, viewMode, verifyFileSize: entry == null || entry.CRC32 > 0);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             // Raw images and audio files do not really appear in Source 2 projects, but we support viewing them anyway.
             // As some detections rely on the file extension instead of magic bytes,
             // they should be detected at the bottom here, after failing to detect a proper resource file.
             else if (Types.Viewers.Image.IsAccepted(magic))
             {
-                return new Types.Viewers.Image().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.Image(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
-            else if (Types.Viewers.Image.IsAcceptedVector(vrfGuiContext.FileName))
+            else if (Types.Viewers.ImageVector.IsAccepted(vrfGuiContext.FileName))
             {
-                return new Types.Viewers.Image().CreateVector(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.ImageVector(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
             {
-                return new Types.Viewers.Audio().Create(vrfGuiContext, stream, viewMode == ResourceViewMode.ViewerOnly);
+                var viewer = new Types.Viewers.Audio(vrfGuiContext, viewMode == ResourceViewMode.ViewerOnly);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
             else if (Types.Viewers.GridNavFile.IsAccepted(magic))
             {
-                return new Types.Viewers.GridNavFile().Create(vrfGuiContext, stream);
+                var viewer = new Types.Viewers.GridNavFile(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
             }
 
-            return new Types.Viewers.ByteViewer().Create(vrfGuiContext, stream);
+            var byteViewer = new Types.Viewers.ByteViewer(vrfGuiContext);
+            await byteViewer.LoadAsync(stream).ConfigureAwait(false);
+            return byteViewer;
         }
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)

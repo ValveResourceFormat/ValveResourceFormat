@@ -1,14 +1,17 @@
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
-using Svg.Skia;
 
 namespace GUI.Types.Viewers
 {
-    class Image : IViewer
+    class Image(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
+        private SKBitmap? bitmap;
+
         public static bool IsAccepted(uint magic)
         {
             return magic == 0x474E5089 || /* png */
@@ -16,15 +19,8 @@ namespace GUI.Types.Viewers
                    magic << 8 == 0x46494700; /* gif */
         }
 
-        public static bool IsAcceptedVector(string fileName)
+        public async Task LoadAsync(Stream stream)
         {
-            return fileName.EndsWith(".svg", StringComparison.InvariantCultureIgnoreCase);
-        }
-
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
-        {
-            SKBitmap? bitmap;
-
             if (stream != null)
             {
                 bitmap = SKBitmap.Decode(stream);
@@ -33,6 +29,11 @@ namespace GUI.Types.Viewers
             {
                 bitmap = SKBitmap.Decode(vrfGuiContext.FileName);
             }
+        }
+
+        public TabPage Create()
+        {
+            Debug.Assert(bitmap is not null);
 
             try
             {
@@ -49,33 +50,12 @@ namespace GUI.Types.Viewers
             }
         }
 
-#pragma warning disable CA1822 // Mark members as static
-        public TabPage CreateVector(VrfGuiContext vrfGuiContext, Stream stream)
-#pragma warning restore CA1822 // Mark members as static
+        public void Dispose()
         {
-            var svg = new SKSvg();
-
-            if (stream != null)
+            if (bitmap != null)
             {
-                svg.Load(stream);
-            }
-            else
-            {
-                svg.Load(vrfGuiContext.FileName!);
-            }
-
-            try
-            {
-                var textureControl = new GLTextureViewer(vrfGuiContext, svg);
-                var tab = new TabPage("IMAGE");
-                tab.Controls.Add(textureControl);
-                svg = null;
-
-                return tab;
-            }
-            finally
-            {
-                svg?.Dispose();
+                bitmap.Dispose();
+                bitmap = null;
             }
         }
     }

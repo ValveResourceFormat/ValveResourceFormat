@@ -21,27 +21,22 @@ namespace GUI.Types.Viewers
         ResourceBlocksOnly,
     };
 
-    class Resource : IViewer
+    class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer
     {
+        private ValveResourceFormat.Resource? resource;
+
         public static bool IsAccepted(uint magic)
         {
             return magic == ValveResourceFormat.Resource.KnownHeaderVersion;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
-        {
-            throw new NotImplementedException();
-        }
-
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream, ResourceViewMode viewMode, bool verifyFileSize)
+        public async Task LoadAsync(Stream stream)
         {
             var resourceTemp = new ValveResourceFormat.Resource
             {
                 FileName = vrfGuiContext.FileName,
             };
-            var resource = resourceTemp;
-
-            var isPreview = viewMode == ResourceViewMode.ViewerOnly;
+            resource = resourceTemp;
 
             try
             {
@@ -61,6 +56,13 @@ namespace GUI.Types.Viewers
                 // Only dispose resource if it throws within Read(), tough luck below this
                 resourceTemp?.Dispose();
             }
+        }
+
+        public TabPage Create()
+        {
+            Debug.Assert(resource is not null);
+
+            var isPreview = viewMode == ResourceViewMode.ViewerOnly;
 
             var resTabs = new TabControl
             {
@@ -409,10 +411,10 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Shader:
                     {
-                        var compiledShaderViewer = new CompiledShader();
+                        var compiledShaderViewer = new CompiledShader(vrfGuiContext);
                         try
                         {
-                            specialTabPage = compiledShaderViewer.Create(vrfGuiContext, null);
+                            specialTabPage = compiledShaderViewer.Create();
                             specialTabPage.Text = "SHADER";
                             compiledShaderViewer = null;
                         }
@@ -495,11 +497,11 @@ namespace GUI.Types.Viewers
             }));
         }
 
-        private static void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
+        private void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
             if (resource.ResourceType == ResourceType.SboxShader && block is SboxShader shaderBlock)
             {
-                var viewer = new CompiledShader();
+                var viewer = new CompiledShader(vrfGuiContext);
 
                 try
                 {

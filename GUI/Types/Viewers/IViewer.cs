@@ -1,14 +1,15 @@
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Utils;
 using static GUI.Controls.CodeTextBox;
 
 namespace GUI.Types.Viewers
 {
     interface IViewer
     {
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream);
+        public Task LoadAsync(Stream stream);
+        public TabPage Create();
 
         public static TabPage AddContentTab<T>(TabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
         {

@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -7,14 +9,16 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues1 : IViewer
+    class BinaryKeyValues1(VrfGuiContext vrfGuiContext) : IViewer
     {
+        private string? text;
+
         public static bool IsAccepted(uint magic)
         {
             return magic == BinaryKV1.MAGIC;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream input)
+        public async Task LoadAsync(Stream input)
         {
             Stream stream;
             KVObject kv;
@@ -44,11 +48,18 @@ namespace GUI.Types.Viewers
 
             ms.Seek(0, SeekOrigin.Begin);
 
-            var text = reader.ReadToEnd();
+            var text = await reader.ReadToEndAsync().ConfigureAwait(false);
+        }
+
+        public TabPage Create()
+        {
+            Debug.Assert(text is not null);
 
             var control = CodeTextBox.Create(text);
             var tab = new TabPage();
             tab.Controls.Add(control);
+
+            text = null;
 
             return tab;
         }

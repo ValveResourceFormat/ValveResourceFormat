@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.GLViewers;
@@ -8,22 +9,17 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
-    class NavView : IViewer
+    class NavView(VrfGuiContext vrfGuiContext) : IViewer
     {
+        private NavMeshFile navMeshFile = new();
+
         public static bool IsAccepted(uint magic)
         {
             return magic == NavMeshFile.MAGIC;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream stream)
         {
-            var tabOuterPage = new TabPage();
-            var tabControl = new TabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            tabOuterPage.Controls.Add(tabControl);
-            var navMeshFile = new NavMeshFile();
             if (stream != null)
             {
                 navMeshFile.Read(stream);
@@ -32,6 +28,16 @@ namespace GUI.Types.Viewers
             {
                 navMeshFile.Read(vrfGuiContext.FileName);
             }
+        }
+
+        public TabPage Create()
+        {
+            var tabOuterPage = new TabPage();
+            var tabControl = new TabControl
+            {
+                Dock = DockStyle.Fill,
+            };
+            tabOuterPage.Controls.Add(tabControl);
 
             var navMeshPage = new TabPage("NAV MESH");
             var worldViewer = new GLNavMeshViewer(vrfGuiContext, navMeshFile);

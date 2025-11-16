@@ -1,15 +1,34 @@
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class ByteViewer : IViewer
+    class ByteViewer(VrfGuiContext vrfGuiContext) : IViewer
     {
+        private byte[] input = [];
+        private string? text;
+
         public static bool IsAccepted() => true;
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream stream)
+        {
+            if (stream == null)
+            {
+                input = await File.ReadAllBytesAsync(vrfGuiContext.FileName!).ConfigureAwait(false);
+            }
+            else
+            {
+                input = new byte[stream.Length];
+                stream.ReadExactly(input);
+            }
+
+            text = GetTextFromBytes(input.AsSpan());
+        }
+
+        public TabPage Create()
         {
             var tab = new TabPage();
             var resTabs = new TabControl
@@ -26,20 +45,6 @@ namespace GUI.Types.Viewers
             bvTab.Controls.Add(bv);
             resTabs.TabPages.Add(bvTab);
 
-            byte[] input;
-
-            if (stream == null)
-            {
-                input = File.ReadAllBytes(vrfGuiContext.FileName!);
-            }
-            else
-            {
-                input = new byte[stream.Length];
-                stream.ReadExactly(input);
-            }
-
-            var text = GetTextFromBytes(input.AsSpan());
-
             if (!string.IsNullOrEmpty(text))
             {
                 var textTab = new TabPage("Text");
@@ -47,12 +52,11 @@ namespace GUI.Types.Viewers
                 textTab.Controls.Add(textBox);
                 resTabs.TabPages.Add(textTab);
                 resTabs.SelectedTab = textTab;
+                text = null;
             }
 
-            Program.MainForm.Invoke((MethodInvoker)(() =>
-            {
-                bv.SetBytes(input);
-            }));
+            bv.SetBytes(input);
+            input = [];
 
             return tab;
         }

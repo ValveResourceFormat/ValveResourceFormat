@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -16,6 +17,7 @@ namespace GUI.Types.Viewers
     {
         private TextControl control;
         private TreeView fileListView;
+        private readonly VrfGuiContext vrfGuiContext;
 
         public static string SpvToHlsl(VfxShaderFileVulkan file) => file.GetDecompiledFile();
 
@@ -24,8 +26,9 @@ namespace GUI.Types.Viewers
             return magic == VfxProgramData.MAGIC;
         }
 
-        public CompiledShader()
+        public CompiledShader(VrfGuiContext vrfGuiContext)
         {
+            this.vrfGuiContext = vrfGuiContext;
             fileListView = new TreeView
             {
                 FullRowSelect = true,
@@ -41,10 +44,17 @@ namespace GUI.Types.Viewers
             control.AddControl(fileListView);
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream stream)
         {
-            stream?.Dispose(); // Creating shader collection doesn't actually use the provided stream which is kind of a waste
+            // Creating shader collection doesn't actually use the provided stream which is kind of a waste
+            if (stream is not null)
+            {
+                await stream.DisposeAsync().ConfigureAwait(false);
+            }
+        }
 
+        public TabPage Create()
+        {
             var filename = Path.GetFileName(vrfGuiContext.FileName);
             var leadProgramType = ComputeVCSFileName(filename).ProgramType;
             var vcsCollectionName = filename.AsSpan(0, filename.LastIndexOf('_')); // in the form water_dota_pcgl_40

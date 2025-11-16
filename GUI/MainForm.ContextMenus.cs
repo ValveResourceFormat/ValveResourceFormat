@@ -369,16 +369,28 @@ namespace GUI
 
         private void CreateVpkFromFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var contents = new PackageViewer().CreateEmpty(new VrfGuiContext("new.vpk", null));
+            var newVrfGuiContext = new VrfGuiContext("new.vpk", null);
 
-            var tab = new TabPage("New VPK")
+            try
             {
-                ToolTipText = "New VPK"
-            };
-            tab.Controls.Add(contents);
-            tab.ImageIndex = ImageListLookup["vpk"];
-            mainTabs.TabPages.Add(tab);
-            mainTabs.SelectTab(tab);
+                var contents = new PackageViewer(newVrfGuiContext).CreateEmpty();
+
+                var tab = new TabPage("New VPK")
+                {
+                    ToolTipText = "New VPK"
+                };
+                tab.Controls.Add(contents);
+                tab.ImageIndex = ImageListLookup["vpk"];
+                mainTabs.TabPages.Add(tab);
+                mainTabs.SelectTab(tab);
+
+                newVrfGuiContext = null;
+            }
+            finally
+            {
+                newVrfGuiContext?.Dispose();
+            }
+
         }
 
         private void RegisterVpkFileAssociationToolStripMenuItem_Click(object sender, EventArgs e) => SettingsControl.RegisterFileAssociation();

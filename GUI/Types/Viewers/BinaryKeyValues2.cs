@@ -1,13 +1,17 @@
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues2 : IViewer
+    class BinaryKeyValues2(VrfGuiContext vrfGuiContext) : IViewer
     {
         public const int MAGIC = 757932348; // "<!--"
+
+        private string? text;
 
         public static bool IsAccepted(uint magic, string fileName)
         {
@@ -15,7 +19,7 @@ namespace GUI.Types.Viewers
                                       fileName.EndsWith(".vmap", StringComparison.OrdinalIgnoreCase));
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream input)
+        public async Task LoadAsync(Stream input)
         {
             Stream stream;
             Datamodel.Datamodel dm;
@@ -45,11 +49,18 @@ namespace GUI.Types.Viewers
 
             ms.Seek(0, SeekOrigin.Begin);
 
-            var text = reader.ReadToEnd();
+            var text = await reader.ReadToEndAsync().ConfigureAwait(false);
+        }
+
+        public TabPage Create()
+        {
+            Debug.Assert(text is not null);
 
             var control = CodeTextBox.Create(text);
             var tab = new TabPage();
             tab.Controls.Add(control);
+
+            text = null;
 
             return tab;
         }

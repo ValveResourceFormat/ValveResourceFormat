@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -6,13 +8,14 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues3 : IViewer
+    class BinaryKeyValues3(VrfGuiContext vrfGuiContext) : IViewer
     {
+        private string? text;
+
         public static bool IsAccepted(uint magic) => BinaryKV3.IsBinaryKV3(magic);
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream stream)
         {
-            var tab = new TabPage();
             var kv3 = new BinaryKV3(ValveResourceFormat.BlockType.Undefined);
             Stream kv3stream;
 
@@ -33,8 +36,19 @@ namespace GUI.Types.Viewers
 
             kv3stream.Close();
 
-            var control = CodeTextBox.Create(kv3.ToString());
+            text = kv3.ToString();
+        }
+
+        public TabPage Create()
+        {
+            Debug.Assert(text is not null);
+
+            var tab = new TabPage();
+
+            var control = CodeTextBox.Create(text);
             tab.Controls.Add(control);
+
+            text = null;
 
             return tab;
         }

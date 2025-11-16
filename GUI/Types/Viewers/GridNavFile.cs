@@ -1,26 +1,25 @@
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class GridNavFile : IViewer
+    class GridNavFile(VrfGuiContext vrfGuiContext) : IViewer
     {
+        private string? infoText;
+
         public static bool IsAccepted(uint magic)
         {
             return magic == ValveResourceFormat.MapFormats.GridNavFile.MAGIC;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream stream)
         {
-            var tabOuterPage = new TabPage();
-            var tabControl = new TabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            tabOuterPage.Controls.Add(tabControl);
             var navMeshFile = new ValveResourceFormat.MapFormats.GridNavFile();
+
             if (stream != null)
             {
                 navMeshFile.Read(stream);
@@ -30,11 +29,26 @@ namespace GUI.Types.Viewers
                 navMeshFile.Read(vrfGuiContext.FileName);
             }
 
-            var infoPage = new TabPage("GRID NAV");
             var infoText = navMeshFile.ToString();
+        }
+
+        public TabPage Create()
+        {
+            Debug.Assert(infoText is not null);
+
+            var tabOuterPage = new TabPage();
+            var tabControl = new TabControl
+            {
+                Dock = DockStyle.Fill,
+            };
+            tabOuterPage.Controls.Add(tabControl);
+
+            var infoPage = new TabPage("GRID NAV");
             var infoTextControl = CodeTextBox.Create(infoText, CodeTextBox.HighlightLanguage.None);
             infoPage.Controls.Add(infoTextControl);
             tabControl.Controls.Add(infoPage);
+
+            infoText = null;
 
             return tabOuterPage;
         }

@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -7,22 +9,18 @@ using ValveResourceFormat.ClosedCaptions;
 
 namespace GUI.Types.Viewers
 {
-    class ClosedCaptions : IViewer
+    class ClosedCaptions(VrfGuiContext vrfGuiContext) : IViewer
     {
+        private ValveResourceFormat.ClosedCaptions.ClosedCaptions? captions;
+
         public static bool IsAccepted(uint magic)
         {
             return magic == ValveResourceFormat.ClosedCaptions.ClosedCaptions.MAGIC;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream stream)
         {
-            var tabOuterPage = new TabPage();
-            var tabControl = new TabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            tabOuterPage.Controls.Add(tabControl);
-            var captions = new ValveResourceFormat.ClosedCaptions.ClosedCaptions();
+            captions = new ValveResourceFormat.ClosedCaptions.ClosedCaptions();
 
             if (stream != null)
             {
@@ -32,6 +30,18 @@ namespace GUI.Types.Viewers
             {
                 captions.Read(vrfGuiContext.FileName);
             }
+        }
+
+        public TabPage Create()
+        {
+            Debug.Assert(captions is not null);
+
+            var tabOuterPage = new TabPage();
+            var tabControl = new TabControl
+            {
+                Dock = DockStyle.Fill,
+            };
+            tabOuterPage.Controls.Add(tabControl);
 
             var tabPage = new TabPage("Captions");
             var control = new DataGridView

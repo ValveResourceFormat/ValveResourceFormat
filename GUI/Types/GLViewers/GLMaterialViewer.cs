@@ -149,7 +149,7 @@ namespace GUI.Types.GLViewers
             Tabs.TabPages.Add(loadingTabPage);
             Tabs.SelectTab(loadingTabPage);
 
-            var viewer = new CompiledShader();
+            var viewer = new CompiledShader(GuiContext);
 
             try
             {
