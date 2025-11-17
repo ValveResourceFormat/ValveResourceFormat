@@ -145,7 +145,7 @@ namespace GUI.Types.Exporter
                     Title = "Choose where to save the file",
                     InitialDirectory = Settings.Config.SaveDirectory,
                     Filter = "All files (*.*)|*.*",
-                    FileName = fileName,
+                    FileName = Path.GetFileName(fileName),
                     AddToRecent = true,
                 };
                 var userOK = dialog.ShowDialog();
