@@ -96,7 +96,6 @@ namespace ValveResourceFormat.ResourceTypes
         private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, KVObject structEntry)
         {
             var count = (uint)field.Count;
-            var indirection = SchemaIndirectionType.Unknown;
 
             if (count == 0)
             {
@@ -105,21 +104,9 @@ namespace ValveResourceFormat.ResourceTypes
 
             long prevOffset = 0;
 
-            if (field.Indirections.Count > 0)
+            if (field.Indirections.Count == 1)
             {
-                // TODO
-                if (field.Indirections.Count > 1)
-                {
-                    throw new NotImplementedException("More than one indirection, not yet handled.");
-                }
-
-                // TODO
-                if (field.Count > 0)
-                {
-                    throw new NotImplementedException("Indirection.Count > 0 && field.Count > 0");
-                }
-
-                indirection = (SchemaIndirectionType)field.Indirections[0]; // TODO: depth needs fixing?
+                var indirection = (SchemaIndirectionType)field.Indirections[0];
 
                 var offset = Reader.ReadUInt32();
 
@@ -152,10 +139,66 @@ namespace ValveResourceFormat.ResourceTypes
                     throw new UnexpectedMagicException("Unsupported indirection", (int)indirection, nameof(indirection));
                 }
             }
+            else if (field.Indirections.Count == 2)
+            {
+                var indirection0 = (SchemaIndirectionType)field.Indirections[0];
+                var indirection1 = (SchemaIndirectionType)field.Indirections[1];
+
+                if (indirection0 == SchemaIndirectionType.ResourceArray && indirection1 == SchemaIndirectionType.ResourcePointer)
+                {
+                    var arrayOffset = Reader.ReadUInt32();
+                    var arrayCount = Reader.ReadUInt32();
+
+                    prevOffset = Reader.BaseStream.Position;
+
+                    if (arrayCount == 0)
+                    {
+                        structEntry.AddProperty(field.FieldName, new KVValue(new KVObject(field.FieldName, isArray: true)));
+                        return;
+                    }
+
+                    Reader.BaseStream.Position += arrayOffset - 8;
+
+                    // Array of pointers
+                    var arrayValues = new KVObject(field.FieldName, isArray: true, capacity: (int)arrayCount);
+
+                    for (var i = 0; i < arrayCount; i++)
+                    {
+                        var pointerOffset = Reader.ReadUInt32();
+
+                        if (pointerOffset == 0)
+                        {
+                            arrayValues.AddProperty(null, new KVValue(null));
+                        }
+                        else
+                        {
+                            var pointerPrevOffset = Reader.BaseStream.Position;
+                            Reader.BaseStream.Position += pointerOffset - 4;
+
+                            arrayValues.AddProperty(null, ReadField(field));
+
+                            Reader.BaseStream.Position = pointerPrevOffset;
+                        }
+                    }
+
+                    structEntry.AddProperty(field.FieldName, new KVValue(arrayValues));
+                    Reader.BaseStream.Position = prevOffset;
+
+                    return;
+                }
+                else
+                {
+                    throw new NotImplementedException($"Unsupported 2-level indirection: {indirection0}, {indirection1}");
+                }
+            }
+            else if (field.Indirections.Count > 2)
+            {
+                throw new NotImplementedException($"More than 2 levels of indirection not supported (found {field.Indirections.Count})");
+            }
 
             KVValue fieldValue;
 
-            if (field.Count > 0 || indirection == SchemaIndirectionType.ResourceArray)
+            if (field.Count > 0 || field.Indirections.Count == 1 && (SchemaIndirectionType)field.Indirections[0] == SchemaIndirectionType.ResourceArray)
             {
                 if (field.Type == SchemaFieldType.Byte || field.Type == SchemaFieldType.Color)
                 {

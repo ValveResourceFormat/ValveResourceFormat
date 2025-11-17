@@ -36,22 +36,12 @@ namespace Tests
                 {
                     FileName = file,
                 };
-
-                try
-                {
-                    resource.Read(file);
-                }
-                catch (NotImplementedException e) when (e.Message == "More than one indirection, not yet handled.")
-                {
-                    Console.WriteLine(e);
-                    continue;
-                }
+                resource.Read(file);
 
                 resources.Add(Path.GetFileName(file), resource);
 
                 Assert.That(resource.ResourceType, Is.Not.EqualTo(ResourceType.Unknown));
                 Assert.That(resource.ResourceType, Is.EqualTo(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(file.AsSpan()))));
-
 
                 // Verify extension
                 var extension = Path.GetExtension(file);
