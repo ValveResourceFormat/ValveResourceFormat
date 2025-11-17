@@ -678,10 +678,9 @@ namespace GUI
                     tab.ImageIndex = GetImageIndexForExtension(extension);
                 }
 
-                mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
-
                 if (!isPreview)
                 {
+                    mainTabs.TabPages.Insert(mainTabs.SelectedIndex + 1, tab);
                     mainTabs.SelectTab(tab);
                 }
 
@@ -692,10 +691,13 @@ namespace GUI
                 tabTemp?.Dispose();
             }
 
-            var loadingFile = new LoadingFile();
-            tab.Controls.Add(loadingFile);
+            Control loadingFile = null;
 
-            Application.DoEvents();
+            if (!isPreview)
+            {
+                loadingFile = new LoadingFile();
+                tab.Controls.Add(loadingFile);
+            }
 
             var currentContext = TaskScheduler.FromCurrentSynchronizationContext();
             var taskLoad = ProcessFile(vrfGuiContext, file, viewMode);
@@ -773,9 +775,9 @@ namespace GUI
 
             task.ContinueWith(t =>
                 {
-                    tab.BeginInvoke(() =>
+                    BeginInvoke(() =>
                     {
-                        loadingFile.Dispose();
+                        loadingFile?.Dispose();
 
                         if (isPreview)
                         {
