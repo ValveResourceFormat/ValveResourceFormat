@@ -128,7 +128,20 @@ namespace GUI
             {
                 OpenWelcome();
             }
-            else if (args.Length == 0 && Settings.Config.OpenExplorerOnStart != 0)
+            else
+
+            if (args.Length > 0)
+            {
+                void OnHandleCreated(object sender, EventArgs e)
+                {
+                    HandleCreated -= OnHandleCreated;
+
+                    OpenCommandLineArgFiles(args);
+                }
+
+                HandleCreated += OnHandleCreated;
+            }
+            else if (Settings.Config.OpenExplorerOnStart != 0)
             {
                 OpenExplorer();
             }
