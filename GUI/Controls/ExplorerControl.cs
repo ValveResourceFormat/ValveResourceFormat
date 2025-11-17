@@ -54,11 +54,14 @@ namespace GUI.Controls
                 };
                 bookmarkedFilesTreeNode.Expand();
 
+                var bookmarkedFileNodes = GetBookmarkedFileNodes();
+                bookmarkedFilesTreeNode.Nodes.AddRange(bookmarkedFileNodes);
+
                 TreeData.Add(new TreeDataNode
                 {
                     ParentNode = bookmarkedFilesTreeNode,
                     AppID = APPID_BOOKMARKS,
-                    Children = [],
+                    Children = bookmarkedFileNodes,
                 });
                 treeView.Nodes.Add(bookmarkedFilesTreeNode);
             }
@@ -73,11 +76,14 @@ namespace GUI.Controls
                 };
                 recentFilesTreeNode.Expand();
 
+                var recentFileNodes = GetRecentFileNodes();
+                recentFilesTreeNode.Nodes.AddRange(recentFileNodes);
+
                 TreeData.Add(new TreeDataNode
                 {
                     ParentNode = recentFilesTreeNode,
                     AppID = APPID_RECENT_FILES,
-                    Children = [],
+                    Children = recentFileNodes,
                 });
                 treeView.Nodes.Add(recentFilesTreeNode);
             }
