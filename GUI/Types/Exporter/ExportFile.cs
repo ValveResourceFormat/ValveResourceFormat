@@ -19,7 +19,7 @@ namespace GUI.Types.Exporter
         {
             var stream = GameFileLoader.GetPackageEntryStream(vrfGuiContext.CurrentPackage, file);
 
-            ExtractFileFromStream(file.GetFileName(), stream, vrfGuiContext, decompile);
+            ExtractFileFromStream(file.GetFullPath(), stream, vrfGuiContext, decompile);
         }
 
         public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
