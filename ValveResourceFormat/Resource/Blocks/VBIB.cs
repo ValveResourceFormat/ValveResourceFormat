@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -297,18 +298,35 @@ namespace ValveResourceFormat.Blocks
             };
 
             var inputLayoutFields = data.GetArray("m_inputLayoutFields");
-            buffer.InputLayoutFields = inputLayoutFields.Select(static il => new RenderInputLayoutField
+            buffer.InputLayoutFields = inputLayoutFields.Select(static il =>
             {
-                //null-terminated string
-                //SemanticName = Encoding.UTF8.GetString(il.GetArray<byte>("m_pSemanticName")).TrimEnd((char)0),
-                SemanticName = il.GetStringProperty("m_pSemanticName").ToUpperInvariant(),
-                SemanticIndex = il.GetInt32Property("m_nSemanticIndex"),
-                Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format"),
-                Offset = il.GetUInt32Property("m_nOffset"),
-                Slot = il.GetInt32Property("m_nSlot"),
-                SlotType = il.GetEnumValue<RenderSlotType>("m_nSlotType"),
-                InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate"),
-                ShaderSemantic = il.GetStringProperty("m_szShaderSemantic"),
+                var semanticName = il.Properties["m_pSemanticName"];
+                var semanticNameStr = string.Empty;
+
+                if (semanticName.Value is string str)
+                {
+                    semanticNameStr = str;
+                }
+                else if (semanticName.Value is byte[] bytes)
+                {
+                    semanticNameStr = Encoding.UTF8.GetString(bytes.AsSpan().TrimEnd((byte)0));
+                }
+                else
+                {
+                    Debug.Assert(false);
+                }
+
+                return new RenderInputLayoutField
+                {
+                    SemanticName = semanticNameStr.ToUpperInvariant(),
+                    SemanticIndex = il.GetInt32Property("m_nSemanticIndex"),
+                    Format = (DXGI_FORMAT)il.GetUInt32Property("m_Format"),
+                    Offset = il.GetUInt32Property("m_nOffset"),
+                    Slot = il.GetInt32Property("m_nSlot"),
+                    SlotType = il.GetEnumValue<RenderSlotType>("m_nSlotType"),
+                    InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate"),
+                    ShaderSemantic = il.GetStringProperty("m_szShaderSemantic"),
+                };
             }).ToArray();
 
             if (data.ContainsKey("m_pData"))
