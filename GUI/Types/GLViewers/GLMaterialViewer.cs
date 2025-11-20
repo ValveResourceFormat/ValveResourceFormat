@@ -115,7 +115,7 @@ namespace GUI.Types.GLViewers
             var material = (Material)Resource.DataBlock;
             if (material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
             {
-                var previewModelResource = GuiContext.FileLoader.LoadFileCompiled(previewModel);
+                var previewModelResource = GuiContext.LoadFileCompiled(previewModel);
 
                 if (previewModelResource != null)
                 {
@@ -159,7 +159,7 @@ namespace GUI.Types.GLViewers
             allParameterNames.UnionWith(shaderParams.VectorParams.Keys);
 
             var vcsDescriptionByName = new Dictionary<string, VfxVariableDescription>();
-            var vcsShader = GuiContext.FileLoader.LoadShader(drawCall.Material.Material.ShaderName);
+            var vcsShader = GuiContext.LoadShader(drawCall.Material.Material.ShaderName);
             if (vcsShader.Features != null)
             {
                 foreach (var varDesc in vcsShader.Features.VariableDescriptions)
