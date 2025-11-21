@@ -70,11 +70,15 @@ namespace GUI.Types.Viewers
                 Multiline = true,
             };
 
+            var ownsResource = true;
             void OnTabDisposed(object? sender, EventArgs e)
             {
                 resTabs.Disposed -= OnTabDisposed;
 
-                resource?.Dispose();
+                if (ownsResource)
+                {
+                    resource?.Dispose();
+                }
             }
 
             resTabs.Disposed += OnTabDisposed;
@@ -113,6 +117,8 @@ namespace GUI.Types.Viewers
             {
                 var previewTab = resTabs.TabPages[0];
                 resTabs.TabPages.Clear();
+
+                ownsResource = false;
                 resTabs.Dispose();
 
                 return previewTab;
