@@ -39,6 +39,7 @@ namespace GUI.Types.PackageViewer
 
             vrfGuiContext.CurrentPackage = package;
 
+            VirtualRoot = new VirtualPackageNode("root", 0, null);
             CreateTreeViewWithSearchResults();
 
             return TreeView;
