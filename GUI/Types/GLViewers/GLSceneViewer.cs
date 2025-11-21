@@ -618,6 +618,11 @@ namespace GUI.Types.GLViewers
 
         protected void AddWireframeToggleControl()
         {
+            if (this is GLMaterialViewer)
+            {
+                return;
+            }
+
             AddCheckBox("Show Wireframe", false, (v) => IsWireframe = v);
         }
 
@@ -651,7 +656,7 @@ namespace GUI.Types.GLViewers
 
                 renderModeCurrentIndex = i;
                 SetRenderMode(renderMode.Name);
-            });
+            }, true, true);
 
             renderModeBoldFont = new Font(renderModeComboBox.Font, FontStyle.Bold);
             renderModeComboBox.DrawMode = DrawMode.OwnerDrawFixed;
