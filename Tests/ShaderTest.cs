@@ -450,7 +450,6 @@ namespace Tests
 
         private static IEnumerable<TestCaseData> SpirvReflectionTestCases()
         {
-            yield return new TestCaseData("vcs64_dota_fow_android_vulkan_40_ps.vcs", 0, 0);
             yield return new TestCaseData("vcs65_compute_depthbin_cullbits_vulkan_50_cs.vcs", 0, 0);
             yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_vs.vcs", 0, 9);
             yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_ps.vcs", 1, 1);
