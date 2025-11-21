@@ -1,6 +1,9 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using GUI.Types.Renderer;
 using GUI.Utils;
 
 namespace GUI
@@ -53,12 +56,54 @@ namespace GUI
                 return;
             }
 
-            MessageBox.Show(
-                $"{exception.Message}{Environment.NewLine}{Environment.NewLine}See console for more information.{Environment.NewLine}{Environment.NewLine}Try using latest dev build to see if the issue persists.{Environment.NewLine}Source 2 Viewer Version: {Application.ProductVersion[..16]}",
-                $"Unhandled exception: {exception.GetType()}",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error
-            );
+            var copyButton = new TaskDialogButton("Copy to clipboard");
+
+            var page = new TaskDialogPage
+            {
+                Caption = $"Unhandled exception: {exception.GetType()}",
+                Text = $"{exception.Message}{Environment.NewLine}{Environment.NewLine}Use copy button when sharing this error, and also mention your exact steps. Details also available in console.",
+                Icon = TaskDialogIcon.Error,
+                Buttons = { copyButton, TaskDialogButton.Close },
+                DefaultButton = TaskDialogButton.Close,
+                AllowCancel = false,
+                AllowMinimize = false,
+                Footnote = new TaskDialogFootnote
+                {
+                    Text = $"S2V {Application.ProductVersion[..16].Replace('+', ' ')}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
+                    Icon = TaskDialogIcon.Information
+                }
+            };
+
+            var result = MainForm != null
+                ? TaskDialog.ShowDialog(MainForm, page)
+                : TaskDialog.ShowDialog(page);
+
+            if (result == copyButton)
+            {
+                var output = new StringBuilder(512);
+                AppendExceptionWithVersion(output, exception);
+                Clipboard.SetText(output.ToString());
+            }
+        }
+
+        public static void AppendExceptionWithVersion(StringBuilder output, Exception exception)
+        {
+            var version = Application.ProductVersion;
+
+            output.AppendLine("```");
+            output.AppendLine(exception.ToString());
+            output.AppendLine("```");
+
+            output.Append("*S2V ");
+            output.Append(version.Replace('+', ' '));
+            output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
+
+            if (GLEnvironment.GpuRendererAndDriver != null)
+            {
+                output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
+            }
+
+            output.AppendLine("*");
         }
     }
 }

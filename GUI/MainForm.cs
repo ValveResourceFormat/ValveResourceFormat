@@ -702,6 +702,24 @@ namespace GUI
             var currentContext = TaskScheduler.FromCurrentSynchronizationContext();
             var taskLoad = ProcessFile(vrfGuiContext, file, viewMode);
 
+            taskLoad.ContinueWith(
+                t =>
+                {
+                    vrfGuiContext.GLPostLoadAction = null;
+
+                    t.Exception?.Flatten().Handle(ex =>
+                    {
+                        var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
+
+                        tab.Controls.Add(control);
+
+                        return false;
+                    });
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                currentContext);
+
             var task = taskLoad.ContinueWith(
                 t =>
                 {
@@ -710,12 +728,35 @@ namespace GUI
                     try
                     {
                         var viewer = t.Result;
-                        return viewer.Create();
+                        var temporaryTab = viewer.Create();
+
+                        tab.SuspendLayout();
+
+                        try
+                        {
+                            foreach (Control c in temporaryTab.Controls)
+                            {
+                                if (tab.IsDisposed || tab.Disposing)
+                                {
+                                    c.Dispose();
+                                    continue;
+                                }
+
+                                tab.Controls.Add(c);
+                            }
+                        }
+                        finally
+                        {
+                            temporaryTab.Dispose(); // Dispose the temporary TabPage since we copied the controls over
+                            tab.ResumeLayout();
+                        }
                     }
                     finally
                     {
                         Cursor.Current = Cursors.Default;
                     }
+
+                    ShowHideSearch();
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnRanToCompletion,
@@ -728,49 +769,26 @@ namespace GUI
 
                     t.Exception?.Flatten().Handle(ex =>
                     {
-                        var control = CodeTextBox.CreateFromException(ex);
+                        try
+                        {
+                            var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
-                        tab.Controls.Add(control);
+                            tab.Controls.Add(control);
 
-                        return false;
+                            Log.Error(nameof(MainForm), ex.ToString());
+
+                            return false;
+                        }
+                        catch (Exception e)
+                        {
+                            Program.ShowError(e);
+
+                            return true;
+                        }
                     });
                 },
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted,
-                currentContext);
-
-            task.ContinueWith(
-                t =>
-                {
-                    Cursor.Current = Cursors.WaitCursor;
-
-                    tab.SuspendLayout();
-
-                    try
-                    {
-                        foreach (Control c in t.Result.Controls)
-                        {
-                            if (tab.IsDisposed || tab.Disposing)
-                            {
-                                c.Dispose();
-                                continue;
-                            }
-
-                            tab.Controls.Add(c);
-                        }
-                    }
-                    finally
-                    {
-                        t.Result.Dispose(); // Dispose the temporary TabPage since we copied the controls over
-                        tab.ResumeLayout();
-
-                        Cursor.Current = Cursors.Default;
-                    }
-
-                    ShowHideSearch();
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnRanToCompletion,
                 currentContext);
 
             task.ContinueWith(t =>

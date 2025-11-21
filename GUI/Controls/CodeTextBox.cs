@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using FastColoredTextBoxNS;
@@ -142,10 +143,26 @@ namespace GUI.Controls
             return new CodeTextBox(text, language);
         }
 
-        public static CodeTextBox CreateFromException(Exception exception)
+        public static CodeTextBox CreateFromException(Exception exception, string? context = null)
         {
-            var text = $"Unhandled exception occurred while trying to open this file:\n{exception.Message}\n\nTry using latest dev build to see if the issue persists.\n\n{exception}\n\nSource 2 Viewer Version: {Application.ProductVersion}";
+            var output = new StringBuilder(512);
+            output.AppendLine("Unhandled exception occurred while trying to open this file:");
+            output.AppendLine(exception.Message);
+            output.AppendLine();
 
+            output.AppendLine("Try using latest dev build to see if the issue persists.");
+            output.AppendLine();
+
+            if (context != null)
+            {
+                output.Append("Context: ");
+                output.AppendLine(context);
+                output.AppendLine();
+            }
+
+            Program.AppendExceptionWithVersion(output, exception);
+
+            var text = output.ToString();
             var control = new CodeTextBox(text, HighlightLanguage.None)
             {
                 WordWrap = true,
