@@ -17,12 +17,33 @@ namespace ValveResourceFormat.CompiledShader;
 /// </summary>
 public static partial class ShaderSpirvReflection
 {
-    private const int TextureStartingPoint = 30;
-    private const int TextureIndexStartingPoint = 30;
+    /// <summary>
+    /// Configuration for SPIR-V binding point offsets for a specific VCS version.
+    /// </summary>
+    /// <param name="TextureStartingPoint">Starting binding point for regular textures.</param>
+    /// <param name="TextureIndexStartingPoint">Starting binding point for bindless texture arrays.</param>
+    /// <param name="SamplerStartingPoint">Starting binding point for samplers.</param>
+    /// <param name="StorageBufferStartingPoint">Starting binding point for storage buffers.</param>
+    /// <param name="VsGsBufferBindingOffset">Offset for vertex/geometry shader buffers. Zero if using buffer sets.</param>
+    public readonly record struct BindingPointConfiguration
+    (
+        int TextureStartingPoint,
+        int TextureIndexStartingPoint,
+        int SamplerStartingPoint,
+        int StorageBufferStartingPoint,
+        int VsGsBufferBindingOffset = 0
+    );
 
-    private const int SamplerStartingPoint = 14;
+    private static BindingPointConfiguration GetBindingConfiguration(int vcsVersion)
+    {
+        if (vcsVersion >= 69)
+        {
+            return new(TextureStartingPoint: 30, TextureIndexStartingPoint: 30, SamplerStartingPoint: 14, StorageBufferStartingPoint: 30);
+        }
 
-    private const int StorageBufferStartingPoint = 30;
+        // Older versions
+        return new(TextureStartingPoint: 90, TextureIndexStartingPoint: 30, SamplerStartingPoint: 42, StorageBufferStartingPoint: 30, VsGsBufferBindingOffset: 14);
+    }
 
     /// <summary>
     /// Reflects and decompiles SPIR-V bytecode to a target shader language.
@@ -137,6 +158,8 @@ public static partial class ShaderSpirvReflection
             Array.Find(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId).DynamicComboId;
         var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
+        var bindingConfig = GetBindingConfiguration(program.VcsVersion);
+
         var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
 
         var (currentStageInputIndex, currentStageOutputIndex) = (0, 0);
@@ -231,20 +254,25 @@ public static partial class ShaderSpirvReflection
                 _ => VfxVariableType.Void
             };
 
-            var uniformBufferBindingOffset = 0u; // used to have 14 offset on vertex shader
-            var uniformBufferBinding = binding - uniformBufferBindingOffset;
+            var globalsBufferBindingOffset = program.VcsProgramType is VcsProgramType.VertexShader or VcsProgramType.GeometryShader
+                ? (uint)bindingConfig.VsGsBufferBindingOffset
+                : 0u;
 
-            // confirmed 0 in vs, gs, 1 in ps
-            var globalsBufferSet = program.VcsProgramType is VcsProgramType.PixelShader ? 1 : 0;
+            // VCS 69+: Uses descriptor sets (0 for vs/gs, 1 for ps)
+            // VCS <69: Uses binding offset instead, set is always 0
+            var globalsBufferSet = bindingConfig.VsGsBufferBindingOffset == 0
+                ? (program.VcsProgramType is VcsProgramType.PixelShader ? 1 : 0)
+                : 0;
 
-            var isGlobalsBuffer = uniformBufferBinding == 0 && set == globalsBufferSet;
+            var uniformBufferBinding = binding;
+            var isGlobalsBuffer = uniformBufferBinding == globalsBufferBindingOffset && set == globalsBufferSet;
 
             var name = resourceType switch
             {
-                SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, vfxType),
-                SpirvResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding),
+                SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, vfxType, bindingConfig),
+                SpirvResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding, bindingConfig),
                 SpirvResourceType.StorageBuffer or SpirvResourceType.StorageImage => GetNameForStorageBuffer(program,
-                    writeSequence, binding),
+                    writeSequence, binding, bindingConfig),
                 SpirvResourceType.UniformBuffer => isGlobalsBuffer
                     ? "_Globals_"
                     : GetNameForUniformBuffer(program, writeSequence, uniformBufferBinding, set),
@@ -304,9 +332,10 @@ public static partial class ShaderSpirvReflection
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="imageBinding">The image binding point.</param>
     /// <param name="vfxType">The VFX variable type to match.</param>
+    /// <param name="config">The binding point configuration.</param>
     /// <returns>The texture variable name, or "undetermined" if not found.</returns>
     public static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint imageBinding, VfxVariableType vfxType)
+        uint imageBinding, VfxVariableType vfxType, BindingPointConfiguration config)
     {
         var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
@@ -330,7 +359,7 @@ public static partial class ShaderSpirvReflection
             var isBindlessTextureArray = variable.Flags.HasFlag(VariableFlags.Bindless);
             Debug.Assert(variable.Flags.HasFlag(VariableFlags.TextureFlag3 | VariableFlags.SamplerFlag4));
 
-            var startingPoint = isBindlessTextureArray ? TextureIndexStartingPoint : TextureStartingPoint;
+            var startingPoint = isBindlessTextureArray ? config.TextureIndexStartingPoint : config.TextureStartingPoint;
 
             if (variable.VfxType is VfxVariableType.Sampler1D
                 or VfxVariableType.Sampler2D
@@ -362,9 +391,10 @@ public static partial class ShaderSpirvReflection
     /// <param name="program">The shader program data.</param>
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="samplerBinding">The sampler binding point.</param>
+    /// <param name="config">The binding point configuration.</param>
     /// <returns>A concatenated sampler state description, or "undetermined" if no sampler is bound at the slot.</returns>
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint samplerBinding)
+        uint samplerBinding, BindingPointConfiguration config)
     {
         var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
@@ -381,7 +411,7 @@ public static partial class ShaderSpirvReflection
                 continue;
             }
 
-            if (field.Dest == samplerBinding - SamplerStartingPoint)
+            if (field.Dest == samplerBinding - config.SamplerStartingPoint)
             {
                 var value = param.HasDynamicExpression
                     ? "dynamic"
@@ -400,9 +430,10 @@ public static partial class ShaderSpirvReflection
     /// <param name="program">The shader program data.</param>
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="bufferBinding">The buffer binding point.</param>
+    /// <param name="config">The binding point configuration.</param>
     /// <returns>The storage buffer variable name, or "undetermined" if not found.</returns>
     public static string GetNameForStorageBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint bufferBinding)
+        uint bufferBinding, BindingPointConfiguration config)
     {
         var semgent1Params = writeSequence.RenderState
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
@@ -417,7 +448,7 @@ public static partial class ShaderSpirvReflection
                 continue;
             }
 
-            if (field.Dest == bufferBinding - StorageBufferStartingPoint)
+            if (field.Dest == bufferBinding - config.StorageBufferStartingPoint)
             {
                 return param.Name;
             }

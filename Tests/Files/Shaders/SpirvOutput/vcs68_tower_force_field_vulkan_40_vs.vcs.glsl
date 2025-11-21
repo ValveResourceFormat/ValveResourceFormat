@@ -1,5 +1,5 @@
 // SPIR-V reflection failed for backend HLSL:
-// cbuffer ID 5618 (name: undetermined), member index 0 (name: _m0) cannot be expressed with either HLSL packing layout or packoffset.
+// cbuffer ID 5618 (name: _Globals_), member index 0 (name: g_vTexCoordOffset) cannot be expressed with either HLSL packing layout or packoffset.
 // 
 // Re-attempting reflection with the GLSL backend.
 
@@ -59,16 +59,16 @@ layout(set = 1, binding = 30, std430) readonly buffer g_transformBuffer
 
 struct _1391
 {
-    vec2 _m0;
-    vec4 _m1;
-    vec2 _m2;
-    vec4 _m3;
-    float _m4;
-    vec3 _m5;
-    float _m6;
+    vec2 g_vTexCoordOffset;
+    vec4 g_vTexCoordXform;
+    vec2 g_vDetailTexCoordOffset;
+    vec4 g_vDetailTexCoordXform;
+    float g_flRimLightScale;
+    vec3 g_vRimLightColor;
+    float g_flDiffuseModulationAmount;
 };
 
-layout(set = 0) uniform _1391 undetermined;
+layout(set = 0) uniform _1391 _Globals_;
 
 struct _1055
 {
@@ -145,10 +145,10 @@ void main()
     vec3 _24912 = _11198.xyz;
     vec3 _14212 = vec4(vPositionOs.xyz * vec3(g_transformBuffer_1._m0[g_instanceBuffer_1._m0[nTransformBufferOffset]._m0._m0[1]]._m0._m0[0].z).xyz, 1.0) * _23883;
     vec4 _21393;
-    _21393.x = dot(undetermined._m1.xy, vTexCoord.xy);
-    _21393.y = dot(undetermined._m1.zw, vTexCoord.xy);
-    vec4 _17131 = vec4(_21393.xy + undetermined._m0.xy, dot(undetermined._m3.xy, vTexCoord.xy), dot(undetermined._m3.zw, vTexCoord.xy));
-    vec2 _7692 = _17131.zw + undetermined._m2.xy;
+    _21393.x = dot(_Globals_.g_vTexCoordXform.xy, vTexCoord.xy);
+    _21393.y = dot(_Globals_.g_vTexCoordXform.zw, vTexCoord.xy);
+    vec4 _17131 = vec4(_21393.xy + _Globals_.g_vTexCoordOffset.xy, dot(_Globals_.g_vDetailTexCoordXform.xy, vTexCoord.xy), dot(_Globals_.g_vDetailTexCoordXform.zw, vTexCoord.xy));
+    vec2 _7692 = _17131.zw + _Globals_.g_vDetailTexCoordOffset.xy;
     vec4 _20489 = _17131;
     _20489.z = _7692.x;
     _20489.w = _7692.y;
@@ -199,9 +199,9 @@ void main()
     output_1 = vec2(0.0);
     output_2 = _11198;
     output_3 = vec4(normalize(_12861 - (_24912 * dot(_12861, _24912))), _7938);
-    output_4 = vec4(mix(vec3(1.0), _16668.xyz, vec3(undetermined._m6)), _23812.w);
+    output_4 = vec4(mix(vec3(1.0), _16668.xyz, vec3(_Globals_.g_flDiffuseModulationAmount)), _23812.w);
     output_5 = vec3(_9979, _9831.y, _14212.z);
-    output_6 = vec4((DotaGlobalParams_t.g_vGlobalLightAmbientColor1.xyz * undetermined._m5.xyz) * undetermined._m4, 0.0);
+    output_6 = vec4((DotaGlobalParams_t.g_vGlobalLightAmbientColor1.xyz * _Globals_.g_vRimLightColor.xyz) * _Globals_.g_flRimLightScale, 0.0);
     _23913.y = -_23913.y;
     gl_Position = _23913;
 }
