@@ -938,6 +938,18 @@ partial class ModelExtract
             {
                 var children = new KVObject(null, isArray: true);
                 
+                // Field mappings from compiled to source names
+                var footFieldMappings = new (string CompiledName, string SourceName)[]
+                {
+                    ("m_name", "name"),
+                    ("m_ankleBoneName", "anklebone"),
+                    ("m_toeBoneName", "toebone"),
+                    ("m_vBallOffset", "balloffset"),
+                    ("m_vHeelOffset", "heeloffset"),
+                    ("m_flTraceHeight", "traceheight"),
+                    ("m_flTraceRadius", "traceradius"),
+                };
+                
                 // Convert each foot entry to a Foot child node
                 foreach (var footEntry in feetSettings.Properties)
                 {
@@ -949,43 +961,16 @@ partial class ModelExtract
                     var footNode = MakeNode("Foot");
                     
                     // Map compiled field names to source field names
-                    if (footData.ContainsKey("m_name"))
+                    foreach (var (compiledName, sourceName) in footFieldMappings)
                     {
-                        footNode.AddProperty("name", footData.GetStringProperty("m_name"));
-                    }
-                    
-                    if (footData.ContainsKey("m_ankleBoneName"))
-                    {
-                        footNode.AddProperty("anklebone", footData.GetStringProperty("m_ankleBoneName"));
-                    }
-                    
-                    if (footData.ContainsKey("m_toeBoneName"))
-                    {
-                        footNode.AddProperty("toebone", footData.GetStringProperty("m_toeBoneName"));
-                    }
-                    
-                    if (footData.ContainsKey("m_vBallOffset"))
-                    {
-                        footNode.AddProperty("balloffset", footData.GetProperty<object>("m_vBallOffset"));
-                    }
-                    
-                    if (footData.ContainsKey("m_vHeelOffset"))
-                    {
-                        footNode.AddProperty("heeloffset", footData.GetProperty<object>("m_vHeelOffset"));
+                        if (footData.Properties.TryGetValue(compiledName, out var value))
+                        {
+                            footNode.AddProperty(sourceName, value);
+                        }
                     }
                     
                     // autolevel is typically true by default in source format
                     footNode.AddProperty("autolevel", true);
-                    
-                    if (footData.ContainsKey("m_flTraceHeight"))
-                    {
-                        footNode.AddProperty("traceheight", footData.GetFloatProperty("m_flTraceHeight"));
-                    }
-                    
-                    if (footData.ContainsKey("m_flTraceRadius"))
-                    {
-                        footNode.AddProperty("traceradius", footData.GetFloatProperty("m_flTraceRadius"));
-                    }
                     
                     children.AddItem(footNode);
                 }
@@ -998,20 +983,21 @@ partial class ModelExtract
                 // Create the Feet node
                 var feetNode = MakeNode("Feet", ("children", children));
                 
+                // Parent-level field mappings
+                var parentFieldMappings = new (string CompiledName, string SourceName)[]
+                {
+                    ("m_flLockTolerance", "locktolerance"),
+                    ("m_flHeightTolerance", "heighttolerance"),
+                    ("m_bSanitizeTrajectories", "sanitizetrajectories"),
+                };
+                
                 // Add parent-level properties if they exist
-                if (feetSettings.ContainsKey("m_flLockTolerance"))
+                foreach (var (compiledName, sourceName) in parentFieldMappings)
                 {
-                    feetNode.AddProperty("locktolerance", feetSettings.GetFloatProperty("m_flLockTolerance"));
-                }
-                
-                if (feetSettings.ContainsKey("m_flHeightTolerance"))
-                {
-                    feetNode.AddProperty("heighttolerance", feetSettings.GetFloatProperty("m_flHeightTolerance"));
-                }
-                
-                if (feetSettings.ContainsKey("m_bSanitizeTrajectories"))
-                {
-                    feetNode.AddProperty("sanitizetrajectories", feetSettings.GetProperty<bool>("m_bSanitizeTrajectories"));
+                    if (feetSettings.Properties.TryGetValue(compiledName, out var value))
+                    {
+                        feetNode.AddProperty(sourceName, value);
+                    }
                 }
                 
                 return feetNode;
