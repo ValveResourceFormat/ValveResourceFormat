@@ -168,7 +168,7 @@ public partial class GltfModelExporter
 
         if (renderMaterial.VectorParams.TryGetValue("g_vSpecularColor", out var vSpecularColor))
         {
-            // TODO - perhaps material.WithChannelColor?
+            material.WithChannelColor("SpecularColor", vSpecularColor); // This might need SrgbGammaToLinear
         }
 
         // Remap vtex texture parameters into instructions that can be exported
