@@ -915,6 +915,15 @@ partial class ModelExtract
                 AddGenericGameData(gameDataList.Value, "MovementSettings", movementSettings, "movementsettings");
             }
 
+            if (keyvalues.ContainsKey("FeetSettings"))
+            {
+                var feetSettings = keyvalues.GetProperty<KVObject>("FeetSettings");
+                var feetNode = ConvertFeetSettings(feetSettings);
+                if (feetNode != null)
+                {
+                    gameDataList.Value.AddItem(feetNode);
+                }
+            }
 
             if (keyvalues.ContainsKey("break_list"))
             {
@@ -923,6 +932,89 @@ partial class ModelExtract
                     var breakPieceFile = MakeNode("BreakPieceExternal", breakPiece);
                     breakPieceList.Value.AddItem(breakPieceFile);
                 }
+            }
+
+            static KVObject ConvertFeetSettings(KVObject feetSettings)
+            {
+                var children = new KVObject(null, isArray: true);
+                
+                // Convert each foot entry to a Foot child node
+                foreach (var footEntry in feetSettings.Properties)
+                {
+                    if (footEntry.Value.Value is not KVObject footData)
+                    {
+                        continue;
+                    }
+
+                    var footNode = MakeNode("Foot");
+                    
+                    // Map compiled field names to source field names
+                    if (footData.ContainsKey("m_name"))
+                    {
+                        footNode.AddProperty("name", footData.GetStringProperty("m_name"));
+                    }
+                    
+                    if (footData.ContainsKey("m_ankleBoneName"))
+                    {
+                        footNode.AddProperty("anklebone", footData.GetStringProperty("m_ankleBoneName"));
+                    }
+                    
+                    if (footData.ContainsKey("m_toeBoneName"))
+                    {
+                        footNode.AddProperty("toebone", footData.GetStringProperty("m_toeBoneName"));
+                    }
+                    
+                    if (footData.ContainsKey("m_vBallOffset"))
+                    {
+                        footNode.AddProperty("balloffset", footData.GetProperty<object>("m_vBallOffset"));
+                    }
+                    
+                    if (footData.ContainsKey("m_vHeelOffset"))
+                    {
+                        footNode.AddProperty("heeloffset", footData.GetProperty<object>("m_vHeelOffset"));
+                    }
+                    
+                    // autolevel is typically true by default in source format
+                    footNode.AddProperty("autolevel", true);
+                    
+                    if (footData.ContainsKey("m_flTraceHeight"))
+                    {
+                        footNode.AddProperty("traceheight", footData.GetFloatProperty("m_flTraceHeight"));
+                    }
+                    
+                    if (footData.ContainsKey("m_flTraceRadius"))
+                    {
+                        footNode.AddProperty("traceradius", footData.GetFloatProperty("m_flTraceRadius"));
+                    }
+                    
+                    children.AddItem(footNode);
+                }
+                
+                if (children.Count == 0)
+                {
+                    return null;
+                }
+                
+                // Create the Feet node
+                var feetNode = MakeNode("Feet", ("children", children));
+                
+                // Add parent-level properties if they exist
+                if (feetSettings.ContainsKey("m_flLockTolerance"))
+                {
+                    feetNode.AddProperty("locktolerance", feetSettings.GetFloatProperty("m_flLockTolerance"));
+                }
+                
+                if (feetSettings.ContainsKey("m_flHeightTolerance"))
+                {
+                    feetNode.AddProperty("heighttolerance", feetSettings.GetFloatProperty("m_flHeightTolerance"));
+                }
+                
+                if (feetSettings.ContainsKey("m_bSanitizeTrajectories"))
+                {
+                    feetNode.AddProperty("sanitizetrajectories", feetSettings.GetProperty<bool>("m_bSanitizeTrajectories"));
+                }
+                
+                return feetNode;
             }
 
             static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject genericData, string dataKey = null)
