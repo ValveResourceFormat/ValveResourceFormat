@@ -940,6 +940,16 @@ partial class ModelExtract
                 AddGenericGameData(gameDataList.Value, "MovementSettings", movementSettings, "movementsettings");
             }
 
+            if (keyvalues.ContainsKey("FeetSettings"))
+            {
+                var feetSettings = keyvalues.GetProperty<KVObject>("FeetSettings");
+                var feetNode = ConvertFeetSettings(feetSettings);
+                if (feetNode != null)
+                {
+                    gameDataList.Value.AddItem(feetNode);
+                }
+            }
+
             if (keyvalues.ContainsKey("break_list"))
             {
                 foreach (var breakPiece in keyvalues.GetArray<KVObject>("break_list"))
@@ -948,6 +958,76 @@ partial class ModelExtract
                     breakPieceList.Value.AddItem(breakPieceFile);
                 }
             }
+
+            static KVObject ConvertFeetSettings(KVObject feetSettings)
+            {
+                var children = new KVObject(null, isArray: true);
+                
+                // Field mappings from compiled to source names
+                var footFieldMappings = new (string CompiledName, string SourceName)[]
+                {
+                    ("m_name", "name"),
+                    ("m_ankleBoneName", "anklebone"),
+                    ("m_toeBoneName", "toebone"),
+                    ("m_vBallOffset", "balloffset"),
+                    ("m_vHeelOffset", "heeloffset"),
+                    ("m_flTraceHeight", "traceheight"),
+                    ("m_flTraceRadius", "traceradius"),
+                };
+                
+                // Convert each foot entry to a Foot child node
+                foreach (var footEntry in feetSettings.Properties)
+                {
+                    if (footEntry.Value.Value is not KVObject footData)
+                    {
+                        continue;
+                    }
+
+                    var footNode = MakeNode("Foot");
+                    
+                    // Map compiled field names to source field names
+                    foreach (var (compiledName, sourceName) in footFieldMappings)
+                    {
+                        if (footData.Properties.TryGetValue(compiledName, out var value))
+                        {
+                            footNode.AddProperty(sourceName, value);
+                        }
+                    }
+                    
+                    // autolevel is typically true by default in source format
+                    footNode.AddProperty("autolevel", true);
+                    
+                    children.AddItem(footNode);
+                }
+                
+                if (children.Count == 0)
+                {
+                    return null;
+                }
+                
+                // Create the Feet node
+                var feetNode = MakeNode("Feet", ("children", children));
+                
+                // Parent-level field mappings
+                var parentFieldMappings = new (string CompiledName, string SourceName)[]
+                {
+                    ("m_flLockTolerance", "locktolerance"),
+                    ("m_flHeightTolerance", "heighttolerance"),
+                    ("m_bSanitizeTrajectories", "sanitizetrajectories"),
+                };
+                
+                // Add parent-level properties if they exist
+                foreach (var (compiledName, sourceName) in parentFieldMappings)
+                {
+                    if (feetSettings.Properties.TryGetValue(compiledName, out var value))
+                    {
+                        feetNode.AddProperty(sourceName, value);
+                    }
+                }
+                
+                return feetNode;
+            }
+
             static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject genericData, string dataKey = null)
             {
                 // Remove quotes from keys
