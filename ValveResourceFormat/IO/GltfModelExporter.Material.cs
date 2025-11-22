@@ -104,7 +104,33 @@ public partial class GltfModelExporter
         baseColor = new Vector4(baseColorLinear, baseColor.W);
         baseColor = Vector4.Clamp(baseColor, Vector4.Zero, Vector4.One);
 
-        material.WithPBRMetallicRoughness(baseColor, null, metallicFactor: metalValue);
+        var gltfChannelsCache = new Dictionary<string, List<RemapInstruction>>();
+        var needsSpecularMode = false;
+
+        foreach (var (textureKey, _) in renderMaterial.TextureParams)
+        {
+            var remapInstructions = GetGltfChannels(renderMaterial, textureKey);
+            gltfChannelsCache[textureKey] = remapInstructions;
+
+            if (remapInstructions.Any(static i => i.ChannelName == "SpecularFactor"))
+            {
+                needsSpecularMode = true;
+            }
+        }
+
+        if (needsSpecularMode)
+        {
+            material.InitializePBRMetallicRoughness("Specular");
+        }
+        else
+        {
+            material.InitializePBRMetallicRoughness();
+        }
+
+        material
+            .WithChannelColor("BaseColor", baseColor)
+            .WithChannelFactor("MetallicRoughness", "MetallicFactor", metalValue)
+            .WithChannelFactor("MetallicRoughness", "RoughnessFactor", 1f);
 
         var openBitmaps = new Dictionary<string, SKBitmap>();
 
@@ -129,10 +155,10 @@ public partial class GltfModelExporter
                     TextureExportingTasks.Add(texTask);
                 }
 
-                var gltfChannels = GetGltfChannels(renderMaterial, textureKey);
-                if (gltfChannels.FirstOrDefault() is { } gltfChannel)
+                var gltfChannels = gltfChannelsCache[textureKey];
+                if (gltfChannels.Count > 0)
                 {
-                    TieTextureToMaterial(texture, gltfChannel.ChannelName, false);
+                    TieTextureToMaterial(texture, gltfChannels[0].ChannelName, false);
                 }
             }
 
@@ -142,14 +168,14 @@ public partial class GltfModelExporter
 
         if (renderMaterial.VectorParams.TryGetValue("g_vSpecularColor", out var vSpecularColor))
         {
-            // TODO - perhaps material.WithChannelColor?
+            material.WithChannelColor("SpecularColor", vSpecularColor); // This might need SrgbGammaToLinear
         }
 
         // Remap vtex texture parameters into instructions that can be exported
         var remapDict = new Dictionary<string, List<RemapInstruction>>();
         foreach (var (textureKey, texturePath) in renderMaterial.TextureParams)
         {
-            var remapInstructions = GetGltfChannels(renderMaterial, textureKey);
+            var remapInstructions = gltfChannelsCache[textureKey];
             if (remapInstructions.Count == 0)
             {
                 continue;
@@ -349,12 +375,6 @@ public partial class GltfModelExporter
 
         void TieTextureToMaterial(Texture tex, string gltfPackedName, bool ormRedChannelForOcclusion)
         {
-            if (gltfPackedName == "SpecularFactor")
-            {
-                // TODO: Is there a better way to do this in sharpgltf?
-                material.InitializePBRMetallicRoughness("Specular");
-            }
-
             var materialChannel = material.FindChannel(gltfPackedName);
             materialChannel?.SetTexture(0, tex);
 
