@@ -43,9 +43,9 @@ namespace GUI.Types.GLViewers
             Scene.Add(particleSceneNode, true);
         }
 
-        protected override void OnLoad(object sender, EventArgs e)
+        protected override void OnGLLoad()
         {
-            base.OnLoad(sender, e);
+            base.OnGLLoad();
 
             Camera.SetLocation(new Vector3(200, 200, 200));
             Camera.LookAt(Vector3.Zero);

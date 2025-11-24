@@ -196,53 +196,58 @@ namespace GUI.Types.GLViewers
             Settings.InvokeRefreshCamerasOnSave();
         }
 
+        private WorldLoader LoadedWorld;
+        private WorldNodeLoader LoadedWorldNode;
+
         protected override void LoadScene()
         {
             var cameraSet = false;
 
             if (world != null)
             {
-                var result = new WorldLoader(world, Scene);
+                LoadedWorld = new WorldLoader(world, Scene);
 
-                if (Parent.Parent is TabControl tabControl)
+                if (LoadedWorld.SkyboxScene != null)
                 {
-                    if (isFromVmap)
-                    {
-                        var worldTabPage = new TabPage("World Data");
-                        tabControl.TabPages.Add(worldTabPage);
-                        Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, world, worldTabPage);
-                    }
-
-                    var worldNodeTabPage = new TabPage("Node Data");
-                    tabControl.TabPages.Add(worldNodeTabPage);
-                    Resource.AddTextViewControl(ValveResourceFormat.ResourceType.WorldNode, result.MainWorldNode, worldNodeTabPage);
-
-                    var entitiesTabPage = new TabPage("Entity List");
-                    entitiesTabPage.Controls.Add(new EntityViewer(GuiContext, result.Entities, SelectAndFocusEntity));
-                    tabControl.TabPages.Add(entitiesTabPage);
+                    SkyboxScene = LoadedWorld.SkyboxScene;
                 }
 
-                AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
-                AddCheckBox("Color Correction", postProcessRenderer.ColorCorrectionEnabled, v => postProcessRenderer.ColorCorrectionEnabled = v);
-                AddCheckBox("Experimental Lights", false, v => viewBuffer.Data.ExperimentalLightsEnabled = v);
-                AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
-
-                if (result.SkyboxScene != null)
+                if (LoadedWorld.Skybox2D != null)
                 {
-                    SkyboxScene = result.SkyboxScene;
-
-                    AddCheckBox("Show Skybox", ShowSkybox, (v) => ShowSkybox = v);
+                    Skybox2D = LoadedWorld.Skybox2D;
                 }
 
-                if (result.Skybox2D != null)
-                {
-                    Skybox2D = result.Skybox2D;
-                }
+                NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
 
+                if (LoadedWorld.CameraMatrices.Count > 0)
+                {
+                    CameraMatrices = LoadedWorld.CameraMatrices;
+
+                    Camera.SetFromTransformMatrix(CameraMatrices[0]);
+                    Camera.SetLocation(Camera.Location + Camera.GetForwardVector() * 10f); // Escape the camera model
+                    cameraSet = true;
+                }
+            }
+
+            if (!cameraSet)
+            {
+                Camera.SetLocation(new Vector3(256));
+                Camera.LookAt(Vector3.Zero);
+            }
+
+            if (worldNode != null)
+            {
+                LoadedWorldNode = new WorldNodeLoader(GuiContext, worldNode);
+                LoadedWorldNode.Load(Scene);
+            }
+        }
+
+        public void InitializeUiControls()
+        {
+            if (world != null)
+            {
                 var uniqueWorldLayers = new HashSet<string>(4);
                 var uniquePhysicsGroups = new HashSet<string>();
-
-                NavMeshSceneNode.AddNavNodesToScene(result.NavMesh, Scene);
 
                 foreach (var node in Scene.AllNodes)
                 {
@@ -265,7 +270,7 @@ namespace GUI.Types.GLViewers
 
                     SetAvailableLayers(uniqueWorldLayers);
 
-                    foreach (var worldLayer in result.DefaultEnabledLayers)
+                    foreach (var worldLayer in LoadedWorld.DefaultEnabledLayers)
                     {
                         var checkboxIndex = worldLayersComboBox.FindStringExact(worldLayer);
 
@@ -277,8 +282,8 @@ namespace GUI.Types.GLViewers
 
                     worldLayersComboBox.EndUpdate();
 
-                    Scene.SetEnabledLayers(result.DefaultEnabledLayers, skipUpdate: true);
-                    SkyboxScene?.SetEnabledLayers(result.DefaultEnabledLayers, skipUpdate: true);
+                    Scene.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers, skipUpdate: true);
+                    SkyboxScene?.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers, skipUpdate: true);
                 }
 
                 if (uniquePhysicsGroups.Count > 0)
@@ -286,37 +291,20 @@ namespace GUI.Types.GLViewers
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
                 }
 
-                if (result.CameraMatrices.Count > 0)
+                if (LoadedWorld.CameraMatrices.Count > 0)
                 {
-                    CameraMatrices = result.CameraMatrices;
-
                     cameraComboBox.BeginUpdate();
                     cameraComboBox.Items.Add("Set view to camera…");
-                    cameraComboBox.Items.AddRange([.. result.CameraNames]);
+                    cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
                     cameraComboBox.SelectedIndex = 0;
                     cameraComboBox.EndUpdate();
-
-                    Camera.SetFromTransformMatrix(result.CameraMatrices[0]);
-                    Camera.SetLocation(Camera.Location + Camera.GetForwardVector() * 10f); // Escape the camera model
-                    cameraSet = true;
                 }
 
                 AddSceneExposureSlider();
             }
 
-            if (!cameraSet)
-            {
-                cameraComboBox.Parent.Dispose();
-
-                Camera.SetLocation(new Vector3(256));
-                Camera.LookAt(Vector3.Zero);
-            }
-
             if (worldNode != null)
             {
-                var loader = new WorldNodeLoader(GuiContext, worldNode);
-                loader.Load(Scene);
-
                 var worldLayers = Scene.AllNodes
                     .Select(r => r.LayerName)
                     .Distinct()
@@ -329,7 +317,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            Invoke(savedCameraPositionsControl.RefreshSavedPositions);
+            savedCameraPositionsControl.RefreshSavedPositions();
 
             ignoreLayersChangeEvents = false;
         }

@@ -56,8 +56,6 @@ namespace GUI.Types.GLViewers
             InitializeControl();
             AddWireframeToggleControl();
 
-            GLLoad += OnLoad;
-
 #if DEBUG
             guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
 #endif
@@ -93,8 +91,6 @@ namespace GUI.Types.GLViewers
             });
 
             AddWireframeToggleControl();
-
-            GLLoad += OnLoad;
 
 #if DEBUG
             guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
@@ -265,7 +261,7 @@ namespace GUI.Types.GLViewers
 
         protected abstract void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo);
 
-        protected virtual void OnLoad(object sender, EventArgs e)
+        protected override void OnGLLoad()
         {
             baseGrid = new InfiniteGrid(Scene);
             Skybox2D = baseBackground = new SceneBackground(Scene);
@@ -316,7 +312,6 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
-            GLLoad -= OnLoad;
             GLPaint += OnPaint;
 
             GuiContext.ClearCache();

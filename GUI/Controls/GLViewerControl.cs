@@ -34,7 +34,8 @@ namespace GUI.Controls
 
 
         public event EventHandler<RenderEventArgs> GLPaint;
-        public event EventHandler GLLoad;
+
+        protected virtual void OnGLLoad() { }
 
         protected readonly PostProcessRenderer postProcessRenderer;
 
@@ -80,7 +81,6 @@ namespace GUI.Controls
                 Dock = DockStyle.Fill
             };
 
-            GLControl.Load += OnLoad;
             GLControl.Paint += OnPaint;
             GLControl.Resize += OnResize;
             GLControl.MouseEnter += OnMouseEnter;
@@ -214,7 +214,6 @@ namespace GUI.Controls
 
         private void OnDisposed(object sender, EventArgs e)
         {
-            GLControl.Load -= OnLoad;
             GLControl.Paint -= OnPaint;
             GLControl.Resize -= OnResize;
             GLControl.MouseEnter -= OnMouseEnter;
@@ -417,9 +416,10 @@ namespace GUI.Controls
         private int MaxSamples;
         private int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
 
-        private void OnLoad(object sender, EventArgs e)
+        private bool loaded;
+
+        public void InitializeLoad()
         {
-            GLControl.Load -= OnLoad;
             GLControl.MakeCurrent();
             GLControl.Context.SwapInterval = Settings.Config.Vsync;
 
@@ -487,7 +487,7 @@ namespace GUI.Controls
 
                 MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
 
-                GLLoad?.Invoke(this, e);
+                OnGLLoad();
             }
             catch (Exception exception)
             {
@@ -498,16 +498,23 @@ namespace GUI.Controls
                 throw;
             }
 
+            loaded = true;
+
             OnResize();
 
             // Bind paint event at the end of the processing loop so that first paint event has correctly sized gl control
-            BeginInvoke(OnFirstPaint);
+            OnFirstPaint();
 
             lastUpdate = Stopwatch.GetTimestamp();
         }
 
         private void OnPaint(object sender, EventArgs e)
         {
+            if (!loaded)
+            {
+                return;
+            }
+
             Application.DoEvents();
 
             if (IsDisposed || GLControl.IsDisposed || !GLControl.Visible)
@@ -655,6 +662,11 @@ namespace GUI.Controls
 
         protected virtual void OnResize()
         {
+            if (!loaded)
+            {
+                return;
+            }
+
             var (w, h) = (GLControl.Width, GLControl.Height);
 
             if (w <= 0 || h <= 0)

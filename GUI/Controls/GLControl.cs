@@ -56,6 +56,8 @@ public class GLControl : Control
         _glControlSettings.StartVisible = false;
         _glControlSettings.WindowBorder = WindowBorder.Hidden;
         _glControlSettings.WindowState = WindowState.Normal;
+
+        CreateNativeWindow();
     }
 
     protected override void Dispose(bool disposing)
@@ -76,7 +78,15 @@ public class GLControl : Control
     /// <param name="e">An EventArgs instance (ignored).</param>
     protected override void OnHandleCreated(EventArgs e)
     {
-        CreateNativeWindow();
+        Debug.Assert(_nativeWindow != null);
+
+        NonportableReparent(_nativeWindow);
+
+        // Force the newly child-ified GLFW window to be resized to fit this control.
+        ResizeNativeWindow();
+
+        // And now show the child window, since it hasn't been made visible yet.
+        _nativeWindow.IsVisible = true;
 
         base.OnHandleCreated(e);
 
@@ -98,14 +108,6 @@ public class GLControl : Control
         }
 
         _nativeWindow = new NativeWindow(_glControlSettings);
-
-        NonportableReparent(_nativeWindow);
-
-        // Force the newly child-ified GLFW window to be resized to fit this control.
-        ResizeNativeWindow();
-
-        // And now show the child window, since it hasn't been made visible yet.
-        _nativeWindow.IsVisible = true;
     }
 
     /// <summary>

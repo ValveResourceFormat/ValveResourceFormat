@@ -131,7 +131,6 @@ namespace GUI.Types.GLViewers
         {
             GuiContext = guiContext;
 
-            GLLoad += OnLoad;
             GLControl.PreviewKeyDown += OnPreviewKeyDown;
 
             ShowLightBackground = !Application.IsDarkModeEnabled;
@@ -1002,7 +1001,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private void OnLoad(object sender, EventArgs e)
+        protected override void OnGLLoad()
         {
             if (Svg == null) /// Svg will be setup on <see cref="FirstPaint"/> because it needs to be rescaled
             {
@@ -1018,8 +1017,6 @@ namespace GUI.Types.GLViewers
 
             MainFramebuffer.ClearColor = OpenTK.Mathematics.Color4.White;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-
-            GLLoad -= OnLoad;
         }
 
         protected override void OnFirstPaint()

@@ -246,9 +246,10 @@ namespace GUI.Types.Viewers
                 case ResourceType.Texture:
                 case ResourceType.PanoramaVectorGraphic:
                     {
-                        var textureControl = new GLTextureViewer(vrfGuiContext, resource);
+                        var glViewer = new GLTextureViewer(vrfGuiContext, resource);
+                        glViewer.InitializeLoad();
                         specialTabPage = new TabPage("TEXTURE");
-                        specialTabPage.Controls.Add(textureControl);
+                        specialTabPage.Controls.Add(glViewer);
                         break;
                     }
 
@@ -276,7 +277,9 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is ParticleSystem particleData)
                     {
                         specialTabPage = new TabPage("PARTICLE");
-                        specialTabPage.Controls.Add(new GLParticleViewer(vrfGuiContext, particleData));
+                        var glViewer = new GLParticleViewer(vrfGuiContext, particleData);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                     }
                     break;
 
@@ -296,7 +299,10 @@ namespace GUI.Types.Viewers
                         if (mapResource != null && mapResource.DataBlock is World mapWorldData)
                         {
                             var mapTab = new TabPage("MAP");
-                            mapTab.Controls.Add(new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true));
+                            var glViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true);
+                            glViewer.InitializeLoad();
+                            mapTab.Controls.Add(glViewer);
+                            glViewer.InitializeUiControls();
 
                             void OnMapDisposed(object? sender, EventArgs e)
                             {
@@ -319,7 +325,10 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is World worldData)
                     {
                         specialTabPage = new TabPage("MAP");
-                        specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, worldData));
+                        var glViewer = new GLWorldViewer(vrfGuiContext, worldData);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
+                        glViewer.InitializeUiControls();
                     }
                     break;
 
@@ -327,7 +336,9 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is WorldNode worldNodeData)
                     {
                         specialTabPage = new TabPage("WORLD NODE");
-                        specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, worldNodeData));
+                        var glViewer = new GLWorldViewer(vrfGuiContext, worldNodeData);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                     }
                     break;
 
@@ -335,7 +346,9 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Model modelData)
                     {
                         specialTabPage = new TabPage("MODEL");
-                        specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, modelData));
+                        var glViewer = new GLModelViewer(vrfGuiContext, modelData);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                     }
                     break;
 
@@ -343,7 +356,9 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Mesh meshData)
                     {
                         specialTabPage = new TabPage("MESH");
-                        specialTabPage.Controls.Add(new GLMeshViewer(vrfGuiContext, meshData));
+                        var glViewer = new GLMeshViewer(vrfGuiContext, meshData);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                     }
                     break;
 
@@ -359,7 +374,9 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is SmartProp smartPropData)
                     {
                         specialTabPage = new TabPage("SMART PROP");
-                        specialTabPage.Controls.Add(new GLSmartPropViewer(vrfGuiContext, smartPropData));
+                        var glViewer = new GLSmartPropViewer(vrfGuiContext, smartPropData);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                     }
                     break;
 
@@ -367,21 +384,27 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is AnimGraph animGraphData)
                     {
                         specialTabPage = new TabPage("ANIMATION GRAPH");
-                        specialTabPage.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, animGraphData));
+                        var glViewer = new GLAnimGraphViewer(vrfGuiContext, animGraphData);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                     }
                     break;
 
                 case ResourceType.NmClip:
                     {
                         specialTabPage = new TabPage("ANIMATION CLIP");
-                        specialTabPage.Controls.Add(new GLAnimationViewer(vrfGuiContext, resource));
+                        var glViewer = new GLAnimationViewer(vrfGuiContext, resource);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                         break;
                     }
 
                 case ResourceType.NmSkeleton:
                     {
                         specialTabPage = new TabPage("SKELETON");
-                        specialTabPage.Controls.Add(new GLAnimationViewer(vrfGuiContext, resource));
+                        var glViewer = new GLAnimationViewer(vrfGuiContext, resource);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                         break;
                     }
 
@@ -389,14 +412,17 @@ namespace GUI.Types.Viewers
                     {
                         if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
                         {
-                            var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
+                            var skyboxViewer = new GLSkyboxViewer(vrfGuiContext, resource);
+                            skyboxViewer.InitializeLoad();
                             specialTabPage = new TabPage("SKYBOX");
-                            specialTabPage.Controls.Add(skybox);
+                            specialTabPage.Controls.Add(skyboxViewer);
                             break;
                         }
 
                         specialTabPage = new TabPage("MATERIAL");
-                        specialTabPage.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, isPreview ? null : resTabs));
+                        var glViewer = new GLMaterialViewer(vrfGuiContext, resource, isPreview ? null : resTabs);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                         break;
                     }
 
@@ -404,7 +430,9 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is PhysAggregateData physAggregateData)
                     {
                         specialTabPage = new TabPage("PHYSICS");
-                        specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, physAggregateData));
+                        var glViewer = new GLModelViewer(vrfGuiContext, physAggregateData);
+                        glViewer.InitializeLoad();
+                        specialTabPage.Controls.Add(glViewer);
                     }
                     break;
 
