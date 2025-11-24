@@ -46,59 +46,15 @@ namespace GUI.Types.GLViewers
             this.worldNode = worldNode;
         }
 
-        protected override void Dispose(bool disposing)
+        public override void Dispose()
         {
-            base.Dispose(disposing);
+            base.Dispose();
 
-            if (disposing)
-            {
-                worldLayersComboBox?.Dispose();
-                physicsGroupsComboBox?.Dispose();
-                cameraComboBox?.Dispose();
-                savedCameraPositionsControl?.Dispose();
-                entityInfoForm?.Dispose();
-            }
-        }
-
-        protected override void InitializeControl()
-        {
-            AddRenderModeSelectionControl();
-
-            worldLayersComboBox = AddMultiSelection("World Layers", null, (worldLayers) =>
-            {
-                if (ignoreLayersChangeEvents)
-                {
-                    return;
-                }
-
-                SetEnabledLayers([.. worldLayers]);
-            });
-            physicsGroupsComboBox = AddMultiSelection("Physics Groups", null, (physicsGroups) =>
-            {
-                if (ignoreLayersChangeEvents)
-                {
-                    return;
-                }
-
-                SetEnabledPhysicsGroups([.. physicsGroups]);
-            });
-
-            savedCameraPositionsControl = new SavedCameraPositionsControl();
-            savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
-            savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
-            savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
-            AddControl(savedCameraPositionsControl);
-
-            cameraComboBox = AddSelection("Map Camera", (cameraName, index) =>
-            {
-                if (index > 0)
-                {
-                    Camera.SaveCurrentForTransition();
-                    Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
-                }
-            });
-
-            AddDivider();
+            worldLayersComboBox?.Dispose();
+            physicsGroupsComboBox?.Dispose();
+            cameraComboBox?.Dispose();
+            savedCameraPositionsControl?.Dispose();
+            entityInfoForm?.Dispose();
         }
 
         private void AddSceneExposureSlider()
@@ -109,9 +65,9 @@ namespace GUI.Types.GLViewers
                 exposureLabel.Text = $"Exposure: {exposure:0.00}";
             }
 
-            AddControl(exposureLabel);
+            UiControl.AddControl(exposureLabel);
 
-            var exposureSlider = AddTrackBar((exposureAmountInt) =>
+            var exposureSlider = UiControl.AddTrackBar((exposureAmountInt) =>
             {
                 var exposure = exposureAmountInt / 10f;
                 UpdateExposureText(exposure);
@@ -242,8 +198,48 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        public void InitializeUiControls()
+        public override Control InitializeUiControls()
         {
+            base.InitializeUiControls();
+
+            AddRenderModeSelectionControl();
+
+            worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
+            {
+                if (ignoreLayersChangeEvents)
+                {
+                    return;
+                }
+
+                SetEnabledLayers([.. worldLayers]);
+            });
+            physicsGroupsComboBox = UiControl.AddMultiSelection("Physics Groups", null, (physicsGroups) =>
+            {
+                if (ignoreLayersChangeEvents)
+                {
+                    return;
+                }
+
+                SetEnabledPhysicsGroups([.. physicsGroups]);
+            });
+
+            savedCameraPositionsControl = new SavedCameraPositionsControl();
+            savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
+            savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
+            savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
+            UiControl.AddControl(savedCameraPositionsControl);
+
+            cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
+            {
+                if (index > 0)
+                {
+                    Camera.SaveCurrentForTransition();
+                    Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
+                }
+            });
+
+            UiControl.AddDivider();
+
             if (world != null)
             {
                 var uniqueWorldLayers = new HashSet<string>(4);
@@ -320,11 +316,13 @@ namespace GUI.Types.GLViewers
             savedCameraPositionsControl.RefreshSavedPositions();
 
             ignoreLayersChangeEvents = false;
+
+            return UiControl;
         }
 
         private void SelectAndFocusEntity(EntityLump.Entity entity)
         {
-            if (Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
+            if (UiControl.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
             {
                 tabControl.SelectTab(tabPage);
             }
@@ -523,7 +521,7 @@ namespace GUI.Types.GLViewers
 
             if (pickingResponse.Intent == PickingIntent.Select)
             {
-                if ((ModifierKeys & Keys.Control) > 0)
+                if ((Control.ModifierKeys & Keys.Control) > 0)
                 {
                     SelectedNodeRenderer.ToggleNode(sceneNode);
                 }

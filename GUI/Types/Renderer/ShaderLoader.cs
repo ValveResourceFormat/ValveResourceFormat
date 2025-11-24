@@ -58,9 +58,9 @@ namespace GUI.Types.Renderer
         }
 
 #if DEBUG
-        public void EnableHotReload(GLControl glControl)
+        public void EnableHotReload()
         {
-            ShaderHotReload = new(glControl);
+            ShaderHotReload = new();
             ShaderHotReload.ReloadShader += OnHotReload;
         }
 #endif

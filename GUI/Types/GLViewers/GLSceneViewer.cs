@@ -53,9 +53,6 @@ namespace GUI.Types.GLViewers
             Scene = new Scene(guiContext);
             lockedCullFrustum = cullFrustum;
 
-            InitializeControl();
-            AddWireframeToggleControl();
-
 #if DEBUG
             guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
 #endif
@@ -65,12 +62,48 @@ namespace GUI.Types.GLViewers
         {
             Scene = new Scene(guiContext);
 
-            InitializeControl();
-            AddCheckBox("Lock Cull Frustum", false, (v) =>
+#if DEBUG
+            guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
+#endif
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+
+            GLPaint -= OnPaint;
+
+            viewBuffer?.Dispose();
+            Scene?.Dispose();
+            SkyboxScene?.Dispose();
+
+            if (renderModeComboBox != null)
+            {
+                renderModeComboBox.DrawItem -= OnRenderModeDrawItem;
+                renderModeComboBox.Dispose();
+                renderModeComboBox = null;
+            }
+
+            if (renderModeBoldFont != null)
+            {
+                renderModeBoldFont.Dispose();
+                renderModeBoldFont = null;
+            }
+
+#if DEBUG
+            GuiContext.ShaderLoader.ShaderHotReload.ReloadShader -= OnHotReload;
+#endif
+        }
+
+        public override Control InitializeUiControls()
+        {
+            base.InitializeUiControls();
+
+            UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
                 lockedCullFrustum = v ? Camera.ViewFrustum.Clone() : null;
             });
-            AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
+            UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
                 showStaticOctree = v;
 
@@ -79,8 +112,8 @@ namespace GUI.Types.GLViewers
                     staticOctreeRenderer.StaticBuild();
                 }
             });
-            AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
-            AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
+            UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
+            UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
             {
                 Scene.ShowToolsMaterials = v;
 
@@ -92,42 +125,8 @@ namespace GUI.Types.GLViewers
 
             AddWireframeToggleControl();
 
-#if DEBUG
-            guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
-#endif
+            return UiControl;
         }
-
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-
-            if (disposing)
-            {
-                GLPaint -= OnPaint;
-
-                viewBuffer?.Dispose();
-                Scene?.Dispose();
-                SkyboxScene?.Dispose();
-
-                if (renderModeComboBox != null)
-                {
-                    renderModeComboBox.DrawItem -= OnRenderModeDrawItem;
-                    renderModeComboBox.Dispose();
-                    renderModeComboBox = null;
-                }
-
-                if (renderModeBoldFont != null)
-                {
-                    renderModeBoldFont.Dispose();
-                    renderModeBoldFont = null;
-                }
-#if DEBUG
-                GuiContext.ShaderLoader.ShaderHotReload.ReloadShader -= OnHotReload;
-#endif
-            }
-        }
-
-        protected abstract void InitializeControl();
 
         private void CreateBuffers()
         {
@@ -253,8 +252,6 @@ namespace GUI.Types.GLViewers
 
             staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.GuiContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.GuiContext, true);
-
-            SetAvailableRenderModes();
         }
 
         protected abstract void LoadScene();
@@ -596,19 +593,19 @@ namespace GUI.Types.GLViewers
         {
             ShowBaseGrid = true;
 
-            AddDivider();
-            AddCheckBox("Light Background", ShowLightBackground, (v) =>
+            UiControl.AddDivider();
+            UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
                 baseBackground.SetLightBackground(ShowLightBackground);
             });
-            AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
+            UiControl.AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
             {
                 ShowSolidBackground = v;
                 baseBackground.SetSolidBackground(ShowSolidBackground);
             });
-            AddDivider();
-            AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+            UiControl.AddDivider();
+            UiControl.AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
         }
 
         protected void AddWireframeToggleControl()
@@ -618,7 +615,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            AddCheckBox("Show Wireframe", false, (v) => IsWireframe = v);
+            UiControl.AddCheckBox("Show Wireframe", false, (v) => IsWireframe = v);
         }
 
         protected void AddRenderModeSelectionControl()
@@ -628,7 +625,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            renderModeComboBox = AddSelection("Render Mode", (_, i) =>
+            renderModeComboBox = UiControl.AddSelection("Render Mode", (_, i) =>
             {
                 if (renderModeCurrentIndex < -1)
                 {
@@ -656,6 +653,8 @@ namespace GUI.Types.GLViewers
             renderModeBoldFont = new Font(renderModeComboBox.Font, FontStyle.Bold);
             renderModeComboBox.DrawMode = DrawMode.OwnerDrawFixed;
             renderModeComboBox.DrawItem += OnRenderModeDrawItem;
+
+            SetAvailableRenderModes();
         }
 
         private void OnRenderModeDrawItem(object sender, DrawItemEventArgs e)

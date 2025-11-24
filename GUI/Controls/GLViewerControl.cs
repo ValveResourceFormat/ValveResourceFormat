@@ -15,13 +15,13 @@ using static GUI.Types.Renderer.PickingTexture;
 
 namespace GUI.Controls
 {
-    partial class GLViewerControl : ControlPanelView
+    partial class GLViewerControl : IDisposable
     {
-        protected override Panel ControlsPanel => controlsPanel;
-        protected SplitContainer ViewerSplitContainer => splitContainer;
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
-        public GLControl GLControl { get; }
+        protected RendererControl UiControl;
+        private OpenTK.Windowing.Desktop.NativeWindow GLNativeWindow;
+        public GLControl GLControl { get; private set; }
 
         public struct RenderEventArgs
         {
@@ -57,10 +57,12 @@ namespace GUI.Controls
         private int frametimeQuery1;
         private int frametimeQuery2;
 
+#if DEBUG
+        private ShaderLoader ShaderLoader;
+#endif
+
         public GLViewerControl(VrfGuiContext guiContext)
         {
-            InitializeComponent();
-
             Camera = new Camera();
 
             var settings = new NativeWindowSettings()
@@ -74,9 +76,27 @@ namespace GUI.Controls
                 DepthBits = 0,
                 StencilBits = 0,
                 AutoLoadBindings = true,
+                StartFocused = false,
+                StartVisible = false,
+                WindowBorder = OpenTK.Windowing.Common.WindowBorder.Hidden,
+                WindowState = OpenTK.Windowing.Common.WindowState.Normal,
             };
+            GLNativeWindow = new(settings);
 
-            GLControl = new GLControl(settings)
+            TextRenderer = new(guiContext, Camera);
+            postProcessRenderer = new(guiContext);
+
+#if DEBUG
+            ShaderLoader = guiContext.ShaderLoader;
+            ShaderLoader.EnableHotReload();
+#endif
+        }
+
+        public virtual Control InitializeUiControls()
+        {
+            GLNativeWindow.MakeCurrent();
+
+            GLControl = new GLControl()
             {
                 Dock = DockStyle.Fill
             };
@@ -96,15 +116,16 @@ namespace GUI.Controls
             GLControl.LostFocus += OnLostFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
             Program.MainForm.Activated += OnAppActivated;
-            Disposed += OnDisposed;
 
-            glControlContainer.Controls.Add(GLControl);
-
-            TextRenderer = new(guiContext, Camera);
-            postProcessRenderer = new(guiContext);
+            UiControl = new()
+            {
+                Dock = DockStyle.Fill
+            };
+            UiControl.GLControlContainer.Controls.Add(GLControl);
+            GLControl.AttachNativeWindow(GLNativeWindow);
 
 #if DEBUG
-            guiContext.ShaderLoader.EnableHotReload(GLControl);
+            ShaderLoader.ShaderHotReload.SetControl(GLControl);
             CodeHotReloadService.CodeHotReloaded += OnCodeHotReloaded;
 
             var button = new Button
@@ -116,11 +137,18 @@ namespace GUI.Controls
 
             void OnButtonClick(object s, EventArgs e)
             {
-                guiContext.ShaderLoader.ReloadAllShaders();
+                ShaderLoader.ReloadAllShaders();
             }
 
-            AddControl(button);
+            UiControl.AddControl(button);
 #endif
+
+            OnResize();
+
+            // Bind paint event at the end of the processing loop so that first paint event has correctly sized gl control
+            OnFirstPaint();
+
+            return UiControl;
         }
 
         private void OnPreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
@@ -203,7 +231,7 @@ namespace GUI.Controls
 
         private void OnFullScreenFormClosed(object sender, EventArgs e)
         {
-            glControlContainer.Controls.Add(GLControl);
+            UiControl.GLControlContainer.Controls.Add(GLControl);
             GLControl.Focus();
 
             var form = (Form)sender;
@@ -212,7 +240,7 @@ namespace GUI.Controls
             FullScreenForm = null;
         }
 
-        private void OnDisposed(object sender, EventArgs e)
+        public virtual void Dispose()
         {
             GLControl.Paint -= OnPaint;
             GLControl.Resize -= OnResize;
@@ -229,12 +257,13 @@ namespace GUI.Controls
             GLControl.LostFocus -= OnLostFocus;
             GLControl.VisibleChanged -= OnVisibleChanged;
             Program.MainForm.Activated -= OnAppActivated;
+            FullScreenForm?.Dispose();
+            UiControl.Dispose();
+            GLNativeWindow.Dispose();
 
 #if DEBUG
             CodeHotReloadService.CodeHotReloaded -= OnCodeHotReloaded;
 #endif
-
-            Disposed -= OnDisposed;
         }
 
         private void OnVisibleChanged(object sender, EventArgs e)
@@ -280,7 +309,7 @@ namespace GUI.Controls
 
                 if (e.Clicks == 2)
                 {
-                    var intent = ModifierKeys.HasFlag(Keys.Control)
+                    var intent = Control.ModifierKeys.HasFlag(Keys.Control)
                         ? PickingIntent.Open
                         : PickingIntent.Details;
                     Picker?.RequestNextFrame(e.X, e.Y, intent);
@@ -385,7 +414,7 @@ namespace GUI.Controls
             }
         }
 
-        protected void SetMoveSpeedOrZoomLabel(string text) => moveSpeed.Text = text;
+        protected void SetMoveSpeedOrZoomLabel(string text) => UiControl.SetMoveSpeed(text);
 
         private static void OnDebugMessage(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr pMessage, IntPtr pUserParam)
         {
@@ -420,8 +449,8 @@ namespace GUI.Controls
 
         public void InitializeLoad()
         {
-            GLControl.MakeCurrent();
-            GLControl.Context.SwapInterval = Settings.Config.Vsync;
+            GLNativeWindow.MakeCurrent();
+            GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
 
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
@@ -478,8 +507,9 @@ namespace GUI.Controls
             try
             {
                 // Framebuffer used to draw geometry
-                MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer), GLControl.Width,
-                    GLControl.Height,
+                MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
+                    1024,
+                    768,
                     NumSamples,
                     new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
                     Framebuffer.DepthAttachmentFormat.Depth32FStencil8
@@ -489,23 +519,22 @@ namespace GUI.Controls
 
                 OnGLLoad();
             }
-            catch (Exception exception)
+            catch (Exception)
             {
+#if false // TODO
                 var control = CodeTextBox.CreateFromException(exception);
-                glControlContainer.Controls.Clear();
-                glControlContainer.Controls.Add(control);
+                UiControl.GLControlContainer.Controls.Clear();
+                UiControl.GLControlContainer.Controls.Add(control);
+#endif
 
                 throw;
             }
 
             loaded = true;
 
-            OnResize();
-
-            // Bind paint event at the end of the processing loop so that first paint event has correctly sized gl control
-            OnFirstPaint();
-
             lastUpdate = Stopwatch.GetTimestamp();
+
+            GLNativeWindow.Context.MakeNoneCurrent();
         }
 
         private void OnPaint(object sender, EventArgs e)
@@ -517,12 +546,12 @@ namespace GUI.Controls
 
             Application.DoEvents();
 
-            if (IsDisposed || GLControl.IsDisposed || !GLControl.Visible)
+            if (GLControl.IsDisposed || !GLControl.Visible)
             {
                 return;
             }
 
-            GLControl.MakeCurrent();
+            GLNativeWindow.MakeCurrent();
 
             if (MainFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
             {
@@ -543,7 +572,7 @@ namespace GUI.Controls
             if (MouseOverRenderArea && !isTextureViewer)
             {
                 var pressedKeys = CurrentlyPressedKeys;
-                var modifierKeys = ModifierKeys;
+                var modifierKeys = Control.ModifierKeys;
 
                 if ((modifierKeys & Keys.Shift) > 0)
                 {
@@ -608,7 +637,7 @@ namespace GUI.Controls
 
             TextRenderer.Render();
 
-            GLControl.SwapBuffers();
+            GLNativeWindow.Context.SwapBuffers();
             Picker?.TriggerEventIfAny();
 
             if (isActiveForm)
@@ -674,7 +703,7 @@ namespace GUI.Controls
                 return;
             }
 
-            GLControl.MakeCurrent();
+            GLNativeWindow.MakeCurrent();
 
             GLDefaultFramebuffer.Resize(w, h);
 

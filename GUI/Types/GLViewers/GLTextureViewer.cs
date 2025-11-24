@@ -149,7 +149,7 @@ namespace GUI.Types.GLViewers
             guiContext.ShaderLoader.ShaderHotReload.ReloadShader += (_, _) => InvalidateRender();
 #endif
 
-            AddControl(resetButton);
+            UiControl.AddControl(resetButton);
         }
 
         public GLTextureViewer(VrfGuiContext guiContext, SKBitmap bitmap) : this(guiContext)
@@ -196,7 +196,7 @@ namespace GUI.Types.GLViewers
             saveTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             saveTable.Controls.Add(saveButton, 0, 0);
             saveTable.Controls.Add(copyLabel, 1, 0);
-            AddControl(saveTable);
+            UiControl.AddControl(saveTable);
 
             if (Resource.ResourceType == ResourceType.PanoramaVectorGraphic)
             {
@@ -212,12 +212,12 @@ namespace GUI.Types.GLViewers
 
             var textureData = (Texture)Resource.DataBlock;
 
-            AddControl(new Label
+            UiControl.AddControl(new Label
             {
                 Text = $"Size: {textureData.Width}x{textureData.Height}",
                 Width = 200,
             });
-            AddControl(new Label
+            UiControl.AddControl(new Label
             {
                 Text = $"Format: {textureData.Format}",
                 Width = 200,
@@ -243,7 +243,7 @@ namespace GUI.Types.GLViewers
                     return $"(#{mipLevel}) {mipWidth}x{mipHeight}";
                 }
 
-                var mipComboBox = AddSelection("Mip level", (name, index) =>
+                var mipComboBox = UiControl.AddSelection("Mip level", (name, index) =>
                 {
                     SelectedMip = index;
 
@@ -273,7 +273,7 @@ namespace GUI.Types.GLViewers
 
             if (textureData.Depth > 1)
             {
-                depthComboBox = AddSelection("Depth", (name, index) =>
+                depthComboBox = UiControl.AddSelection("Depth", (name, index) =>
                 {
                     SelectedDepth = index;
 
@@ -291,7 +291,7 @@ namespace GUI.Types.GLViewers
             {
                 ComboBox cubeFaceComboBox = null;
 
-                cubemapProjectionComboBox = AddSelection("Projection type", (name, index) =>
+                cubemapProjectionComboBox = UiControl.AddSelection("Projection type", (name, index) =>
                 {
                     cubeFaceComboBox.Enabled = index == 0;
 
@@ -312,7 +312,7 @@ namespace GUI.Types.GLViewers
                     CenterPosition();
                 });
 
-                cubeFaceComboBox = AddSelection("Cube face", (name, index) =>
+                cubeFaceComboBox = UiControl.AddSelection("Cube face", (name, index) =>
                 {
                     SelectedCubeFace = index;
 
@@ -331,7 +331,7 @@ namespace GUI.Types.GLViewers
 
             decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
 
-            decodeFlagsListBox = AddMultiSelection("Texture Conversion",
+            decodeFlagsListBox = UiControl.AddMultiSelection("Texture Conversion",
                 SetInitialDecodeFlagsState,
                 checkedItemNames =>
                 {
@@ -347,7 +347,7 @@ namespace GUI.Types.GLViewers
             AddChannelsComboBox();
 
             var forceSoftwareDecode = textureData.IsRawAnyImage;
-            softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
+            softwareDecodeCheckBox = UiControl.AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
             {
                 if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
                 {
@@ -365,7 +365,7 @@ namespace GUI.Types.GLViewers
                 SetupTexture(state);
             });
 
-            AddCheckBox("Show UV Tiling", false, (state) =>
+            UiControl.AddCheckBox("Show UV Tiling", false, (state) =>
             {
                 var previousSize = ActualTextureSizeScaled;
 
@@ -390,7 +390,7 @@ namespace GUI.Types.GLViewers
 
         private void AddChannelsComboBox()
         {
-            var channelsComboBox = AddSelection("Channels", (name, index) =>
+            var channelsComboBox = UiControl.AddSelection("Channels", (name, index) =>
             {
                 SelectedChannels = ChannelsComboBoxOrder[index].Channels;
                 var splitMode = ChannelsComboBoxOrder[index].ChannelSplitMode;
@@ -419,7 +419,7 @@ namespace GUI.Types.GLViewers
                 ? Array.FindIndex(ChannelsComboBoxOrder, channel => channel.ChoiceString == "Transparent")
                 : Array.FindIndex(ChannelsComboBoxOrder, channel => channel.ChoiceString == "Opaque");
 
-            var samplingComboBox = AddSelection("Sampling", (name, index) =>
+            var samplingComboBox = UiControl.AddSelection("Sampling", (name, index) =>
             {
                 SelectedFiltering = (Filtering)index;
                 SetTextureFiltering();
@@ -491,31 +491,28 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void Dispose(bool disposing)
+        public override void Dispose()
         {
-            base.Dispose(disposing);
+            base.Dispose();
 
-            if (disposing)
-            {
-                GLControl.PreviewKeyDown -= OnPreviewKeyDown;
-                GLPaint -= OnPaint;
+            GLControl.PreviewKeyDown -= OnPreviewKeyDown;
+            GLPaint -= OnPaint;
 
-                GuiContext = null;
-                Resource = null;
+            GuiContext = null;
+            Resource = null;
 
-                Bitmap?.Dispose();
-                Bitmap = null;
+            Bitmap?.Dispose();
+            Bitmap = null;
 
-                Interlocked.Increment(ref NextBitmapVersion);
-                NextBitmapToSet?.Dispose();
-                NextBitmapToSet = null;
+            Interlocked.Increment(ref NextBitmapVersion);
+            NextBitmapToSet?.Dispose();
+            NextBitmapToSet = null;
 
-                Svg?.Dispose();
-                Svg = null;
+            Svg?.Dispose();
+            Svg = null;
 
-                decodeFlagsListBox?.Dispose();
-                decodeFlagsListBox = null;
-            }
+            decodeFlagsListBox?.Dispose();
+            decodeFlagsListBox = null;
         }
 
         private void OnSaveButtonClick(object sender, EventArgs e)
@@ -547,7 +544,7 @@ namespace GUI.Types.GLViewers
                 AddToRecent = true,
             };
 
-            if (saveFileDialog.ShowDialog(this) != DialogResult.OK)
+            if (saveFileDialog.ShowDialog(UiControl) != DialogResult.OK)
             {
                 return;
             }

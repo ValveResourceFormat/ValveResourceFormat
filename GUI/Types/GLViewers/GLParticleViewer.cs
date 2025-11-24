@@ -1,3 +1,4 @@
+using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Renderer;
 using GUI.Utils;
@@ -24,14 +25,11 @@ namespace GUI.Types.GLViewers
             this.particleSystem = particleSystem;
         }
 
-        protected override void Dispose(bool disposing)
+        public override void Dispose()
         {
-            base.Dispose(disposing);
+            base.Dispose();
 
-            if (disposing)
-            {
-                slowmodeTrackBar?.Dispose();
-            }
+            slowmodeTrackBar?.Dispose();
         }
 
         protected override void LoadScene()
@@ -51,12 +49,14 @@ namespace GUI.Types.GLViewers
             Camera.LookAt(Vector3.Zero);
         }
 
-        protected override void InitializeControl()
+        public override Control InitializeUiControls()
         {
+            base.InitializeUiControls();
+
             AddRenderModeSelectionControl();
             AddBaseGridControl();
 
-            slowmodeTrackBar = AddTrackBar(value =>
+            slowmodeTrackBar = UiControl.AddTrackBar(value =>
             {
                 particleSceneNode.FrametimeMultiplier = value / 100f;
             });
@@ -65,7 +65,9 @@ namespace GUI.Types.GLViewers
             slowmodeTrackBar.TrackBar.Maximum = 100;
             slowmodeTrackBar.TrackBar.Value = 100;
 
-            AddCheckBox("Show render bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
+            UiControl.AddCheckBox("Show render bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
+
+            return UiControl;
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)

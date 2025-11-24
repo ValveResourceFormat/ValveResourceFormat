@@ -21,9 +21,13 @@ namespace GUI.Types.Viewers
         ResourceBlocksOnly,
     };
 
+    // TODO: Implement disposable properly
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
+#pragma warning disable CA2000 // Dispose objects before losing scope
     class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer
     {
         private ValveResourceFormat.Resource? resource;
+        private GLViewerControl? GLViewer;
 
         public static bool IsAccepted(uint magic)
         {
@@ -55,6 +59,24 @@ namespace GUI.Types.Viewers
             {
                 // Only dispose resource if it throws within Read(), tough luck below this
                 resourceTemp?.Dispose();
+            }
+
+            if (viewMode != ResourceViewMode.ResourceBlocksOnly)
+            {
+                if (resource.ResourceType == ResourceType.Map)
+                {
+                    var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
+
+                    if (mapResource != null && mapResource.DataBlock is World mapWorldData)
+                    {
+                        GLViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true);
+                        GLViewer.InitializeLoad();
+                    }
+                    else
+                    {
+                        mapResource?.Dispose();
+                    }
+                }
             }
         }
 
@@ -239,7 +261,7 @@ namespace GUI.Types.Viewers
             return tab;
         }
 
-        private static void CreateSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs, ref TabPage? specialTabPage)
+        private void CreateSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs, ref TabPage? specialTabPage)
         {
             switch (resource.ResourceType)
             {
@@ -249,7 +271,7 @@ namespace GUI.Types.Viewers
                         var glViewer = new GLTextureViewer(vrfGuiContext, resource);
                         glViewer.InitializeLoad();
                         specialTabPage = new TabPage("TEXTURE");
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                         break;
                     }
 
@@ -279,7 +301,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("PARTICLE");
                         var glViewer = new GLParticleViewer(vrfGuiContext, particleData);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                     }
                     break;
 
@@ -294,30 +316,11 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Map:
                     {
-                        Debug.Assert(resource.FileName != null);
-                        var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
-                        if (mapResource != null && mapResource.DataBlock is World mapWorldData)
-                        {
-                            var mapTab = new TabPage("MAP");
-                            var glViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true);
-                            glViewer.InitializeLoad();
-                            mapTab.Controls.Add(glViewer);
-                            glViewer.InitializeUiControls();
+                        Debug.Assert(GLViewer != null);
 
-                            void OnMapDisposed(object? sender, EventArgs e)
-                            {
-                                mapTab.Disposed -= OnMapDisposed;
+                        specialTabPage = new TabPage("MAP");
+                        specialTabPage.Controls.Add(GLViewer.InitializeUiControls());
 
-                                mapResource.Dispose();
-                            }
-
-                            mapTab.Disposed += OnMapDisposed;
-                            specialTabPage = mapTab;
-                        }
-                        else
-                        {
-                            mapResource?.Dispose();
-                        }
                         break;
                     }
 
@@ -327,7 +330,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("MAP");
                         var glViewer = new GLWorldViewer(vrfGuiContext, worldData);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                         glViewer.InitializeUiControls();
                     }
                     break;
@@ -338,7 +341,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("WORLD NODE");
                         var glViewer = new GLWorldViewer(vrfGuiContext, worldNodeData);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                     }
                     break;
 
@@ -348,7 +351,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("MODEL");
                         var glViewer = new GLModelViewer(vrfGuiContext, modelData);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                     }
                     break;
 
@@ -358,7 +361,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("MESH");
                         var glViewer = new GLMeshViewer(vrfGuiContext, meshData);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                     }
                     break;
 
@@ -376,7 +379,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("SMART PROP");
                         var glViewer = new GLSmartPropViewer(vrfGuiContext, smartPropData);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                     }
                     break;
 
@@ -386,7 +389,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("ANIMATION GRAPH");
                         var glViewer = new GLAnimGraphViewer(vrfGuiContext, animGraphData);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                     }
                     break;
 
@@ -395,7 +398,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("ANIMATION CLIP");
                         var glViewer = new GLAnimationViewer(vrfGuiContext, resource);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                         break;
                     }
 
@@ -404,7 +407,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("SKELETON");
                         var glViewer = new GLAnimationViewer(vrfGuiContext, resource);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                         break;
                     }
 
@@ -415,14 +418,14 @@ namespace GUI.Types.Viewers
                             var skyboxViewer = new GLSkyboxViewer(vrfGuiContext, resource);
                             skyboxViewer.InitializeLoad();
                             specialTabPage = new TabPage("SKYBOX");
-                            specialTabPage.Controls.Add(skyboxViewer);
+                            specialTabPage.Controls.Add(skyboxViewer.InitializeUiControls());
                             break;
                         }
 
                         specialTabPage = new TabPage("MATERIAL");
                         var glViewer = new GLMaterialViewer(vrfGuiContext, resource, isPreview ? null : resTabs);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                         break;
                     }
 
@@ -432,7 +435,7 @@ namespace GUI.Types.Viewers
                         specialTabPage = new TabPage("PHYSICS");
                         var glViewer = new GLModelViewer(vrfGuiContext, physAggregateData);
                         glViewer.InitializeLoad();
-                        specialTabPage.Controls.Add(glViewer);
+                        specialTabPage.Controls.Add(glViewer.InitializeUiControls());
                     }
                     break;
 

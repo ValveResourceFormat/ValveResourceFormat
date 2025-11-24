@@ -18,11 +18,6 @@ namespace GUI.Controls;
 public class GLControl : Control
 {
     /// <summary>
-    /// The OpenGL configuration of this control.
-    /// </summary>
-    private readonly NativeWindowSettings _glControlSettings;
-
-    /// <summary>
     /// The underlying native window.  This will be reparented to be a child of
     /// this control.
     /// </summary>
@@ -44,20 +39,12 @@ public class GLControl : Control
     /// Constructs a new instance with the specified GLControlSettings.
     /// </summary>
     /// <param name="glControlSettings">The preferred configuration for the OpenGL  renderer.</param>
-    public GLControl(NativeWindowSettings glControlSettings)
+    public GLControl()
     {
         SetStyle(ControlStyles.Opaque, true);
         SetStyle(ControlStyles.UserPaint, true);
         SetStyle(ControlStyles.AllPaintingInWmPaint, true);
         DoubleBuffered = false;
-
-        _glControlSettings = glControlSettings;
-        _glControlSettings.StartFocused = false;
-        _glControlSettings.StartVisible = false;
-        _glControlSettings.WindowBorder = WindowBorder.Hidden;
-        _glControlSettings.WindowState = WindowState.Normal;
-
-        CreateNativeWindow();
     }
 
     protected override void Dispose(bool disposing)
@@ -98,16 +85,11 @@ public class GLControl : Control
     }
 
     /// <summary>
-    /// Construct the child NativeWindow that will wrap the underlying GLFW instance.
+    /// Attach an existing NativeWindow.
     /// </summary>
-    private void CreateNativeWindow()
+    public void AttachNativeWindow(NativeWindow nativeWindow)
     {
-        if (DesignMode)
-        {
-            return;
-        }
-
-        _nativeWindow = new NativeWindow(_glControlSettings);
+        _nativeWindow = nativeWindow;
     }
 
     /// <summary>
@@ -293,39 +275,5 @@ public class GLControl : Control
         ResizeNativeWindow();
 
         base.OnParentChanged(e);
-    }
-
-    /// <summary>
-    /// Swaps the front and back buffers, presenting the rendered scene to the user.
-    /// </summary>
-    public void SwapBuffers()
-    {
-        if (DesignMode)
-        {
-            return;
-        }
-
-        Debug.Assert(_nativeWindow != null);
-
-        _nativeWindow.Context.SwapBuffers();
-    }
-
-    /// <summary>
-    /// Makes this control's OpenGL context current in the calling thread.
-    /// All OpenGL commands issued are hereafter interpreted by this context.
-    /// When using multiple GLControls, calling MakeCurrent on one control
-    /// will make all other controls non-current in the calling thread.
-    /// A GLControl can only be current in one thread at a time.
-    /// </summary>
-    public void MakeCurrent()
-    {
-        if (DesignMode)
-        {
-            return;
-        }
-
-        Debug.Assert(_nativeWindow != null);
-
-        _nativeWindow.MakeCurrent();
     }
 }

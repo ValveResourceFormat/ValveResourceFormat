@@ -62,16 +62,13 @@ namespace GUI.Types.GLViewers
             Camera.ModifySpeed(0);
         }
 
-        protected override void Dispose(bool disposing)
+        public override void Dispose()
         {
-            if (disposing)
-            {
-                ParamsTable?.Dispose();
-                openShaderButton?.Dispose();
-                previewObjectComboBox?.Dispose();
-            }
+            ParamsTable?.Dispose();
+            openShaderButton?.Dispose();
+            previewObjectComboBox?.Dispose();
 
-            base.Dispose(disposing);
+            base.Dispose();
         }
 
         protected override void LoadScene()
@@ -262,7 +259,7 @@ namespace GUI.Types.GLViewers
                     {
                         Text = currentHeading,
                         Dock = DockStyle.Fill,
-                        Font = new Font(Font, FontStyle.Bold),
+                        Font = new Font(UiControl.Font, FontStyle.Bold),
                         TextAlign = ContentAlignment.MiddleLeft,
                         BackColor = SystemColors.ControlLight,
                         ForeColor = SystemColors.ControlText
@@ -782,7 +779,7 @@ namespace GUI.Types.GLViewers
 
             openShaderButton.Click += OnShadersButtonClick;
 
-            AddControl(openShaderButton);
+            UiControl.AddControl(openShaderButton);
         }
 
         static Color Vector4ToColor(Vector4 v)
@@ -814,17 +811,19 @@ namespace GUI.Types.GLViewers
             return Vector4.Create(c.R, c.G, c.B, c.A) / 255f;
         }
 
-        protected override void InitializeControl()
+        public override Control InitializeUiControls()
         {
-            // Make controls panel wider for material parameters
-            ViewerSplitContainer.SplitterDistance = 450;
+            base.InitializeUiControls();
 
-            SuspendLayout();
+            // Make controls panel wider for material parameters
+            UiControl.UseWideSplitter();
+
+            UiControl.SuspendLayout();
             AddRenderModeSelectionControl();
-            AddDivider();
+            UiControl.AddDivider();
 
             AddShaderButton();
-            AddDivider();
+            UiControl.AddDivider();
 
             var previewControls = new TableLayoutPanel
             {
@@ -887,7 +886,7 @@ namespace GUI.Types.GLViewers
 
             previewControls.Controls.Add(previewObjectComboBox, 1, 1);
 
-            AddControl(previewControls);
+            UiControl.AddControl(previewControls);
 
             ParamsTable = new TableLayoutPanel
             {
@@ -895,14 +894,16 @@ namespace GUI.Types.GLViewers
                 AutoSize = true,
             };
 
-            AddDivider();
-            AddControl(ParamsTable);
-            AddDivider();
+            UiControl.AddDivider();
+            UiControl.AddControl(ParamsTable);
+            UiControl.AddDivider();
 
             ParamsTable.ColumnCount = 2;
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            ResumeLayout();
+            UiControl.ResumeLayout();
+
+            return UiControl;
         }
     }
 }

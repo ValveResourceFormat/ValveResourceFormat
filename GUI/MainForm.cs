@@ -699,29 +699,29 @@ namespace GUI
                 tab.Controls.Add(loadingFile);
             }
 
-            var currentContext = TaskScheduler.FromCurrentSynchronizationContext();
-            var taskLoad = ProcessFile(vrfGuiContext, file, viewMode);
+            var taskLoad = Task.Run(() => ProcessFile(vrfGuiContext, file, viewMode));
 
-            taskLoad.ContinueWith(
-                t =>
+            taskLoad.ContinueWith(t =>
+            {
+                vrfGuiContext.GLPostLoadAction = null;
+
+                t.Exception?.Flatten().Handle(ex =>
                 {
-                    vrfGuiContext.GLPostLoadAction = null;
-
-                    t.Exception?.Flatten().Handle(ex =>
+                    BeginInvoke(() =>
                     {
                         var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                         tab.Controls.Add(control);
-
-                        return false;
                     });
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnFaulted,
-                currentContext);
 
-            var task = taskLoad.ContinueWith(
-                t =>
+                    return false;
+                });
+            },
+            TaskContinuationOptions.OnlyOnFaulted);
+
+            var task = taskLoad.ContinueWith(t =>
+            {
+                BeginInvoke(() =>
                 {
                     Cursor.Current = Cursors.WaitCursor;
 
@@ -757,55 +757,51 @@ namespace GUI
                     }
 
                     ShowHideSearch();
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnRanToCompletion,
-                currentContext);
+                });
+            },
+            TaskContinuationOptions.OnlyOnRanToCompletion);
 
-            task.ContinueWith(
-                t =>
+            task.ContinueWith(t =>
+            {
+                vrfGuiContext.GLPostLoadAction = null;
+
+                t.Exception?.Flatten().Handle(ex =>
                 {
-                    vrfGuiContext.GLPostLoadAction = null;
-
-                    t.Exception?.Flatten().Handle(ex =>
+                    try
                     {
-                        try
+                        BeginInvoke(() =>
                         {
                             var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                             tab.Controls.Add(control);
+                        });
 
-                            Log.Error(nameof(MainForm), ex.ToString());
+                        Log.Error(nameof(MainForm), ex.ToString());
 
-                            return false;
-                        }
-                        catch (Exception e)
-                        {
-                            Program.ShowError(e);
+                        return false;
+                    }
+                    catch (Exception e)
+                    {
+                        Program.ShowError(e);
 
-                            return true;
-                        }
-                    });
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnFaulted,
-                currentContext);
+                        return true;
+                    }
+                });
+            },
+            TaskContinuationOptions.OnlyOnFaulted);
 
             task.ContinueWith(t =>
+            {
+                BeginInvoke(() =>
                 {
-                    BeginInvoke(() =>
-                    {
-                        loadingFile?.Dispose();
+                    loadingFile?.Dispose();
 
-                        if (isPreview)
-                        {
-                            packageTreeView.ReplaceListViewWithControl(tab);
-                        }
-                    });
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.None,
-                currentContext);
+                    if (isPreview)
+                    {
+                        packageTreeView.ReplaceListViewWithControl(tab);
+                    }
+                });
+            });
         }
 
         private static async Task<Types.Viewers.IViewer> ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, ResourceViewMode viewMode)

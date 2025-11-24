@@ -36,9 +36,8 @@ class ShaderHotReload : IDisposable
 
     public event EventHandler<string?>? ReloadShader;
 
-    public ShaderHotReload(GLControl glControl)
+    public ShaderHotReload()
     {
-        ShaderWatcher.SynchronizingObject = glControl;
         ShaderWatcher.Filters.Add("*.glsl");
         ShaderWatcher.Filters.Add("*.vert");
         ShaderWatcher.Filters.Add("*.frag");
@@ -46,7 +45,6 @@ class ShaderHotReload : IDisposable
         ShaderWatcher.Changed += Hotload;
         ShaderWatcher.Created += Hotload;
         ShaderWatcher.Renamed += Hotload;
-        this.glControl = glControl;
     }
 
     public void Dispose()
@@ -62,6 +60,17 @@ class ShaderHotReload : IDisposable
             reloadSemaphore.Dispose();
             glControl = null;
         }
+    }
+
+    public void SetControl(GLControl glControl)
+    {
+        if (ShaderWatcher == null)
+        {
+            return;
+        }
+
+        ShaderWatcher.SynchronizingObject = glControl;
+        this.glControl = glControl;
     }
 
     private void Hotload(object sender, FileSystemEventArgs e)

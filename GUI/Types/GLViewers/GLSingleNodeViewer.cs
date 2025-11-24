@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -22,10 +23,14 @@ namespace GUI.Types.GLViewers
             //
         }
 
-        protected override void InitializeControl()
+        public override Control InitializeUiControls()
         {
+            base.InitializeUiControls();
+
             AddRenderModeSelectionControl();
             AddBaseGridControl();
+
+            return UiControl;
         }
 
         public override void PreSceneLoad()

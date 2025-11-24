@@ -48,31 +48,28 @@ namespace GUI.Types.GLViewers
             this.phys = phys;
         }
 
-        protected override void Dispose(bool disposing)
+        public override void Dispose()
         {
-            base.Dispose(disposing);
+            base.Dispose();
 
-            if (disposing)
-            {
-                animationComboBox?.Dispose();
-                animationPlayPause?.Dispose();
-                animationTimeLabel?.Dispose();
-                animationTrackBar?.Dispose();
-                slowmodeTrackBar?.Dispose();
-                meshGroupListBox?.Dispose();
-                materialGroupListBox?.Dispose();
-                physicsGroupsComboBox?.Dispose();
-                rootMotionCheckBox?.Dispose();
-                showSkeletonCheckbox?.Dispose();
-                hitboxComboBox?.Dispose();
-            }
+            animationComboBox?.Dispose();
+            animationPlayPause?.Dispose();
+            animationTimeLabel?.Dispose();
+            animationTrackBar?.Dispose();
+            slowmodeTrackBar?.Dispose();
+            meshGroupListBox?.Dispose();
+            materialGroupListBox?.Dispose();
+            physicsGroupsComboBox?.Dispose();
+            rootMotionCheckBox?.Dispose();
+            showSkeletonCheckbox?.Dispose();
+            hitboxComboBox?.Dispose();
         }
 
         protected void AddAnimationControls()
         {
             if (modelSceneNode != null)
             {
-                animationComboBox = AddSelection("Animation", (animation, _) =>
+                animationComboBox = UiControl.AddSelection("Animation", (animation, _) =>
                 {
                     modelSceneNode.SetAnimation(animation);
                     rootMotionCheckBox.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
@@ -84,16 +81,16 @@ namespace GUI.Types.GLViewers
             {
                 AutoSize = true,
             };
-            AddControl(animationTimeLabel);
+            UiControl.AddControl(animationTimeLabel);
 
-            animationPlayPause = AddCheckBox("Autoplay", true, isChecked =>
+            animationPlayPause = UiControl.AddCheckBox("Autoplay", true, isChecked =>
             {
                 if (animationController != null)
                 {
                     animationController.IsPaused = !isChecked;
                 }
             });
-            animationTrackBar = AddTrackBar(frame =>
+            animationTrackBar = UiControl.AddTrackBar(frame =>
             {
                 if (animationController != null)
                 {
@@ -101,7 +98,7 @@ namespace GUI.Types.GLViewers
                 }
             });
 
-            slowmodeTrackBar = AddTrackBar(value =>
+            slowmodeTrackBar = UiControl.AddTrackBar(value =>
             {
                 animationController.FrametimeMultiplier = value / 100f;
             });
@@ -125,7 +122,7 @@ namespace GUI.Types.GLViewers
                 animationController.IsPaused = previousPaused;
             };
 
-            rootMotionCheckBox = AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
+            rootMotionCheckBox = UiControl.AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
             {
                 enableRootMotion = isChecked;
                 LastRootMotionPosition = modelSceneNode.Transform.Translation;
@@ -158,7 +155,7 @@ namespace GUI.Types.GLViewers
 
                 if (model.Skeleton.Bones.Length > 0)
                 {
-                    showSkeletonCheckbox = AddCheckBox("Show skeleton", false, isChecked =>
+                    showSkeletonCheckbox = UiControl.AddCheckBox("Show skeleton", false, isChecked =>
                     {
                         if (skeletonSceneNode != null)
                         {
@@ -173,7 +170,7 @@ namespace GUI.Types.GLViewers
                     hitboxSetSceneNode = new HitboxSetSceneNode(Scene, animationController, hitboxSets);
                     Scene.Add(hitboxSetSceneNode, true);
 
-                    hitboxComboBox = AddSelection("Hitbox Set", (hitboxSet, i) =>
+                    hitboxComboBox = UiControl.AddSelection("Hitbox Set", (hitboxSet, i) =>
                     {
                         if (i == 0)
                         {
@@ -213,7 +210,7 @@ namespace GUI.Types.GLViewers
 
                 if (meshGroups.Length > 1)
                 {
-                    meshGroupListBox = AddMultiSelection("Mesh Group", listBox =>
+                    meshGroupListBox = UiControl.AddMultiSelection("Mesh Group", listBox =>
                     {
                         listBox.Items.AddRange(meshGroups);
 
@@ -228,7 +225,7 @@ namespace GUI.Types.GLViewers
 
                 if (materialGroupNames.Length > 1)
                 {
-                    materialGroupListBox = AddSelection("Material Group", (selectedGroup, _) =>
+                    materialGroupListBox = UiControl.AddSelection("Material Group", (selectedGroup, _) =>
                     {
                         modelSceneNode?.SetMaterialGroup(selectedGroup);
                     });
@@ -267,7 +264,7 @@ namespace GUI.Types.GLViewers
 
                 if (physicsGroups.Length > 0)
                 {
-                    physicsGroupsComboBox = AddMultiSelection("Physics Groups", (listBox) =>
+                    physicsGroupsComboBox = UiControl.AddMultiSelection("Physics Groups", (listBox) =>
                     {
                         if (!enabledAllPhysByDefault)
                         {

@@ -1,3 +1,4 @@
+using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;
@@ -14,9 +15,13 @@ namespace GUI.Types.GLViewers
             materialResource = material;
         }
 
-        protected override void InitializeControl()
+        public override Control InitializeUiControls()
         {
+            base.InitializeUiControls();
+
             AddRenderModeSelectionControl();
+
+            return UiControl;
         }
 
         protected override void LoadScene()

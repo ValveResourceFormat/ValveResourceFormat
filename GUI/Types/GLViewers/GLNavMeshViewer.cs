@@ -20,24 +20,25 @@ namespace GUI.Types.GLViewers
             this.navMeshFile = navMeshFile;
         }
 
-        protected override void Dispose(bool disposing)
+        public override void Dispose()
         {
-            base.Dispose(disposing);
+            base.Dispose();
 
-            if (disposing)
-            {
-                worldLayersComboBox?.Dispose();
-            }
+            worldLayersComboBox?.Dispose();
         }
 
-        protected override void InitializeControl()
+        public override Control InitializeUiControls()
         {
+            base.InitializeUiControls();
+
             AddRenderModeSelectionControl();
 
-            worldLayersComboBox = AddMultiSelection("World Layers", null, (worldLayers) =>
+            worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
             {
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
+
+            return UiControl;
         }
 
         protected override void LoadScene()

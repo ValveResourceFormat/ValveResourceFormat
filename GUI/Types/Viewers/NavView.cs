@@ -40,8 +40,9 @@ namespace GUI.Types.Viewers
             tabOuterPage.Controls.Add(tabControl);
 
             var navMeshPage = new TabPage("NAV MESH");
-            var worldViewer = new GLNavMeshViewer(vrfGuiContext, navMeshFile);
-            navMeshPage.Controls.Add(worldViewer);
+            var glViewer = new GLNavMeshViewer(vrfGuiContext, navMeshFile);
+            glViewer.InitializeLoad();
+            navMeshPage.Controls.Add(glViewer.InitializeUiControls());
             tabControl.Controls.Add(navMeshPage);
 
             var infoPage = new TabPage("NAV INFO");

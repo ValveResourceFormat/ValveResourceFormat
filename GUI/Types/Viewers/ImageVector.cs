@@ -35,8 +35,9 @@ namespace GUI.Types.Viewers
             try
             {
                 var textureControl = new GLTextureViewer(vrfGuiContext, svg);
+                textureControl.InitializeLoad();
                 var tab = new TabPage("IMAGE");
-                tab.Controls.Add(textureControl);
+                tab.Controls.Add(textureControl.InitializeUiControls());
                 svg = null;
 
                 return tab;
