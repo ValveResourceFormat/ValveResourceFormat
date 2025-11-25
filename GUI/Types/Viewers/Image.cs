@@ -11,6 +11,7 @@ namespace GUI.Types.Viewers
     class Image(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private SKBitmap? bitmap;
+        private GLTextureViewer? glViewer;
 
         public static bool IsAccepted(uint magic)
         {
@@ -29,26 +30,27 @@ namespace GUI.Types.Viewers
             {
                 bitmap = SKBitmap.Decode(vrfGuiContext.FileName);
             }
-        }
-
-        public TabPage Create()
-        {
-            Debug.Assert(bitmap is not null);
 
             try
             {
-                var glViewer = new GLTextureViewer(vrfGuiContext, bitmap);
+                glViewer = new GLTextureViewer(vrfGuiContext, bitmap);
                 glViewer.InitializeLoad();
-                var tab = new TabPage("IMAGE");
-                tab.Controls.Add(glViewer.InitializeUiControls());
                 bitmap = null;
-
-                return tab;
             }
             finally
             {
                 bitmap?.Dispose();
             }
+        }
+
+        public TabPage Create()
+        {
+            Debug.Assert(glViewer is not null);
+
+            var tab = new TabPage("IMAGE");
+            tab.Controls.Add(glViewer.InitializeUiControls());
+
+            return tab;
         }
 
         public void Dispose()

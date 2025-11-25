@@ -10,6 +10,7 @@ namespace GUI.Types.Viewers
     class ImageVector(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private SKSvg? svg;
+        private GLTextureViewer? textureControl;
 
         public static bool IsAccepted(string fileName)
         {
@@ -28,24 +29,25 @@ namespace GUI.Types.Viewers
             {
                 svg.Load(vrfGuiContext.FileName!);
             }
-        }
 
-        public TabPage Create()
-        {
             try
             {
-                var textureControl = new GLTextureViewer(vrfGuiContext, svg);
+                textureControl = new GLTextureViewer(vrfGuiContext, svg);
                 textureControl.InitializeLoad();
-                var tab = new TabPage("IMAGE");
-                tab.Controls.Add(textureControl.InitializeUiControls());
                 svg = null;
-
-                return tab;
             }
             finally
             {
                 svg?.Dispose();
             }
+        }
+
+        public TabPage Create()
+        {
+            var tab = new TabPage("IMAGE");
+            tab.Controls.Add(textureControl!.InitializeUiControls());
+
+            return tab;
         }
 
         public void Dispose()

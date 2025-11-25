@@ -12,6 +12,7 @@ namespace GUI.Types.Viewers
     class NavView(VrfGuiContext vrfGuiContext) : IViewer
     {
         private NavMeshFile navMeshFile = new();
+        private GLNavMeshViewer? glViewer;
 
         public static bool IsAccepted(uint magic)
         {
@@ -28,6 +29,9 @@ namespace GUI.Types.Viewers
             {
                 navMeshFile.Read(vrfGuiContext.FileName);
             }
+
+            glViewer = new GLNavMeshViewer(vrfGuiContext, navMeshFile);
+            glViewer.InitializeLoad();
         }
 
         public TabPage Create()
@@ -40,9 +44,7 @@ namespace GUI.Types.Viewers
             tabOuterPage.Controls.Add(tabControl);
 
             var navMeshPage = new TabPage("NAV MESH");
-            var glViewer = new GLNavMeshViewer(vrfGuiContext, navMeshFile);
-            glViewer.InitializeLoad();
-            navMeshPage.Controls.Add(glViewer.InitializeUiControls());
+            navMeshPage.Controls.Add(glViewer!.InitializeUiControls());
             tabControl.Controls.Add(navMeshPage);
 
             var infoPage = new TabPage("NAV INFO");

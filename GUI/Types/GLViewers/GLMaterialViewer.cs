@@ -37,7 +37,7 @@ namespace GUI.Types.GLViewers
         }
 
         private readonly Resource Resource;
-        private readonly TabControl Tabs;
+        private TabControl Tabs;
         private Button openShaderButton;
         private TableLayoutPanel ParamsTable;
         private RenderMaterial renderMat;
@@ -54,12 +54,17 @@ namespace GUI.Types.GLViewers
         private readonly Dictionary<PreviewObjectType, MeshCollectionNode> previewObjects = [];
         private MeshCollectionNode previewNode => previewObjects[currentPreviewObject];
 
-        public GLMaterialViewer(VrfGuiContext guiContext, Resource resource, TabControl tabs) : base(guiContext)
+        public GLMaterialViewer(VrfGuiContext guiContext, Resource resource, TabControl tabs = null) : base(guiContext)
         {
             Resource = resource;
             Tabs = tabs;
 
             Camera.ModifySpeed(0);
+        }
+
+        public void SetTabControl(TabControl tabs)
+        {
+            Tabs = tabs;
         }
 
         public override void Dispose()
