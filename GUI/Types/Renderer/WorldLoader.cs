@@ -16,8 +16,8 @@ namespace GUI.Types.Renderer
     class WorldLoader
     {
         private readonly Scene scene;
-        private readonly World world;
         private readonly VrfGuiContext guiContext;
+        public readonly World World;
 
         public List<Entity> Entities { get; } = [];
         public WorldNode? MainWorldNode { get; private set; }
@@ -37,7 +37,7 @@ namespace GUI.Types.Renderer
 
         public WorldLoader(World world, Scene scene)
         {
-            this.world = world;
+            World = world;
             this.scene = scene;
             guiContext = scene.GuiContext;
 
@@ -55,7 +55,7 @@ namespace GUI.Types.Renderer
 
         private void LoadEntities()
         {
-            foreach (var lumpName in world.GetEntityLumpNames())
+            foreach (var lumpName in World.GetEntityLumpNames())
             {
                 if (lumpName == null)
                 {
@@ -92,9 +92,8 @@ namespace GUI.Types.Renderer
 
         private void LoadWorldNodes()
         {
-
             // Output is World_t we need to iterate m_worldNodes inside it.
-            var worldNodes = world.GetWorldNodeNames();
+            var worldNodes = World.GetWorldNodeNames();
             foreach (var worldNode in worldNodes)
             {
                 if (worldNode != null)
@@ -188,7 +187,7 @@ namespace GUI.Types.Renderer
 
         private void LoadWorldLightingInfo()
         {
-            var worldLightingInfo = world.GetWorldLightingInfo();
+            var worldLightingInfo = World.GetWorldLightingInfo();
             if (worldLightingInfo == null)
             {
                 return;

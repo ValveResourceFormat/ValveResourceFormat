@@ -23,7 +23,6 @@ namespace GUI.Types.GLViewers
     {
         private readonly World world;
         private readonly WorldNode worldNode;
-        private readonly bool isFromVmap;
         private CheckedListBox worldLayersComboBox;
         private CheckedListBox physicsGroupsComboBox;
         private ComboBox cameraComboBox;
@@ -31,12 +30,13 @@ namespace GUI.Types.GLViewers
         private EntityInfoForm entityInfoForm;
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices;
+        private WorldNodeLoader LoadedWorldNode;
+        public WorldLoader LoadedWorld;
 
         public GLWorldViewer(VrfGuiContext guiContext, World world, bool isFromVmap = false)
             : base(guiContext)
         {
             this.world = world;
-            this.isFromVmap = isFromVmap;
             Scene.EnableOcclusionCulling = isFromVmap;
         }
 
@@ -151,9 +151,6 @@ namespace GUI.Types.GLViewers
             Settings.Config.SavedCameras.Add(saveName, [cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw]);
             Settings.InvokeRefreshCamerasOnSave();
         }
-
-        private WorldLoader LoadedWorld;
-        private WorldNodeLoader LoadedWorldNode;
 
         protected override void LoadScene()
         {
@@ -320,7 +317,7 @@ namespace GUI.Types.GLViewers
             return UiControl;
         }
 
-        private void SelectAndFocusEntity(EntityLump.Entity entity)
+        public void SelectAndFocusEntity(EntityLump.Entity entity)
         {
             if (UiControl.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
             {
