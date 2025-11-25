@@ -555,31 +555,18 @@ namespace GUI.Controls
             TextRenderer.Load();
             postProcessRenderer.Load();
 
-            try
-            {
-                // Framebuffer used to draw geometry
-                MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
-                    1024,
-                    768,
-                    NumSamples,
-                    new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-                    Framebuffer.DepthAttachmentFormat.Depth32FStencil8
-                );
+            // Framebuffer used to draw geometry
+            MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
+                1024,
+                768,
+                NumSamples,
+                new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
+                Framebuffer.DepthAttachmentFormat.Depth32FStencil8
+            );
 
-                MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
+            MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
 
-                OnGLLoad();
-            }
-            catch (Exception)
-            {
-#if false // TODO
-                var control = CodeTextBox.CreateFromException(exception);
-                UiControl.GLControlContainer.Controls.Clear();
-                UiControl.GLControlContainer.Controls.Add(control);
-#endif
-
-                throw;
-            }
+            OnGLLoad();
 
             GLNativeWindow.Context.MakeNoneCurrent();
 
