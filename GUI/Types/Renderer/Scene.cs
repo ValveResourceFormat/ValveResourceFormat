@@ -696,7 +696,7 @@ namespace GUI.Types.Renderer
             renderContext.ReplacementShader = null;
         }
 
-        public void SetEnabledLayers(HashSet<string> layers, bool skipUpdate = false)
+        public void SetEnabledLayers(HashSet<string> layers)
         {
             foreach (var renderer in AllNodes)
             {
@@ -712,11 +712,6 @@ namespace GUI.Types.Renderer
                 }
 
                 renderer.LayerEnabled = layers.Contains(renderer.LayerName);
-            }
-
-            if (skipUpdate)
-            {
-                OctreeDirty = false;
             }
         }
 

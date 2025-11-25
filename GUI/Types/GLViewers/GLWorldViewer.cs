@@ -278,8 +278,8 @@ namespace GUI.Types.GLViewers
 
                     worldLayersComboBox.EndUpdate();
 
-                    Scene.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers, skipUpdate: true);
-                    SkyboxScene?.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers, skipUpdate: true);
+                    Scene.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
+                    SkyboxScene?.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
                 }
 
                 if (uniquePhysicsGroups.Count > 0)
