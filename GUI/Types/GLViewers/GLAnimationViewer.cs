@@ -36,49 +36,41 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        private void LoadSkeleton(bool firstTime)
+        {
+            var skeleton = Skeleton.FromSkeletonData(SkeletonData);
+            animationController = new AnimationController(skeleton, []);
+
+            if (!firstTime && skeletonSceneNode != null)
+            {
+                skeletonSceneNode.Enabled = false; // scene.Remove?
+            }
+
+            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
+            {
+                Enabled = true,
+            };
+
+            Scene.Add(skeletonSceneNode, true);
+            skeletonSceneNode.Update(new Scene.UpdateContext
+            {
+                TextRenderer = TextRenderer,
+                Timestep = 0f,
+            }); // update bbox for viewer
+        }
+
+        private void LoadClipScene(AnimationClip clipToLoad, bool firstTime)
+        {
+            var skeletonResource = GuiContext.LoadFileCompiled(clipToLoad.SkeletonName);
+            Debug.Assert(skeletonResource != null);
+            SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
+            LoadSkeleton(firstTime);
+            animationController.SetAnimation(new Animation(clipToLoad));
+        }
+
         protected override void LoadScene()
         {
             base.LoadScene();
-
-            void LoadSkeleton(bool firstTime)
-            {
-                var skeleton = Skeleton.FromSkeletonData(SkeletonData);
-                animationController = new AnimationController(skeleton, []);
-
-                if (!firstTime && skeletonSceneNode != null)
-                {
-                    skeletonSceneNode.Enabled = false; // scene.Remove?
-                }
-
-                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
-                {
-                    Enabled = true,
-                };
-
-                Scene.Add(skeletonSceneNode, true);
-                skeletonSceneNode.Update(new Scene.UpdateContext
-                {
-                    TextRenderer = TextRenderer,
-                    Timestep = 0f,
-                }); // update bbox for viewer
-            }
-
-            void LoadClip(AnimationClip clip, string skeletonName, bool firstTime = true)
-            {
-                var skeletonResource = GuiContext.LoadFileCompiled(clip.SkeletonName);
-                Debug.Assert(skeletonResource != null);
-                SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
-                LoadSkeleton(firstTime);
-                SetAnimationControllerUpdateHandler();
-
-                if (firstTime)
-                {
-                    AddAnimationControls();
-                }
-
-                animationPlayPause.Enabled = true;
-                animationController.SetAnimation(new Animation(clip));
-            }
 
             if (clip == null)
             {
@@ -86,7 +78,22 @@ namespace GUI.Types.GLViewers
             }
             else
             {
-                LoadClip(clip, clip.SkeletonName);
+                LoadClipScene(clip, firstTime: true);
+            }
+        }
+
+        public override System.Windows.Forms.Control InitializeUiControls()
+        {
+            base.InitializeUiControls();
+
+            if (clip != null)
+            {
+                SetAnimationControllerUpdateHandler();
+
+                if (animationPlayPause != null)
+                {
+                    animationPlayPause.Enabled = true;
+                }
 
                 if (clip.SecondaryAnimations.Length > 0)
                 {
@@ -96,7 +103,13 @@ namespace GUI.Types.GLViewers
                             ? clip
                             : clip.SecondaryAnimations[index - 1];
 
-                        LoadClip(newClip, newClip.SkeletonName, firstTime: false);
+                        LoadClipScene(newClip, firstTime: false);
+                        SetAnimationControllerUpdateHandler();
+
+                        if (animationPlayPause != null)
+                        {
+                            animationPlayPause.Enabled = true;
+                        }
                     });
 
                     var defaultSkeleton = Path.GetFileNameWithoutExtension(clip.SkeletonName);
@@ -105,6 +118,8 @@ namespace GUI.Types.GLViewers
                     animationComboBox.SelectedIndex = 0;
                 }
             }
+
+            return UiControl;
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)

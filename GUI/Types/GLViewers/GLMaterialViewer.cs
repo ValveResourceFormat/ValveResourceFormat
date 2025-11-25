@@ -54,10 +54,9 @@ namespace GUI.Types.GLViewers
         private readonly Dictionary<PreviewObjectType, MeshCollectionNode> previewObjects = [];
         private MeshCollectionNode previewNode => previewObjects[currentPreviewObject];
 
-        public GLMaterialViewer(VrfGuiContext guiContext, Resource resource, TabControl tabs = null) : base(guiContext)
+        public GLMaterialViewer(VrfGuiContext guiContext, Resource resource) : base(guiContext)
         {
             Resource = resource;
-            Tabs = tabs;
 
             Camera.ModifySpeed(0);
         }
@@ -83,12 +82,6 @@ namespace GUI.Types.GLViewers
             Scene.ShowToolsMaterials = true;
             renderMat = GuiContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
 
-            if (openShaderButton != null)
-            {
-                openShaderButton.Text = renderMat.Material.ShaderName;
-            }
-
-            var selectedIndex = (int)PreviewObjectType.Quad;
             {
                 var planeMesh = MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
                 planeMesh.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f));
@@ -130,14 +123,8 @@ namespace GUI.Types.GLViewers
 
                     Scene.Add(customModel, false);
                     previewObjects[PreviewObjectType.CustomModel] = customModel;
-                    selectedIndex = (int)PreviewObjectType.CustomModel;
                 }
             }
-
-            previewObjectComboBox.Items.AddRange([.. Enum.GetNames<PreviewObjectType>().Where(n => previewObjects.ContainsKey(Enum.Parse<PreviewObjectType>(n)))]);
-            previewObjectComboBox.SelectedIndex = selectedIndex;
-
-            CreateMaterialEditControls();
         }
 
         private void CreateMaterialEditControls()
@@ -907,6 +894,27 @@ namespace GUI.Types.GLViewers
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             UiControl.ResumeLayout();
+
+            // Populate UI controls with scene data
+            if (renderMat != null)
+            {
+                if (openShaderButton != null)
+                {
+                    openShaderButton.Text = renderMat.Material.ShaderName;
+                }
+
+                var selectedIndex = (int)PreviewObjectType.Quad;
+                var material = (Material)Resource.DataBlock;
+                if (material.StringAttributes.ContainsKey("PreviewModel") && previewObjects.ContainsKey(PreviewObjectType.CustomModel))
+                {
+                    selectedIndex = (int)PreviewObjectType.CustomModel;
+                }
+
+                previewObjectComboBox.Items.AddRange([.. Enum.GetNames<PreviewObjectType>().Where(n => previewObjects.ContainsKey(Enum.Parse<PreviewObjectType>(n)))]);
+                previewObjectComboBox.SelectedIndex = selectedIndex;
+
+                CreateMaterialEditControls();
+            }
 
             return UiControl;
         }

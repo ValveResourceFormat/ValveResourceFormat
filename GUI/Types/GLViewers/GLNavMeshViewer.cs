@@ -27,6 +27,11 @@ namespace GUI.Types.GLViewers
             worldLayersComboBox?.Dispose();
         }
 
+        protected override void LoadScene()
+        {
+            NavMeshSceneNode.AddNavNodesToScene(navMeshFile, Scene);
+        }
+
         public override Control InitializeUiControls()
         {
             base.InitializeUiControls();
@@ -38,13 +43,6 @@ namespace GUI.Types.GLViewers
                 SetEnabledLayers(new HashSet<string>(worldLayers));
             });
 
-            return UiControl;
-        }
-
-        protected override void LoadScene()
-        {
-            NavMeshSceneNode.AddNavNodesToScene(navMeshFile, Scene);
-
             worldLayersComboBox.BeginUpdate();
             var layerNames = Scene.AllNodes.Select(x => x.LayerName);
             foreach (var layerName in layerNames)
@@ -52,6 +50,8 @@ namespace GUI.Types.GLViewers
                 worldLayersComboBox.Items.Add(layerName, true);
             }
             worldLayersComboBox.EndUpdate();
+
+            return UiControl;
         }
 
         protected override void OnPicked(object sender, PickingResponse pixelInfo)

@@ -142,47 +142,13 @@ namespace GUI.Types.GLViewers
                 animationController = modelSceneNode.AnimationController;
                 Scene.Add(modelSceneNode, true);
 
-                var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
-
-                if (animations.Length > 0)
-                {
-                    AddAnimationControls();
-                    SetAvailableAnimations(animations);
-                }
-
                 skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
 
-                if (model.Skeleton.Bones.Length > 0)
-                {
-                    showSkeletonCheckbox = UiControl.AddCheckBox("Show skeleton", false, isChecked =>
-                    {
-                        if (skeletonSceneNode != null)
-                        {
-                            skeletonSceneNode.Enabled = isChecked;
-                        }
-                    });
-                }
-
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
-                    var hitboxSets = model.HitboxSets;
-                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, animationController, hitboxSets);
+                    hitboxSetSceneNode = new HitboxSetSceneNode(Scene, animationController, model.HitboxSets);
                     Scene.Add(hitboxSetSceneNode, true);
-
-                    hitboxComboBox = UiControl.AddSelection("Hitbox Set", (hitboxSet, i) =>
-                    {
-                        if (i == 0)
-                        {
-                            hitboxSetSceneNode.SetHitboxSet(null);
-                        }
-                        else
-                        {
-                            hitboxSetSceneNode.SetHitboxSet(hitboxSet);
-                        }
-                    });
-                    hitboxComboBox.Items.Add("");
-                    hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
                 }
 
                 phys = model.GetEmbeddedPhys();
@@ -204,6 +170,70 @@ namespace GUI.Types.GLViewers
                             phys = (PhysAggregateData)newResource.DataBlock;
                         }
                     }
+                }
+            }
+            else
+            {
+                Picker.OnPicked -= OnPicked;
+            }
+
+            if (phys != null)
+            {
+                var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null).ToList();
+
+                // Physics are not shown by default unless the model has no meshes
+                var enabledAllPhysByDefault = modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0;
+
+                foreach (var physSceneNode in physSceneNodes)
+                {
+                    physSceneNode.Enabled = enabledAllPhysByDefault;
+                    physSceneNode.IsTranslucentRenderMode = false;
+                    Scene.Add(physSceneNode, false);
+                }
+            }
+        }
+
+        public override System.Windows.Forms.Control InitializeUiControls()
+        {
+            base.InitializeUiControls();
+
+            if (model != null)
+            {
+                var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
+
+                if (animations.Length > 0)
+                {
+                    AddAnimationControls();
+                    SetAvailableAnimations(animations);
+                }
+
+                if (model.Skeleton.Bones.Length > 0)
+                {
+                    showSkeletonCheckbox = UiControl.AddCheckBox("Show skeleton", false, isChecked =>
+                    {
+                        if (skeletonSceneNode != null)
+                        {
+                            skeletonSceneNode.Enabled = isChecked;
+                        }
+                    });
+                }
+
+                if (model.HitboxSets != null && model.HitboxSets.Count > 0)
+                {
+                    var hitboxSets = model.HitboxSets;
+                    hitboxComboBox = UiControl.AddSelection("Hitbox Set", (hitboxSet, i) =>
+                    {
+                        if (i == 0)
+                        {
+                            hitboxSetSceneNode.SetHitboxSet(null);
+                        }
+                        else
+                        {
+                            hitboxSetSceneNode.SetHitboxSet(hitboxSet);
+                        }
+                    });
+                    hitboxComboBox.Items.Add("");
+                    hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
                 }
 
                 var meshGroups = modelSceneNode.GetMeshGroups().ToArray<object>();
@@ -236,24 +266,13 @@ namespace GUI.Types.GLViewers
 
                 SetAnimationControllerUpdateHandler();
             }
-            else
-            {
-                Picker.OnPicked -= OnPicked;
-            }
 
             if (phys != null)
             {
-                var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null).ToList();
+                var physSceneNodes = Scene.AllNodes.OfType<PhysSceneNode>().ToList();
 
                 // Physics are not shown by default unless the model has no meshes
                 var enabledAllPhysByDefault = modelSceneNode == null || modelSceneNode.RenderableMeshes.Count == 0;
-
-                foreach (var physSceneNode in physSceneNodes)
-                {
-                    physSceneNode.Enabled = enabledAllPhysByDefault;
-                    physSceneNode.IsTranslucentRenderMode = false;
-                    Scene.Add(physSceneNode, false);
-                }
 
                 var physicsGroups = physSceneNodes
                     .Select(r => r.PhysGroupName)
@@ -286,6 +305,8 @@ namespace GUI.Types.GLViewers
                     });
                 }
             }
+
+            return UiControl;
         }
 
         protected void SetAnimationControllerUpdateHandler()
