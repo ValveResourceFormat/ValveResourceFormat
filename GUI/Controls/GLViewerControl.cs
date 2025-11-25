@@ -65,24 +65,6 @@ namespace GUI.Controls
         {
             Camera = new Camera();
 
-            var settings = new NativeWindowSettings()
-            {
-                APIVersion = GLEnvironment.RequiredVersion,
-                Flags = GLEnvironment.Flags,
-                RedBits = 8,
-                GreenBits = 8,
-                BlueBits = 8,
-                AlphaBits = 0,
-                DepthBits = 0,
-                StencilBits = 0,
-                AutoLoadBindings = true,
-                StartFocused = false,
-                StartVisible = false,
-                WindowBorder = OpenTK.Windowing.Common.WindowBorder.Hidden,
-                WindowState = OpenTK.Windowing.Common.WindowState.Normal,
-            };
-            GLNativeWindow = new(settings);
-
             TextRenderer = new(guiContext, Camera);
             postProcessRenderer = new(guiContext);
 
@@ -449,6 +431,31 @@ namespace GUI.Controls
 
         public void InitializeLoad()
         {
+            Program.MainForm.Invoke(() =>
+            {
+                var settings = new NativeWindowSettings()
+                {
+                    APIVersion = GLEnvironment.RequiredVersion,
+                    Flags = GLEnvironment.Flags,
+                    RedBits = 8,
+                    GreenBits = 8,
+                    BlueBits = 8,
+                    AlphaBits = 0,
+                    DepthBits = 0,
+                    StencilBits = 0,
+                    AutoLoadBindings = true,
+                    StartFocused = false,
+                    StartVisible = false,
+                    WindowBorder = OpenTK.Windowing.Common.WindowBorder.Hidden,
+                    WindowState = OpenTK.Windowing.Common.WindowState.Normal,
+                };
+                GLNativeWindow = new(settings);
+
+                GLNativeWindow.Context.MakeNoneCurrent();
+            });
+
+            Debug.Assert(GLNativeWindow is not null);
+
             GLNativeWindow.MakeCurrent();
             GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
 
@@ -530,11 +537,10 @@ namespace GUI.Controls
                 throw;
             }
 
-            loaded = true;
-
-            lastUpdate = Stopwatch.GetTimestamp();
-
             GLNativeWindow.Context.MakeNoneCurrent();
+
+            loaded = true;
+            lastUpdate = Stopwatch.GetTimestamp();
         }
 
         private void OnPaint(object sender, EventArgs e)
