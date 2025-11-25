@@ -431,8 +431,52 @@ namespace GUI.Controls
 
         public void InitializeLoad()
         {
+            // Create the GLFW window on the UI thread even though this method may be called from a
+            // background thread. This is necessary because of Win32 window thread-affinity rules.
+            //
+            // The goal is to load GL resources on a background thread to avoid blocking the UI during
+            // file loading, but we also need to render into a WinForms control which requires the OpenGL
+            // window to be reparented as a child of that control.
+            //
+            // Win32 has strict rules about window ownership. A window can only be manipulated (resized,
+            // reparented, styled) by the thread that created it. Calling SetParent or SetWindowLongPtr
+            // from a different thread causes deadlocks because these APIs send synchronous window messages
+            // that must be processed by the owning thread. If that thread is blocked, the messages never
+            // get processed and the calling thread freezes.
+            //
+            // We tried creating the window on the background thread and reparenting it from the UI thread,
+            // but the Win32 APIs would block waiting for the background thread to process messages while
+            // the background thread was busy loading resources. We also tried having the background thread
+            // invoke back to the UI thread to get the parent handle and then do the reparenting, but this
+            // caused a deadlock where each thread was waiting for the other. Creating a separate render
+            // thread had the same thread-affinity issues. Using two windows with shared contexts mostly
+            // worked but caused black screens because each window has its own default framebuffer and we
+            // were getting the wrong one.
+            //
+            // The solution is to create the window on the UI thread but transfer the OpenGL context to
+            // the background thread for loading. Note that OpenGL contexts cannot exist without a window
+            // because they require a drawing surface allocated by the OS. OpenGL contexts have different
+            // rules than windows though. A context can only be current on one thread at a time, but it
+            // can be made current on different threads at different times. You release it from one thread
+            // with MakeNoneCurrent and then make it current on another thread with MakeCurrent.
+            //
+            // So the sequence is: UI thread creates the window (via Invoke if needed) which makes it owned
+            // by the UI thread so it can be reparented later. The OpenGL context is automatically made
+            // current on the UI thread. We release the context with MakeNoneCurrent so it's not bound to
+            // any thread. The background thread makes the context current and loads all the GL resources
+            // like textures, shaders, and VBOs. This is the slow part that we don't want blocking the UI.
+            // When loading is done the background thread releases the context. Finally the UI thread makes
+            // the context current again when creating the WinForms controls and can safely reparent the window
+            // since it owns it and render since it has the context.
+            //
+            // This works because window operations happen on the thread that created the window (UI thread)
+            // but context operations can happen on any thread as long as the context is only current on one
+            // thread at a time. Resources created in a context are available regardless of which thread
+            // makes the context current.
             Program.MainForm.Invoke(() =>
             {
+                Debug.Assert(GLNativeWindow is null);
+
                 var settings = new NativeWindowSettings()
                 {
                     APIVersion = GLEnvironment.RequiredVersion,
