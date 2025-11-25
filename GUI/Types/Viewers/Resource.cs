@@ -21,10 +21,7 @@ namespace GUI.Types.Viewers
         ResourceBlocksOnly,
     };
 
-    // TODO: Implement disposable properly
-#pragma warning disable CA1001 // Types that own disposable fields should be disposable
-#pragma warning disable CA2000 // Dispose objects before losing scope
-    class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer
+    class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer, IDisposable
     {
         private ValveResourceFormat.Resource? resource;
         private GLViewerControl? GLViewer;
@@ -634,6 +631,12 @@ namespace GUI.Types.Viewers
                         break;
                     }
             }
+        }
+
+        public void Dispose()
+        {
+            resource?.Dispose();
+            GLViewer?.Dispose();
         }
     }
 }

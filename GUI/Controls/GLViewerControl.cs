@@ -58,7 +58,7 @@ namespace GUI.Controls
         private int frametimeQuery2;
 
 #if DEBUG
-        private ShaderLoader ShaderLoader;
+        private readonly ShaderLoader ShaderLoader;
 #endif
 
         public GLViewerControl(VrfGuiContext guiContext)

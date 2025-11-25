@@ -52,11 +52,8 @@ namespace GUI.Types.Viewers
 
         public void Dispose()
         {
-            if (svg != null)
-            {
-                svg.Dispose();
-                svg = null;
-            }
+            svg?.Dispose();
+            textureControl?.Dispose();
         }
     }
 }

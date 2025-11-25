@@ -9,7 +9,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
-    class NavView(VrfGuiContext vrfGuiContext) : IViewer
+    class NavView(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private NavMeshFile navMeshFile = new();
         private GLNavMeshViewer? glViewer;
@@ -66,6 +66,11 @@ namespace GUI.Types.Viewers
             }
 
             return tabOuterPage;
+        }
+
+        public void Dispose()
+        {
+            glViewer?.Dispose();
         }
     }
 }

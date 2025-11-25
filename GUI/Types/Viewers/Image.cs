@@ -55,11 +55,8 @@ namespace GUI.Types.Viewers
 
         public void Dispose()
         {
-            if (bitmap != null)
-            {
-                bitmap.Dispose();
-                bitmap = null;
-            }
+            bitmap?.Dispose();
+            glViewer?.Dispose();
         }
     }
 }
