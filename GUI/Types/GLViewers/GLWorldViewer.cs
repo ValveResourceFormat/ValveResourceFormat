@@ -293,6 +293,11 @@ namespace GUI.Types.GLViewers
                     cameraComboBox.EndUpdate();
                 }
 
+                UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
+                UiControl.AddCheckBox("Color Correction", postProcessRenderer.ColorCorrectionEnabled, v => postProcessRenderer.ColorCorrectionEnabled = v);
+                UiControl.AddCheckBox("Experimental Lights", false, v => viewBuffer.Data.ExperimentalLightsEnabled = v);
+                UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+
                 AddSceneExposureSlider();
             }
 
