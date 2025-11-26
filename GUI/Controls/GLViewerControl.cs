@@ -557,8 +557,7 @@ namespace GUI.Controls
 
             // Framebuffer used to draw geometry
             MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
-                1024,
-                768,
+                4, 4,
                 NumSamples,
                 new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
                 Framebuffer.DepthAttachmentFormat.Depth32FStencil8
