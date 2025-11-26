@@ -32,10 +32,8 @@ namespace GUI.Types.GLViewers
             NavMeshSceneNode.AddNavNodesToScene(navMeshFile, Scene);
         }
 
-        public override Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             AddRenderModeSelectionControl();
 
             worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
@@ -51,7 +49,7 @@ namespace GUI.Types.GLViewers
             }
             worldLayersComboBox.EndUpdate();
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         protected override void OnPicked(object sender, PickingResponse pixelInfo)

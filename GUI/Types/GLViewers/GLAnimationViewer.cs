@@ -82,10 +82,8 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        public override System.Windows.Forms.Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             if (clip != null)
             {
                 SetAnimationControllerUpdateHandler();
@@ -119,7 +117,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)

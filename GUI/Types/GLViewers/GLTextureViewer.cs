@@ -132,10 +132,8 @@ namespace GUI.Types.GLViewers
             GuiContext = guiContext;
         }
 
-        public override Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             GLControl.PreviewKeyDown += OnPreviewKeyDown;
 
             ShowLightBackground = !Application.IsDarkModeEnabled;
@@ -171,7 +169,7 @@ namespace GUI.Types.GLViewers
                 InitializeUIControlsForResource();
             }
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         private void InitializeUIControlsForResource()

@@ -74,7 +74,7 @@ namespace GUI.Controls
 #endif
         }
 
-        public virtual Control InitializeUiControls()
+        public Control InitializeUiControls()
         {
             GLNativeWindow.MakeCurrent();
 
@@ -106,7 +106,7 @@ namespace GUI.Controls
             UiControl.GLControlContainer.Controls.Add(GLControl);
             GLControl.AttachNativeWindow(GLNativeWindow);
 
-#if DEBUG
+#if DEBUG // We want reload shaders to be the top most button
             ShaderLoader.ShaderHotReload.SetControl(GLControl);
             CodeHotReloadService.CodeHotReloaded += OnCodeHotReloaded;
 
@@ -125,7 +125,14 @@ namespace GUI.Controls
             UiControl.AddControl(button);
 #endif
 
+            AddUiControls();
+
             return UiControl;
+        }
+
+        protected virtual void AddUiControls()
+        {
+            // Implemented in derived classes
         }
 
         private void OnPreviewKeyDown(object sender, PreviewKeyDownEventArgs e)

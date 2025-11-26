@@ -23,14 +23,12 @@ namespace GUI.Types.GLViewers
             //
         }
 
-        public override Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             AddRenderModeSelectionControl();
             AddBaseGridControl();
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         public override void PreSceneLoad()

@@ -193,10 +193,8 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        public override System.Windows.Forms.Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             if (model != null)
             {
                 var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
@@ -306,7 +304,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         protected void SetAnimationControllerUpdateHandler()

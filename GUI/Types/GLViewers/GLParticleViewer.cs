@@ -49,10 +49,8 @@ namespace GUI.Types.GLViewers
             Camera.LookAt(Vector3.Zero);
         }
 
-        public override Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             AddRenderModeSelectionControl();
             AddBaseGridControl();
 
@@ -67,7 +65,7 @@ namespace GUI.Types.GLViewers
 
             UiControl.AddCheckBox("Show render bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)

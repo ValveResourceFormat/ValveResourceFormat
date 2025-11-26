@@ -95,10 +95,8 @@ namespace GUI.Types.GLViewers
 #endif
         }
 
-        public override Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
                 lockedCullFrustum = v ? Camera.ViewFrustum.Clone() : null;
@@ -125,7 +123,7 @@ namespace GUI.Types.GLViewers
 
             AddWireframeToggleControl();
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         private void CreateBuffers()

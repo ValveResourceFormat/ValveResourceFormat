@@ -803,10 +803,8 @@ namespace GUI.Types.GLViewers
             return Vector4.Create(c.R, c.G, c.B, c.A) / 255f;
         }
 
-        public override Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             // Make controls panel wider for material parameters
             UiControl.UseWideSplitter();
 
@@ -916,7 +914,7 @@ namespace GUI.Types.GLViewers
                 CreateMaterialEditControls();
             }
 
-            return UiControl;
+            base.AddUiControls();
         }
     }
 }

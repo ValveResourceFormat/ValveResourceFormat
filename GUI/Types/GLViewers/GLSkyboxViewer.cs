@@ -15,13 +15,11 @@ namespace GUI.Types.GLViewers
             materialResource = material;
         }
 
-        public override Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             AddRenderModeSelectionControl();
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         protected override void LoadScene()

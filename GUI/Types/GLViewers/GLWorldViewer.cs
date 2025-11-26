@@ -195,10 +195,8 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        public override Control InitializeUiControls()
+        protected override void AddUiControls()
         {
-            base.InitializeUiControls();
-
             AddRenderModeSelectionControl();
 
             worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
@@ -319,7 +317,7 @@ namespace GUI.Types.GLViewers
 
             ignoreLayersChangeEvents = false;
 
-            return UiControl;
+            base.AddUiControls();
         }
 
         public void SelectAndFocusEntity(EntityLump.Entity entity)
