@@ -74,7 +74,7 @@ namespace GUI.Types.GLViewers
         private Framebuffer SaveAsFbo;
 
         private CheckedListBox decodeFlagsListBox;
-        private readonly bool ShowLightBackground;
+        private bool ShowLightBackground;
 
         private int DisplayedImageCount => Math.Max(1 << (int)ChannelSplitMode, VisualizeTiling ? 2 : 1);
 
@@ -130,6 +130,11 @@ namespace GUI.Types.GLViewers
         private GLTextureViewer(VrfGuiContext guiContext) : base(guiContext)
         {
             GuiContext = guiContext;
+        }
+
+        public override Control InitializeUiControls()
+        {
+            base.InitializeUiControls();
 
             GLControl.PreviewKeyDown += OnPreviewKeyDown;
 
@@ -146,29 +151,31 @@ namespace GUI.Types.GLViewers
             resetButton.Click += (_, __) => ResetZoom();
 
 #if DEBUG
-            guiContext.ShaderLoader.ShaderHotReload.ReloadShader += (_, _) => InvalidateRender();
+            GuiContext.ShaderLoader.ShaderHotReload.ReloadShader += (_, _) => InvalidateRender();
 #endif
 
             UiControl.AddControl(resetButton);
+
+            if (Bitmap != null)
+            {
+                // Image viewer
+                AddChannelsComboBox();
+            }
+            else if (Svg != null)
+            {
+                // Svg viewer
+                AddChannelsComboBox();
+            }
+            else if (Resource != null)
+            {
+                InitializeUIControlsForResource(Resource);
+            }
+
+            return UiControl;
         }
 
-        public GLTextureViewer(VrfGuiContext guiContext, SKBitmap bitmap) : this(guiContext)
+        private void InitializeUIControlsForResource(Resource resource)
         {
-            Bitmap = bitmap;
-
-            AddChannelsComboBox();
-        }
-
-        public GLTextureViewer(VrfGuiContext guiContext, SKSvg svg) : this(guiContext)
-        {
-            SetSvg(svg);
-            AddChannelsComboBox();
-        }
-
-        public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : this(guiContext)
-        {
-            Resource = resource;
-
             var saveButton = new Button
             {
                 Text = "Save to disk…",
@@ -379,6 +386,23 @@ namespace GUI.Types.GLViewers
             {
                 softwareDecodeCheckBox.Enabled = false;
             }
+
+            return;
+        }
+
+        public GLTextureViewer(VrfGuiContext guiContext, SKBitmap bitmap) : this(guiContext)
+        {
+            Bitmap = bitmap;
+        }
+
+        public GLTextureViewer(VrfGuiContext guiContext, SKSvg svg) : this(guiContext)
+        {
+            SetSvg(svg);
+        }
+
+        public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : this(guiContext)
+        {
+            Resource = resource;
         }
 
         private void SetSvg(SKSvg svg)
@@ -1101,7 +1125,7 @@ namespace GUI.Types.GLViewers
         private void InvalidateRender()
         {
             NumRendersLastHash = 0;
-            GLControl.Invalidate();
+            GLControl?.Invalidate();
         }
 
         private void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
