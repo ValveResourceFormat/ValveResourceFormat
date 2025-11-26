@@ -4,7 +4,7 @@ using GUI.Utils;
 
 namespace GUI.Forms
 {
-    public partial class UpdateAvailableForm : Form
+    public partial class UpdateAvailableForm : ThemedForm
     {
         public UpdateAvailableForm()
         {

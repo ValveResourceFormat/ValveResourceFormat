@@ -5,7 +5,7 @@ namespace GUI.Controls
 {
     partial class GLViewerSelectionControl : UserControl
     {
-        public ComboBox ComboBox => comboBox;
+        public ThemedComboBox ComboBox => comboBox;
 
         private GLViewerSelectionControl()
         {

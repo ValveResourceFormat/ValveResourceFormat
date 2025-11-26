@@ -222,9 +222,9 @@ namespace GUI.Types.GLViewers
                 Width = 200,
             });
 
-            ComboBox cubemapProjectionComboBox = null;
+            ThemedComboBox cubemapProjectionComboBox = null;
             CheckBox softwareDecodeCheckBox = null;
-            ComboBox depthComboBox = null;
+            ThemedComboBox depthComboBox = null;
 
             if (textureData.NumMipLevels > 1)
             {
@@ -272,7 +272,7 @@ namespace GUI.Types.GLViewers
 
             if (textureData.Depth > 1)
             {
-                depthComboBox = UiControl.AddSelection("Depth", (name, index) =>
+                depthComboBox = (ThemedComboBox)UiControl.AddSelection("Depth", (name, index) =>
                 {
                     SelectedDepth = index;
 
@@ -288,9 +288,9 @@ namespace GUI.Types.GLViewers
 
             if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
-                ComboBox cubeFaceComboBox = null;
+                ThemedComboBox cubeFaceComboBox = null;
 
-                cubemapProjectionComboBox = UiControl.AddSelection("Projection type", (name, index) =>
+                cubemapProjectionComboBox = (ThemedComboBox)UiControl.AddSelection("Projection type", (name, index) =>
                 {
                     cubeFaceComboBox.Enabled = index == 0;
 
@@ -311,7 +311,7 @@ namespace GUI.Types.GLViewers
                     CenterPosition();
                 });
 
-                cubeFaceComboBox = UiControl.AddSelection("Cube face", (name, index) =>
+                cubeFaceComboBox = (ThemedComboBox)UiControl.AddSelection("Cube face", (name, index) =>
                 {
                     SelectedCubeFace = index;
 

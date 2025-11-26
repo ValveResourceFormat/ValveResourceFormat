@@ -322,7 +322,8 @@ namespace GUI.Types.GLViewers
 
         public void SelectAndFocusEntity(EntityLump.Entity entity)
         {
-            if (UiControl.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
+
+            if (UiControl.Parent is TabPage tabPage && tabPage.Parent is FlatTabControl tabControl)
             {
                 tabControl.SelectTab(tabPage);
             }

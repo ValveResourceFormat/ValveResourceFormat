@@ -107,8 +107,6 @@ namespace GUI
             Settings.Load();
             consoleTab.InitializeFont();
 
-            Application.SetColorMode(Settings.GetSystemColor());
-
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
 #if DEBUG
@@ -472,7 +470,7 @@ namespace GUI
         private void OnTabClick(object sender, MouseEventArgs e)
         {
             //Work out what tab we're interacting with
-            var tabControl = sender as TabControl;
+            var tabControl = sender as FlatTabControl;
             var tabs = tabControl.TabPages;
 
             var tabIndex = 0;
@@ -536,7 +534,7 @@ namespace GUI
                 }
             }
 
-            var seettingsTab = new TabPage("Settings")
+            var seettingsTab = new ThemedTabPage("Settings")
             {
                 ToolTipText = "Settings",
                 ImageIndex = ImageListLookup["_settings"],
@@ -617,7 +615,7 @@ namespace GUI
                 (_, _) => ResourceViewMode.Default,
             };
 
-            var tabTemp = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
+            var tabTemp = new ThemedTabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
                 Tag = new ExportData
@@ -729,6 +727,8 @@ namespace GUI
                     {
                         var viewer = t.Result;
                         var temporaryTab = viewer.Create();
+                        Themer.ThemeControl(temporaryTab);
+
 
                         tab.SuspendLayout();
 
@@ -993,7 +993,7 @@ namespace GUI
                 }
             }
 
-            var explorerTab = new TabPage("Explorer")
+            var explorerTab = new ThemedTabPage("Explorer")
             {
                 ToolTipText = "Explorer",
                 ImageIndex = ImageListLookup["_folder_star"],
@@ -1017,7 +1017,7 @@ namespace GUI
 
         private void OpenWelcome()
         {
-            var welcomeTab = new TabPage("Welcome")
+            var welcomeTab = new ThemedTabPage("Welcome")
             {
                 ToolTipText = "Welcome",
                 ImageIndex = ImageListLookup["_folder_star"],

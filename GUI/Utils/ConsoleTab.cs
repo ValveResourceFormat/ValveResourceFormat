@@ -159,7 +159,7 @@ namespace GUI.Utils
             control.GoEnd();
         }
 
-        public TabPage CreateTab()
+        public ThemedTabPage CreateTab()
         {
             var bgColor = Color.FromArgb(37, 37, 37);
             control = new CodeTextBox(null, CodeTextBox.HighlightLanguage.None)
@@ -175,7 +175,7 @@ namespace GUI.Utils
 
             const string CONSOLE = "Console";
 
-            var tab = new TabPage(CONSOLE)
+            var tab = new ThemedTabPage(CONSOLE)
             {
                 BackColor = bgColor,
             };

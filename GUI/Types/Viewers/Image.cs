@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
@@ -35,6 +36,7 @@ namespace GUI.Types.Viewers
             {
                 glViewer = new GLTextureViewer(vrfGuiContext, bitmap);
                 glViewer.InitializeLoad();
+
                 bitmap = null;
             }
             finally

@@ -36,14 +36,14 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(vfeText is not null);
 
-            var tabOuterPage = new TabPage();
-            var tabControl = new TabControl
+            var tabOuterPage = new ThemedTabPage();
+            var tabControl = new FlatTabControl
             {
                 Dock = DockStyle.Fill,
             };
             tabOuterPage.Controls.Add(tabControl);
 
-            var tabPage = new TabPage("Text");
+            var tabPage = new ThemedTabPage("Text");
             var textControl = CodeTextBox.Create(vfeText);
             tabPage.Controls.Add(textControl);
             tabControl.Controls.Add(tabPage);

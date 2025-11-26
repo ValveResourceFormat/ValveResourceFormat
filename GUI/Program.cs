@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
@@ -32,7 +33,7 @@ namespace GUI
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
             MainForm = new MainForm(args);
-
+            Themer.Style(MainForm);
             Application.Run(MainForm);
         }
 

@@ -10,15 +10,8 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 11;
+        private const int SettingsFileCurrentVersion = 12;
         private const int RecentFilesLimit = 20;
-
-        public enum AppTheme : int
-        {
-            System = 0,
-            Light = 1,
-            Dark = 2,
-        }
 
         [Flags]
         public enum QuickPreviewFlags : int
@@ -271,13 +264,5 @@ namespace GUI.Utils
             Config.RecentFiles.Clear();
             Save();
         }
-
-        public static SystemColorMode GetSystemColor() =>
-            (AppTheme)Config.Theme switch
-            {
-                AppTheme.Light => SystemColorMode.Classic,
-                AppTheme.Dark => SystemColorMode.Dark,
-                _ => SystemColorMode.System,
-            };
     }
 }

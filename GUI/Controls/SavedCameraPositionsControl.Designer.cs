@@ -37,7 +37,7 @@ namespace GUI.Controls
         {
             System.Windows.Forms.Label label1;
             label2 = new System.Windows.Forms.Label();
-            cmbPositions = new System.Windows.Forms.ComboBox();
+            cmbPositions = new ThemedComboBox();
             btnSave = new System.Windows.Forms.Button();
             btnDelete = new System.Windows.Forms.Button();
             btnRestore = new System.Windows.Forms.Button();
@@ -181,7 +181,7 @@ namespace GUI.Controls
 
         #endregion
 
-        private System.Windows.Forms.ComboBox cmbPositions;
+        private ThemedComboBox cmbPositions;
         private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.Button btnDelete;
         private System.Windows.Forms.Button btnRestore;

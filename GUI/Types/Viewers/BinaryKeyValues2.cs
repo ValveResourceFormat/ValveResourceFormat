@@ -57,7 +57,7 @@ namespace GUI.Types.Viewers
             Debug.Assert(text is not null);
 
             var control = CodeTextBox.Create(text);
-            var tab = new TabPage();
+            var tab = new ThemedTabPage();
             tab.Controls.Add(control);
 
             text = null;

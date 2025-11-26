@@ -1,15 +1,16 @@
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Renderer;
 using GUI.Types.Viewers;
 using GUI.Utils;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using Resource = ValveResourceFormat.Resource;
-using System.Drawing;
-using ValveResourceFormat.CompiledShader;
 #nullable disable
 
 namespace GUI.Types.GLViewers
@@ -37,7 +38,9 @@ namespace GUI.Types.GLViewers
         }
 
         private readonly Resource Resource;
+
         private TabControl Tabs;
+
         private Button openShaderButton;
         private TableLayoutPanel ParamsTable;
         private RenderMaterial renderMat;
@@ -54,7 +57,9 @@ namespace GUI.Types.GLViewers
         private readonly Dictionary<PreviewObjectType, MeshCollectionNode> previewObjects = [];
         private MeshCollectionNode previewNode => previewObjects[currentPreviewObject];
 
+
         public GLMaterialViewer(VrfGuiContext guiContext, Resource resource) : base(guiContext)
+
         {
             Resource = resource;
 
@@ -728,7 +733,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var loadingTabPage = new TabPage(material.ShaderName);
+            var loadingTabPage = new ThemedTabPage(material.ShaderName);
             var loadingFile = new LoadingFile();
             loadingTabPage.Controls.Add(loadingFile);
             Tabs.TabPages.Add(loadingTabPage);
@@ -866,7 +871,7 @@ namespace GUI.Types.GLViewers
                 TextAlign = ContentAlignment.MiddleRight
             }, 0, 1);
 
-            previewObjectComboBox = new ComboBox
+            previewObjectComboBox = new ThemedComboBox
             {
                 Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList

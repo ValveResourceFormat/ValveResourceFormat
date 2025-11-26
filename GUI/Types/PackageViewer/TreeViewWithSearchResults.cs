@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -39,6 +40,7 @@ namespace GUI.Types.PackageViewer
         public TreeViewWithSearchResults(PackageViewer viewer)
         {
             InitializeComponent();
+            Themer.ThemeControl(this);
 
             if (SplitterWidth > 0)
             {
@@ -836,7 +838,7 @@ namespace GUI.Types.PackageViewer
         {
             mainListView.Visible = false;
 
-            var tabs = new TabControl
+            var tabs = new FlatTabControl
             {
                 ImageList = MainForm.ImageList,
                 Dock = DockStyle.Fill

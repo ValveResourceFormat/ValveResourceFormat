@@ -1,6 +1,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using Svg.Skia;
@@ -34,6 +35,7 @@ namespace GUI.Types.Viewers
             {
                 textureControl = new GLTextureViewer(vrfGuiContext, svg);
                 textureControl.InitializeLoad();
+
                 svg = null;
             }
             finally

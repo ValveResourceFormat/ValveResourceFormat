@@ -77,17 +77,17 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            var resTabs = new TabControl
+            var resTabs = new FlatTabControl
             {
                 Dock = DockStyle.Fill,
             };
-            var parentTab = new TabPage(Path.GetFileName(filePath))
+            var parentTab = new ThemedTabPage(Path.GetFileName(filePath))
             {
                 ToolTipText = filePath
             };
             parentTab.Controls.Add(resTabs);
 
-            var tab = new TabPage("File");
+            var tab = new ThemedTabPage("File");
 
             var fileInfo = new StringBuilder();
 
@@ -144,7 +144,7 @@ namespace GUI.Types.Viewers
             }
 
             // Info
-            tab = new TabPage("Info");
+            tab = new ThemedTabPage("Info");
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, assetInfo, "Asset Info");
@@ -154,7 +154,7 @@ namespace GUI.Types.Viewers
             resTabs.TabPages.Add(tab);
 
             // Referenced by
-            tab = new TabPage("Referenced by");
+            tab = new ThemedTabPage("Referenced by");
 
             var referencedContorl = new DataGridView
             {

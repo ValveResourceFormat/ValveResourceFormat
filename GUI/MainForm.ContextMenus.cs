@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
 using GUI.Types.PackageViewer;
@@ -44,7 +45,7 @@ namespace GUI
         private static TabPage FetchToolstripTabContext(object sender)
         {
             var contextMenu = ((ToolStripMenuItem)sender).Owner;
-            var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as TabControl;
+            var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as FlatTabControl;
             var tabs = tabControl.TabPages;
 
             return tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag)).First();
@@ -319,7 +320,7 @@ namespace GUI
                 }
             }
             // Clicking context menu item when right clicking a tab
-            else if (owner is TabControl)
+            else if (owner is FlatTabControl)
             {
                 var tabPage = FetchToolstripTabContext(sender);
 
@@ -375,7 +376,7 @@ namespace GUI
             {
                 var contents = new PackageViewer(newVrfGuiContext).CreateEmpty();
 
-                var tab = new TabPage("New VPK")
+                var tab = new ThemedTabPage("New VPK")
                 {
                     ToolTipText = "New VPK"
                 };

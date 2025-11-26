@@ -30,14 +30,14 @@ namespace GUI.Types.Viewers
 
         public TabPage Create()
         {
-            var tab = new TabPage();
-            var resTabs = new TabControl
+            var tab = new ThemedTabPage();
+            var resTabs = new FlatTabControl
             {
                 Dock = DockStyle.Fill,
             };
             tab.Controls.Add(resTabs);
 
-            var bvTab = new TabPage("Hex");
+            var bvTab = new ThemedTabPage("Hex");
             var bv = new System.ComponentModel.Design.ByteViewer
             {
                 Dock = DockStyle.Fill,
@@ -47,7 +47,7 @@ namespace GUI.Types.Viewers
 
             if (!string.IsNullOrEmpty(text))
             {
-                var textTab = new TabPage("Text");
+                var textTab = new ThemedTabPage("Text");
                 var textBox = CodeTextBox.Create(text);
                 textTab.Controls.Add(textBox);
                 resTabs.TabPages.Add(textTab);

@@ -7,7 +7,7 @@ using GUI.Types.Renderer;
 
 namespace GUI.Forms
 {
-    partial class AboutForm : Form
+    partial class AboutForm : ThemedForm
     {
         public AboutForm()
         {

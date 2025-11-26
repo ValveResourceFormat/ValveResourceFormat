@@ -39,7 +39,7 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(waveStream is not null);
 
-            var tab = new TabPage();
+            var tab = new ThemedTabPage();
             var audio = new AudioPlaybackPanel(waveStream);
             tab.Controls.Add(audio);
 

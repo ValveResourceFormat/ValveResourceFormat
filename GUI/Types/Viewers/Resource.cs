@@ -197,7 +197,7 @@ namespace GUI.Types.Viewers
 
             var isPreview = viewMode == ResourceViewMode.ViewerOnly;
 
-            var resTabs = new TabControl
+            var resTabs = new FlatTabControl
             {
                 Dock = DockStyle.Fill,
                 Multiline = true,
@@ -232,6 +232,7 @@ namespace GUI.Types.Viewers
                     tabEx.Controls.Add(control);
                     resTabs.TabPages.Add(tabEx);
                 }
+
             }
 
             if (isPreview && !selectData)
@@ -270,7 +271,7 @@ namespace GUI.Types.Viewers
 
                     AddDataGridExternalRefAction(vrfGuiContext, externalRefs, "Name");
 
-                    var externalRefsTab = new TabPage("External Refs");
+                    var externalRefsTab = new ThemedTabPage("External Refs");
                     externalRefsTab.Controls.Add(externalRefs);
                     resTabs.TabPages.Add(externalRefsTab);
 
@@ -295,7 +296,7 @@ namespace GUI.Types.Viewers
                                         ((ResourceIntrospectionManifest)block).ReferencedStructs), string.Empty),
                         };
 
-                        var externalRefsTab = new TabPage("Introspection Manifest: Structs");
+                        var externalRefsTab = new ThemedTabPage("Introspection Manifest: Structs");
                         externalRefsTab.Controls.Add(externalRefs);
                         resTabs.TabPages.Add(externalRefsTab);
                     }
@@ -316,13 +317,13 @@ namespace GUI.Types.Viewers
                                         ((ResourceIntrospectionManifest)block).ReferencedEnums), string.Empty),
                         };
 
-                        var externalRefsTab = new TabPage("Introspection Manifest: Enums");
+                        var externalRefsTab = new ThemedTabPage("Introspection Manifest: Enums");
                         externalRefsTab.Controls.Add(externalRefs2);
                         resTabs.TabPages.Add(externalRefsTab);
                     }
                 }
 
-                var blockTab = new TabPage(block.Type.ToString());
+                var blockTab = new ThemedTabPage(block.Type.ToString());
                 resTabs.TabPages.Add(blockTab);
 
                 try
@@ -349,12 +350,12 @@ namespace GUI.Types.Viewers
             {
                 var control = CodeTextBox.CreateFromException(ex);
 
-                var tabEx = new TabPage("Decompile Error");
+                var tabEx = new ThemedTabPage("Decompile Error");
                 tabEx.Controls.Add(control);
                 resTabs.TabPages.Add(tabEx);
             }
 
-            var tab = new TabPage();
+            var tab = new ThemedTabPage();
             tab.Controls.Add(resTabs);
 
             return tab;
@@ -384,6 +385,7 @@ namespace GUI.Types.Viewers
                         var worldTabPage = new TabPage("World Data");
                         resTabs.TabPages.Add(worldTabPage);
                         AddTextViewControl(ResourceType.WorldNode, loadedWorld.World, worldTabPage);
+
                     }
 
                     if (loadedWorld.MainWorldNode != null)
@@ -420,6 +422,7 @@ namespace GUI.Types.Viewers
                         var specialTabPage = new TabPage("PANORAMA NAMES");
                         specialTabPage.Controls.Add(nameControl);
                         resTabs.TabPages.Add(specialTabPage);
+
                     }
                     break;
 
@@ -597,7 +600,7 @@ namespace GUI.Types.Viewers
             blockTab.Controls.Add(textBox);
         }
 
-        private static void AddReconstructedContentTab(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, TabControl resTabs)
+        private static void AddReconstructedContentTab(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, FlatTabControl resTabs)
         {
             switch (resource.ResourceType)
             {

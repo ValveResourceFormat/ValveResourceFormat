@@ -31,7 +31,7 @@ namespace GUI.Controls
             components = new System.ComponentModel.Container();
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(ExplorerControl));
             treeView = new Utils.TreeViewDoubleBuffered();
-            filterTextBox = new System.Windows.Forms.TextBox();
+            filterTextBox = new BetterTextBox();
             fileContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
             revealInFileExplorerToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             addToFavoritesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -133,7 +133,7 @@ namespace GUI.Controls
         }
 
         #endregion
-        private System.Windows.Forms.TextBox filterTextBox;
+        private BetterTextBox filterTextBox;
         private System.Windows.Forms.ContextMenuStrip fileContextMenuStrip;
         private Utils.TreeViewDoubleBuffered treeView;
         private System.Windows.Forms.ToolStripMenuItem revealInFileExplorerToolStripMenuItem;

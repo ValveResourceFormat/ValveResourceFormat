@@ -1,3 +1,5 @@
+using GUI.Controls;
+
 namespace GUI.Forms
 {
     partial class SettingsControl
@@ -42,7 +44,7 @@ namespace GUI.Forms
             fovInput = new System.Windows.Forms.NumericUpDown();
             fovLabel = new System.Windows.Forms.Label();
             antiAliasingLabel = new System.Windows.Forms.Label();
-            antiAliasingComboBox = new System.Windows.Forms.ComboBox();
+            antiAliasingComboBox = new ThemedComboBox();
             registerAssociationButton = new System.Windows.Forms.Button();
             displayFpsCheckBox = new System.Windows.Forms.CheckBox();
             groupBox1 = new System.Windows.Forms.GroupBox();
@@ -54,7 +56,7 @@ namespace GUI.Forms
             textViewerFontSizeLabel = new System.Windows.Forms.Label();
             textViewerFontSize = new System.Windows.Forms.NumericUpDown();
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
-            themeComboBox = new System.Windows.Forms.ComboBox();
+            themeComboBox = new ThemedComboBox();
             themeLabel = new System.Windows.Forms.Label();
             groupBox4 = new System.Windows.Forms.GroupBox();
             quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
