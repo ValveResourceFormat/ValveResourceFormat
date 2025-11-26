@@ -168,13 +168,13 @@ namespace GUI.Types.GLViewers
             }
             else if (Resource != null)
             {
-                InitializeUIControlsForResource(Resource);
+                InitializeUIControlsForResource();
             }
 
             return UiControl;
         }
 
-        private void InitializeUIControlsForResource(Resource resource)
+        private void InitializeUIControlsForResource()
         {
             var saveButton = new Button
             {
@@ -207,13 +207,7 @@ namespace GUI.Types.GLViewers
 
             if (Resource.ResourceType == ResourceType.PanoramaVectorGraphic)
             {
-                using var ms = new MemoryStream(((Panorama)resource.DataBlock).Data);
-                var svg = new SKSvg();
-                svg.Load(ms);
-
-                SetSvg(svg);
                 AddChannelsComboBox();
-
                 return;
             }
 
@@ -403,6 +397,15 @@ namespace GUI.Types.GLViewers
         public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : this(guiContext)
         {
             Resource = resource;
+
+            if (resource.ResourceType == ResourceType.PanoramaVectorGraphic)
+            {
+                using var ms = new MemoryStream(((Panorama)resource.DataBlock).Data);
+                var svg = new SKSvg();
+                svg.Load(ms);
+
+                SetSvg(svg);
+            }
         }
 
         private void SetSvg(SKSvg svg)
@@ -1024,7 +1027,7 @@ namespace GUI.Types.GLViewers
 
         protected override void OnGLLoad()
         {
-            if (Svg == null) /// Svg will be setup on <see cref="FirstPaint"/> because it needs to be rescaled
+            if (Svg == null) /// Svg will be setup on <see cref="OnFirstPaint"/> because it needs to be rescaled
             {
                 SetupTexture(false);
             }
