@@ -589,8 +589,6 @@ namespace GUI.Types.GLViewers
 
         protected void AddBaseGridControl()
         {
-            ShowBaseGrid = true;
-
             UiControl.AddDivider();
             UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
@@ -603,7 +601,12 @@ namespace GUI.Types.GLViewers
                 baseBackground.SetSolidBackground(ShowSolidBackground);
             });
             UiControl.AddDivider();
-            UiControl.AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+
+            if (this is not GLMaterialViewer)
+            {
+                ShowBaseGrid = true;
+                UiControl.AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+            }
         }
 
         protected void AddWireframeToggleControl()
