@@ -125,11 +125,6 @@ namespace GUI.Controls
             UiControl.AddControl(button);
 #endif
 
-            OnResize();
-
-            // Bind paint event at the end of the processing loop so that first paint event has correctly sized gl control
-            OnFirstPaint();
-
             return UiControl;
         }
 
@@ -573,11 +568,19 @@ namespace GUI.Controls
             lastUpdate = Stopwatch.GetTimestamp();
         }
 
+        private bool FirstPaint = true;
+
         private void OnPaint(object sender, EventArgs e)
         {
             if (!loaded)
             {
                 return;
+            }
+
+            if (FirstPaint)
+            {
+                OnFirstPaint();
+                FirstPaint = false;
             }
 
             Application.DoEvents();
