@@ -3,3 +3,6 @@
 
 # Move all GL viewer controls to separate folder
 a1ecfa1c39efd5ef3d6954bd448fb734f9d560bc
+
+# Move GLViewerControl as it is no longer a winforms control
+398c647cd782257033351667469c76239c9bd356
