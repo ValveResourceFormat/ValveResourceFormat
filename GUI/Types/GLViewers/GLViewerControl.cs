@@ -3,7 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
-using GUI.Types.GLViewers;
+using GUI.Controls;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -13,7 +13,7 @@ using static GUI.Types.Renderer.PickingTexture;
 
 #nullable disable
 
-namespace GUI.Controls
+namespace GUI.Types.GLViewers
 {
     partial class GLViewerControl : IDisposable
     {
