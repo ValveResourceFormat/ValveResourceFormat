@@ -96,7 +96,7 @@ namespace GUI.Utils
 
         };
 
-        public static ThemeColors CurrentThemeColors { get; set; } = ThemesColors[IsWindowsDarkThemed() ? Themes.Dark : Themes.Light];
+        public static ThemeColors CurrentThemeColors { get; set; } = ThemesColors[Application.IsDarkModeEnabled ? Themes.Dark : Themes.Light];
 
         public static void ApplyTheme(Form Form)
         {
@@ -431,27 +431,6 @@ namespace GUI.Utils
 
             // Return the new color
             return Color.FromArgb(color.A, r, g, b);
-        }
-
-        /// <summary>Returns Windows Color Mode for Applications.
-        /// <para>true=dark theme, false=light theme</para>
-        /// </summary>
-        ///
-        public static bool IsWindowsDarkThemed()
-        {
-            int intResult = 1;
-
-            var result = Registry.GetValue(
-               @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-               "AppsUseLightTheme",
-               -1);
-
-            if (result is not null)
-            {
-                intResult = (int)result;
-            }
-
-            return intResult <= 0;
         }
     }
 
