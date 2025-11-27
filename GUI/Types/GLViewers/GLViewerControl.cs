@@ -106,6 +106,8 @@ namespace GUI.Types.GLViewers
             UiControl.GLControlContainer.Controls.Add(GLControl);
             GLControl.AttachNativeWindow(GLNativeWindow);
 
+            UiControl.SuspendLayout();
+
 #if DEBUG // We want reload shaders to be the top most button
             ShaderLoader.ShaderHotReload.SetControl(GLControl);
             CodeHotReloadService.CodeHotReloaded += OnCodeHotReloaded;
@@ -126,6 +128,8 @@ namespace GUI.Types.GLViewers
 #endif
 
             AddUiControls();
+
+            UiControl.ResumeLayout();
 
             return UiControl;
         }

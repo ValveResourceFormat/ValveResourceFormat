@@ -809,7 +809,6 @@ namespace GUI.Types.GLViewers
             // Make controls panel wider for material parameters
             UiControl.UseWideSplitter();
 
-            UiControl.SuspendLayout();
             AddRenderModeSelectionControl();
             UiControl.AddDivider();
 
@@ -892,7 +891,6 @@ namespace GUI.Types.GLViewers
             ParamsTable.ColumnCount = 2;
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            UiControl.ResumeLayout();
 
             // Populate UI controls with scene data
             if (renderMat != null)
