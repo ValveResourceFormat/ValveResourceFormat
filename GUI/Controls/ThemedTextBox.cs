@@ -5,6 +5,8 @@ namespace GUI.Controls
 {
     public class ThemedTextBox : TextBox
     {
+        protected override bool DoubleBuffered { get; set; } = true;
+
         public ThemedTextBox()
         {
             Multiline = true;

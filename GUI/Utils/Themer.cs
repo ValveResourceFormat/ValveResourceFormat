@@ -250,6 +250,11 @@ namespace GUI.Utils
                 settingsControl.BackColor = CurrentThemeColors.AppSoft;
                 settingsControl.ForeColor = CurrentThemeColors.Contrast;
             }
+            if (control is ListBox listBox)
+            {
+                listBox.BackColor = CurrentThemeColors.AppSoft;
+                listBox.ForeColor = CurrentThemeColors.Contrast;
+            }
             if (control is CheckedListBox checkedListBox)
             {
                 checkedListBox.BackColor = CurrentThemeColors.AppSoft;
