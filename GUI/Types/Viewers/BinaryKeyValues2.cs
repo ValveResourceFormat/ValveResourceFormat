@@ -7,7 +7,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues2(VrfGuiContext vrfGuiContext) : IViewer
+    class BinaryKeyValues2(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         public const int MAGIC = 757932348; // "<!--"
 
@@ -60,6 +60,11 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(control);
 
             text = null;
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

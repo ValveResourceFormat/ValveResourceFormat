@@ -9,7 +9,7 @@ using ValveResourceFormat.ClosedCaptions;
 
 namespace GUI.Types.Viewers
 {
-    class ClosedCaptions(VrfGuiContext vrfGuiContext) : IViewer
+    class ClosedCaptions(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private ValveResourceFormat.ClosedCaptions.ClosedCaptions? captions;
 
@@ -60,6 +60,11 @@ namespace GUI.Types.Viewers
             var textControl = CodeTextBox.Create(captions.ToString());
             tabPage.Controls.Add(textControl);
             tabControl.Controls.Add(tabPage);
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

@@ -7,7 +7,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class ToolsAssetInfo(VrfGuiContext vrfGuiContext) : IViewer
+    class ToolsAssetInfo(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? text;
 
@@ -41,6 +41,11 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(textBox);
 
             text = null;
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

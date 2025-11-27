@@ -6,7 +6,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class ByteViewer(VrfGuiContext vrfGuiContext) : IViewer
+    class ByteViewer(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private byte[] input = [];
         private string? text;
@@ -111,6 +111,11 @@ namespace GUI.Types.Viewers
 
             // Only trailing nulls, trim them and decode as UTF-8
             return System.Text.Encoding.UTF8.GetString(span[..firstNullByte]);
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

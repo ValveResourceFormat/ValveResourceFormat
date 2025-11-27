@@ -7,7 +7,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class GridNavFile(VrfGuiContext vrfGuiContext) : IViewer
+    class GridNavFile(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? infoText;
 
@@ -48,6 +48,11 @@ namespace GUI.Types.Viewers
             tabControl.Controls.Add(infoPage);
 
             infoText = null;
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

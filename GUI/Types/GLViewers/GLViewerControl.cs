@@ -226,24 +226,28 @@ namespace GUI.Types.GLViewers
 
         public virtual void Dispose()
         {
-            GLControl.Paint -= OnPaint;
-            GLControl.Resize -= OnResize;
-            GLControl.MouseEnter -= OnMouseEnter;
-            GLControl.MouseLeave -= OnMouseLeave;
-            GLControl.MouseUp -= OnMouseUp;
-            GLControl.MouseDown -= OnMouseDown;
-            GLControl.MouseMove -= OnMouseMove;
-            GLControl.MouseWheel -= OnMouseWheel;
-            GLControl.PreviewKeyDown -= OnPreviewKeyDown;
-            GLControl.KeyDown -= OnKeyDown;
-            GLControl.KeyUp -= OnKeyUp;
-            GLControl.GotFocus -= OnGotFocus;
-            GLControl.LostFocus -= OnLostFocus;
-            GLControl.VisibleChanged -= OnVisibleChanged;
+            if (GLControl is not null)
+            {
+                GLControl.Paint -= OnPaint;
+                GLControl.Resize -= OnResize;
+                GLControl.MouseEnter -= OnMouseEnter;
+                GLControl.MouseLeave -= OnMouseLeave;
+                GLControl.MouseUp -= OnMouseUp;
+                GLControl.MouseDown -= OnMouseDown;
+                GLControl.MouseMove -= OnMouseMove;
+                GLControl.MouseWheel -= OnMouseWheel;
+                GLControl.PreviewKeyDown -= OnPreviewKeyDown;
+                GLControl.KeyDown -= OnKeyDown;
+                GLControl.KeyUp -= OnKeyUp;
+                GLControl.GotFocus -= OnGotFocus;
+                GLControl.LostFocus -= OnLostFocus;
+                GLControl.VisibleChanged -= OnVisibleChanged;
+                UiControl.Dispose();
+            }
+
             Program.MainForm.Activated -= OnAppActivated;
             FullScreenForm?.Dispose();
-            UiControl.Dispose();
-            GLNativeWindow.Dispose();
+            GLNativeWindow?.Dispose();
 
 #if DEBUG
             CodeHotReloadService.CodeHotReloaded -= OnCodeHotReloaded;

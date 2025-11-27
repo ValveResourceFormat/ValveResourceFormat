@@ -6,7 +6,7 @@ using static GUI.Controls.CodeTextBox;
 
 namespace GUI.Types.Viewers
 {
-    interface IViewer
+    interface IViewer : IDisposable
     {
         public Task LoadAsync(Stream stream);
         public void Create(TabPage containerTabPage);

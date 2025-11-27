@@ -7,7 +7,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class FlexSceneFile(VrfGuiContext vrfGuiContext) : IViewer
+    class FlexSceneFile(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? vfeText;
 
@@ -48,6 +48,11 @@ namespace GUI.Types.Viewers
             tabControl.Controls.Add(tabPage);
 
             vfeText = null;
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

@@ -730,6 +730,12 @@ namespace GUI
                     {
                         var viewer = t.Result;
 
+                        if (tab.IsDisposed)
+                        {
+                            viewer.Dispose();
+                            return; // closed tab before it loaded
+                        }
+
                         try
                         {
                             //tab.SuspendLayout(); - do not suspend layout so that GLControl gets correct size before the first frame

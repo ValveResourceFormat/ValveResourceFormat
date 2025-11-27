@@ -8,7 +8,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues3(VrfGuiContext vrfGuiContext) : IViewer
+    class BinaryKeyValues3(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? text;
 
@@ -47,6 +47,11 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(control);
 
             text = null;
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }
