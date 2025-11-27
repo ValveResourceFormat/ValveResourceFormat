@@ -9,7 +9,7 @@ namespace GUI.Types.Viewers
     interface IViewer
     {
         public Task LoadAsync(Stream stream);
-        public TabPage Create();
+        public void Create(TabPage containerTabPage);
 
         public static TabPage AddContentTab<T>(TabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
         {

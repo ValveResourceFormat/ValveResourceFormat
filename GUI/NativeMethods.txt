@@ -1,6 +1,8 @@
-SHChangeNotify
-SetWindowTheme
+SendMessage
 SetParent
 SetWindowLongPtr
-WINDOW_STYLE
+SetWindowTheme
+SHChangeNotify
 WINDOW_EX_STYLE
+WINDOW_STYLE
+WM_SETREDRAW

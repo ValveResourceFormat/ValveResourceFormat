@@ -462,7 +462,7 @@ namespace GUI.Types.GLViewers
         private static string NormalizeParameterName(string paramNameString)
         {
             // Handle feature flags (F_ prefix) - all uppercase, split by underscores
-            if (paramNameString.StartsWith("F_"))
+            if (paramNameString.StartsWith("F_", StringComparison.Ordinal))
             {
                 return paramNameString[2..].Replace('_', ' ');
             }
@@ -740,14 +740,15 @@ namespace GUI.Types.GLViewers
             {
                 var shaders = GuiContext.LoadShader(material.ShaderName);
 
-                var tabPage = viewer.Create(
+                var tabPage = new TabPage(material.ShaderName);
+                Tabs.TabPages.Add(tabPage);
+                viewer.Create(
+                    tabPage,
                     shaders,
                     Path.GetFileNameWithoutExtension(material.ShaderName.AsSpan()),
                     ValveResourceFormat.CompiledShader.VcsProgramType.Features,
                     featureState
                 );
-                tabPage.Text = material.ShaderName;
-                Tabs.TabPages.Add(tabPage);
                 viewer = null;
 
                 Tabs.SelectTab(tabPage);

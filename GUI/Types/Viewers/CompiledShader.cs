@@ -53,7 +53,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
             var filename = Path.GetFileName(vrfGuiContext.FileName);
             var leadProgramType = ComputeVCSFileName(filename).ProgramType;
@@ -61,12 +61,11 @@ namespace GUI.Types.Viewers
 
             var shaderCollection = ShaderCollection.GetShaderCollection(vrfGuiContext.FileName, vrfGuiContext.CurrentPackage);
 
-            return Create(shaderCollection, vcsCollectionName, leadProgramType);
+            Create(tab, shaderCollection, vcsCollectionName, leadProgramType);
         }
 
-        public TabPage Create(ShaderCollection shaderCollection, ReadOnlySpan<char> vcsCollectionName, VcsProgramType leadProgramType, IDictionary<string, byte> leadFeatureParams = null)
+        public void Create(TabPage tab, ShaderCollection shaderCollection, ReadOnlySpan<char> vcsCollectionName, VcsProgramType leadProgramType, IDictionary<string, byte> leadFeatureParams = null)
         {
-            var tab = new TabPage();
             tab.Controls.Add(control);
 
             var vfxImage = MainForm.GetImageIndexForExtension("_folder");
@@ -202,8 +201,6 @@ namespace GUI.Types.Viewers
                 collectionNode.Tag = shaderExtract;
                 DisplayExtractedVfx(shaderExtract);
             }
-
-            return tab;
         }
 
         public void Dispose()

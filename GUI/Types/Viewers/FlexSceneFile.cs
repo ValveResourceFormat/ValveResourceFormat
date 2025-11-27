@@ -32,11 +32,10 @@ namespace GUI.Types.Viewers
             vfeText = vfe.ToString();
         }
 
-        public TabPage Create()
+        public void Create(TabPage tabOuterPage)
         {
             Debug.Assert(vfeText is not null);
 
-            var tabOuterPage = new TabPage();
             var tabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
@@ -49,8 +48,6 @@ namespace GUI.Types.Viewers
             tabControl.Controls.Add(tabPage);
 
             vfeText = null;
-
-            return tabOuterPage;
         }
     }
 }

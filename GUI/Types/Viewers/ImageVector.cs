@@ -42,12 +42,9 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
-            var tab = new TabPage("IMAGE");
             tab.Controls.Add(textureControl!.InitializeUiControls());
-
-            return tab;
         }
 
         public void Dispose()

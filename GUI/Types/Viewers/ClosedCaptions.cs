@@ -32,11 +32,10 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage tabOuterPage)
         {
             Debug.Assert(captions is not null);
 
-            var tabOuterPage = new TabPage();
             var tabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
@@ -61,8 +60,6 @@ namespace GUI.Types.Viewers
             var textControl = CodeTextBox.Create(captions.ToString());
             tabPage.Controls.Add(textControl);
             tabControl.Controls.Add(tabPage);
-
-            return tabOuterPage;
         }
     }
 }

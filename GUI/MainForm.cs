@@ -6,7 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -18,6 +17,8 @@ using GUI.Utils;
 using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
+using Windows.Win32;
+using Windows.Win32.Foundation;
 
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
@@ -728,27 +729,18 @@ namespace GUI
                     try
                     {
                         var viewer = t.Result;
-                        var temporaryTab = viewer.Create();
-
-                        tab.SuspendLayout();
 
                         try
                         {
-                            foreach (Control c in temporaryTab.Controls)
-                            {
-                                if (tab.IsDisposed || tab.Disposing)
-                                {
-                                    c.Dispose();
-                                    continue;
-                                }
-
-                                tab.Controls.Add(c);
-                            }
+                            //tab.SuspendLayout(); - do not suspend layout so that GLControl gets correct size before the first frame
+                            // so that there is no need to resize framebuffers for no reason
+                            PInvoke.SendMessage((HWND)tab.Handle, PInvoke.WM_SETREDRAW, 0, 0);
+                            viewer.Create(tab);
                         }
                         finally
                         {
-                            temporaryTab.Dispose(); // Dispose the temporary TabPage since we copied the controls over
-                            tab.ResumeLayout();
+                            PInvoke.SendMessage((HWND)tab.Handle, PInvoke.WM_SETREDRAW, 1, 0);
+                            tab.Invalidate(invalidateChildren: true);
                         }
                     }
                     finally

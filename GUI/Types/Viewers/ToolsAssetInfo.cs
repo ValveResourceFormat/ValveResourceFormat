@@ -33,17 +33,14 @@ namespace GUI.Types.Viewers
             text = toolsAssetInfo.ToString();
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
             Debug.Assert(text is not null);
 
-            var tab = new TabPage();
             var textBox = CodeTextBox.Create(text);
             tab.Controls.Add(textBox);
 
             text = null;
-
-            return tab;
         }
     }
 }

@@ -28,9 +28,8 @@ namespace GUI.Types.Viewers
             text = GetTextFromBytes(input.AsSpan());
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
-            var tab = new TabPage();
             var resTabs = new TabControl
             {
                 Dock = DockStyle.Fill,
@@ -57,8 +56,6 @@ namespace GUI.Types.Viewers
 
             bv.SetBytes(input);
             input = [];
-
-            return tab;
         }
 
         public static string? GetTextFromBytes(ReadOnlySpan<byte> span)

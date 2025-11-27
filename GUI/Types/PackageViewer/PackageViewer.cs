@@ -73,14 +73,10 @@ namespace GUI.Types.PackageViewer
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
-            var tab = new TabPage();
-
             CreateTreeViewWithSearchResults();
             tab.Controls.Add(TreeView);
-
-            return tab;
         }
 
         private void CreateTreeViewWithSearchResults()

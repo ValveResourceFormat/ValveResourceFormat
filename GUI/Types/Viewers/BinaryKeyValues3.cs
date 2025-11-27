@@ -39,18 +39,14 @@ namespace GUI.Types.Viewers
             text = kv3.ToString();
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
             Debug.Assert(text is not null);
-
-            var tab = new TabPage();
 
             var control = CodeTextBox.Create(text);
             tab.Controls.Add(control);
 
             text = null;
-
-            return tab;
         }
     }
 }

@@ -43,14 +43,11 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
             Debug.Assert(glViewer is not null);
 
-            var tab = new TabPage("IMAGE");
             tab.Controls.Add(glViewer.InitializeUiControls());
-
-            return tab;
         }
 
         public void Dispose()
