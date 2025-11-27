@@ -699,6 +699,10 @@ namespace GUI
                 loadingFile = new LoadingFile();
                 tab.Controls.Add(loadingFile);
             }
+            else
+            {
+                Cursor.Current = Cursors.WaitCursor;
+            }
 
             var taskLoad = Task.Run(() => ProcessFile(vrfGuiContext, file, viewMode));
 
@@ -710,6 +714,11 @@ namespace GUI
                 {
                     BeginInvoke(() =>
                     {
+                        if (isPreview)
+                        {
+                            Cursor.Current = Cursors.Default;
+                        }
+
                         var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                         tab.Controls.Add(control);
