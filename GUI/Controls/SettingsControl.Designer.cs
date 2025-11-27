@@ -40,8 +40,8 @@ namespace GUI.Forms
             gamePathsRemove = new ThemedButton();
             gamePathsAddFolder = new ThemedButton();
             maxTextureSizeLabel = new System.Windows.Forms.Label();
-            maxTextureSizeInput = new System.Windows.Forms.NumericUpDown();
-            fovInput = new System.Windows.Forms.NumericUpDown();
+            maxTextureSizeInput = new ThemedIntNumeric() { MaxValue = 8192, MinValue = 16 };
+            fovInput = new ThemedFloatNumeric() { MaxValue = 170, MinValue = 1 };
             fovLabel = new System.Windows.Forms.Label();
             antiAliasingLabel = new System.Windows.Forms.Label();
             antiAliasingComboBox = new ThemedComboBox();
@@ -50,11 +50,11 @@ namespace GUI.Forms
             groupBox1 = new ThemedGroupBox();
             groupBox2 = new ThemedGroupBox();
             setFovTo4by3Button = new ThemedButton();
-            shadowResolutionInput = new System.Windows.Forms.NumericUpDown();
+            shadowResolutionInput = new ThemedIntNumeric() { MaxValue = 4096, MinValue = 16 };
             shadowResolutionLabel = new System.Windows.Forms.Label();
             groupBox3 = new ThemedGroupBox();
             textViewerFontSizeLabel = new System.Windows.Forms.Label();
-            textViewerFontSize = new System.Windows.Forms.NumericUpDown();
+            textViewerFontSize = new ThemedFloatNumeric() { MaxValue = 24, MinValue = 8 };
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
             themeComboBox = new ThemedComboBox();
             themeLabel = new System.Windows.Forms.Label();
@@ -63,13 +63,9 @@ namespace GUI.Forms
             quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
             footerLabel = new System.Windows.Forms.Label();
             footerPanel = new System.Windows.Forms.Panel();
-            ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)fovInput).BeginInit();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)shadowResolutionInput).BeginInit();
             groupBox3.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)textViewerFontSize).BeginInit();
             groupBox4.SuspendLayout();
             footerPanel.SuspendLayout();
             SuspendLayout();
@@ -156,27 +152,23 @@ namespace GUI.Forms
             // maxTextureSizeInput
             // 
             maxTextureSizeInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            maxTextureSizeInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
+            maxTextureSizeInput.Incrument = 64;
             maxTextureSizeInput.Location = new System.Drawing.Point(170, 132);
-            maxTextureSizeInput.Maximum = new decimal(new int[] { 10240, 0, 0, 0 });
-            maxTextureSizeInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             maxTextureSizeInput.Name = "maxTextureSizeInput";
             maxTextureSizeInput.Size = new System.Drawing.Size(100, 25);
             maxTextureSizeInput.TabIndex = 5;
-            maxTextureSizeInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            maxTextureSizeInput.Value = 1024;
             maxTextureSizeInput.ValueChanged += OnMaxTextureSizeValueChanged;
             // 
             // fovInput
             // 
             fovInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            fovInput.DecimalPlaces = 6;
+            fovInput.DecimalMax = 6;
             fovInput.Location = new System.Drawing.Point(170, 81);
-            fovInput.Maximum = new decimal(new int[] { 120, 0, 0, 0 });
-            fovInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             fovInput.Name = "fovInput";
             fovInput.Size = new System.Drawing.Size(100, 25);
             fovInput.TabIndex = 6;
-            fovInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            fovInput.Value = 90;
             fovInput.ValueChanged += OnFovValueChanged;
             // 
             // fovLabel
@@ -311,14 +303,12 @@ namespace GUI.Forms
             // shadowResolutionInput
             // 
             shadowResolutionInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            shadowResolutionInput.Increment = new decimal(new int[] { 64, 0, 0, 0 });
+            shadowResolutionInput.Incrument = 64;
             shadowResolutionInput.Location = new System.Drawing.Point(170, 180);
-            shadowResolutionInput.Maximum = new decimal(new int[] { 4096, 0, 0, 0 });
-            shadowResolutionInput.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
             shadowResolutionInput.Name = "shadowResolutionInput";
             shadowResolutionInput.Size = new System.Drawing.Size(100, 25);
             shadowResolutionInput.TabIndex = 12;
-            shadowResolutionInput.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            shadowResolutionInput.Value = 2048;
             // 
             // shadowResolutionLabel
             // 
@@ -366,12 +356,10 @@ namespace GUI.Forms
             // 
             textViewerFontSize.Anchor = System.Windows.Forms.AnchorStyles.Left;
             textViewerFontSize.Location = new System.Drawing.Point(209, 76);
-            textViewerFontSize.Maximum = new decimal(new int[] { 24, 0, 0, 0 });
-            textViewerFontSize.Minimum = new decimal(new int[] { 8, 0, 0, 0 });
             textViewerFontSize.Name = "textViewerFontSize";
             textViewerFontSize.Size = new System.Drawing.Size(100, 25);
             textViewerFontSize.TabIndex = 16;
-            textViewerFontSize.Value = new decimal(new int[] { 8, 0, 0, 0 });
+            textViewerFontSize.Value = 8;
             textViewerFontSize.ValueChanged += OnTextViewerFontSizeValueChanged;
             // 
             // openExplorerOnStartCheckbox
@@ -491,15 +479,11 @@ namespace GUI.Forms
             Size = new System.Drawing.Size(533, 648);
             Load += SettingsControl_Load;
             Leave += SettingsControl_Leave;
-            ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).EndInit();
-            ((System.ComponentModel.ISupportInitialize)fovInput).EndInit();
             groupBox1.ResumeLayout(false);
             groupBox2.ResumeLayout(false);
             groupBox2.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)shadowResolutionInput).EndInit();
             groupBox3.ResumeLayout(false);
             groupBox3.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)textViewerFontSize).EndInit();
             groupBox4.ResumeLayout(false);
             groupBox4.PerformLayout();
             footerPanel.ResumeLayout(false);
@@ -511,8 +495,8 @@ namespace GUI.Forms
 
         private System.Windows.Forms.ListBox gamePaths;
         private System.Windows.Forms.Label maxTextureSizeLabel;
-        private System.Windows.Forms.NumericUpDown maxTextureSizeInput;
-        private System.Windows.Forms.NumericUpDown fovInput;
+        private ThemedIntNumeric maxTextureSizeInput;
+        private ThemedFloatNumeric fovInput;
         private System.Windows.Forms.Label fovLabel;
         private System.Windows.Forms.Label antiAliasingLabel;
         private System.Windows.Forms.CheckBox vsyncCheckBox;
@@ -521,10 +505,10 @@ namespace GUI.Forms
         private System.Windows.Forms.CheckBox quickPreviewSoundsCheckbox;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
         private System.Windows.Forms.Label shadowResolutionLabel;
-        private System.Windows.Forms.NumericUpDown shadowResolutionInput;
+        private ThemedIntNumeric shadowResolutionInput;
         private System.Windows.Forms.Label themeLabel;
         private System.Windows.Forms.Label textViewerFontSizeLabel;
-        private System.Windows.Forms.NumericUpDown textViewerFontSize;
+        private ThemedFloatNumeric textViewerFontSize;
         private System.Windows.Forms.Label footerLabel;
         private System.Windows.Forms.Panel footerPanel;
         private ThemedButton gamePathsAdd;

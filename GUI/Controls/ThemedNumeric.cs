@@ -18,7 +18,15 @@ namespace GUI.Controls
             {
                 _value = value;
                 Text = ConvertToText(_value);
+                OnValueChanged(EventArgs.Empty);
             }
+        }
+
+        public event EventHandler? ValueChanged;
+
+        protected virtual void OnValueChanged(EventArgs e)
+        {
+            ValueChanged?.Invoke(this, e);
         }
 
         protected ThemedAbstractNumeric()
@@ -77,9 +85,14 @@ namespace GUI.Controls
         }
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
-        public required T MinValue { get; set; }
+        // makes it so dragging is the same distance no matter the values within the range
+        // disable this if you want to have a range like min/max float
+        public bool DragWithinRange { get; set; } = true;
+
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
-        public required T MaxValue { get; set; }
+        public T? MinValue { get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
+        public T? MaxValue { get; set; }
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         // drag distance to go from min to max in pixels (adjusted by DPI)
@@ -193,13 +206,23 @@ namespace GUI.Controls
 
         protected override int CalculateNewValueFromDelta(int value, float delta)
         {
-            float deltaValue = Remap(delta, 0, DragDistance, 0, MaxValue - MinValue);
-            float newValue = value + deltaValue;
+            if (DragWithinRange)
+            {
+                float deltaValue = Remap(delta, 0, DragDistance, 0, MaxValue - MinValue);
+                float newValue = value + deltaValue;
 
-            int steps = (int)Math.Round((newValue - MinValue) / Incrument);
-            int snappedValue = MinValue + steps * Incrument;
+                int steps = (int)Math.Round((newValue - MinValue) / Incrument);
+                int snappedValue = MinValue + steps * Incrument;
 
-            return Math.Clamp(snappedValue, MinValue, MaxValue);
+                return Math.Clamp(snappedValue, MinValue, MaxValue);
+            }
+            else
+            {
+                float sensitivity = DragDistance / 10f;
+                int steps = (int)Math.Round(delta / sensitivity);
+                return value + (steps * Incrument);
+            }
+
         }
     }
 
@@ -230,7 +253,15 @@ namespace GUI.Controls
 
         protected override float CalculateNewValueFromDelta(float value, float delta)
         {
-            return value + Remap(delta, 0, DragDistance, MinValue, MaxValue - MinValue);
+            if (DragWithinRange)
+            {
+                return value + Remap(delta, 0, DragDistance, MinValue, MaxValue - MinValue);
+            }
+            else
+            {
+                float sensitivity = DragDistance / 10f;
+                return value + (delta / sensitivity);
+            }
         }
     }
 }
