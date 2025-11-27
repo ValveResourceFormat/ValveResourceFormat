@@ -40,7 +40,7 @@ namespace GUI.Forms
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             extractProgressBar = new System.Windows.Forms.ProgressBar();
             extractStatusLabel = new System.Windows.Forms.Label();
-            cancelButton = new BetterButton();
+            cancelButton = new ThemedButton();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
             // 

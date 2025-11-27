@@ -197,7 +197,7 @@ namespace GUI.Types.Viewers
 
             var isPreview = viewMode == ResourceViewMode.ViewerOnly;
 
-            var resTabs = new FlatTabControl
+            var resTabs = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
                 Multiline = true,
@@ -605,7 +605,7 @@ namespace GUI.Types.Viewers
             blockTab.Controls.Add(textBox);
         }
 
-        private static void AddReconstructedContentTab(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, FlatTabControl resTabs)
+        private static void AddReconstructedContentTab(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, ThemedTabControl resTabs)
         {
             switch (resource.ResourceType)
             {

@@ -34,13 +34,13 @@ namespace GUI.Forms
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(AboutForm));
             label1 = new Label();
             labelVersion = new Label();
-            website = new BetterButton();
-            github = new BetterButton();
-            releases = new BetterButton();
+            website = new ThemedButton();
+            github = new ThemedButton();
+            releases = new ThemedButton();
             label3 = new Label();
             icon = new PictureBox();
-            keybinds = new BetterButton();
-            copyVersion = new BetterButton();
+            keybinds = new ThemedButton();
+            copyVersion = new ThemedButton();
             ((System.ComponentModel.ISupportInitialize)icon).BeginInit();
             SuspendLayout();
             // 

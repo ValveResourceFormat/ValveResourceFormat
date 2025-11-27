@@ -77,7 +77,7 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            var resTabs = new FlatTabControl
+            var resTabs = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };

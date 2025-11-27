@@ -5,13 +5,13 @@ using GUI.Utils;
 
 namespace GUI.Controls
 {
-    public class BetterGroupBox : GroupBox
+    public class ThemedGroupBox : GroupBox
     {
         public Color BorderColor { get; set; } = Color.Black;
         public int CornerRadius { get; set; } = 5;
         public int BorderWidth { get; set; } = 2;
 
-        public BetterGroupBox()
+        public ThemedGroupBox()
         {
             FlatStyle = FlatStyle.Flat;
             DoubleBuffered = true;

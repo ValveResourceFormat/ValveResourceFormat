@@ -140,7 +140,7 @@ namespace GUI.Types.GLViewers
 
             SetZoomLabel();
 
-            var resetButton = new BetterButton
+            var resetButton = new ThemedButton
             {
                 Text = "Reset zoom",
                 AutoSize = true,
@@ -174,7 +174,7 @@ namespace GUI.Types.GLViewers
 
         private void InitializeUIControlsForResource()
         {
-            var saveButton = new BetterButton
+            var saveButton = new ThemedButton
             {
                 Text = "Save to disk…",
                 AutoSize = true,

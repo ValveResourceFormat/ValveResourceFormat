@@ -36,7 +36,7 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(infoText is not null);
 
-            var tabControl = new FlatTabControl
+            var tabControl = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };

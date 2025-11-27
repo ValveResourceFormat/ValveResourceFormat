@@ -62,8 +62,8 @@ namespace GUI.Forms
             HSliderValueInput = new GUI.Controls.BetterAbstractNumeric<float>();
             label3 = new Label();
             HSlider = new HSVSlider();
-            OK = new BetterButton();
-            Cancel = new BetterButton();
+            OK = new ThemedButton();
+            Cancel = new ThemedButton();
             OldColorPanel = new Panel();
             NewColorPanel = new Panel();
             label2 = new Label();
@@ -72,7 +72,7 @@ namespace GUI.Forms
             tableLayoutPanel12 = new TableLayoutPanel();
             tableLayoutPanel10 = new TableLayoutPanel();
             tableLayoutPanel13 = new TableLayoutPanel();
-            EyedropperButton = new BetterButton();
+            EyedropperButton = new ThemedButton();
             tableLayoutPanel2.SuspendLayout();
             tableLayoutPanel9.SuspendLayout();
             tableLayoutPanel8.SuspendLayout();

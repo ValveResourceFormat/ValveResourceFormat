@@ -32,8 +32,8 @@ namespace GUI.Forms
         {
             textLabel = new System.Windows.Forms.Label();
             inputTextBox = new System.Windows.Forms.TextBox();
-            cancelButton = new BetterButton();
-            submitButton = new BetterButton();
+            cancelButton = new ThemedButton();
+            submitButton = new ThemedButton();
             SuspendLayout();
             // 
             // textLabel

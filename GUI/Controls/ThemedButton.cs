@@ -5,7 +5,7 @@ using GUI.Utils;
 
 namespace GUI.Controls
 {
-    public class BetterButton : Button
+    public class ThemedButton : Button
     {
         private bool Hovered;
         private bool Clicked;
@@ -29,7 +29,7 @@ namespace GUI.Controls
         public Color ClickedBackColor { get; set; } = Color.Gray;
         public int CornerRadius { get; set; } = 5;
 
-        public BetterButton()
+        public ThemedButton()
         {
             adjustedBackColor = BackColor;
             adjustedForeColor = ForeColor;

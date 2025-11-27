@@ -36,7 +36,7 @@ namespace GUI.Types.Viewers
 
         public void Create(TabPage tabOuterPage)
         {
-            var tabControl = new FlatTabControl
+            var tabControl = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };

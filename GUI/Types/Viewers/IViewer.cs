@@ -12,7 +12,7 @@ namespace GUI.Types.Viewers
         public Task LoadAsync(Stream stream);
         public void Create(TabPage containerTabPage);
 
-        public static TabPage AddContentTab<T>(FlatTabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
+        public static TabPage AddContentTab<T>(ThemedTabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
         {
             var extract = string.Empty;
             if (content is Func<string> exceptionless)

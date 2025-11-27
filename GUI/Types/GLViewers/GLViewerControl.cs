@@ -112,7 +112,7 @@ namespace GUI.Types.GLViewers
             ShaderLoader.ShaderHotReload.SetControl(GLControl);
             CodeHotReloadService.CodeHotReloaded += OnCodeHotReloaded;
 
-            var button = new BetterButton
+            var button = new ThemedButton
             {
                 Text = "Reload shaders",
                 AutoSize = true,

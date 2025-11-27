@@ -6,7 +6,7 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace GUI.Controls
 {
-    public class FlatTabControl : TabControl
+    public class ThemedTabControl : TabControl
     {
         [Description("Color for a decorative line"), Category("Appearance")]
         public Color LineColor { get; set; } = SystemColors.Highlight;
@@ -33,7 +33,7 @@ namespace GUI.Controls
         public Color HoverColor { get; set; } = SystemColors.Highlight;
 
 
-        public FlatTabControl() : base()
+        public ThemedTabControl() : base()
         {
             Appearance = TabAppearance.Buttons;
             DrawMode = TabDrawMode.Normal;

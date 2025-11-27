@@ -5,7 +5,7 @@ using System.Windows.Forms;
 
 namespace GUI.Controls
 {
-    public class BetterAbstractNumeric<T> : BetterTextBox
+    public class BetterAbstractNumeric<T> : ThemedTextBox
     {
         private T? _value;
         private string _oldText = "";

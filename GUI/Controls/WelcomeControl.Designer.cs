@@ -29,13 +29,13 @@ namespace GUI.Controls
         private void InitializeComponent()
         {
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(WelcomeControl));
-            groupBox1 = new BetterGroupBox();
+            groupBox1 = new ThemedGroupBox();
             label1 = new System.Windows.Forms.Label();
-            updateCheckButton = new BetterButton();
-            groupBox2 = new BetterGroupBox();
+            updateCheckButton = new ThemedButton();
+            groupBox2 = new ThemedGroupBox();
             label3 = new System.Windows.Forms.Label();
-            groupBox3 = new BetterGroupBox();
-            fileAssociationButton = new BetterButton();
+            groupBox3 = new ThemedGroupBox();
+            fileAssociationButton = new ThemedButton();
             splitContainer = new System.Windows.Forms.SplitContainer();
             panel1 = new System.Windows.Forms.Panel();
             groupBox1.SuspendLayout();

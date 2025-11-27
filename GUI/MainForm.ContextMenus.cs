@@ -45,7 +45,7 @@ namespace GUI
         private static TabPage FetchToolstripTabContext(object sender)
         {
             var contextMenu = ((ToolStripMenuItem)sender).Owner;
-            var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as FlatTabControl;
+            var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as ThemedTabControl;
             var tabs = tabControl.TabPages;
 
             return tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag)).First();
@@ -320,7 +320,7 @@ namespace GUI
                 }
             }
             // Clicking context menu item when right clicking a tab
-            else if (owner is FlatTabControl)
+            else if (owner is ThemedTabControl)
             {
                 var tabPage = FetchToolstripTabContext(sender);
 

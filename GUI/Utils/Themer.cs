@@ -188,7 +188,7 @@ namespace GUI.Utils
                 button.FlatAppearance.BorderColor = CurrentThemeColors.Border;
                 button.ForeColor = CurrentThemeColors.Contrast;
             }
-            if (control is BetterButton betterButton)
+            if (control is ThemedButton betterButton)
             {
                 betterButton.ClickedBackColor = CurrentThemeColors.Accent;
                 betterButton.ForeColor = CurrentThemeColors.Contrast;
@@ -210,7 +210,7 @@ namespace GUI.Utils
             {
                 opt.BackColor = CurrentThemeColors.AppSoft;
             }
-            if (control is BetterGroupBox betterGroupBox)
+            if (control is ThemedGroupBox betterGroupBox)
             {
                 betterGroupBox.BorderColor = CurrentThemeColors.Border;
                 betterGroupBox.ForeColor = CurrentThemeColors.Contrast;

@@ -3,9 +3,9 @@ using System.Windows.Forms;
 
 namespace GUI.Controls
 {
-    public class BetterTextBox : TextBox
+    public class ThemedTextBox : TextBox
     {
-        public BetterTextBox()
+        public ThemedTextBox()
         {
             Multiline = true;
             Margin = new Padding(0, 3, 0, 3);

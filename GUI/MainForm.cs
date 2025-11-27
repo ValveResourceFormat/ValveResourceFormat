@@ -479,7 +479,7 @@ namespace GUI
         private void OnTabClick(object sender, MouseEventArgs e)
         {
             //Work out what tab we're interacting with
-            var tabControl = sender as FlatTabControl;
+            var tabControl = sender as TabControl;
             var tabs = tabControl.TabPages;
 
             var tabIndex = 0;

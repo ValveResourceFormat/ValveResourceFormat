@@ -32,8 +32,8 @@ namespace GUI.Forms
         {
             currentVersionLabel = new System.Windows.Forms.Label();
             newVersionLabel = new System.Windows.Forms.Label();
-            viewReleaseNotesButton = new BetterButton();
-            downloadButton = new BetterButton();
+            viewReleaseNotesButton = new ThemedButton();
+            downloadButton = new ThemedButton();
             checkForUpdatesCheckbox = new System.Windows.Forms.CheckBox();
             SuspendLayout();
             // 
