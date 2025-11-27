@@ -362,11 +362,6 @@ namespace GUI.Types.Viewers
                 tabEx.Controls.Add(control);
                 resTabs.TabPages.Add(tabEx);
             }
-
-            var tab = new TabPage();
-            tab.Controls.Add(resTabs);
-
-            return tab;
         }
 
         private bool CreateSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs)

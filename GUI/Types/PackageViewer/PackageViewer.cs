@@ -76,8 +76,6 @@ namespace GUI.Types.PackageViewer
 
         public void Create(TabPage tab)
         {
-            var tab = new TabPage();
-
             CreateTreeViewWithSearchResults();
             tab.Controls.Add(TreeView);
         }

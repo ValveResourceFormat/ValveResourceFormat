@@ -36,7 +36,6 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(infoText is not null);
 
-            var tabOuterPage = new TabPage();
             var tabControl = new TabControl
             {
                 Dock = DockStyle.Fill,

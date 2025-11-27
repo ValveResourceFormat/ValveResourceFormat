@@ -743,7 +743,6 @@ namespace GUI
                     try
                     {
                         var viewer = t.Result;
-                        var temporaryTab = viewer.Create();
 
                         if (tab.IsDisposed)
                         {

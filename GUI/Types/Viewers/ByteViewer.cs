@@ -30,7 +30,6 @@ namespace GUI.Types.Viewers
 
         public void Create(TabPage tab)
         {
-            var tab = new TabPage();
             var resTabs = new TabControl
             {
                 Dock = DockStyle.Fill,

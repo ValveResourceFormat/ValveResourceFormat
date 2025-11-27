@@ -66,7 +66,6 @@ namespace GUI.Types.Viewers
 
         public void Create(TabPage tab, ShaderCollection shaderCollection, ReadOnlySpan<char> vcsCollectionName, VcsProgramType leadProgramType, IDictionary<string, byte> leadFeatureParams = null)
         {
-            var tab = new TabPage();
             tab.Controls.Add(control);
 
             var vfxImage = MainForm.GetImageIndexForExtension("_folder");
