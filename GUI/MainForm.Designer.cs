@@ -84,7 +84,7 @@ namespace GUI
             vpkEditRemoveThisFileToolStripMenuItem = new ToolStripMenuItem();
             vpkEditSaveToDiskToolStripMenuItem = new ToolStripMenuItem();
             transparentPanel1 = new TransparentPanel();
-            panel1 = new Panel();
+            panel1 = new TransparentPanel();
             pictureBox1 = new PictureBox();
             controlsBoxPanel = new ControlsBoxPanel();
             mainFormBottomPanel = new MainFormBottomPanel();
@@ -585,7 +585,7 @@ namespace GUI
         private Controls.TransparentPanel transparentPanel1;
         private Controls.ControlsBoxPanel controlsBoxPanel;
         private PictureBox pictureBox1;
-        private Panel panel1;
+        private TransparentPanel panel1;
         private ThemedContextMenuStrip tabContextMenuStrip;
         private ThemedContextMenuStrip vpkContextMenu;
         private ThemedContextMenuStrip vpkEditingContextMenu;
