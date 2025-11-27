@@ -4,8 +4,9 @@ using GUI.Utils;
 namespace GUI.Forms;
 public class ThemedForm : Form
 {
-    public ThemedForm()
+    protected override void OnCreateControl()
     {
+        base.OnCreateControl();
         Themer.ApplyTheme(this);
     }
 }

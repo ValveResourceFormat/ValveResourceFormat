@@ -1,3 +1,5 @@
+using GUI.Controls;
+
 namespace GUI.Forms
 {
     partial class UpdateAvailableForm
@@ -30,8 +32,8 @@ namespace GUI.Forms
         {
             currentVersionLabel = new System.Windows.Forms.Label();
             newVersionLabel = new System.Windows.Forms.Label();
-            viewReleaseNotesButton = new System.Windows.Forms.Button();
-            downloadButton = new System.Windows.Forms.Button();
+            viewReleaseNotesButton = new BetterButton();
+            downloadButton = new BetterButton();
             checkForUpdatesCheckbox = new System.Windows.Forms.CheckBox();
             SuspendLayout();
             // 

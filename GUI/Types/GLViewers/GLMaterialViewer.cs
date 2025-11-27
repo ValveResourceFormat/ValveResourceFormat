@@ -529,7 +529,7 @@ namespace GUI.Types.GLViewers
 
             ParamsTable.Controls.Add(label, 0, row);
 
-            var colorButton = new Button
+            var colorButton = new BetterButton
             {
                 Dock = DockStyle.Fill,
                 BackColor = initialColor,
@@ -768,7 +768,7 @@ namespace GUI.Types.GLViewers
 
         private void AddShaderButton()
         {
-            openShaderButton = new Button
+            openShaderButton = new BetterButton
             {
                 Text = $"Open Shader",
                 AutoSize = true,
@@ -839,7 +839,7 @@ namespace GUI.Types.GLViewers
                 TextAlign = ContentAlignment.MiddleRight
             }, 0, 0);
 
-            var colorButton = new Button
+            var colorButton = new BetterButton
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,

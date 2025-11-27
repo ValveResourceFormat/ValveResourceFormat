@@ -1,3 +1,5 @@
+using GUI.Controls;
+
 namespace GUI.Forms
 {
     partial class ExtractOutputTypesForm
@@ -34,7 +36,7 @@ namespace GUI.Forms
             label2 = new System.Windows.Forms.Label();
             label3 = new System.Windows.Forms.Label();
             label4 = new System.Windows.Forms.Label();
-            button1 = new System.Windows.Forms.Button();
+            button1 = new BetterButton();
             tableLayoutPanel1.SuspendLayout();
             typesTable.SuspendLayout();
             SuspendLayout();

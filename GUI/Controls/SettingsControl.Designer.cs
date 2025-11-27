@@ -36,29 +36,29 @@ namespace GUI.Forms
         {
             vsyncCheckBox = new System.Windows.Forms.CheckBox();
             gamePaths = new System.Windows.Forms.ListBox();
-            gamePathsAdd = new System.Windows.Forms.Button();
-            gamePathsRemove = new System.Windows.Forms.Button();
-            gamePathsAddFolder = new System.Windows.Forms.Button();
+            gamePathsAdd = new BetterButton();
+            gamePathsRemove = new BetterButton();
+            gamePathsAddFolder = new BetterButton();
             maxTextureSizeLabel = new System.Windows.Forms.Label();
             maxTextureSizeInput = new System.Windows.Forms.NumericUpDown();
             fovInput = new System.Windows.Forms.NumericUpDown();
             fovLabel = new System.Windows.Forms.Label();
             antiAliasingLabel = new System.Windows.Forms.Label();
             antiAliasingComboBox = new ThemedComboBox();
-            registerAssociationButton = new System.Windows.Forms.Button();
+            registerAssociationButton = new BetterButton();
             displayFpsCheckBox = new System.Windows.Forms.CheckBox();
-            groupBox1 = new System.Windows.Forms.GroupBox();
-            groupBox2 = new System.Windows.Forms.GroupBox();
-            setFovTo4by3Button = new System.Windows.Forms.Button();
+            groupBox1 = new BetterGroupBox();
+            groupBox2 = new BetterGroupBox();
+            setFovTo4by3Button = new BetterButton();
             shadowResolutionInput = new System.Windows.Forms.NumericUpDown();
             shadowResolutionLabel = new System.Windows.Forms.Label();
-            groupBox3 = new System.Windows.Forms.GroupBox();
+            groupBox3 = new BetterGroupBox();
             textViewerFontSizeLabel = new System.Windows.Forms.Label();
             textViewerFontSize = new System.Windows.Forms.NumericUpDown();
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
             themeComboBox = new ThemedComboBox();
             themeLabel = new System.Windows.Forms.Label();
-            groupBox4 = new System.Windows.Forms.GroupBox();
+            groupBox4 = new BetterGroupBox();
             quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
             quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
             footerLabel = new System.Windows.Forms.Label();
@@ -97,6 +97,11 @@ namespace GUI.Forms
             // 
             // gamePathsAdd
             // 
+            gamePathsAdd.ClickedBackColor = System.Drawing.Color.Gray;
+            gamePathsAdd.CornerRadius = 5;
+            gamePathsAdd.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            gamePathsAdd.ForceClicked = false;
+            gamePathsAdd.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             gamePathsAdd.Location = new System.Drawing.Point(16, 168);
             gamePathsAdd.Margin = new System.Windows.Forms.Padding(0, 9, 8, 9);
             gamePathsAdd.Name = "gamePathsAdd";
@@ -108,6 +113,11 @@ namespace GUI.Forms
             // 
             // gamePathsRemove
             // 
+            gamePathsRemove.ClickedBackColor = System.Drawing.Color.Gray;
+            gamePathsRemove.CornerRadius = 5;
+            gamePathsRemove.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            gamePathsRemove.ForceClicked = false;
+            gamePathsRemove.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             gamePathsRemove.Location = new System.Drawing.Point(429, 168);
             gamePathsRemove.Margin = new System.Windows.Forms.Padding(8, 9, 0, 9);
             gamePathsRemove.Name = "gamePathsRemove";
@@ -119,6 +129,11 @@ namespace GUI.Forms
             // 
             // gamePathsAddFolder
             // 
+            gamePathsAddFolder.ClickedBackColor = System.Drawing.Color.Gray;
+            gamePathsAddFolder.CornerRadius = 5;
+            gamePathsAddFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            gamePathsAddFolder.ForceClicked = false;
+            gamePathsAddFolder.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             gamePathsAddFolder.Location = new System.Drawing.Point(244, 168);
             gamePathsAddFolder.Margin = new System.Windows.Forms.Padding(8, 9, 8, 9);
             gamePathsAddFolder.Name = "gamePathsAddFolder";
@@ -187,16 +202,28 @@ namespace GUI.Forms
             // antiAliasingComboBox
             // 
             antiAliasingComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            antiAliasingComboBox.BackColor = System.Drawing.Color.FromArgb(34, 39, 51);
+            antiAliasingComboBox.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            antiAliasingComboBox.DropDownBackColor = System.Drawing.Color.FromArgb(34, 39, 51);
+            antiAliasingComboBox.DropDownForeColor = System.Drawing.Color.White;
             antiAliasingComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            antiAliasingComboBox.ForeColor = System.Drawing.Color.White;
             antiAliasingComboBox.FormattingEnabled = true;
+            antiAliasingComboBox.HeaderColor = System.Drawing.Color.FromArgb(51, 57, 74);
+            antiAliasingComboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
             antiAliasingComboBox.Location = new System.Drawing.Point(170, 33);
             antiAliasingComboBox.Name = "antiAliasingComboBox";
-            antiAliasingComboBox.Size = new System.Drawing.Size(100, 25);
+            antiAliasingComboBox.Size = new System.Drawing.Size(100, 26);
             antiAliasingComboBox.TabIndex = 7;
             antiAliasingComboBox.SelectedIndexChanged += OnAntiAliasingValueChanged;
             // 
             // registerAssociationButton
             // 
+            registerAssociationButton.ClickedBackColor = System.Drawing.Color.Gray;
+            registerAssociationButton.CornerRadius = 5;
+            registerAssociationButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            registerAssociationButton.ForceClicked = false;
+            registerAssociationButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             registerAssociationButton.Location = new System.Drawing.Point(15, 174);
             registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             registerAssociationButton.Name = "registerAssociationButton";
@@ -221,15 +248,19 @@ namespace GUI.Forms
             // groupBox1
             // 
             groupBox1.AutoSize = true;
+            groupBox1.BorderColor = System.Drawing.Color.Black;
+            groupBox1.BorderWidth = 2;
             groupBox1.Controls.Add(gamePathsRemove);
             groupBox1.Controls.Add(gamePathsAddFolder);
             groupBox1.Controls.Add(gamePathsAdd);
             groupBox1.Controls.Add(gamePaths);
+            groupBox1.CornerRadius = 5;
             groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBox1.Location = new System.Drawing.Point(16, 18);
             groupBox1.Name = "groupBox1";
             groupBox1.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
-            groupBox1.Size = new System.Drawing.Size(535, 243);
+            groupBox1.Size = new System.Drawing.Size(501, 243);
             groupBox1.TabIndex = 1;
             groupBox1.TabStop = false;
             groupBox1.Text = "Game content search paths";
@@ -237,6 +268,8 @@ namespace GUI.Forms
             // groupBox2
             // 
             groupBox2.AutoSize = true;
+            groupBox2.BorderColor = System.Drawing.Color.Black;
+            groupBox2.BorderWidth = 2;
             groupBox2.Controls.Add(displayFpsCheckBox);
             groupBox2.Controls.Add(setFovTo4by3Button);
             groupBox2.Controls.Add(vsyncCheckBox);
@@ -248,11 +281,13 @@ namespace GUI.Forms
             groupBox2.Controls.Add(antiAliasingComboBox);
             groupBox2.Controls.Add(maxTextureSizeLabel);
             groupBox2.Controls.Add(maxTextureSizeInput);
+            groupBox2.CornerRadius = 5;
             groupBox2.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBox2.Location = new System.Drawing.Point(16, 261);
             groupBox2.Name = "groupBox2";
             groupBox2.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
-            groupBox2.Size = new System.Drawing.Size(535, 336);
+            groupBox2.Size = new System.Drawing.Size(501, 336);
             groupBox2.TabIndex = 2;
             groupBox2.TabStop = false;
             groupBox2.Text = "Video settings";
@@ -260,6 +295,11 @@ namespace GUI.Forms
             // setFovTo4by3Button
             // 
             setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            setFovTo4by3Button.ClickedBackColor = System.Drawing.Color.Gray;
+            setFovTo4by3Button.CornerRadius = 5;
+            setFovTo4by3Button.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            setFovTo4by3Button.ForceClicked = false;
+            setFovTo4by3Button.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             setFovTo4by3Button.Location = new System.Drawing.Point(293, 78);
             setFovTo4by3Button.Name = "setFovTo4by3Button";
             setFovTo4by3Button.Size = new System.Drawing.Size(39, 26);
@@ -293,17 +333,21 @@ namespace GUI.Forms
             // groupBox3
             // 
             groupBox3.AutoSize = true;
+            groupBox3.BorderColor = System.Drawing.Color.Black;
+            groupBox3.BorderWidth = 2;
             groupBox3.Controls.Add(textViewerFontSizeLabel);
             groupBox3.Controls.Add(registerAssociationButton);
             groupBox3.Controls.Add(textViewerFontSize);
             groupBox3.Controls.Add(openExplorerOnStartCheckbox);
             groupBox3.Controls.Add(themeComboBox);
             groupBox3.Controls.Add(themeLabel);
+            groupBox3.CornerRadius = 5;
             groupBox3.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox3.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBox3.Location = new System.Drawing.Point(16, 735);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
-            groupBox3.Size = new System.Drawing.Size(535, 243);
+            groupBox3.Size = new System.Drawing.Size(501, 243);
             groupBox3.TabIndex = 3;
             groupBox3.TabStop = false;
             groupBox3.Text = "Explorer";
@@ -344,11 +388,18 @@ namespace GUI.Forms
             // themeComboBox
             // 
             themeComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            themeComboBox.BackColor = System.Drawing.Color.FromArgb(34, 39, 51);
+            themeComboBox.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            themeComboBox.DropDownBackColor = System.Drawing.Color.FromArgb(34, 39, 51);
+            themeComboBox.DropDownForeColor = System.Drawing.Color.White;
             themeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            themeComboBox.ForeColor = System.Drawing.Color.White;
             themeComboBox.FormattingEnabled = true;
+            themeComboBox.HeaderColor = System.Drawing.Color.FromArgb(51, 57, 74);
+            themeComboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
             themeComboBox.Location = new System.Drawing.Point(209, 29);
             themeComboBox.Name = "themeComboBox";
-            themeComboBox.Size = new System.Drawing.Size(100, 25);
+            themeComboBox.Size = new System.Drawing.Size(100, 26);
             themeComboBox.TabIndex = 14;
             themeComboBox.SelectedIndexChanged += OnThemeSelectedIndexChanged;
             // 
@@ -365,13 +416,17 @@ namespace GUI.Forms
             // groupBox4
             // 
             groupBox4.AutoSize = true;
+            groupBox4.BorderColor = System.Drawing.Color.Black;
+            groupBox4.BorderWidth = 2;
             groupBox4.Controls.Add(quickPreviewCheckbox);
             groupBox4.Controls.Add(quickPreviewSoundsCheckbox);
+            groupBox4.CornerRadius = 5;
             groupBox4.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox4.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             groupBox4.Location = new System.Drawing.Point(16, 597);
             groupBox4.Name = "groupBox4";
             groupBox4.Padding = new System.Windows.Forms.Padding(16, 18, 16, 16);
-            groupBox4.Size = new System.Drawing.Size(535, 138);
+            groupBox4.Size = new System.Drawing.Size(501, 138);
             groupBox4.TabIndex = 4;
             groupBox4.TabStop = false;
             groupBox4.Text = "Quick file preview";
@@ -404,7 +459,7 @@ namespace GUI.Forms
             footerLabel.ForeColor = System.Drawing.SystemColors.InactiveCaption;
             footerLabel.Location = new System.Drawing.Point(0, 0);
             footerLabel.Name = "footerLabel";
-            footerLabel.Size = new System.Drawing.Size(535, 100);
+            footerLabel.Size = new System.Drawing.Size(501, 100);
             footerLabel.TabIndex = 5;
             footerLabel.Text = "No regrets, Mr. Freeman";
             footerLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -415,7 +470,7 @@ namespace GUI.Forms
             footerPanel.Dock = System.Windows.Forms.DockStyle.Top;
             footerPanel.Location = new System.Drawing.Point(16, 978);
             footerPanel.Name = "footerPanel";
-            footerPanel.Size = new System.Drawing.Size(535, 100);
+            footerPanel.Size = new System.Drawing.Size(501, 100);
             footerPanel.TabIndex = 6;
             // 
             // SettingsControl
@@ -433,7 +488,7 @@ namespace GUI.Forms
             MinimumSize = new System.Drawing.Size(300, 221);
             Name = "SettingsControl";
             Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
-            Size = new System.Drawing.Size(567, 561);
+            Size = new System.Drawing.Size(533, 648);
             Load += SettingsControl_Load;
             Leave += SettingsControl_Leave;
             ((System.ComponentModel.ISupportInitialize)maxTextureSizeInput).EndInit();
@@ -455,33 +510,33 @@ namespace GUI.Forms
         #endregion
 
         private System.Windows.Forms.ListBox gamePaths;
-        private System.Windows.Forms.Button gamePathsAdd;
-        private System.Windows.Forms.Button gamePathsRemove;
-        private System.Windows.Forms.Button gamePathsAddFolder;
         private System.Windows.Forms.Label maxTextureSizeLabel;
         private System.Windows.Forms.NumericUpDown maxTextureSizeInput;
         private System.Windows.Forms.NumericUpDown fovInput;
         private System.Windows.Forms.Label fovLabel;
         private System.Windows.Forms.Label antiAliasingLabel;
-        private System.Windows.Forms.ComboBox antiAliasingComboBox;
         private System.Windows.Forms.CheckBox vsyncCheckBox;
-        private System.Windows.Forms.Button registerAssociationButton;
         private System.Windows.Forms.CheckBox displayFpsCheckBox;
-        private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.GroupBox groupBox4;
         private System.Windows.Forms.CheckBox quickPreviewCheckbox;
         private System.Windows.Forms.CheckBox quickPreviewSoundsCheckbox;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
-        private System.Windows.Forms.Button setFovTo4by3Button;
         private System.Windows.Forms.Label shadowResolutionLabel;
         private System.Windows.Forms.NumericUpDown shadowResolutionInput;
         private System.Windows.Forms.Label themeLabel;
-        private System.Windows.Forms.ComboBox themeComboBox;
         private System.Windows.Forms.Label textViewerFontSizeLabel;
         private System.Windows.Forms.NumericUpDown textViewerFontSize;
         private System.Windows.Forms.Label footerLabel;
         private System.Windows.Forms.Panel footerPanel;
+        private BetterButton gamePathsAdd;
+        private BetterButton gamePathsRemove;
+        private BetterButton gamePathsAddFolder;
+        private ThemedComboBox antiAliasingComboBox;
+        private BetterButton registerAssociationButton;
+        private BetterButton setFovTo4by3Button;
+        private ThemedComboBox themeComboBox;
+        private BetterGroupBox groupBox1;
+        private BetterGroupBox groupBox2;
+        private BetterGroupBox groupBox3;
+        private BetterGroupBox groupBox4;
     }
 }

@@ -30,8 +30,8 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            findButton = new System.Windows.Forms.Button();
-            cancelButton = new System.Windows.Forms.Button();
+            findButton = new BetterButton();
+            cancelButton = new BetterButton();
             findTextBox = new System.Windows.Forms.TextBox();
             findLabel = new System.Windows.Forms.Label();
             searchTypeComboBox = new ThemedComboBox();

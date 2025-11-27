@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using GUI.Controls;
 
 namespace GUI.Forms
 {
@@ -33,13 +34,13 @@ namespace GUI.Forms
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(AboutForm));
             label1 = new Label();
             labelVersion = new Label();
-            website = new Button();
-            github = new Button();
-            releases = new Button();
+            website = new BetterButton();
+            github = new BetterButton();
+            releases = new BetterButton();
             label3 = new Label();
             icon = new PictureBox();
-            keybinds = new Button();
-            copyVersion = new Button();
+            keybinds = new BetterButton();
+            copyVersion = new BetterButton();
             ((System.ComponentModel.ISupportInitialize)icon).BeginInit();
             SuspendLayout();
             // 

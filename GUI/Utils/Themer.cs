@@ -103,8 +103,20 @@ namespace GUI.Utils
             Form.BackColor = CurrentThemeColors.App;
             Form.ForeColor = CurrentThemeColors.Contrast;
 
+            Form.ControlAdded += ControlAdded;
+
             foreach (Control control in Form.Controls)
             {
+                void ControlDisposed(object? sender, EventArgs e)
+                {
+                    control.ControlAdded -= ControlAdded;
+                    control.Disposed -= ControlDisposed;
+                }
+
+                control.Disposed += ControlDisposed;
+
+                control.ControlAdded += ControlAdded;
+
                 ThemeControl(control);
             }
 
@@ -138,29 +150,19 @@ namespace GUI.Utils
 
         private static void ThemeControlInternal(Control control)
         {
-            var BStyle = BorderStyle.FixedSingle;
-            var FStyle = FlatStyle.Flat;
-
             var borderStyleInfo = control.GetType().GetProperty("BorderStyle");
             if (borderStyleInfo != null)
             {
                 var borderStyle = (BorderStyle?)borderStyleInfo.GetValue(control);
                 if (borderStyle != BorderStyle.None)
                 {
-                    borderStyleInfo.SetValue(control, BStyle);
+                    borderStyleInfo.SetValue(control, BorderStyle.FixedSingle);
                 }
             }
 
             if (control is Panel panel)
             {
-                if (panel.Name == "controlsPanel")
-                {
-                    panel.BackColor = CurrentThemeColors.AppSoft;
-                }
-                else
-                {
-                    panel.BackColor = panel.Parent?.BackColor ?? CurrentThemeColors.AppSoft;
-                }
+                panel.BackColor = panel.Parent?.BackColor ?? CurrentThemeColors.AppSoft;
                 panel.BorderStyle = BorderStyle.None;
 
             }
@@ -200,17 +202,17 @@ namespace GUI.Utils
             }
             if (control is Button button)
             {
-                // Let this be styled in the designer
-                //if (control is SysMenuLogoButton)
-                //{
-                //    return;
-                //}
-
-                button.FlatStyle = FStyle;
+                button.FlatStyle = FlatStyle.Flat;
                 button.FlatAppearance.CheckedBackColor = CurrentThemeColors.AppSoft;
-                button.BackColor = CurrentThemeColors.BorderSoft;
-                button.FlatAppearance.BorderColor = CurrentThemeColors.BorderSoft;
+                button.BackColor = CurrentThemeColors.Border;
+                button.FlatAppearance.BorderColor = CurrentThemeColors.Border;
                 button.ForeColor = CurrentThemeColors.Contrast;
+            }
+            if (control is BetterButton betterButton)
+            {
+                betterButton.ClickedBackColor = CurrentThemeColors.Accent;
+                betterButton.ForeColor = CurrentThemeColors.Contrast;
+                betterButton.BackColor = CurrentThemeColors.Border;
             }
             if (control is Label label)
             {
@@ -227,6 +229,12 @@ namespace GUI.Utils
             if (control is RadioButton opt)
             {
                 opt.BackColor = CurrentThemeColors.AppSoft;
+            }
+            if (control is BetterGroupBox betterGroupBox)
+            {
+                betterGroupBox.BorderColor = CurrentThemeColors.Border;
+                betterGroupBox.ForeColor = CurrentThemeColors.Contrast;
+                betterGroupBox.BackColor = betterGroupBox.Parent?.BackColor ?? CurrentThemeColors.App;
             }
             if (control is ComboBox combo)
             {
@@ -251,6 +259,8 @@ namespace GUI.Utils
                 grid.BackgroundColor = CurrentThemeColors.AppSoft;
                 grid.GridColor = CurrentThemeColors.Border;
 
+                grid.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = CurrentThemeColors.AppMiddle };
+
                 grid.DefaultCellStyle.BackColor = CurrentThemeColors.AppSoft;
                 grid.DefaultCellStyle.ForeColor = CurrentThemeColors.Contrast;
 
@@ -267,10 +277,15 @@ namespace GUI.Utils
                 grid.RowHeadersDefaultCellStyle.SelectionBackColor = CurrentThemeColors.Border;
                 grid.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
             }
+            if (control is SettingsControl settingsControl)
+            {
+                settingsControl.BackColor = CurrentThemeColors.AppSoft;
+                settingsControl.ForeColor = CurrentThemeColors.Contrast;
+            }
             if (control is CheckedListBox checkedListBox)
             {
-                control.BackColor = CurrentThemeColors.AppSoft;
-                control.ForeColor = CurrentThemeColors.Contrast;
+                checkedListBox.BackColor = CurrentThemeColors.AppSoft;
+                checkedListBox.ForeColor = CurrentThemeColors.Contrast;
             }
             if (control is PropertyGrid pGrid)
             {

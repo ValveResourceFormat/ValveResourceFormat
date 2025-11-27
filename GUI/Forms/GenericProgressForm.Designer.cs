@@ -1,3 +1,5 @@
+using GUI.Controls;
+
 namespace GUI.Forms
 {
     partial class GenericProgressForm
@@ -38,7 +40,7 @@ namespace GUI.Forms
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             extractProgressBar = new System.Windows.Forms.ProgressBar();
             extractStatusLabel = new System.Windows.Forms.Label();
-            cancelButton = new System.Windows.Forms.Button();
+            cancelButton = new BetterButton();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
             // 

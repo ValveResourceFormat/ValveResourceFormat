@@ -1,3 +1,5 @@
+using GUI.Controls;
+
 namespace GUI.Types.Viewers;
 
 partial class EntityViewer
@@ -33,24 +35,24 @@ partial class EntityViewer
         Class = new System.Windows.Forms.DataGridViewTextBoxColumn();
         targetname = new System.Windows.Forms.DataGridViewTextBoxColumn();
         tableLayoutPanelLeft = new System.Windows.Forms.TableLayoutPanel();
-        groupBox5 = new System.Windows.Forms.GroupBox();
+        groupBox5 = new BetterGroupBox();
         tableLayoutPanelFiltersContainer = new System.Windows.Forms.TableLayoutPanel();
         tableLayoutPanelKeysContainers = new System.Windows.Forms.TableLayoutPanel();
-        groupBox3 = new System.Windows.Forms.GroupBox();
+        groupBox3 = new BetterGroupBox();
         tableLayoutPanelKeys = new System.Windows.Forms.TableLayoutPanel();
         KeyValue_Key = new System.Windows.Forms.TextBox();
         KeyValue_Value = new System.Windows.Forms.TextBox();
         KeyValue_MatchWholeValue = new System.Windows.Forms.CheckBox();
         label1 = new System.Windows.Forms.Label();
         label3 = new System.Windows.Forms.Label();
-        groupBox2 = new System.Windows.Forms.GroupBox();
+        groupBox2 = new BetterGroupBox();
         tableLayoutPanelObjects = new System.Windows.Forms.TableLayoutPanel();
         ObjectsToInclude_Everything = new System.Windows.Forms.RadioButton();
         ObjectsToInclude_MeshEntities = new System.Windows.Forms.RadioButton();
         ObjectsToInclude_PointEntities = new System.Windows.Forms.RadioButton();
         ObjectsToInclude_ClassTextBox = new System.Windows.Forms.TextBox();
         label2 = new System.Windows.Forms.Label();
-        EntityPropertiesGroup = new System.Windows.Forms.GroupBox();
+        EntityPropertiesGroup = new BetterGroupBox();
         EntityInfo = new GUI.Forms.EntityInfoControl();
         splitContainer = new System.Windows.Forms.SplitContainer();
         ((System.ComponentModel.ISupportInitialize)EntityViewerGrid).BeginInit();
@@ -124,8 +126,12 @@ partial class EntityViewer
         // 
         // groupBox5
         // 
+        groupBox5.BorderColor = System.Drawing.Color.Black;
+        groupBox5.BorderWidth = 2;
         groupBox5.Controls.Add(EntityViewerGrid);
+        groupBox5.CornerRadius = 5;
         groupBox5.Dock = System.Windows.Forms.DockStyle.Fill;
+        groupBox5.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         groupBox5.Location = new System.Drawing.Point(3, 3);
         groupBox5.Name = "groupBox5";
         groupBox5.Size = new System.Drawing.Size(506, 552);
@@ -168,8 +174,12 @@ partial class EntityViewer
         // 
         // groupBox3
         // 
+        groupBox3.BorderColor = System.Drawing.Color.Black;
+        groupBox3.BorderWidth = 2;
         groupBox3.Controls.Add(tableLayoutPanelKeys);
+        groupBox3.CornerRadius = 5;
         groupBox3.Dock = System.Windows.Forms.DockStyle.Fill;
+        groupBox3.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         groupBox3.Location = new System.Drawing.Point(3, 3);
         groupBox3.Name = "groupBox3";
         groupBox3.Size = new System.Drawing.Size(250, 177);
@@ -252,8 +262,12 @@ partial class EntityViewer
         // 
         // groupBox2
         // 
+        groupBox2.BorderColor = System.Drawing.Color.Black;
+        groupBox2.BorderWidth = 2;
         groupBox2.Controls.Add(tableLayoutPanelObjects);
+        groupBox2.CornerRadius = 5;
         groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
+        groupBox2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         groupBox2.Location = new System.Drawing.Point(3, 3);
         groupBox2.Name = "groupBox2";
         groupBox2.Size = new System.Drawing.Size(250, 177);
@@ -342,8 +356,12 @@ partial class EntityViewer
         // 
         // EntityPropertiesGroup
         // 
+        EntityPropertiesGroup.BorderColor = System.Drawing.Color.Black;
+        EntityPropertiesGroup.BorderWidth = 2;
         EntityPropertiesGroup.Controls.Add(EntityInfo);
+        EntityPropertiesGroup.CornerRadius = 5;
         EntityPropertiesGroup.Dock = System.Windows.Forms.DockStyle.Fill;
+        EntityPropertiesGroup.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         EntityPropertiesGroup.Location = new System.Drawing.Point(0, 0);
         EntityPropertiesGroup.Name = "EntityPropertiesGroup";
         EntityPropertiesGroup.Size = new System.Drawing.Size(509, 741);
@@ -409,8 +427,6 @@ partial class EntityViewer
     private System.Windows.Forms.DataGridViewTextBoxColumn targetname;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelLeft;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelFiltersContainer;
-    private System.Windows.Forms.GroupBox groupBox2;
-    private System.Windows.Forms.GroupBox groupBox3;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelKeysContainers;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelObjects;
     private System.Windows.Forms.RadioButton ObjectsToInclude_Everything;
@@ -420,12 +436,14 @@ partial class EntityViewer
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelKeys;
     private System.Windows.Forms.TextBox KeyValue_Key;
     private System.Windows.Forms.TextBox KeyValue_Value;
-    private System.Windows.Forms.GroupBox EntityPropertiesGroup;
-    private System.Windows.Forms.GroupBox groupBox5;
     private Forms.EntityInfoControl EntityInfo;
     private System.Windows.Forms.Label label2;
     private System.Windows.Forms.CheckBox KeyValue_MatchWholeValue;
     private System.Windows.Forms.Label label1;
     private System.Windows.Forms.Label label3;
     private System.Windows.Forms.SplitContainer splitContainer;
+    private BetterGroupBox groupBox2;
+    private BetterGroupBox groupBox3;
+    private BetterGroupBox EntityPropertiesGroup;
+    private BetterGroupBox groupBox5;
 }

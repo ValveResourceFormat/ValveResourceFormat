@@ -39,7 +39,7 @@ namespace GUI.Forms
         {
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             extractProgressBar = new System.Windows.Forms.ProgressBar();
-            cancelButton = new System.Windows.Forms.Button();
+            cancelButton = new BetterButton();
             progressLog = new System.Windows.Forms.TextBox();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();

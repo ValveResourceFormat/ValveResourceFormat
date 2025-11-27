@@ -38,11 +38,11 @@ namespace GUI.Controls
             System.Windows.Forms.Label label1;
             label2 = new System.Windows.Forms.Label();
             cmbPositions = new ThemedComboBox();
-            btnSave = new System.Windows.Forms.Button();
-            btnDelete = new System.Windows.Forms.Button();
-            btnRestore = new System.Windows.Forms.Button();
-            btnSetPos = new System.Windows.Forms.Button();
-            btnGetPos = new System.Windows.Forms.Button();
+            btnSave = new BetterButton();
+            btnDelete = new BetterButton();
+            btnRestore = new BetterButton();
+            btnSetPos = new BetterButton();
+            btnGetPos = new BetterButton();
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             label1 = new System.Windows.Forms.Label();
             tableLayoutPanel1.SuspendLayout();
