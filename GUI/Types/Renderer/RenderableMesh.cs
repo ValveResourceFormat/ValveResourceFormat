@@ -73,8 +73,7 @@ namespace GUI.Types.Renderer
 
         public IEnumerable<string> GetSupportedRenderModes()
             => DrawCalls
-                .SelectMany(drawCall => drawCall.Material.Shader.RenderModes)
-                .Distinct();
+                .SelectMany(static drawCall => drawCall.Material.Shader.RenderModes);
 
 #if DEBUG
         public void UpdateVertexArrayObjects()

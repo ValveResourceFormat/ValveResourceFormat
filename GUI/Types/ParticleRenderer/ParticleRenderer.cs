@@ -300,9 +300,8 @@ namespace GUI.Types.ParticleRenderer
 
         public IEnumerable<string> GetSupportedRenderModes()
             => Renderers
-                .SelectMany(renderer => renderer.GetSupportedRenderModes())
-                .Concat(childParticleRenderers.SelectMany(child => child.GetSupportedRenderModes()))
-                .Distinct();
+                .SelectMany(static renderer => renderer.GetSupportedRenderModes())
+                .Concat(childParticleRenderers.SelectMany(static child => child.GetSupportedRenderModes()));
 
         public void SetRenderMode(string renderMode)
         {
