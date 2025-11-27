@@ -236,7 +236,7 @@ namespace GUI.Types.Renderer
         }
 
         public override IEnumerable<string> GetSupportedRenderModes()
-            => meshRenderers.SelectMany(renderer => renderer.GetSupportedRenderModes()).Distinct();
+            => meshRenderers.SelectMany(static renderer => renderer.GetSupportedRenderModes());
 
         public void SetMaterialGroup(string name)
         {

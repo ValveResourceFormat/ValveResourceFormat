@@ -701,11 +701,11 @@ namespace GUI.Types.GLViewers
             {
                 var selectedIndex = 0;
                 var currentlySelected = keepCurrentSelection ? renderModeComboBox.SelectedItem.ToString() : null;
-                var supportedRenderModes = Scene.AllNodes
-                    .SelectMany(r => r.GetSupportedRenderModes())
-                    .Concat(Picker.Shader.RenderModes)
-                    .Distinct()
-                    .ToHashSet();
+                var supportedRenderModes = new HashSet<string>(Picker.Shader.RenderModes);
+                foreach (var node in Scene.AllNodes)
+                {
+                    supportedRenderModes.UnionWith(node.GetSupportedRenderModes());
+                }
 
                 renderModes.Clear();
 
