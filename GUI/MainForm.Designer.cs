@@ -87,6 +87,7 @@ namespace GUI
             panel1 = new Panel();
             pictureBox1 = new PictureBox();
             controlsBoxPanel = new ControlsBoxPanel();
+            mainFormBottomPanel = new MainFormBottomPanel();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
             vpkContextMenu.SuspendLayout();
@@ -238,7 +239,7 @@ namespace GUI
             mainTabs.SelectedForeColor = System.Drawing.SystemColors.HighlightText;
             mainTabs.SelectedIndex = 0;
             mainTabs.SelectTabColor = System.Drawing.SystemColors.ControlLight;
-            mainTabs.Size = new System.Drawing.Size(749, 373);
+            mainTabs.Size = new System.Drawing.Size(749, 343);
             mainTabs.TabColor = System.Drawing.SystemColors.ControlLight;
             mainTabs.TabIndex = 1;
             mainTabs.MouseClick += OnTabClick;
@@ -497,6 +498,14 @@ namespace GUI
             controlsBoxPanel.Size = new System.Drawing.Size(200, 48);
             controlsBoxPanel.TabIndex = 1;
             // 
+            // mainFormBottomPanel1
+            // 
+            mainFormBottomPanel.Dock = DockStyle.Bottom;
+            mainFormBottomPanel.Location = new System.Drawing.Point(0, 395);
+            mainFormBottomPanel.Name = "mainFormBottomPanel1";
+            mainFormBottomPanel.Size = new System.Drawing.Size(749, 30);
+            mainFormBottomPanel.TabIndex = 4;
+            // 
             // MainForm
             // 
             AllowDrop = true;
@@ -504,6 +513,7 @@ namespace GUI
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(749, 425);
             Controls.Add(mainTabs);
+            Controls.Add(mainFormBottomPanel);
             Controls.Add(transparentPanel1);
             Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
             Icon = (System.Drawing.Icon)resources.GetObject("$this.Icon");
@@ -579,6 +589,7 @@ namespace GUI
         private ThemedContextMenuStrip tabContextMenuStrip;
         private ThemedContextMenuStrip vpkContextMenu;
         private ThemedContextMenuStrip vpkEditingContextMenu;
+        private MainFormBottomPanel mainFormBottomPanel;
     }
 }
 

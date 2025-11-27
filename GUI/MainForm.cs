@@ -1078,6 +1078,13 @@ namespace GUI
             Log.ClearConsole();
         }
 
+        protected override void OnTextChanged(EventArgs e)
+        {
+            base.OnTextChanged(e);
+
+            mainFormBottomPanel.SetTitleText(Text);
+        }
+
         private void MainForm_Shown(object sender, EventArgs e)
         {
             if (!Settings.Config.Update.CheckAutomatically)
@@ -1114,7 +1121,7 @@ namespace GUI
 
         private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e) => CheckForUpdatesCore(true);
 
-        private void CheckForUpdatesCore(bool showForm)
+        public void CheckForUpdatesCore(bool showForm)
         {
             checkForUpdatesToolStripMenuItem.Enabled = false;
 
@@ -1138,7 +1145,7 @@ namespace GUI
             form.ShowDialog(this);
         }
 
-        private async Task CheckForUpdates(bool showForm)
+        public async Task CheckForUpdates(bool showForm)
         {
             await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
 
