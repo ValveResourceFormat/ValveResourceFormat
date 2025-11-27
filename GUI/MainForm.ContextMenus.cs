@@ -373,7 +373,9 @@ namespace GUI
 
             try
             {
+#pragma warning disable CA2000 // If creating an empty TabPage throws, all hope is lost
                 var contents = new PackageViewer(newVrfGuiContext).CreateEmpty();
+#pragma warning restore CA2000
 
                 var tab = new TabPage("New VPK")
                 {
