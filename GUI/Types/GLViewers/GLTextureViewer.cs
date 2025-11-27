@@ -1140,6 +1140,9 @@ namespace GUI.Types.GLViewers
             shader.SetUniform1("g_bShowLightBackground", ShowLightBackground);
             shader.SetUniform2("g_vViewportSize", new Vector2(fbo.Width, fbo.Height));
 
+            var theme1 = Themer.CurrentThemeColors.Border;
+            shader.SetUniform3("g_vCheckerboardTheme", new Vector3(theme1.R, theme1.G, theme1.B) / 255f);
+
             var (scale, position) = captureFullSizeImage
                 ? (1f / (1 << SelectedMip), Vector2.Zero)
                 : GetCurrentPositionAndScale();
