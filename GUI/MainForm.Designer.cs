@@ -121,40 +121,44 @@ namespace GUI
             // 
             // openToolStripMenuItem
             // 
+            openToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("openToolStripMenuItem.Image");
             openToolStripMenuItem.Name = "openToolStripMenuItem";
             openToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.O;
-            openToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
+            openToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             openToolStripMenuItem.Text = "&Open";
             openToolStripMenuItem.Click += OpenToolStripMenuItem_Click;
             // 
             // toolStripSeparator2
             // 
             toolStripSeparator2.Name = "toolStripSeparator2";
-            toolStripSeparator2.Size = new System.Drawing.Size(200, 6);
+            toolStripSeparator2.Size = new System.Drawing.Size(204, 6);
             // 
             // registerVpkFileAssociationToolStripMenuItem
             // 
+            registerVpkFileAssociationToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("registerVpkFileAssociationToolStripMenuItem.Image");
             registerVpkFileAssociationToolStripMenuItem.Name = "registerVpkFileAssociationToolStripMenuItem";
-            registerVpkFileAssociationToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
+            registerVpkFileAssociationToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             registerVpkFileAssociationToolStripMenuItem.Text = "Open VPKs with this app";
             registerVpkFileAssociationToolStripMenuItem.Click += RegisterVpkFileAssociationToolStripMenuItem_Click;
             // 
             // createVpkFromFolderToolStripMenuItem
             // 
+            createVpkFromFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("createVpkFromFolderToolStripMenuItem.Image");
             createVpkFromFolderToolStripMenuItem.Name = "createVpkFromFolderToolStripMenuItem";
-            createVpkFromFolderToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
+            createVpkFromFolderToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             createVpkFromFolderToolStripMenuItem.Text = "Create VPK from folder";
             createVpkFromFolderToolStripMenuItem.Click += CreateVpkFromFolderToolStripMenuItem_Click;
             // 
             // toolStripSeparator4
             // 
             toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new System.Drawing.Size(200, 6);
+            toolStripSeparator4.Size = new System.Drawing.Size(204, 6);
             // 
             // openWelcomeScreenToolStripMenuItem
             // 
+            openWelcomeScreenToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("openWelcomeScreenToolStripMenuItem.Image");
             openWelcomeScreenToolStripMenuItem.Name = "openWelcomeScreenToolStripMenuItem";
-            openWelcomeScreenToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
+            openWelcomeScreenToolStripMenuItem.Size = new System.Drawing.Size(207, 26);
             openWelcomeScreenToolStripMenuItem.Text = "Open welcome screen";
             openWelcomeScreenToolStripMenuItem.Click += openWelcomeScreenToolStripMenuItem_Click;
             // 
@@ -396,13 +400,13 @@ namespace GUI
             vpkEditingContextMenu.ImeMode = ImeMode.Off;
             vpkEditingContextMenu.Items.AddRange(new ToolStripItem[] { vpkEditCreateFolderToolStripMenuItem, vpkEditAddExistingFolderToolStripMenuItem, vpkEditAddExistingFilesToolStripMenuItem, vpkEditRemoveThisFolderToolStripMenuItem, vpkEditRemoveThisFileToolStripMenuItem, vpkEditSaveToDiskToolStripMenuItem });
             vpkEditingContextMenu.Name = "vpkEditingContextMenu";
-            vpkEditingContextMenu.Size = new System.Drawing.Size(189, 206);
+            vpkEditingContextMenu.Size = new System.Drawing.Size(182, 184);
             // 
             // vpkEditCreateFolderToolStripMenuItem
             // 
             vpkEditCreateFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditCreateFolderToolStripMenuItem.Image");
             vpkEditCreateFolderToolStripMenuItem.Name = "vpkEditCreateFolderToolStripMenuItem";
-            vpkEditCreateFolderToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
+            vpkEditCreateFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
             vpkEditCreateFolderToolStripMenuItem.Text = "Create folder";
             vpkEditCreateFolderToolStripMenuItem.Click += OnVpkCreateFolderToolStripMenuItem_Click;
             // 
@@ -410,7 +414,7 @@ namespace GUI
             // 
             vpkEditAddExistingFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditAddExistingFolderToolStripMenuItem.Image");
             vpkEditAddExistingFolderToolStripMenuItem.Name = "vpkEditAddExistingFolderToolStripMenuItem";
-            vpkEditAddExistingFolderToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
+            vpkEditAddExistingFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
             vpkEditAddExistingFolderToolStripMenuItem.Text = "&Add existing folder";
             vpkEditAddExistingFolderToolStripMenuItem.Click += OnVpkAddNewFolderToolStripMenuItem_Click;
             // 
@@ -418,7 +422,7 @@ namespace GUI
             // 
             vpkEditAddExistingFilesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditAddExistingFilesToolStripMenuItem.Image");
             vpkEditAddExistingFilesToolStripMenuItem.Name = "vpkEditAddExistingFilesToolStripMenuItem";
-            vpkEditAddExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
+            vpkEditAddExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
             vpkEditAddExistingFilesToolStripMenuItem.Text = "Add existing &files";
             vpkEditAddExistingFilesToolStripMenuItem.Click += OnVpkAddNewFileToolStripMenuItem_Click;
             // 
@@ -426,7 +430,7 @@ namespace GUI
             // 
             vpkEditRemoveThisFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditRemoveThisFolderToolStripMenuItem.Image");
             vpkEditRemoveThisFolderToolStripMenuItem.Name = "vpkEditRemoveThisFolderToolStripMenuItem";
-            vpkEditRemoveThisFolderToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
+            vpkEditRemoveThisFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
             vpkEditRemoveThisFolderToolStripMenuItem.Text = "&Remove this folder";
             vpkEditRemoveThisFolderToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
             // 
@@ -434,7 +438,7 @@ namespace GUI
             // 
             vpkEditRemoveThisFileToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditRemoveThisFileToolStripMenuItem.Image");
             vpkEditRemoveThisFileToolStripMenuItem.Name = "vpkEditRemoveThisFileToolStripMenuItem";
-            vpkEditRemoveThisFileToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
+            vpkEditRemoveThisFileToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
             vpkEditRemoveThisFileToolStripMenuItem.Text = "&Remove this file";
             vpkEditRemoveThisFileToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
             // 
@@ -442,7 +446,7 @@ namespace GUI
             // 
             vpkEditSaveToDiskToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditSaveToDiskToolStripMenuItem.Image");
             vpkEditSaveToDiskToolStripMenuItem.Name = "vpkEditSaveToDiskToolStripMenuItem";
-            vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
+            vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
             vpkEditSaveToDiskToolStripMenuItem.Text = "&Save VPK to disk";
             vpkEditSaveToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
             // 
