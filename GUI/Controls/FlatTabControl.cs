@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using GUI.Utils;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace GUI.Controls
 {
@@ -38,7 +39,14 @@ namespace GUI.Controls
             DrawMode = TabDrawMode.Normal;
             SizeMode = TabSizeMode.Normal;
 
-            Themer.ThemeControl(this);
+            BackColor = Themer.CurrentThemeColors.AppMiddle;
+            TabColor = Themer.CurrentThemeColors.AppSoft;
+            SelectTabColor = Themer.CurrentThemeColors.AppSoft;
+            SelectedForeColor = Themer.CurrentThemeColors.Contrast;
+            BorderColor = Themer.CurrentThemeColors.Border;
+            ForeColor = Themer.CurrentThemeColors.ContrastSoft;
+            LineColor = Themer.CurrentThemeColors.Accent;
+            HoverColor = Themer.CurrentThemeColors.Accent;
         }
 
         protected override void InitLayout()

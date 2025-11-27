@@ -167,26 +167,6 @@ namespace GUI.Utils
 
             }
 
-            if (control is FlatTabControl fTab)
-            {
-                if (fTab.Name == "mainTabs")
-                {
-                    fTab.BackColor = CurrentThemeColors.App;
-                }
-                else
-                {
-                    fTab.BackColor = CurrentThemeColors.AppMiddle;
-                }
-                fTab.TabColor = CurrentThemeColors.AppSoft;
-                fTab.SelectTabColor = CurrentThemeColors.AppSoft;
-                fTab.SelectedForeColor = CurrentThemeColors.Contrast;
-                fTab.BorderColor = CurrentThemeColors.Border;
-                fTab.ForeColor = CurrentThemeColors.ContrastSoft;
-                fTab.LineColor = CurrentThemeColors.Accent;
-                fTab.HoverColor = CurrentThemeColors.Accent;
-                //fTab.Margin = new Padding(-10, 0, 0, 0);
-            }
-
             if (control is TableLayoutPanel table)
             {
                 table.BackColor = CurrentThemeColors.AppSoft;

@@ -70,6 +70,7 @@ namespace GUI
 
             mainTabs.ImageList = ImageList;
             mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
+            mainTabs.BackColor = Themer.CurrentThemeColors.App;
 
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);
