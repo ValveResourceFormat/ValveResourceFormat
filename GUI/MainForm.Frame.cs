@@ -36,11 +36,11 @@ partial class MainForm
     {
         var padding = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXPADDEDBORDER, (uint)DeviceDpi);
 
+        var frameX = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXFRAME, (uint)DeviceDpi);
+        var frameY = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYFRAME, (uint)DeviceDpi);
+
         if (m.Msg == PInvoke.WM_NCCALCSIZE && (int)m.WParam == 1)
         {
-            var frameX = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXFRAME, (uint)DeviceDpi);
-            var frameY = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYFRAME, (uint)DeviceDpi);
-
             var nccsp = Marshal.PtrToStructure<NCCALCSIZE_PARAMS>(m.LParam);
             nccsp.rgrc._0.bottom -= frameY;
             nccsp.rgrc._0.right -= frameX;
@@ -84,12 +84,39 @@ partial class MainForm
             {
                 if (point.Y - padding <= menuStrip.Top)
                 {
-                    // Manually set none for fix some oddity with hover not updating
-                    // when moving the cursor outside the window on the top.
                     controlsBoxPanel.CurrentHoveredButton = ControlsBoxPanel.CustomTitleBarHoveredButton.None;
 
+
+                    if (point.X <= frameX)
+                    {
+                        m.Result = new IntPtr(PInvoke.HTTOPLEFT);
+                        return;
+                    }
+                    else if (point.X >= ClientSize.Width - frameX)
+                    {
+                        m.Result = new IntPtr(PInvoke.HTTOPRIGHT);
+                        return;
+                    }
+
+                    // Regular top edge
                     m.Result = new IntPtr(PInvoke.HTTOP);
                     return;
+                }
+
+                if (point.Y < menuStrip.Height)
+                {
+                    var edgeSize = frameX + padding;
+
+                    if (point.X <= edgeSize)
+                    {
+                        m.Result = new IntPtr(PInvoke.HTLEFT);
+                        return;
+                    }
+                    else if (point.X >= ClientSize.Width - edgeSize)
+                    {
+                        m.Result = new IntPtr(PInvoke.HTRIGHT);
+                        return;
+                    }
                 }
             }
 
@@ -127,7 +154,6 @@ partial class MainForm
         {
             if (m.WParam == PInvoke.HTCLOSE)
             {
-                // Magic number for close message because I don't think the PInvoke source generator offers it?
                 PInvoke.PostMessage((HWND)Handle, PInvoke.WM_CLOSE, 0, 0);
                 m.Result = 0;
                 return;
