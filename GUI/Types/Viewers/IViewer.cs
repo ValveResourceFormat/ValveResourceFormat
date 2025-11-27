@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Utils;
 using static GUI.Controls.CodeTextBox;
 
 namespace GUI.Types.Viewers

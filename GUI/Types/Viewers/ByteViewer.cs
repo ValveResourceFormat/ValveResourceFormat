@@ -30,7 +30,7 @@ namespace GUI.Types.Viewers
 
         public void Create(TabPage tab)
         {
-            var resTabs = new TabControl
+            var resTabs = new FlatTabControl
             {
                 Dock = DockStyle.Fill,
             };
