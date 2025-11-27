@@ -38,15 +38,6 @@ namespace GUI.Controls
             Appearance = TabAppearance.Buttons;
             DrawMode = TabDrawMode.Normal;
             SizeMode = TabSizeMode.Normal;
-
-            BackColor = Themer.CurrentThemeColors.AppMiddle;
-            TabColor = Themer.CurrentThemeColors.AppSoft;
-            SelectTabColor = Themer.CurrentThemeColors.AppSoft;
-            SelectedForeColor = Themer.CurrentThemeColors.Contrast;
-            BorderColor = Themer.CurrentThemeColors.Border;
-            ForeColor = Themer.CurrentThemeColors.ContrastSoft;
-            LineColor = Themer.CurrentThemeColors.Accent;
-            HoverColor = Themer.CurrentThemeColors.Accent;
         }
 
         protected override void InitLayout()
@@ -121,6 +112,15 @@ namespace GUI.Controls
             // Necessary to give tabs the correct width
             base.OnCreateControl();
             OnFontChanged(EventArgs.Empty);
+
+            BackColor = Themer.CurrentThemeColors.AppMiddle;
+            TabColor = Themer.CurrentThemeColors.AppSoft;
+            SelectTabColor = Themer.CurrentThemeColors.AppSoft;
+            SelectedForeColor = Themer.CurrentThemeColors.Contrast;
+            BorderColor = Themer.CurrentThemeColors.Border;
+            ForeColor = Themer.CurrentThemeColors.ContrastSoft;
+            LineColor = Themer.CurrentThemeColors.Accent;
+            HoverColor = Themer.CurrentThemeColors.Accent;
         }
 
         protected override void OnFontChanged(EventArgs e)
