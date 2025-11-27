@@ -230,7 +230,7 @@ namespace GUI.Types.Viewers
                 {
                     var control = CodeTextBox.CreateFromException(ex);
 
-                    var tabEx = new TabPage("Error");
+                    var tabEx = new ThemedTabPage("Error");
                     tabEx.Controls.Add(control);
                     resTabs.TabPages.Add(tabEx);
                 }
@@ -372,7 +372,7 @@ namespace GUI.Types.Viewers
 
                 var glViewerControl = GLViewer.InitializeUiControls();
 
-                var specialTabPage = new TabPage(GLViewerTabName);
+                var specialTabPage = new ThemedTabPage(GLViewerTabName);
                 resTabs.TabPages.Add(specialTabPage);
                 specialTabPage.Controls.Add(glViewerControl);
 
@@ -385,7 +385,7 @@ namespace GUI.Types.Viewers
                 {
                     if (resource.ResourceType == ResourceType.Map)
                     {
-                        var worldTabPage = new TabPage("World Data");
+                        var worldTabPage = new ThemedTabPage("World Data");
                         resTabs.TabPages.Add(worldTabPage);
                         AddTextViewControl(ResourceType.WorldNode, loadedWorld.World, worldTabPage);
 
@@ -393,12 +393,12 @@ namespace GUI.Types.Viewers
 
                     if (loadedWorld.MainWorldNode != null)
                     {
-                        var worldNodeTabPage = new TabPage("Node Data");
+                        var worldNodeTabPage = new ThemedTabPage("Node Data");
                         resTabs.TabPages.Add(worldNodeTabPage);
                         AddTextViewControl(ResourceType.WorldNode, loadedWorld.MainWorldNode, worldNodeTabPage);
                     }
 
-                    var entitiesTabPage = new TabPage("Entity List");
+                    var entitiesTabPage = new ThemedTabPage("Entity List");
                     entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity));
                     resTabs.TabPages.Add(entitiesTabPage);
                 }
@@ -422,7 +422,7 @@ namespace GUI.Types.Viewers
                                 new BindingSource(
                                     new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), string.Empty),
                         };
-                        var specialTabPage = new TabPage("PANORAMA NAMES");
+                        var specialTabPage = new ThemedTabPage("PANORAMA NAMES");
                         specialTabPage.Controls.Add(nameControl);
                         resTabs.TabPages.Add(specialTabPage);
 
@@ -432,7 +432,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.Sound:
                     if (resource.ContainsBlockType(BlockType.DATA))
                     {
-                        var specialTabPage = new TabPage("SOUND");
+                        var specialTabPage = new ThemedTabPage("SOUND");
                         var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
                         var ap = new AudioPlayer(resource, specialTabPage, isPreview && autoPlay);
                         resTabs.TabPages.Add(specialTabPage);
@@ -443,7 +443,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.EntityLump:
                     if (resource.DataBlock is EntityLump entityLumpData)
                     {
-                        var specialTabPage = new TabPage("Entities");
+                        var specialTabPage = new ThemedTabPage("Entities");
                         specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, entityLumpData.GetEntities()));
                         resTabs.TabPages.Add(specialTabPage);
                         return true;
@@ -452,7 +452,7 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.ChoreoSceneFileData:
                     {
-                        var specialTabPage = new TabPage("VCDLIST");
+                        var specialTabPage = new ThemedTabPage("VCDLIST");
                         specialTabPage.Controls.Add(new ChoreoViewer(resource));
                         resTabs.TabPages.Add(specialTabPage);
                         return true;
@@ -463,7 +463,7 @@ namespace GUI.Types.Viewers
                         var compiledShaderViewer = new CompiledShader(vrfGuiContext);
                         try
                         {
-                            var specialTabPage = new TabPage("SHADER");
+                            var specialTabPage = new ThemedTabPage("SHADER");
                             resTabs.TabPages.Add(specialTabPage);
                             compiledShaderViewer.Create(specialTabPage);
                             compiledShaderViewer = null;
@@ -552,7 +552,7 @@ namespace GUI.Types.Viewers
         {
             if (resource.ResourceType == ResourceType.SboxShader && block is SboxShader shaderBlock)
             {
-                var tabPage = new TabPage();
+                var tabPage = new ThemedTabPage();
                 var viewer = new CompiledShader(vrfGuiContext);
 
                 try

@@ -42,7 +42,7 @@ namespace GUI.Types.Viewers
             };
             tabOuterPage.Controls.Add(tabControl);
 
-            var navMeshPage = new TabPage("NAV MESH");
+            var navMeshPage = new ThemedTabPage("NAV MESH");
             navMeshPage.Controls.Add(glViewer!.InitializeUiControls());
 
             tabControl.Controls.Add(navMeshPage);

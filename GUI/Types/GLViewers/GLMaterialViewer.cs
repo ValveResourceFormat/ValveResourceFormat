@@ -745,7 +745,7 @@ namespace GUI.Types.GLViewers
 
             try
             {
-                var tabPage = new TabPage(material.ShaderName);
+                var tabPage = new ThemedTabPage(material.ShaderName);
                 Tabs.TabPages.Add(tabPage);
                 viewer.Create(
                     tabPage,
