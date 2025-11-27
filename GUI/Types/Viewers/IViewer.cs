@@ -6,10 +6,10 @@ using static GUI.Controls.CodeTextBox;
 
 namespace GUI.Types.Viewers
 {
-    interface IViewer
+    interface IViewer : IDisposable
     {
         public Task LoadAsync(Stream stream);
-        public TabPage Create();
+        public void Create(TabPage containerTabPage);
 
         public static TabPage AddContentTab<T>(FlatTabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
         {

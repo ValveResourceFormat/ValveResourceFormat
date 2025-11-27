@@ -106,6 +106,8 @@ namespace GUI.Types.GLViewers
             UiControl.GLControlContainer.Controls.Add(GLControl);
             GLControl.AttachNativeWindow(GLNativeWindow);
 
+            UiControl.SuspendLayout();
+
 #if DEBUG // We want reload shaders to be the top most button
             ShaderLoader.ShaderHotReload.SetControl(GLControl);
             CodeHotReloadService.CodeHotReloaded += OnCodeHotReloaded;
@@ -126,6 +128,8 @@ namespace GUI.Types.GLViewers
 #endif
 
             AddUiControls();
+
+            UiControl.ResumeLayout();
 
             return UiControl;
         }
@@ -226,24 +230,28 @@ namespace GUI.Types.GLViewers
 
         public virtual void Dispose()
         {
-            GLControl.Paint -= OnPaint;
-            GLControl.Resize -= OnResize;
-            GLControl.MouseEnter -= OnMouseEnter;
-            GLControl.MouseLeave -= OnMouseLeave;
-            GLControl.MouseUp -= OnMouseUp;
-            GLControl.MouseDown -= OnMouseDown;
-            GLControl.MouseMove -= OnMouseMove;
-            GLControl.MouseWheel -= OnMouseWheel;
-            GLControl.PreviewKeyDown -= OnPreviewKeyDown;
-            GLControl.KeyDown -= OnKeyDown;
-            GLControl.KeyUp -= OnKeyUp;
-            GLControl.GotFocus -= OnGotFocus;
-            GLControl.LostFocus -= OnLostFocus;
-            GLControl.VisibleChanged -= OnVisibleChanged;
+            if (GLControl is not null)
+            {
+                GLControl.Paint -= OnPaint;
+                GLControl.Resize -= OnResize;
+                GLControl.MouseEnter -= OnMouseEnter;
+                GLControl.MouseLeave -= OnMouseLeave;
+                GLControl.MouseUp -= OnMouseUp;
+                GLControl.MouseDown -= OnMouseDown;
+                GLControl.MouseMove -= OnMouseMove;
+                GLControl.MouseWheel -= OnMouseWheel;
+                GLControl.PreviewKeyDown -= OnPreviewKeyDown;
+                GLControl.KeyDown -= OnKeyDown;
+                GLControl.KeyUp -= OnKeyUp;
+                GLControl.GotFocus -= OnGotFocus;
+                GLControl.LostFocus -= OnLostFocus;
+                GLControl.VisibleChanged -= OnVisibleChanged;
+                UiControl.Dispose();
+            }
+
             Program.MainForm.Activated -= OnAppActivated;
             FullScreenForm?.Dispose();
-            UiControl.Dispose();
-            GLNativeWindow.Dispose();
+            GLNativeWindow?.Dispose();
 
 #if DEBUG
             CodeHotReloadService.CodeHotReloaded -= OnCodeHotReloaded;
@@ -429,8 +437,6 @@ namespace GUI.Types.GLViewers
         private int MaxSamples;
         private int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
 
-        private bool loaded;
-
         public void InitializeLoad()
         {
             // Create the GLFW window on the UI thread even though this method may be called from a
@@ -571,7 +577,6 @@ namespace GUI.Types.GLViewers
 
             GLNativeWindow.Context.MakeNoneCurrent();
 
-            loaded = true;
             lastUpdate = Stopwatch.GetTimestamp();
         }
 
@@ -579,11 +584,6 @@ namespace GUI.Types.GLViewers
 
         private void OnPaint(object sender, EventArgs e)
         {
-            if (!loaded)
-            {
-                return;
-            }
-
             if (FirstPaint)
             {
                 OnFirstPaint();
@@ -737,11 +737,6 @@ namespace GUI.Types.GLViewers
 
         protected virtual void OnResize()
         {
-            if (!loaded)
-            {
-                return;
-            }
-
             var (w, h) = (GLControl.Width, GLControl.Height);
 
             if (w <= 0 || h <= 0)
@@ -776,7 +771,6 @@ namespace GUI.Types.GLViewers
             Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
         }
-
 
         protected virtual void OnFirstPaint()
         {

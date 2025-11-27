@@ -91,7 +91,7 @@ namespace GUI.Types.GLViewers
             }
 
 #if DEBUG
-            GuiContext.ShaderLoader.ShaderHotReload.ReloadShader -= OnHotReload;
+            GuiContext.ShaderLoader.ShaderHotReload?.ReloadShader -= OnHotReload;
 #endif
         }
 

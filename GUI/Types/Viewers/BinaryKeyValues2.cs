@@ -7,7 +7,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues2(VrfGuiContext vrfGuiContext) : IViewer
+    class BinaryKeyValues2(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         public const int MAGIC = 757932348; // "<!--"
 
@@ -52,17 +52,20 @@ namespace GUI.Types.Viewers
             var text = await reader.ReadToEndAsync().ConfigureAwait(false);
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
             Debug.Assert(text is not null);
 
             var control = CodeTextBox.Create(text);
-            var tab = new ThemedTabPage();
+            var tab = new TabPage();
             tab.Controls.Add(control);
 
             text = null;
+        }
 
-            return tab;
+        public void Dispose()
+        {
+            //
         }
     }
 }

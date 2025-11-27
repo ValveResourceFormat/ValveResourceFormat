@@ -34,10 +34,10 @@ namespace GUI.Types.Viewers
             glViewer.InitializeLoad();
         }
 
-        public TabPage Create()
+        public void Create(TabPage tabOuterPage)
         {
-            var tabOuterPage = new ThemedTabPage();
-            var tabControl = new FlatTabControl
+            var tabOuterPage = new TabPage();
+            var tabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
             };
@@ -65,8 +65,6 @@ namespace GUI.Types.Viewers
                 subVersionPage.Controls.Add(subVersionDataTextControl);
                 tabControl.Controls.Add(subVersionPage);
             }
-
-            return tabOuterPage;
         }
 
         public void Dispose()

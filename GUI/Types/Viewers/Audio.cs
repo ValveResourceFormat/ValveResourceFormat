@@ -35,11 +35,11 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
             Debug.Assert(waveStream is not null);
 
-            var tab = new ThemedTabPage();
+            var tab = new TabPage();
             var audio = new AudioPlaybackPanel(waveStream);
             tab.Controls.Add(audio);
 
@@ -51,7 +51,7 @@ namespace GUI.Types.Viewers
 
             waveStream = null;
 
-            return tab;
+            return;
         }
 
         private void OnHandleCreated(object? sender, EventArgs e)

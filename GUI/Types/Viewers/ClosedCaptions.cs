@@ -9,7 +9,7 @@ using ValveResourceFormat.ClosedCaptions;
 
 namespace GUI.Types.Viewers
 {
-    class ClosedCaptions(VrfGuiContext vrfGuiContext) : IViewer
+    class ClosedCaptions(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private ValveResourceFormat.ClosedCaptions.ClosedCaptions? captions;
 
@@ -32,12 +32,12 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage tabOuterPage)
         {
             Debug.Assert(captions is not null);
 
-            var tabOuterPage = new ThemedTabPage();
-            var tabControl = new FlatTabControl
+            var tabOuterPage = new TabPage();
+            var tabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
             };
@@ -61,8 +61,11 @@ namespace GUI.Types.Viewers
             var textControl = CodeTextBox.Create(captions.ToString());
             tabPage.Controls.Add(textControl);
             tabControl.Controls.Add(tabPage);
+        }
 
-            return tabOuterPage;
+        public void Dispose()
+        {
+            //
         }
     }
 }

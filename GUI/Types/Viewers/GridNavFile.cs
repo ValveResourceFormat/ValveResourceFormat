@@ -7,7 +7,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class GridNavFile(VrfGuiContext vrfGuiContext) : IViewer
+    class GridNavFile(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? infoText;
 
@@ -32,12 +32,12 @@ namespace GUI.Types.Viewers
             var infoText = navMeshFile.ToString();
         }
 
-        public TabPage Create()
+        public void Create(TabPage tabOuterPage)
         {
             Debug.Assert(infoText is not null);
 
-            var tabOuterPage = new ThemedTabPage();
-            var tabControl = new FlatTabControl
+            var tabOuterPage = new TabPage();
+            var tabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
             };
@@ -49,8 +49,11 @@ namespace GUI.Types.Viewers
             tabControl.Controls.Add(infoPage);
 
             infoText = null;
+        }
 
-            return tabOuterPage;
+        public void Dispose()
+        {
+            //
         }
     }
 }

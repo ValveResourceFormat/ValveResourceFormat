@@ -56,6 +56,7 @@ namespace GUI.Types.GLViewers
         private PreviewObjectType currentPreviewObject = PreviewObjectType.Quad;
         private readonly Dictionary<PreviewObjectType, MeshCollectionNode> previewObjects = [];
         private MeshCollectionNode previewNode => previewObjects[currentPreviewObject];
+        private ShaderCollection vcsShader;
 
 
         public GLMaterialViewer(VrfGuiContext guiContext, Resource resource) : base(guiContext)
@@ -76,6 +77,7 @@ namespace GUI.Types.GLViewers
             ParamsTable?.Dispose();
             openShaderButton?.Dispose();
             previewObjectComboBox?.Dispose();
+            vcsShader?.Dispose();
 
             base.Dispose();
         }
@@ -86,6 +88,7 @@ namespace GUI.Types.GLViewers
 
             Scene.ShowToolsMaterials = true;
             renderMat = GuiContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
+            renderMat.Shader.EnsureLoaded();
 
             {
                 var planeMesh = MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
@@ -130,14 +133,14 @@ namespace GUI.Types.GLViewers
                     previewObjects[PreviewObjectType.CustomModel] = customModel;
                 }
             }
+
+            vcsShader = GuiContext.LoadShader(renderMat.Material.ShaderName);
         }
 
         private void CreateMaterialEditControls()
         {
             var mesh = previewNode.RenderableMeshes[0];
             var drawCall = mesh.DrawCallsOpaque.Concat(mesh.DrawCallsBlended).First();
-
-            drawCall.Material.Shader.EnsureLoaded();
 
             // Collect all parameters with their types and sort them together
             var allParams = new List<(string name, object value, ParamType type, VfxVariableDescription vfx)>();
@@ -153,7 +156,6 @@ namespace GUI.Types.GLViewers
             allParameterNames.UnionWith(shaderParams.VectorParams.Keys);
 
             var vcsDescriptionByName = new Dictionary<string, VfxVariableDescription>();
-            var vcsShader = GuiContext.LoadShader(drawCall.Material.Material.ShaderName);
             if (vcsShader.Features != null)
             {
                 foreach (var varDesc in vcsShader.Features.VariableDescriptions)
@@ -467,7 +469,7 @@ namespace GUI.Types.GLViewers
         private static string NormalizeParameterName(string paramNameString)
         {
             // Handle feature flags (F_ prefix) - all uppercase, split by underscores
-            if (paramNameString.StartsWith("F_"))
+            if (paramNameString.StartsWith("F_", StringComparison.Ordinal))
             {
                 return paramNameString[2..].Replace('_', ' ');
             }
@@ -743,16 +745,15 @@ namespace GUI.Types.GLViewers
 
             try
             {
-                var shaders = GuiContext.LoadShader(material.ShaderName);
-
-                var tabPage = viewer.Create(
-                    shaders,
+                var tabPage = new TabPage(material.ShaderName);
+                Tabs.TabPages.Add(tabPage);
+                viewer.Create(
+                    tabPage,
+                    vcsShader,
                     Path.GetFileNameWithoutExtension(material.ShaderName.AsSpan()),
                     ValveResourceFormat.CompiledShader.VcsProgramType.Features,
                     featureState
                 );
-                tabPage.Text = material.ShaderName;
-                Tabs.TabPages.Add(tabPage);
                 viewer = null;
 
                 Tabs.SelectTab(tabPage);
@@ -813,7 +814,6 @@ namespace GUI.Types.GLViewers
             // Make controls panel wider for material parameters
             UiControl.UseWideSplitter();
 
-            UiControl.SuspendLayout();
             AddRenderModeSelectionControl();
             UiControl.AddDivider();
 
@@ -896,7 +896,6 @@ namespace GUI.Types.GLViewers
             ParamsTable.ColumnCount = 2;
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             ParamsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            UiControl.ResumeLayout();
 
             // Populate UI controls with scene data
             if (renderMat != null)

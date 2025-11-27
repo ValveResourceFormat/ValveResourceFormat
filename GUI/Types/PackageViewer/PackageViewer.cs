@@ -18,7 +18,7 @@ using ValveResourceFormat.IO;
 namespace GUI.Types.PackageViewer
 {
 #pragma warning disable CA1001 // TreeView is not owned by this class, set to null in VPK_Disposed
-    class PackageViewer(VrfGuiContext vrfGuiContext) : IViewer
+    class PackageViewer(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
 #pragma warning restore CA1001
     {
         private TreeViewWithSearchResults TreeView;
@@ -74,13 +74,12 @@ namespace GUI.Types.PackageViewer
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
-            var tab = new ThemedTabPage();
+            var tab = new TabPage();
+
             CreateTreeViewWithSearchResults();
             tab.Controls.Add(TreeView);
-
-            return tab;
         }
 
         private void CreateTreeViewWithSearchResults()
@@ -602,6 +601,11 @@ namespace GUI.Types.PackageViewer
             }
 
             Program.MainForm.ShowVpkContextMenu((Control)sender, e.Location, isRoot, isFolder);
+        }
+
+        public void Dispose()
+        {
+            TreeView.Dispose();
         }
     }
 }

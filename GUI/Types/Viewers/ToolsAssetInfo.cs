@@ -7,7 +7,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class ToolsAssetInfo(VrfGuiContext vrfGuiContext) : IViewer
+    class ToolsAssetInfo(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? text;
 
@@ -33,17 +33,20 @@ namespace GUI.Types.Viewers
             text = toolsAssetInfo.ToString();
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
             Debug.Assert(text is not null);
 
-            var tab = new ThemedTabPage();
+            var tab = new TabPage();
             var textBox = CodeTextBox.Create(text);
             tab.Controls.Add(textBox);
 
             text = null;
+        }
 
-            return tab;
+        public void Dispose()
+        {
+            //
         }
     }
 }

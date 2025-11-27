@@ -191,7 +191,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public TabPage Create()
+        public void Create(TabPage containerTabPage)
         {
             Debug.Assert(resource is not null);
 
@@ -202,6 +202,8 @@ namespace GUI.Types.Viewers
                 Dock = DockStyle.Fill,
                 Multiline = true,
             };
+            containerTabPage.Controls.Add(resTabs);
+            //containerTabPage.PerformLayout();
 
             var ownsResource = true;
             void OnTabDisposed(object? sender, EventArgs e)
@@ -238,12 +240,18 @@ namespace GUI.Types.Viewers
             if (isPreview && !selectData)
             {
                 var previewTab = resTabs.TabPages[0];
-                resTabs.TabPages.Clear();
 
-                ownsResource = false;
+                // Preview only displays the first tab page, so copy over the contents
+                foreach (Control c in previewTab.Controls)
+                {
+                    containerTabPage.Controls.Add(c);
+                }
+
                 resTabs.Dispose();
 
-                return previewTab;
+                ownsResource = false;
+
+                return;
             }
 
             foreach (var block in resource.Blocks)
@@ -355,7 +363,7 @@ namespace GUI.Types.Viewers
                 resTabs.TabPages.Add(tabEx);
             }
 
-            var tab = new ThemedTabPage();
+            var tab = new TabPage();
             tab.Controls.Add(resTabs);
 
             return tab;
@@ -370,8 +378,8 @@ namespace GUI.Types.Viewers
                 var glViewerControl = GLViewer.InitializeUiControls();
 
                 var specialTabPage = new TabPage(GLViewerTabName);
-                specialTabPage.Controls.Add(glViewerControl);
                 resTabs.TabPages.Add(specialTabPage);
+                specialTabPage.Controls.Add(glViewerControl);
 
                 if (!isPreview && GLViewer is GLMaterialViewer glMaterialViewer)
                 {
@@ -460,9 +468,9 @@ namespace GUI.Types.Viewers
                         var compiledShaderViewer = new CompiledShader(vrfGuiContext);
                         try
                         {
-                            var specialTabPage = compiledShaderViewer.Create();
-                            specialTabPage.Text = "SHADER";
+                            var specialTabPage = new TabPage("SHADER");
                             resTabs.TabPages.Add(specialTabPage);
+                            compiledShaderViewer.Create(specialTabPage);
                             compiledShaderViewer = null;
                         }
                         finally
@@ -549,11 +557,13 @@ namespace GUI.Types.Viewers
         {
             if (resource.ResourceType == ResourceType.SboxShader && block is SboxShader shaderBlock)
             {
+                var tabPage = new TabPage();
                 var viewer = new CompiledShader(vrfGuiContext);
 
                 try
                 {
-                    var tabPage = viewer.Create(
+                    viewer.Create(
+                        tabPage,
                         shaderBlock.Shaders,
                         Path.GetFileNameWithoutExtension(resource.FileName.AsSpan()),
                         ValveResourceFormat.CompiledShader.VcsProgramType.Features
@@ -565,11 +575,11 @@ namespace GUI.Types.Viewers
                     }
 
                     viewer = null;
-                    tabPage.Dispose();
                 }
                 finally
                 {
                     viewer?.Dispose();
+                    tabPage.Dispose();
                 }
 
                 return;

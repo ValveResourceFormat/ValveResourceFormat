@@ -6,7 +6,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class ByteViewer(VrfGuiContext vrfGuiContext) : IViewer
+    class ByteViewer(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private byte[] input = [];
         private string? text;
@@ -28,10 +28,10 @@ namespace GUI.Types.Viewers
             text = GetTextFromBytes(input.AsSpan());
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
-            var tab = new ThemedTabPage();
-            var resTabs = new FlatTabControl
+            var tab = new TabPage();
+            var resTabs = new TabControl
             {
                 Dock = DockStyle.Fill,
             };
@@ -57,8 +57,6 @@ namespace GUI.Types.Viewers
 
             bv.SetBytes(input);
             input = [];
-
-            return tab;
         }
 
         public static string? GetTextFromBytes(ReadOnlySpan<byte> span)
@@ -114,6 +112,11 @@ namespace GUI.Types.Viewers
 
             // Only trailing nulls, trim them and decode as UTF-8
             return System.Text.Encoding.UTF8.GetString(span[..firstNullByte]);
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

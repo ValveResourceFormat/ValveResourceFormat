@@ -23,12 +23,6 @@ public class GLControl : Control
     /// </summary>
     private NativeWindow? _nativeWindow;
 
-    // Indicates that OnResize was called before OnHandleCreated.
-    // To avoid issues with missing OpenGL contexts, we suppress
-    // the premature Resize event and raise it as soon as the handle
-    // is ready.
-    private bool _resizeEventSuppressed;
-
     /// <summary>
     /// Gets the <see cref="IGraphicsContext"/> instance that is associated with the <see cref="GLControl"/>.
     /// </summary>
@@ -59,8 +53,6 @@ public class GLControl : Control
     /// <summary>
     /// This event handler will be invoked by WinForms when the HWND of this
     /// control itself has been created and assigned in the Handle property.
-    /// We capture the event to construct the NativeWindow that will be responsible
-    /// for all of the actual OpenGL rendering and native device input.
     /// </summary>
     /// <param name="e">An EventArgs instance (ignored).</param>
     protected override void OnHandleCreated(EventArgs e)
@@ -76,12 +68,6 @@ public class GLControl : Control
         _nativeWindow.IsVisible = true;
 
         base.OnHandleCreated(e);
-
-        if (_resizeEventSuppressed)
-        {
-            OnResize(EventArgs.Empty);
-            _resizeEventSuppressed = false;
-        }
     }
 
     /// <summary>
@@ -231,7 +217,6 @@ public class GLControl : Control
         // Do not raise OnResize event before the handle and context are created.
         if (!IsHandleCreated)
         {
-            _resizeEventSuppressed = true;
             return;
         }
 

@@ -9,7 +9,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues1(VrfGuiContext vrfGuiContext) : IViewer
+    class BinaryKeyValues1(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? text;
 
@@ -51,17 +51,20 @@ namespace GUI.Types.Viewers
             var text = await reader.ReadToEndAsync().ConfigureAwait(false);
         }
 
-        public TabPage Create()
+        public void Create(TabPage tab)
         {
             Debug.Assert(text is not null);
 
             var control = CodeTextBox.Create(text);
-            var tab = new ThemedTabPage();
+            var tab = new TabPage();
             tab.Controls.Add(control);
 
             text = null;
+        }
 
-            return tab;
+        public void Dispose()
+        {
+            //
         }
     }
 }
