@@ -6,18 +6,11 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.PackageViewer;
 using Microsoft.Win32;
-using Windows.Win32;
-using Windows.Win32.Foundation;
 
 namespace GUI.Utils
 {
     public static class Themer
     {
-        static Themer()
-        {
-            SystemEvents.UserPreferenceChanged += new UserPreferenceChangedEventHandler(OnUserPreferenceChanged);
-        }
-
         public class ThemeColors
         {
             /// <summary>For background elements like the window itself and titlebars.</summary>
@@ -46,7 +39,7 @@ namespace GUI.Utils
             public required Color Accent { get; set; }
 
             /// <summary>Sets special windows flags on forms which changes some otherwise unthemeable portions to dark/light</summary>
-            public required bool IsDarkTheme { get; set; }
+            public required SystemColorMode ColorMode { get; set; }
         }
 
         public enum Themes
@@ -75,7 +68,7 @@ namespace GUI.Utils
 
                     Accent = Color.FromArgb(99, 161, 255),
 
-                    IsDarkTheme = true
+                    ColorMode = SystemColorMode.Dark,
                 }
             },
 
@@ -97,49 +90,45 @@ namespace GUI.Utils
 
                     Accent = Color.FromArgb(99, 161, 255),
 
-                    IsDarkTheme = false
+                    ColorMode = SystemColorMode.Classic,
                 }
-            }
+            },
+
         };
 
-        public static ThemeColors CurrentThemeColors { get; set; } = ThemesColors[Themes.Dark];
+        public static ThemeColors CurrentThemeColors { get; set; } = ThemesColors[IsWindowsDarkThemed() ? Themes.Dark : Themes.Light];
 
-        public static int AdjustForDPI(this Control control, float value)
+        public static void ApplyTheme(Form Form)
         {
-            return (int)(value * control.DeviceDpi / 96f);
-        }
+            Form.BackColor = CurrentThemeColors.App;
+            Form.ForeColor = CurrentThemeColors.Contrast;
 
-        public static void Style(Form _Form)
-        {
-            ApplyTheme(_Form);
-            ApplySystemTheme(_Form);
-        }
+            foreach (Control control in Form.Controls)
+            {
+                ThemeControl(control);
+            }
 
-        public static Color Brighten(Color color, float brightnessFactor)
-        {
-            // Ensure brightnessFactor is within valid range (can be extended if necessary)
-            brightnessFactor = Math.Max(0, brightnessFactor);
+            void ControlAdded(object? sender, ControlEventArgs e)
+            {
+                if (e.Control is not null)
+                {
+                    ThemeControl(e.Control);
+                }
+            }
 
-            // Adjust each color channel by multiplying it with the brightness factor
-            int r = (int)(color.R * brightnessFactor);
-            int g = (int)(color.G * brightnessFactor);
-            int b = (int)(color.B * brightnessFactor);
+            void FormDisposed(object? sender, EventArgs e)
+            {
+                Form.ControlAdded -= ControlAdded;
+                Form.Disposed -= FormDisposed;
+            }
 
-            // Ensure values don't exceed 255
-            r = Math.Min(255, r);
-            g = Math.Min(255, g);
-            b = Math.Min(255, b);
-
-            // Return the new color
-            return Color.FromArgb(color.A, r, g, b);
+            Form.Disposed += FormDisposed;
         }
 
         /// <summary>Recursively apply the Colors from 'ThemeColors' to the Control and all its childs.</summary>
         public static void ThemeControl(Control control)
         {
-            // Suspend layout for the entire control tree
             control.SuspendLayout();
-
 
             ThemeControlInternal(control);
 
@@ -418,13 +407,35 @@ namespace GUI.Utils
                 richTextBox.BorderStyle = BorderStyle.None;
             }
 
-            ApplySystemTheme(control);
-
             foreach (Control childControl in control.Controls)
             {
                 // Recursively process its children
                 ThemeControlInternal(childControl);
             }
+        }
+
+        public static int AdjustForDPI(this Control control, float value)
+        {
+            return (int)(value * control.DeviceDpi / 96f);
+        }
+
+        public static Color Brighten(Color color, float brightnessFactor)
+        {
+            // Ensure brightnessFactor is within valid range (can be extended if necessary)
+            brightnessFactor = Math.Max(0, brightnessFactor);
+
+            // Adjust each color channel by multiplying it with the brightness factor
+            int r = (int)(color.R * brightnessFactor);
+            int g = (int)(color.G * brightnessFactor);
+            int b = (int)(color.B * brightnessFactor);
+
+            // Ensure values don't exceed 255
+            r = Math.Min(255, r);
+            g = Math.Min(255, g);
+            b = Math.Min(255, b);
+
+            // Return the new color
+            return Color.FromArgb(color.A, r, g, b);
         }
 
         /// <summary>Returns Windows Color Mode for Applications.
@@ -446,147 +457,6 @@ namespace GUI.Utils
             }
 
             return intResult <= 0;
-        }
-
-        private static void ApplyTheme(Form _Form)
-        {
-            if (CurrentThemeColors != null)
-            {
-                if (_Form != null && _Form.Controls != null)
-                {
-                    _Form.BackColor = CurrentThemeColors.App;
-                    _Form.ForeColor = CurrentThemeColors.Contrast;
-
-                    foreach (Control _control in _Form.Controls)
-                    {
-                        ThemeControl(_control);
-                    }
-
-                    void ControlAdded(object? sender, ControlEventArgs e)
-                    {
-                        if (e.Control is not null)
-                        {
-                            ThemeControl(e.Control);
-                        }
-                    }
-
-                    void ControlDisposed(object? sender, EventArgs e)
-                    {
-                        _Form.ControlAdded -= ControlAdded;
-                        _Form.Disposed -= ControlDisposed;
-                    }
-                    ;
-                    _Form.ControlAdded += ControlAdded;
-                    _Form.Disposed += ControlDisposed;
-                }
-            }
-        }
-
-        private static void OnUserPreferenceChanged(object sender, EventArgs e)
-        {
-            CurrentThemeColors = IsWindowsDarkThemed() ? ThemesColors[Themes.Dark] : ThemesColors[Themes.Light];
-            UpdateTheme();
-        }
-
-        public static void UpdateTheme()
-        {
-            foreach (Form form in Application.OpenForms)
-            {
-                ApplyTheme(form);
-                ApplySystemTheme(form);
-                form.Invalidate();
-            }
-        }
-
-        /// <summary>Attemps to apply Window's Dark Style to the Control and all its childs.</summary>
-        /// <param name="control"></param>
-        public static void ApplySystemTheme(Control? control = null)
-        {
-            if (control == null)
-            {
-                return;
-            }
-
-            if (control is ByteViewer)
-            {
-                return;
-            }
-            /* 			    
-				DWMWA_USE_IMMERSIVE_DARK_MODE:   https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
-            
-				Use with DwmSetWindowAttribute. Allows the window frame for this window to be drawn in dark mode colors when the dark mode system setting is enabled. 
-				For compatibility reasons, all windows default to light mode regardless of the system setting. 
-				The pvAttribute parameter points to a value of type BOOL. TRUE to honor dark mode for the window, FALSE to always use light mode.
-            
-				This value is supported starting with Windows 11 Build 22000.
-            
-				SetWindowTheme:     https://learn.microsoft.com/en-us/windows/win32/api/uxtheme/nf-uxtheme-setwindowtheme
-				Causes a window to use a different set of visual style information than its class normally uses.
-			*/
-            IntPtr DarkModeOn = 1; //<- 1=True, 0=False
-
-            var windowsTheme = "Explorer";
-            var windowsThemeCombo = "Explorer";
-
-            if (CurrentThemeColors.IsDarkTheme)
-            {
-                windowsTheme = "DarkMode_Explorer";
-                windowsThemeCombo = "DarkMode_CFD";
-                DarkModeOn = 1;
-            }
-            else
-            {
-                DarkModeOn = 0;
-            }
-
-            if (control is ThemedComboBox comboBox)
-            {
-                _ = PInvoke.SetWindowTheme((HWND)comboBox.Handle, windowsThemeCombo, null);
-
-                // Style the ComboBox drop-down (including its ScrollBar(s)):
-                Windows.Win32.UI.Controls.COMBOBOXINFO cInfo = default;
-                var result = PInvoke.GetComboBoxInfo((HWND)comboBox.Handle, ref cInfo);
-                _ = PInvoke.SetWindowTheme(cInfo.hwndList, windowsThemeCombo, null);
-            }
-            else
-            {
-                _ = PInvoke.SetWindowTheme((HWND)control.Handle, windowsTheme, null);
-            }
-
-            unsafe
-            {
-                if (control is Form && control is not MainForm)
-                {
-                    IntPtr isDarkModeAlready;
-                    _ = PInvoke.DwmGetWindowAttribute((HWND)control.Handle, Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE, &isDarkModeAlready, sizeof(int));
-
-                    if (isDarkModeAlready == 1 && DarkModeOn == 1)
-                    {
-                        return;
-                    }
-
-                    if (isDarkModeAlready == 0 && DarkModeOn == 0)
-                    {
-                        return;
-                    }
-
-                    _ = PInvoke.DwmSetWindowAttribute((HWND)control.Handle, Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkModeOn, sizeof(int));
-
-                    var controlPrevSize = control.Size;
-                    control.Size = new Size(controlPrevSize.Width, controlPrevSize.Height + 1);
-                    control.Size = controlPrevSize;
-                }
-
-            }
-
-
-            foreach (Control child in control.Controls)
-            {
-                if (child.Controls.Count != 0)
-                {
-                    ApplySystemTheme(child);
-                }
-            }
         }
     }
 

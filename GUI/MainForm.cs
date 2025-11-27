@@ -107,6 +107,13 @@ namespace GUI
             Settings.Load();
             consoleTab.InitializeFont();
 
+            if (Enum.IsDefined(typeof(Themer.Themes), Settings.Config.Theme))
+            {
+                Themer.CurrentThemeColors = Themer.ThemesColors[(Themer.Themes)Settings.Config.Theme];
+            }
+
+            Application.SetColorMode(Themer.CurrentThemeColors.ColorMode);
+
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
 #if DEBUG

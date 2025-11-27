@@ -33,7 +33,7 @@ namespace GUI
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
             MainForm = new MainForm(args);
-            Themer.Style(MainForm);
+            Themer.ApplyTheme(MainForm);
             Application.Run(MainForm);
         }
 
