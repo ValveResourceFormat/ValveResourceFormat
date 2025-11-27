@@ -188,12 +188,6 @@ namespace GUI.Utils
                 button.FlatAppearance.BorderColor = CurrentThemeColors.Border;
                 button.ForeColor = CurrentThemeColors.Contrast;
             }
-            if (control is ThemedButton betterButton)
-            {
-                betterButton.ClickedBackColor = CurrentThemeColors.Accent;
-                betterButton.ForeColor = CurrentThemeColors.Contrast;
-                betterButton.BackColor = CurrentThemeColors.Border;
-            }
             if (control is Label label)
             {
                 label.BorderStyle = BorderStyle.None;
@@ -209,12 +203,6 @@ namespace GUI.Utils
             if (control is RadioButton opt)
             {
                 opt.BackColor = CurrentThemeColors.AppSoft;
-            }
-            if (control is ThemedGroupBox betterGroupBox)
-            {
-                betterGroupBox.BorderColor = CurrentThemeColors.Border;
-                betterGroupBox.ForeColor = CurrentThemeColors.Contrast;
-                betterGroupBox.BackColor = betterGroupBox.Parent?.BackColor ?? CurrentThemeColors.App;
             }
             if (control is ComboBox combo)
             {
@@ -318,11 +306,6 @@ namespace GUI.Utils
                 glViewerSelectionControl.ForeColor = CurrentThemeColors.Contrast;
                 glViewerSelectionControl.BackColor = CurrentThemeColors.AppMiddle;
             }
-            if (control is TransparentMenuStrip menu)
-            {
-                menu.RenderMode = ToolStripRenderMode.Professional;
-                menu.Renderer = new DarkToolStripRenderer(new CustomColorTable(), false);
-            }
             if (control is ControlsBoxPanel controlsBoxPanel)
             {
                 controlsBoxPanel.ControlBoxIconColor = CurrentThemeColors.Contrast;
@@ -347,15 +330,6 @@ namespace GUI.Utils
             {
                 numeric.ForeColor = CurrentThemeColors.Contrast;
                 numeric.BackColor = numeric.Parent?.BackColor ?? CurrentThemeColors.AppSoft;
-            }
-            if (control is ThemedComboBox themedComboBox)
-            {
-                themedComboBox.DropDownBackColor = CurrentThemeColors.AppSoft;
-                themedComboBox.DropDownForeColor = CurrentThemeColors.Contrast;
-                themedComboBox.HighlightColor = CurrentThemeColors.Accent;
-                themedComboBox.HeaderColor = CurrentThemeColors.Border;
-                themedComboBox.BackColor = CurrentThemeColors.AppSoft;
-                themedComboBox.ForeColor = CurrentThemeColors.Contrast;
             }
             if (control is TreeView treeView)
             {

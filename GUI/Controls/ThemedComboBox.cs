@@ -24,6 +24,18 @@ public class ThemedComboBox : ComboBox
         Themer.ThemeControl(this);
     }
 
+    protected override void OnCreateControl()
+    {
+        base.OnCreateControl();
+
+        DropDownBackColor = Themer.CurrentThemeColors.AppSoft;
+        DropDownForeColor = Themer.CurrentThemeColors.Contrast;
+        HighlightColor = Themer.CurrentThemeColors.Accent;
+        HeaderColor = Themer.CurrentThemeColors.Border;
+        BackColor = Themer.CurrentThemeColors.AppSoft;
+        ForeColor = Themer.CurrentThemeColors.Contrast;
+    }
+
     protected override void OnDrawItem(DrawItemEventArgs e)
     {
         if (e.Index < 0) return;

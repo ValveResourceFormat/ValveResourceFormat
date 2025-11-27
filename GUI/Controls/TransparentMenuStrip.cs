@@ -1,16 +1,18 @@
 using System.Drawing;
 using System.Windows.Forms;
+using GUI.Utils;
 using Windows.Win32;
 
 namespace GUI.Controls
 {
-    internal class SysMenuLogoButton : Button
-    {
-        //
-    }
-
     public class TransparentMenuStrip : MenuStrip
     {
+
+        public TransparentMenuStrip()
+        {
+            RenderMode = ToolStripRenderMode.Professional;
+            Renderer = new DarkToolStripRenderer(new CustomColorTable(), false);
+        }
 
         protected override void WndProc(ref Message m)
         {

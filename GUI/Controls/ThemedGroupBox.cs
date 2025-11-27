@@ -17,6 +17,15 @@ namespace GUI.Controls
             DoubleBuffered = true;
         }
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            BorderColor = Themer.CurrentThemeColors.Border;
+            ForeColor = Themer.CurrentThemeColors.Contrast;
+            BackColor = Themer.CurrentThemeColors.AppSoft;
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             var textSize = TextRenderer.MeasureText(Text, Font);

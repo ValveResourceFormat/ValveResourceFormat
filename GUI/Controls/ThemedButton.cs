@@ -63,6 +63,14 @@ namespace GUI.Controls
             base.OnMouseUp(mevent);
         }
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            ClickedBackColor = Themer.CurrentThemeColors.Accent;
+            ForeColor = Themer.CurrentThemeColors.Contrast;
+            BackColor = Themer.CurrentThemeColors.Border;
+        }
 
         protected override void OnPaint(PaintEventArgs pevent)
         {
