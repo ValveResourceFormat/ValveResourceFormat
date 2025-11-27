@@ -32,12 +32,12 @@ namespace GUI.Controls
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(ExplorerControl));
             treeView = new Utils.TreeViewDoubleBuffered();
             filterTextBox = new BetterTextBox();
-            fileContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            fileContextMenuStrip = new ThemedContextMenuStrip(components);
             revealInFileExplorerToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             addToFavoritesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             removeFromFavoritesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             removeFromRecentToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            recentFilesContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            recentFilesContextMenuStrip = new ThemedContextMenuStrip(components);
             clearRecentFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             fileContextMenuStrip.SuspendLayout();
             recentFilesContextMenuStrip.SuspendLayout();

@@ -245,12 +245,12 @@ namespace GUI.Utils
             {
                 toolBar.GripStyle = ToolStripGripStyle.Hidden;
                 toolBar.RenderMode = ToolStripRenderMode.Professional;
-                toolBar.Renderer = new DarkToolStripRenderer(new CustomColorTable(CurrentThemeColors), false);
+                toolBar.Renderer = new DarkToolStripRenderer(new CustomColorTable(), false);
             }
             if (control is ContextMenuStrip cMenu)
             {
                 cMenu.RenderMode = ToolStripRenderMode.Professional;
-                cMenu.Renderer = new DarkToolStripRenderer(new CustomColorTable(CurrentThemeColors), false);
+                cMenu.Renderer = new DarkToolStripRenderer(new CustomColorTable(), false);
             }
             if (control is DataGridView grid)
             {
@@ -341,7 +341,7 @@ namespace GUI.Utils
             if (control is TransparentMenuStrip menu)
             {
                 menu.RenderMode = ToolStripRenderMode.Professional;
-                menu.Renderer = new DarkToolStripRenderer(new CustomColorTable(CurrentThemeColors), false);
+                menu.Renderer = new DarkToolStripRenderer(new CustomColorTable(), false);
             }
             if (control is ControlsBoxPanel controlsBoxPanel)
             {
@@ -490,8 +490,7 @@ namespace GUI.Utils
         {
             if (e.ToolStrip.IsDropDown)
             {
-                e.ToolStrip.BackColor = Themer.CurrentThemeColors.AppSoft;
-                //e.Graphics.DrawRectangle(new Pen(themeColors.Border, RadGenGUI.this.AdjustForDPI(4)), e.AffectedBounds);
+                e.ToolStrip.BackColor = Themer.CurrentThemeColors.AppMiddle;
             }
             else
             {
@@ -730,11 +729,9 @@ namespace GUI.Utils
 
     public class CustomColorTable : ProfessionalColorTable
     {
-        public Themer.ThemeColors Colors { get; set; }
 
-        public CustomColorTable(Themer.ThemeColors _Colors)
+        public CustomColorTable()
         {
-            Colors = _Colors;
             UseSystemColors = false;
         }
 

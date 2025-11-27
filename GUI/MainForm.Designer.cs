@@ -57,7 +57,7 @@ namespace GUI
             checkForUpdatesToolStripMenuItem = new ToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
             mainTabs = new FlatTabControl();
-            tabContextMenuStrip = new ContextMenuStrip(components);
+            tabContextMenuStrip = new ThemedContextMenuStrip(components);
             closeToolStripMenuItem = new ToolStripMenuItem();
             closeToolStripMenuItems = new ToolStripMenuItem();
             closeToolStripMenuItemsToRight = new ToolStripMenuItem();
@@ -65,7 +65,7 @@ namespace GUI
             exportAsIsToolStripMenuItem = new ToolStripMenuItem();
             decompileExportToolStripMenuItem = new ToolStripMenuItem();
             clearConsoleToolStripMenuItem = new ToolStripMenuItem();
-            vpkContextMenu = new ContextMenuStrip(components);
+            vpkContextMenu = new ThemedContextMenuStrip(components);
             extractToolStripMenuItem = new ToolStripMenuItem();
             decompileToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator1 = new ToolStripSeparator();
@@ -76,7 +76,7 @@ namespace GUI
             openWithDefaultAppToolStripMenuItem = new ToolStripMenuItem();
             viewAssetInfoToolStripMenuItem = new ToolStripMenuItem();
             verifyPackageContentsToolStripMenuItem = new ToolStripMenuItem();
-            vpkEditingContextMenu = new ContextMenuStrip(components);
+            vpkEditingContextMenu = new ThemedContextMenuStrip(components);
             vpkEditCreateFolderToolStripMenuItem = new ToolStripMenuItem();
             vpkEditAddExistingFolderToolStripMenuItem = new ToolStripMenuItem();
             vpkEditAddExistingFilesToolStripMenuItem = new ToolStripMenuItem();
@@ -155,6 +155,8 @@ namespace GUI
             // 
             openWelcomeScreenToolStripMenuItem.Name = "openWelcomeScreenToolStripMenuItem";
             openWelcomeScreenToolStripMenuItem.Size = new System.Drawing.Size(203, 22);
+            openWelcomeScreenToolStripMenuItem.Text = "Open welcome screen";
+            openWelcomeScreenToolStripMenuItem.Click += openWelcomeScreenToolStripMenuItem_Click;
             // 
             // explorerToolStripMenuItem
             // 
@@ -212,10 +214,9 @@ namespace GUI
             // 
             recoverDeletedToolStripMenuItem.Enabled = false;
             recoverDeletedToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("recoverDeletedToolStripMenuItem.Image");
-            recoverDeletedToolStripMenuItem.ImageScaling = ToolStripItemImageScaling.None;
             recoverDeletedToolStripMenuItem.ImageTransparentColor = System.Drawing.Color.Magenta;
             recoverDeletedToolStripMenuItem.Name = "recoverDeletedToolStripMenuItem";
-            recoverDeletedToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            recoverDeletedToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             recoverDeletedToolStripMenuItem.Text = "Recover deleted files";
             recoverDeletedToolStripMenuItem.Click += RecoverDeletedToolStripMenuItem_Click;
             // 
@@ -240,6 +241,7 @@ namespace GUI
             // 
             // tabContextMenuStrip
             // 
+            tabContextMenuStrip.BackColor = System.Drawing.Color.FromArgb(28, 31, 38);
             tabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
             tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
             tabContextMenuStrip.LayoutStyle = ToolStripLayoutStyle.Table;
@@ -307,15 +309,17 @@ namespace GUI
             // 
             // vpkContextMenu
             // 
+            vpkContextMenu.BackColor = System.Drawing.Color.FromArgb(28, 31, 38);
+            vpkContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
             vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
-            vpkContextMenu.Size = new System.Drawing.Size(209, 214);
+            vpkContextMenu.Size = new System.Drawing.Size(217, 286);
             // 
             // extractToolStripMenuItem
             // 
             extractToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("extractToolStripMenuItem.Image");
             extractToolStripMenuItem.Name = "extractToolStripMenuItem";
-            extractToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            extractToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             extractToolStripMenuItem.Text = "Export as is";
             extractToolStripMenuItem.Click += ExtractToolStripMenuItem_Click;
             // 
@@ -323,20 +327,20 @@ namespace GUI
             // 
             decompileToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("decompileToolStripMenuItem.Image");
             decompileToolStripMenuItem.Name = "decompileToolStripMenuItem";
-            decompileToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            decompileToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             decompileToolStripMenuItem.Text = "Decompile && export";
             decompileToolStripMenuItem.Click += DecompileToolStripMenuItem_Click;
             // 
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new System.Drawing.Size(205, 6);
+            toolStripSeparator1.Size = new System.Drawing.Size(213, 6);
             // 
             // copyFileNameToolStripMenuItem
             // 
             copyFileNameToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("copyFileNameToolStripMenuItem.Image");
             copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
-            copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             copyFileNameToolStripMenuItem.Text = "Copy file path in package";
             copyFileNameToolStripMenuItem.Click += CopyFileNameToolStripMenuItem_Click;
             // 
@@ -344,19 +348,20 @@ namespace GUI
             // 
             copyFileNameOnDiskToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("copyFileNameOnDiskToolStripMenuItem.Image");
             copyFileNameOnDiskToolStripMenuItem.Name = "copyFileNameOnDiskToolStripMenuItem";
-            copyFileNameOnDiskToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            copyFileNameOnDiskToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             copyFileNameOnDiskToolStripMenuItem.Text = "Copy file path on disk";
             copyFileNameOnDiskToolStripMenuItem.Click += CopyFileNameOnDiskToolStripMenuItem_Click;
             // 
             // toolStripSeparator3
             // 
             toolStripSeparator3.Name = "toolStripSeparator3";
-            toolStripSeparator3.Size = new System.Drawing.Size(205, 6);
+            toolStripSeparator3.Size = new System.Drawing.Size(213, 6);
             // 
             // openWithoutViewerToolStripMenuItem
             // 
+            openWithoutViewerToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("openWithoutViewerToolStripMenuItem.Image");
             openWithoutViewerToolStripMenuItem.Name = "openWithoutViewerToolStripMenuItem";
-            openWithoutViewerToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            openWithoutViewerToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             openWithoutViewerToolStripMenuItem.Text = "Open without viewer";
             openWithoutViewerToolStripMenuItem.Click += OpenWithoutViewerToolStripMenuItem_Click;
             // 
@@ -364,7 +369,7 @@ namespace GUI
             // 
             openWithDefaultAppToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("openWithDefaultAppToolStripMenuItem.Image");
             openWithDefaultAppToolStripMenuItem.Name = "openWithDefaultAppToolStripMenuItem";
-            openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            openWithDefaultAppToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             openWithDefaultAppToolStripMenuItem.Text = "Open with default app";
             openWithDefaultAppToolStripMenuItem.Click += OpenWithDefaultAppToolStripMenuItem_Click;
             // 
@@ -372,7 +377,7 @@ namespace GUI
             // 
             viewAssetInfoToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("viewAssetInfoToolStripMenuItem.Image");
             viewAssetInfoToolStripMenuItem.Name = "viewAssetInfoToolStripMenuItem";
-            viewAssetInfoToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            viewAssetInfoToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             viewAssetInfoToolStripMenuItem.Text = "View asset info";
             viewAssetInfoToolStripMenuItem.Click += OnViewAssetInfoToolStripMenuItemClick;
             // 
@@ -380,21 +385,24 @@ namespace GUI
             // 
             verifyPackageContentsToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("verifyPackageContentsToolStripMenuItem.Image");
             verifyPackageContentsToolStripMenuItem.Name = "verifyPackageContentsToolStripMenuItem";
-            verifyPackageContentsToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            verifyPackageContentsToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             verifyPackageContentsToolStripMenuItem.Text = "Verify package contents";
             verifyPackageContentsToolStripMenuItem.Click += VerifyPackageContentsToolStripMenuItem_Click;
             // 
             // vpkEditingContextMenu
             // 
+            vpkEditingContextMenu.BackColor = System.Drawing.Color.FromArgb(28, 31, 38);
+            vpkEditingContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
+            vpkEditingContextMenu.ImeMode = ImeMode.Off;
             vpkEditingContextMenu.Items.AddRange(new ToolStripItem[] { vpkEditCreateFolderToolStripMenuItem, vpkEditAddExistingFolderToolStripMenuItem, vpkEditAddExistingFilesToolStripMenuItem, vpkEditRemoveThisFolderToolStripMenuItem, vpkEditRemoveThisFileToolStripMenuItem, vpkEditSaveToDiskToolStripMenuItem });
             vpkEditingContextMenu.Name = "vpkEditingContextMenu";
-            vpkEditingContextMenu.Size = new System.Drawing.Size(174, 136);
+            vpkEditingContextMenu.Size = new System.Drawing.Size(189, 206);
             // 
             // vpkEditCreateFolderToolStripMenuItem
             // 
             vpkEditCreateFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditCreateFolderToolStripMenuItem.Image");
             vpkEditCreateFolderToolStripMenuItem.Name = "vpkEditCreateFolderToolStripMenuItem";
-            vpkEditCreateFolderToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
+            vpkEditCreateFolderToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
             vpkEditCreateFolderToolStripMenuItem.Text = "Create folder";
             vpkEditCreateFolderToolStripMenuItem.Click += OnVpkCreateFolderToolStripMenuItem_Click;
             // 
@@ -402,7 +410,7 @@ namespace GUI
             // 
             vpkEditAddExistingFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditAddExistingFolderToolStripMenuItem.Image");
             vpkEditAddExistingFolderToolStripMenuItem.Name = "vpkEditAddExistingFolderToolStripMenuItem";
-            vpkEditAddExistingFolderToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
+            vpkEditAddExistingFolderToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
             vpkEditAddExistingFolderToolStripMenuItem.Text = "&Add existing folder";
             vpkEditAddExistingFolderToolStripMenuItem.Click += OnVpkAddNewFolderToolStripMenuItem_Click;
             // 
@@ -410,7 +418,7 @@ namespace GUI
             // 
             vpkEditAddExistingFilesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditAddExistingFilesToolStripMenuItem.Image");
             vpkEditAddExistingFilesToolStripMenuItem.Name = "vpkEditAddExistingFilesToolStripMenuItem";
-            vpkEditAddExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
+            vpkEditAddExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
             vpkEditAddExistingFilesToolStripMenuItem.Text = "Add existing &files";
             vpkEditAddExistingFilesToolStripMenuItem.Click += OnVpkAddNewFileToolStripMenuItem_Click;
             // 
@@ -418,7 +426,7 @@ namespace GUI
             // 
             vpkEditRemoveThisFolderToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditRemoveThisFolderToolStripMenuItem.Image");
             vpkEditRemoveThisFolderToolStripMenuItem.Name = "vpkEditRemoveThisFolderToolStripMenuItem";
-            vpkEditRemoveThisFolderToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
+            vpkEditRemoveThisFolderToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
             vpkEditRemoveThisFolderToolStripMenuItem.Text = "&Remove this folder";
             vpkEditRemoveThisFolderToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
             // 
@@ -426,7 +434,7 @@ namespace GUI
             // 
             vpkEditRemoveThisFileToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditRemoveThisFileToolStripMenuItem.Image");
             vpkEditRemoveThisFileToolStripMenuItem.Name = "vpkEditRemoveThisFileToolStripMenuItem";
-            vpkEditRemoveThisFileToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
+            vpkEditRemoveThisFileToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
             vpkEditRemoveThisFileToolStripMenuItem.Text = "&Remove this file";
             vpkEditRemoveThisFileToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
             // 
@@ -434,7 +442,7 @@ namespace GUI
             // 
             vpkEditSaveToDiskToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("vpkEditSaveToDiskToolStripMenuItem.Image");
             vpkEditSaveToDiskToolStripMenuItem.Name = "vpkEditSaveToDiskToolStripMenuItem";
-            vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
+            vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(188, 30);
             vpkEditSaveToDiskToolStripMenuItem.Text = "&Save VPK to disk";
             vpkEditSaveToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
             // 
@@ -521,10 +529,7 @@ namespace GUI
         #endregion
 
         private TransparentMenuStrip menuStrip;
-        private ContextMenuStrip tabContextMenuStrip;
         private ToolStripMenuItem closeToolStripMenuItem;
-        private ContextMenuStrip vpkContextMenu;
-        private ContextMenuStrip vpkEditingContextMenu;
         private ToolStripMenuItem extractToolStripMenuItem;
         private ToolStripMenuItem copyFileNameToolStripMenuItem;
         private ToolStripMenuItem closeToolStripMenuItemsToLeft;
@@ -567,6 +572,9 @@ namespace GUI
         private Controls.ControlsBoxPanel controlsBoxPanel;
         private PictureBox pictureBox1;
         private Panel panel1;
+        private ThemedContextMenuStrip tabContextMenuStrip;
+        private ThemedContextMenuStrip vpkContextMenu;
+        private ThemedContextMenuStrip vpkEditingContextMenu;
     }
 }
 

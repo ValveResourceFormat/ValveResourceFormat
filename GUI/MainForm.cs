@@ -1158,5 +1158,10 @@ namespace GUI
                 }
             }).ConfigureAwait(false);
         }
+
+        private void openWelcomeScreenToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenWelcome();
+        }
     }
 }
