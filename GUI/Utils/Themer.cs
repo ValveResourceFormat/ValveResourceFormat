@@ -162,9 +162,11 @@ namespace GUI.Utils
 
             if (control is Panel panel)
             {
-                panel.BackColor = panel.Parent?.BackColor ?? CurrentThemeColors.AppSoft;
-                panel.BorderStyle = BorderStyle.None;
-
+                if (control is not UnstyledPanel)
+                {
+                    panel.BackColor = panel.Parent?.BackColor ?? CurrentThemeColors.AppSoft;
+                    panel.BorderStyle = BorderStyle.None;
+                }
             }
 
             if (control is TableLayoutPanel table)
@@ -182,11 +184,14 @@ namespace GUI.Utils
             }
             if (control is Button button)
             {
-                button.FlatStyle = FlatStyle.Flat;
-                button.FlatAppearance.CheckedBackColor = CurrentThemeColors.AppSoft;
-                button.BackColor = CurrentThemeColors.Border;
-                button.FlatAppearance.BorderColor = CurrentThemeColors.Border;
-                button.ForeColor = CurrentThemeColors.Contrast;
+                if (control is not ThemedButton)
+                {
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.FlatAppearance.CheckedBackColor = CurrentThemeColors.AppSoft;
+                    button.BackColor = CurrentThemeColors.Border;
+                    button.FlatAppearance.BorderColor = CurrentThemeColors.Border;
+                    button.ForeColor = CurrentThemeColors.Contrast;
+                }
             }
             if (control is Label label)
             {
@@ -286,7 +291,7 @@ namespace GUI.Utils
             if (control is TextBox textBox)
             {
                 textBox.ForeColor = CurrentThemeColors.Contrast;
-                textBox.BackColor = CurrentThemeColors.AppMiddle;
+                textBox.BackColor = CurrentThemeColors.AppSoft;
             }
             if (control is CodeTextBox console)
             {

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI.Controls
 {
@@ -11,6 +12,13 @@ namespace GUI.Controls
         {
             Multiline = true;
             Margin = new Padding(0, 3, 0, 3);
+        }
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            BackColor = Themer.CurrentThemeColors.Border;
+            ForeColor = Themer.CurrentThemeColors.Contrast;
         }
 
         public event EventHandler? CustomTextChanged;

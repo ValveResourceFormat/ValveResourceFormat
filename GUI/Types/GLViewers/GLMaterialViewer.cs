@@ -522,6 +522,7 @@ namespace GUI.Types.GLViewers
                 BackColor = initialColor,
                 FlatStyle = FlatStyle.Flat,
                 Enabled = isEnabled,
+                Style = false,
                 Padding = new Padding(2),
                 MinimumSize = new Size(0, 20),
             };
@@ -797,6 +798,7 @@ namespace GUI.Types.GLViewers
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
+                Style = false
             };
             colorButton.Click += (sender, e) =>
             {

@@ -10,6 +10,8 @@ namespace GUI.Controls
         private bool Hovered;
         private bool Clicked;
 
+        public bool Style { get; set; } = true;
+
         public TextFormatFlags LabelFormatFlags { get; set; } = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
 
         public bool ForceClicked { get; set; }
@@ -67,9 +69,12 @@ namespace GUI.Controls
         {
             base.OnCreateControl();
 
-            ClickedBackColor = Themer.CurrentThemeColors.Accent;
-            ForeColor = Themer.CurrentThemeColors.Contrast;
-            BackColor = Themer.CurrentThemeColors.Border;
+            if (Style)
+            {
+                ClickedBackColor = Themer.CurrentThemeColors.Accent;
+                ForeColor = Themer.CurrentThemeColors.Contrast;
+                BackColor = Themer.CurrentThemeColors.Border;
+            }
         }
 
         protected override void OnPaint(PaintEventArgs pevent)
