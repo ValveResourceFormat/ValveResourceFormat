@@ -171,7 +171,7 @@ namespace GUI.Utils
 
             if (control is TableLayoutPanel table)
             {
-                table.BackColor = CurrentThemeColors.AppSoft;
+                table.BackColor = CurrentThemeColors.App;
                 table.ForeColor = CurrentThemeColors.Contrast;
                 table.BorderStyle = BorderStyle.None;
             }
@@ -279,19 +279,9 @@ namespace GUI.Utils
             {
                 splitter.BorderStyle = BorderStyle.None;
             }
-            if (control is TreeView tree)
-            {
-                tree.BorderStyle = BorderStyle.None;
-                tree.BackColor = CurrentThemeColors.AppSoft;
-            }
             if (control is TrackBar slider)
             {
                 slider.BackColor = CurrentThemeColors.AppSoft;
-            }
-            if (control is TextBox textBox)
-            {
-                textBox.ForeColor = CurrentThemeColors.Contrast;
-                textBox.BackColor = CurrentThemeColors.AppSoft;
             }
             if (control is CodeTextBox console)
             {
@@ -333,6 +323,7 @@ namespace GUI.Utils
             }
             if (control is ListView listView)
             {
+                listView.BorderStyle = BorderStyle.None;
                 listView.ForeColor = CurrentThemeColors.Contrast;
                 listView.BackColor = CurrentThemeColors.AppSoft;
             }
@@ -343,7 +334,8 @@ namespace GUI.Utils
             }
             if (control is TreeView treeView)
             {
-                treeView.BackColor = CurrentThemeColors.AppSoft;
+                treeView.BorderStyle = BorderStyle.None;
+                treeView.BackColor = CurrentThemeColors.AppMiddle;
                 treeView.ForeColor = CurrentThemeColors.Contrast;
                 treeView.LineColor = CurrentThemeColors.BorderSoft;
             }

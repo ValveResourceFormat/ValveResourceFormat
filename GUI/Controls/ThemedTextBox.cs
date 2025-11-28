@@ -17,7 +17,7 @@ namespace GUI.Controls
         {
             base.OnCreateControl();
 
-            BackColor = Themer.CurrentThemeColors.Border;
+            BackColor = Themer.CurrentThemeColors.AppSoft;
             ForeColor = Themer.CurrentThemeColors.Contrast;
         }
 

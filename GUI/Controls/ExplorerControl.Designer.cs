@@ -30,7 +30,7 @@ namespace GUI.Controls
         {
             components = new System.ComponentModel.Container();
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(ExplorerControl));
-            treeView = new Utils.TreeViewDoubleBuffered();
+            treeView = new GUI.Utils.TreeViewDoubleBuffered();
             filterTextBox = new ThemedTextBox();
             fileContextMenuStrip = new ThemedContextMenuStrip(components);
             revealInFileExplorerToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -39,28 +39,35 @@ namespace GUI.Controls
             removeFromRecentToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             recentFilesContextMenuStrip = new ThemedContextMenuStrip(components);
             clearRecentFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             fileContextMenuStrip.SuspendLayout();
             recentFilesContextMenuStrip.SuspendLayout();
+            tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
             // 
             // treeView
             // 
             treeView.Dock = System.Windows.Forms.DockStyle.Fill;
-            treeView.Location = new System.Drawing.Point(0, 23);
+            treeView.Location = new System.Drawing.Point(0, 20);
+            treeView.Margin = new System.Windows.Forms.Padding(0);
             treeView.Name = "treeView";
             treeView.ShowLines = false;
-            treeView.Size = new System.Drawing.Size(581, 331);
+            treeView.Size = new System.Drawing.Size(581, 334);
             treeView.TabIndex = 2;
             treeView.NodeMouseClick += OnTreeViewNodeMouseClick;
             treeView.NodeMouseDoubleClick += OnTreeViewNodeMouseDoubleClick;
             // 
             // filterTextBox
             // 
-            filterTextBox.Dock = System.Windows.Forms.DockStyle.Top;
+            filterTextBox.BackColor = System.Drawing.Color.FromArgb(231, 236, 236);
+            filterTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            filterTextBox.ForeColor = System.Drawing.Color.Black;
             filterTextBox.Location = new System.Drawing.Point(0, 0);
+            filterTextBox.Margin = new System.Windows.Forms.Padding(0);
+            filterTextBox.Multiline = true;
             filterTextBox.Name = "filterTextBox";
             filterTextBox.PlaceholderText = "Filter…";
-            filterTextBox.Size = new System.Drawing.Size(581, 23);
+            filterTextBox.Size = new System.Drawing.Size(581, 20);
             filterTextBox.TabIndex = 0;
             filterTextBox.TextChanged += OnFilterTextBoxTextChanged;
             // 
@@ -116,31 +123,48 @@ namespace GUI.Controls
             clearRecentFilesToolStripMenuItem.Text = "&Clear recent files";
             clearRecentFilesToolStripMenuItem.Click += OnClearRecentFilesClick;
             // 
+            // tableLayoutPanel1
+            // 
+            tableLayoutPanel1.ColumnCount = 1;
+            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel1.Controls.Add(treeView, 0, 1);
+            tableLayoutPanel1.Controls.Add(filterTextBox, 0, 0);
+            tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
+            tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
+            tableLayoutPanel1.Name = "tableLayoutPanel1";
+            tableLayoutPanel1.RowCount = 2;
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel1.Size = new System.Drawing.Size(581, 354);
+            tableLayoutPanel1.TabIndex = 3;
+            // 
             // ExplorerControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            Controls.Add(treeView);
-            Controls.Add(filterTextBox);
+            Controls.Add(tableLayoutPanel1);
             Name = "ExplorerControl";
             Size = new System.Drawing.Size(581, 354);
             Load += OnExplorerLoad;
             VisibleChanged += OnVisibleChanged;
             fileContextMenuStrip.ResumeLayout(false);
             recentFilesContextMenuStrip.ResumeLayout(false);
+            tableLayoutPanel1.ResumeLayout(false);
+            tableLayoutPanel1.PerformLayout();
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
         private ThemedTextBox filterTextBox;
-        private System.Windows.Forms.ContextMenuStrip fileContextMenuStrip;
         private Utils.TreeViewDoubleBuffered treeView;
         private System.Windows.Forms.ToolStripMenuItem revealInFileExplorerToolStripMenuItem;
-        private System.Windows.Forms.ContextMenuStrip recentFilesContextMenuStrip;
         private System.Windows.Forms.ToolStripMenuItem clearRecentFilesToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem addToFavoritesToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem removeFromFavoritesToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem removeFromRecentToolStripMenuItem;
+        private ThemedContextMenuStrip fileContextMenuStrip;
+        private ThemedContextMenuStrip recentFilesContextMenuStrip;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
     }
 }

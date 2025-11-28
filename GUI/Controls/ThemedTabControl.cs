@@ -80,6 +80,9 @@ namespace GUI.Controls
             ForeColor = Themer.CurrentThemeColors.ContrastSoft;
             LineColor = Themer.CurrentThemeColors.Accent;
             HoverColor = Themer.CurrentThemeColors.Accent;
+
+            Padding = new Point(16, 16);
+            Margin = new Padding(16);
         }
 
         protected override void InitLayout()
@@ -93,13 +96,21 @@ namespace GUI.Controls
 
         }
 
+        protected override void OnControlAdded(ControlEventArgs e)
+        {
+            base.OnControlAdded(e);
+        }
+
         // this makes the tab header flush with the body
         public override Rectangle DisplayRectangle
         {
             get
             {
                 Rectangle rect = base.DisplayRectangle;
-                return new Rectangle(rect.Left, rect.Top - this.AdjustForDPI(4), rect.Width, rect.Height + this.AdjustForDPI(4));
+
+                // this makes the page inside the tab control flush with the edges
+
+                return new Rectangle(rect.Left - this.AdjustForDPI(4), rect.Top - this.AdjustForDPI(4), rect.Width + this.AdjustForDPI(8), rect.Height + this.AdjustForDPI(4));
             }
         }
 

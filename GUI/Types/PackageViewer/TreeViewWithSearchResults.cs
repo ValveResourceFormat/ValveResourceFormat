@@ -40,7 +40,6 @@ namespace GUI.Types.PackageViewer
         public TreeViewWithSearchResults(PackageViewer viewer)
         {
             InitializeComponent();
-            Themer.ThemeControl(this);
 
             if (SplitterWidth > 0)
             {
@@ -62,6 +61,16 @@ namespace GUI.Types.PackageViewer
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
             Viewer = viewer;
+        }
+
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+            Themer.ThemeControl(this);
+
+            mainTreeView.BackColor = Themer.CurrentThemeColors.AppSoft;
+            mainListView.BackColor = Themer.CurrentThemeColors.AppMiddle;
+            mainSplitContainer.BackColor = Themer.CurrentThemeColors.AppSoft;
         }
 
         private void MainListView_Disposed(object sender, EventArgs e)
