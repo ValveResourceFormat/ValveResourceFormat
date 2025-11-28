@@ -592,11 +592,12 @@ namespace GUI.Controls
                     }
                 }
 
+                var image = imageIndexGame > -1 ? imageIndexGame : imageIndexFile;
                 treeNodes[treeNodeIndex++] = new TreeNode(pathDisplay)
                 {
                     Tag = path,
-                    ImageIndex = imageIndexGame > -1 ? imageIndexGame : imageIndexFile,
-                    SelectedImageIndex = imageIndexFile,
+                    ImageIndex = image,
+                    SelectedImageIndex = image,
                 };
             }
 
