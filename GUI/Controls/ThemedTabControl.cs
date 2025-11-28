@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using GUI.Utils;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
@@ -32,12 +33,54 @@ namespace GUI.Controls
         [Description("Hover Color for the tab"), Category("Appearance")]
         public Color HoverColor { get; set; } = SystemColors.Highlight;
 
+        private int baseTabWidth;
+        [Description("Base width"), Category("Appearance")]
+        public int BaseTabWidth
+        {
+            get { return baseTabWidth; }
+            set { baseTabWidth = this.AdjustForDPI(value); }
+        }
+
+        private int tabHeight;
+        [Description("Height of tabs"), Category("Appearance")]
+        public int TabHeight
+        {
+            get { return tabHeight; }
+            set { tabHeight = this.AdjustForDPI(value); }
+        }
+
+        private const TextFormatFlags TextRenderingFlags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine;
 
         public ThemedTabControl() : base()
         {
-            Appearance = TabAppearance.Buttons;
-            DrawMode = TabDrawMode.Normal;
-            SizeMode = TabSizeMode.Normal;
+            SetStyle(ControlStyles.UserPaint |
+                     ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.ResizeRedraw |
+                     ControlStyles.OptimizedDoubleBuffer, true);
+
+            DrawMode = TabDrawMode.OwnerDrawFixed;
+            SizeMode = TabSizeMode.Fixed;
+
+            BaseTabWidth = 150;
+            TabHeight = 25;
+
+            ItemSize = new Size(BaseTabWidth, TabHeight);
+        }
+
+        protected override void OnCreateControl()
+        {
+            // Necessary to give tabs the correct width
+            base.OnCreateControl();
+            OnFontChanged(EventArgs.Empty);
+
+            BackColor = Themer.CurrentThemeColors.App;
+            TabColor = Themer.CurrentThemeColors.AppSoft;
+            SelectTabColor = Themer.CurrentThemeColors.AppSoft;
+            SelectedForeColor = Themer.CurrentThemeColors.Contrast;
+            BorderColor = Themer.CurrentThemeColors.Border;
+            ForeColor = Themer.CurrentThemeColors.ContrastSoft;
+            LineColor = Themer.CurrentThemeColors.Accent;
+            HoverColor = Themer.CurrentThemeColors.Accent;
         }
 
         protected override void InitLayout()
@@ -51,142 +94,118 @@ namespace GUI.Controls
 
         }
 
-        protected override void OnMouseEnter(EventArgs e)
+        // this makes the tab header flush with the body
+        public override Rectangle DisplayRectangle
         {
-            base.OnMouseEnter(e);
-            Invalidate();  // Forces the control to be redrawn
+            get
+            {
+                Rectangle rect = base.DisplayRectangle;
+                return new Rectangle(rect.Left, rect.Top - this.AdjustForDPI(4), rect.Width, rect.Height + this.AdjustForDPI(4));
+            }
+        }
+
+        int HoveredIndex = -1;
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+
+            int oldHovered = HoveredIndex;
+            HoveredIndex = -1;
+
+            for (int i = 0; i < TabCount; i++)
+            {
+                Rectangle tabRect = GetTabRect(i);
+                if (tabRect.Contains(e.Location))
+                {
+                    HoveredIndex = i;
+                    break;
+                }
+            }
+
+            if (oldHovered != HoveredIndex)
+            {
+                Invalidate();
+            }
         }
 
         protected override void OnMouseLeave(EventArgs e)
         {
             base.OnMouseLeave(e);
-            Invalidate();  // Forces the control to be redrawn
+            if (HoveredIndex != -1)
+            {
+                HoveredIndex = -1;
+                Invalidate();
+            }
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            DrawControl(e.Graphics);
-        }
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-        public void DrawControl(Graphics g)
-        {
-            if (!Visible)
+            using (SolidBrush bgBrush = new SolidBrush(BackColor))
             {
-                return;
+                g.FillRectangle(bgBrush, ClientRectangle);
             }
 
-            var clientRectangle = ClientRectangle;
-            clientRectangle.Inflate(2, 2);
-
-            // Whole Control Background:
-            using Brush bBackColor = new SolidBrush(BackColor);
-            g.FillRectangle(bBackColor, ClientRectangle);
-
-            var region = g.Clip;
-
-            for (var i = 0; i < TabCount; i++)
+            for (int i = 0; i < TabCount; i++)
             {
-                DrawTab(g, TabPages[i], i);
-                TabPages[i].BackColor = TabColor;
-            }
-
-            g.Clip = region;
-
-            using var border = new Pen(BorderColor);
-            g.DrawRectangle(border, clientRectangle);
-
-            if (SelectedTab != null)
-            {
-                clientRectangle.Offset(1, 1);
-                clientRectangle.Width -= 2;
-                clientRectangle.Height -= 2;
-                g.DrawRectangle(border, clientRectangle);
-                clientRectangle.Width -= 1;
-                clientRectangle.Height -= 1;
-                g.DrawRectangle(border, clientRectangle);
+                DrawTab(g, i);
             }
         }
 
-        protected override void OnCreateControl()
+        private void DrawTab(Graphics g, int index)
         {
-            // Necessary to give tabs the correct width
-            base.OnCreateControl();
-            OnFontChanged(EventArgs.Empty);
+            Rectangle tabRect = GetTabRect(index);
+            bool isSelected = (SelectedIndex == index);
+            bool isHovered = (HoveredIndex == index);
 
-            BackColor = Themer.CurrentThemeColors.AppMiddle;
-            TabColor = Themer.CurrentThemeColors.AppSoft;
-            SelectTabColor = Themer.CurrentThemeColors.AppSoft;
-            SelectedForeColor = Themer.CurrentThemeColors.Contrast;
-            BorderColor = Themer.CurrentThemeColors.Border;
-            ForeColor = Themer.CurrentThemeColors.ContrastSoft;
-            LineColor = Themer.CurrentThemeColors.Accent;
-            HoverColor = Themer.CurrentThemeColors.Accent;
-        }
+            Color tabColor = BackColor;
 
-        protected override void OnFontChanged(EventArgs e)
-        {
-            // Necessary to give tabs the correct width
-            base.OnFontChanged(e);
-            var hFont = Font.ToHfont();
+            if (isSelected) tabColor = SelectTabColor;
+            else if (isHovered) tabColor = HoverColor;
 
-            UpdateStyles();
-        }
-
-        public void DrawTab(Graphics g, TabPage customTabPage, int nIndex)
-        {
-            var isHovered = false;
-            var isSelected = (SelectedIndex == nIndex);
-
-            var tabRect = GetTabRect(nIndex);
-            if (tabRect.Contains(PointToClient(Cursor.Position)))
-            {
-                isHovered = true;
-            }
-
-            // Draws the Tab Header:
-            var HeaderColor = isSelected ? SelectTabColor : isHovered ? HoverColor : BackColor;
-            var TextColor = SelectedForeColor;
-            using Brush brush = new SolidBrush(HeaderColor);
-            using var headerPen = new Pen(HeaderColor);
-            using var headerUnderlinePen = new Pen(LineColor, tabRect.Height / 11);
-
+            using var brush = new SolidBrush(tabColor);
             g.FillRectangle(brush, tabRect);
 
-            if (isSelected)
-            {
-                g.DrawLine(headerUnderlinePen,
-                    new Point(tabRect.Left, tabRect.Bottom), new Point(tabRect.Right, tabRect.Bottom));
-
-                TextColor = SelectedForeColor;
-            }
-            else if (!isHovered)
-            {
-                TextColor = ForeColor;
-            }
+            Rectangle textRect = new Rectangle(
+                tabRect.X,
+                tabRect.Y,
+                tabRect.Width,
+                tabRect.Height
+            );
 
             var imageScaleFactor = 0.7;
             var imageSize = (int)(tabRect.Height * imageScaleFactor);
-            var imageHorizontalPadding = (int)(imageSize * 0.2);
+            var imagePadding = this.AdjustForDPI(2);
 
-            //center image by adding half of the difference between the tab height and the image height
-            var imageCenteringOffset = (tabRect.Height - imageSize) / 2;
-            var imageHorizontalPositioning = (int)(tabRect.X + imageCenteringOffset) + imageHorizontalPadding;
-            var imageVerticalPositioning = (int)(tabRect.Y + imageCenteringOffset);
-            var imageRect = new Rectangle(imageHorizontalPositioning, imageVerticalPositioning, imageSize, imageSize);
-
-            var textFlags = new TextFormatFlags() | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter;
-            if (customTabPage.ImageIndex >= 0 && ImageList != null && ImageList.Images.Count > customTabPage.ImageIndex)
+            if (ImageList != null && ImageList.Images.Count > 0)
             {
-                var textRect = new Rectangle(imageHorizontalPositioning + imageSize, tabRect.Y, (tabRect.Width - (imageCenteringOffset + imageSize) - imageHorizontalPadding), tabRect.Height);
+                //center image by adding half of the difference between the tab height and the image height
+                var imageCenteringOffset = (tabRect.Height - imageSize) / 2;
+                var imageHorizontalPositioning = (tabRect.X + imageCenteringOffset) + imagePadding;
+                var imageVerticalPositioning = (tabRect.Y + imageCenteringOffset);
+                var imageRect = new Rectangle(imageHorizontalPositioning, imageVerticalPositioning, imageSize, imageSize);
 
-                var image = ImageList.Images[customTabPage.ImageIndex];
+                var image = ImageList.Images[TabPages[index].ImageIndex];
                 g.DrawImage(image, imageRect.Left, imageRect.Top, imageRect.Height, imageRect.Height);
 
-                TextRenderer.DrawText(g, customTabPage.Text, Font, textRect, TextColor, textFlags);
+                textRect.X = imageRect.Right + imagePadding;
+
             }
-            else
+
+            string tabText = TabPages[index].Text;
+            Color textColor = ForeColor;
+
+            if (isSelected || isHovered)
             {
-                TextRenderer.DrawText(g, customTabPage.Text, Font, tabRect, TextColor, textFlags);
+                textColor = SelectedForeColor;
+            }
+
+            using (SolidBrush textBrush = new SolidBrush(textColor))
+            {
+                TextRenderer.DrawText(g, tabText, Font, textRect, textColor, TextRenderingFlags);
             }
         }
     }
