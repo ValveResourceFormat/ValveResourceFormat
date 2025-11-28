@@ -219,6 +219,7 @@ namespace GUI.Controls
             };
 
             var checkedDirVpks = new Dictionary<string, bool>();
+            var scannedGamePaths = new HashSet<string>(SteamGames.Count, StringComparer.OrdinalIgnoreCase);
 
             bool VpkPredicate(ref FileSystemEntry entry)
             {
@@ -251,6 +252,12 @@ namespace GUI.Controls
 
             foreach (var (appID, appName, steamPath, gamePath) in SteamGames)
             {
+                // Skip if this game path was already scanned from another appID
+                if (!scannedGamePaths.Add(gamePath))
+                {
+                    continue;
+                }
+
                 var foundFiles = new List<TreeNode>();
 
                 // Find all the vpks in game folder
