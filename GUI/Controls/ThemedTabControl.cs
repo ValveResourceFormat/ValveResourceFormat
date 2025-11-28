@@ -49,7 +49,7 @@ namespace GUI.Controls
             set { tabHeight = this.AdjustForDPI(value); }
         }
 
-        private const TextFormatFlags TextRenderingFlags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine;
+        private const TextFormatFlags TextRenderingFlags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine;
 
         public ThemedTabControl() : base()
         {
@@ -59,7 +59,6 @@ namespace GUI.Controls
                      ControlStyles.OptimizedDoubleBuffer, true);
 
             DrawMode = TabDrawMode.OwnerDrawFixed;
-            SizeMode = TabSizeMode.Fixed;
 
             BaseTabWidth = 150;
             TabHeight = 25;
@@ -205,7 +204,13 @@ namespace GUI.Controls
 
             using (SolidBrush textBrush = new SolidBrush(textColor))
             {
-                TextRenderer.DrawText(g, tabText, Font, textRect, textColor, TextRenderingFlags);
+                var formatFlags = SizeMode switch
+                {
+                    TabSizeMode.Fixed => TextRenderingFlags | TextFormatFlags.Left,
+                    _ => TextRenderingFlags | TextFormatFlags.HorizontalCenter,
+                };
+
+                TextRenderer.DrawText(g, tabText, Font, textRect, textColor, formatFlags);
             }
         }
     }

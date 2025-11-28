@@ -228,19 +228,24 @@ namespace GUI
             // mainTabs
             // 
             mainTabs.Appearance = TabAppearance.Buttons;
-            mainTabs.BorderColor = System.Drawing.SystemColors.ControlDark;
+            mainTabs.BaseTabWidth = 150;
+            mainTabs.BorderColor = System.Drawing.Color.FromArgb(230, 230, 230);
             mainTabs.Dock = DockStyle.Fill;
-            mainTabs.HoverColor = System.Drawing.SystemColors.Highlight;
-            mainTabs.LineColor = System.Drawing.SystemColors.Highlight;
+            mainTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
+            mainTabs.HoverColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            mainTabs.ItemSize = new System.Drawing.Size(150, 25);
+            mainTabs.LineColor = System.Drawing.Color.FromArgb(99, 161, 255);
             mainTabs.Location = new System.Drawing.Point(0, 52);
             mainTabs.Margin = new Padding(0);
             mainTabs.Name = "mainTabs";
             mainTabs.Padding = new System.Drawing.Point(0, 0);
-            mainTabs.SelectedForeColor = System.Drawing.SystemColors.HighlightText;
+            mainTabs.SelectedForeColor = System.Drawing.Color.Black;
             mainTabs.SelectedIndex = 0;
-            mainTabs.SelectTabColor = System.Drawing.SystemColors.ControlLight;
+            mainTabs.SelectTabColor = System.Drawing.Color.FromArgb(244, 244, 244);
             mainTabs.Size = new System.Drawing.Size(749, 343);
-            mainTabs.TabColor = System.Drawing.SystemColors.ControlLight;
+            mainTabs.SizeMode = TabSizeMode.Fixed;
+            mainTabs.TabColor = System.Drawing.Color.FromArgb(244, 244, 244);
+            mainTabs.TabHeight = 25;
             mainTabs.TabIndex = 1;
             mainTabs.MouseClick += OnTabClick;
             // 
@@ -498,11 +503,11 @@ namespace GUI
             controlsBoxPanel.Size = new System.Drawing.Size(200, 48);
             controlsBoxPanel.TabIndex = 1;
             // 
-            // mainFormBottomPanel1
+            // mainFormBottomPanel
             // 
             mainFormBottomPanel.Dock = DockStyle.Bottom;
             mainFormBottomPanel.Location = new System.Drawing.Point(0, 395);
-            mainFormBottomPanel.Name = "mainFormBottomPanel1";
+            mainFormBottomPanel.Name = "mainFormBottomPanel";
             mainFormBottomPanel.Size = new System.Drawing.Size(749, 30);
             mainFormBottomPanel.TabIndex = 4;
             // 
