@@ -203,6 +203,7 @@ namespace GUI.Types.GLViewers
                 {
                     AddAnimationControls();
                     SetAvailableAnimations(animations);
+                    SetAnimationControllerUpdateHandler();
                 }
 
                 if (model.Skeleton.Bones.Length > 0)
@@ -261,8 +262,6 @@ namespace GUI.Types.GLViewers
                     materialGroupListBox.Items.AddRange(materialGroupNames);
                     materialGroupListBox.SelectedIndex = 0;
                 }
-
-                SetAnimationControllerUpdateHandler();
             }
 
             if (phys != null)
@@ -309,7 +308,7 @@ namespace GUI.Types.GLViewers
 
         protected void SetAnimationControllerUpdateHandler()
         {
-            animationController?.RegisterUpdateHandler((animation, frame) =>
+            void UiAnimationHandler(Animation animation, int frame)
             {
                 if (frame == -1)
                 {
@@ -350,7 +349,9 @@ namespace GUI.Types.GLViewers
                 animationTimeLabel.Text = $"Frame: {frameNumber,4} / {frameCount}\n" +
                     $"Time: {time:F2} / {totalTime:F2}\n" +
                     $"FPS: {fps:F2}\n";
-            });
+            }
+
+            animationController?.RegisterUpdateHandler(UiAnimationHandler);
         }
 
         private string GetModelStatsText()

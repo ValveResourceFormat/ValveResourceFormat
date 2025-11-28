@@ -86,7 +86,16 @@ namespace GUI.Types.GLViewers
         {
             if (clip != null)
             {
-                SetAnimationControllerUpdateHandler();
+                AddAnimationControls();
+
+                void BindAnimationUi()
+                {
+                    // Register update handler
+                    SetAnimationControllerUpdateHandler();
+
+                    // Set trackbar length to the animation length
+                    animationController.SetAnimation(animationController.ActiveAnimation);
+                }
 
                 if (animationPlayPause != null)
                 {
@@ -102,7 +111,7 @@ namespace GUI.Types.GLViewers
                             : clip.SecondaryAnimations[index - 1];
 
                         LoadClipScene(newClip, firstTime: false);
-                        SetAnimationControllerUpdateHandler();
+                        BindAnimationUi();
 
                         if (animationPlayPause != null)
                         {
@@ -115,9 +124,9 @@ namespace GUI.Types.GLViewers
                     animationComboBox.Items.AddRange([defaultSkeleton, .. secondarySkeletonIdentifiers]);
                     animationComboBox.SelectedIndex = 0;
                 }
-            }
 
-            base.AddUiControls();
+                BindAnimationUi();
+            }
         }
 
         protected override void OnPaint(object sender, RenderEventArgs e)
