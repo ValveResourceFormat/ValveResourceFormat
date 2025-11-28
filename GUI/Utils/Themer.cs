@@ -360,11 +360,6 @@ namespace GUI.Utils
                 tabPage.BackColor = tabPage.Parent?.BackColor ?? CurrentThemeColors.AppSoft;
                 tabPage.ForeColor = CurrentThemeColors.Contrast;
             }
-            if (control is LoadingFile loadingFile)
-            {
-                loadingFile.BackColor = CurrentThemeColors.App;
-                loadingFile.ForeColor = CurrentThemeColors.Contrast;
-            }
             if (control is ProgressBar pgBar)
             {
                 pgBar.BackColor = pgBar.Parent?.BackColor ?? CurrentThemeColors.AppSoft;
