@@ -70,6 +70,7 @@ namespace GUI
 
             mainTabs.ImageList = ImageList;
             mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
+            mainTabs.BackColor = Themer.CurrentThemeColors.App;
 
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);
@@ -108,7 +109,12 @@ namespace GUI
             Settings.Load();
             consoleTab.InitializeFont();
 
-            Application.SetColorMode(Settings.GetSystemColor());
+            if (Enum.IsDefined(typeof(Themer.Themes), Settings.Config.Theme))
+            {
+                Themer.CurrentThemeColors = Themer.ThemesColors[(Themer.Themes)Settings.Config.Theme];
+            }
+
+            Application.SetColorMode(Themer.CurrentThemeColors.ColorMode);
 
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
 
@@ -537,7 +543,7 @@ namespace GUI
                 }
             }
 
-            var seettingsTab = new TabPage("Settings")
+            var seettingsTab = new ThemedTabPage("Settings")
             {
                 ToolTipText = "Settings",
                 ImageIndex = ImageListLookup["_settings"],
@@ -618,7 +624,7 @@ namespace GUI
                 (_, _) => ResourceViewMode.Default,
             };
 
-            var tabTemp = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
+            var tabTemp = new ThemedTabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
                 Tag = new ExportData
@@ -1000,7 +1006,7 @@ namespace GUI
                 }
             }
 
-            var explorerTab = new TabPage("Explorer")
+            var explorerTab = new ThemedTabPage("Explorer")
             {
                 ToolTipText = "Explorer",
                 ImageIndex = ImageListLookup["_folder_star"],
@@ -1024,7 +1030,7 @@ namespace GUI
 
         private void OpenWelcome()
         {
-            var welcomeTab = new TabPage("Welcome")
+            var welcomeTab = new ThemedTabPage("Welcome")
             {
                 ToolTipText = "Welcome",
                 ImageIndex = ImageListLookup["_folder_star"],
@@ -1073,6 +1079,13 @@ namespace GUI
             Log.ClearConsole();
         }
 
+        protected override void OnTextChanged(EventArgs e)
+        {
+            base.OnTextChanged(e);
+
+            mainFormBottomPanel.SetTitleText(Text);
+        }
+
         private void MainForm_Shown(object sender, EventArgs e)
         {
             if (!Settings.Config.Update.CheckAutomatically)
@@ -1109,7 +1122,7 @@ namespace GUI
 
         private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e) => CheckForUpdatesCore(true);
 
-        private void CheckForUpdatesCore(bool showForm)
+        public void CheckForUpdatesCore(bool showForm)
         {
             checkForUpdatesToolStripMenuItem.Enabled = false;
 
@@ -1133,7 +1146,7 @@ namespace GUI
             form.ShowDialog(this);
         }
 
-        private async Task CheckForUpdates(bool showForm)
+        public async Task CheckForUpdates(bool showForm)
         {
             await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
 
@@ -1157,6 +1170,11 @@ namespace GUI
                     form.ShowDialog(this);
                 }
             }).ConfigureAwait(false);
+        }
+
+        private void openWelcomeScreenToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenWelcome();
         }
     }
 }

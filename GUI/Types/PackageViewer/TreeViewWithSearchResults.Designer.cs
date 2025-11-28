@@ -1,4 +1,5 @@
 using System;
+using GUI.Controls;
 using GUI.Forms;
 
 namespace GUI.Types.PackageViewer
@@ -35,7 +36,7 @@ namespace GUI.Types.PackageViewer
             mainTreeView = new BetterTreeView();
             rightPanel = new System.Windows.Forms.Panel();
             mainListView = new BetterListView();
-            searchTextBox = new System.Windows.Forms.TextBox();
+            searchTextBox = new ThemedTextBox();
             ((System.ComponentModel.ISupportInitialize)mainSplitContainer).BeginInit();
             mainSplitContainer.Panel1.SuspendLayout();
             mainSplitContainer.Panel2.SuspendLayout();
@@ -48,7 +49,7 @@ namespace GUI.Types.PackageViewer
             mainSplitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
             mainSplitContainer.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
             mainSplitContainer.Location = new System.Drawing.Point(0, 23);
-            mainSplitContainer.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            mainSplitContainer.Margin = new System.Windows.Forms.Padding(0);
             mainSplitContainer.Name = "mainSplitContainer";
             // 
             // mainSplitContainer.Panel1
@@ -69,7 +70,7 @@ namespace GUI.Types.PackageViewer
             // 
             mainTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
             mainTreeView.Location = new System.Drawing.Point(0, 0);
-            mainTreeView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            mainTreeView.Margin = new System.Windows.Forms.Padding(0);
             mainTreeView.Name = "mainTreeView";
             mainTreeView.ShowLines = false;
             mainTreeView.Size = new System.Drawing.Size(400, 377);
@@ -87,10 +88,14 @@ namespace GUI.Types.PackageViewer
             // 
             // mainListView
             // 
+            mainListView.BorderColor = System.Drawing.Color.White;
+            mainListView.BorderStyle = System.Windows.Forms.BorderStyle.None;
             mainListView.Dock = System.Windows.Forms.DockStyle.Fill;
+            mainListView.Highlight = System.Drawing.Color.White;
             mainListView.Location = new System.Drawing.Point(0, 0);
-            mainListView.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            mainListView.Margin = new System.Windows.Forms.Padding(0);
             mainListView.Name = "mainListView";
+            mainListView.OwnerDraw = true;
             mainListView.Size = new System.Drawing.Size(395, 377);
             mainListView.TabIndex = 3;
             mainListView.UseCompatibleStateImageBehavior = false;
@@ -99,8 +104,12 @@ namespace GUI.Types.PackageViewer
             // 
             // searchTextBox
             // 
+            searchTextBox.BackColor = System.Drawing.Color.FromArgb(244, 244, 244);
             searchTextBox.Dock = System.Windows.Forms.DockStyle.Top;
+            searchTextBox.ForeColor = System.Drawing.Color.Black;
             searchTextBox.Location = new System.Drawing.Point(0, 0);
+            searchTextBox.Margin = new System.Windows.Forms.Padding(0);
+            searchTextBox.Multiline = true;
             searchTextBox.Name = "searchTextBox";
             searchTextBox.PlaceholderText = "Search…";
             searchTextBox.Size = new System.Drawing.Size(800, 23);
@@ -132,6 +141,6 @@ namespace GUI.Types.PackageViewer
         private BetterListView mainListView;
         public BetterTreeView mainTreeView;
         private System.Windows.Forms.Panel rightPanel;
-        private System.Windows.Forms.TextBox searchTextBox;
+        private ThemedTextBox searchTextBox;
     }
 }

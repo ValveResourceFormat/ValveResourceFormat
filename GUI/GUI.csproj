@@ -51,4 +51,9 @@
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Controls\UnstyledPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+  </ItemGroup>
 </Project>

@@ -15,7 +15,7 @@ using ValveResourceFormat.IO;
 
 namespace GUI.Forms
 {
-    partial class ExtractProgressForm : Form
+    partial class ExtractProgressForm : ThemedForm
     {
         private class ExtractProgress(Action<string> SetProgress) : IProgress<string>
         {

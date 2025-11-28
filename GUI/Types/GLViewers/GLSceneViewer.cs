@@ -38,7 +38,7 @@ namespace GUI.Types.GLViewers
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private Font renderModeBoldFont;
-        private ComboBox renderModeComboBox;
+        private ThemedComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
         private SceneBackground baseBackground;
         private OctreeDebugRenderer staticOctreeRenderer;
@@ -626,7 +626,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            renderModeComboBox = UiControl.AddSelection("Render Mode", (_, i) =>
+            renderModeComboBox = (ThemedComboBox)UiControl.AddSelection("Render Mode", (_, i) =>
             {
                 if (renderModeCurrentIndex < -1)
                 {
@@ -652,6 +652,7 @@ namespace GUI.Types.GLViewers
             }, true, true);
 
             renderModeBoldFont = new Font(renderModeComboBox.Font, FontStyle.Bold);
+
             renderModeComboBox.DrawMode = DrawMode.OwnerDrawFixed;
             renderModeComboBox.DrawItem += OnRenderModeDrawItem;
 
@@ -691,6 +692,7 @@ namespace GUI.Types.GLViewers
 
                 e.DrawFocusRectangle();
             }
+
         }
 
         private void SetAvailableRenderModes(bool keepCurrentSelection = false)
@@ -737,7 +739,12 @@ namespace GUI.Types.GLViewers
 
                 renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
-                renderModeComboBox.Items.AddRange(renderModes.Select(x => x.Name).ToArray());
+
+                foreach (var renderMode in renderModes)
+                {
+                    renderModeComboBox.Items.Add(new ThemedComboBoxItem { Text = renderMode.Name, IsHeader = renderMode.IsHeader });
+                }
+
                 renderModeCurrentIndex = -10;
                 renderModeComboBox.SelectedIndex = selectedIndex;
                 renderModeComboBox.EndUpdate();

@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI.Controls;
 
@@ -12,6 +13,13 @@ partial class RendererControl : UserControl
     public RendererControl()
     {
         InitializeComponent();
+    }
+
+    protected override void OnCreateControl()
+    {
+        base.OnCreateControl();
+
+        Themer.ThemeControl(this);
     }
 
     public void AddControl(Control control)

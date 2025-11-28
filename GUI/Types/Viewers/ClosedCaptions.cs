@@ -36,13 +36,13 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(captions is not null);
 
-            var tabControl = new TabControl
+            var tabControl = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };
             tabOuterPage.Controls.Add(tabControl);
 
-            var tabPage = new TabPage("Captions");
+            var tabPage = new ThemedTabPage("Captions");
             var control = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -56,7 +56,7 @@ namespace GUI.Types.Viewers
             tabPage.Controls.Add(control);
             tabControl.Controls.Add(tabPage);
 
-            tabPage = new TabPage("Text");
+            tabPage = new ThemedTabPage("Text");
             var textControl = CodeTextBox.Create(captions.ToString());
             tabPage.Controls.Add(textControl);
             tabControl.Controls.Add(tabPage);

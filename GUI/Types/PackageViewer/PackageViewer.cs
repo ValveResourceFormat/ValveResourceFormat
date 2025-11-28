@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
