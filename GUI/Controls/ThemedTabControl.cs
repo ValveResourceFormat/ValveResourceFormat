@@ -49,7 +49,7 @@ namespace GUI.Controls
             set { tabHeight = this.AdjustForDPI(value); }
         }
 
-        private const TextFormatFlags TextRenderingFlags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine;
+        private const TextFormatFlags TextRenderingFlags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis;
 
         public ThemedTabControl() : base()
         {
@@ -190,8 +190,9 @@ namespace GUI.Controls
                 var image = ImageList.Images[TabPages[index].ImageIndex];
                 g.DrawImage(image, imageRect.Left, imageRect.Top, imageRect.Height, imageRect.Height);
 
+                var oldTextX = textRect.X;
                 textRect.X = imageRect.Right + imagePadding;
-
+                textRect.Width = textRect.Width - (textRect.X - oldTextX);
             }
 
             string tabText = TabPages[index].Text;
