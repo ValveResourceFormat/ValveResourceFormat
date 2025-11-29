@@ -52,7 +52,6 @@ namespace GUI
             findToolStripButton = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
             settingsToolStripMenuItem = new ToolStripMenuItem();
-            versionLabel = new ToolStripMenuItem();
             newVersionAvailableToolStripMenuItem = new ToolStripMenuItem();
             checkForUpdatesToolStripMenuItem = new ToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ToolStripMenuItem();
@@ -199,11 +198,6 @@ namespace GUI
             settingsToolStripMenuItem.Size = new System.Drawing.Size(81, 36);
             settingsToolStripMenuItem.Text = "Settings";
             settingsToolStripMenuItem.Click += OnSettingsItemClick;
-            // 
-            // versionLabel
-            // 
-            versionLabel.Name = "versionLabel";
-            versionLabel.Size = new System.Drawing.Size(32, 19);
             // 
             // newVersionAvailableToolStripMenuItem
             // 
@@ -582,7 +576,6 @@ namespace GUI
         private ToolStripMenuItem vpkEditCreateFolderToolStripMenuItem;
         private ToolStripMenuItem vpkEditRemoveThisFolderToolStripMenuItem;
         private ToolStripMenuItem vpkEditRemoveThisFileToolStripMenuItem;
-        private ToolStripMenuItem versionLabel;
         private ToolStripMenuItem copyFileNameOnDiskToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator3;
         private ToolStripSeparator toolStripSeparator4;

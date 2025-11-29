@@ -17,6 +17,16 @@ public partial class MainFormBottomPanel : UserControl
         InitializeComponent();
     }
 
+    public void SetVersionText(string text)
+    {
+        this.versionLabel.Text = text;
+    }
+
+    public void AppendToVersionText(string text)
+    {
+        this.versionLabel.Text += text;
+    }
+
     public void SetTitleText(string text)
     {
         this.label1.Text = text;

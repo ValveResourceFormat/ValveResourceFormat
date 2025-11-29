@@ -94,19 +94,19 @@ namespace GUI
                     versionPlus += 8;
                 }
 
-                versionLabel.Text = string.Concat("v", version[..versionPlus]);
+                mainFormBottomPanel.SetVersionText(string.Concat("v", version[..versionPlus]));
             }
             else
             {
-                versionLabel.Text = string.Concat("v", version);
+                mainFormBottomPanel.SetVersionText(string.Concat("v", version));
 
 #if !CI_RELEASE_BUILD // Set in Directory.Build.props
-                versionLabel.Text += "-dev";
+                mainFormBottomPanel.AppendToVersionText("-dev");
 #endif
             }
 
 #if DEBUG
-            versionLabel.Text += " (DEBUG)";
+            mainFormBottomPanel.AppendToVersionText(" (DEBUG)");
 #endif
 
             searchForm = new SearchForm();
