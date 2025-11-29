@@ -114,9 +114,9 @@ namespace GUI.Controls
             {
                 Rectangle rect = base.DisplayRectangle;
 
-                // this makes the page inside the tab control flush with the edges
-
-                return new Rectangle(rect.Left - this.AdjustForDPI(4), rect.Top - this.AdjustForDPI(4), rect.Width + this.AdjustForDPI(8), rect.Height + this.AdjustForDPI(4));
+                // extend the client area by 4 pixels, this makes the page inside the tab control flush with the edges
+                var offset = 4;
+                return new Rectangle(rect.Left - this.AdjustForDPI(offset), rect.Top - this.AdjustForDPI(offset), rect.Width + this.AdjustForDPI(offset * 2), rect.Height + this.AdjustForDPI(offset * 2));
             }
         }
 
