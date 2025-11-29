@@ -64,6 +64,11 @@ namespace GUI
             GLFWProvider.EnsureInitialized();
         }
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+        }
+
         public MainForm(string[] args)
         {
             InitializeComponent();

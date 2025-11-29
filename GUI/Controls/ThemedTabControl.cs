@@ -49,6 +49,14 @@ namespace GUI.Controls
             set { tabHeight = this.AdjustForDPI(value); }
         }
 
+        private int tabTopRadius;
+        [Description("Roundness of the corners of the top of tabs"), Category("Appearance")]
+        public int TabTopRadius
+        {
+            get { return tabTopRadius; }
+            set { tabTopRadius = this.AdjustForDPI(Math.Max(value, 0)); }
+        }
+
         private const TextFormatFlags TextRenderingFlags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis;
 
         public ThemedTabControl() : base()
@@ -62,6 +70,7 @@ namespace GUI.Controls
 
             BaseTabWidth = 150;
             TabHeight = 25;
+            TabTopRadius = 0;
 
             ItemSize = new Size(BaseTabWidth, TabHeight);
         }
@@ -80,9 +89,6 @@ namespace GUI.Controls
             ForeColor = Themer.CurrentThemeColors.ContrastSoft;
             LineColor = Themer.CurrentThemeColors.Accent;
             HoverColor = Themer.CurrentThemeColors.Accent;
-
-            Padding = new Point(16, 16);
-            Margin = new Padding(16);
         }
 
         protected override void InitLayout()
@@ -175,9 +181,17 @@ namespace GUI.Controls
 
             if (isSelected) tabColor = SelectTabColor;
             else if (isHovered) tabColor = HoverColor;
-
             using var brush = new SolidBrush(tabColor);
-            g.FillRectangle(brush, tabRect);
+
+            if (TabTopRadius > 0)
+            {
+                using var roundedRect = Themer.GetRoundedRect(tabRect, TabTopRadius, true);
+                g.FillPath(brush, roundedRect);
+            }
+            else
+            {
+                g.FillRectangle(brush, tabRect);
+            }
 
             Rectangle textRect = new Rectangle(
                 tabRect.X,

@@ -19,6 +19,10 @@ namespace GUI.Controls
             BackColor = Themer.CurrentThemeColors.AppSoft;
             ForeColor = Themer.CurrentThemeColors.Contrast;
 
+            label1.BackColor = Themer.CurrentThemeColors.AppSoft;
+            progressBar1.BackColor = Themer.CurrentThemeColors.AppSoft;
+            tableLayoutPanel1.BackColor = Themer.CurrentThemeColors.AppSoft;
+
             Dock = DockStyle.Fill;
         }
     }

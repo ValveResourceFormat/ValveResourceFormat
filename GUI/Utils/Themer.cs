@@ -403,6 +403,48 @@ namespace GUI.Utils
             // Return the new color
             return Color.FromArgb(color.A, r, g, b);
         }
+
+        public static GraphicsPath GetRoundedRect(Rectangle bounds, int radius, bool onlyTop = false)
+        {
+            int diameter = radius * 2;
+            Rectangle arc = new Rectangle(bounds.Location.X, bounds.Location.Y, diameter, diameter);
+            GraphicsPath path = new GraphicsPath();
+
+            if (radius == 0)
+            {
+                path.AddRectangle(bounds);
+                return path;
+            }
+
+            // top left arc  
+            path.AddArc(arc, 180, 90);
+
+            // top right arc  
+            arc.X = bounds.Right - diameter;
+            path.AddArc(arc, 270, 90);
+
+            if (onlyTop)
+            {
+                path.AddLine(bounds.Right, bounds.Y + radius, bounds.Right, bounds.Bottom);
+                // bottom edge
+                path.AddLine(bounds.Right, bounds.Bottom, bounds.X, bounds.Bottom);
+                // left edge
+                path.AddLine(bounds.X, bounds.Bottom, bounds.X, bounds.Y + radius);
+            }
+            else
+            {
+                // bottom right arc  
+                arc.Y = bounds.Bottom - diameter;
+                path.AddArc(arc, 0, 90);
+
+                // bottom left arc 
+                arc.X = bounds.Left;
+                path.AddArc(arc, 90, 90);
+            }
+
+            path.CloseFigure();
+            return path;
+        }
     }
 
     // Custom Renderers for Menus and ToolBars

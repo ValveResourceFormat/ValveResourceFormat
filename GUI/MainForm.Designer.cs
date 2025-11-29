@@ -228,7 +228,7 @@ namespace GUI
             // mainTabs
             // 
             mainTabs.Appearance = TabAppearance.Buttons;
-            mainTabs.BaseTabWidth = 150;
+            mainTabs.BaseTabWidth = 250;
             mainTabs.BorderColor = System.Drawing.Color.FromArgb(230, 230, 230);
             mainTabs.Dock = DockStyle.Fill;
             mainTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
@@ -236,9 +236,9 @@ namespace GUI
             mainTabs.ItemSize = new System.Drawing.Size(150, 25);
             mainTabs.LineColor = System.Drawing.Color.FromArgb(99, 161, 255);
             mainTabs.Location = new System.Drawing.Point(0, 52);
-            mainTabs.Margin = new Padding(0);
+            mainTabs.Margin = new Padding(16);
             mainTabs.Name = "mainTabs";
-            mainTabs.Padding = new System.Drawing.Point(0, 0);
+            mainTabs.Padding = new System.Drawing.Point(16, 16);
             mainTabs.SelectedForeColor = System.Drawing.Color.Black;
             mainTabs.SelectedIndex = 0;
             mainTabs.SelectTabColor = System.Drawing.Color.FromArgb(244, 244, 244);
@@ -247,6 +247,7 @@ namespace GUI
             mainTabs.TabColor = System.Drawing.Color.FromArgb(244, 244, 244);
             mainTabs.TabHeight = 25;
             mainTabs.TabIndex = 1;
+            mainTabs.TabTopRadius = 8;
             mainTabs.MouseClick += OnTabClick;
             // 
             // tabContextMenuStrip

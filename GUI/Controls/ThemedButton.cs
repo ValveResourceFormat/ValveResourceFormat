@@ -113,7 +113,8 @@ namespace GUI.Controls
             backBrush.Color = adjustedBackColor;
             textBrush.Color = adjustedForeColor;
 
-            FillRoundedRectangle(pevent.Graphics, backBrush, rect, this.AdjustForDPI(CornerRadius));
+            using var roundedRect = Themer.GetRoundedRect(rect, this.AdjustForDPI(CornerRadius));
+            pevent.Graphics.FillPath(backBrush, roundedRect);
 
             TextRenderer.DrawText(pevent.Graphics, Text, Font, ClientRectangle, ForeColor, LabelFormatFlags);
 
@@ -138,46 +139,6 @@ namespace GUI.Controls
                 imageRect.Y = imageRect.Y - ((imageRect.Height - rect.Height) / 2);
 
                 pevent.Graphics.DrawImage(Image, imageRect);
-            }
-        }
-
-        private static GraphicsPath RoundedRect(Rectangle bounds, int radius)
-        {
-            int diameter = radius * 2;
-            Size size = new Size(diameter, diameter);
-            Rectangle arc = new Rectangle(bounds.Location, size);
-            GraphicsPath path = new GraphicsPath();
-
-            if (radius == 0)
-            {
-                path.AddRectangle(bounds);
-                return path;
-            }
-
-            // top left arc  
-            path.AddArc(arc, 180, 90);
-
-            // top right arc  
-            arc.X = bounds.Right - diameter;
-            path.AddArc(arc, 270, 90);
-
-            // bottom right arc  
-            arc.Y = bounds.Bottom - diameter;
-            path.AddArc(arc, 0, 90);
-
-            // bottom left arc 
-            arc.X = bounds.Left;
-            path.AddArc(arc, 90, 90);
-
-            path.CloseFigure();
-            return path;
-        }
-
-        private static void FillRoundedRectangle(Graphics graphics, Brush brush, Rectangle bounds, int cornerRadius)
-        {
-            using (GraphicsPath path = RoundedRect(bounds, cornerRadius))
-            {
-                graphics.FillPath(brush, path);
             }
         }
 
