@@ -195,6 +195,16 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        protected override void OnFirstPaint()
+        {
+            base.OnFirstPaint();
+
+            var location = Camera.Location;
+            Camera.SetLocation(Camera.Location - Camera.GetForwardVector() * 150f);
+            Camera.SaveCurrentForTransition();
+            Camera.SetLocation(location);
+        }
+
         protected override void AddUiControls()
         {
             AddRenderModeSelectionControl();
@@ -224,14 +234,22 @@ namespace GUI.Types.GLViewers
             savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
             UiControl.AddControl(savedCameraPositionsControl);
 
-            cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
+            if (LoadedWorld != null && LoadedWorld.CameraMatrices.Count > 0)
             {
-                if (index > 0)
+                cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
                 {
-                    Camera.SaveCurrentForTransition();
-                    Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
-                }
-            });
+                    if (index > 0)
+                    {
+                        Camera.SaveCurrentForTransition();
+                        Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
+                    }
+                });
+                cameraComboBox.BeginUpdate();
+                cameraComboBox.Items.Add("Set view to camera…");
+                cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
+                cameraComboBox.SelectedIndex = 0;
+                cameraComboBox.EndUpdate();
+            }
 
             UiControl.AddDivider();
 
@@ -280,15 +298,6 @@ namespace GUI.Types.GLViewers
                 if (uniquePhysicsGroups.Count > 0)
                 {
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
-                }
-
-                if (LoadedWorld.CameraMatrices.Count > 0)
-                {
-                    cameraComboBox.BeginUpdate();
-                    cameraComboBox.Items.Add("Set view to camera…");
-                    cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
-                    cameraComboBox.SelectedIndex = 0;
-                    cameraComboBox.EndUpdate();
                 }
 
                 UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
