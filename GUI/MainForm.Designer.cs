@@ -222,12 +222,10 @@ namespace GUI
             // mainTabs
             // 
             mainTabs.Appearance = TabAppearance.Buttons;
-            mainTabs.BaseTabWidth = 250;
             mainTabs.BorderColor = System.Drawing.Color.FromArgb(230, 230, 230);
             mainTabs.Dock = DockStyle.Fill;
             mainTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
             mainTabs.HoverColor = System.Drawing.Color.FromArgb(99, 161, 255);
-            mainTabs.ItemSize = new System.Drawing.Size(150, 25);
             mainTabs.LineColor = System.Drawing.Color.FromArgb(99, 161, 255);
             mainTabs.Location = new System.Drawing.Point(0, 52);
             mainTabs.Margin = new Padding(16);
@@ -239,7 +237,6 @@ namespace GUI
             mainTabs.Size = new System.Drawing.Size(749, 343);
             mainTabs.SizeMode = TabSizeMode.Fixed;
             mainTabs.TabColor = System.Drawing.Color.FromArgb(244, 244, 244);
-            mainTabs.TabHeight = 25;
             mainTabs.TabIndex = 1;
             mainTabs.TabTopRadius = 8;
             mainTabs.MouseClick += OnTabClick;
