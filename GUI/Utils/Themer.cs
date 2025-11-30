@@ -14,89 +14,97 @@ namespace GUI.Utils
         public class ThemeColors
         {
             /// <summary>For background elements like the window itself and titlebars.</summary>
-            public required Color App { get; set; }
+            public required Color App { get; init; }
             /// <summary>For element which need to sit between App and AppSoft colors.</summary>
-            public required Color AppMiddle { get; set; }
+            public required Color AppMiddle { get; init; }
             /// <summary>For element which need to stand out from the background.</summary>
-            public required Color AppSoft { get; set; }
+            public required Color AppSoft { get; init; }
 
             /// <summary>For borders meant to visually separate parts of the interfact.</summary>
-            public required Color Border { get; set; }
+            public required Color Border { get; init; }
             /// <summary>For secondary borders or padding which need to not stand out too much from the background.</summary>
-            public required Color BorderSoft { get; set; }
+            public required Color BorderSoft { get; init; }
 
             /// <summary>For any element which needs contrast from the background, like text</summary>
-            public required Color Contrast { get; set; }
+            public required Color Contrast { get; init; }
             /// <summary>For any element which needs contrast but doesn't have to be as visible, like inactive text or scrollbars</summary>
-            public required Color ContrastSoft { get; set; }
+            public required Color ContrastSoft { get; init; }
 
             /// <summary>For hover state of buttons in the control box except close, (_ [] buttons)</summary>
-            public required Color ControlBoxHighlight { get; set; }
+            public required Color ControlBoxHighlight { get; init; }
             /// <summary>For hover state of close button in the control box, (X button)</summary>
-            public required Color ControlBoxHighlightCloseButton { get; set; }
+            public required Color ControlBoxHighlightCloseButton { get; init; }
 
             /// <summary>For anything that needs to be accented like hovering over a tab</summary>
-            public required Color Accent { get; set; }
+            public required Color Accent { get; init; }
 
             /// <summary>Sets special windows flags on forms which changes some otherwise unthemeable portions to dark/light</summary>
-            public required SystemColorMode ColorMode { get; set; }
+            public required SystemColorMode ColorMode { get; init; }
         }
 
-        public enum Themes
+        // This enum is used to store the setting of which theme the user has selected, keep consistent.
+        public enum AppTheme
         {
-            Dark,
-            Light
+            System = 0,
+            Light = 1,
+            Dark = 2,
         }
 
-        public static readonly Dictionary<Themes, ThemeColors> ThemesColors = new Dictionary<Themes, ThemeColors>
+        private static readonly ThemeColors DarkTheme = new()
         {
-            { Themes.Dark,
+            App = Color.FromArgb(22, 25, 32),
+            AppMiddle = Color.FromArgb(28, 31, 38),
+            AppSoft = Color.FromArgb(34, 39, 51),
 
-                new ThemeColors {
-                    App = Color.FromArgb(22, 25, 32),
-                    AppMiddle = Color.FromArgb(28, 31, 38),
-                    AppSoft = Color.FromArgb(34, 39, 51),
+            Border = Color.FromArgb(51, 57, 74),
+            BorderSoft = Color.FromArgb(41, 45, 55),
 
-                    Border = Color.FromArgb(51, 57, 74),
-                    BorderSoft = Color.FromArgb(41, 45, 55),
+            Contrast = Color.White,
+            ContrastSoft = Color.FromArgb(158, 159, 164),
 
-                    Contrast = Color.White,
-                    ContrastSoft = Color.FromArgb(158, 159, 164),
+            ControlBoxHighlight = Color.FromArgb(67, 67, 67),
+            ControlBoxHighlightCloseButton = Color.FromArgb(240, 20, 20),
 
-                    ControlBoxHighlight = Color.FromArgb(67, 67, 67),
-                    ControlBoxHighlightCloseButton = Color.FromArgb(240, 20, 20),
+            Accent = Color.FromArgb(99, 161, 255),
 
-                    Accent = Color.FromArgb(99, 161, 255),
-
-                    ColorMode = SystemColorMode.Dark,
-                }
-            },
-
-            { Themes.Light,
-                new ThemeColors
-                {
-                    App = Color.FromArgb(218, 218, 218),
-                    AppMiddle = Color.FromArgb(231, 236, 236),
-                    AppSoft = Color.FromArgb(244, 244, 244),
-
-                    Border = Color.FromArgb(230, 230, 230),
-                    BorderSoft = Color.FromArgb(245, 245, 245),
-
-                    Contrast = Color.Black,
-                    ContrastSoft = Color.FromArgb(109, 109, 109),
-
-                    ControlBoxHighlight = Color.FromArgb(170, 170, 170),
-                    ControlBoxHighlightCloseButton = Color.FromArgb(240, 20, 20),
-
-                    Accent = Color.FromArgb(99, 161, 255),
-
-                    ColorMode = SystemColorMode.Classic,
-                }
-            },
-
+            ColorMode = SystemColorMode.Dark,
         };
 
-        public static ThemeColors CurrentThemeColors { get; set; } = ThemesColors[Application.IsDarkModeEnabled ? Themes.Dark : Themes.Light];
+        private static readonly ThemeColors LightTheme = new()
+        {
+            App = Color.FromArgb(218, 218, 218),
+            AppMiddle = Color.FromArgb(231, 236, 236),
+            AppSoft = Color.FromArgb(244, 244, 244),
+
+            Border = Color.FromArgb(230, 230, 230),
+            BorderSoft = Color.FromArgb(245, 245, 245),
+
+            Contrast = Color.Black,
+            ContrastSoft = Color.FromArgb(109, 109, 109),
+
+            ControlBoxHighlight = Color.FromArgb(170, 170, 170),
+            ControlBoxHighlightCloseButton = Color.FromArgb(240, 20, 20),
+
+            Accent = Color.FromArgb(99, 161, 255),
+
+            ColorMode = SystemColorMode.Classic,
+        };
+
+        public static ThemeColors CurrentThemeColors { get; private set; } = LightTheme;
+
+        public static void InitializeTheme()
+        {
+            var theme = (AppTheme)Settings.Config.Theme;
+
+            if (theme == AppTheme.System || !Enum.IsDefined<AppTheme>(theme))
+            {
+                theme = Application.IsDarkModeEnabled ? AppTheme.Dark : AppTheme.Light;
+            }
+
+            CurrentThemeColors = theme == AppTheme.Dark ? DarkTheme : LightTheme;
+
+            Application.SetColorMode(CurrentThemeColors.ColorMode);
+        }
 
         public static void ApplyTheme(Form Form)
         {
@@ -391,9 +399,9 @@ namespace GUI.Utils
             brightnessFactor = Math.Max(0, brightnessFactor);
 
             // Adjust each color channel by multiplying it with the brightness factor
-            int r = (int)(color.R * brightnessFactor);
-            int g = (int)(color.G * brightnessFactor);
-            int b = (int)(color.B * brightnessFactor);
+            var r = (int)(color.R * brightnessFactor);
+            var g = (int)(color.G * brightnessFactor);
+            var b = (int)(color.B * brightnessFactor);
 
             // Ensure values don't exceed 255
             r = Math.Min(255, r);
@@ -406,9 +414,9 @@ namespace GUI.Utils
 
         public static GraphicsPath GetRoundedRect(Rectangle bounds, int radius, bool onlyTop = false)
         {
-            int diameter = radius * 2;
-            Rectangle arc = new Rectangle(bounds.Location.X, bounds.Location.Y, diameter, diameter);
-            GraphicsPath path = new GraphicsPath();
+            var diameter = radius * 2;
+            var arc = new Rectangle(bounds.Location.X, bounds.Location.Y, diameter, diameter);
+            var path = new GraphicsPath();
 
             if (radius == 0)
             {
@@ -475,9 +483,7 @@ namespace GUI.Utils
         // For Normal Buttons on a ToolBar:
         protected override void OnRenderButtonBackground(ToolStripItemRenderEventArgs e)
         {
-            var button = e.Item as ToolStripButton;
-
-            if (button is null)
+            if (e.Item is not ToolStripButton button)
             {
                 return;
             }

@@ -10,7 +10,7 @@ namespace GUI.Utils
 {
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 12;
+        private const int SettingsFileCurrentVersion = 11;
         private const int RecentFilesLimit = 20;
 
         [Flags]

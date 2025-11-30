@@ -32,8 +32,7 @@ namespace GUI.Forms
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
             textViewerFontSize.Value = Settings.Config.TextViewerFontSize;
 
-            themeComboBox.Items.AddRange(Enum.GetNames<Themer.Themes>());
-            themeComboBox.Items.Add("System");
+            themeComboBox.Items.AddRange(Enum.GetNames<Themer.AppTheme>());
             themeComboBox.SelectedIndex = Settings.Config.Theme;
 
             var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
