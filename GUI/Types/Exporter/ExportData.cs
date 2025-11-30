@@ -7,5 +7,6 @@ namespace GUI.Types.Exporter
     {
         public PackageEntry? PackageEntry { get; set; }
         public required VrfGuiContext VrfGuiContext { get; set; }
+        public IDisposable? DisposableContents { get; set; }
     }
 }

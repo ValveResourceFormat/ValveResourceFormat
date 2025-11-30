@@ -640,6 +640,7 @@ namespace GUI
                 if (oldTag is ExportData exportData)
                 {
                     exportData.VrfGuiContext.Dispose();
+                    exportData.DisposableContents?.Dispose();
                 }
             }
 
@@ -743,6 +744,15 @@ namespace GUI
                         {
                             viewer.Dispose();
                             return; // closed tab before it loaded
+                        }
+
+                        if (tab.Tag is ExportData exportData)
+                        {
+                            exportData.DisposableContents = viewer;
+                        }
+                        else
+                        {
+                            Debug.Assert(false);
                         }
 
                         try
