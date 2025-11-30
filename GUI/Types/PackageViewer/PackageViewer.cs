@@ -20,7 +20,9 @@ namespace GUI.Types.PackageViewer
     class PackageViewer(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
 #pragma warning restore CA1001
     {
+#pragma warning disable CA2213 // TODO: Can we fix TreeView to be owned by this class?
         private TreeViewWithSearchResults TreeView;
+#pragma warning restore CA2213
         private VirtualPackageNode VirtualRoot;
         private BetterTreeNode LastContextTreeNode;
         private bool IsEditingPackage; // TODO: Allow editing existing vpks (but not chunked ones)
@@ -602,7 +604,7 @@ namespace GUI.Types.PackageViewer
 
         public void Dispose()
         {
-            TreeView.Dispose();
+            TreeView = null;
         }
     }
 }
