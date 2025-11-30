@@ -3,5 +3,7 @@ SetParent
 SetWindowLongPtr
 SetWindowTheme
 SHChangeNotify
+timeBeginPeriod
+timeEndPeriod
 WINDOW_EX_STYLE
 WINDOW_STYLE

@@ -543,15 +543,21 @@ namespace GUI.Types.GLViewers
                 //Update the entity properties window if it was opened
                 if (entityInfoForm != null)
                 {
-                    ShowSceneNodeDetails(sceneNode);
+                    Program.MainForm.Invoke(() =>
+                    {
+                        ShowSceneNodeDetails(sceneNode);
+                    });
                 }
                 return;
             }
 
             if (pickingResponse.Intent == PickingIntent.Details)
             {
-                ShowSceneNodeDetails(sceneNode);
-                entityInfoForm.EntityInfoControl.Focus();
+                Program.MainForm.Invoke(() =>
+                {
+                    ShowSceneNodeDetails(sceneNode);
+                    entityInfoForm.EntityInfoControl.Focus();
+                });
                 return;
             }
 
@@ -641,7 +647,10 @@ namespace GUI.Types.GLViewers
                 }
             };
 
-            Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+            Program.MainForm.Invoke(() =>
+            {
+                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+            });
         }
 
         private void ShowEntityProperties(SceneNode sceneNode)

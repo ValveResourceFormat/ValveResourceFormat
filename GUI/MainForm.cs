@@ -111,6 +111,7 @@ namespace GUI
             Application.SetColorMode(Settings.GetSystemColor());
 
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
+            RenderLoopThread.Initialize(this);
 
 #if DEBUG
             var shadersMenuItem = new ToolStripMenuItem("Validate shaders");
@@ -424,6 +425,8 @@ namespace GUI
 
             //Close the requested tab
             Log.Info(nameof(MainForm), $"Closing {tab.Text}");
+
+            RenderLoopThread.UnsetIfClosingParentOfCurrentGLControl(tab);
 
             if (isClosingCurrentTab && tabIndex > 0)
             {

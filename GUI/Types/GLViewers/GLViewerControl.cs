@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Renderer;
@@ -40,6 +41,7 @@ namespace GUI.Types.GLViewers
         protected readonly PostProcessRenderer postProcessRenderer;
 
         protected Form FullScreenForm { get; private set; }
+        public bool IsFullScreen => FullScreenForm != null;
         protected PickingTexture Picker { get; set; }
 
         bool MouseOverRenderArea;
@@ -49,6 +51,7 @@ namespace GUI.Types.GLViewers
         protected TrackedKeys CurrentlyPressedKeys;
         protected Point LastMouseDelta { get; private set; }
 
+        private readonly Lock glLock = new();
         private long lastUpdate;
         private long lastFpsUpdate;
         private string lastFps;
@@ -76,6 +79,8 @@ namespace GUI.Types.GLViewers
 
         public Control InitializeUiControls()
         {
+            using var lockedGl = glLock.EnterScope();
+
             GLNativeWindow.MakeCurrent();
 
             GLControl = new GLControl()
@@ -97,7 +102,6 @@ namespace GUI.Types.GLViewers
             GLControl.GotFocus += OnGotFocus;
             GLControl.LostFocus += OnLostFocus;
             GLControl.VisibleChanged += OnVisibleChanged;
-            Program.MainForm.Activated += OnAppActivated;
 
             UiControl = new()
             {
@@ -110,7 +114,6 @@ namespace GUI.Types.GLViewers
 
 #if DEBUG // We want reload shaders to be the top most button
             ShaderLoader.ShaderHotReload.SetControl(GLControl);
-            CodeHotReloadService.CodeHotReloaded += OnCodeHotReloaded;
 
             var button = new Button
             {
@@ -130,6 +133,10 @@ namespace GUI.Types.GLViewers
             AddUiControls();
 
             UiControl.ResumeLayout();
+
+            GLNativeWindow.Context.MakeNoneCurrent();
+            RenderLoopThread.RegisterInstance();
+            RenderLoopThread.SetCurrentGLControl(this);
 
             return UiControl;
         }
@@ -232,6 +239,11 @@ namespace GUI.Types.GLViewers
         {
             if (GLControl is not null)
             {
+                using var lockedGl = glLock.EnterScope();
+
+                RenderLoopThread.UnsetCurrentGLControl(this);
+                RenderLoopThread.UnregisterInstance();
+
                 GLControl.Paint -= OnPaint;
                 GLControl.Resize -= OnResize;
                 GLControl.MouseEnter -= OnMouseEnter;
@@ -249,13 +261,8 @@ namespace GUI.Types.GLViewers
                 UiControl.Dispose();
             }
 
-            Program.MainForm.Activated -= OnAppActivated;
             FullScreenForm?.Dispose();
             GLNativeWindow?.Dispose();
-
-#if DEBUG
-            CodeHotReloadService.CodeHotReloaded -= OnCodeHotReloaded;
-#endif
         }
 
         private void OnVisibleChanged(object sender, EventArgs e)
@@ -509,6 +516,8 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(GLNativeWindow is not null);
 
+            using var lockedGl = glLock.EnterScope();
+
             GLNativeWindow.MakeCurrent();
             GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
 
@@ -585,30 +594,32 @@ namespace GUI.Types.GLViewers
 
         private void OnPaint(object sender, EventArgs e)
         {
+            RenderLoopThread.SetCurrentGLControl(this);
+        }
+
+        public void Draw(long currentTime, bool isPaused)
+        {
             if (FirstPaint)
             {
                 OnFirstPaint();
                 FirstPaint = false;
             }
 
-            Application.DoEvents();
-
             if (GLControl.IsDisposed || !GLControl.Visible)
             {
                 return;
             }
-
-            GLNativeWindow.MakeCurrent();
 
             if (MainFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
             {
                 return;
             }
 
-            var isActiveForm = Form.ActiveForm != null;
+            using var lockedGl = glLock.EnterScope();
+
+            GLNativeWindow.MakeCurrent();
 
             var isTextureViewer = this is GLTextureViewer;
-            var currentTime = Stopwatch.GetTimestamp();
             var elapsed = Stopwatch.GetElapsedTime(lastUpdate, currentTime);
             lastUpdate = currentTime;
 
@@ -671,15 +682,29 @@ namespace GUI.Types.GLViewers
 
             BlitFramebufferToScreen();
 
-            if (Settings.Config.DisplayFps != 0 && isActiveForm && !isTextureViewer)
+            if (!isTextureViewer)
             {
-                TextRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
+                if (isPaused)
                 {
-                    X = 2f,
-                    Y = MainFramebuffer.Height - 4f,
-                    Scale = 14f,
-                    Text = lastFps
-                });
+                    TextRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
+                    {
+                        X = 2f,
+                        Y = MainFramebuffer.Height - 4f,
+                        Scale = 14f,
+                        Color = new(255, 100, 0),
+                        Text = "Paused"
+                    });
+                }
+                else if (Settings.Config.DisplayFps != 0)
+                {
+                    TextRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
+                    {
+                        X = 2f,
+                        Y = MainFramebuffer.Height - 4f,
+                        Scale = 14f,
+                        Text = lastFps
+                    });
+                }
             }
 
             TextRenderer.Render();
@@ -687,16 +712,7 @@ namespace GUI.Types.GLViewers
             GLNativeWindow.Context.SwapBuffers();
             Picker?.TriggerEventIfAny();
 
-            if (isActiveForm)
-            {
-                // Infinite loop of invalidates causes a bug with message box dialogs not actually appearing in front,
-                // requiring user to press Alt key for it to appear. Checking for active form also pauses rendering while
-                // the app is not focused. We don't have a reference to the file save/open dialog, thus ActiveForm will be null.
-                //
-                // Repro: open a renderer tab, right click on tab to export, save with name that would cause "file already exists" popup.
-                //
-                GLControl.Invalidate();
-            }
+            GLNativeWindow.Context.MakeNoneCurrent();
         }
 
         private void BlitFramebufferToScreen()
@@ -733,7 +749,6 @@ namespace GUI.Types.GLViewers
             }
 
             OnResize();
-            GLControl.Invalidate();
         }
 
         protected virtual void OnResize()
@@ -744,6 +759,8 @@ namespace GUI.Types.GLViewers
             {
                 return;
             }
+
+            using var lockedGl = glLock.EnterScope();
 
             GLNativeWindow.MakeCurrent();
 
@@ -771,16 +788,13 @@ namespace GUI.Types.GLViewers
 
             Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
+
+            GLNativeWindow.Context.MakeNoneCurrent();
         }
 
         protected virtual void OnFirstPaint()
         {
             //
-        }
-
-        private void OnAppActivated(object sender, EventArgs e)
-        {
-            GLControl.Invalidate();
         }
 
         private void OnGotFocus(object sender, EventArgs e)
@@ -831,12 +845,5 @@ namespace GUI.Types.GLViewers
 
             Clipboard.SetDataObject(data, copy: true);
         }
-
-#if DEBUG
-        private void OnCodeHotReloaded(object sender, EventArgs e)
-        {
-            GLControl.Invalidate();
-        }
-#endif
     }
 }
