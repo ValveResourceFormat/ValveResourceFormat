@@ -410,6 +410,7 @@ namespace GUI.Types.Renderer
                 APIVersion = GLEnvironment.RequiredVersion,
                 Flags = GLEnvironment.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
                 StartVisible = false,
+                Title = "Source 2 Viewer Shader Validator"
             });
 
             window.MakeCurrent();

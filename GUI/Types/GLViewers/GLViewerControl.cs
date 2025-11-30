@@ -500,6 +500,7 @@ namespace GUI.Types.GLViewers
                     StartVisible = false,
                     WindowBorder = OpenTK.Windowing.Common.WindowBorder.Hidden,
                     WindowState = OpenTK.Windowing.Common.WindowState.Normal,
+                    Title = "Source 2 Viewer OpenGL",
                 };
                 GLNativeWindow = new(settings);
 

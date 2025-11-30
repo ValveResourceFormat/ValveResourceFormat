@@ -130,6 +130,7 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             ClientSize = new(4, 4),
             DepthBits = null,
             StencilBits = null,
+            Title = "Source 2 Viewer Texture Decoder",
         });
 
         GLWindowContext.MakeCurrent();
