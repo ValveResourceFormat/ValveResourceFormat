@@ -104,7 +104,7 @@ namespace GUI.Types.Renderer
             return new Vector3(yawCos * pitchCos, yawSin * pitchCos, pitchSin);
         }
 
-        private Vector3 GetUpVector()
+        public Vector3 GetUpVector()
         {
             var yawSin = MathF.Sin(Yaw);
             var yawCos = MathF.Cos(Yaw);

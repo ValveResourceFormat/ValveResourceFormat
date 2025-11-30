@@ -177,7 +177,8 @@ namespace GUI.Types.GLViewers
                     CameraMatrices = LoadedWorld.CameraMatrices;
 
                     Camera.SetFromTransformMatrix(CameraMatrices[0]);
-                    Camera.SetLocation(Camera.Location + Camera.GetForwardVector() * 10f); // Escape the camera model
+                    // Put the location above the camera model for better transition
+                    Camera.SetLocation(Camera.Location + Camera.GetUpVector() * 50f);
                     cameraSet = true;
                 }
             }
