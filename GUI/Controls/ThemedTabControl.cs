@@ -110,7 +110,7 @@ namespace GUI.Controls
             }
         }
 
-        private void CalculateTabWidth(int tabCountOffset = 0)
+        private void CalculateTabWidth(bool isResizing = false)
         {
             if (!IsHandleCreated || SizeMode != TabSizeMode.Fixed)
             {
@@ -123,7 +123,7 @@ namespace GUI.Controls
                 return;
             }
 
-            var tabCount = TabPages.Count + tabCountOffset;
+            var tabCount = TabPages.Count;
             if (tabCount <= 0)
             {
                 return;
@@ -151,9 +151,16 @@ namespace GUI.Controls
             var newSize = new Size(calculatedWidth, TabHeight);
             if (cachedItemSize != newSize)
             {
-                // Never access TabControl.ItemSize, because setting it will cause control size invalidation
-                // which causes resize lags because we are recalculating item size while resizing...
-                PInvoke.SendMessage((HWND)Handle, PInvoke.TCM_SETITEMSIZE, 0, (newSize.Height << 16) | (newSize.Width & 0xffff));
+                if (isResizing)
+                {
+                    // Setting ItemSize causes size invalidation which triggers resize again which is very janky
+                    PInvoke.SendMessage((HWND)Handle, PInvoke.TCM_SETITEMSIZE, 0, (newSize.Height << 16) | (newSize.Width & 0xffff));
+                }
+                else
+                {
+                    ItemSize = newSize;
+                }
+
                 cachedItemSize = newSize;
             }
         }
@@ -197,13 +204,14 @@ namespace GUI.Controls
         protected override void OnControlRemoved(ControlEventArgs e)
         {
             base.OnControlRemoved(e);
-            CalculateTabWidth(-1); // TabCount updates only after this event processes...
+
+            BeginInvoke(() => CalculateTabWidth());
         }
 
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
-            CalculateTabWidth();
+            CalculateTabWidth(isResizing: true);
         }
 
         // this makes the tab header flush with the body
