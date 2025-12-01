@@ -128,14 +128,25 @@ class Framebuffer
         InitialStatus = GL.CheckFramebufferStatus(fboTarget);
         return InitialStatus;
     }
+
     public void Resize(int width, int height, int msaa)
     {
+        if (width == Width && height == Height && msaa == NumSamples)
+        {
+            return;
+        }
+
         NumSamples = msaa;
         Resize(width, height);
     }
 
     public void Resize(int width, int height)
     {
+        if (width == Width && height == Height)
+        {
+            return;
+        }
+
         Width = width;
         Height = height;
         CreateAttachments();
