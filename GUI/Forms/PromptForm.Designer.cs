@@ -1,3 +1,5 @@
+using GUI.Controls;
+
 namespace GUI.Forms
 {
     partial class PromptForm
@@ -30,8 +32,8 @@ namespace GUI.Forms
         {
             textLabel = new System.Windows.Forms.Label();
             inputTextBox = new System.Windows.Forms.TextBox();
-            cancelButton = new System.Windows.Forms.Button();
-            submitButton = new System.Windows.Forms.Button();
+            cancelButton = new ThemedButton();
+            submitButton = new ThemedButton();
             SuspendLayout();
             // 
             // textLabel

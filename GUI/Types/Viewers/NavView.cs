@@ -36,17 +36,18 @@ namespace GUI.Types.Viewers
 
         public void Create(TabPage tabOuterPage)
         {
-            var tabControl = new TabControl
+            var tabControl = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };
             tabOuterPage.Controls.Add(tabControl);
 
-            var navMeshPage = new TabPage("NAV MESH");
+            var navMeshPage = new ThemedTabPage("NAV MESH");
             navMeshPage.Controls.Add(glViewer!.InitializeUiControls());
+
             tabControl.Controls.Add(navMeshPage);
 
-            var infoPage = new TabPage("NAV INFO");
+            var infoPage = new ThemedTabPage("NAV INFO");
             var infoText = navMeshFile.ToString();
             var infoTextControl = CodeTextBox.Create(infoText, CodeTextBox.HighlightLanguage.None);
             infoPage.Controls.Add(infoTextControl);
@@ -54,7 +55,7 @@ namespace GUI.Types.Viewers
 
             if (navMeshFile.CustomData != null)
             {
-                var subVersionPage = new TabPage("NAV CUSTOM DATA");
+                var subVersionPage = new ThemedTabPage("NAV CUSTOM DATA");
 
                 var kv = new KV3File(navMeshFile.CustomData);
                 var subVersionDataText = kv.ToString();

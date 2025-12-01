@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using GUI.Controls;
 
 namespace GUI.Forms
 {
@@ -33,12 +34,12 @@ namespace GUI.Forms
             var dataGridViewCellStyle1 = new DataGridViewCellStyle();
             var dataGridViewCellStyle2 = new DataGridViewCellStyle();
             var dataGridViewCellStyle3 = new DataGridViewCellStyle();
-            tabControl = new TabControl();
-            tabPageProperties = new TabPage();
+            tabControl = new ThemedTabControl();
+            tabPageProperties = new ThemedTabPage();
             dataGridProperties = new DataGridView();
             ColumnName = new DataGridViewTextBoxColumn();
             ColumnValue = new DataGridViewTextBoxColumn();
-            tabPageOutputs = new TabPage();
+            tabPageOutputs = new ThemedTabPage();
             dataGridOutputs = new DataGridView();
             Output = new DataGridViewTextBoxColumn();
             TargetEntity = new DataGridViewTextBoxColumn();
@@ -215,6 +216,6 @@ namespace GUI.Forms
         private DataGridViewTextBoxColumn Parameter;
         private DataGridViewTextBoxColumn Delay;
         private DataGridViewTextBoxColumn timesToFire;
-        private TabControl tabControl;
+        private ThemedTabControl tabControl;
     }
 }

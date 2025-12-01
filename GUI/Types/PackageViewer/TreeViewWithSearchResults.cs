@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -60,6 +61,16 @@ namespace GUI.Types.PackageViewer
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
             Viewer = viewer;
+        }
+
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+            Themer.ThemeControl(this);
+
+            mainTreeView.BackColor = Themer.CurrentThemeColors.AppSoft;
+            mainListView.BackColor = Themer.CurrentThemeColors.AppMiddle;
+            mainSplitContainer.BackColor = Themer.CurrentThemeColors.AppSoft;
         }
 
         private void MainListView_Disposed(object sender, EventArgs e)
@@ -836,7 +847,7 @@ namespace GUI.Types.PackageViewer
         {
             mainListView.Visible = false;
 
-            var tabs = new TabControl
+            var tabs = new ThemedTabControl
             {
                 ImageList = MainForm.ImageList,
                 Dock = DockStyle.Fill

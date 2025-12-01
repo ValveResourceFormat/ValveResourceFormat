@@ -6,7 +6,7 @@ using System.Drawing;
 
 namespace GUI.Forms
 {
-    public partial class BetterColorPicker : Form
+    public partial class BetterColorPicker : ThemedForm
     {
         private readonly Action<Color>? ColorChanged;
 

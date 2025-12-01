@@ -40,6 +40,11 @@ namespace GUI.Controls
             Scan();
         }
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+        }
+
         private void Scan()
         {
             var recentImage = MainForm.ImageListLookup["_recent"];

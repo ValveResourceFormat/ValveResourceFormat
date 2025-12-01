@@ -262,13 +262,13 @@ namespace GUI.Types.Viewers
                 /*
                 TODO: We need to display the bytecode somehow
 
-                tabs = new TabControl
+                tabs = new FlatTabControl
                 {
                     Dock = DockStyle.Fill,
                 };
 
                 // source
-                var sourceBvTab = new TabPage("Source");
+                var sourceBvTab = new ThemedTabPage("Source");
                 var sourceBv = new System.ComponentModel.Design.ByteViewer
                 {
                     Dock = DockStyle.Fill,
@@ -279,7 +279,7 @@ namespace GUI.Types.Viewers
                 // text
                 var reflectedSource = AttemptSpirvReflection(vulkanSource, Backend.GLSL);
 
-                var textTab = new TabPage("SPIR-V");
+                var textTab = new ThemedTabPage("SPIR-V");
                 var textBox = new CodeTextBox(reflectedSource, CodeTextBox.HighlightLanguage.Shaders);
                 textTab.Controls.Add(textBox);
                 resTabs.TabPages.Add(textTab);
