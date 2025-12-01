@@ -755,18 +755,7 @@ namespace GUI
                             Debug.Assert(false);
                         }
 
-                        try
-                        {
-                            //tab.SuspendLayout(); - do not suspend layout so that GLControl gets correct size before the first frame
-                            // so that there is no need to resize framebuffers for no reason
-                            PInvoke.SendMessage((HWND)tab.Handle, PInvoke.WM_SETREDRAW, 0, 0);
-                            viewer.Create(tab);
-                        }
-                        finally
-                        {
-                            PInvoke.SendMessage((HWND)tab.Handle, PInvoke.WM_SETREDRAW, 1, 0);
-                            tab.Invalidate(invalidateChildren: true);
-                        }
+                        viewer.Create(tab);
                     }
                     finally
                     {
