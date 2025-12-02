@@ -31,10 +31,8 @@ namespace GUI.Forms
         private void InitializeComponent()
         {
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(AboutForm));
-            label1 = new Label();
             website = new Button();
             github = new Button();
-            releases = new Button();
             label3 = new Label();
             icon = new PictureBox();
             keybinds = new Button();
@@ -42,28 +40,27 @@ namespace GUI.Forms
             checkForUpdatesCheckbox = new CheckBox();
             downloadButton = new Button();
             viewReleaseNotesButton = new Button();
+            newVersionLabelText = new Label();
+            currentVersionLabelText = new Label();
+            groupBox1 = new GroupBox();
+            tableLayoutPanel1 = new TableLayoutPanel();
+            groupBox2 = new GroupBox();
             newVersionLabel = new Label();
             currentVersionLabel = new Label();
+            tableLayoutPanel2 = new TableLayoutPanel();
             ((System.ComponentModel.ISupportInitialize)icon).BeginInit();
+            groupBox1.SuspendLayout();
+            tableLayoutPanel1.SuspendLayout();
+            groupBox2.SuspendLayout();
+            tableLayoutPanel2.SuspendLayout();
             SuspendLayout();
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Location = new System.Drawing.Point(182, 14);
-            label1.Margin = new Padding(4, 0, 4, 0);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(107, 19);
-            label1.TabIndex = 0;
-            label1.Text = "Source 2 Viewer";
-            label1.TextAlign = System.Drawing.ContentAlignment.TopCenter;
             // 
             // website
             // 
-            website.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            website.Location = new System.Drawing.Point(550, 14);
+            website.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            website.Location = new System.Drawing.Point(3, 3);
             website.Name = "website";
-            website.Size = new System.Drawing.Size(100, 26);
+            website.Size = new System.Drawing.Size(148, 30);
             website.TabIndex = 4;
             website.Text = "&Website";
             website.UseVisualStyleBackColor = true;
@@ -71,52 +68,41 @@ namespace GUI.Forms
             // 
             // github
             // 
-            github.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            github.Location = new System.Drawing.Point(550, 46);
+            github.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            github.Location = new System.Drawing.Point(157, 3);
             github.Name = "github";
-            github.Size = new System.Drawing.Size(100, 26);
+            github.Size = new System.Drawing.Size(148, 30);
             github.TabIndex = 5;
             github.Text = "&GitHub";
             github.UseVisualStyleBackColor = true;
             github.Click += OnGithubClick;
             // 
-            // releases
-            // 
-            releases.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            releases.Location = new System.Drawing.Point(550, 79);
-            releases.Name = "releases";
-            releases.Size = new System.Drawing.Size(100, 26);
-            releases.TabIndex = 6;
-            releases.Text = "View &releases";
-            releases.UseVisualStyleBackColor = true;
-            releases.Click += OnReleasesClick;
-            // 
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new System.Drawing.Point(177, 142);
+            label3.Location = new System.Drawing.Point(16, 31);
             label3.Margin = new Padding(4, 0, 4, 0);
             label3.Name = "label3";
             label3.Size = new System.Drawing.Size(463, 57);
             label3.TabIndex = 10;
-            label3.Text = "Available under the MIT license.\r\nThis project is not affiliated with Valve Software.\r\nSource 2 is a trademark and/or registered trademark of Valve Corporation.";
+            label3.Text = "This is open-source software under the MIT license.\r\nThis project is not affiliated with Valve Software.\r\nSource 2 is a trademark and/or registered trademark of Valve Corporation.";
             // 
             // icon
             // 
             icon.Image = (System.Drawing.Image)resources.GetObject("icon.Image");
-            icon.Location = new System.Drawing.Point(0, 14);
+            icon.Location = new System.Drawing.Point(515, 12);
             icon.Name = "icon";
-            icon.Size = new System.Drawing.Size(170, 193);
+            icon.Size = new System.Drawing.Size(148, 148);
             icon.SizeMode = PictureBoxSizeMode.Zoom;
             icon.TabIndex = 11;
             icon.TabStop = false;
             // 
             // keybinds
             // 
-            keybinds.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            keybinds.Location = new System.Drawing.Point(550, 112);
+            keybinds.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            keybinds.Location = new System.Drawing.Point(311, 3);
             keybinds.Name = "keybinds";
-            keybinds.Size = new System.Drawing.Size(100, 26);
+            keybinds.Size = new System.Drawing.Size(149, 30);
             keybinds.TabIndex = 12;
             keybinds.Text = "View &keybinds";
             keybinds.UseVisualStyleBackColor = true;
@@ -125,9 +111,9 @@ namespace GUI.Forms
             // copyVersion
             // 
             copyVersion.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            copyVersion.Location = new System.Drawing.Point(550, 238);
+            copyVersion.Location = new System.Drawing.Point(537, 28);
             copyVersion.Name = "copyVersion";
-            copyVersion.Size = new System.Drawing.Size(100, 26);
+            copyVersion.Size = new System.Drawing.Size(100, 30);
             copyVersion.TabIndex = 13;
             copyVersion.Text = "Copy &version";
             copyVersion.UseVisualStyleBackColor = true;
@@ -135,9 +121,10 @@ namespace GUI.Forms
             // 
             // checkForUpdatesCheckbox
             // 
-            checkForUpdatesCheckbox.Location = new System.Drawing.Point(12, 375);
+            checkForUpdatesCheckbox.Location = new System.Drawing.Point(16, 136);
             checkForUpdatesCheckbox.Name = "checkForUpdatesCheckbox";
-            checkForUpdatesCheckbox.Size = new System.Drawing.Size(638, 22);
+            checkForUpdatesCheckbox.Padding = new Padding(3, 0, 0, 0);
+            checkForUpdatesCheckbox.Size = new System.Drawing.Size(618, 30);
             checkForUpdatesCheckbox.TabIndex = 14;
             checkForUpdatesCheckbox.Text = "Automatically check for updates daily";
             checkForUpdatesCheckbox.UseVisualStyleBackColor = true;
@@ -146,9 +133,9 @@ namespace GUI.Forms
             // downloadButton
             // 
             downloadButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            downloadButton.Location = new System.Drawing.Point(12, 342);
+            downloadButton.Location = new System.Drawing.Point(3, 3);
             downloadButton.Name = "downloadButton";
-            downloadButton.Size = new System.Drawing.Size(638, 26);
+            downloadButton.Size = new System.Drawing.Size(304, 30);
             downloadButton.TabIndex = 18;
             downloadButton.Text = "Download new version";
             downloadButton.UseVisualStyleBackColor = true;
@@ -157,52 +144,119 @@ namespace GUI.Forms
             // viewReleaseNotesButton
             // 
             viewReleaseNotesButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            viewReleaseNotesButton.Location = new System.Drawing.Point(12, 309);
+            viewReleaseNotesButton.Location = new System.Drawing.Point(313, 3);
             viewReleaseNotesButton.Name = "viewReleaseNotesButton";
-            viewReleaseNotesButton.Size = new System.Drawing.Size(638, 26);
+            viewReleaseNotesButton.Size = new System.Drawing.Size(305, 30);
             viewReleaseNotesButton.TabIndex = 17;
             viewReleaseNotesButton.Text = "View release notes";
             viewReleaseNotesButton.UseVisualStyleBackColor = true;
             viewReleaseNotesButton.Click += OnViewReleaseNotesButtonClick;
             // 
+            // newVersionLabelText
+            // 
+            newVersionLabelText.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            newVersionLabelText.AutoSize = true;
+            newVersionLabelText.Location = new System.Drawing.Point(16, 58);
+            newVersionLabelText.Name = "newVersionLabelText";
+            newVersionLabelText.Size = new System.Drawing.Size(91, 19);
+            newVersionLabelText.TabIndex = 16;
+            newVersionLabelText.Text = "New version: ";
+            // 
+            // currentVersionLabelText
+            // 
+            currentVersionLabelText.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            currentVersionLabelText.AutoSize = true;
+            currentVersionLabelText.Location = new System.Drawing.Point(16, 28);
+            currentVersionLabelText.Name = "currentVersionLabelText";
+            currentVersionLabelText.Size = new System.Drawing.Size(111, 19);
+            currentVersionLabelText.TabIndex = 15;
+            currentVersionLabelText.Text = "Current version: ";
+            // 
+            // groupBox1
+            // 
+            groupBox1.Controls.Add(tableLayoutPanel1);
+            groupBox1.Controls.Add(label3);
+            groupBox1.Location = new System.Drawing.Point(16, 16);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new System.Drawing.Size(493, 144);
+            groupBox1.TabIndex = 19;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "Source 2 Viewer";
+            // 
+            // tableLayoutPanel1
+            // 
+            tableLayoutPanel1.ColumnCount = 3;
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
+            tableLayoutPanel1.Controls.Add(website, 0, 0);
+            tableLayoutPanel1.Controls.Add(keybinds, 2, 0);
+            tableLayoutPanel1.Controls.Add(github, 1, 0);
+            tableLayoutPanel1.Location = new System.Drawing.Point(16, 96);
+            tableLayoutPanel1.Name = "tableLayoutPanel1";
+            tableLayoutPanel1.RowCount = 1;
+            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            tableLayoutPanel1.Size = new System.Drawing.Size(463, 36);
+            tableLayoutPanel1.TabIndex = 20;
+            // 
+            // groupBox2
+            // 
+            groupBox2.Controls.Add(newVersionLabel);
+            groupBox2.Controls.Add(currentVersionLabel);
+            groupBox2.Controls.Add(tableLayoutPanel2);
+            groupBox2.Controls.Add(currentVersionLabelText);
+            groupBox2.Controls.Add(copyVersion);
+            groupBox2.Controls.Add(checkForUpdatesCheckbox);
+            groupBox2.Controls.Add(newVersionLabelText);
+            groupBox2.Location = new System.Drawing.Point(16, 172);
+            groupBox2.Name = "groupBox2";
+            groupBox2.Size = new System.Drawing.Size(652, 177);
+            groupBox2.TabIndex = 20;
+            groupBox2.TabStop = false;
+            groupBox2.Text = "Version";
+            // 
             // newVersionLabel
             // 
-            newVersionLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             newVersionLabel.AutoSize = true;
-            newVersionLabel.Location = new System.Drawing.Point(12, 275);
+            newVersionLabel.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            newVersionLabel.Location = new System.Drawing.Point(150, 58);
             newVersionLabel.Name = "newVersionLabel";
-            newVersionLabel.Size = new System.Drawing.Size(91, 19);
-            newVersionLabel.TabIndex = 16;
-            newVersionLabel.Text = "New version: ";
+            newVersionLabel.Size = new System.Drawing.Size(58, 19);
+            newVersionLabel.TabIndex = 19;
+            newVersionLabel.Text = "version";
             // 
             // currentVersionLabel
             // 
-            currentVersionLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             currentVersionLabel.AutoSize = true;
-            currentVersionLabel.Location = new System.Drawing.Point(12, 243);
+            currentVersionLabel.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            currentVersionLabel.Location = new System.Drawing.Point(150, 28);
             currentVersionLabel.Name = "currentVersionLabel";
-            currentVersionLabel.Size = new System.Drawing.Size(111, 19);
-            currentVersionLabel.TabIndex = 15;
-            currentVersionLabel.Text = "Current version: ";
+            currentVersionLabel.Size = new System.Drawing.Size(58, 19);
+            currentVersionLabel.TabIndex = 18;
+            currentVersionLabel.Text = "version";
+            // 
+            // tableLayoutPanel2
+            // 
+            tableLayoutPanel2.ColumnCount = 2;
+            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            tableLayoutPanel2.Controls.Add(downloadButton, 0, 0);
+            tableLayoutPanel2.Controls.Add(viewReleaseNotesButton, 1, 0);
+            tableLayoutPanel2.Location = new System.Drawing.Point(16, 92);
+            tableLayoutPanel2.Name = "tableLayoutPanel2";
+            tableLayoutPanel2.RowCount = 1;
+            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            tableLayoutPanel2.Size = new System.Drawing.Size(621, 36);
+            tableLayoutPanel2.TabIndex = 17;
             // 
             // AboutForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(662, 423);
-            Controls.Add(checkForUpdatesCheckbox);
-            Controls.Add(downloadButton);
-            Controls.Add(viewReleaseNotesButton);
-            Controls.Add(newVersionLabel);
-            Controls.Add(currentVersionLabel);
-            Controls.Add(copyVersion);
-            Controls.Add(keybinds);
+            ClientSize = new System.Drawing.Size(684, 361);
+            Controls.Add(groupBox2);
+            Controls.Add(groupBox1);
             Controls.Add(icon);
-            Controls.Add(label3);
-            Controls.Add(releases);
-            Controls.Add(github);
-            Controls.Add(website);
-            Controls.Add(label1);
             Font = new System.Drawing.Font("Segoe UI", 10F);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Margin = new Padding(4, 3, 4, 3);
@@ -215,16 +269,18 @@ namespace GUI.Forms
             StartPosition = FormStartPosition.CenterParent;
             Text = "About";
             ((System.ComponentModel.ISupportInitialize)icon).EndInit();
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
+            tableLayoutPanel1.ResumeLayout(false);
+            groupBox2.ResumeLayout(false);
+            groupBox2.PerformLayout();
+            tableLayoutPanel2.ResumeLayout(false);
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
-
-        private Label label1;
         private Button website;
         private Button github;
-        private Button releases;
         private Label label3;
         private PictureBox icon;
         private Button keybinds;
@@ -232,6 +288,12 @@ namespace GUI.Forms
         private CheckBox checkForUpdatesCheckbox;
         private Button downloadButton;
         private Button viewReleaseNotesButton;
+        private Label newVersionLabelText;
+        private Label currentVersionLabelText;
+        private GroupBox groupBox1;
+        private TableLayoutPanel tableLayoutPanel1;
+        private GroupBox groupBox2;
+        private TableLayoutPanel tableLayoutPanel2;
         private Label newVersionLabel;
         private Label currentVersionLabel;
     }

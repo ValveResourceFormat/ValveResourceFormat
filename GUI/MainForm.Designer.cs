@@ -210,7 +210,7 @@ namespace GUI
             newVersionAvailableToolStripMenuItem.Size = new System.Drawing.Size(149, 20);
             newVersionAvailableToolStripMenuItem.Text = "New version available";
             newVersionAvailableToolStripMenuItem.Visible = false;
-            newVersionAvailableToolStripMenuItem.Click += NewVersionAvailableToolStripMenuItem_Click;
+            newVersionAvailableToolStripMenuItem.Click += OnAboutItemClick;
             //
             // checkForUpdatesToolStripMenuItem
             //
@@ -218,7 +218,7 @@ namespace GUI
             checkForUpdatesToolStripMenuItem.Name = "checkForUpdatesToolStripMenuItem";
             checkForUpdatesToolStripMenuItem.Size = new System.Drawing.Size(115, 20);
             checkForUpdatesToolStripMenuItem.Text = "Check for updates";
-            checkForUpdatesToolStripMenuItem.Click += CheckForUpdatesToolStripMenuItem_Click;
+            checkForUpdatesToolStripMenuItem.Click += OnAboutItemClick;
             //
             // recoverDeletedToolStripMenuItem
             //

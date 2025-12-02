@@ -17,8 +17,6 @@ using GUI.Utils;
 using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
-using Windows.Win32;
-using Windows.Win32.Foundation;
 
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
@@ -1085,7 +1083,6 @@ namespace GUI
             if (Settings.Config.Update.UpdateAvailable)
             {
                 checkForUpdatesToolStripMenuItem.Visible = false;
-                checkForUpdatesToolStripMenuItem.Enabled = false;
                 newVersionAvailableToolStripMenuItem.Text = "New update available";
                 newVersionAvailableToolStripMenuItem.Visible = true;
                 return;
@@ -1106,59 +1103,22 @@ namespace GUI
 
             Settings.Config.Update.LastCheck = now.ToString("s");
 
-            CheckForUpdatesCore(false);
+            Task.Run(CheckForUpdates);
         }
 
-        private void CheckForUpdatesToolStripMenuItem_Click(object sender, EventArgs e) => CheckForUpdatesCore(true);
-
-        private void CheckForUpdatesCore(bool showForm)
-        {
-            checkForUpdatesToolStripMenuItem.Enabled = false;
-
-            Task.Run(() => CheckForUpdates(showForm));
-        }
-
-        private void NewVersionAvailableToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            // This happens when the auto update checker displays the new update label, but there is no actual update data available
-            if (!UpdateChecker.IsNewVersionAvailable)
-            {
-                checkForUpdatesToolStripMenuItem.Visible = true;
-                newVersionAvailableToolStripMenuItem.Visible = false;
-
-                Task.Run(() => CheckForUpdates(true));
-
-                return;
-            }
-
-            using var form = new AboutForm();
-            form.ShowDialog(this);
-        }
-
-        private async Task CheckForUpdates(bool showForm)
+        private async Task CheckForUpdates()
         {
             await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
 
-            await InvokeAsync(() =>
+            if (UpdateChecker.IsNewVersionAvailable)
             {
-                if (UpdateChecker.IsNewVersionAvailable)
+                await InvokeAsync(() =>
                 {
                     checkForUpdatesToolStripMenuItem.Visible = false;
                     newVersionAvailableToolStripMenuItem.Text = $"New {(UpdateChecker.IsNewVersionStableBuild ? "release" : "build")} {UpdateChecker.NewVersion} available";
                     newVersionAvailableToolStripMenuItem.Visible = true;
-                }
-                else
-                {
-                    checkForUpdatesToolStripMenuItem.Text = "Up to date";
-                    checkForUpdatesToolStripMenuItem.Enabled = true;
-                }
-
-                if (showForm)
-                {
-                    using var form = new AboutForm();
-                    form.ShowDialog(this);
-                }
-            }).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }
         }
     }
 }

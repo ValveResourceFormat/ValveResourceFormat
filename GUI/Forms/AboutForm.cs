@@ -20,30 +20,42 @@ namespace GUI.Forms
                 decoder.StartThread();
             }
 
-            currentVersionLabel.Text += Application.ProductVersion[..16].Replace('+', ' ');
+            currentVersionLabel.Text = Application.ProductVersion[..16].Replace('+', ' ');
+            newVersionLabel.Text = "Checking for updates…";
 
+            checkForUpdatesCheckbox.Checked = Settings.Config.Update.CheckAutomatically;
+
+            UpdateChecker.CheckForUpdates().ContinueWith(_ =>
+            {
+                if (InvokeRequired)
+                {
+                    Invoke(OnUpdateChecked);
+                }
+                else
+                {
+                    OnUpdateChecked();
+                }
+            });
+        }
+
+        private void OnUpdateChecked()
+        {
             if (!string.IsNullOrEmpty(UpdateChecker.NewVersion))
             {
-                newVersionLabel.Text += UpdateChecker.IsNewVersionStableBuild ? UpdateChecker.NewVersion : $"Dev build {UpdateChecker.NewVersion}";
+                newVersionLabel.Text = UpdateChecker.IsNewVersionStableBuild ? UpdateChecker.NewVersion : $"Dev build {UpdateChecker.NewVersion}";
             }
 
             if (!UpdateChecker.IsNewVersionAvailable)
             {
-                Text = "Up to date";
+                downloadButton.Text = "Up to date";
                 newVersionLabel.Enabled = false;
                 downloadButton.Enabled = false;
             }
 
-            if (string.IsNullOrEmpty(UpdateChecker.ReleaseNotesUrl))
-            {
-                viewReleaseNotesButton.Enabled = false;
-            }
-            else
+            if (!string.IsNullOrEmpty(UpdateChecker.ReleaseNotesUrl))
             {
                 viewReleaseNotesButton.Text = $"View release notes for {UpdateChecker.ReleaseNotesVersion}";
             }
-
-            checkForUpdatesCheckbox.Checked = Settings.Config.Update.CheckAutomatically;
         }
 
         private void OnWebsiteClick(object sender, EventArgs e)
@@ -56,11 +68,6 @@ namespace GUI.Forms
             OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat");
         }
 
-        private void OnReleasesClick(object sender, EventArgs e)
-        {
-            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
-        }
-
         private void OnKeybindsClick(object sender, EventArgs e)
         {
             OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat?tab=readme-ov-file#gui-keybinds");
@@ -68,7 +75,7 @@ namespace GUI.Forms
 
         private void OnViewReleaseNotesButtonClick(object sender, EventArgs e)
         {
-            OpenUrl(UpdateChecker.ReleaseNotesUrl);
+            OpenUrl(UpdateChecker.ReleaseNotesUrl ?? "https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
         }
 
         private void OnDownloadButtonClick(object sender, EventArgs e)
