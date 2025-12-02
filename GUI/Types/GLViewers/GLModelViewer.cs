@@ -351,7 +351,11 @@ namespace GUI.Types.GLViewers
                     $"FPS: {fps:F2}\n";
             }
 
-            animationController?.RegisterUpdateHandler(UiAnimationHandler);
+            void UpdateUiAnimationState(Animation animation, int frame)
+            {
+                animationTrackBar.BeginInvoke(() => UiAnimationHandler(animation, frame));
+            }
+            animationController?.RegisterUpdateHandler(UpdateUiAnimationState);
         }
 
         private string GetModelStatsText()
