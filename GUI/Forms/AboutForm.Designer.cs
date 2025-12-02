@@ -32,7 +32,6 @@ namespace GUI.Forms
         {
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(AboutForm));
             label1 = new Label();
-            labelVersion = new Label();
             website = new Button();
             github = new Button();
             releases = new Button();
@@ -40,6 +39,11 @@ namespace GUI.Forms
             icon = new PictureBox();
             keybinds = new Button();
             copyVersion = new Button();
+            checkForUpdatesCheckbox = new CheckBox();
+            downloadButton = new Button();
+            viewReleaseNotesButton = new Button();
+            newVersionLabel = new Label();
+            currentVersionLabel = new Label();
             ((System.ComponentModel.ISupportInitialize)icon).BeginInit();
             SuspendLayout();
             // 
@@ -53,16 +57,6 @@ namespace GUI.Forms
             label1.TabIndex = 0;
             label1.Text = "Source 2 Viewer";
             label1.TextAlign = System.Drawing.ContentAlignment.TopCenter;
-            // 
-            // labelVersion
-            // 
-            labelVersion.AutoSize = true;
-            labelVersion.Location = new System.Drawing.Point(182, 46);
-            labelVersion.Margin = new Padding(4, 0, 4, 0);
-            labelVersion.Name = "labelVersion";
-            labelVersion.Size = new System.Drawing.Size(54, 19);
-            labelVersion.TabIndex = 1;
-            labelVersion.Text = "Version";
             // 
             // website
             // 
@@ -131,7 +125,7 @@ namespace GUI.Forms
             // copyVersion
             // 
             copyVersion.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            copyVersion.Location = new System.Drawing.Point(182, 79);
+            copyVersion.Location = new System.Drawing.Point(550, 238);
             copyVersion.Name = "copyVersion";
             copyVersion.Size = new System.Drawing.Size(100, 26);
             copyVersion.TabIndex = 13;
@@ -139,11 +133,68 @@ namespace GUI.Forms
             copyVersion.UseVisualStyleBackColor = true;
             copyVersion.Click += OnCopyVersionClick;
             // 
+            // checkForUpdatesCheckbox
+            // 
+            checkForUpdatesCheckbox.Location = new System.Drawing.Point(12, 375);
+            checkForUpdatesCheckbox.Name = "checkForUpdatesCheckbox";
+            checkForUpdatesCheckbox.Size = new System.Drawing.Size(638, 22);
+            checkForUpdatesCheckbox.TabIndex = 14;
+            checkForUpdatesCheckbox.Text = "Automatically check for updates daily";
+            checkForUpdatesCheckbox.UseVisualStyleBackColor = true;
+            checkForUpdatesCheckbox.CheckedChanged += OnCheckForUpdatesCheckboxChanged;
+            // 
+            // downloadButton
+            // 
+            downloadButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            downloadButton.Location = new System.Drawing.Point(12, 342);
+            downloadButton.Name = "downloadButton";
+            downloadButton.Size = new System.Drawing.Size(638, 26);
+            downloadButton.TabIndex = 18;
+            downloadButton.Text = "Download new version";
+            downloadButton.UseVisualStyleBackColor = true;
+            downloadButton.Click += OnDownloadButtonClick;
+            // 
+            // viewReleaseNotesButton
+            // 
+            viewReleaseNotesButton.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            viewReleaseNotesButton.Location = new System.Drawing.Point(12, 309);
+            viewReleaseNotesButton.Name = "viewReleaseNotesButton";
+            viewReleaseNotesButton.Size = new System.Drawing.Size(638, 26);
+            viewReleaseNotesButton.TabIndex = 17;
+            viewReleaseNotesButton.Text = "View release notes";
+            viewReleaseNotesButton.UseVisualStyleBackColor = true;
+            viewReleaseNotesButton.Click += OnViewReleaseNotesButtonClick;
+            // 
+            // newVersionLabel
+            // 
+            newVersionLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            newVersionLabel.AutoSize = true;
+            newVersionLabel.Location = new System.Drawing.Point(12, 275);
+            newVersionLabel.Name = "newVersionLabel";
+            newVersionLabel.Size = new System.Drawing.Size(91, 19);
+            newVersionLabel.TabIndex = 16;
+            newVersionLabel.Text = "New version: ";
+            // 
+            // currentVersionLabel
+            // 
+            currentVersionLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            currentVersionLabel.AutoSize = true;
+            currentVersionLabel.Location = new System.Drawing.Point(12, 243);
+            currentVersionLabel.Name = "currentVersionLabel";
+            currentVersionLabel.Size = new System.Drawing.Size(111, 19);
+            currentVersionLabel.TabIndex = 15;
+            currentVersionLabel.Text = "Current version: ";
+            // 
             // AboutForm
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(662, 219);
+            ClientSize = new System.Drawing.Size(662, 423);
+            Controls.Add(checkForUpdatesCheckbox);
+            Controls.Add(downloadButton);
+            Controls.Add(viewReleaseNotesButton);
+            Controls.Add(newVersionLabel);
+            Controls.Add(currentVersionLabel);
             Controls.Add(copyVersion);
             Controls.Add(keybinds);
             Controls.Add(icon);
@@ -151,7 +202,6 @@ namespace GUI.Forms
             Controls.Add(releases);
             Controls.Add(github);
             Controls.Add(website);
-            Controls.Add(labelVersion);
             Controls.Add(label1);
             Font = new System.Drawing.Font("Segoe UI", 10F);
             FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -172,7 +222,6 @@ namespace GUI.Forms
         #endregion
 
         private Label label1;
-        private Label labelVersion;
         private Button website;
         private Button github;
         private Button releases;
@@ -180,5 +229,10 @@ namespace GUI.Forms
         private PictureBox icon;
         private Button keybinds;
         private Button copyVersion;
+        private CheckBox checkForUpdatesCheckbox;
+        private Button downloadButton;
+        private Button viewReleaseNotesButton;
+        private Label newVersionLabel;
+        private Label currentVersionLabel;
     }
 }

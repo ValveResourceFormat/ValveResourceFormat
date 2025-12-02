@@ -1131,7 +1131,7 @@ namespace GUI
                 return;
             }
 
-            using var form = new UpdateAvailableForm();
+            using var form = new AboutForm();
             form.ShowDialog(this);
         }
 
@@ -1155,7 +1155,7 @@ namespace GUI
 
                 if (showForm)
                 {
-                    using var form = new UpdateAvailableForm();
+                    using var form = new AboutForm();
                     form.ShowDialog(this);
                 }
             }).ConfigureAwait(false);
