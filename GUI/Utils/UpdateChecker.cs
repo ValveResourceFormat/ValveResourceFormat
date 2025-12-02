@@ -129,7 +129,7 @@ static partial class UpdateChecker
 #if !CI_RELEASE_BUILD
     private static async Task<GithubActionRuns> GetLastDevBuild(HttpClient httpClient)
     {
-        var response = await httpClient.GetAsync(new Uri("https://api.github.com/repositories/42366054/actions/runs?branch=master&status=success&per_page=1")).ConfigureAwait(false);
+        var response = await httpClient.GetAsync(new Uri("https://api.github.com/repositories/42366054/actions/workflows/86119/runs?branch=master&status=success&per_page=1")).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         using var jsonStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
