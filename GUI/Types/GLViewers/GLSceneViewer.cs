@@ -331,6 +331,7 @@ namespace GUI.Types.GLViewers
                 Camera = Camera,
                 Framebuffer = MainFramebuffer,
                 Textures = Textures,
+                Scene = Scene,
             };
 
             using (new GLDebugGroup("Update Loop"))
