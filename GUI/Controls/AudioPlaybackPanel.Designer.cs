@@ -29,224 +29,150 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AudioPlaybackPanel));
-            this.toolStrip1 = new System.Windows.Forms.ToolStrip();
-            this.buttonPlay = new System.Windows.Forms.ToolStripButton();
-            this.buttonPause = new System.Windows.Forms.ToolStripButton();
-            this.buttonStop = new System.Windows.Forms.ToolStripButton();
-            this.toolStripLabel1 = new System.Windows.Forms.ToolStripLabel();
-            this.labelCurrentTime = new System.Windows.Forms.ToolStripLabel();
-            this.toolStripLabel3 = new System.Windows.Forms.ToolStripLabel();
-            this.labelTotalTime = new System.Windows.Forms.ToolStripLabel();
-            this.trackBarPosition = new System.Windows.Forms.TrackBar();
-            this.playbackTimer = new System.Windows.Forms.Timer(this.components);
-            this.label3 = new System.Windows.Forms.Label();
-            this.waveformPainter2 = new NAudio.Gui.WaveformPainter();
-            this.waveformPainter1 = new NAudio.Gui.WaveformPainter();
-            this.volumeMeter2 = new NAudio.Gui.VolumeMeter();
-            this.volumeMeter1 = new NAudio.Gui.VolumeMeter();
-            this.volumeSlider1 = new NAudio.Gui.VolumeSlider();
-            this.toolStrip1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.trackBarPosition)).BeginInit();
-            this.SuspendLayout();
+            components = new System.ComponentModel.Container();
+            toolStrip1 = new System.Windows.Forms.ToolStrip();
+            trackBarPosition = new System.Windows.Forms.TrackBar();
+            playbackTimer = new System.Windows.Forms.Timer(components);
+            label3 = new System.Windows.Forms.Label();
+            volumeSlider1 = new NAudio.Gui.VolumeSlider();
+            playPauseButton = new System.Windows.Forms.Button();
+            labelCurrentTime = new System.Windows.Forms.Label();
+            labelTotalTime = new System.Windows.Forms.Label();
+            label1 = new System.Windows.Forms.Label();
+            waveFormPictureBox = new System.Windows.Forms.PictureBox();
+            ((System.ComponentModel.ISupportInitialize)trackBarPosition).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)waveFormPictureBox).BeginInit();
+            SuspendLayout();
             // 
             // toolStrip1
             // 
-            this.toolStrip1.GripStyle = System.Windows.Forms.ToolStripGripStyle.Hidden;
-            this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.buttonPlay,
-            this.buttonPause,
-            this.buttonStop,
-            this.toolStripLabel1,
-            this.labelCurrentTime,
-            this.toolStripLabel3,
-            this.labelTotalTime});
-            this.toolStrip1.Location = new System.Drawing.Point(0, 0);
-            this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(626, 25);
-            this.toolStrip1.TabIndex = 15;
-            this.toolStrip1.Text = "toolStrip1";
-            // 
-            // buttonPlay
-            // 
-            this.buttonPlay.Image = ((System.Drawing.Image)(resources.GetObject("buttonPlay.Image")));
-            this.buttonPlay.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.buttonPlay.Name = "buttonPlay";
-            this.buttonPlay.Size = new System.Drawing.Size(49, 22);
-            this.buttonPlay.Text = "Play";
-            this.buttonPlay.Click += new System.EventHandler(this.OnButtonPlayClick);
-            // 
-            // buttonPause
-            // 
-            this.buttonPause.Image = ((System.Drawing.Image)(resources.GetObject("buttonPause.Image")));
-            this.buttonPause.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.buttonPause.Name = "buttonPause";
-            this.buttonPause.Size = new System.Drawing.Size(58, 22);
-            this.buttonPause.Text = "Pause";
-            this.buttonPause.Click += new System.EventHandler(this.OnButtonPauseClick);
-            // 
-            // buttonStop
-            // 
-            this.buttonStop.Image = ((System.Drawing.Image)(resources.GetObject("buttonStop.Image")));
-            this.buttonStop.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.buttonStop.Name = "buttonStop";
-            this.buttonStop.Size = new System.Drawing.Size(51, 22);
-            this.buttonStop.Text = "Stop";
-            this.buttonStop.Click += new System.EventHandler(this.OnButtonStopClick);
-            // 
-            // toolStripLabel1
-            // 
-            this.toolStripLabel1.Name = "toolStripLabel1";
-            this.toolStripLabel1.Size = new System.Drawing.Size(79, 22);
-            this.toolStripLabel1.Text = "Current Time:";
-            // 
-            // labelCurrentTime
-            // 
-            this.labelCurrentTime.Name = "labelCurrentTime";
-            this.labelCurrentTime.Size = new System.Drawing.Size(49, 22);
-            this.labelCurrentTime.Text = "00:00.00";
-            // 
-            // toolStripLabel3
-            // 
-            this.toolStripLabel3.Name = "toolStripLabel3";
-            this.toolStripLabel3.Size = new System.Drawing.Size(64, 22);
-            this.toolStripLabel3.Text = "Total Time:";
-            // 
-            // labelTotalTime
-            // 
-            this.labelTotalTime.Name = "labelTotalTime";
-            this.labelTotalTime.Size = new System.Drawing.Size(49, 22);
-            this.labelTotalTime.Text = "00:00.00";
+            toolStrip1.GripStyle = System.Windows.Forms.ToolStripGripStyle.Hidden;
+            toolStrip1.Location = new System.Drawing.Point(0, 0);
+            toolStrip1.Name = "toolStrip1";
+            toolStrip1.Size = new System.Drawing.Size(600, 25);
+            toolStrip1.TabIndex = 15;
+            toolStrip1.Text = "toolStrip1";
             // 
             // trackBarPosition
             // 
-            this.trackBarPosition.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.trackBarPosition.LargeChange = 10;
-            this.trackBarPosition.Location = new System.Drawing.Point(21, 188);
-            this.trackBarPosition.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.trackBarPosition.Maximum = 100;
-            this.trackBarPosition.Name = "trackBarPosition";
-            this.trackBarPosition.Size = new System.Drawing.Size(600, 45);
-            this.trackBarPosition.TabIndex = 16;
-            this.trackBarPosition.Scroll += new System.EventHandler(this.OnTrackBarPositionScroll);
+            trackBarPosition.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            trackBarPosition.LargeChange = 10;
+            trackBarPosition.Location = new System.Drawing.Point(16, 176);
+            trackBarPosition.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            trackBarPosition.Maximum = 100;
+            trackBarPosition.Name = "trackBarPosition";
+            trackBarPosition.Size = new System.Drawing.Size(568, 45);
+            trackBarPosition.TabIndex = 16;
+            trackBarPosition.Scroll += OnTrackBarPositionScroll;
             // 
             // playbackTimer
             // 
-            this.playbackTimer.Interval = 500;
-            this.playbackTimer.Tick += new System.EventHandler(this.OnTimerTick);
+            playbackTimer.Interval = 500;
+            playbackTimer.Tick += OnTimerTick;
             // 
             // label3
             // 
-            this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(26, 236);
-            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(50, 15);
-            this.label3.TabIndex = 17;
-            this.label3.Text = "Volume:";
-            // 
-            // waveformPainter2
-            // 
-            this.waveformPainter2.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.waveformPainter2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(192)))));
-            this.waveformPainter2.ForeColor = System.Drawing.Color.SaddleBrown;
-            this.waveformPainter2.Location = new System.Drawing.Point(67, 113);
-            this.waveformPainter2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.waveformPainter2.Name = "waveformPainter2";
-            this.waveformPainter2.Size = new System.Drawing.Size(554, 69);
-            this.waveformPainter2.TabIndex = 19;
-            this.waveformPainter2.Text = "waveformPainter1";
-            // 
-            // waveformPainter1
-            // 
-            this.waveformPainter1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.waveformPainter1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(192)))));
-            this.waveformPainter1.ForeColor = System.Drawing.Color.SaddleBrown;
-            this.waveformPainter1.Location = new System.Drawing.Point(67, 39);
-            this.waveformPainter1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.waveformPainter1.Name = "waveformPainter1";
-            this.waveformPainter1.Size = new System.Drawing.Size(554, 69);
-            this.waveformPainter1.TabIndex = 19;
-            this.waveformPainter1.Text = "waveformPainter1";
-            // 
-            // volumeMeter2
-            // 
-            this.volumeMeter2.Amplitude = 0F;
-            this.volumeMeter2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(192)))), ((int)(((byte)(0)))));
-            this.volumeMeter2.Location = new System.Drawing.Point(43, 39);
-            this.volumeMeter2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.volumeMeter2.MaxDb = 3F;
-            this.volumeMeter2.MinDb = -60F;
-            this.volumeMeter2.Name = "volumeMeter2";
-            this.volumeMeter2.Size = new System.Drawing.Size(16, 143);
-            this.volumeMeter2.TabIndex = 18;
-            this.volumeMeter2.Text = "volumeMeter1";
-            // 
-            // volumeMeter1
-            // 
-            this.volumeMeter1.Amplitude = 0F;
-            this.volumeMeter1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(192)))), ((int)(((byte)(0)))));
-            this.volumeMeter1.Location = new System.Drawing.Point(21, 39);
-            this.volumeMeter1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.volumeMeter1.MaxDb = 3F;
-            this.volumeMeter1.MinDb = -60F;
-            this.volumeMeter1.Name = "volumeMeter1";
-            this.volumeMeter1.Size = new System.Drawing.Size(16, 143);
-            this.volumeMeter1.TabIndex = 18;
-            this.volumeMeter1.Text = "volumeMeter1";
+            label3.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            label3.AutoSize = true;
+            label3.Location = new System.Drawing.Point(534, 227);
+            label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label3.Name = "label3";
+            label3.Size = new System.Drawing.Size(50, 15);
+            label3.TabIndex = 17;
+            label3.Text = "Volume:";
             // 
             // volumeSlider1
             // 
-            this.volumeSlider1.Location = new System.Drawing.Point(84, 233);
-            this.volumeSlider1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.volumeSlider1.Name = "volumeSlider1";
-            this.volumeSlider1.Size = new System.Drawing.Size(112, 18);
-            this.volumeSlider1.TabIndex = 11;
-            this.volumeSlider1.VolumeChanged += new System.EventHandler(this.OnVolumeSliderChanged);
+            volumeSlider1.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            volumeSlider1.Location = new System.Drawing.Point(472, 252);
+            volumeSlider1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            volumeSlider1.Name = "volumeSlider1";
+            volumeSlider1.Size = new System.Drawing.Size(112, 18);
+            volumeSlider1.TabIndex = 11;
+            volumeSlider1.VolumeChanged += OnVolumeSliderChanged;
+            // 
+            // playPauseButton
+            // 
+            playPauseButton.Location = new System.Drawing.Point(16, 227);
+            playPauseButton.Name = "playPauseButton";
+            playPauseButton.Size = new System.Drawing.Size(64, 64);
+            playPauseButton.TabIndex = 20;
+            playPauseButton.Text = "Play";
+            playPauseButton.UseVisualStyleBackColor = true;
+            playPauseButton.Click += OnPlayPauseButtonClick;
+            // 
+            // labelCurrentTime
+            // 
+            labelCurrentTime.AutoSize = true;
+            labelCurrentTime.Font = new System.Drawing.Font("Cascadia Mono", 16F);
+            labelCurrentTime.Location = new System.Drawing.Point(104, 243);
+            labelCurrentTime.Name = "labelCurrentTime";
+            labelCurrentTime.Size = new System.Drawing.Size(117, 29);
+            labelCurrentTime.TabIndex = 21;
+            labelCurrentTime.Text = "00:00.00";
+            // 
+            // labelTotalTime
+            // 
+            labelTotalTime.AutoSize = true;
+            labelTotalTime.Font = new System.Drawing.Font("Cascadia Mono", 12F);
+            labelTotalTime.Location = new System.Drawing.Point(256, 247);
+            labelTotalTime.Name = "labelTotalTime";
+            labelTotalTime.Size = new System.Drawing.Size(82, 21);
+            labelTotalTime.TabIndex = 22;
+            labelTotalTime.Text = "00:00.00";
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Font = new System.Drawing.Font("Cascadia Mono", 12F);
+            label1.Location = new System.Drawing.Point(229, 247);
+            label1.Name = "label1";
+            label1.Size = new System.Drawing.Size(19, 21);
+            label1.TabIndex = 23;
+            label1.Text = "/";
+            // 
+            // waveFormPictureBox
+            // 
+            waveFormPictureBox.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            waveFormPictureBox.Location = new System.Drawing.Point(16, 16);
+            waveFormPictureBox.Name = "waveFormPictureBox";
+            waveFormPictureBox.Size = new System.Drawing.Size(568, 160);
+            waveFormPictureBox.TabIndex = 24;
+            waveFormPictureBox.TabStop = false;
             // 
             // AudioPlaybackPanel
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.waveformPainter2);
-            this.Controls.Add(this.waveformPainter1);
-            this.Controls.Add(this.volumeMeter2);
-            this.Controls.Add(this.volumeMeter1);
-            this.Controls.Add(this.label3);
-            this.Controls.Add(this.trackBarPosition);
-            this.Controls.Add(this.toolStrip1);
-            this.Controls.Add(this.volumeSlider1);
-            this.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            this.Name = "AudioPlaybackPanel";
-            this.Size = new System.Drawing.Size(626, 270);
-            this.toolStrip1.ResumeLayout(false);
-            this.toolStrip1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.trackBarPosition)).EndInit();
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            Controls.Add(waveFormPictureBox);
+            Controls.Add(label1);
+            Controls.Add(labelTotalTime);
+            Controls.Add(labelCurrentTime);
+            Controls.Add(playPauseButton);
+            Controls.Add(label3);
+            Controls.Add(trackBarPosition);
+            Controls.Add(toolStrip1);
+            Controls.Add(volumeSlider1);
+            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            Name = "AudioPlaybackPanel";
+            Size = new System.Drawing.Size(600, 300);
+            ((System.ComponentModel.ISupportInitialize)trackBarPosition).EndInit();
+            ((System.ComponentModel.ISupportInitialize)waveFormPictureBox).EndInit();
+            ResumeLayout(false);
+            PerformLayout();
 
         }
 
         #endregion
         private NAudio.Gui.VolumeSlider volumeSlider1;
         private System.Windows.Forms.ToolStrip toolStrip1;
-        private System.Windows.Forms.ToolStripButton buttonPlay;
-        private System.Windows.Forms.ToolStripButton buttonPause;
-        private System.Windows.Forms.ToolStripButton buttonStop;
         private System.Windows.Forms.TrackBar trackBarPosition;
-        private System.Windows.Forms.ToolStripLabel toolStripLabel1;
-        private System.Windows.Forms.ToolStripLabel labelCurrentTime;
-        private System.Windows.Forms.ToolStripLabel toolStripLabel3;
-        private System.Windows.Forms.ToolStripLabel labelTotalTime;
         private System.Windows.Forms.Label label3;
-        private NAudio.Gui.VolumeMeter volumeMeter1;
-        private NAudio.Gui.VolumeMeter volumeMeter2;
-        private NAudio.Gui.WaveformPainter waveformPainter1;
-        private NAudio.Gui.WaveformPainter waveformPainter2;
         private System.Windows.Forms.Timer playbackTimer;
+        private System.Windows.Forms.Button playPauseButton;
+        private System.Windows.Forms.Label labelCurrentTime;
+        private System.Windows.Forms.Label labelTotalTime;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.PictureBox waveFormPictureBox;
     }
 }

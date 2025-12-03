@@ -39,27 +39,13 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(waveStream is not null);
 
-            var audio = new AudioPlaybackPanel(waveStream);
-            tab.Controls.Add(audio);
-
             var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
-            if (isPreview && autoPlay)
-            {
-                audio.HandleCreated += OnHandleCreated;
-            }
+            var audio = new AudioPlaybackPanel(waveStream, isPreview && autoPlay);
+            tab.Controls.Add(audio);
 
             waveStream = null;
 
             return;
-        }
-
-        private void OnHandleCreated(object? sender, EventArgs e)
-        {
-            if (sender is AudioPlaybackPanel audio)
-            {
-                audio.HandleCreated -= OnHandleCreated;
-                audio.Invoke(audio.Play);
-            }
         }
 
         public void Dispose()
