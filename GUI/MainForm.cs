@@ -374,12 +374,10 @@ namespace GUI
             if (mainTabs.SelectedTab != null && mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults package)
             {
                 findToolStripButton.Enabled = true;
-                recoverDeletedToolStripMenuItem.Enabled = !package.DeletedFilesRecovered;
             }
             else
             {
                 findToolStripButton.Enabled = false;
-                recoverDeletedToolStripMenuItem.Enabled = false;
             }
         }
 

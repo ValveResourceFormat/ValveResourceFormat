@@ -222,7 +222,6 @@ namespace GUI
             //
             // recoverDeletedToolStripMenuItem
             //
-            recoverDeletedToolStripMenuItem.Enabled = false;
             recoverDeletedToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("recoverDeletedToolStripMenuItem.Image");
             recoverDeletedToolStripMenuItem.ImageScaling = ToolStripItemImageScaling.None;
             recoverDeletedToolStripMenuItem.ImageTransparentColor = System.Drawing.Color.Magenta;
