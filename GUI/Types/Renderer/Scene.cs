@@ -11,18 +11,18 @@ namespace GUI.Types.Renderer
     {
         public readonly struct UpdateContext
         {
-            public TextRenderer TextRenderer { get; init; }
-            public float Timestep { get; init; }
+            public required TextRenderer TextRenderer { get; init; }
+            public required float Timestep { get; init; }
         }
 
         public struct RenderContext
         {
-            public Scene Scene { get; set; }
-            public Camera Camera { get; init; }
-            public Framebuffer Framebuffer { get; set; }
+            public required Scene Scene { get; set; }
+            public required Camera Camera { get; init; }
+            public required Framebuffer Framebuffer { get; set; }
             public RenderPass RenderPass { get; set; }
             public Shader? ReplacementShader { get; set; }
-            public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; init; }
+            public required List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; init; }
         }
 
         public Dictionary<string, byte> RenderAttributes { get; } = [];
