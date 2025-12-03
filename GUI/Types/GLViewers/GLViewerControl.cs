@@ -511,9 +511,8 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(GLNativeWindow is not null);
 
-            using var lockedGl = glLock.EnterScope();
+            using var lockedGl = MakeCurrent();
 
-            GLNativeWindow.MakeCurrent();
             GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
 
             GL.Enable(EnableCap.DebugOutput);
@@ -580,7 +579,7 @@ namespace GUI.Types.GLViewers
 
             OnGLLoad();
 
-            GLNativeWindow.Context.MakeNoneCurrent();
+            MakeNoneCurrent();
 
             lastUpdate = Stopwatch.GetTimestamp();
         }
@@ -610,9 +609,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            using var lockedGl = glLock.EnterScope();
-
-            GLNativeWindow.MakeCurrent();
+            using var lockedGl = MakeCurrent();
 
             var isTextureViewer = this is GLTextureViewer;
             var elapsed = Stopwatch.GetElapsedTime(lastUpdate, currentTime);
@@ -707,7 +704,7 @@ namespace GUI.Types.GLViewers
             GLNativeWindow.Context.SwapBuffers();
             Picker?.TriggerEventIfAny();
 
-            GLNativeWindow.Context.MakeNoneCurrent();
+            MakeNoneCurrent();
         }
 
         private void BlitFramebufferToScreen()
@@ -755,9 +752,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            using var lockedGl = glLock.EnterScope();
-
-            GLNativeWindow.MakeCurrent();
+            using var lockedGl = MakeCurrent();
 
             GLDefaultFramebuffer.Resize(w, h);
 
@@ -784,7 +779,7 @@ namespace GUI.Types.GLViewers
             Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
 
-            GLNativeWindow.Context.MakeNoneCurrent();
+            MakeNoneCurrent();
         }
 
         protected virtual void OnFirstPaint()
@@ -839,6 +834,20 @@ namespace GUI.Types.GLViewers
             data.SetData("PNG", false, pngStream);
 
             Clipboard.SetDataObject(data, copy: true);
+        }
+
+        protected Lock.Scope MakeCurrent()
+        {
+            var lockedGl = glLock.EnterScope();
+
+            GLNativeWindow.Context.MakeCurrent();
+
+            return lockedGl;
+        }
+
+        protected void MakeNoneCurrent()
+        {
+            GLNativeWindow.Context.MakeNoneCurrent();
         }
     }
 }
