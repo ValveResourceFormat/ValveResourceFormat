@@ -79,10 +79,6 @@ namespace GUI.Types.GLViewers
 
         public Control InitializeUiControls()
         {
-            using var lockedGl = glLock.EnterScope();
-
-            GLNativeWindow.MakeCurrent();
-
             GLControl = new GLControl()
             {
                 Dock = DockStyle.Fill
@@ -134,7 +130,6 @@ namespace GUI.Types.GLViewers
 
             UiControl.ResumeLayout();
 
-            GLNativeWindow.Context.MakeNoneCurrent();
             RenderLoopThread.RegisterInstance();
             RenderLoopThread.SetCurrentGLControl(this);
 
