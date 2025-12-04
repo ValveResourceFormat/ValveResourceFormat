@@ -372,6 +372,13 @@ namespace GUI.Types.Renderer
 
         public void ReloadAllShaders(string? name = null)
         {
+            if (ShaderHotReload?.ViewerControl == null)
+            {
+                return;
+            }
+
+            using var lockedGl = ShaderHotReload.ViewerControl.MakeCurrent();
+
             foreach (var shader in CachedShaders.Values)
             {
                 if (name != null && shader.FileName != name)
@@ -382,6 +389,8 @@ namespace GUI.Types.Renderer
                 var newShader = CompileAndLinkShader(shader.Name, shader.Parameters, blocking: false);
                 shader.ReplaceWith(newShader);
             }
+
+            ShaderHotReload.ViewerControl.MakeNoneCurrent();
         }
 
         public static void ValidateShaders()

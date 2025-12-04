@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
-using GUI.Controls;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 
 namespace GUI.Types.Renderer;
@@ -30,10 +30,10 @@ class ShaderHotReload : IDisposable
     private static readonly TimeSpan reloadCoolDown = TimeSpan.FromSeconds(0.5); // There is a change that happens right after reload
 
     private readonly SemaphoreSlim reloadSemaphore = new(1, 1);
-    private GLControl? glControl;
     private DateTime lastChanged;
     private DateTime lastReload;
 
+    public GLViewerControl? ViewerControl { get; private set; }
     public event EventHandler<string?>? ReloadShader;
 
     public ShaderHotReload()
@@ -58,30 +58,30 @@ class ShaderHotReload : IDisposable
             ShaderWatcher = null;
 
             reloadSemaphore.Dispose();
-            glControl = null;
+            ViewerControl = null;
         }
     }
 
-    public void SetControl(GLControl glControl)
+    public void SetControl(GLViewerControl glControl)
     {
         if (ShaderWatcher == null)
         {
             return;
         }
 
-        ShaderWatcher.SynchronizingObject = glControl;
-        this.glControl = glControl;
+        ShaderWatcher.SynchronizingObject = glControl.GLControl;
+        ViewerControl = glControl;
     }
 
     private void Hotload(object sender, FileSystemEventArgs e)
     {
-        if (glControl?.Parent == null)
+        if (ViewerControl?.GLControl?.Parent == null)
         {
             Dispose();
             return;
         }
 
-        if (!glControl.Parent.Visible || glControl.Context is not { IsCurrent: true })
+        if (!ViewerControl.GLControl.Parent.Visible)
         {
             return;
         }
@@ -142,26 +142,20 @@ class ShaderHotReload : IDisposable
 
         if (error != null)
         {
-            // Hide GLControl to fix message box not showing up correctly
-            // Ref: https://stackoverflow.com/a/5080752
-            glControl.Visible = false;
-
             errorReloadingPage.Caption = "Failed to reload shaders";
             errorReloadingPage.Text = error;
 
             if (errorReloadingPage.BoundDialog == null)
             {
-                TaskDialog.ShowDialog(glControl, errorReloadingPage);
+                TaskDialog.ShowDialog(Program.MainForm, errorReloadingPage);
             }
-
-            glControl.Visible = true;
         }
         else
         {
             errorReloadingPage.BoundDialog?.Close();
         }
 
-        glControl.Invalidate();
+        ViewerControl.GLControl.Invalidate();
     }
 }
 #endif

@@ -48,14 +48,9 @@ namespace GUI.Types.GLViewers
         public Framebuffer ShadowDepthBuffer { get; private set; }
         public Framebuffer FramebufferCopy { get; private set; }
 
-        protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : base(guiContext)
+        protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : this(guiContext)
         {
-            Scene = new Scene(guiContext);
             lockedCullFrustum = cullFrustum;
-
-#if DEBUG
-            guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
-#endif
         }
 
         protected GLSceneViewer(VrfGuiContext guiContext) : base(guiContext)
@@ -804,6 +799,8 @@ namespace GUI.Types.GLViewers
 #if DEBUG
         private void OnHotReload(object sender, string e)
         {
+            using var lockedGl = MakeCurrent();
+
             if (renderModeComboBox != null)
             {
                 SetAvailableRenderModes(true);
@@ -822,6 +819,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
+            MakeNoneCurrent();
             GLControl.Invalidate();
         }
 #endif

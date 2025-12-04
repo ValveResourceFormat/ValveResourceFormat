@@ -109,7 +109,7 @@ namespace GUI.Types.GLViewers
             UiControl.SuspendLayout();
 
 #if DEBUG // We want reload shaders to be the top most button
-            ShaderLoader.ShaderHotReload.SetControl(GLControl);
+            ShaderLoader.ShaderHotReload.SetControl(this);
 
             var button = new Button
             {
@@ -840,7 +840,7 @@ namespace GUI.Types.GLViewers
             Clipboard.SetDataObject(data, copy: true);
         }
 
-        protected Lock.Scope MakeCurrent()
+        public Lock.Scope MakeCurrent()
         {
             var lockedGl = glLock.EnterScope();
 
@@ -849,7 +849,7 @@ namespace GUI.Types.GLViewers
             return lockedGl;
         }
 
-        protected void MakeNoneCurrent()
+        public void MakeNoneCurrent()
         {
             GLNativeWindow.Context.MakeNoneCurrent();
         }
