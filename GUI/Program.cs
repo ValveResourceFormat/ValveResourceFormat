@@ -74,9 +74,23 @@ namespace GUI
                 }
             };
 
-            var result = MainForm != null
-                ? TaskDialog.ShowDialog(MainForm, page)
-                : TaskDialog.ShowDialog(page);
+            TaskDialogButton result;
+
+            if (MainForm != null)
+            {
+                if (MainForm.InvokeRequired)
+                {
+                    result = MainForm.Invoke(() => TaskDialog.ShowDialog(MainForm, page));
+                }
+                else
+                {
+                    result = TaskDialog.ShowDialog(MainForm, page);
+                }
+            }
+            else
+            {
+                result = TaskDialog.ShowDialog(page);
+            }
 
             if (result == copyButton)
             {
