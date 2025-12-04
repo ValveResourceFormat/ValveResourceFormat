@@ -731,8 +731,12 @@ namespace GUI.Types.GLViewers
                 physNode.IsTranslucentRenderMode = renderTranslucent;
             }
 
+            using var lockedGl = MakeCurrent();
+
             Scene.UpdateOctrees();
             SkyboxScene?.UpdateOctrees();
+
+            MakeNoneCurrent();
         }
     }
 }
