@@ -133,6 +133,8 @@ namespace GUI.Forms
             }
 
             Clipboard.SetText(output.ToString());
+
+            copyVersion.Text = "Copied!";
         }
     }
 }
