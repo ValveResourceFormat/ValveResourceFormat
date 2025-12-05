@@ -138,7 +138,7 @@ namespace GUI.Types.GLViewers
 
             ShowLightBackground = !Application.IsDarkModeEnabled;
 
-            SetZoomLabel();
+            UpdateZoomLabel();
 
             var resetButton = new Button
             {
@@ -713,7 +713,7 @@ namespace GUI.Types.GLViewers
             PositionOld = Position;
             ClampPosition();
 
-            SetZoomLabel();
+            UpdateZoomLabel();
 
             if (Svg != null)
             {
@@ -722,7 +722,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private void SetZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
+        private void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
         private void OnPreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
         {
@@ -844,7 +844,7 @@ namespace GUI.Types.GLViewers
             Position = posNewScale - pos;
 
             ClampPosition();
-            SetZoomLabel();
+            UpdateZoomLabel();
 
             if (Svg != null && TextureScaleOld != TextureScale)
             {
@@ -1120,7 +1120,7 @@ namespace GUI.Types.GLViewers
                 );
             }
 
-            SetZoomLabel();
+            UiInvoke(UpdateZoomLabel);
 
             /// This will call <see cref="CenterPosition"/> since it could not have been moved by user on first paint yet
             ClampPosition();
