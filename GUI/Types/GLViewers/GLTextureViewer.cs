@@ -288,7 +288,7 @@ namespace GUI.Types.GLViewers
 
                     if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
                     {
-                        SetupTexture(true);
+                        SetupTextureFromUi(true);
                     }
                 });
 
@@ -305,7 +305,7 @@ namespace GUI.Types.GLViewers
 
                     if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
                     {
-                        SetupTexture(true);
+                        SetupTextureFromUi(true);
                     }
                 });
 
@@ -344,7 +344,7 @@ namespace GUI.Types.GLViewers
 
                     if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
                     {
-                        SetupTexture(true);
+                        SetupTextureFromUi(true);
                     }
                 });
 
@@ -388,7 +388,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                SetupTexture(state);
+                SetupTextureFromUi(state);
             });
 
             UiControl.AddCheckBox("Show UV Tiling", false, (state) =>
@@ -396,7 +396,7 @@ namespace GUI.Types.GLViewers
                 var previousSize = ActualTextureSizeScaled;
 
                 VisualizeTiling = state;
-                SetTextureFiltering();
+                SetTextureFilteringFromUi();
 
                 TextureDimensionsChanged(previousSize);
             });
@@ -474,7 +474,7 @@ namespace GUI.Types.GLViewers
             var samplingComboBox = UiControl.AddSelection("Sampling", (name, index) =>
             {
                 SelectedFiltering = (Filtering)index;
-                SetTextureFiltering();
+                SetTextureFilteringFromUi();
             });
 
             samplingComboBox.Items.AddRange(Enum.GetNames<Filtering>());
@@ -918,6 +918,20 @@ namespace GUI.Types.GLViewers
             {
                 ClampPosition();
             }
+        }
+
+        private void SetupTextureFromUi(bool softwareDecode)
+        {
+            using var lockedGl = MakeCurrent();
+            SetupTexture(softwareDecode);
+            MakeNoneCurrent();
+        }
+
+        private void SetTextureFilteringFromUi()
+        {
+            using var lockedGl = MakeCurrent();
+            SetTextureFiltering();
+            MakeNoneCurrent();
         }
 
         private void SetupTexture(bool forceSoftwareDecode)
