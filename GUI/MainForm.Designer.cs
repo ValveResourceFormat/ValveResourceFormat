@@ -100,7 +100,7 @@ namespace GUI
             menuStrip.BackColor = System.Drawing.SystemColors.Window;
             menuStrip.Dock = DockStyle.Fill;
             menuStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
-            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, aboutToolStripMenuItem, settingsToolStripMenuItem });
+            menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, settingsToolStripMenuItem, aboutToolStripMenuItem });
             menuStrip.Location = new System.Drawing.Point(38, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.Padding = new Padding(0, 6, 0, 6);
@@ -221,6 +221,7 @@ namespace GUI
             mainTabs.BorderColor = System.Drawing.Color.FromArgb(230, 230, 230);
             mainTabs.Dock = DockStyle.Fill;
             mainTabs.DrawMode = TabDrawMode.OwnerDrawFixed;
+            mainTabs.EndEllipsis = false;
             mainTabs.HoverColor = System.Drawing.Color.FromArgb(99, 161, 255);
             mainTabs.ItemSize = new System.Drawing.Size(200, 32);
             mainTabs.LineColor = System.Drawing.Color.FromArgb(99, 161, 255);
@@ -230,7 +231,8 @@ namespace GUI
             mainTabs.Padding = new System.Drawing.Point(16, 16);
             mainTabs.SelectedForeColor = System.Drawing.Color.Black;
             mainTabs.SelectedIndex = 0;
-            mainTabs.SelectTabColor = System.Drawing.Color.FromArgb(244, 244, 244);
+            mainTabs.SelectionLine = true;
+            mainTabs.SelectTabColor = System.Drawing.Color.FromArgb(231, 236, 236);
             mainTabs.Size = new System.Drawing.Size(749, 343);
             mainTabs.SizeMode = TabSizeMode.Fixed;
             mainTabs.TabColor = System.Drawing.Color.FromArgb(244, 244, 244);
