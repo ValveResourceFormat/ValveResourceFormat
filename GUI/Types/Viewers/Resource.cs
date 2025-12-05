@@ -410,6 +410,8 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(entitiesTabPage);
                 }
 
+                GLViewer.InitializeRenderLoop();
+
                 return true;
             }
 

@@ -1094,6 +1094,8 @@ namespace GUI.Types.GLViewers
 
             MainFramebuffer.ClearColor = OpenTK.Mathematics.Color4.White;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+
+            GLPaint += OnPaint;
         }
 
         protected override void OnFirstPaint()
@@ -1124,8 +1126,6 @@ namespace GUI.Types.GLViewers
 
             /// This will call <see cref="CenterPosition"/> since it could not have been moved by user on first paint yet
             ClampPosition();
-
-            GLPaint += OnPaint;
         }
 
         private void OnPaint(object sender, RenderEventArgs e)

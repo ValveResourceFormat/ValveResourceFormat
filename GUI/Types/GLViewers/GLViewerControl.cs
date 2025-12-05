@@ -133,10 +133,13 @@ namespace GUI.Types.GLViewers
 
             UiControl.ResumeLayout();
 
+            return UiControl;
+        }
+
+        public void InitializeRenderLoop()
+        {
             RenderLoopThread.RegisterInstance();
             RenderLoopThread.SetCurrentGLControl(this);
-
-            return UiControl;
         }
 
         // RenderThread can queue UI actions before the UiControl window handle is created
