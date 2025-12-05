@@ -45,6 +45,7 @@ namespace GUI.Types.Viewers
             var navMeshPage = new TabPage("NAV MESH");
             navMeshPage.Controls.Add(glViewer!.InitializeUiControls());
             tabControl.Controls.Add(navMeshPage);
+            glViewer.InitializeRenderLoop();
 
             var infoPage = new TabPage("NAV INFO");
             var infoText = navMeshFile.ToString();
