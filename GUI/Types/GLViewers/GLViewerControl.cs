@@ -201,7 +201,7 @@ namespace GUI.Types.GLViewers
             var bitmap = new SKBitmap(GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, SKColorType.Bgra8888, SKAlphaType.Opaque);
             var pixels = bitmap.GetPixels(out var length);
 
-            using var lockedGl = glLock.EnterScope();
+            using var lockedGl = MakeCurrent();
 
             BlitFramebufferToScreen();
 
