@@ -5,7 +5,6 @@ using GUI.Controls;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
-#pragma warning disable CA1416 // Validate platform compatibility
 
 // !!!!! BEWARE !!!!!
 // This file contains some *pristine* bullshit, it handles all the windows API messages to extend

@@ -1,7 +1,6 @@
 using System.ComponentModel.Design;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Net.NetworkInformation;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
