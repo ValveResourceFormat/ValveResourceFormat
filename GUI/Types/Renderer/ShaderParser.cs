@@ -309,13 +309,13 @@ namespace GUI.Types.Renderer
             do
             {
                 root = Path.GetDirectoryName(root);
-                ArgumentNullException.ThrowIfNull(root);
-                fileName = Path.Join(root, "ValveResourceFormat.sln");
 
-                if (failsafe-- == 0)
+                if (root == null || failsafe-- == 0)
                 {
-                    throw new DirectoryNotFoundException("Failed to find GUI folder for the shaders, are you debugging in some unconventional setup?");
+                    throw new DirectoryNotFoundException("Failed to find the project root folder for the shaders, are you debugging in some unconventional setup?");
                 }
+
+                fileName = Path.Join(root, "ValveResourceFormat.sln");
             }
             while (!File.Exists(fileName));
 
