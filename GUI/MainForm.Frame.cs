@@ -193,20 +193,16 @@ partial class MainForm
         base.WndProc(ref m);
     }
 
-    private void logoButton_Click(object sender, EventArgs e)
-    {
-        //var point = PointToScreen(new Point(logoButton.Left, logoButton.Top + logoButton.Height));
-        //OpenSystemMenu(point);
-    }
-
-    private void OpenSystemMenu(Point point)
+    private unsafe void OpenSystemMenu(Point point)
     {
         var hwnd = (HWND)Handle;
         var menu = PInvoke.GetSystemMenu(hwnd, false);
 
-        unsafe
+        var cmd = PInvoke.TrackPopupMenu(menu, TRACK_POPUP_MENU_FLAGS.TPM_RETURNCMD, point.X, point.Y, 0, hwnd);
+
+        if (cmd != 0)
         {
-            PInvoke.TrackPopupMenu(menu, TRACK_POPUP_MENU_FLAGS.TPM_RETURNCMD, point.X, point.Y, 0, hwnd);
+            PInvoke.SendMessage(hwnd, PInvoke.WM_SYSCOMMAND, (WPARAM)(uint)cmd.Value, 0);
         }
     }
 }
