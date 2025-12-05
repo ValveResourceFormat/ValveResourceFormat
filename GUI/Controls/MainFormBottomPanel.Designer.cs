@@ -34,7 +34,6 @@ partial class MainFormBottomPanel
         menuStrip1 = new MenuStrip();
         versionLabel = new ToolStripMenuItem();
         newVersionAvailableToolStripMenuItem = new ThemedToolStripMenuItem();
-        titleLabel = new Label();
         menuStrip1.SuspendLayout();
         SuspendLayout();
         // 
@@ -66,24 +65,10 @@ partial class MainFormBottomPanel
         newVersionAvailableToolStripMenuItem.Text = "Update Available";
         newVersionAvailableToolStripMenuItem.Click += OnAboutItemClick;
         // 
-        // titleLabel
-        // 
-        titleLabel.AutoEllipsis = true;
-        titleLabel.Dock = DockStyle.Fill;
-        titleLabel.Location = new System.Drawing.Point(0, 0);
-        titleLabel.Name = "titleLabel";
-        titleLabel.Padding = new Padding(4, 0, 0, 0);
-        titleLabel.Size = new System.Drawing.Size(350, 30);
-        titleLabel.TabIndex = 2;
-        titleLabel.Text = "titleLabel";
-        titleLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-        titleLabel.UseCompatibleTextRendering = true;
-        // 
         // MainFormBottomPanel
         // 
         AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        Controls.Add(titleLabel);
         Controls.Add(menuStrip1);
         Name = "MainFormBottomPanel";
         Size = new System.Drawing.Size(659, 30);
@@ -97,5 +82,4 @@ partial class MainFormBottomPanel
     private System.Windows.Forms.MenuStrip menuStrip1;
     private System.Windows.Forms.ToolStripMenuItem versionLabel;
     private ThemedToolStripMenuItem newVersionAvailableToolStripMenuItem;
-    private Label titleLabel;
 }

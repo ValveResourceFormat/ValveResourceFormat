@@ -1107,7 +1107,7 @@ namespace GUI
         {
             base.OnTextChanged(e);
 
-            mainFormBottomPanel.SetTitleText(Text);
+            mainFormBottomPanel.Text = Text;
         }
 
         private void CheckForUpdatesIfNecessary()

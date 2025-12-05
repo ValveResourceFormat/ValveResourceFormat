@@ -13,16 +13,31 @@ public partial class MainFormBottomPanel : UserControl
         {
             newVersionAvailableToolStripMenuItem.Visible = false;
         }
+
+        ResizeRedraw = true;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+
+        var textBounds = ClientRectangle;
+
+        textBounds.Width -= menuStrip1.Width;
+
+        TextRenderer.DrawText(e.Graphics, Text, Font, textBounds, ForeColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+    }
+
+    protected override void OnTextChanged(EventArgs e)
+    {
+        base.OnTextChanged(e);
+
+        Invalidate();
     }
 
     public void SetVersionText(string text)
     {
         versionLabel.Text = text;
-    }
-
-    public void SetTitleText(string text)
-    {
-        titleLabel.Text = text;
     }
 
     public void SetNewVersionAvailable()
