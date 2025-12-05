@@ -57,7 +57,7 @@ namespace GUI.Forms
             }
         }
 
-        private void OnWebsiteClick(object sender, EventArgs e)
+        public void OnWebsiteClick(object sender, EventArgs e)
         {
             OpenUrl("https://valveresourceformat.github.io/");
         }

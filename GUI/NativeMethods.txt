@@ -1,3 +1,4 @@
+AppendMenu
 DwmDefWindowProc
 DwmGetWindowAttribute
 DwmSetWindowAttribute
@@ -15,6 +16,7 @@ HTTOP
 HTTOPLEFT
 HTTOPRIGHT
 HTTRANSPARENT
+MENU_ITEM_FLAGS
 NCCALCSIZE_PARAMS
 PostMessage
 SendMessage

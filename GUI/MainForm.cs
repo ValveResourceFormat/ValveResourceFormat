@@ -353,6 +353,8 @@ namespace GUI
         {
             // so we can bind keys to actions properly
             KeyPreview = true;
+
+            InitializeSystemMenu();
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

@@ -17,6 +17,11 @@ namespace GUI;
 
 partial class MainForm
 {
+    // Custom system menu item IDs (must be multiples of 0x10 due to WM_SYSCOMMAND masking)
+    private const int SC_WEBSITE = 0x1000;
+    private const int SC_SETTINGS = 0x1010;
+    private const int SC_ABOUT = 0x1020;
+
     public bool IsWindowMaximised()
     {
         WINDOWPLACEMENT placement = default;
@@ -189,8 +194,39 @@ partial class MainForm
                 controlsBoxPanel.Invalidate();
             }
         }
+        else if (m.Msg == PInvoke.WM_SYSCOMMAND)
+        {
+            var command = (int)m.WParam & 0xFFF0;
+
+            if (command == SC_WEBSITE)
+            {
+                using var aboutForm = new Forms.AboutForm();
+                aboutForm.OnWebsiteClick(this, EventArgs.Empty);
+                m.Result = 0;
+                return;
+            }
+            else if (command == SC_SETTINGS)
+            {
+                OnSettingsItemClick(this, EventArgs.Empty);
+                m.Result = 0;
+                return;
+            }
+            else if (command == SC_ABOUT)
+            {
+                OnAboutItemClick(this, EventArgs.Empty);
+                m.Result = 0;
+                return;
+            }
+        }
 
         base.WndProc(ref m);
+    }
+
+    private void OnMainLogoClick(object sender, EventArgs e)
+    {
+        var control = (Control)sender;
+        var point = PointToScreen(new Point(control.Left, control.Top + control.Height));
+        OpenSystemMenu(point);
     }
 
     private unsafe void OpenSystemMenu(Point point)
@@ -203,6 +239,29 @@ partial class MainForm
         if (cmd != 0)
         {
             PInvoke.SendMessage(hwnd, PInvoke.WM_SYSCOMMAND, (WPARAM)(uint)cmd.Value, 0);
+        }
+    }
+
+    private unsafe void InitializeSystemMenu()
+    {
+        var hwnd = (HWND)Handle;
+        var menu = PInvoke.GetSystemMenu(hwnd, false);
+
+        PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_SEPARATOR, 0, null);
+
+        fixed (char* p = "Website")
+        {
+            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, SC_WEBSITE, p);
+        }
+
+        fixed (char* p = "Settings")
+        {
+            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, SC_SETTINGS, p);
+        }
+
+        fixed (char* p = "About")
+        {
+            PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, SC_ABOUT, p);
         }
     }
 }

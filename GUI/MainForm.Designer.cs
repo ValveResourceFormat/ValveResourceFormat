@@ -51,8 +51,8 @@ namespace GUI
             validateShadersToolStripMenuItem = new ThemedToolStripMenuItem();
             explorerToolStripMenuItem = new ThemedToolStripMenuItem();
             findToolStripButton = new ThemedToolStripMenuItem();
-            aboutToolStripMenuItem = new ThemedToolStripMenuItem();
             settingsToolStripMenuItem = new ThemedToolStripMenuItem();
+            aboutToolStripMenuItem = new ThemedToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ThemedToolStripMenuItem();
             mainTabs = new ThemedTabControl();
             tabContextMenuStrip = new ThemedContextMenuStrip(components);
@@ -189,14 +189,6 @@ namespace GUI
             findToolStripButton.Text = "&Find";
             findToolStripButton.Click += FindToolStripMenuItem_Click;
             // 
-            // aboutToolStripMenuItem
-            // 
-            aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            aboutToolStripMenuItem.Size = new System.Drawing.Size(72, 36);
-            aboutToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Info.svg";
-            aboutToolStripMenuItem.Text = "About";
-            aboutToolStripMenuItem.Click += OnAboutItemClick;
-            // 
             // settingsToolStripMenuItem
             // 
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
@@ -204,6 +196,14 @@ namespace GUI
             settingsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Settings.svg";
             settingsToolStripMenuItem.Text = "Settings";
             settingsToolStripMenuItem.Click += OnSettingsItemClick;
+            // 
+            // aboutToolStripMenuItem
+            // 
+            aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
+            aboutToolStripMenuItem.Size = new System.Drawing.Size(72, 36);
+            aboutToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Info.svg";
+            aboutToolStripMenuItem.Text = "About";
+            aboutToolStripMenuItem.Click += OnAboutItemClick;
             // 
             // recoverDeletedToolStripMenuItem
             // 
@@ -482,6 +482,7 @@ namespace GUI
             mainLogo.SizeMode = PictureBoxSizeMode.Zoom;
             mainLogo.TabIndex = 2;
             mainLogo.TabStop = false;
+            mainLogo.Click += OnMainLogoClick;
             // 
             // controlsBoxPanel
             // 
