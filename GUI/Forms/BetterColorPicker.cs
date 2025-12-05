@@ -1,12 +1,16 @@
-using System.Drawing.Imaging;
-using System.Drawing.Drawing2D;
-using System.Globalization;
-using System.Windows.Forms;
+using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Globalization;
+using System.Reflection;
+using System.Windows.Forms;
+using GUI.Utils;
+using Svg.Skia;
 
 namespace GUI.Forms
 {
-    public partial class BetterColorPicker : Form
+    public partial class BetterColorPicker : ThemedForm
     {
         private readonly Action<Color>? ColorChanged;
 
@@ -14,8 +18,8 @@ namespace GUI.Forms
         {
             base.OnCreateControl();
 
-            // making this resizeable is an absolutele nightmare, keep it fixed but adjust its size based on DPI to be same on screen.
-            Size = new Size(AdjustForDpi(this, 300), AdjustForDpi(this, 500));
+            // making this resizeable is an absolute nightmare, keep it fixed but adjust its size based on DPI to be same on screen.
+            Size = new Size(Themer.AdjustForDPI(this, 300), Themer.AdjustForDPI(this, 500));
         }
 
         internal double H;
@@ -41,13 +45,13 @@ namespace GUI.Forms
             ColorToHSV(startColor, out H, out S, out V);
 
             HSlider.SliderType = HSVSlider.ColorSliderType.H;
-            HSliderValueInput.CustomTextChanged += (object? sender, EventArgs e) => { HSlider.SetValue(HSliderValueInput.Value * 360); };
+            HSliderValueInput.CustomTextChanged += (sender, e) => { HSlider.SetValue(HSliderValueInput.Value * 360); };
 
             SSlider.SliderType = HSVSlider.ColorSliderType.S;
-            SSliderValueInput.CustomTextChanged += (object? sender, EventArgs e) => { SSlider.SetValue(SSliderValueInput.Value); };
+            SSliderValueInput.CustomTextChanged += (sender, e) => { SSlider.SetValue(SSliderValueInput.Value); };
 
             VSlider.SliderType = HSVSlider.ColorSliderType.V;
-            VSliderValueInput.CustomTextChanged += (object? sender, EventArgs e) => { VSlider.SetValue(VSliderValueInput.Value); };
+            VSliderValueInput.CustomTextChanged += (sender, e) => { VSlider.SetValue(VSliderValueInput.Value); };
 
             OldColorPanel.BackColor = startColor;
             NewColorPanel.BackColor = startColor;
@@ -63,13 +67,25 @@ namespace GUI.Forms
             ColorChanged = colorChanged;
         }
 
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.ColorEyeDropper.svg");
+            Debug.Assert(svgResource is not null);
+            using var svg = new SKSvg();
+            svg.Load(svgResource);
+            Debug.Assert(EyedropperButton.BackgroundImage is not null);
+            EyedropperButton.BackgroundImage = Themer.SvgToBitmap(svg, this.AdjustForDPI(EyedropperButton.BackgroundImage.Width), this.AdjustForDPI(EyedropperButton.BackgroundImage.Height));
+        }
+
         public void UpdateAllControls(bool updateSliderValue = true)
         {
             SuspendLayout();
 
             HSlider.Invalidate();
             SSlider.Invalidate();
-            SSlider.Invalidate();
+            VSlider.Invalidate();
             MainColorPanel.Invalidate();
             HuePanel.Invalidate();
 
@@ -98,7 +114,7 @@ namespace GUI.Forms
 
         public void UpdateTextBoxes()
         {
-            HexTextBox.SetTextWithoutCustomEvent(ColorTranslator.ToHtml(PickedColor).Remove(0, 1));
+            HexTextBox.SetTextWithoutCustomEvent(ColorTranslator.ToHtml(PickedColor)[1..]);
 
             ColorTextBoxR.SetTextWithoutCustomEvent(PickedColor.R.ToString(CultureInfo.InvariantCulture));
             ColorTextBoxG.SetTextWithoutCustomEvent(PickedColor.G.ToString(CultureInfo.InvariantCulture));
@@ -211,15 +227,13 @@ namespace GUI.Forms
 
         private static Color GetColorAt(Point location)
         {
-            using (Bitmap pixelContainer = new Bitmap(1, 1))
+            using var pixelContainer = new Bitmap(1, 1);
+            using (var g = Graphics.FromImage(pixelContainer))
             {
-                using (Graphics g = Graphics.FromImage(pixelContainer))
-                {
-                    g.CopyFromScreen(location, Point.Empty, pixelContainer.Size);
-                }
-
-                return pixelContainer.GetPixel(0, 0);
+                g.CopyFromScreen(location, Point.Empty, pixelContainer.Size);
             }
+
+            return pixelContainer.GetPixel(0, 0);
         }
 
         // eyedropper stuff
@@ -277,7 +291,7 @@ namespace GUI.Forms
                 var selectedColor = GetColorAt(Cursor.Position);
                 var hexValue = ColorTranslator.ToHtml(selectedColor);
 
-                this.Invoke(() =>
+                Invoke(() =>
                 {
                     HexTextBox.Text = hexValue;
                 });
@@ -288,13 +302,8 @@ namespace GUI.Forms
 
         private void CloseColorPicker(Form picker, Color color)
         {
-            this.Invoke(() => { HexTextBox.Text = ColorTranslator.ToHtml(color); });
+            Invoke(() => { HexTextBox.Text = ColorTranslator.ToHtml(color); });
             picker.Close();
-        }
-
-        internal static int AdjustForDpi(Control control, int val)
-        {
-            return (int)(val * control.DeviceDpi / 96f);
         }
 
         internal static float Remap(float source, float sourceFrom, float sourceTo, float targetFrom, float targetTo)
@@ -318,10 +327,10 @@ namespace GUI.Forms
             var f = hue - (int)hue;
             value *= 255.0;
 
-            int v = (int)value;
-            int p = (int)(value * (1.0 - saturation));
-            int q = (int)(value * (1.0 - f * saturation));
-            int t = (int)(value * (1.0 - (1.0 - f) * saturation));
+            var v = (int)value;
+            var p = (int)(value * (1.0 - saturation));
+            var q = (int)(value * (1.0 - f * saturation));
+            var t = (int)(value * (1.0 - (1.0 - f) * saturation));
 
             return (int)hue switch
             {
@@ -371,9 +380,9 @@ namespace GUI.Forms
         {
             base.OnCreateControl();
 
-            if (Parent is BetterColorPicker)
+            if (Parent is BetterColorPicker picker)
             {
-                BetterColorPicker = (BetterColorPicker)Parent;
+                BetterColorPicker = picker;
             }
             else
             {
@@ -454,23 +463,23 @@ namespace GUI.Forms
                 RenderImage = new Bitmap(width, height);
             }
 
-            BitmapData bmpData = RenderImage.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-            IntPtr ptr = bmpData.Scan0;
+            var bmpData = RenderImage.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            var ptr = bmpData.Scan0;
 
             unsafe
             {
-                byte* pixelPtr = (byte*)ptr;
-                for (int y = 0; y < height; y++)
+                var pixelPtr = (byte*)ptr;
+                for (var y = 0; y < height; y++)
                 {
-                    double y_t = (double)y / (height - 1);
+                    var y_t = (double)y / (height - 1);
 
-                    for (int x = 0; x < width; x++)
+                    for (var x = 0; x < width; x++)
                     {
-                        double x_t = (double)x / (width - 1);
+                        var x_t = (double)x / (width - 1);
 
                         var color = BetterColorPicker.ColorFromHSV(h, x_t, 1 - y_t);
 
-                        int position = y * bmpData.Stride + x * 4;
+                        var position = y * bmpData.Stride + x * 4;
                         pixelPtr[position] = color.B;
                         pixelPtr[position + 1] = color.G;
                         pixelPtr[position + 2] = color.R;
@@ -485,7 +494,7 @@ namespace GUI.Forms
             using var pen = new Pen(Color.FromArgb(BetterColorPicker.ColorFromHSV(h, s, v).ToArgb() ^ 0xffffff), 2);
 
             e.Graphics.DrawImage(RenderImage, ClientRectangle);
-            var circleRadius = BetterColorPicker.AdjustForDpi(this, 10);
+            var circleRadius = Themer.AdjustForDPI(this, 10);
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.DrawEllipse(pen, new Rectangle((int)(s * Width) - circleRadius / 2, (int)((1.0f - v) * Height) - circleRadius / 2, circleRadius, circleRadius));
@@ -544,8 +553,8 @@ namespace GUI.Forms
         {
             base.OnPaint(e);
 
-            int width = Bounds.Width;
-            int height = Bounds.Height;
+            var width = Bounds.Width;
+            var height = Bounds.Height;
 
             double h = 0;
             if (BetterColorPicker != null)
@@ -558,21 +567,21 @@ namespace GUI.Forms
                 RenderImage = new Bitmap(width, height);
             }
 
-            BitmapData bmpData = RenderImage.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-            IntPtr ptr = bmpData.Scan0;
-            int bytes = Math.Abs(bmpData.Stride) * height;
+            var bmpData = RenderImage.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            var ptr = bmpData.Scan0;
+            var bytes = Math.Abs(bmpData.Stride) * height;
 
             unsafe
             {
-                byte* pixelPtr = (byte*)ptr;
-                for (int y = 0; y < height; y++)
+                var pixelPtr = (byte*)ptr;
+                for (var y = 0; y < height; y++)
                 {
-                    double hue = 360.0 * y / (height - 1);
+                    var hue = 360.0 * y / (height - 1);
                     var color = BetterColorPicker.ColorFromHSV(hue, 1, 1);
 
-                    for (int x = 0; x < width; x++)
+                    for (var x = 0; x < width; x++)
                     {
-                        int position = y * bmpData.Stride + x * 4;
+                        var position = y * bmpData.Stride + x * 4;
                         pixelPtr[position] = color.B;
                         pixelPtr[position + 1] = color.G;
                         pixelPtr[position + 2] = color.R;
@@ -586,9 +595,9 @@ namespace GUI.Forms
 
             e.Graphics.DrawImage(RenderImage, ClientRectangle);
 
-            using var pen = new Pen(Color.FromArgb(BetterColorPicker.ColorFromHSV(h, 1, 1).ToArgb() ^ 0xffffff), BetterColorPicker.AdjustForDpi(this, 2));
+            using var pen = new Pen(Color.FromArgb(BetterColorPicker.ColorFromHSV(h, 1, 1).ToArgb() ^ 0xffffff), Themer.AdjustForDPI(this, 2));
 
-            var selectorHeight = BetterColorPicker.AdjustForDpi(this, 4);
+            var selectorHeight = Themer.AdjustForDPI(this, 4);
             e.Graphics.DrawRectangle(pen, new Rectangle(ClientRectangle.X, (int)(h / 360 * Height - selectorHeight / 2), ClientRectangle.Width, selectorHeight));
         }
 
@@ -682,8 +691,8 @@ namespace GUI.Forms
         {
             base.OnPaint(e);
 
-            int width = Bounds.Width;
-            int height = Bounds.Height;
+            var width = Bounds.Width;
+            var height = Bounds.Height;
 
             double h = 0;
             double s = 1;
@@ -701,42 +710,31 @@ namespace GUI.Forms
                 RenderImage = new Bitmap(width, height);
             }
 
-            BitmapData bmpData = RenderImage.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-            IntPtr ptr = bmpData.Scan0;
+            var bmpData = RenderImage.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            var ptr = bmpData.Scan0;
 
             unsafe
             {
-                byte* pixelPtr = (byte*)ptr;
+                var pixelPtr = (byte*)ptr;
 
-                for (int x = 0; x < width; x++)
+                for (var x = 0; x < width; x++)
                 {
-                    Color color;
-                    float normalizedX = (float)x / width;
-
-                    switch (SliderType)
+                    var normalizedX = (float)x / width;
+                    var color = SliderType switch
                     {
-                        case ColorSliderType.H:
-                            color = BetterColorPicker.ColorFromHSV(normalizedX * 360f, s, v);
-                            break;
-                        case ColorSliderType.S:
-                            color = BetterColorPicker.ColorFromHSV(h, normalizedX, v);
-                            break;
-                        case ColorSliderType.V:
-                            color = BetterColorPicker.ColorFromHSV(h, s, normalizedX);
-                            break;
-                        default:
-                            color = Color.Red;
-                            break;
-                    }
+                        ColorSliderType.H => BetterColorPicker.ColorFromHSV(normalizedX * 360f, s, v),
+                        ColorSliderType.S => BetterColorPicker.ColorFromHSV(h, normalizedX, v),
+                        ColorSliderType.V => BetterColorPicker.ColorFromHSV(h, s, normalizedX),
+                        _ => Color.Red,
+                    };
+                    var colorB = color.B;
+                    var colorG = color.G;
+                    var colorR = color.R;
+                    var colorA = color.A;
 
-                    byte colorB = color.B;
-                    byte colorG = color.G;
-                    byte colorR = color.R;
-                    byte colorA = color.A;
-
-                    for (int y = 0; y < height; y++)
+                    for (var y = 0; y < height; y++)
                     {
-                        int position = y * bmpData.Stride + x * 4;
+                        var position = y * bmpData.Stride + x * 4;
                         pixelPtr[position] = colorB;
                         pixelPtr[position + 1] = colorG;
                         pixelPtr[position + 2] = colorR;
@@ -752,13 +750,13 @@ namespace GUI.Forms
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            int sliderHeight = height / 2;
-            int sliderY = (height - sliderHeight) / 2;
+            var sliderHeight = height / 2;
+            var sliderY = (height - sliderHeight) / 2;
             e.Graphics.Clear(BackColor);
             e.Graphics.DrawImage(RenderImage, new Rectangle(0, sliderY, width, sliderHeight));
 
-            int knobSize = height - BetterColorPicker.AdjustForDpi(this, 4);
-            float knobX = SliderType switch
+            var knobSize = height - Themer.AdjustForDPI(this, 4);
+            var knobX = SliderType switch
             {
                 ColorSliderType.H => (float)(h / 360f),
                 ColorSliderType.S => (float)s,
@@ -770,8 +768,8 @@ namespace GUI.Forms
 
             KnobColor = BetterColorPicker.ColorFromHSV(h, s, v);
 
-            using SolidBrush knobBrush = new SolidBrush(KnobColor);
-            using Pen knobPen = new Pen(Color.FromArgb(KnobColor.ToArgb() ^ 0xffffff), BetterColorPicker.AdjustForDpi(this, 2));
+            using var knobBrush = new SolidBrush(KnobColor);
+            using var knobPen = new Pen(Color.FromArgb(KnobColor.ToArgb() ^ 0xffffff), Themer.AdjustForDPI(this, 2));
 
             var knobXTransformed = knobX * width - knobSize / 2;
 
@@ -790,7 +788,7 @@ namespace GUI.Forms
 
                 if (DesignMode) { return; }
 
-                Point mousePos = BetterColorPicker.ClipPointToRect(new Point(e.X, e.Y), ClientRectangle);
+                var mousePos = BetterColorPicker.ClipPointToRect(new Point(e.X, e.Y), ClientRectangle);
 
                 if (BetterColorPicker == null)
                 {

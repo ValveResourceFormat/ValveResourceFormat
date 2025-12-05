@@ -16,6 +16,7 @@ using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
+using Svg.Skia;
 using ValveResourceFormat.IO;
 
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
@@ -28,36 +29,15 @@ namespace GUI
     {
         // Disposable fields should be disposed
         // for some reason disposing it makes closing GUI very slow
-        public static ImageList ImageList { get; }
-        public static Dictionary<string, int> ImageListLookup { get; }
+        public static ImageList ImageList { get; private set; }
+        public static Dictionary<string, int> ImageListLookup { get; private set; }
+
+        private readonly string[] Args;
 
         private SearchForm searchForm;
 
         static MainForm()
         {
-            ImageList = new ImageList
-            {
-                ColorDepth = ColorDepth.Depth32Bit
-            };
-
-            var assembly = Assembly.GetExecutingAssembly();
-            var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.AssetTypes.", StringComparison.Ordinal)).ToList();
-
-            ImageListLookup = new(names.Count);
-
-            foreach (var name in names)
-            {
-                var extension = name.Split('.')[2];
-
-                using var stream = assembly.GetManifestResourceStream(name);
-                ImageList.Images.Add(extension, Image.FromStream(stream));
-
-                // Keep our own lookup because IndexOfKey is slow and not thread safe
-                var index = ImageList.Images.IndexOfKey(extension); // O(n)
-                ImageListLookup.Add(extension, index);
-                Debug.Assert(index >= 0);
-            }
-
             GLFWProvider.CheckForMainThread = false;
             GLFWProvider.EnsureInitialized();
         }
@@ -66,17 +46,15 @@ namespace GUI
         {
             InitializeComponent();
 
+            Args = args;
+
+            LoadIcons();
             mainTabs.ImageList = ImageList;
             mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
 
-            var consoleTab = new ConsoleTab();
-            Log.SetConsoleTab(consoleTab);
-            var consoleTabPage = consoleTab.CreateTab();
-            consoleTabPage.ImageIndex = ImageListLookup["_console"];
-            mainTabs.TabPages.Add(consoleTabPage);
-
             var version = Application.ProductVersion;
             var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture);
+            string versionDisplay;
 
             if (versionPlus > 0)
             {
@@ -86,68 +64,100 @@ namespace GUI
                     versionPlus += 8;
                 }
 
-                versionLabel.Text = string.Concat("v", version[..versionPlus]);
+                versionDisplay = string.Concat("v", version.AsSpan(0, versionPlus));
             }
             else
             {
-                versionLabel.Text = string.Concat("v", version);
+                versionDisplay = string.Concat("v", version);
 
 #if !CI_RELEASE_BUILD // Set in Directory.Build.props
-                versionLabel.Text += "-dev";
+                versionDisplay += "-dev";
 #endif
             }
 
 #if DEBUG
-            versionLabel.Text += " (DEBUG)";
+            versionDisplay += " (DEBUG)";
 #endif
+
+            mainFormBottomPanel.SetVersionText(versionDisplay);
 
             searchForm = new SearchForm();
 
             Settings.Load();
-            consoleTab.InitializeFont();
+            Themer.InitializeTheme();
+            Themer.ApplyTheme(this);
 
-            Application.SetColorMode(Settings.GetSystemColor());
+            mainTabs.BackColor = Themer.CurrentThemeColors.App;
+            mainTabs.SelectTabColor = Themer.CurrentThemeColors.AppMiddle;
+            mainTabs.SelectedForeColor = Themer.CurrentThemeColors.Contrast;
+            mainTabs.ForeColor = Themer.CurrentThemeColors.ContrastSoft;
+            mainTabs.HoverColor = Themer.CurrentThemeColors.Accent;
+            mainTabs.SelectionLine = false;
+            mainTabs.EndEllipsis = true;
+
+            CheckForUpdatesIfNecessary();
 
             HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
             RenderLoopThread.Initialize(this);
 
 #if DEBUG
-            var shadersMenuItem = new ToolStripMenuItem("Validate shaders");
-            shadersMenuItem.Click += OnValidateShadersToolStripMenuItem_Click;
-            fileToolStripMenuItem.DropDownItems.Add(shadersMenuItem);
-
             if (args.Length > 0 && args[0] == "validate_shaders")
             {
                 GUI.Types.Renderer.ShaderLoader.ValidateShaders();
                 Environment.Exit(0);
                 return;
             }
+#else
+            fileToolStripMenuItem.DropDownItems.Remove(validateShadersToolStripMenuItem);
 #endif
-
-            if (Settings.IsFirstStartup)
-            {
-                OpenWelcome();
-            }
-            else
-
-            if (args.Length > 0)
-            {
-                void OnHandleCreated(object sender, EventArgs e)
-                {
-                    HandleCreated -= OnHandleCreated;
-
-                    OpenCommandLineArgFiles(args);
-                }
-
-                HandleCreated += OnHandleCreated;
-            }
-            else if (Settings.Config.OpenExplorerOnStart != 0)
-            {
-                OpenExplorer();
-            }
 
             // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
             OnMainSelectedTabChanged(null, null);
+        }
+
+        private void LoadIcons()
+        {
+            ImageList = new ImageList
+            {
+                ColorDepth = ColorDepth.Depth32Bit,
+                ImageSize = new Size(this.AdjustForDPI(24), this.AdjustForDPI(24)),
+            };
+
+            var assembly = Assembly.GetExecutingAssembly();
+
+            var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Icons.", StringComparison.Ordinal)).ToList();
+
+            ImageListLookup = new(names.Count);
+
+            foreach (var name in names)
+            {
+                var splitName = name.Split('.');
+
+                var fileName = splitName[^2];
+                var extension = splitName[^1];
+
+                using var stream = assembly.GetManifestResourceStream(name);
+                Debug.Assert(stream is not null);
+
+                if (extension == "svg")
+                {
+#pragma warning disable CA2000 // Dispose objects before losing scope, this is a false positive
+                    using var svg = new SKSvg();
+#pragma warning restore CA2000
+                    svg.Load(stream);
+
+                    ImageList.Images.Add(fileName, Themer.SvgToBitmap(svg, ImageList.ImageSize.Width, ImageList.ImageSize.Height));
+                }
+                else
+                {
+                    ImageList.Images.Add(fileName, Image.FromStream(stream));
+                }
+
+                // Keep our own lookup because IndexOfKey is slow and not thread safe
+                var index = ImageList.Images.IndexOfKey(fileName); // O(n)
+                ImageListLookup.Add(fileName, index);
+                Debug.Assert(index >= 0);
+            }
         }
 
         public void OpenCommandLineArgFiles(string[] args)
@@ -256,6 +266,26 @@ namespace GUI
         {
             base.OnLoad(e);
 
+            var consoleTab = new ConsoleTab();
+            Log.SetConsoleTab(consoleTab);
+            var consoleTabPage = consoleTab.CreateTab();
+            consoleTabPage.ImageIndex = ImageListLookup["Log"];
+            mainTabs.TabPages.Add(consoleTabPage);
+            consoleTab.InitializeFont();
+
+            if (Settings.IsFirstStartup)
+            {
+                OpenWelcome();
+            }
+            else if (Args.Length > 0)
+            {
+                OpenCommandLineArgFiles(Args);
+            }
+            else if (Settings.Config.OpenExplorerOnStart != 0)
+            {
+                OpenExplorer();
+            }
+
             var savedWindowDimensionsAreValid = IsOnScreen(new Rectangle(
                 Settings.Config.WindowLeft,
                 Settings.Config.WindowTop,
@@ -280,7 +310,6 @@ namespace GUI
             }
 
 #if SCREENSHOT_MODE
-            checkForUpdatesToolStripMenuItem.Visible = false;
             versionLabel.Visible = false;
             SetBounds(x: 100, y: 100, width: 1800 + 22, height: 1200 + 11); // Tweak size as needed
 #endif
@@ -321,6 +350,8 @@ namespace GUI
         {
             // so we can bind keys to actions properly
             KeyPreview = true;
+
+            InitializeSystemMenu();
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -536,10 +567,10 @@ namespace GUI
                 }
             }
 
-            var seettingsTab = new TabPage("Settings")
+            var seettingsTab = new ThemedTabPage("Settings")
             {
                 ToolTipText = "Settings",
-                ImageIndex = ImageListLookup["_settings"],
+                ImageIndex = ImageListLookup["Settings"],
             };
 
             try
@@ -617,7 +648,7 @@ namespace GUI
                 (_, _) => ResourceViewMode.Default,
             };
 
-            var tabTemp = new TabPage(Path.GetFileName(vrfGuiContext.FileName))
+            var tabTemp = new ThemedTabPage(Path.GetFileName(vrfGuiContext.FileName))
             {
                 ToolTipText = vrfGuiContext.FileName,
                 Tag = new ExportData
@@ -998,10 +1029,10 @@ namespace GUI
                 }
             }
 
-            var explorerTab = new TabPage("Explorer")
+            var explorerTab = new ThemedTabPage("Explorer")
             {
                 ToolTipText = "Explorer",
-                ImageIndex = ImageListLookup["_folder_star"],
+                ImageIndex = ImageListLookup["Explorer"],
             };
 
             try
@@ -1022,10 +1053,10 @@ namespace GUI
 
         private void OpenWelcome()
         {
-            var welcomeTab = new TabPage("Welcome")
+            var welcomeTab = new ThemedTabPage("Welcome")
             {
                 ToolTipText = "Welcome",
-                ImageIndex = ImageListLookup["_folder_star"],
+                ImageIndex = ImageListLookup["Favorite Dark"],
             };
 
             try
@@ -1063,7 +1094,7 @@ namespace GUI
                 return image;
             }
 
-            return ImageListLookup["_default"];
+            return ImageListLookup["File"];
         }
 
         private void ClearConsoleToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1071,7 +1102,14 @@ namespace GUI
             Log.ClearConsole();
         }
 
-        private void MainForm_Shown(object sender, EventArgs e)
+        protected override void OnTextChanged(EventArgs e)
+        {
+            base.OnTextChanged(e);
+
+            mainFormBottomPanel.Text = Text;
+        }
+
+        private void CheckForUpdatesIfNecessary()
         {
             if (!Settings.Config.Update.CheckAutomatically)
             {
@@ -1080,9 +1118,7 @@ namespace GUI
 
             if (Settings.Config.Update.UpdateAvailable)
             {
-                checkForUpdatesToolStripMenuItem.Visible = false;
-                newVersionAvailableToolStripMenuItem.Text = "New update available";
-                newVersionAvailableToolStripMenuItem.Visible = true;
+                mainFormBottomPanel.SetNewVersionAvailable();
                 return;
             }
 
@@ -1112,9 +1148,7 @@ namespace GUI
             {
                 await InvokeAsync(() =>
                 {
-                    checkForUpdatesToolStripMenuItem.Visible = false;
-                    newVersionAvailableToolStripMenuItem.Text = $"New {(UpdateChecker.IsNewVersionStableBuild ? "release" : "build")} {UpdateChecker.NewVersion} available";
-                    newVersionAvailableToolStripMenuItem.Visible = true;
+                    mainFormBottomPanel.SetNewVersionAvailable();
                 }).ConfigureAwait(false);
             }
         }

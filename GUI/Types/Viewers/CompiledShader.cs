@@ -29,7 +29,7 @@ namespace GUI.Types.Viewers
         public CompiledShader(VrfGuiContext vrfGuiContext)
         {
             this.vrfGuiContext = vrfGuiContext;
-            fileListView = new TreeView
+            fileListView = new TreeViewDoubleBuffered
             {
                 FullRowSelect = true,
                 HideSelection = false,
@@ -39,6 +39,7 @@ namespace GUI.Types.Viewers
                 ImageList = MainForm.ImageList,
             };
             fileListView.NodeMouseClick += OnNodeMouseClick;
+            Themer.ThemeControl(fileListView);
 
             control = new TextControl(CodeTextBox.HighlightLanguage.Shaders);
             control.AddControl(fileListView);

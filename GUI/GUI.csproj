@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <RollForward>LatestMajor</RollForward>
     <OutputType>WinExe</OutputType>
@@ -32,7 +32,7 @@
     <PackageReference Include="Svg.Skia" Version="3.2.1" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="AssetTypes\*" />
+    <EmbeddedResource Include="Icons\**" />
     <EmbeddedResource Include="Types\Renderer\Shaders\**" />
     <EmbeddedResource Include="..\Misc\Icons\vpk.ico" Link="Utils\vpk.ico" />
     <EmbeddedResource Include="Utils\industrial_sunset_puresky.vtex_c" />

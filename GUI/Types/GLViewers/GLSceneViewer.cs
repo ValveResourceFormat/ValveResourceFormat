@@ -37,7 +37,6 @@ namespace GUI.Types.GLViewers
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
-        private Font renderModeBoldFont;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
         private SceneBackground baseBackground;
@@ -72,15 +71,8 @@ namespace GUI.Types.GLViewers
 
             if (renderModeComboBox != null)
             {
-                renderModeComboBox.DrawItem -= OnRenderModeDrawItem;
                 renderModeComboBox.Dispose();
                 renderModeComboBox = null;
-            }
-
-            if (renderModeBoldFont != null)
-            {
-                renderModeBoldFont.Dispose();
-                renderModeBoldFont = null;
             }
 
 #if DEBUG
@@ -110,10 +102,7 @@ namespace GUI.Types.GLViewers
             {
                 Scene.ShowToolsMaterials = v;
 
-                if (SkyboxScene != null)
-                {
-                    SkyboxScene.ShowToolsMaterials = v;
-                }
+                SkyboxScene?.ShowToolsMaterials = v;
             });
 
             AddWireframeToggleControl();
@@ -303,12 +292,8 @@ namespace GUI.Types.GLViewers
             PostSceneLoad();
 
             GuiContext.ClearCache();
-
-            if (GuiContext.GLPostLoadAction != null)
-            {
-                GuiContext.GLPostLoadAction.Invoke(this);
-                GuiContext.GLPostLoadAction = null;
-            }
+            GuiContext.GLPostLoadAction?.Invoke(this);
+            GuiContext.GLPostLoadAction = null;
         }
 
         protected override void OnPaint(RenderEventArgs e)
@@ -647,46 +632,7 @@ namespace GUI.Types.GLViewers
                 SetRenderMode(renderMode.Name);
             }, true, true);
 
-            renderModeBoldFont = new Font(renderModeComboBox.Font, FontStyle.Bold);
-            renderModeComboBox.DrawMode = DrawMode.OwnerDrawFixed;
-            renderModeComboBox.DrawItem += OnRenderModeDrawItem;
-
             SetAvailableRenderModes();
-        }
-
-        private void OnRenderModeDrawItem(object sender, DrawItemEventArgs e)
-        {
-            var comboBox = (ComboBox)sender;
-
-            if (e.Index < 0)
-            {
-                return;
-            }
-
-            var mode = renderModes[e.Index];
-
-            if (mode.IsHeader)
-            {
-                e.Graphics.FillRectangle(SystemBrushes.Window, e.Bounds);
-                e.Graphics.DrawString(mode.Name, renderModeBoldFont, SystemBrushes.ControlText, e.Bounds);
-            }
-            else
-            {
-                e.DrawBackground();
-
-                var bounds = e.Bounds;
-
-                if (e.Index > 0 && (e.State & DrawItemState.ComboBoxEdit) == 0)
-                {
-                    bounds.X += 12;
-                }
-
-                var isSelected = (e.State & DrawItemState.Selected) > 0;
-                var brush = isSelected ? SystemBrushes.HighlightText : SystemBrushes.ControlText;
-                e.Graphics.DrawString(mode.Name, comboBox.Font, brush, bounds);
-
-                e.DrawFocusRectangle();
-            }
         }
 
         private void SetAvailableRenderModes(bool keepCurrentSelection = false)
@@ -733,7 +679,12 @@ namespace GUI.Types.GLViewers
 
                 renderModeComboBox.BeginUpdate();
                 renderModeComboBox.Items.Clear();
-                renderModeComboBox.Items.AddRange(renderModes.Select(x => x.Name).ToArray());
+
+                foreach (var renderMode in renderModes)
+                {
+                    renderModeComboBox.Items.Add(new ThemedComboBoxItem { Text = renderMode.Name, IsHeader = renderMode.IsHeader });
+                }
+
                 renderModeCurrentIndex = -10;
                 renderModeComboBox.SelectedIndex = selectedIndex;
                 renderModeComboBox.EndUpdate();

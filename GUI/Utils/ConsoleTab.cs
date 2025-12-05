@@ -37,7 +37,7 @@ namespace GUI.Utils
         private static readonly TextStyle TextStyleTime = new(Brushes.DarkGray, null, FontStyle.Regular);
         private static readonly TextStyle TextStyleError = new(Brushes.Orange, Brushes.DarkRed, FontStyle.Regular);
         private static readonly TextStyle TextStyleWarn = new(Brushes.Orange, null, FontStyle.Regular);
-        private static readonly TextStyle TextStyleDebug = new(Brushes.LightGreen, null, FontStyle.Regular);
+        private static readonly TextStyle TextStyleDebug = new(Themer.CurrentThemeColors.ColorMode == SystemColorMode.Dark ? Brushes.LightGreen : Brushes.ForestGreen, null, FontStyle.Regular);
 
         private CodeTextBox control;
         private MyLogger loggerOut;
@@ -175,7 +175,7 @@ namespace GUI.Utils
 
             const string CONSOLE = "Console";
 
-            var tab = new TabPage(CONSOLE)
+            var tab = new ThemedTabPage(CONSOLE)
             {
                 BackColor = bgColor,
             };

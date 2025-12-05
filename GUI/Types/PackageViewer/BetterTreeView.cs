@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -272,7 +273,7 @@ namespace GUI.Types.PackageViewer
 
         public void GenerateIconList(IEnumerable<string> extensions)
         {
-            var defaultImage = MainForm.ImageListLookup["_default"];
+            var defaultImage = MainForm.ImageListLookup["File"];
 
             ExtensionIconList = [];
 
@@ -288,7 +289,7 @@ namespace GUI.Types.PackageViewer
                 ExtensionIconList.Add(originalExtension, image);
             }
 
-            FolderImage = MainForm.ImageListLookup["_folder"];
+            FolderImage = MainForm.ImageListLookup["Folder"];
         }
 
         public static VirtualPackageNode AddFolderNode(VirtualPackageNode currentNode, string directory, uint size)

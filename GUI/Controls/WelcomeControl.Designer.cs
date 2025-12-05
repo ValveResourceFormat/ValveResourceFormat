@@ -1,4 +1,4 @@
-﻿namespace GUI.Controls
+namespace GUI.Controls
 {
     partial class WelcomeControl
     {
@@ -29,13 +29,13 @@
         private void InitializeComponent()
         {
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(WelcomeControl));
-            groupBox1 = new System.Windows.Forms.GroupBox();
+            groupBox1 = new ThemedGroupBox();
             label1 = new System.Windows.Forms.Label();
-            updateCheckButton = new System.Windows.Forms.Button();
-            groupBox2 = new System.Windows.Forms.GroupBox();
+            updateCheckButton = new ThemedButton();
+            groupBox2 = new ThemedGroupBox();
             label3 = new System.Windows.Forms.Label();
-            groupBox3 = new System.Windows.Forms.GroupBox();
-            fileAssociationButton = new System.Windows.Forms.Button();
+            groupBox3 = new ThemedGroupBox();
+            fileAssociationButton = new ThemedButton();
             splitContainer = new System.Windows.Forms.SplitContainer();
             panel1 = new System.Windows.Forms.Panel();
             groupBox1.SuspendLayout();

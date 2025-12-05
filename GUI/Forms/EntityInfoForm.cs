@@ -3,7 +3,7 @@ using GUI.Utils;
 
 namespace GUI.Forms
 {
-    partial class EntityInfoForm : Form
+    partial class EntityInfoForm : ThemedForm
     {
         public EntityInfoControl EntityInfoControl;
 

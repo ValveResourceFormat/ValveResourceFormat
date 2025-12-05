@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI.Controls;
 
@@ -9,9 +10,27 @@ partial class RendererControl : UserControl
     private Control ControlsPanel => controlsPanel;
     public Control GLControlContainer => glControlContainer;
 
-    public RendererControl()
+    public RendererControl(bool isPreview = false)
     {
         InitializeComponent();
+
+        if (isPreview)
+        {
+            splitContainer.SuspendLayout();
+            splitContainer.Panel1.Controls.Clear();
+            splitContainer.Panel2.Controls.Clear();
+            splitContainer.Panel1.Controls.Add(glControlContainer);
+            splitContainer.Panel2.Controls.Add(controlsPanel);
+            splitContainer.FixedPanel = FixedPanel.Panel2;
+            splitContainer.ResumeLayout();
+        }
+    }
+
+    protected override void OnCreateControl()
+    {
+        base.OnCreateControl();
+
+        Themer.ThemeControl(this);
     }
 
     public void AddControl(Control control)
@@ -50,6 +69,10 @@ partial class RendererControl : UserControl
             if (selectionControl.ComboBox.SelectedItem is string selectedItem)
             {
                 changeCallback(selectedItem, selectionControl.ComboBox.SelectedIndex);
+            }
+            else if (selectionControl.ComboBox.SelectedItem is ThemedComboBoxItem selectedThemedItem)
+            {
+                changeCallback(selectedThemedItem.Text, selectionControl.ComboBox.SelectedIndex);
             }
         };
 
@@ -132,6 +155,12 @@ partial class RendererControl : UserControl
 
     public void UseWideSplitter()
     {
+        // Do not change the splitter distance if the controls got swapped for preview
+        if (splitContainer.FixedPanel == FixedPanel.Panel2)
+        {
+            return;
+        }
+
         splitContainer.SplitterDistance = 450;
     }
 

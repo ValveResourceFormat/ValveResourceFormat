@@ -1,3 +1,5 @@
+using GUI.Controls;
+
 namespace GUI.Forms
 {
     partial class SearchForm
@@ -28,11 +30,11 @@ namespace GUI.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            findButton = new System.Windows.Forms.Button();
-            cancelButton = new System.Windows.Forms.Button();
+            findButton = new ThemedButton();
+            cancelButton = new ThemedButton();
             findTextBox = new System.Windows.Forms.TextBox();
             findLabel = new System.Windows.Forms.Label();
-            searchTypeComboBox = new System.Windows.Forms.ComboBox();
+            searchTypeComboBox = new ThemedComboBox();
             SuspendLayout();
             // 
             // findButton

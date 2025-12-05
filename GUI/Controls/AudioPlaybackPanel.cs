@@ -1,8 +1,11 @@
+using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Windows.Forms;
 using GUI.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using Svg.Skia;
 
 #nullable disable
 
@@ -23,6 +26,27 @@ namespace GUI.Controls
             waveStream = inputStream;
             labelTotalTime.Text = waveStream.TotalTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
             volumeSlider1.Volume = Settings.Config.Volume;
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            {
+                using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.AudioPlay.svg");
+                Debug.Assert(svgResource is not null);
+                using var svg = new SKSvg();
+                svg.Load(svgResource);
+                buttonPlay.Image = Themer.SvgToBitmap(svg, this.AdjustForDPI(buttonPlay.Image.Width), this.AdjustForDPI(buttonPlay.Image.Height));
+            }
+
+            {
+                using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.AudioPause.svg");
+                Debug.Assert(svgResource is not null);
+                using var svg = new SKSvg();
+                svg.Load(svgResource);
+                buttonPause.Image = Themer.SvgToBitmap(svg, this.AdjustForDPI(buttonPause.Image.Width), this.AdjustForDPI(buttonPause.Image.Height));
+            }
         }
 
         private void OnButtonPlayClick(object sender, EventArgs e) => Play();
@@ -156,14 +180,6 @@ namespace GUI.Controls
             setVolumeDelegate?.Invoke(volumeSlider1.Volume);
 
             Settings.Config.Volume = volumeSlider1.Volume;
-        }
-
-        private void OnButtonStopClick(object sender, EventArgs e)
-        {
-            waveOut?.Stop();
-            waveStream.Position = 0;
-            playbackTimer.Enabled = false;
-            UpdateTime();
         }
 
         private void OnTimerTick(object sender, EventArgs e)

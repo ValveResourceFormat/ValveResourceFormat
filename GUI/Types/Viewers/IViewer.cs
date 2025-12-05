@@ -11,7 +11,7 @@ namespace GUI.Types.Viewers
         public Task LoadAsync(Stream stream);
         public void Create(TabPage containerTabPage);
 
-        public static TabPage AddContentTab<T>(TabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
+        public static TabPage AddContentTab<T>(ThemedTabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
         {
             var extract = string.Empty;
             if (content is Func<string> exceptionless)
@@ -32,7 +32,7 @@ namespace GUI.Types.Viewers
             }
 
             var control = CodeTextBox.Create(extract, highlightSyntax);
-            var tab = new TabPage(name);
+            var tab = new ThemedTabPage(name);
             tab.Controls.Add(control);
             resTabs.TabPages.Add(tab);
 

@@ -1,14 +1,24 @@
 using System.ComponentModel;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI.Controls
 {
-    public class BetterTextBox : TextBox
+    public class ThemedTextBox : TextBox
     {
-        public BetterTextBox()
+        protected override bool DoubleBuffered { get; set; } = true;
+
+        public ThemedTextBox() : base()
         {
             Multiline = true;
             Margin = new Padding(0, 3, 0, 3);
+        }
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            BackColor = Themer.CurrentThemeColors.AppMiddle;
+            ForeColor = Themer.CurrentThemeColors.Contrast;
         }
 
         public event EventHandler? CustomTextChanged;

@@ -35,28 +35,18 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            System.Windows.Forms.Label label1;
             label2 = new System.Windows.Forms.Label();
-            cmbPositions = new System.Windows.Forms.ComboBox();
-            btnSave = new System.Windows.Forms.Button();
-            btnDelete = new System.Windows.Forms.Button();
-            btnRestore = new System.Windows.Forms.Button();
-            btnSetPos = new System.Windows.Forms.Button();
-            btnGetPos = new System.Windows.Forms.Button();
+            cmbPositions = new ThemedComboBox();
+            btnSave = new ThemedButton();
+            btnDelete = new ThemedButton();
+            btnRestore = new ThemedButton();
+            btnSetPos = new ThemedButton();
+            btnGetPos = new ThemedButton();
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            label1 = new System.Windows.Forms.Label();
+            themedGroupBox1 = new ThemedGroupBox();
             tableLayoutPanel1.SuspendLayout();
+            themedGroupBox1.SuspendLayout();
             SuspendLayout();
-            // 
-            // label1
-            // 
-            label1.AutoSize = true;
-            label1.Dock = System.Windows.Forms.DockStyle.Top;
-            label1.Location = new System.Drawing.Point(0, 0);
-            label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(134, 15);
-            label1.TabIndex = 1;
-            label1.Text = "Saved camera positions:";
             // 
             // label2
             // 
@@ -65,80 +55,127 @@ namespace GUI.Controls
             label2.Location = new System.Drawing.Point(0, 33);
             label2.Margin = new System.Windows.Forms.Padding(0);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(116, 27);
+            label2.Size = new System.Drawing.Size(110, 27);
             label2.TabIndex = 5;
             label2.Text = "Clipboard:";
             label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // cmbPositions
             // 
+            cmbPositions.BackColor = System.Drawing.SystemColors.Control;
             cmbPositions.Dock = System.Windows.Forms.DockStyle.Top;
+            cmbPositions.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            cmbPositions.DropDownBackColor = System.Drawing.SystemColors.Control;
+            cmbPositions.DropDownForeColor = System.Drawing.Color.Black;
             cmbPositions.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            cmbPositions.ForeColor = System.Drawing.Color.Black;
             cmbPositions.FormattingEnabled = true;
-            cmbPositions.Location = new System.Drawing.Point(0, 15);
+            cmbPositions.HeaderColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            cmbPositions.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            cmbPositions.Location = new System.Drawing.Point(4, 19);
             cmbPositions.Margin = new System.Windows.Forms.Padding(0);
             cmbPositions.Name = "cmbPositions";
-            cmbPositions.Size = new System.Drawing.Size(291, 23);
+            cmbPositions.Size = new System.Drawing.Size(277, 24);
             cmbPositions.TabIndex = 0;
             // 
             // btnSave
             // 
+            btnSave.BackColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            btnSave.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            btnSave.CornerRadius = 5;
             btnSave.Dock = System.Windows.Forms.DockStyle.Fill;
+            btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnSave.ForceClicked = false;
+            btnSave.ForeColor = System.Drawing.Color.Black;
+            btnSave.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             btnSave.Location = new System.Drawing.Point(0, 6);
             btnSave.Margin = new System.Windows.Forms.Padding(0);
             btnSave.Name = "btnSave";
-            btnSave.Size = new System.Drawing.Size(116, 27);
+            btnSave.Size = new System.Drawing.Size(110, 27);
+            btnSave.Style = true;
             btnSave.TabIndex = 2;
             btnSave.Text = "Save";
-            btnSave.UseVisualStyleBackColor = true;
+            btnSave.UseVisualStyleBackColor = false;
             btnSave.Click += BtnSave_Click;
             // 
             // btnDelete
             // 
+            btnDelete.BackColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            btnDelete.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            btnDelete.CornerRadius = 5;
             btnDelete.Dock = System.Windows.Forms.DockStyle.Fill;
-            btnDelete.Location = new System.Drawing.Point(203, 6);
+            btnDelete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnDelete.ForceClicked = false;
+            btnDelete.ForeColor = System.Drawing.Color.Black;
+            btnDelete.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            btnDelete.Location = new System.Drawing.Point(193, 6);
             btnDelete.Margin = new System.Windows.Forms.Padding(0);
             btnDelete.Name = "btnDelete";
-            btnDelete.Size = new System.Drawing.Size(88, 27);
+            btnDelete.Size = new System.Drawing.Size(84, 27);
+            btnDelete.Style = true;
             btnDelete.TabIndex = 3;
             btnDelete.Text = "Delete";
-            btnDelete.UseVisualStyleBackColor = true;
+            btnDelete.UseVisualStyleBackColor = false;
             btnDelete.Click += BtnDelete_Click;
             // 
             // btnRestore
             // 
+            btnRestore.BackColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            btnRestore.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            btnRestore.CornerRadius = 5;
             btnRestore.Dock = System.Windows.Forms.DockStyle.Fill;
-            btnRestore.Location = new System.Drawing.Point(116, 6);
+            btnRestore.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnRestore.ForceClicked = false;
+            btnRestore.ForeColor = System.Drawing.Color.Black;
+            btnRestore.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            btnRestore.Location = new System.Drawing.Point(110, 6);
             btnRestore.Margin = new System.Windows.Forms.Padding(0);
             btnRestore.Name = "btnRestore";
-            btnRestore.Size = new System.Drawing.Size(87, 27);
+            btnRestore.Size = new System.Drawing.Size(83, 27);
+            btnRestore.Style = true;
             btnRestore.TabIndex = 4;
             btnRestore.Text = "Restore";
-            btnRestore.UseVisualStyleBackColor = true;
+            btnRestore.UseVisualStyleBackColor = false;
             btnRestore.Click += BtnRestore_Click;
             // 
             // btnSetPos
             // 
+            btnSetPos.BackColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            btnSetPos.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            btnSetPos.CornerRadius = 5;
             btnSetPos.Dock = System.Windows.Forms.DockStyle.Fill;
-            btnSetPos.Location = new System.Drawing.Point(116, 33);
+            btnSetPos.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnSetPos.ForceClicked = false;
+            btnSetPos.ForeColor = System.Drawing.Color.Black;
+            btnSetPos.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            btnSetPos.Location = new System.Drawing.Point(110, 33);
             btnSetPos.Margin = new System.Windows.Forms.Padding(0);
             btnSetPos.Name = "btnSetPos";
-            btnSetPos.Size = new System.Drawing.Size(87, 27);
+            btnSetPos.Size = new System.Drawing.Size(83, 27);
+            btnSetPos.Style = true;
             btnSetPos.TabIndex = 6;
             btnSetPos.Text = "setpos";
-            btnSetPos.UseVisualStyleBackColor = true;
+            btnSetPos.UseVisualStyleBackColor = false;
             btnSetPos.Click += BtnSetPos_Click;
             // 
             // btnGetPos
             // 
+            btnGetPos.BackColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            btnGetPos.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            btnGetPos.CornerRadius = 5;
             btnGetPos.Dock = System.Windows.Forms.DockStyle.Fill;
-            btnGetPos.Location = new System.Drawing.Point(203, 33);
+            btnGetPos.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnGetPos.ForceClicked = false;
+            btnGetPos.ForeColor = System.Drawing.Color.Black;
+            btnGetPos.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            btnGetPos.Location = new System.Drawing.Point(193, 33);
             btnGetPos.Margin = new System.Windows.Forms.Padding(0);
             btnGetPos.Name = "btnGetPos";
-            btnGetPos.Size = new System.Drawing.Size(88, 27);
+            btnGetPos.Size = new System.Drawing.Size(84, 27);
+            btnGetPos.Style = true;
             btnGetPos.TabIndex = 7;
             btnGetPos.Text = "getpos";
-            btnGetPos.UseVisualStyleBackColor = true;
+            btnGetPos.UseVisualStyleBackColor = false;
             btnGetPos.Click += BtnGetPos_Click;
             // 
             // tableLayoutPanel1
@@ -154,40 +191,59 @@ namespace GUI.Controls
             tableLayoutPanel1.Controls.Add(label2, 0, 1);
             tableLayoutPanel1.Controls.Add(btnSetPos, 1, 1);
             tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Top;
-            tableLayoutPanel1.Location = new System.Drawing.Point(0, 38);
+            tableLayoutPanel1.Location = new System.Drawing.Point(4, 43);
             tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.Padding = new System.Windows.Forms.Padding(0, 6, 0, 0);
             tableLayoutPanel1.RowCount = 2;
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            tableLayoutPanel1.Size = new System.Drawing.Size(291, 60);
+            tableLayoutPanel1.Size = new System.Drawing.Size(277, 60);
             tableLayoutPanel1.TabIndex = 8;
+            // 
+            // themedGroupBox1
+            // 
+            themedGroupBox1.BackColor = System.Drawing.SystemColors.Control;
+            themedGroupBox1.BorderColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            themedGroupBox1.BorderWidth = 2;
+            themedGroupBox1.Controls.Add(tableLayoutPanel1);
+            themedGroupBox1.Controls.Add(cmbPositions);
+            themedGroupBox1.CornerRadius = 5;
+            themedGroupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
+            themedGroupBox1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            themedGroupBox1.ForeColor = System.Drawing.Color.Black;
+            themedGroupBox1.Location = new System.Drawing.Point(3, 3);
+            themedGroupBox1.Name = "themedGroupBox1";
+            themedGroupBox1.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            themedGroupBox1.Size = new System.Drawing.Size(285, 114);
+            themedGroupBox1.TabIndex = 0;
+            themedGroupBox1.TabStop = false;
+            themedGroupBox1.Text = "Saved Camera";
             // 
             // SavedCameraPositionsControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            Controls.Add(tableLayoutPanel1);
-            Controls.Add(cmbPositions);
-            Controls.Add(label1);
+            Controls.Add(themedGroupBox1);
             Name = "SavedCameraPositionsControl";
+            Padding = new System.Windows.Forms.Padding(3);
             Size = new System.Drawing.Size(291, 120);
             tableLayoutPanel1.ResumeLayout(false);
             tableLayoutPanel1.PerformLayout();
+            themedGroupBox1.ResumeLayout(false);
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
 
-        private System.Windows.Forms.ComboBox cmbPositions;
-        private System.Windows.Forms.Button btnSave;
-        private System.Windows.Forms.Button btnDelete;
-        private System.Windows.Forms.Button btnRestore;
-        private System.Windows.Forms.Button btnSetPos;
-        private System.Windows.Forms.Button btnGetPos;
+        private ThemedComboBox cmbPositions;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
+        private ThemedButton btnSave;
+        private ThemedButton btnDelete;
+        private ThemedButton btnRestore;
+        private ThemedButton btnSetPos;
+        private ThemedButton btnGetPos;
+        private ThemedGroupBox themedGroupBox1;
     }
 }

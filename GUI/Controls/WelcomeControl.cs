@@ -1,5 +1,6 @@
 using System.Windows.Forms;
 using GUI.Forms;
+using GUI.Utils;
 
 namespace GUI.Controls
 {
@@ -13,6 +14,13 @@ namespace GUI.Controls
             {
                 Dock = DockStyle.Fill,
             });
+        }
+
+        protected override void CreateHandle()
+        {
+            base.CreateHandle();
+
+            BackColor = Themer.CurrentThemeColors.AppMiddle;
         }
 
         private void fileAssociationButton_Click(object sender, EventArgs e)

@@ -8,7 +8,7 @@ using GUI.Utils;
 
 namespace GUI.Forms
 {
-    partial class AboutForm : Form
+    partial class AboutForm : ThemedForm
     {
         public AboutForm()
         {
@@ -48,7 +48,6 @@ namespace GUI.Forms
             if (!UpdateChecker.IsNewVersionAvailable)
             {
                 downloadButton.Text = "Up to date";
-                newVersionLabel.Enabled = false;
                 downloadButton.Enabled = false;
             }
 
@@ -58,7 +57,7 @@ namespace GUI.Forms
             }
         }
 
-        private void OnWebsiteClick(object sender, EventArgs e)
+        public void OnWebsiteClick(object sender, EventArgs e)
         {
             OpenUrl("https://valveresourceformat.github.io/");
         }

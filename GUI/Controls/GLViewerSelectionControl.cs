@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using GUI.Utils;
 
 namespace GUI.Controls
 {
@@ -12,6 +13,14 @@ namespace GUI.Controls
             InitializeComponent();
         }
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            BackColor = Parent?.BackColor ?? Themer.CurrentThemeColors.AppMiddle;
+            ForeColor = Themer.CurrentThemeColors.Contrast;
+
+        }
 
         // todo: fix behavior with fill = false
         public GLViewerSelectionControl(string name, bool horizontal, bool fill)

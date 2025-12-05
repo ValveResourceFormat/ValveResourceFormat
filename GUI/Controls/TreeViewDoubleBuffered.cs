@@ -4,7 +4,7 @@ using System.Windows.Forms;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 
-namespace GUI.Utils
+namespace GUI.Controls
 {
     [ToolboxItem(true)]
     [ToolboxBitmap(typeof(TreeView))]
@@ -13,6 +13,7 @@ namespace GUI.Utils
         public TreeViewDoubleBuffered() : base()
         {
             DoubleBuffered = true;
+            ItemHeight = 26;
         }
 
         protected override void OnHandleCreated(EventArgs e)

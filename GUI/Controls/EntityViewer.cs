@@ -19,6 +19,13 @@ namespace GUI.Types.Viewers
             PointEntities
         }
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            BackColor = Themer.CurrentThemeColors.AppMiddle;
+        }
+
         public class SearchDataClass
         {
             public ObjectsToInclude ObjectsToInclude { get; set; } = ObjectsToInclude.Everything;

@@ -16,6 +16,13 @@ namespace GUI.Controls
         public event EventHandler<RestoreCameraRequestEvent> RestoreCameraRequest;
         public event EventHandler<bool> GetOrSetPositionFromClipboardRequest;
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            BackColor = Parent?.BackColor ?? Themer.CurrentThemeColors.AppMiddle;
+        }
+
         public SavedCameraPositionsControl()
         {
             InitializeComponent();

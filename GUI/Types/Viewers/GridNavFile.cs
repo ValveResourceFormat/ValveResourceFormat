@@ -36,13 +36,13 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(infoText is not null);
 
-            var tabControl = new TabControl
+            var tabControl = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
             };
             tabOuterPage.Controls.Add(tabControl);
 
-            var infoPage = new TabPage("GRID NAV");
+            var infoPage = new ThemedTabPage("GRID NAV");
             var infoTextControl = CodeTextBox.Create(infoText, CodeTextBox.HighlightLanguage.None);
             infoPage.Controls.Add(infoTextControl);
             tabControl.Controls.Add(infoPage);

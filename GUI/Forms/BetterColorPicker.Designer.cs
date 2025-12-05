@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using GUI.Controls;
 
 namespace GUI.Forms
 {
@@ -34,20 +35,20 @@ namespace GUI.Forms
         {
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(BetterColorPicker));
             MainColorPanel = new ColorPickerPanel();
-            ColorTextBoxR = new GUI.Controls.BetterAbstractNumeric<int>();
+            ColorTextBoxR = new ThemedIntNumeric() { MinValue = 0, MaxValue = 255 };
             label7 = new Label();
-            ColorTextBoxG = new GUI.Controls.BetterAbstractNumeric<int>();
+            ColorTextBoxG = new ThemedIntNumeric() { MinValue = 0, MaxValue = 255 };
             label8 = new Label();
-            ColorTextBoxB = new GUI.Controls.BetterAbstractNumeric<int>();
+            ColorTextBoxB = new ThemedIntNumeric() { MinValue = 0, MaxValue = 255 };
             label9 = new Label();
             HuePanel = new ColorPickerHuePanel();
             tableLayoutPanel2 = new TableLayoutPanel();
             tableLayoutPanel9 = new TableLayoutPanel();
-            VSliderValueInput = new GUI.Controls.BetterAbstractNumeric<float>();
+            VSliderValueInput = new ThemedFloatNumeric() { MinValue = 0, MaxValue = 1};
             label5 = new Label();
             VSlider = new HSVSlider();
             tableLayoutPanel8 = new TableLayoutPanel();
-            SSliderValueInput = new GUI.Controls.BetterAbstractNumeric<float>();
+            SSliderValueInput = new ThemedFloatNumeric() { MinValue = 0, MaxValue = 1 };
             label4 = new Label();
             SSlider = new HSVSlider();
             tableLayoutPanel1 = new TableLayoutPanel();
@@ -56,13 +57,13 @@ namespace GUI.Forms
             tableLayoutPanel4 = new TableLayoutPanel();
             tableLayoutPanel3 = new TableLayoutPanel();
             label6 = new Label();
-            HexTextBox = new GUI.Controls.BetterAbstractNumeric<System.Drawing.Color>();
+            HexTextBox = new ThemedColorNumeric();
             tableLayoutPanel7 = new TableLayoutPanel();
-            HSliderValueInput = new GUI.Controls.BetterAbstractNumeric<float>();
+            HSliderValueInput = new ThemedFloatNumeric() { MinValue = 0, MaxValue = 1 };
             label3 = new Label();
             HSlider = new HSVSlider();
-            OK = new Button();
-            Cancel = new Button();
+            OK = new ThemedButton();
+            Cancel = new ThemedButton();
             OldColorPanel = new Panel();
             NewColorPanel = new Panel();
             label2 = new Label();
@@ -71,7 +72,7 @@ namespace GUI.Forms
             tableLayoutPanel12 = new TableLayoutPanel();
             tableLayoutPanel10 = new TableLayoutPanel();
             tableLayoutPanel13 = new TableLayoutPanel();
-            EyedropperButton = new Button();
+            EyedropperButton = new ThemedButton();
             tableLayoutPanel2.SuspendLayout();
             tableLayoutPanel9.SuspendLayout();
             tableLayoutPanel8.SuspendLayout();
@@ -99,9 +100,7 @@ namespace GUI.Forms
             // ColorTextBoxR
             // 
             ColorTextBoxR.BorderStyle = BorderStyle.FixedSingle;
-            ColorTextBoxR.DecimalMax = 4;
             ColorTextBoxR.Dock = DockStyle.Fill;
-            ColorTextBoxR.DragScale = 1F;
             ColorTextBoxR.Location = new Point(16, 0);
             ColorTextBoxR.Margin = new Padding(0);
             ColorTextBoxR.MaxLength = 3;
@@ -132,9 +131,7 @@ namespace GUI.Forms
             // ColorTextBoxG
             // 
             ColorTextBoxG.BorderStyle = BorderStyle.FixedSingle;
-            ColorTextBoxG.DecimalMax = 4;
             ColorTextBoxG.Dock = DockStyle.Fill;
-            ColorTextBoxG.DragScale = 1F;
             ColorTextBoxG.Location = new Point(16, 0);
             ColorTextBoxG.Margin = new Padding(0);
             ColorTextBoxG.MaxLength = 3;
@@ -165,9 +162,7 @@ namespace GUI.Forms
             // ColorTextBoxB
             // 
             ColorTextBoxB.BorderStyle = BorderStyle.FixedSingle;
-            ColorTextBoxB.DecimalMax = 4;
             ColorTextBoxB.Dock = DockStyle.Fill;
-            ColorTextBoxB.DragScale = 1F;
             ColorTextBoxB.Location = new Point(16, 0);
             ColorTextBoxB.Margin = new Padding(0);
             ColorTextBoxB.MaxLength = 3;
@@ -247,11 +242,10 @@ namespace GUI.Forms
             VSliderValueInput.BorderStyle = BorderStyle.FixedSingle;
             VSliderValueInput.DecimalMax = 2;
             VSliderValueInput.Dock = DockStyle.Fill;
-            VSliderValueInput.DragScale = 1F;
             VSliderValueInput.Location = new Point(231, 0);
             VSliderValueInput.Margin = new Padding(4, 0, 0, 0);
-            VSliderValueInput.MaxValue = 1F;
-            VSliderValueInput.MinValue = 0F;
+            VSliderValueInput.MaxValue = 1;
+            VSliderValueInput.MinValue = 0;
             VSliderValueInput.Multiline = true;
             VSliderValueInput.Name = "VSliderValueInput";
             VSliderValueInput.Size = new Size(35, 19);
@@ -304,11 +298,10 @@ namespace GUI.Forms
             SSliderValueInput.BorderStyle = BorderStyle.FixedSingle;
             SSliderValueInput.DecimalMax = 2;
             SSliderValueInput.Dock = DockStyle.Fill;
-            SSliderValueInput.DragScale = 1F;
             SSliderValueInput.Location = new Point(231, 0);
             SSliderValueInput.Margin = new Padding(4, 0, 0, 0);
-            SSliderValueInput.MaxValue = 1F;
-            SSliderValueInput.MinValue = 0F;
+            SSliderValueInput.MaxValue = 1;
+            SSliderValueInput.MinValue = 0;
             SSliderValueInput.Multiline = true;
             SSliderValueInput.Name = "SSliderValueInput";
             SSliderValueInput.Size = new Size(35, 19);
@@ -441,14 +434,10 @@ namespace GUI.Forms
             // HexTextBox
             // 
             HexTextBox.BorderStyle = BorderStyle.FixedSingle;
-            HexTextBox.DecimalMax = 4;
             HexTextBox.Dock = DockStyle.Fill;
-            HexTextBox.DragScale = 1F;
             HexTextBox.Font = new Font("Segoe UI", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
             HexTextBox.Location = new Point(17, 0);
             HexTextBox.Margin = new Padding(0);
-            HexTextBox.MaxValue = Color.Empty;
-            HexTextBox.MinValue = Color.Empty;
             HexTextBox.Multiline = true;
             HexTextBox.Name = "HexTextBox";
             HexTextBox.Size = new Size(51, 19);
@@ -477,13 +466,11 @@ namespace GUI.Forms
             // HSliderValueInput
             // 
             HSliderValueInput.BorderStyle = BorderStyle.FixedSingle;
-            HSliderValueInput.DecimalMax = 2;
             HSliderValueInput.Dock = DockStyle.Fill;
-            HSliderValueInput.DragScale = 1F;
             HSliderValueInput.Location = new Point(231, 0);
             HSliderValueInput.Margin = new Padding(4, 0, 0, 0);
-            HSliderValueInput.MaxValue = 1F;
-            HSliderValueInput.MinValue = 0F;
+            HSliderValueInput.MaxValue = 1;
+            HSliderValueInput.MinValue = 0;
             HSliderValueInput.Multiline = true;
             HSliderValueInput.Name = "HSliderValueInput";
             HSliderValueInput.Size = new Size(35, 19);
@@ -740,9 +727,9 @@ namespace GUI.Forms
         private HSVSlider VSlider;
         private HSVSlider SSlider;
         private HSVSlider HSlider;
-        private GUI.Controls.BetterAbstractNumeric<float> VSliderValueInput;
-        private GUI.Controls.BetterAbstractNumeric<float> SSliderValueInput;
-        private GUI.Controls.BetterAbstractNumeric<float> HSliderValueInput;
+        private ThemedFloatNumeric VSliderValueInput;
+        private ThemedFloatNumeric SSliderValueInput;
+        private ThemedFloatNumeric HSliderValueInput;
         private TableLayoutPanel tableLayoutPanel10;
         private TableLayoutPanel tableLayoutPanel11;
         private TableLayoutPanel tableLayoutPanel12;
@@ -753,10 +740,10 @@ namespace GUI.Forms
         private Label label7;
         private Label label8;
         private Label label9;
-        private GUI.Controls.BetterAbstractNumeric<Color> HexTextBox;
-        private GUI.Controls.BetterAbstractNumeric<int> ColorTextBoxG;
-        private GUI.Controls.BetterAbstractNumeric<int> ColorTextBoxB;
-        private GUI.Controls.BetterAbstractNumeric<int> ColorTextBoxR;
+        private ThemedColorNumeric HexTextBox;
+        private ThemedIntNumeric ColorTextBoxG;
+        private ThemedIntNumeric ColorTextBoxB;
+        private ThemedIntNumeric ColorTextBoxR;
         private ColorPickerPanel MainColorPanel;
         private ColorPickerHuePanel HuePanel;
         private Button OK;
