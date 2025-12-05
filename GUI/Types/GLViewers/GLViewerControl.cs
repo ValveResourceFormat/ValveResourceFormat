@@ -111,7 +111,7 @@ namespace GUI.Types.GLViewers
 #if DEBUG // We want reload shaders to be the top most button
             ShaderLoader.ShaderHotReload.SetControl(this);
 
-            var button = new Button
+            var button = new ThemedButton
             {
                 Text = "Reload shaders",
                 AutoSize = true,
@@ -353,13 +353,11 @@ namespace GUI.Types.GLViewers
             var topLeft = GLControl.PointToScreen(Point.Empty);
             var bottomRight = topLeft + GLControl.Size;
 
-            if (FullScreenForm != null)
-            {
-                // Windows has a 1px edge on bottom and right of the screen where cursor can't reach
-                // (assuming that there is no secondary screen past these edges)
-                bottomRight.X -= 1;
-                bottomRight.Y -= 1;
-            }
+
+            // Windows has a 1px edge on bottom and right of the screen where cursor can't reach
+            // (assuming that there is no secondary screen past these edges)
+            bottomRight.X -= 1;
+            bottomRight.Y -= 1;
 
             var positionWrapped = position;
 

@@ -33,6 +33,7 @@ namespace GUI
 
             MainForm = new MainForm(args);
 
+            Themer.ApplyTheme(MainForm);
             Application.Run(MainForm);
         }
 

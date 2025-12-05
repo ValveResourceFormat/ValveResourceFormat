@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -60,6 +61,16 @@ namespace GUI.Types.PackageViewer
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
             Viewer = viewer;
+        }
+
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+            Themer.ThemeControl(this);
+
+            mainTreeView.BackColor = Themer.CurrentThemeColors.AppMiddle;
+            mainListView.BackColor = Themer.CurrentThemeColors.AppSoft;
+            mainSplitContainer.BackColor = Themer.CurrentThemeColors.AppMiddle;
         }
 
         private void MainListView_Disposed(object sender, EventArgs e)
@@ -343,7 +354,7 @@ namespace GUI.Types.PackageViewer
             }
             else if (!mainTreeView.ExtensionIconList.TryGetValue(file.TypeName, out image))
             {
-                image = MainForm.ImageListLookup["_default"];
+                image = MainForm.ImageListLookup["File"];
             }
 
             var newNode = new BetterTreeNode(fileName, file)
@@ -424,7 +435,7 @@ namespace GUI.Types.PackageViewer
 
                 Invoke((MethodInvoker)(() =>
                 {
-                    var deletedImage = MainForm.ImageListLookup["_deleted"];
+                    var deletedImage = MainForm.ImageListLookup["Deleted"];
 
                     if (foundFiles.Count == 0)
                     {
@@ -817,7 +828,7 @@ namespace GUI.Types.PackageViewer
         {
             if (!mainTreeView.ExtensionIconList.TryGetValue(file.TypeName, out var image))
             {
-                image = MainForm.ImageListLookup["_default"];
+                image = MainForm.ImageListLookup["File"];
             }
 
             var item = new BetterListViewItem(file.GetFileName())
@@ -836,7 +847,7 @@ namespace GUI.Types.PackageViewer
         {
             mainListView.Visible = false;
 
-            var tabs = new TabControl
+            var tabs = new ThemedTabControl
             {
                 ImageList = MainForm.ImageList,
                 Dock = DockStyle.Fill

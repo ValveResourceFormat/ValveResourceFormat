@@ -40,13 +40,18 @@ namespace GUI.Controls
             Scan();
         }
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+        }
+
         private void Scan()
         {
-            var recentImage = MainForm.ImageListLookup["_recent"];
+            var recentImage = MainForm.ImageListLookup["History Dark"];
 
             // Bookmarks
             {
-                var bookmarkImage = MainForm.ImageListLookup["_bookmark"];
+                var bookmarkImage = MainForm.ImageListLookup["Bookmarks"];
                 var bookmarkedFilesTreeNode = new TreeNode("Bookmarks")
                 {
                     ImageIndex = bookmarkImage,
@@ -127,8 +132,8 @@ namespace GUI.Controls
             var vpkImage = MainForm.ImageListLookup["vpk"];
             var vcsImage = MainForm.ImageListLookup["vcs"];
             var mapImage = MainForm.ImageListLookup["map"];
-            var pluginImage = MainForm.ImageListLookup["_plugin"];
-            var folderImage = MainForm.ImageListLookup["_folder"];
+            var pluginImage = MainForm.ImageListLookup["Plugin"];
+            var folderImage = MainForm.ImageListLookup["Folder"];
 
             int GetSortPriorityForImage(int image)
             {
@@ -556,7 +561,7 @@ namespace GUI.Controls
 
                 if (WorkshopAddons.TryGetValue(path, out var displayTitle))
                 {
-                    imageIndexFile = MainForm.ImageListLookup["_plugin"];
+                    imageIndexFile = MainForm.ImageListLookup["Plugin"];
                     pathDisplay = $"{pathDisplay} {displayTitle}";
                 }
                 else

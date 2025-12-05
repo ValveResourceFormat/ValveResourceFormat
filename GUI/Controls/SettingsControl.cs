@@ -26,13 +26,13 @@ namespace GUI.Forms
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
             shadowResolutionInput.Value = Settings.Config.ShadowResolution;
-            fovInput.Value = (decimal)Settings.Config.FieldOfView;
+            fovInput.Value = Settings.Config.FieldOfView;
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
             textViewerFontSize.Value = Settings.Config.TextViewerFontSize;
 
-            themeComboBox.Items.AddRange(Enum.GetNames<Settings.AppTheme>());
+            themeComboBox.Items.AddRange(Enum.GetNames<Themer.AppTheme>());
             themeComboBox.SelectedIndex = Settings.Config.Theme;
 
             var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
@@ -130,7 +130,7 @@ namespace GUI.Forms
                 return;
             }
 
-            Settings.Config.MaxTextureSize = (int)maxTextureSizeInput.Value;
+            Settings.Config.MaxTextureSize = maxTextureSizeInput.Value;
         }
 
         private void OnFovValueChanged(object sender, EventArgs e)
@@ -146,7 +146,7 @@ namespace GUI.Forms
         private void OnSetFovTo4by3ButtonClick(object sender, EventArgs e)
         {
             Settings.Config.FieldOfView = 2f * MathF.Atan(3f / 4f) / MathF.PI * 180f;
-            fovInput.Value = (decimal)Settings.Config.FieldOfView;
+            fovInput.Value = Settings.Config.FieldOfView;
         }
 
         private void OnOpenExplorerOnStartValueChanged(object sender, EventArgs e)

@@ -30,14 +30,14 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            selectionNameLabel = new System.Windows.Forms.Label();
-            comboBox = new System.Windows.Forms.ComboBox();
+            selectionNameLabel = new Label();
+            comboBox = new ThemedComboBox();
             SuspendLayout();
             // 
             // selectionNameLabel
             // 
             selectionNameLabel.AutoSize = true;
-            selectionNameLabel.Dock = System.Windows.Forms.DockStyle.Top;
+            selectionNameLabel.Dock = DockStyle.Top;
             selectionNameLabel.Location = new System.Drawing.Point(0, 0);
             selectionNameLabel.Name = "selectionNameLabel";
             selectionNameLabel.Size = new System.Drawing.Size(41, 15);
@@ -46,19 +46,26 @@ namespace GUI.Controls
             // 
             // comboBox
             // 
-            comboBox.Dock = System.Windows.Forms.DockStyle.Top;
-            comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            comboBox.BackColor = System.Drawing.SystemColors.Control;
+            comboBox.Dock = DockStyle.Top;
+            comboBox.DrawMode = DrawMode.OwnerDrawFixed;
+            comboBox.DropDownBackColor = System.Drawing.SystemColors.Control;
+            comboBox.DropDownForeColor = System.Drawing.Color.Black;
+            comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboBox.ForeColor = System.Drawing.Color.Black;
             comboBox.FormattingEnabled = true;
+            comboBox.HeaderColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            comboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
             comboBox.Location = new System.Drawing.Point(0, 15);
-            comboBox.Margin = new System.Windows.Forms.Padding(0);
+            comboBox.Margin = new Padding(0);
             comboBox.Name = "comboBox";
-            comboBox.Size = new System.Drawing.Size(220, 23);
+            comboBox.Size = new System.Drawing.Size(220, 24);
             comboBox.TabIndex = 1;
             // 
             // GLViewerSelectionControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            AutoScaleMode = AutoScaleMode.Font;
             Controls.Add(comboBox);
             Controls.Add(selectionNameLabel);
             MinimumSize = new System.Drawing.Size(0, 41);
@@ -71,7 +78,7 @@ namespace GUI.Controls
         #endregion
 
         private System.Windows.Forms.Label selectionNameLabel;
-        private System.Windows.Forms.ComboBox comboBox;
+        private ThemedComboBox comboBox;
         private TableLayoutPanel layoutPanel;
     }
 }

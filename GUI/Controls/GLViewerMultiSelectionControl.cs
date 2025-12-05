@@ -14,7 +14,7 @@ namespace GUI.Controls
         public GLViewerMultiSelectionControl(string name)
             : this()
         {
-            selectionNameLabel.Text = $"{name}:";
+            groupBox.Text = name;
         }
     }
 }

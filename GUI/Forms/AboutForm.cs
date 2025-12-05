@@ -8,7 +8,7 @@ using GUI.Utils;
 
 namespace GUI.Forms
 {
-    partial class AboutForm : Form
+    partial class AboutForm : ThemedForm
     {
         public AboutForm()
         {
@@ -48,7 +48,6 @@ namespace GUI.Forms
             if (!UpdateChecker.IsNewVersionAvailable)
             {
                 downloadButton.Text = "Up to date";
-                newVersionLabel.Enabled = false;
                 downloadButton.Enabled = false;
             }
 

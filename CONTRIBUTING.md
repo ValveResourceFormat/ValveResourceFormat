@@ -39,7 +39,7 @@ This is a list of these places to make them easier to track.
 
 ### Asset icons for the GUI
 
-[GUI/AssetTypes](GUI/AssetTypes/) folder contains png files of assets that have unique icons in the
+[GUI/Icons/AssetTypes](GUI/Icons/AssetTypes/) folder contains png files of assets that have unique icons in the
 package viewer. For example `mp3.png` will be used for files ending with `.mp3`.
 
 These icons should all have the same size. Use [TinyPNG](https://tinypng.com/) to optimize them.

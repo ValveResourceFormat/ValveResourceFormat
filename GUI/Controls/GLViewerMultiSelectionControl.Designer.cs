@@ -28,48 +28,56 @@ namespace GUI.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            selectionNameLabel = new System.Windows.Forms.Label();
             checkedListBox = new System.Windows.Forms.CheckedListBox();
+            groupBox = new ThemedGroupBox();
+            groupBox.SuspendLayout();
             SuspendLayout();
-            // 
-            // selectionNameLabel
-            // 
-            selectionNameLabel.AutoSize = true;
-            selectionNameLabel.Dock = System.Windows.Forms.DockStyle.Top;
-            selectionNameLabel.Location = new System.Drawing.Point(0, 0);
-            selectionNameLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            selectionNameLabel.Name = "selectionNameLabel";
-            selectionNameLabel.Size = new System.Drawing.Size(41, 15);
-            selectionNameLabel.TabIndex = 0;
-            selectionNameLabel.Text = "Select:";
             // 
             // checkedListBox
             // 
             checkedListBox.CheckOnClick = true;
-            checkedListBox.Dock = System.Windows.Forms.DockStyle.Top;
+            checkedListBox.Dock = System.Windows.Forms.DockStyle.Fill;
             checkedListBox.FormattingEnabled = true;
-            checkedListBox.Location = new System.Drawing.Point(0, 15);
+            checkedListBox.Location = new System.Drawing.Point(4, 16);
             checkedListBox.Margin = new System.Windows.Forms.Padding(0);
             checkedListBox.Name = "checkedListBox";
-            checkedListBox.Size = new System.Drawing.Size(220, 130);
+            checkedListBox.Size = new System.Drawing.Size(206, 132);
             checkedListBox.TabIndex = 1;
+            // 
+            // groupBox
+            // 
+            groupBox.BackColor = System.Drawing.SystemColors.Control;
+            groupBox.BorderColor = System.Drawing.Color.FromArgb(230, 230, 230);
+            groupBox.BorderWidth = 2;
+            groupBox.Controls.Add(checkedListBox);
+            groupBox.CornerRadius = 5;
+            groupBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            groupBox.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            groupBox.ForeColor = System.Drawing.Color.Black;
+            groupBox.Location = new System.Drawing.Point(3, 3);
+            groupBox.Margin = new System.Windows.Forms.Padding(0);
+            groupBox.Name = "groupBox";
+            groupBox.Padding = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            groupBox.Size = new System.Drawing.Size(214, 148);
+            groupBox.TabIndex = 2;
+            groupBox.TabStop = false;
+            groupBox.Text = "Selection";
             // 
             // GLViewerMultiSelectionControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            Controls.Add(checkedListBox);
-            Controls.Add(selectionNameLabel);
-            Margin = new System.Windows.Forms.Padding(2);
+            Controls.Add(groupBox);
+            Margin = new System.Windows.Forms.Padding(0);
             Name = "GLViewerMultiSelectionControl";
+            Padding = new System.Windows.Forms.Padding(3);
             Size = new System.Drawing.Size(220, 154);
+            groupBox.ResumeLayout(false);
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
-
-        private System.Windows.Forms.Label selectionNameLabel;
         private System.Windows.Forms.CheckedListBox checkedListBox;
+        private ThemedGroupBox groupBox;
     }
 }

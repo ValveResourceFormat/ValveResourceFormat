@@ -57,26 +57,25 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <assembly alias="System.Drawing.Common" name="System.Drawing.Common, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" />
-  <data name="buttonPlay.Image" type="System.Drawing.Bitmap, System.Drawing.Common" mimetype="application/x-microsoft.net.object.bytearray.base64">
+  <metadata name="toolStrip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>17, 17</value>
+  </metadata>
+  <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+  <data name="buttonPlay.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8
-        YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABJSURBVDhPYxh04AAQO0CY5IH/UEy2QTADyDYI3QAYJtog
-        bJqRMUGDsGnChnEahE0xNky2AWR7gexAJFojDJCtEQbI1jhQgIEBAIHYR8XldhMMAAAAAElFTkSuQmCC
+        YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABISURBVDhPzYyxDQAgDMNyGqfzWVnIEimCZgFLWarawG9M
+        AEOPHWovDjEQhzTQDqmoO4ZUcLMhfXSLA1YkKlyLJBZJLJJYfMcCgdhHxeWtAWUAAAAASUVORK5CYII=
 </value>
   </data>
-  <data name="buttonPause.Image" type="System.Drawing.Bitmap, System.Drawing.Common" mimetype="application/x-microsoft.net.object.bytearray.base64">
+  <data name="buttonPause.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8
-        YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABDSURBVDhPzcoxCgAwDAOx/P/T7VTooNsj8HJ4VjrfHrWk
-        s1rSWS3prJZ0Vks6qyWd1ZLOaklntaSzWtJZLemstsLMBU67R7mRk/DgAAAAAElFTkSuQmCC
+        YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABBSURBVDhPzcqxDQAwDMOw/P90u3agOoeAF8EzG51nv5Z0
+        Vks6qyWd1ZLOaklntaSzWtJZLemslnRWSzqrJZ3VlrhOu0e5FGblOgAAAABJRU5ErkJggg==
 </value>
   </data>
-  <data name="buttonStop.Image" type="System.Drawing.Bitmap, System.Drawing.Common" mimetype="application/x-microsoft.net.object.bytearray.base64">
-    <value>
-        iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8
-        YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAA5SURBVDhPpcixDQAgDMCw/v904QAPRETykrntJ86Cs+As
-        OAvOgrPgLDgLzoKz4Cw4C86Cs+B8NHsAm8z/AS15iaAAAAAASUVORK5CYII=
-</value>
-  </data>
+  <metadata name="playbackTimer.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>122, 17</value>
+  </metadata>
 </root>

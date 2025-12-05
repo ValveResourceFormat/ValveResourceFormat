@@ -1,10 +1,8 @@
-using System.Windows.Forms;
-
 #nullable disable
 
 namespace GUI.Forms
 {
-    partial class SearchForm : Form
+    partial class SearchForm : ThemedForm
     {
         /// <summary>
         /// Gets whatever text was entered by the user in the search textbox.

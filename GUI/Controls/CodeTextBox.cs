@@ -127,6 +127,8 @@ namespace GUI.Controls
                 VisibleChanged += OnVisibleChanged;
             }
 
+            Themer.ThemeControl(this);
+
             // TODO: Handle OnZoomChanged and save zoom in settings
         }
 

@@ -1,15 +1,16 @@
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Renderer;
 using GUI.Types.Viewers;
 using GUI.Utils;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using Resource = ValveResourceFormat.Resource;
-using System.Drawing;
-using ValveResourceFormat.CompiledShader;
 #nullable disable
 
 namespace GUI.Types.GLViewers
@@ -278,7 +279,7 @@ namespace GUI.Types.GLViewers
                         var (floatVal, floatPresence) = ((float, ParameterPresence))value;
                         AddNumericParameter(
                             paramName,
-                            (decimal)floatVal,
+                            floatVal,
                             ParamType.Float,
                             v => drawCall.Material.Material.FloatParams[paramName] = (float)v,
                             floatPresence != ParameterPresence.MaterialOnly);
@@ -401,19 +402,19 @@ namespace GUI.Types.GLViewers
                 inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, columnWidth));
             }
 
-            // Add NumericUpDown controls for vector components
-            var inputs = new NumericUpDown[componentCount];
+            // Add Numeric controls for vector components
+            var inputs = new ThemedFloatNumeric[componentCount];
             for (var i = 0; i < componentCount; i++)
             {
                 var index = i; // Capture for lambda
-                var input = new NumericUpDown
+                var input = new ThemedFloatNumeric
                 {
                     Dock = DockStyle.Fill,
-                    Minimum = decimal.MinValue,
-                    Maximum = decimal.MaxValue,
-                    DecimalPlaces = 3,
-                    Increment = 0.1M,
-                    Value = (decimal)(index == 0 ? value.X : index == 1 ? value.Y : index == 2 ? value.Z : value.W),
+                    MinValue = float.MinValue,
+                    MaxValue = float.MaxValue,
+                    DragWithinRange = false,
+                    DecimalMax = 3,
+                    Value = (index == 0 ? value.X : index == 1 ? value.Y : index == 2 ? value.Z : value.W),
                     Enabled = isEnabled,
                 };
 
@@ -428,21 +429,6 @@ namespace GUI.Types.GLViewers
                         w
                     );
                     onValueChanged(newVector);
-                };
-
-                input.MouseWheel += (sender, e) =>
-                {
-                    // Fix bug where one scroll causes increments more than once, https://stackoverflow.com/a/16338022
-                    (e as HandledMouseEventArgs).Handled = true;
-
-                    if (e.Delta > 0)
-                    {
-                        input.Value += input.Increment;
-                    }
-                    else if (e.Delta < 0)
-                    {
-                        input.Value -= input.Increment;
-                    }
                 };
 
                 inputs[i] = input;
@@ -526,12 +512,13 @@ namespace GUI.Types.GLViewers
 
             ParamsTable.Controls.Add(label, 0, row);
 
-            var colorButton = new Button
+            var colorButton = new ThemedButton
             {
                 Dock = DockStyle.Fill,
                 BackColor = initialColor,
                 FlatStyle = FlatStyle.Flat,
                 Enabled = isEnabled,
+                Style = false,
                 Padding = new Padding(2),
                 MinimumSize = new Size(0, 20),
             };
@@ -550,7 +537,7 @@ namespace GUI.Types.GLViewers
             ParamsTable.Controls.Add(colorButton, 1, row);
         }
 
-        private void AddNumericParameter(string paramName, decimal initialValue, ParamType paramType, Action<decimal> onValueChanged, bool isEnabled = true)
+        private void AddNumericParameter(string paramName, float initialValue, ParamType paramType, Action<float> onValueChanged, bool isEnabled = true)
         {
             var row = ParamsTable.RowCount;
             ParamsTable.RowCount = row + 1;
@@ -594,13 +581,13 @@ namespace GUI.Types.GLViewers
                     Enabled = isEnabled,
                 };
 
-                var input = new NumericUpDown
+                var input = new ThemedFloatNumeric
                 {
                     Dock = DockStyle.Fill,
-                    Minimum = decimal.MinValue,
-                    Maximum = decimal.MaxValue,
-                    DecimalPlaces = 3,
-                    Increment = 0.1M,
+                    MinValue = float.MinValue,
+                    MaxValue = float.MaxValue,
+                    DecimalMax = 3,
+                    DragWithinRange = false,
                     Value = initialValue,
                     Enabled = isEnabled,
                 };
@@ -612,7 +599,7 @@ namespace GUI.Types.GLViewers
                     if (!updatingFromSlider)
                     {
                         updatingFromSlider = true;
-                        var newValue = slider.Value / 1000.0m;
+                        var newValue = slider.Value / 1000.0f;
                         input.Value = newValue;
                         updatingFromSlider = false;
                     }
@@ -623,26 +610,11 @@ namespace GUI.Types.GLViewers
                     onValueChanged(input.Value);
 
                     // Update slider if value is in valid range
-                    if (input.Value >= 0 && input.Value <= (decimal)(slider.Maximum / 1000.0) && !updatingFromSlider)
+                    if (input.Value >= 0 && input.Value <= (slider.Maximum / 1000.0) && !updatingFromSlider)
                     {
                         updatingFromSlider = true;
                         slider.Value = (int)(input.Value * 1000);
                         updatingFromSlider = false;
-                    }
-                };
-
-                input.MouseWheel += (sender, e) =>
-                {
-                    // Fix bug where one scroll causes increments more than once, https://stackoverflow.com/a/16338022
-                    (e as HandledMouseEventArgs).Handled = true;
-
-                    if (e.Delta > 0)
-                    {
-                        input.Value += input.Increment;
-                    }
-                    else if (e.Delta < 0)
-                    {
-                        input.Value -= input.Increment;
                     }
                 };
 
@@ -653,33 +625,16 @@ namespace GUI.Types.GLViewers
             {
                 inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
-                var input = new NumericUpDown
+                var input = new ThemedIntNumeric
                 {
                     Dock = DockStyle.Fill,
-                    Minimum = decimal.MinValue,
-                    Maximum = decimal.MaxValue,
-                    DecimalPlaces = 0,
-                    Increment = 1M,
-                    Value = initialValue,
+                    MinValue = int.MinValue,
+                    MaxValue = int.MaxValue,
+                    Value = (int)initialValue,
                     Enabled = isEnabled,
                 };
 
                 input.ValueChanged += (sender, e) => onValueChanged(input.Value);
-
-                input.MouseWheel += (sender, e) =>
-                {
-                    // Fix bug where one scroll causes increments more than once, https://stackoverflow.com/a/16338022
-                    (e as HandledMouseEventArgs).Handled = true;
-
-                    if (e.Delta > 0)
-                    {
-                        input.Value += input.Increment;
-                    }
-                    else if (e.Delta < 0)
-                    {
-                        input.Value -= input.Increment;
-                    }
-                };
 
                 inputRow.Controls.Add(input, 0, 0);
             }
@@ -730,7 +685,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var loadingTabPage = new TabPage(material.ShaderName);
+            var loadingTabPage = new ThemedTabPage(material.ShaderName);
             var loadingFile = new LoadingFile();
             loadingTabPage.Controls.Add(loadingFile);
             Tabs.TabPages.Add(loadingTabPage);
@@ -740,7 +695,7 @@ namespace GUI.Types.GLViewers
 
             try
             {
-                var tabPage = new TabPage(material.ShaderName);
+                var tabPage = new ThemedTabPage(material.ShaderName);
                 Tabs.TabPages.Add(tabPage);
                 viewer.Create(
                     tabPage,
@@ -764,7 +719,7 @@ namespace GUI.Types.GLViewers
 
         private void AddShaderButton()
         {
-            openShaderButton = new Button
+            openShaderButton = new ThemedButton
             {
                 Text = $"Open Shader",
                 AutoSize = true,
@@ -834,11 +789,12 @@ namespace GUI.Types.GLViewers
                 TextAlign = ContentAlignment.MiddleRight
             }, 0, 0);
 
-            var colorButton = new Button
+            var colorButton = new ThemedButton
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
+                Style = false
             };
             colorButton.Click += (sender, e) =>
             {
@@ -866,7 +822,7 @@ namespace GUI.Types.GLViewers
                 TextAlign = ContentAlignment.MiddleRight
             }, 0, 1);
 
-            previewObjectComboBox = new ComboBox
+            previewObjectComboBox = new ThemedComboBox
             {
                 Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList
