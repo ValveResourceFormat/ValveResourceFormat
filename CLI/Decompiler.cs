@@ -295,6 +295,18 @@ namespace CLI
                     return 1;
                 }
 
+                if (VpkArchiveIndexRegex().IsMatch(InputFile))
+                {
+                    var fixedPackage = $"{InputFile.AsSpan()[..^8]}_dir.vpk";
+
+                    if (File.Exists(fixedPackage))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.Error.WriteLine($"Warning: Did you mean to specify \"{Path.GetFileName(fixedPackage)}\" instead of \"{Path.GetFileName(InputFile)}\"?");
+                        Console.ResetColor();
+                    }
+                }
+
                 paths.Add(InputFile);
             }
             else if (InputFile == "steam")
