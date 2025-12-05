@@ -1122,7 +1122,7 @@ namespace GUI.Types.GLViewers
                 );
             }
 
-            UiInvoke(UpdateZoomLabel);
+            UiControl.BeginInvoke(UpdateZoomLabel);
 
             /// This will call <see cref="CenterPosition"/> since it could not have been moved by user on first paint yet
             ClampPosition();

@@ -104,8 +104,6 @@ namespace GUI.Types.GLViewers
                 Dock = DockStyle.Fill
             };
 
-            UiControl.HandleCreated += OnUiControlHandleCreated;
-
             UiControl.GLControlContainer.Controls.Add(GLControl);
             GLControl.AttachNativeWindow(GLNativeWindow);
 
@@ -140,40 +138,6 @@ namespace GUI.Types.GLViewers
         {
             RenderLoopThread.RegisterInstance();
             RenderLoopThread.SetCurrentGLControl(this);
-        }
-
-        // RenderThread can queue UI actions before the UiControl window handle is created
-        private readonly Queue<Action> pendingUiActions = new();
-
-        protected void UiInvoke(Action action)
-        {
-            lock (pendingUiActions)
-            {
-                if (!UiControl.IsHandleCreated)
-                {
-                    pendingUiActions.Enqueue(action);
-                    return;
-                }
-
-                if (UiControl.InvokeRequired)
-                {
-                    UiControl.BeginInvoke(action);
-                    return;
-                }
-
-                action();
-            }
-        }
-        private void OnUiControlHandleCreated(object sender, EventArgs e)
-        {
-            lock (pendingUiActions)
-            {
-                while (pendingUiActions.Count > 0)
-                {
-                    var action = pendingUiActions.Dequeue();
-                    UiControl.Invoke(action);
-                }
-            }
         }
 
         protected virtual void AddUiControls()
@@ -298,7 +262,6 @@ namespace GUI.Types.GLViewers
                 GLControl.LostFocus -= OnLostFocus;
                 GLControl.VisibleChanged -= OnVisibleChanged;
 
-                UiControl.HandleCreated -= OnUiControlHandleCreated;
                 UiControl.Dispose();
             }
 
