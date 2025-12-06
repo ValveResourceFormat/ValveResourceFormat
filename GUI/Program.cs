@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -56,17 +57,59 @@ namespace GUI
                 return;
             }
 
+            var output = new StringBuilder(512);
+            AppendExceptionWithVersion(output, exception);
+            var outputText = output.ToString();
+
             var copyButton = new TaskDialogButton("Copy to clipboard");
+
+            var firstLocation = string.Empty;
+
+            try
+            {
+                var stackTrace = new StackTrace(exception, true);
+                if (stackTrace.FrameCount > 0)
+                {
+                    var frame = stackTrace.GetFrame(0);
+                    if (frame != null)
+                    {
+                        var method = frame.GetMethod();
+                        var fileName = frame.GetFileName();
+                        var lineNumber = frame.GetFileLineNumber();
+
+                        if (method != null)
+                        {
+                            firstLocation = $"{Environment.NewLine}{method.DeclaringType?.FullName}.{method.Name}";
+
+                            if (!string.IsNullOrEmpty(fileName) && lineNumber > 0)
+                            {
+                                firstLocation += $" in {fileName}:{lineNumber}";
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                //
+            }
 
             var page = new TaskDialogPage
             {
                 Caption = $"Unhandled exception: {exception.GetType()}",
-                Text = $"{exception.Message}{Environment.NewLine}{Environment.NewLine}Use copy button when sharing this error, and also mention your exact steps. Details also available in console.",
+                Text = $"{exception.Message}{firstLocation}{Environment.NewLine}{Environment.NewLine}Use copy button when sharing this error, and also mention your exact steps. Details also available in console.",
                 Icon = TaskDialogIcon.Error,
                 Buttons = { copyButton, TaskDialogButton.Close },
                 DefaultButton = TaskDialogButton.Close,
                 AllowCancel = false,
                 AllowMinimize = false,
+                Expander = new TaskDialogExpander
+                {
+                    Position = TaskDialogExpanderPosition.AfterFootnote,
+                    CollapsedButtonText = "Show details",
+                    ExpandedButtonText = "Hide details",
+                    Text = outputText,
+                },
                 Footnote = new TaskDialogFootnote
                 {
                     Text = $"S2V {Application.ProductVersion[..16].Replace('+', ' ')}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
@@ -94,9 +137,7 @@ namespace GUI
 
             if (result == copyButton)
             {
-                var output = new StringBuilder(512);
-                AppendExceptionWithVersion(output, exception);
-                Clipboard.SetText(output.ToString());
+                Clipboard.SetText(outputText);
             }
         }
 
