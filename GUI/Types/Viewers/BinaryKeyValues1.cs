@@ -48,7 +48,7 @@ namespace GUI.Types.Viewers
 
             ms.Seek(0, SeekOrigin.Begin);
 
-            var text = await reader.ReadToEndAsync().ConfigureAwait(false);
+            text = await reader.ReadToEndAsync().ConfigureAwait(false);
         }
 
         public void Create(TabPage tab)
