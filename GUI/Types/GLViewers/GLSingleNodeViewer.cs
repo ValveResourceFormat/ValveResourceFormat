@@ -106,6 +106,8 @@ namespace GUI.Types.GLViewers
         // Render only the main scene nodes into a transparent framebuffer
         protected override SKBitmap ReadPixelsToBitmap()
         {
+            using var lockedGl = MakeCurrent();
+
             var (w, h) = (MainFramebuffer.Width, MainFramebuffer.Height);
 
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
@@ -138,6 +140,8 @@ namespace GUI.Types.GLViewers
             var pixels = bitmap.GetPixels(out var length);
 
             GL.ReadPixels(0, 0, w, h, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+
+            MakeNoneCurrent();
 
             return bitmap;
         }

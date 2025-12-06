@@ -433,8 +433,12 @@ namespace GUI.Types.GLViewers
                 physNode.Enabled = physicsGroups.Contains(physNode.PhysGroupName);
             }
 
+            using var lockedGl = MakeCurrent();
+
             Scene.UpdateOctrees();
             SkyboxScene?.UpdateOctrees();
+
+            MakeNoneCurrent();
         }
 
         private Vector3 LastRootMotionPosition;

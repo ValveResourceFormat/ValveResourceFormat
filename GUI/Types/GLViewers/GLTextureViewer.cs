@@ -656,6 +656,8 @@ namespace GUI.Types.GLViewers
             {
                 var pixels = bitmap.GetPixels(out var length);
 
+                using var lockedGl = MakeCurrent();
+
                 // extract pixels from framebuffer
                 GL.Viewport(0, 0, bitmap.Width, bitmap.Height);
 
@@ -691,13 +693,15 @@ namespace GUI.Types.GLViewers
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
                 GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, SaveAsFbo.ColorFormat.PixelFormat, SaveAsFbo.ColorFormat.PixelType, pixels);
 
+                MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
+                MakeNoneCurrent();
+
                 var bitmapToReturn = bitmap;
                 bitmap = null;
                 return bitmapToReturn;
             }
             finally
             {
-                MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
                 bitmap?.Dispose();
             }
         }
