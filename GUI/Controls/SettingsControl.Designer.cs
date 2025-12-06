@@ -152,7 +152,7 @@ namespace GUI.Forms
             // maxTextureSizeInput
             // 
             maxTextureSizeInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            maxTextureSizeInput.Incrument = 64;
+            maxTextureSizeInput.Increment = 64;
             maxTextureSizeInput.Location = new System.Drawing.Point(170, 132);
             maxTextureSizeInput.Name = "maxTextureSizeInput";
             maxTextureSizeInput.Size = new System.Drawing.Size(100, 25);
@@ -303,7 +303,7 @@ namespace GUI.Forms
             // shadowResolutionInput
             // 
             shadowResolutionInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            shadowResolutionInput.Incrument = 64;
+            shadowResolutionInput.Increment = 64;
             shadowResolutionInput.Location = new System.Drawing.Point(170, 180);
             shadowResolutionInput.Name = "shadowResolutionInput";
             shadowResolutionInput.Size = new System.Drawing.Size(100, 25);

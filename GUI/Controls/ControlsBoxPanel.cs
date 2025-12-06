@@ -125,15 +125,15 @@ public class ControlsBoxPanel : Panel
 
         if (CurrentHoveredButton == CustomTitleBarHoveredButton.Close)
         {
-            e.Graphics.FillRectangle(controlBoxButtonBrush, titleBarButtonRects.Close);
+            e.Graphics.FillRectangle(closeButtonBrush, titleBarButtonRects.Close);
         }
         else if (CurrentHoveredButton == CustomTitleBarHoveredButton.Maximize)
         {
-            e.Graphics.FillRectangle(closeButtonBrush, titleBarButtonRects.Maximize);
+            e.Graphics.FillRectangle(controlBoxButtonBrush, titleBarButtonRects.Maximize);
         }
         else if (CurrentHoveredButton == CustomTitleBarHoveredButton.Minimize)
         {
-            e.Graphics.FillRectangle(closeButtonBrush, titleBarButtonRects.Minimize);
+            e.Graphics.FillRectangle(controlBoxButtonBrush, titleBarButtonRects.Minimize);
         }
 
         // Draws the horizontal line for the minimise icon.

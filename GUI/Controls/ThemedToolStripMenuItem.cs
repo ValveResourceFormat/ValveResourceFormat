@@ -55,7 +55,7 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
             return;
         }
 
-        var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream(SVGImageResourceName)
+        using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream(SVGImageResourceName)
             ?? throw new InvalidOperationException($"Failed to find resource `{SVGImageResourceName}` for SVG icon in ${nameof(ThemedToolStripMenuItem)}.");
 
         using var svg = new SKSvg();

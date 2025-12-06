@@ -79,7 +79,7 @@ partial class MainForm
             var controlsBoxPanelPoint = controlsBoxPanel.PointToClient(rawPoint);
 
             // Updating here instead of in the ControlsBoxPanel class is better because we can tell when we are outside
-            // of the panel here, and corrently set NONE.
+            // of the panel here, and correctly set NONE.
             controlsBoxPanel.CheckControlBoxHoverState(controlsBoxPanelPoint);
 
             // Only run top scaling logic when not fullscreened so the window can be dragged even if the cursor is at the very top of the screen.

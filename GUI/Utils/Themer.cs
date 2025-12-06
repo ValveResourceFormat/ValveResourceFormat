@@ -21,7 +21,7 @@ namespace GUI.Utils
             /// <summary>For element which need to sit between App and AppSoft colors.</summary>
             public required Color AppSoft { get; init; }
 
-            /// <summary>For borders meant to visually separate parts of the interfact.</summary>
+            /// <summary>For borders meant to visually separate parts of the interface.</summary>
             public required Color Border { get; init; }
 
             /// <summary>For any element which needs contrast from the background, like text</summary>
@@ -320,8 +320,8 @@ namespace GUI.Utils
             if (control is ControlsBoxPanel controlsBoxPanel)
             {
                 controlsBoxPanel.ControlBoxIconColor = CurrentThemeColors.Contrast;
-                controlsBoxPanel.ControlBoxHoverColor = CurrentThemeColors.ControlBoxHighlightCloseButton;
-                controlsBoxPanel.ControlBoxHoverCloseColor = CurrentThemeColors.ControlBoxHighlight;
+                controlsBoxPanel.ControlBoxHoverColor = CurrentThemeColors.ControlBoxHighlight;
+                controlsBoxPanel.ControlBoxHoverCloseColor = CurrentThemeColors.ControlBoxHighlightCloseButton;
             }
             if (control is ByteViewer hexViewer)
             {
@@ -511,15 +511,20 @@ namespace GUI.Utils
 
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
         {
+            if (e.ToolStrip is null)
+            {
+                return;
+            }
+
             var g = e.Graphics;
             var bounds = new Rectangle(Point.Empty, e.Item.Size);
-            var margin = Program.MainForm.AdjustForDPI(4);
+            var margin = e.ToolStrip.AdjustForDPI(4);
 
             if (e.Vertical)
             {
                 var centerX = bounds.Width / 2;
 
-                using var separatorPen = new Pen(Themer.CurrentThemeColors.Border, Program.MainForm.AdjustForDPI(2));
+                using var separatorPen = new Pen(Themer.CurrentThemeColors.Border, e.ToolStrip.AdjustForDPI(2));
                 g.DrawLine(
                     separatorPen,
                     centerX,
@@ -531,7 +536,7 @@ namespace GUI.Utils
             {
                 var centerY = bounds.Height / 2;
 
-                using var separatorPen = new Pen(Themer.CurrentThemeColors.Border, Program.MainForm.AdjustForDPI(2));
+                using var separatorPen = new Pen(Themer.CurrentThemeColors.Border, e.ToolStrip.AdjustForDPI(2));
                 g.DrawLine(
                     separatorPen,
                     bounds.Left + margin,

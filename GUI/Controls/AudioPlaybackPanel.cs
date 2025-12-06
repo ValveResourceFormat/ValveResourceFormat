@@ -33,7 +33,7 @@ namespace GUI.Controls
             base.OnHandleCreated(e);
 
             {
-                var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.AudioPlay.svg");
+                using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.AudioPlay.svg");
                 Debug.Assert(svgResource is not null);
                 using var svg = new SKSvg();
                 svg.Load(svgResource);
@@ -41,7 +41,7 @@ namespace GUI.Controls
             }
 
             {
-                var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.AudioPause.svg");
+                using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.AudioPause.svg");
                 Debug.Assert(svgResource is not null);
                 using var svg = new SKSvg();
                 svg.Load(svgResource);

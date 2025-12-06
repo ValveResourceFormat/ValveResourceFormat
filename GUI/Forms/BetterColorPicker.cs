@@ -18,8 +18,8 @@ namespace GUI.Forms
         {
             base.OnCreateControl();
 
-            // making this resizeable is an absolutele nightmare, keep it fixed but adjust its size based on DPI to be same on screen.
-            Size = new Size(AdjustForDpi(this, 300), AdjustForDpi(this, 500));
+            // making this resizeable is an absolute nightmare, keep it fixed but adjust its size based on DPI to be same on screen.
+            Size = new Size(Themer.AdjustForDPI(this, 300), Themer.AdjustForDPI(this, 500));
         }
 
         internal double H;
@@ -71,7 +71,7 @@ namespace GUI.Forms
         {
             base.OnHandleCreated(e);
 
-            var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.ColorEyeDropper.svg");
+            using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.ColorEyeDropper.svg");
             Debug.Assert(svgResource is not null);
             using var svg = new SKSvg();
             svg.Load(svgResource);
@@ -85,7 +85,7 @@ namespace GUI.Forms
 
             HSlider.Invalidate();
             SSlider.Invalidate();
-            SSlider.Invalidate();
+            VSlider.Invalidate();
             MainColorPanel.Invalidate();
             HuePanel.Invalidate();
 
@@ -306,11 +306,6 @@ namespace GUI.Forms
             picker.Close();
         }
 
-        internal static int AdjustForDpi(Control control, int val)
-        {
-            return (int)(val * control.DeviceDpi / 96f);
-        }
-
         internal static float Remap(float source, float sourceFrom, float sourceTo, float targetFrom, float targetTo)
         {
             return targetFrom + (source - sourceFrom) * (targetTo - targetFrom) / (sourceTo - sourceFrom);
@@ -499,7 +494,7 @@ namespace GUI.Forms
             using var pen = new Pen(Color.FromArgb(BetterColorPicker.ColorFromHSV(h, s, v).ToArgb() ^ 0xffffff), 2);
 
             e.Graphics.DrawImage(RenderImage, ClientRectangle);
-            var circleRadius = BetterColorPicker.AdjustForDpi(this, 10);
+            var circleRadius = Themer.AdjustForDPI(this, 10);
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.DrawEllipse(pen, new Rectangle((int)(s * Width) - circleRadius / 2, (int)((1.0f - v) * Height) - circleRadius / 2, circleRadius, circleRadius));
@@ -600,9 +595,9 @@ namespace GUI.Forms
 
             e.Graphics.DrawImage(RenderImage, ClientRectangle);
 
-            using var pen = new Pen(Color.FromArgb(BetterColorPicker.ColorFromHSV(h, 1, 1).ToArgb() ^ 0xffffff), BetterColorPicker.AdjustForDpi(this, 2));
+            using var pen = new Pen(Color.FromArgb(BetterColorPicker.ColorFromHSV(h, 1, 1).ToArgb() ^ 0xffffff), Themer.AdjustForDPI(this, 2));
 
-            var selectorHeight = BetterColorPicker.AdjustForDpi(this, 4);
+            var selectorHeight = Themer.AdjustForDPI(this, 4);
             e.Graphics.DrawRectangle(pen, new Rectangle(ClientRectangle.X, (int)(h / 360 * Height - selectorHeight / 2), ClientRectangle.Width, selectorHeight));
         }
 
@@ -760,7 +755,7 @@ namespace GUI.Forms
             e.Graphics.Clear(BackColor);
             e.Graphics.DrawImage(RenderImage, new Rectangle(0, sliderY, width, sliderHeight));
 
-            var knobSize = height - BetterColorPicker.AdjustForDpi(this, 4);
+            var knobSize = height - Themer.AdjustForDPI(this, 4);
             var knobX = SliderType switch
             {
                 ColorSliderType.H => (float)(h / 360f),
@@ -774,7 +769,7 @@ namespace GUI.Forms
             KnobColor = BetterColorPicker.ColorFromHSV(h, s, v);
 
             using var knobBrush = new SolidBrush(KnobColor);
-            using var knobPen = new Pen(Color.FromArgb(KnobColor.ToArgb() ^ 0xffffff), BetterColorPicker.AdjustForDpi(this, 2));
+            using var knobPen = new Pen(Color.FromArgb(KnobColor.ToArgb() ^ 0xffffff), Themer.AdjustForDPI(this, 2));
 
             var knobXTransformed = knobX * width - knobSize / 2;
 

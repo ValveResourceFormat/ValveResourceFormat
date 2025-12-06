@@ -178,7 +178,7 @@ namespace GUI.Controls
         protected override string ConvertToText(int value) => value.ToString(CultureInfo.InvariantCulture);
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
-        public int Incrument { get; set; } = 1;
+        public int Increment { get; set; } = 1;
 
         protected override int Parse(string text)
         {
@@ -198,7 +198,7 @@ namespace GUI.Controls
             var clamped = Math.Clamp(value, MinValue, MaxValue);
 
             var offset = clamped - MinValue;
-            var snapped = MinValue + (int)Math.Round((double)offset / Incrument) * Incrument;
+            var snapped = MinValue + (int)Math.Round((double)offset / Increment) * Increment;
 
             return Math.Clamp(snapped, MinValue, MaxValue);
         }
@@ -210,8 +210,8 @@ namespace GUI.Controls
                 var deltaValue = Remap(delta, 0, DragDistance, 0, MaxValue - MinValue);
                 var newValue = value + deltaValue;
 
-                var steps = (int)Math.Round((newValue - MinValue) / Incrument);
-                var snappedValue = MinValue + steps * Incrument;
+                var steps = (int)Math.Round((newValue - MinValue) / Increment);
+                var snappedValue = MinValue + steps * Increment;
 
                 return Math.Clamp(snappedValue, MinValue, MaxValue);
             }
@@ -219,7 +219,7 @@ namespace GUI.Controls
             {
                 var sensitivity = DragDistance / 10f;
                 var steps = (int)Math.Round(delta / sensitivity);
-                return value + (steps * Incrument);
+                return value + (steps * Increment);
             }
 
         }
