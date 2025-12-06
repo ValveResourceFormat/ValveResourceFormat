@@ -141,8 +141,6 @@ namespace GUI.Types.GLViewers
 
             GL.ReadPixels(0, 0, w, h, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
-            MakeNoneCurrent();
-
             return bitmap;
         }
     }

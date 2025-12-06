@@ -105,8 +105,6 @@ namespace GUI.Types.GLViewers
                     using var lockedGl = MakeCurrent();
 
                     staticOctreeRenderer.StaticBuild();
-
-                    MakeNoneCurrent();
                 }
             });
             UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
@@ -754,8 +752,6 @@ namespace GUI.Types.GLViewers
                 using var lockedGl = MakeCurrent();
 
                 staticOctreeRenderer.Rebuild();
-
-                MakeNoneCurrent();
             }
         }
 
@@ -819,7 +815,6 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            MakeNoneCurrent();
             GLControl.Invalidate();
         }
 #endif

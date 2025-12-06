@@ -113,7 +113,6 @@ namespace GUI.Types.GLViewers
                         {
                             using var lockedGl = MakeCurrent();
                             LoadClipScene(newClip, firstTime: false);
-                            MakeNoneCurrent();
                         }
                         BindAnimationUi();
 

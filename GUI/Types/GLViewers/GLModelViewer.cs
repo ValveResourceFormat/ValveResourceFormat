@@ -437,8 +437,6 @@ namespace GUI.Types.GLViewers
 
             Scene.UpdateOctrees();
             SkyboxScene?.UpdateOctrees();
-
-            MakeNoneCurrent();
         }
 
         private Vector3 LastRootMotionPosition;

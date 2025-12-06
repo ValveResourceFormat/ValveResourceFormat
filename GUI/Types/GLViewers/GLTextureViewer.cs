@@ -694,7 +694,6 @@ namespace GUI.Types.GLViewers
                 GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, SaveAsFbo.ColorFormat.PixelFormat, SaveAsFbo.ColorFormat.PixelType, pixels);
 
                 MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
-                MakeNoneCurrent();
 
                 var bitmapToReturn = bitmap;
                 bitmap = null;
@@ -928,14 +927,12 @@ namespace GUI.Types.GLViewers
         {
             using var lockedGl = MakeCurrent();
             SetupTexture(softwareDecode);
-            MakeNoneCurrent();
         }
 
         private void SetTextureFilteringFromUi()
         {
             using var lockedGl = MakeCurrent();
             SetTextureFiltering();
-            MakeNoneCurrent();
         }
 
         private void SetupTexture(bool forceSoftwareDecode)

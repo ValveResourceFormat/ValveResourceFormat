@@ -389,8 +389,6 @@ namespace GUI.Types.Renderer
                 var newShader = CompileAndLinkShader(shader.Name, shader.Parameters, blocking: false);
                 shader.ReplaceWith(newShader);
             }
-
-            ShaderHotReload.ViewerControl.MakeNoneCurrent();
         }
 
         public static void ValidateShaders()

@@ -212,8 +212,6 @@ namespace GUI.Types.GLViewers
             GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
             GL.ReadPixels(0, 0, GLDefaultFramebuffer.Width, GLDefaultFramebuffer.Height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
-            MakeNoneCurrent();
-
             // Flip y
             using var canvas = new SKCanvas(bitmap);
             canvas.Scale(1, -1, 0, bitmap.Height / 2f);
@@ -588,8 +586,6 @@ namespace GUI.Types.GLViewers
 
             OnGLLoad();
 
-            MakeNoneCurrent();
-
             lastUpdate = Stopwatch.GetTimestamp();
         }
 
@@ -712,8 +708,6 @@ namespace GUI.Types.GLViewers
 
             GLNativeWindow.Context.SwapBuffers();
             Picker?.TriggerEventIfAny();
-
-            MakeNoneCurrent();
         }
 
         private void BlitFramebufferToScreen()
@@ -787,8 +781,6 @@ namespace GUI.Types.GLViewers
 
             Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
-
-            MakeNoneCurrent();
         }
 
         protected virtual void OnFirstPaint()
@@ -845,18 +837,9 @@ namespace GUI.Types.GLViewers
             Clipboard.SetDataObject(data, copy: true);
         }
 
-        public Lock.Scope MakeCurrent()
+        public GLLockScope MakeCurrent()
         {
-            var lockedGl = glLock.EnterScope();
-
-            GLNativeWindow.Context.MakeCurrent();
-
-            return lockedGl;
-        }
-
-        public void MakeNoneCurrent()
-        {
-            GLNativeWindow.Context.MakeNoneCurrent();
+            return new GLLockScope(glLock, GLNativeWindow.Context);
         }
     }
 }
