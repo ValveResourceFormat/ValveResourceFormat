@@ -29,7 +29,7 @@ namespace GUI.Types.Viewers
                 navMeshFile.Read(vrfGuiContext.FileName);
             }
 
-            var infoText = navMeshFile.ToString();
+            infoText = navMeshFile.ToString();
         }
 
         public void Create(TabPage tabOuterPage)
