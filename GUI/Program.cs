@@ -106,8 +106,6 @@ namespace GUI
                 Expander = new TaskDialogExpander
                 {
                     Position = TaskDialogExpanderPosition.AfterFootnote,
-                    CollapsedButtonText = "Show details",
-                    ExpandedButtonText = "Hide details",
                     Text = outputText,
                 },
                 Footnote = new TaskDialogFootnote
