@@ -353,7 +353,14 @@ namespace GUI.Types.GLViewers
 
             void UpdateUiAnimationState(Animation animation, int frame)
             {
-                animationTrackBar.BeginInvoke(() => UiAnimationHandler(animation, frame));
+                if (animationTrackBar.InvokeRequired)
+                {
+                    animationTrackBar.BeginInvoke(() => UiAnimationHandler(animation, frame));
+                }
+                else
+                {
+                    UiAnimationHandler(animation, frame);
+                }
             }
             animationController?.RegisterUpdateHandler(UpdateUiAnimationState);
         }

@@ -110,7 +110,11 @@ namespace GUI.Types.GLViewers
                             ? clip
                             : clip.SecondaryAnimations[index - 1];
 
-                        LoadClipScene(newClip, firstTime: false);
+                        {
+                            using var lockedGl = MakeCurrent();
+                            LoadClipScene(newClip, firstTime: false);
+                            MakeNoneCurrent();
+                        }
                         BindAnimationUi();
 
                         if (animationPlayPause != null)
