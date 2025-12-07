@@ -275,7 +275,7 @@ namespace GUI.Controls
                 // Find all the vpks in game folder
                 var vpks = new FileSystemEnumerable<string>(
                     gamePath,
-                    (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
+                    (ref entry) => entry.ToSpecifiedFullPath(),
                     enumerationOptions)
                 {
                     ShouldIncludePredicate = VpkPredicate
@@ -413,7 +413,7 @@ namespace GUI.Controls
 
         private void InvokeWorkaround(Action action)
         {
-            if (treeView.InvokeRequired)
+            if (treeView.InvokeRequired && !treeView.IsDisposed)
             {
                 treeView.Invoke(action);
             }
@@ -550,10 +550,10 @@ namespace GUI.Controls
             }
         }
 
-        private TreeNode[] GetRecentFileNodes() => GetFileNodes(Settings.Config.RecentFiles);
-        private TreeNode[] GetBookmarkedFileNodes() => GetFileNodes(Settings.Config.BookmarkedFiles);
+        private static TreeNode[] GetRecentFileNodes() => GetFileNodes(Settings.Config.RecentFiles);
+        private static TreeNode[] GetBookmarkedFileNodes() => GetFileNodes(Settings.Config.BookmarkedFiles);
 
-        private TreeNode[] GetFileNodes(List<string> paths)
+        private static TreeNode[] GetFileNodes(List<string> paths)
         {
             var treeNodes = new TreeNode[paths.Count];
             var treeNodeIndex = 0;
@@ -597,7 +597,7 @@ namespace GUI.Controls
 
                         if (isVpk)
                         {
-                            imageIndexGame = treeView.ImageList.Images.IndexOfKey($"@app{game.AppID}");
+                            imageIndexGame = MainForm.ImageList.Images.IndexOfKey($"@app{game.AppID}");
                         }
 
                         break;
@@ -708,7 +708,7 @@ namespace GUI.Controls
         private int GetOrLoadAppImage(int appID, KVObject libraryAssetsKv, string libraryCachePath)
         {
             var imageKey = $"@app{appID}";
-            var treeNodeImage = treeView.ImageList.Images.IndexOfKey(imageKey);
+            var treeNodeImage = MainForm.ImageList.Images.IndexOfKey(imageKey);
 
             if (treeNodeImage >= 0)
             {
@@ -742,10 +742,10 @@ namespace GUI.Controls
 
                     InvokeWorkaround(() =>
                     {
-                        treeView.ImageList.Images.Add(imageKey, appIcon);
+                        MainForm.ImageList.Images.Add(imageKey, appIcon);
                     });
 
-                    treeNodeImage = treeView.ImageList.Images.IndexOfKey(imageKey);
+                    treeNodeImage = MainForm.ImageList.Images.IndexOfKey(imageKey);
                 }
             }
             catch (Exception)
@@ -756,12 +756,12 @@ namespace GUI.Controls
             return treeNodeImage;
         }
 
-        private Bitmap GetAppResizedImage(string path)
+        private static Bitmap GetAppResizedImage(string path)
         {
             var originalImage = Image.FromFile(path);
 
-            var destRect = new Rectangle(0, 0, treeView.ImageList.ImageSize.Width, treeView.ImageList.ImageSize.Height);
-            var destImage = new Bitmap(treeView.ImageList.ImageSize.Width, treeView.ImageList.ImageSize.Height);
+            var destRect = new Rectangle(0, 0, MainForm.ImageList.ImageSize.Width, MainForm.ImageList.ImageSize.Height);
+            var destImage = new Bitmap(MainForm.ImageList.ImageSize.Width, MainForm.ImageList.ImageSize.Height);
 
             destImage.SetResolution(originalImage.HorizontalResolution, originalImage.VerticalResolution);
 
