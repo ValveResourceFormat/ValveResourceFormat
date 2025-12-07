@@ -32,7 +32,8 @@ class PickingTexture : Framebuffer
 
     public event EventHandler<PickingResponse> OnPicked;
     public Shader Shader { get; }
-    public Shader? DebugShader { get; private set; }
+    public Shader DebugShader { get; }
+    public bool IsDebugActive { get; private set; }
     public bool ActiveNextFrame { get; private set; }
 
     private int CursorPositionX;
@@ -49,6 +50,10 @@ class PickingTexture : Framebuffer
     {
         guiContext = vrfGuiContext;
         Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking");
+        DebugShader = guiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, byte>
+        {
+            { "F_DEBUG_PICKER", 1 },
+        });
         OnPicked += onPicked;
 
         ColorFormat = new(PixelInternalFormat.Rgba32ui, PixelFormat.RgbaInteger, PixelType.UnsignedInt);
@@ -111,15 +116,6 @@ class PickingTexture : Framebuffer
 
     public void SetRenderMode(string renderMode)
     {
-        if (Shader.RenderModes.Contains(renderMode))
-        {
-            DebugShader = guiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, byte>
-            {
-                { "F_DEBUG_PICKER", 1 },
-            });
-            return;
-        }
-
-        DebugShader = null;
+        IsDebugActive = Shader.RenderModes.Contains(renderMode);
     }
 }

@@ -356,7 +356,7 @@ namespace GUI.Types.GLViewers
                     RenderScenesWithView(renderContext);
                     Picker.Finish();
                 }
-                else if (Picker.DebugShader is not null)
+                else if (Picker.IsDebugActive)
                 {
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }
