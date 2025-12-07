@@ -82,7 +82,7 @@ namespace GUI.Types.GLViewers
             };
 
             GLControl.Paint += OnPaint;
-            GLControl.Resize += OnResize;
+            GLControl.SizeChanged += OnSizeChanged;
             GLControl.MouseEnter += OnMouseEnter;
             GLControl.MouseLeave += OnMouseLeave;
             GLControl.MouseUp += OnMouseUp;
@@ -242,7 +242,7 @@ namespace GUI.Types.GLViewers
                 RenderLoopThread.UnregisterInstance();
 
                 GLControl.Paint -= OnPaint;
-                GLControl.Resize -= OnResize;
+                GLControl.SizeChanged -= OnSizeChanged;
                 GLControl.MouseEnter -= OnMouseEnter;
                 GLControl.MouseLeave -= OnMouseLeave;
                 GLControl.MouseUp -= OnMouseUp;
@@ -570,15 +570,16 @@ namespace GUI.Types.GLViewers
         }
 
         private bool FirstPaint = true;
+        private bool ShouldResize;
 
         private void OnPaint(object sender, EventArgs e)
         {
             RenderLoopThread.SetCurrentGLControl(this);
         }
 
-        protected virtual void OnResize(object sender, EventArgs e)
+        protected virtual void OnSizeChanged(object sender, EventArgs e)
         {
-            OnResize();
+            ShouldResize = true;
         }
 
         protected virtual void OnFirstPaint()
@@ -594,12 +595,13 @@ namespace GUI.Types.GLViewers
 
         public void Draw(long currentTime, bool isPaused)
         {
-            if (MainFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
-            {
-                return;
-            }
-
             using var lockedGl = MakeCurrent();
+
+            if (ShouldResize)
+            {
+                OnResize();
+                ShouldResize = false;
+            }
 
             if (FirstPaint)
             {
@@ -735,8 +737,6 @@ namespace GUI.Types.GLViewers
             {
                 return;
             }
-
-            using var lockedGl = MakeCurrent();
 
             GLDefaultFramebuffer.Resize(w, h);
 

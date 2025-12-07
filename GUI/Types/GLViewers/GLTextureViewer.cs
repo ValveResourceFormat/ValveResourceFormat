@@ -808,6 +808,8 @@ namespace GUI.Types.GLViewers
             {
                 ClickPosition = Position + mousePosition;
             }
+
+            InvalidateRender();
         }
 
         protected override void OnMouseDown(object sender, MouseEventArgs e)
@@ -854,6 +856,8 @@ namespace GUI.Types.GLViewers
                 Interlocked.Increment(ref NextBitmapVersion);
                 Task.Run(GenerateNewSvgBitmap);
             }
+
+            InvalidateRender();
         }
 
         private void ClampPosition()
