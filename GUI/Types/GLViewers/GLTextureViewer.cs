@@ -547,7 +547,7 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
-            GLControl.PreviewKeyDown -= OnPreviewKeyDown;
+            GLControl?.PreviewKeyDown -= OnPreviewKeyDown;
 
             GuiContext = null;
             Resource = null;

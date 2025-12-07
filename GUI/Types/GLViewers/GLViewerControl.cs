@@ -92,9 +92,7 @@ namespace GUI.Types.GLViewers
             GLControl.PreviewKeyDown += OnPreviewKeyDown;
             GLControl.KeyDown += OnKeyDown;
             GLControl.KeyUp += OnKeyUp;
-            GLControl.GotFocus += OnGotFocus;
             GLControl.LostFocus += OnLostFocus;
-            GLControl.VisibleChanged += OnVisibleChanged;
 
             UiControl = new()
             {
@@ -253,29 +251,13 @@ namespace GUI.Types.GLViewers
                 GLControl.PreviewKeyDown -= OnPreviewKeyDown;
                 GLControl.KeyDown -= OnKeyDown;
                 GLControl.KeyUp -= OnKeyUp;
-                GLControl.GotFocus -= OnGotFocus;
                 GLControl.LostFocus -= OnLostFocus;
-                GLControl.VisibleChanged -= OnVisibleChanged;
 
                 UiControl.Dispose();
             }
 
             FullScreenForm?.Dispose();
             GLNativeWindow?.Dispose();
-        }
-
-        private void OnVisibleChanged(object sender, EventArgs e)
-        {
-            if (GLControl.Visible)
-            {
-                OnResize();
-
-                if (Form.ActiveForm != null)
-                {
-                    GLControl.Focus();
-                    GLControl.Invalidate();
-                }
-            }
         }
 
         private void OnMouseLeave(object sender, EventArgs e)
@@ -593,6 +575,11 @@ namespace GUI.Types.GLViewers
             RenderLoopThread.SetCurrentGLControl(this);
         }
 
+        protected virtual void OnResize(object sender, EventArgs e)
+        {
+            OnResize();
+        }
+
         protected virtual void OnFirstPaint()
         {
             //
@@ -739,16 +726,6 @@ namespace GUI.Types.GLViewers
             postProcessRenderer.Render(colorBuffer: inputFramebuffer, flipY);
         }
 
-        protected virtual void OnResize(object sender, EventArgs e)
-        {
-            if (MainFramebuffer is null)
-            {
-                return;
-            }
-
-            OnResize();
-        }
-
         protected virtual void OnResize()
         {
             var (w, h) = (GLControl.Width, GLControl.Height);
@@ -784,18 +761,6 @@ namespace GUI.Types.GLViewers
 
             Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
-        }
-
-        private void OnGotFocus(object sender, EventArgs e)
-        {
-            if (MainFramebuffer is null || !MainFramebuffer.HasValidDimensions())
-            {
-                return;
-            }
-
-            lastUpdate = Stopwatch.GetTimestamp();
-            OnResize();
-            GLControl.Invalidate();
         }
 
         private void OnLostFocus(object sender, EventArgs e)
