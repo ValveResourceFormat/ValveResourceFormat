@@ -191,6 +191,7 @@ namespace GUI.Types.GLViewers
                 FullScreenForm.Controls.Add(GLControl);
                 FullScreenForm.Show();
                 FullScreenForm.Focus();
+                GLControl.Invalidate();
                 FullScreenForm.FormClosed += OnFullScreenFormClosed;
             }
         }
