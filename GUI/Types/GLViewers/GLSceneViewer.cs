@@ -431,9 +431,11 @@ namespace GUI.Types.GLViewers
 
             renderContext.Framebuffer.BindAndClear();
 
+            var isWireframe = IsWireframe; // To avoid toggling it mid frame
+
             // TODO: check if renderpass allows wireframe mode
             // TODO+: replace wireframe shaders with solid color
-            if (IsWireframe)
+            if (isWireframe)
             {
                 GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
             }
@@ -474,7 +476,7 @@ namespace GUI.Types.GLViewers
                     SkyboxScene.RenderOpaqueLayer(renderContext);
                 }
 
-                if (!IsWireframe)
+                if (!isWireframe)
                 {
                     using (new GLDebugGroup("2D Sky Render"))
                     {
@@ -508,7 +510,7 @@ namespace GUI.Types.GLViewers
                 RenderTranslucentLayer(Scene, renderContext);
             }
 
-            if (IsWireframe)
+            if (isWireframe)
             {
                 GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
             }
