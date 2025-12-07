@@ -107,7 +107,7 @@ namespace GUI.Types.PackageViewer
 
         private void MainTreeView_NodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-            if (mainTreeView.SelectedNode is not BetterTreeNode node || node.IsFolder)
+            if (e.Node is not BetterTreeNode node || node.IsFolder)
             {
                 return;
             }
