@@ -548,7 +548,6 @@ namespace GUI.Types.GLViewers
             base.Dispose();
 
             GLControl.PreviewKeyDown -= OnPreviewKeyDown;
-            GLPaint -= OnPaint;
 
             GuiContext = null;
             Resource = null;
@@ -1095,8 +1094,6 @@ namespace GUI.Types.GLViewers
 
             MainFramebuffer.ClearColor = OpenTK.Mathematics.Color4.White;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-
-            GLPaint += OnPaint;
         }
 
         protected override void OnFirstPaint()
@@ -1129,7 +1126,7 @@ namespace GUI.Types.GLViewers
             ClampPosition();
         }
 
-        private void OnPaint(object sender, RenderEventArgs e)
+        protected override void OnPaint(RenderEventArgs e)
         {
             if (NextBitmapToSet != null)
             {

@@ -442,7 +442,7 @@ namespace GUI.Types.GLViewers
         private Vector3 LastRootMotionPosition;
         private bool enableRootMotion;
 
-        protected override void OnPaint(object sender, RenderEventArgs e)
+        protected override void OnPaint(RenderEventArgs e)
         {
             if (enableRootMotion && animationController.AnimationFrame is Frame animationFrame)
             {
@@ -457,7 +457,7 @@ namespace GUI.Types.GLViewers
                 LastRootMotionPosition = animationFrame.Movement.Position;
             }
 
-            base.OnPaint(sender, e);
+            base.OnPaint(e);
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)

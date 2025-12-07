@@ -132,10 +132,10 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnPaint(object sender, RenderEventArgs e)
+        protected override void OnPaint(RenderEventArgs e)
         {
             animationController.Update(e.FrameTime);
-            base.OnPaint(sender, e);
+            base.OnPaint(e);
         }
     }
 }

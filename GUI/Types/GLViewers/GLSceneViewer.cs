@@ -66,8 +66,6 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
-            GLPaint -= OnPaint;
-
             viewBuffer?.Dispose();
             Scene?.Dispose();
             SkyboxScene?.Dispose();
@@ -304,8 +302,6 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
-            GLPaint += OnPaint;
-
             GuiContext.ClearCache();
 
             if (GuiContext.GLPostLoadAction != null)
@@ -315,7 +311,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected virtual void OnPaint(object sender, RenderEventArgs e)
+        protected override void OnPaint(RenderEventArgs e)
         {
             viewBuffer.Data.Time = Uptime;
 

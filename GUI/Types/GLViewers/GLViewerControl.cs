@@ -33,9 +33,6 @@ namespace GUI.Types.GLViewers
         public Camera Camera { get; protected set; }
         public Types.Renderer.TextRenderer TextRenderer { get; protected set; }
 
-
-        public event EventHandler<RenderEventArgs> GLPaint;
-
         protected virtual void OnGLLoad() { }
 
         protected readonly PostProcessRenderer postProcessRenderer;
@@ -596,13 +593,19 @@ namespace GUI.Types.GLViewers
             RenderLoopThread.SetCurrentGLControl(this);
         }
 
+        protected virtual void OnFirstPaint()
+        {
+            //
+        }
+
+        protected virtual void OnPaint(RenderEventArgs e)
+        {
+            //
+        }
+
+
         public void Draw(long currentTime, bool isPaused)
         {
-            if (GLControl.IsDisposed || !GLControl.Visible)
-            {
-                return;
-            }
-
             if (MainFramebuffer.InitialStatus != FramebufferErrorCode.FramebufferComplete)
             {
                 return;
@@ -648,7 +651,7 @@ namespace GUI.Types.GLViewers
 
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
-            GLPaint?.Invoke(this, new RenderEventArgs { FrameTime = frameTime });
+            OnPaint(new RenderEventArgs { FrameTime = frameTime });
 
             GL.EndQuery(QueryTarget.TimeElapsed);
 
@@ -781,11 +784,6 @@ namespace GUI.Types.GLViewers
 
             Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
-        }
-
-        protected virtual void OnFirstPaint()
-        {
-            //
         }
 
         private void OnGotFocus(object sender, EventArgs e)
