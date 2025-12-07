@@ -156,6 +156,7 @@ class Framebuffer
     {
         Color?.Delete();
         Depth?.Delete();
+        Stencil?.Delete();
 
         var (width, height) = (Width, Height);
 
