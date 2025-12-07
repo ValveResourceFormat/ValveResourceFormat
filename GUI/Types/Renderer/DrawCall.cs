@@ -57,7 +57,7 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
             var vaoName = $"{MeshName}+{Material.Material.Name}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, VertexArrayObject, vaoName.Length, vaoName);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, VertexArrayObject, Math.Min(GLEnvironment.MaxLabelLength, vaoName.Length), vaoName);
 #endif
         }
     }

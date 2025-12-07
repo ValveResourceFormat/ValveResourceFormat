@@ -13,6 +13,7 @@ static class GLEnvironment
 
 #if DEBUG
     public static ContextFlags Flags => ContextFlags.ForwardCompatible | ContextFlags.Debug;
+    public static int MaxLabelLength;
 #else
     public static ContextFlags Flags => ContextFlags.ForwardCompatible;
 #endif
@@ -70,6 +71,10 @@ static class GLEnvironment
         {
             Log.Warn("OpenGL", "Parallel shader compilation is not supported.");
         }
+
+#if DEBUG
+        MaxLabelLength = GL.GetInteger(GetPName.MaxLabelLength) - 1;
+#endif
     }
 
     public static OpenTK.Mathematics.Matrix4 ToOpenTK(this Matrix4x4 m)

@@ -55,9 +55,9 @@ namespace GUI.Types.Renderer
 
 #if DEBUG
             var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, label.Length, label);
-            GL.ObjectLabel(ObjectLabelIdentifier.Texture, CompositeTexture.Handle, label.Length, label);
-            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, frameBuffer, label.Length, label);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, CompositeTexture.Handle, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
+            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, frameBuffer, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
 #endif
         }
 
