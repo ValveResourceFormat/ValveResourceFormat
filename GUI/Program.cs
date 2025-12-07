@@ -135,7 +135,14 @@ namespace GUI
 
             if (result == copyButton)
             {
-                Clipboard.SetText(outputText);
+                if (MainForm != null && MainForm.InvokeRequired)
+                {
+                    MainForm.Invoke(() => Clipboard.SetText(outputText));
+                }
+                else
+                {
+                    Clipboard.SetText(outputText);
+                }
             }
         }
 
