@@ -25,6 +25,7 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <AnalysisMode>All</AnalysisMode>
     <Nullable>enable</Nullable>
   </PropertyGroup>
