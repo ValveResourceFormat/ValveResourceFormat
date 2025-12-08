@@ -560,6 +560,18 @@ namespace GUI.Types.GLViewers
                 Framebuffer.DepthAttachmentFormat.Depth32FStencil8
             );
 
+            var status = MainFramebuffer.Initialize();
+
+            if (status != FramebufferErrorCode.FramebufferComplete)
+            {
+                Log.Error(nameof(GLViewerControl), $"Framebuffer failed to initialize with error: {status}");
+                Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
+
+                MainFramebuffer.Delete();
+                MainFramebuffer = GLDefaultFramebuffer;
+                GL.Enable(EnableCap.FramebufferSrgb);
+            }
+
             MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
 
             OnGLLoad();
@@ -741,21 +753,6 @@ namespace GUI.Types.GLViewers
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
                 MainFramebuffer.Resize(w, h, NumSamples);
-            }
-
-            if (MainFramebuffer.InitialStatus == FramebufferErrorCode.FramebufferUndefined)
-            {
-                var status = MainFramebuffer.Initialize();
-
-                if (status != FramebufferErrorCode.FramebufferComplete)
-                {
-                    Log.Error(nameof(GLViewerControl), $"Framebuffer failed to initialize with error: {status}");
-                    Log.Info(nameof(GLViewerControl), "Falling back to default framebuffer.");
-
-                    MainFramebuffer.Delete();
-                    MainFramebuffer = GLDefaultFramebuffer;
-                    GL.Enable(EnableCap.FramebufferSrgb);
-                }
             }
 
             Camera.SetViewportSize(w, h);
