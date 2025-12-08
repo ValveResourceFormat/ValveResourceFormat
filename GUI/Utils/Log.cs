@@ -29,7 +29,10 @@ internal static class Log
             return;
         }
 
+#if DEBUG
         System.Diagnostics.Debug.WriteLine($"[{component}] {message}");
+#endif
+
         console.WriteLine(Category.DEBUG, component, message);
     }
 

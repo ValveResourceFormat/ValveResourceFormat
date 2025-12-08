@@ -158,11 +158,7 @@ public class GLControl : Control
     /// </summary>
     private void DestroyNativeWindow()
     {
-        if (_nativeWindow != null)
-        {
-            _nativeWindow.Dispose();
-            _nativeWindow = null;
-        }
+        _nativeWindow = null;
     }
 
     /// <summary>

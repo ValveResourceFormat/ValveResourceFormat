@@ -234,10 +234,10 @@ namespace GUI.Types.GLViewers
 
         public virtual void Dispose()
         {
+            using var lockedGl = glLock.EnterScope();
+
             if (GLControl is not null)
             {
-                using var lockedGl = glLock.EnterScope();
-
                 RenderLoopThread.UnsetCurrentGLControl(this);
                 RenderLoopThread.UnregisterInstance();
 

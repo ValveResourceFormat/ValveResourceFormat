@@ -11,6 +11,7 @@ namespace GUI.Types.Renderer
         //private const int TicksPerMillisecond = 10_000;
         //private const long TicksPerSecond = TicksPerMillisecond * 1_000;
 
+        private static int threadHash;
         private static int instances;
         private static Thread? loopThread;
         private static GLViewerControl? currentGLControl;
@@ -49,6 +50,7 @@ namespace GUI.Types.Renderer
         {
             if (Interlocked.Decrement(ref instances) == 0)
             {
+                Interlocked.Increment(ref threadHash);
                 renderSignal.Set();
                 loopThread = null; // The thread should quit on its own
             }
@@ -115,11 +117,13 @@ namespace GUI.Types.Renderer
 
         private static void RenderLoop()
         {
+            var localHash = threadHash;
+
 #if DEBUG
-            Log.Debug(nameof(RenderLoop), "Thread started");
+            Log.Debug(nameof(RenderLoop), $"Thread started (#{localHash})");
 #endif
 
-            while (instances > 0)
+            while (threadHash == localHash)
             {
                 var control = currentGLControl;
 
@@ -155,6 +159,11 @@ namespace GUI.Types.Renderer
                         control.Draw(currentTime, isPaused: true);
                     }
 
+                    if (threadHash != localHash)
+                    {
+                        break;
+                    }
+
                     renderSignal.Wait();
                     continue;
                 }
@@ -170,7 +179,7 @@ namespace GUI.Types.Renderer
             }
 
 #if DEBUG
-            Log.Debug(nameof(RenderLoop), "Thread quit");
+            Log.Debug(nameof(RenderLoop), $"Thread quit (#{localHash})");
 #endif
         }
     }
