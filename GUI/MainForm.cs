@@ -38,6 +38,10 @@ namespace GUI
 
         static MainForm()
         {
+            GLFWProvider.SetErrorCallback((errorCode, description) =>
+            {
+                throw new OpenTK.Windowing.GraphicsLibraryFramework.GLFWException(description, errorCode);
+            });
             GLFWProvider.CheckForMainThread = false;
             GLFWProvider.EnsureInitialized();
         }
