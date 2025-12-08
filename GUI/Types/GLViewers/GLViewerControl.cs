@@ -605,7 +605,15 @@ namespace GUI.Types.GLViewers
 
         public void Draw(long currentTime, bool isPaused)
         {
-            using var lockedGl = MakeCurrent();
+            using var lockedGl = glLock.EnterScope();
+
+            if (!GLNativeWindow.Exists)
+            {
+                RenderLoopThread.UnsetCurrentGLControl(this);
+                return;
+            }
+
+            GLNativeWindow.Context.MakeCurrent();
 
             if (ShouldResize)
             {
@@ -711,6 +719,8 @@ namespace GUI.Types.GLViewers
 
             GLNativeWindow.Context.SwapBuffers();
             Picker?.TriggerEventIfAny();
+
+            GLNativeWindow.Context.MakeNoneCurrent();
         }
 
         private void BlitFramebufferToScreen()
