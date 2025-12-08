@@ -609,6 +609,7 @@ namespace GUI.Types.GLViewers
 
             if (!GLNativeWindow.Exists)
             {
+                Log.Debug(nameof(GLViewerControl), "Attempted to draw onto destroyed GL Native Window.");
                 RenderLoopThread.UnsetCurrentGLControl(this);
                 return;
             }
