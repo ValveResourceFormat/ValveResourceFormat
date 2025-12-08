@@ -134,9 +134,9 @@ vec2 AdjustTextureViewerUvs(vec2 vTexCoord)
 vec3 CheckerboardPattern(vec2 vScreenCoords)
 {
     const vec3 color1 = g_vCheckerboardTheme;
-    const vec3 color2 = vec3(0.6, 0.6, 0.6);;
+    const vec3 color2 = vec3(0.7);
 
-    const vec2 vSizeInPixels = vec2(32);
+    const vec2 vSizeInPixels = vec2(28);
 
     vec2 vTexCoord = vScreenCoords * g_vViewportSize / vSizeInPixels;
     vec2 vCell = floor(vTexCoord);

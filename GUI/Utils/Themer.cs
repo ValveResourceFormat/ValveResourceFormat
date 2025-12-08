@@ -87,6 +87,7 @@ namespace GUI.Utils
             ColorMode = SystemColorMode.Classic,
         };
 
+        public static AppTheme CurrentTheme { get; private set; } = AppTheme.Light;
         public static ThemeColors CurrentThemeColors { get; private set; } = LightTheme;
 
         public static void InitializeTheme()
@@ -98,6 +99,7 @@ namespace GUI.Utils
                 theme = Application.SystemColorMode == SystemColorMode.Dark ? AppTheme.Dark : AppTheme.Light;
             }
 
+            CurrentTheme = theme;
             CurrentThemeColors = theme == AppTheme.Dark ? DarkTheme : LightTheme;
 
             Application.SetColorMode(CurrentThemeColors.ColorMode);
