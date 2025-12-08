@@ -11,9 +11,11 @@ using NativeWindow = OpenTK.Windowing.Desktop.NativeWindow;
 namespace GUI.Controls;
 
 /// <summary>
-/// OpenGL-capable WinForms control that is a specialized wrapper around
-/// OpenTK's NativeWindow.
+/// OpenGL-capable WinForms control that is a specialized wrapper around OpenTK's NativeWindow.
 /// </summary>
+/// <remarks>
+/// Unlike GLControl provided by OpenTK, this class is modified to not explicitly own the NativeWindow.
+/// </remarks>
 /// <see href="https://github.com/opentk/GLControl/blob/9b3e527aac9b5f5759c5f637aa57da5d3821a32f/OpenTK.GLControl/GLControl.cs"/>
 public class GLControl : Control
 {
@@ -158,6 +160,18 @@ public class GLControl : Control
     /// </summary>
     private void DestroyNativeWindow()
     {
+        if (_nativeWindow == null)
+        {
+            return;
+        }
+
+        // Unparent the window so that Window doesn't automatically destroy it, let the owner of viewer control correctly dispose of it
+        unsafe
+        {
+            var hWnd = (Windows.Win32.Foundation.HWND)GLFW.GetWin32Window(_nativeWindow.WindowPtr);
+            Windows.Win32.PInvoke.SetParent(hWnd, Windows.Win32.Foundation.HWND.Null);
+        }
+
         _nativeWindow = null;
     }
 
