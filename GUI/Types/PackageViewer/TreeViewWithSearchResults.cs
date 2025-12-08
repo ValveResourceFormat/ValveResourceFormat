@@ -58,7 +58,6 @@ namespace GUI.Types.PackageViewer
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
             mainListView.ColumnClick += MainListView_ColumnClick;
-            mainListView.Resize += MainListView_Resize;
             mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
 
@@ -85,7 +84,6 @@ namespace GUI.Types.PackageViewer
             mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
             mainListView.MouseDown -= MainListView_MouseDown;
             mainListView.ColumnClick -= MainListView_ColumnClick;
-            mainListView.Resize -= MainListView_Resize;
             mainListView.Disposed -= MainListView_Disposed;
 
             mainTreeView.NodeMouseDoubleClick -= MainTreeView_NodeMouseDoubleClick;
@@ -205,29 +203,6 @@ namespace GUI.Types.PackageViewer
                         PkgNode = node.PkgNode,
                         TreeNode = (BetterTreeNode)e.Node
                     });
-                }
-            }
-        }
-
-        private void MainListView_Resize(object sender, EventArgs e)
-        {
-            mainListView.BeginUpdate();
-            ResizeListViewColumns();
-            mainListView.EndUpdate();
-        }
-
-        private void ResizeListViewColumns()
-        {
-            foreach (ColumnHeader col in mainListView.Columns)
-            {
-                if (col.Index == 0)
-                {
-                    // Make name column fill in all the space
-                    col.Width = mainListView.ClientSize.Width - (mainListView.Columns.Count - 1) * 100;
-                }
-                else
-                {
-                    col.Width = 100;
                 }
             }
         }
@@ -618,7 +593,6 @@ namespace GUI.Types.PackageViewer
 
             mainListView.ListViewItemSorter = sorter;
 
-            ResizeListViewColumns();
             DisplayMainListView();
             mainListView.EndUpdate();
         }

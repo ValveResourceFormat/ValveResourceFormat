@@ -9,6 +9,8 @@ namespace GUI.Types.PackageViewer
     {
         public Color BorderColor { get; set; } = Color.White;
         public Color Highlight { get; set; } = Color.White;
+        public VrfGuiContext? VrfGuiContext { get; set; }
+        private bool isAdjustingColumns;
 
         public BetterListView() : base()
         {
@@ -17,8 +19,6 @@ namespace GUI.Types.PackageViewer
             DoubleBuffered = true;
             HotTracking = false;
         }
-
-        public VrfGuiContext? VrfGuiContext { get; set; }
 
         protected override void OnDrawItem(DrawListViewItemEventArgs e)
         {
@@ -35,91 +35,76 @@ namespace GUI.Types.PackageViewer
         protected override void OnColumnWidthChanged(ColumnWidthChangedEventArgs e)
         {
             base.OnColumnWidthChanged(e);
-
-            AdjustLastColumn();
+            AdjustColumnWidths();
         }
 
-        private void AdjustLastColumn()
+        protected override void OnResize(EventArgs e)
         {
-            if (Columns.Count == 0 || View != View.Details)
+            base.OnResize(e);
+            AdjustColumnWidths();
+        }
+
+        private void AdjustColumnWidths(int flexibleColumnIndex = 0, int fixedColumnWidth = 100)
+        {
+            if (isAdjustingColumns || Columns.Count == 0 || View != View.Details)
             {
                 return;
             }
 
-            var totalWidth = 0;
-            for (var i = 0; i < Columns.Count - 1; i++)
+            isAdjustingColumns = true;
+
+            try
             {
-                totalWidth += Columns[i].Width;
+                var scaledFixedWidth = this.AdjustForDPI(fixedColumnWidth);
+                var availableWidth = ClientSize.Width;
+                var fixedColumnsWidth = 0;
+
+                for (var i = 0; i < Columns.Count; i++)
+                {
+                    if (i != flexibleColumnIndex)
+                    {
+                        fixedColumnsWidth += scaledFixedWidth;
+                    }
+                }
+
+                var flexibleWidth = Math.Max(availableWidth - fixedColumnsWidth, scaledFixedWidth);
+
+                for (var i = 0; i < Columns.Count; i++)
+                {
+                    var targetWidth = i == flexibleColumnIndex ? flexibleWidth : scaledFixedWidth;
+
+                    if (Columns[i].Width != targetWidth)
+                    {
+                        Columns[i].Width = targetWidth;
+                    }
+                }
             }
-
-            var remainingWidth = ClientSize.Width - totalWidth;
-
-            if (remainingWidth < 50)
+            finally
             {
-                remainingWidth = 50;
-            }
-
-            if (Columns[Columns.Count - 1].Width != remainingWidth)
-            {
-                Columns[Columns.Count - 1].Width = remainingWidth;
+                isAdjustingColumns = false;
             }
         }
 
         protected override void OnDrawColumnHeader(DrawListViewColumnHeaderEventArgs e)
         {
-            using var backBrush = new SolidBrush(BackColor);
             using var borderPen = new Pen(BorderColor);
-
-            e.Graphics.FillRectangle(backBrush, e.Bounds);
+            borderPen.Width = this.AdjustForDPI(1);
 
             e.Graphics.DrawLine(borderPen,
                 e.Bounds.Left, e.Bounds.Bottom - 1,
                 e.Bounds.Right, e.Bounds.Bottom - 1);
 
-            e.Graphics.DrawLine(borderPen,
-                e.Bounds.Right - 1, e.Bounds.Top,
-                e.Bounds.Right - 1, e.Bounds.Bottom - 1);
+            if (e.ColumnIndex < Columns.Count - 1)
+            {
+                var pos = e.Bounds.Right - 2;
+                e.Graphics.DrawLine(borderPen,
+                    pos, e.Bounds.Top,
+                    pos, e.Bounds.Bottom - 1);
+            }
 
             TextRenderer.DrawText(e.Graphics, e.Header?.Text ?? "", e.Font,
                 e.Bounds, ForeColor,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
-
-            if (View != View.Details || Columns.Count == 0)
-                return;
-
-            // Calculate where items end
-            var itemsBottom = 0;
-            if (Items.Count > 0)
-            {
-                var lastItem = Items[Items.Count - 1];
-                itemsBottom = lastItem.Bounds.Bottom;
-            }
-            else
-            {
-                itemsBottom = HeaderStyle != ColumnHeaderStyle.None ? 20 : 0;
-            }
-
-            if (itemsBottom >= ClientSize.Height)
-                return;
-
-            // Use the Graphics from PaintEventArgs - this respects DoubleBuffered
-            using var backBrush = new SolidBrush(BackColor);
-            var emptyRect = new Rectangle(0, itemsBottom, ClientSize.Width, ClientSize.Height - itemsBottom);
-            e.Graphics.FillRectangle(backBrush, emptyRect);
-
-            // Draw column separators
-            using var borderPen = new Pen(BorderColor);
-            var x = 0;
-            for (var i = 0; i < Columns.Count - 1; i++)
-            {
-                x += Columns[i].Width;
-                e.Graphics.DrawLine(borderPen, x - 1, itemsBottom, x - 1, ClientSize.Height);
-            }
         }
     }
 }
