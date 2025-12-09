@@ -410,7 +410,7 @@ namespace GUI.Types.GLViewers
             }
 
 #if DEBUG
-            if (type == DebugType.DebugTypeError)
+            if (type == DebugType.DebugTypeError && source != DebugSource.DebugSourceShaderCompiler)
             {
                 Debugger.Break();
             }
