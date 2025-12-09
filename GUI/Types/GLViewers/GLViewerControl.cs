@@ -482,9 +482,11 @@ namespace GUI.Types.GLViewers
                     AlphaBits = 0,
                     DepthBits = 0,
                     StencilBits = 0,
-                    AutoLoadBindings = true,
                     StartFocused = false,
                     StartVisible = false,
+                    ClientSize = new(4, 4),
+                    AutoLoadBindings = false,
+                    AutoIconify = false,
                     WindowBorder = OpenTK.Windowing.Common.WindowBorder.Hidden,
                     WindowState = OpenTK.Windowing.Common.WindowState.Normal,
                     Title = "Source 2 Viewer OpenGL",
@@ -499,6 +501,12 @@ namespace GUI.Types.GLViewers
             using var lockedGl = MakeCurrent();
 
             GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
+
+            if (!loadedBindings)
+            {
+                LoadOpenGLBindings();
+                loadedBindings = true;
+            }
 
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
@@ -577,6 +585,30 @@ namespace GUI.Types.GLViewers
             OnGLLoad();
 
             lastUpdate = Stopwatch.GetTimestamp();
+        }
+
+        static bool loadedBindings;
+        private static void LoadOpenGLBindings()
+        {
+            var start = Stopwatch.GetTimestamp();
+            var assembly = System.Reflection.Assembly.Load("OpenTK.Graphics");
+            var provider = new OpenTK.Windowing.GraphicsLibraryFramework.GLFWBindingsContext();
+
+            void LoadBindings(string typeNamespace)
+            {
+                var type = assembly.GetType($"OpenTK.Graphics.{typeNamespace}.GL");
+                var load = type?.GetMethod("LoadBindings");
+                if (load != null)
+                {
+                    load.Invoke(null, [provider]);
+                    return;
+                }
+
+                throw new MissingMethodException("Trimmed assembly?");
+            }
+
+            LoadBindings("OpenGL");
+            //LoadBindings("OpenGL4");
         }
 
         private bool FirstPaint = true;
