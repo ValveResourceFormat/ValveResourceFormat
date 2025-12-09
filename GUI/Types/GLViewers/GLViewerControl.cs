@@ -590,24 +590,8 @@ namespace GUI.Types.GLViewers
         static bool loadedBindings;
         private static void LoadOpenGLBindings()
         {
-            var assembly = System.Reflection.Assembly.Load("OpenTK.Graphics");
             var provider = new OpenTK.Windowing.GraphicsLibraryFramework.GLFWBindingsContext();
-
-            void LoadBindings(string typeNamespace)
-            {
-                var type = assembly.GetType($"OpenTK.Graphics.{typeNamespace}.GL");
-                var load = type?.GetMethod("LoadBindings");
-                if (load != null)
-                {
-                    load.Invoke(null, [provider]);
-                    return;
-                }
-
-                throw new MissingMethodException("Trimmed assembly?");
-            }
-
-            LoadBindings("OpenGL");
-            //LoadBindings("OpenGL4");
+            GL.LoadBindings(provider);
         }
 
         private bool FirstPaint = true;
