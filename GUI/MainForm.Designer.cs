@@ -340,7 +340,7 @@ namespace GUI
             copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
             copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             copyFileNameToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyAsPath.svg";
-            copyFileNameToolStripMenuItem.Text = "Copy file path in package";
+            copyFileNameToolStripMenuItem.Text = "Copy name";
             copyFileNameToolStripMenuItem.Click += CopyFileNameToolStripMenuItem_Click;
             // 
             // copyFileNameOnDiskToolStripMenuItem
@@ -348,7 +348,7 @@ namespace GUI
             copyFileNameOnDiskToolStripMenuItem.Name = "copyFileNameOnDiskToolStripMenuItem";
             copyFileNameOnDiskToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
             copyFileNameOnDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyAsPath.svg";
-            copyFileNameOnDiskToolStripMenuItem.Text = "Copy file path on disk";
+            copyFileNameOnDiskToolStripMenuItem.Text = "Copy URL";
             copyFileNameOnDiskToolStripMenuItem.Click += CopyFileNameOnDiskToolStripMenuItem_Click;
             // 
             // toolStripSeparator3

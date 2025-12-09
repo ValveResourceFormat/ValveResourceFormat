@@ -120,7 +120,7 @@ namespace GUI
                 if (wantsFullPath)
                 {
                     sb.Append("vpk:");
-                    sb.Append(context.FileName);
+                    sb.Append(context.FileName.Replace('\\', '/'));
                 }
 
                 if (!selectedNode.IsFolder)
