@@ -26,6 +26,7 @@ namespace GUI.Types.Viewers
     {
         private ValveResourceFormat.Resource? resource;
         private GLViewerControl? GLViewer;
+        private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
 
         public static bool IsAccepted(uint magic)
@@ -62,142 +63,154 @@ namespace GUI.Types.Viewers
 
             if (viewMode != ResourceViewMode.ResourceBlocksOnly)
             {
-                switch (resource.ResourceType)
+                try
                 {
-                    case ResourceType.Texture:
-                    case ResourceType.PanoramaVectorGraphic:
-                        GLViewer = new GLTextureViewer(vrfGuiContext, resource);
+                    InitializeSpecialViewer(vrfGuiContext, resource);
+                }
+                catch (Exception ex)
+                {
+                    GLViewerError = CodeTextBox.CreateFromException(ex);
+                }
+            }
+        }
+
+        private void InitializeSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
+        {
+            switch (resource.ResourceType)
+            {
+                case ResourceType.Texture:
+                case ResourceType.PanoramaVectorGraphic:
+                    GLViewer = new GLTextureViewer(vrfGuiContext, resource);
+                    GLViewer.InitializeLoad();
+                    GLViewerTabName = "TEXTURE";
+                    break;
+
+                case ResourceType.Particle:
+                    if (resource.DataBlock is ParticleSystem particleData)
+                    {
+                        GLViewer = new GLParticleViewer(vrfGuiContext, particleData);
                         GLViewer.InitializeLoad();
-                        GLViewerTabName = "TEXTURE";
-                        break;
+                        GLViewerTabName = "PARTICLE";
+                    }
+                    break;
 
-                    case ResourceType.Particle:
-                        if (resource.DataBlock is ParticleSystem particleData)
+                case ResourceType.Map:
+                    {
+                        var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
+
+                        if (mapResource != null && mapResource.DataBlock is World mapWorldData)
                         {
-                            GLViewer = new GLParticleViewer(vrfGuiContext, particleData);
-                            GLViewer.InitializeLoad();
-                            GLViewerTabName = "PARTICLE";
-                        }
-                        break;
-
-                    case ResourceType.Map:
-                        {
-                            var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
-
-                            if (mapResource != null && mapResource.DataBlock is World mapWorldData)
-                            {
-                                GLViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true);
-                                GLViewer.InitializeLoad();
-                                GLViewerTabName = "MAP";
-                            }
-                            else
-                            {
-                                mapResource?.Dispose();
-                            }
-                            break;
-                        }
-
-                    case ResourceType.World:
-                        if (resource.DataBlock is World worldData)
-                        {
-                            GLViewer = new GLWorldViewer(vrfGuiContext, worldData);
+                            GLViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true);
                             GLViewer.InitializeLoad();
                             GLViewerTabName = "MAP";
                         }
-                        break;
-
-                    case ResourceType.WorldNode:
-                        if (resource.DataBlock is WorldNode worldNodeData)
+                        else
                         {
-                            GLViewer = new GLWorldViewer(vrfGuiContext, worldNodeData);
-                            GLViewer.InitializeLoad();
-                            GLViewerTabName = "WORLD NODE";
+                            mapResource?.Dispose();
                         }
                         break;
+                    }
 
-                    case ResourceType.Model:
-                        if (resource.DataBlock is Model modelData)
-                        {
-                            GLViewer = new GLModelViewer(vrfGuiContext, modelData);
-                            GLViewer.InitializeLoad();
-                            GLViewerTabName = "MODEL";
-                        }
-                        break;
-
-                    case ResourceType.Mesh:
-                        if (resource.DataBlock is Mesh meshData)
-                        {
-                            GLViewer = new GLMeshViewer(vrfGuiContext, meshData);
-                            GLViewer.InitializeLoad();
-                            GLViewerTabName = "MESH";
-                        }
-                        break;
-
-                    case ResourceType.SmartProp:
-                        if (resource.DataBlock is SmartProp smartPropData)
-                        {
-                            GLViewer = new GLSmartPropViewer(vrfGuiContext, smartPropData);
-                            GLViewer.InitializeLoad();
-                            GLViewerTabName = "SMART PROP";
-                        }
-                        break;
-
-                    case ResourceType.AnimationGraph:
-                        if (resource.DataBlock is AnimGraph animGraphData)
-                        {
-                            GLViewer = new GLAnimGraphViewer(vrfGuiContext, animGraphData);
-                            GLViewer.InitializeLoad();
-                            GLViewerTabName = "ANIMATION GRAPH";
-                        }
-                        break;
-
-                    case ResourceType.NmClip:
-                        GLViewer = new GLAnimationViewer(vrfGuiContext, resource);
+                case ResourceType.World:
+                    if (resource.DataBlock is World worldData)
+                    {
+                        GLViewer = new GLWorldViewer(vrfGuiContext, worldData);
                         GLViewer.InitializeLoad();
-                        GLViewerTabName = "ANIMATION CLIP";
-                        break;
+                        GLViewerTabName = "MAP";
+                    }
+                    break;
 
-                    case ResourceType.NmSkeleton:
-                        GLViewer = new GLAnimationViewer(vrfGuiContext, resource);
+                case ResourceType.WorldNode:
+                    if (resource.DataBlock is WorldNode worldNodeData)
+                    {
+                        GLViewer = new GLWorldViewer(vrfGuiContext, worldNodeData);
                         GLViewer.InitializeLoad();
-                        GLViewerTabName = "SKELETON";
-                        break;
+                        GLViewerTabName = "WORLD NODE";
+                    }
+                    break;
 
-                    case ResourceType.Material:
-                        {
-                            if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
-                            {
-                                GLViewer = new GLSkyboxViewer(vrfGuiContext, resource);
-                                GLViewer.InitializeLoad();
-                                GLViewerTabName = "SKYBOX";
-                            }
-                            else
-                            {
-                                GLViewer = new GLMaterialViewer(vrfGuiContext, resource);
-                                GLViewer.InitializeLoad();
-                                GLViewerTabName = "MATERIAL";
-                            }
-                            break;
-                        }
+                case ResourceType.Model:
+                    if (resource.DataBlock is Model modelData)
+                    {
+                        GLViewer = new GLModelViewer(vrfGuiContext, modelData);
+                        GLViewer.InitializeLoad();
+                        GLViewerTabName = "MODEL";
+                    }
+                    break;
 
-                    case ResourceType.PhysicsCollisionMesh:
-                        if (resource.DataBlock is PhysAggregateData physAggregateData)
+                case ResourceType.Mesh:
+                    if (resource.DataBlock is Mesh meshData)
+                    {
+                        GLViewer = new GLMeshViewer(vrfGuiContext, meshData);
+                        GLViewer.InitializeLoad();
+                        GLViewerTabName = "MESH";
+                    }
+                    break;
+
+                case ResourceType.SmartProp:
+                    if (resource.DataBlock is SmartProp smartPropData)
+                    {
+                        GLViewer = new GLSmartPropViewer(vrfGuiContext, smartPropData);
+                        GLViewer.InitializeLoad();
+                        GLViewerTabName = "SMART PROP";
+                    }
+                    break;
+
+                case ResourceType.AnimationGraph:
+                    if (resource.DataBlock is AnimGraph animGraphData)
+                    {
+                        GLViewer = new GLAnimGraphViewer(vrfGuiContext, animGraphData);
+                        GLViewer.InitializeLoad();
+                        GLViewerTabName = "ANIMATION GRAPH";
+                    }
+                    break;
+
+                case ResourceType.NmClip:
+                    GLViewer = new GLAnimationViewer(vrfGuiContext, resource);
+                    GLViewer.InitializeLoad();
+                    GLViewerTabName = "ANIMATION CLIP";
+                    break;
+
+                case ResourceType.NmSkeleton:
+                    GLViewer = new GLAnimationViewer(vrfGuiContext, resource);
+                    GLViewer.InitializeLoad();
+                    GLViewerTabName = "SKELETON";
+                    break;
+
+                case ResourceType.Material:
+                    {
+                        if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
                         {
-                            GLViewer = new GLModelViewer(vrfGuiContext, physAggregateData);
+                            GLViewer = new GLSkyboxViewer(vrfGuiContext, resource);
                             GLViewer.InitializeLoad();
-                            GLViewerTabName = "PHYSICS";
+                            GLViewerTabName = "SKYBOX";
                         }
-                        break;
-
-                    case ResourceType.PostProcessing:
-                        if (resource.DataBlock is PostProcessing postProcessing && postProcessing.Data.ContainsKey("m_colorCorrectionVolumeData"))
+                        else
                         {
-                            GLViewer = new GLTextureViewer(vrfGuiContext, resource);
+                            GLViewer = new GLMaterialViewer(vrfGuiContext, resource);
                             GLViewer.InitializeLoad();
-                            GLViewerTabName = "LUT";
+                            GLViewerTabName = "MATERIAL";
                         }
                         break;
-                }
+                    }
+
+                case ResourceType.PhysicsCollisionMesh:
+                    if (resource.DataBlock is PhysAggregateData physAggregateData)
+                    {
+                        GLViewer = new GLModelViewer(vrfGuiContext, physAggregateData);
+                        GLViewer.InitializeLoad();
+                        GLViewerTabName = "PHYSICS";
+                    }
+                    break;
+
+                case ResourceType.PostProcessing:
+                    if (resource.DataBlock is PostProcessing postProcessing && postProcessing.Data.ContainsKey("m_colorCorrectionVolumeData"))
+                    {
+                        GLViewer = new GLTextureViewer(vrfGuiContext, resource);
+                        GLViewer.InitializeLoad();
+                        GLViewerTabName = "LUT";
+                    }
+                    break;
             }
         }
 
@@ -234,17 +247,25 @@ namespace GUI.Types.Viewers
 
             if (viewMode != ResourceViewMode.ResourceBlocksOnly)
             {
+                if (GLViewerError != null)
+                {
+                    GLViewer = null;
+                }
+
                 try
                 {
-                    selectData = !CreateSpecialViewer(vrfGuiContext, resource, isPreview, resTabs);
+                    selectData = !AddSpecialViewer(vrfGuiContext, resource, isPreview, resTabs);
                 }
                 catch (Exception ex)
                 {
-                    var control = CodeTextBox.CreateFromException(ex);
+                    GLViewerError = CodeTextBox.CreateFromException(ex);
+                }
 
-                    var tabEx = new ThemedTabPage("Error");
-                    tabEx.Controls.Add(control);
-                    resTabs.TabPages.Add(tabEx);
+                if (GLViewerError != null)
+                {
+                    var errorTab = new ThemedTabPage("Viewer Error");
+                    errorTab.Controls.Add(GLViewerError);
+                    resTabs.TabPages.Add(errorTab);
                 }
             }
 
@@ -375,7 +396,7 @@ namespace GUI.Types.Viewers
             }
         }
 
-        private bool CreateSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs)
+        private bool AddSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs)
         {
             if (GLViewer != null)
             {
@@ -413,7 +434,10 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(entitiesTabPage);
                 }
 
-                GLViewer.InitializeRenderLoop();
+                if (GLViewerError is null)
+                {
+                    GLViewer.InitializeRenderLoop();
+                }
 
                 return true;
             }
