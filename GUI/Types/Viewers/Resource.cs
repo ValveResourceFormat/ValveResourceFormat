@@ -96,7 +96,7 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Map:
                     {
-                        var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
+                        var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName![..^7], "world.vwrld_c"));
 
                         if (mapResource != null && mapResource.DataBlock is World mapWorldData)
                         {
@@ -247,22 +247,22 @@ namespace GUI.Types.Viewers
 
             if (viewMode != ResourceViewMode.ResourceBlocksOnly)
             {
+                if (GLViewerError == null)
+                {
+                    try
+                    {
+                        selectData = !AddSpecialViewer(vrfGuiContext, resource, isPreview, resTabs);
+                    }
+                    catch (Exception ex)
+                    {
+                        GLViewerError = CodeTextBox.CreateFromException(ex);
+                    }
+                }
+
                 if (GLViewerError != null)
                 {
+                    GLViewer?.Dispose();
                     GLViewer = null;
-                }
-
-                try
-                {
-                    selectData = !AddSpecialViewer(vrfGuiContext, resource, isPreview, resTabs);
-                }
-                catch (Exception ex)
-                {
-                    GLViewerError = CodeTextBox.CreateFromException(ex);
-                }
-
-                if (GLViewerError != null)
-                {
                     var errorTab = new ThemedTabPage("Viewer Error");
                     errorTab.Controls.Add(GLViewerError);
                     resTabs.TabPages.Add(errorTab);
@@ -434,11 +434,7 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(entitiesTabPage);
                 }
 
-                if (GLViewerError is null)
-                {
-                    GLViewer.InitializeRenderLoop();
-                }
-
+                GLViewer.InitializeRenderLoop();
                 return true;
             }
 
@@ -699,6 +695,7 @@ namespace GUI.Types.Viewers
         {
             resource?.Dispose();
             GLViewer?.Dispose();
+            GLViewerError?.Dispose();
         }
     }
 }

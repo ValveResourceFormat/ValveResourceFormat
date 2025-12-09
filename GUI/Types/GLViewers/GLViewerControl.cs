@@ -590,7 +590,6 @@ namespace GUI.Types.GLViewers
         static bool loadedBindings;
         private static void LoadOpenGLBindings()
         {
-            var start = Stopwatch.GetTimestamp();
             var assembly = System.Reflection.Assembly.Load("OpenTK.Graphics");
             var provider = new OpenTK.Windowing.GraphicsLibraryFramework.GLFWBindingsContext();
 
@@ -646,7 +645,17 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            GLNativeWindow.Context.MakeCurrent();
+            try
+            {
+                GLNativeWindow.Context.MakeCurrent();
+            }
+            catch (OpenTK.Windowing.GraphicsLibraryFramework.GLFWException e)
+            {
+                // 'The requested transformation operation is not supported.' when resizing the app
+                // 'The handle is invalid.' when changing tab visibility
+                Log.Debug(nameof(GLFWGraphicsContext), e.Message);
+                return;
+            }
 
             if (ShouldResize)
             {

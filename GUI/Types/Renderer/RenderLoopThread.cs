@@ -153,17 +153,7 @@ namespace GUI.Types.Renderer
                     renderSignal.Reset();
                 }
 
-                try
-                {
-                    control.Draw(currentTime, isPaused);
-                }
-                catch (GLFWException e)
-                {
-                    // 'The requested transformation operation is not supported.' when resizing the app
-                    // 'The handle is invalid.' when changing tab visibility
-                    Log.Debug(nameof(RenderLoop), e.Message);
-                    continue;
-                }
+                control.Draw(currentTime, isPaused);
 
                 if (!renderSignal.IsSet)
                 {
