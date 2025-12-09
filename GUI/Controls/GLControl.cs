@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
@@ -31,16 +32,19 @@ public class GLControl : Control
     [Browsable(false)]
     public IGLFWGraphicsContext? Context => _nativeWindow?.Context;
 
+    private readonly Lock glLock;
+
     /// <summary>
     /// Constructs a new instance with the specified GLControlSettings.
     /// </summary>
     /// <param name="glControlSettings">The preferred configuration for the OpenGL  renderer.</param>
-    public GLControl()
+    public GLControl(Lock glLock)
     {
         SetStyle(ControlStyles.Opaque, true);
         SetStyle(ControlStyles.UserPaint, true);
         SetStyle(ControlStyles.AllPaintingInWmPaint, true);
         DoubleBuffered = false;
+        this.glLock = glLock;
     }
 
     protected override void Dispose(bool disposing)
@@ -150,9 +154,10 @@ public class GLControl : Control
     /// <param name="e">An EventArgs instance (ignored).</param>
     protected override void OnHandleDestroyed(EventArgs e)
     {
+        DestroyNativeWindow();
+
         base.OnHandleDestroyed(e);
 
-        DestroyNativeWindow();
     }
 
     /// <summary>
@@ -160,19 +165,13 @@ public class GLControl : Control
     /// </summary>
     private void DestroyNativeWindow()
     {
-        if (_nativeWindow == null)
+        if (_nativeWindow != null)
         {
-            return;
-        }
+            using var lockedGl = glLock.EnterScope();
 
-        // Unparent the window so that Window doesn't automatically destroy it, let the owner of viewer control correctly dispose of it
-        unsafe
-        {
-            var hWnd = (Windows.Win32.Foundation.HWND)GLFW.GetWin32Window(_nativeWindow.WindowPtr);
-            Windows.Win32.PInvoke.SetParent(hWnd, Windows.Win32.Foundation.HWND.Null);
+            _nativeWindow.Dispose();
+            _nativeWindow = null;
         }
-
-        _nativeWindow = null;
     }
 
     /// <summary>

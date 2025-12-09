@@ -76,7 +76,7 @@ namespace GUI.Types.GLViewers
 
         public Control InitializeUiControls(bool isPreview = false)
         {
-            GLControl = new GLControl()
+            GLControl = new GLControl(glLock)
             {
                 Dock = DockStyle.Fill
             };
