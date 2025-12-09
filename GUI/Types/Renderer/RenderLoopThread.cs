@@ -3,6 +3,7 @@ using System.Threading;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace GUI.Types.Renderer
 {
@@ -110,7 +111,9 @@ namespace GUI.Types.Renderer
         {
             loopThread = new Thread(RenderLoop)
             {
-                Name = nameof(RenderLoop)
+                Name = nameof(RenderLoop),
+                IsBackground = true,
+                Priority = ThreadPriority.AboveNormal,
             };
             loopThread.Start();
         }
@@ -150,7 +153,17 @@ namespace GUI.Types.Renderer
                     renderSignal.Reset();
                 }
 
-                control.Draw(currentTime, isPaused);
+                try
+                {
+                    control.Draw(currentTime, isPaused);
+                }
+                catch (GLFWException e)
+                {
+                    // 'The requested transformation operation is not supported.' when resizing the app
+                    // 'The handle is invalid.' when changing tab visibility
+                    Log.Debug(nameof(RenderLoop), e.Message);
+                    continue;
+                }
 
                 if (!renderSignal.IsSet)
                 {
