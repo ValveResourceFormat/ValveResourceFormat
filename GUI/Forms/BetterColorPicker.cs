@@ -262,7 +262,6 @@ namespace GUI.Forms
 
             form.FormClosed += (s, e) =>
             {
-                //EyedropperButton.ForceClicked = false;
                 EyedropperButton.Invalidate();
             };
 

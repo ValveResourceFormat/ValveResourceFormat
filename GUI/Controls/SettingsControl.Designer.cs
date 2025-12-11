@@ -96,7 +96,6 @@ namespace GUI.Forms
             gamePathsAdd.ClickedBackColor = System.Drawing.Color.Gray;
             gamePathsAdd.CornerRadius = 5;
             gamePathsAdd.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            gamePathsAdd.ForceClicked = false;
             gamePathsAdd.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             gamePathsAdd.Location = new System.Drawing.Point(16, 168);
             gamePathsAdd.Margin = new System.Windows.Forms.Padding(0, 9, 8, 9);
@@ -112,7 +111,6 @@ namespace GUI.Forms
             gamePathsRemove.ClickedBackColor = System.Drawing.Color.Gray;
             gamePathsRemove.CornerRadius = 5;
             gamePathsRemove.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            gamePathsRemove.ForceClicked = false;
             gamePathsRemove.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             gamePathsRemove.Location = new System.Drawing.Point(429, 168);
             gamePathsRemove.Margin = new System.Windows.Forms.Padding(8, 9, 0, 9);
@@ -128,7 +126,6 @@ namespace GUI.Forms
             gamePathsAddFolder.ClickedBackColor = System.Drawing.Color.Gray;
             gamePathsAddFolder.CornerRadius = 5;
             gamePathsAddFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            gamePathsAddFolder.ForceClicked = false;
             gamePathsAddFolder.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             gamePathsAddFolder.Location = new System.Drawing.Point(244, 168);
             gamePathsAddFolder.Margin = new System.Windows.Forms.Padding(8, 9, 8, 9);
@@ -214,7 +211,6 @@ namespace GUI.Forms
             registerAssociationButton.ClickedBackColor = System.Drawing.Color.Gray;
             registerAssociationButton.CornerRadius = 5;
             registerAssociationButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            registerAssociationButton.ForceClicked = false;
             registerAssociationButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             registerAssociationButton.Location = new System.Drawing.Point(15, 174);
             registerAssociationButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
@@ -290,7 +286,6 @@ namespace GUI.Forms
             setFovTo4by3Button.ClickedBackColor = System.Drawing.Color.Gray;
             setFovTo4by3Button.CornerRadius = 5;
             setFovTo4by3Button.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            setFovTo4by3Button.ForceClicked = false;
             setFovTo4by3Button.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             setFovTo4by3Button.Location = new System.Drawing.Point(293, 78);
             setFovTo4by3Button.Name = "setFovTo4by3Button";

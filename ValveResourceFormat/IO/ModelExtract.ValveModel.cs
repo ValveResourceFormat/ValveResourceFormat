@@ -962,7 +962,7 @@ partial class ModelExtract
             static KVObject ConvertFeetSettings(KVObject feetSettings)
             {
                 var children = new KVObject(null, isArray: true);
-                
+
                 // Field mappings from compiled to source names
                 var footFieldMappings = new (string CompiledName, string SourceName)[]
                 {
@@ -974,7 +974,7 @@ partial class ModelExtract
                     ("m_flTraceHeight", "traceheight"),
                     ("m_flTraceRadius", "traceradius"),
                 };
-                
+
                 // Convert each foot entry to a Foot child node
                 foreach (var footEntry in feetSettings.Properties)
                 {
@@ -984,7 +984,7 @@ partial class ModelExtract
                     }
 
                     var footNode = MakeNode("Foot");
-                    
+
                     // Map compiled field names to source field names
                     foreach (var (compiledName, sourceName) in footFieldMappings)
                     {
@@ -993,21 +993,21 @@ partial class ModelExtract
                             footNode.AddProperty(sourceName, value);
                         }
                     }
-                    
+
                     // autolevel is typically true by default in source format
                     footNode.AddProperty("autolevel", true);
-                    
+
                     children.AddItem(footNode);
                 }
-                
+
                 if (children.Count == 0)
                 {
                     return null;
                 }
-                
+
                 // Create the Feet node
                 var feetNode = MakeNode("Feet", ("children", children));
-                
+
                 // Parent-level field mappings
                 var parentFieldMappings = new (string CompiledName, string SourceName)[]
                 {
@@ -1015,7 +1015,7 @@ partial class ModelExtract
                     ("m_flHeightTolerance", "heighttolerance"),
                     ("m_bSanitizeTrajectories", "sanitizetrajectories"),
                 };
-                
+
                 // Add parent-level properties if they exist
                 foreach (var (compiledName, sourceName) in parentFieldMappings)
                 {
@@ -1024,7 +1024,7 @@ partial class ModelExtract
                         feetNode.AddProperty(sourceName, value);
                     }
                 }
-                
+
                 return feetNode;
             }
 

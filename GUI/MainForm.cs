@@ -95,9 +95,11 @@ namespace GUI
             mainTabs.SelectTabColor = Themer.CurrentThemeColors.AppMiddle;
             mainTabs.SelectedForeColor = Themer.CurrentThemeColors.Contrast;
             mainTabs.ForeColor = Themer.CurrentThemeColors.ContrastSoft;
-            mainTabs.HoverColor = Themer.CurrentThemeColors.Accent;
+            mainTabs.HoverColor = Themer.CurrentThemeColors.HoverAccent;
+            mainTabs.AccentColor = Themer.CurrentThemeColors.Accent;
             mainTabs.SelectionLine = false;
             mainTabs.EndEllipsis = true;
+            mainTabs.TabTopRadius = 8;
 
             CheckForUpdatesIfNecessary();
 

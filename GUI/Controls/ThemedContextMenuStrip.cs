@@ -25,6 +25,8 @@ internal class ThemedContextMenuStrip : ContextMenuStrip
     {
         base.OnCreateControl();
 
-        Themer.ThemeControl(this);
+        BackColor = Themer.CurrentThemeColors.AppMiddle;
+        RenderMode = ToolStripRenderMode.Professional;
+        Renderer = new DarkToolStripRenderer(new CustomColorTable());
     }
 }

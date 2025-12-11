@@ -31,7 +31,7 @@ partial class MainFormBottomPanel
     /// </summary>
     private void InitializeComponent()
     {
-        menuStrip1 = new MenuStrip();
+        menuStrip1 = new ThemedMenuStrip();
         versionLabel = new ToolStripMenuItem();
         newVersionAvailableToolStripMenuItem = new ThemedToolStripMenuItem();
         menuStrip1.SuspendLayout();

@@ -85,7 +85,6 @@ namespace GUI.Controls
             btnSave.CornerRadius = 5;
             btnSave.Dock = System.Windows.Forms.DockStyle.Fill;
             btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            btnSave.ForceClicked = false;
             btnSave.ForeColor = System.Drawing.Color.Black;
             btnSave.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             btnSave.Location = new System.Drawing.Point(0, 6);
@@ -105,7 +104,6 @@ namespace GUI.Controls
             btnDelete.CornerRadius = 5;
             btnDelete.Dock = System.Windows.Forms.DockStyle.Fill;
             btnDelete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            btnDelete.ForceClicked = false;
             btnDelete.ForeColor = System.Drawing.Color.Black;
             btnDelete.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             btnDelete.Location = new System.Drawing.Point(193, 6);
@@ -125,7 +123,6 @@ namespace GUI.Controls
             btnRestore.CornerRadius = 5;
             btnRestore.Dock = System.Windows.Forms.DockStyle.Fill;
             btnRestore.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            btnRestore.ForceClicked = false;
             btnRestore.ForeColor = System.Drawing.Color.Black;
             btnRestore.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             btnRestore.Location = new System.Drawing.Point(110, 6);
@@ -145,7 +142,6 @@ namespace GUI.Controls
             btnSetPos.CornerRadius = 5;
             btnSetPos.Dock = System.Windows.Forms.DockStyle.Fill;
             btnSetPos.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            btnSetPos.ForceClicked = false;
             btnSetPos.ForeColor = System.Drawing.Color.Black;
             btnSetPos.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             btnSetPos.Location = new System.Drawing.Point(110, 33);
@@ -165,7 +161,6 @@ namespace GUI.Controls
             btnGetPos.CornerRadius = 5;
             btnGetPos.Dock = System.Windows.Forms.DockStyle.Fill;
             btnGetPos.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            btnGetPos.ForceClicked = false;
             btnGetPos.ForeColor = System.Drawing.Color.Black;
             btnGetPos.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             btnGetPos.Location = new System.Drawing.Point(193, 33);

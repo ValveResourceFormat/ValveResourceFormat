@@ -3,7 +3,6 @@ using System.Threading;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 
 namespace GUI.Types.Renderer
 {

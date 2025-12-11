@@ -13,29 +13,12 @@ namespace GUI.Controls
         public bool Style { get; set; } = true;
 
         public TextFormatFlags LabelFormatFlags { get; set; } = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
-
-        public bool ForceClicked { get; set; }
-
-        private Color adjustedForeColor;
-        public Color AdjustedForeColor
-        {
-            get => adjustedForeColor;
-        }
-
-        private Color adjustedBackColor;
-        public Color AdjustedBackColor
-        {
-            get => adjustedBackColor;
-        }
-
         public Color ClickedBackColor { get; set; } = Color.Gray;
+        public Color HoveredBackColor { get; set; } = Color.Gray;
         public int CornerRadius { get; set; } = 5;
 
         public ThemedButton() : base()
         {
-            adjustedBackColor = BackColor;
-            adjustedForeColor = ForeColor;
-
             FlatStyle = FlatStyle.Flat;
         }
 
@@ -72,6 +55,7 @@ namespace GUI.Controls
             if (Style)
             {
                 ClickedBackColor = Themer.CurrentThemeColors.Accent;
+                HoveredBackColor = Themer.CurrentThemeColors.HoverAccent;
                 ForeColor = Themer.CurrentThemeColors.Contrast;
                 BackColor = Themer.CurrentThemeColors.Border;
             }
@@ -79,9 +63,6 @@ namespace GUI.Controls
 
         protected override void OnPaint(PaintEventArgs pevent)
         {
-            adjustedBackColor = BackColor;
-            adjustedForeColor = ForeColor;
-
             pevent.Graphics.Clear(Parent?.BackColor ?? BackColor);
             var rect = ClientRectangle;
             rect.Width -= 1;
@@ -91,32 +72,33 @@ namespace GUI.Controls
             pevent.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
             pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using var backBrush = new SolidBrush(adjustedBackColor);
-            using var textBrush = new SolidBrush(adjustedForeColor);
-
-            if (Hovered)
-            {
-                adjustedBackColor = Themer.Brighten(BackColor, 1.3f);
-            }
-
-            if (Clicked || ForceClicked)
-            {
-                adjustedBackColor = ClickedBackColor;
-            }
+            var backColor = BackColor;
+            var foreColor = ForeColor;
 
             if (!Enabled)
             {
-                adjustedBackColor = Themer.Brighten(adjustedBackColor, 0.6f);
-                adjustedForeColor = Themer.Brighten(adjustedForeColor, 0.6f);
+                backColor = Themer.Brighten(backColor, 0.6f);
+                foreColor = Themer.Brighten(foreColor, 0.6f);
+            }
+            else if (Clicked)
+            {
+                backColor = ClickedBackColor;
+            }
+            else if (Hovered)
+            {
+                backColor = HoveredBackColor;
             }
 
-            backBrush.Color = adjustedBackColor;
-            textBrush.Color = adjustedForeColor;
+            using var backBrush = new SolidBrush(backColor);
+            using var textBrush = new SolidBrush(foreColor);
 
             using var roundedRect = Themer.GetRoundedRect(rect, this.AdjustForDPI(CornerRadius));
             pevent.Graphics.FillPath(backBrush, roundedRect);
 
-            TextRenderer.DrawText(pevent.Graphics, Text, Font, ClientRectangle, ForeColor, LabelFormatFlags);
+            using var borderPen = new Pen(Themer.Brighten(backColor, 1.5f), this.AdjustForDPI(1));
+            pevent.Graphics.DrawPath(borderPen, roundedRect);
+
+            TextRenderer.DrawText(pevent.Graphics, Text, Font, ClientRectangle, foreColor, LabelFormatFlags);
 
             if (Image != null)
             {

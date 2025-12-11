@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
+using GUI.Utils;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 
@@ -13,7 +14,13 @@ namespace GUI.Controls
         public TreeViewDoubleBuffered() : base()
         {
             DoubleBuffered = true;
-            ItemHeight = 26;
+        }
+
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            ItemHeight = this.AdjustForDPI(26);
         }
 
         protected override void OnHandleCreated(EventArgs e)

@@ -25,6 +25,9 @@ namespace GUI.Controls
         [Description("Hover Color for the tab"), Category("Appearance")]
         public Color HoverColor { get; set; } = SystemColors.Highlight;
 
+        [Description("Accent Color for the tab"), Category("Appearance")]
+        public Color AccentColor { get; set; } = SystemColors.ActiveBorder;
+
         private int baseTabWidth;
         [Description("Base width"), Category("Appearance")]
         public int BaseTabWidth
@@ -104,7 +107,8 @@ namespace GUI.Controls
             SelectTabColor = Themer.CurrentThemeColors.AppSoft;
             SelectedForeColor = Themer.CurrentThemeColors.Contrast;
             ForeColor = Themer.CurrentThemeColors.ContrastSoft;
-            HoverColor = Themer.CurrentThemeColors.Accent;
+            HoverColor = Themer.CurrentThemeColors.HoverAccent;
+            AccentColor = Themer.CurrentThemeColors.Accent;
 
             // Calculate minimum tab width for icon-only display
             // Uses same padding as image centering for visual consistency
@@ -305,21 +309,35 @@ namespace GUI.Controls
 
             using var brush = new SolidBrush(tabColor);
 
-            if (TabTopRadius > 0)
+            if ((isHovered && TabTopRadius > 0) || isSelected)
             {
-                using var roundedRect = Themer.GetRoundedRect(tabRect, TabTopRadius, true);
+                var borderRect = isSelected ? tabRect : new Rectangle(tabRect.Left, tabRect.Top, tabRect.Width, tabRect.Height - this.AdjustForDPI(2));
+                using var roundedRect = Themer.GetRoundedRect(borderRect, TabTopRadius, onlyTop: isSelected);
                 g.FillPath(brush, roundedRect);
+
+                if (isHovered && !isSelected)
+                {
+                    using var borderPen = new Pen(AccentColor, this.AdjustForDPI(1));
+                    g.DrawPath(borderPen, roundedRect);
+                }
             }
-            else
+            else if (isHovered)
             {
                 g.FillRectangle(brush, tabRect);
+
+                using var borderPen = new Pen(AccentColor, this.AdjustForDPI(1));
+                g.DrawRectangle(borderPen, tabRect);
             }
 
             if (SelectionLine && isSelected)
             {
-                using var pen = new Pen(HoverColor, this.AdjustForDPI(10));
+                g.SmoothingMode = SmoothingMode.None; // Fixes blurry line
+
+                using var pen = new Pen(AccentColor, this.AdjustForDPI(10));
 
                 g.DrawLine(pen, new Point(tabRect.Left, tabRect.Bottom), new Point(tabRect.Right, tabRect.Bottom));
+
+                g.SmoothingMode = SmoothingMode.AntiAlias;
             }
 
             var textRect = new Rectangle(

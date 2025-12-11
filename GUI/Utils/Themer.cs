@@ -1,4 +1,3 @@
-using System.ComponentModel.Design;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -35,6 +34,9 @@ namespace GUI.Utils
             public required Color ControlBoxHighlightCloseButton { get; init; }
 
             /// <summary>For anything that needs to be accented like hovering over a tab</summary>
+            public required Color HoverAccent { get; init; }
+
+            /// <summary>For anything that needs to be accented</summary>
             public required Color Accent { get; init; }
 
             /// <summary>Sets special windows flags on forms which changes some otherwise unthemeable portions to dark/light</summary>
@@ -63,6 +65,7 @@ namespace GUI.Utils
             ControlBoxHighlight = Color.FromArgb(67, 67, 67),
             ControlBoxHighlightCloseButton = Color.FromArgb(240, 20, 20),
 
+            HoverAccent = Color.FromArgb(0, 66, 151),
             Accent = Color.FromArgb(99, 161, 255),
 
             ColorMode = SystemColorMode.Dark,
@@ -82,6 +85,7 @@ namespace GUI.Utils
             ControlBoxHighlight = Color.FromArgb(170, 170, 170),
             ControlBoxHighlightCloseButton = Color.FromArgb(240, 20, 20),
 
+            HoverAccent = Color.FromArgb(0, 66, 151),
             Accent = Color.FromArgb(99, 161, 255),
 
             ColorMode = SystemColorMode.Classic,
@@ -172,12 +176,6 @@ namespace GUI.Utils
                 label.ForeColor = CurrentThemeColors.Contrast;
                 label.BackColor = Color.Transparent;
             }
-            if (control is LinkLabel link)
-            {
-                link.LinkColor = Color.FromArgb(255, 84, 127, 235);
-                link.ActiveLinkColor = Color.FromArgb(255, 56, 76, 140);
-                link.VisitedLinkColor = Brighten(CurrentThemeColors.Accent, 1.1f);
-            }
             if (control is RadioButton opt)
             {
                 opt.BackColor = opt.Parent?.BackColor ?? CurrentThemeColors.AppMiddle;
@@ -191,17 +189,6 @@ namespace GUI.Utils
             {
                 groupBox.ForeColor = CurrentThemeColors.Contrast;
                 groupBox.BackColor = groupBox.Parent?.BackColor ?? CurrentThemeColors.AppMiddle;
-            }
-            if (control is ToolStrip toolBar)
-            {
-                toolBar.GripStyle = ToolStripGripStyle.Hidden;
-                toolBar.RenderMode = ToolStripRenderMode.Professional;
-                toolBar.Renderer = new DarkToolStripRenderer(new CustomColorTable());
-            }
-            if (control is ContextMenuStrip cMenu)
-            {
-                cMenu.RenderMode = ToolStripRenderMode.Professional;
-                cMenu.Renderer = new DarkToolStripRenderer(new CustomColorTable());
             }
             if (control is DataGridView grid)
             {
@@ -395,28 +382,39 @@ namespace GUI.Utils
                 return path;
             }
 
-            // top left arc  
+            // top left arc
             path.AddArc(arc, 180, 90);
 
-            // top right arc  
+            // top right arc
             arc.X = bounds.Right - diameter;
             path.AddArc(arc, 270, 90);
 
             if (onlyTop)
             {
-                path.AddLine(bounds.Right, bounds.Y + radius, bounds.Right, bounds.Bottom);
-                // bottom edge
-                path.AddLine(bounds.Right, bounds.Bottom, bounds.X, bounds.Bottom);
-                // left edge
-                path.AddLine(bounds.X, bounds.Bottom, bounds.X, bounds.Y + radius);
+                // Right edge down to bottom-right inverse curve
+                path.AddLine(bounds.Right, bounds.Y + radius, bounds.Right, bounds.Bottom - radius);
+
+                // Bottom-right inverse arc - curves outward to the right
+                arc = new Rectangle(bounds.Right, bounds.Bottom - diameter, diameter, diameter);
+                path.AddArc(arc, 180, -90);
+
+                // Bottom edge
+                path.AddLine(bounds.Right + radius, bounds.Bottom, bounds.Left - radius, bounds.Bottom);
+
+                // Bottom-left inverse arc - curves outward to the left
+                arc = new Rectangle(bounds.Left - diameter, bounds.Bottom - diameter, diameter, diameter);
+                path.AddArc(arc, 90, -90);
+
+                // Left edge back up to top-left
+                path.AddLine(bounds.Left, bounds.Bottom - radius, bounds.Left, bounds.Y + radius);
             }
             else
             {
-                // bottom right arc  
+                // bottom right arc
                 arc.Y = bounds.Bottom - diameter;
                 path.AddArc(arc, 0, 90);
 
-                // bottom left arc 
+                // bottom left arc
                 arc.X = bounds.Left;
                 path.AddArc(arc, 90, 90);
             }
@@ -452,7 +450,6 @@ namespace GUI.Utils
     // Custom Renderers for Menus and ToolBars
     public class DarkToolStripRenderer : ToolStripProfessionalRenderer
     {
-
         public DarkToolStripRenderer(ProfessionalColorTable table) : base(table)
         {
         }
@@ -460,16 +457,12 @@ namespace GUI.Utils
         // Background of the whole ToolBar Or MenuBar:
         protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
         {
-            if (e.ToolStrip.IsDropDown)
-            {
-                e.ToolStrip.BackColor = Themer.CurrentThemeColors.AppMiddle;
-            }
-            else
+            if (!e.ToolStrip.IsDropDown)
             {
                 e.ToolStrip.BackColor = Themer.CurrentThemeColors.App;
             }
-            base.OnRenderToolStripBackground(e);
 
+            base.OnRenderToolStripBackground(e);
         }
 
         protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
@@ -481,55 +474,29 @@ namespace GUI.Utils
 
             var g = e.Graphics;
             var bounds = new Rectangle(Point.Empty, e.Item.Size);
-            var margin = e.ToolStrip.AdjustForDPI(4);
+            using var separatorPen = new Pen(Themer.CurrentThemeColors.Border, e.ToolStrip.AdjustForDPI(2));
 
             if (e.Vertical)
             {
                 var centerX = bounds.Width / 2;
 
-                using var separatorPen = new Pen(Themer.CurrentThemeColors.Border, e.ToolStrip.AdjustForDPI(2));
                 g.DrawLine(
                     separatorPen,
                     centerX,
-                    bounds.Top + margin,
+                    bounds.Top,
                     centerX,
-                    bounds.Bottom - margin);
+                    bounds.Bottom);
             }
             else
             {
                 var centerY = bounds.Height / 2;
 
-                using var separatorPen = new Pen(Themer.CurrentThemeColors.Border, e.ToolStrip.AdjustForDPI(2));
                 g.DrawLine(
                     separatorPen,
-                    bounds.Left + margin,
+                    bounds.Left,
                     centerY,
-                    bounds.Right - margin,
+                    bounds.Right,
                     centerY);
-            }
-
-        }
-
-        // For Normal Buttons on a ToolBar:
-        protected override void OnRenderButtonBackground(ToolStripItemRenderEventArgs e)
-        {
-            if (e.Item is not ToolStripButton button)
-            {
-                return;
-            }
-
-            var g = e.Graphics;
-            var bounds = new Rectangle(Point.Empty, e.Item.Size);
-
-            if (button.Pressed || button.Checked)
-            {
-                using Brush b = new SolidBrush(Themer.CurrentThemeColors.App);
-                g.FillRectangle(b, bounds);
-            }
-            else if (button.Selected)
-            {
-                using Brush b = new SolidBrush(Themer.CurrentThemeColors.Accent);
-                g.FillRectangle(b, bounds);
             }
         }
 
@@ -552,30 +519,8 @@ namespace GUI.Utils
             e.ArrowColor = Themer.CurrentThemeColors.Contrast;
             base.OnRenderArrow(e);
         }
-
-        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
-        {
-            var g = e.Graphics;
-
-            if (e.Item.Pressed)
-            {
-                using Brush b = new SolidBrush(Themer.CurrentThemeColors.AppMiddle);
-                g.FillRectangle(b, e.Item.ContentRectangle);
-            }
-            else if (e.Item.Selected)
-            {
-                using Brush b = new SolidBrush(Themer.CurrentThemeColors.Accent);
-                g.FillRectangle(b, e.Item.ContentRectangle);
-            }
-        }
-
-        // no border
-        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
-        {
-        }
     }
 
-    // no image gradients, without this the image has a weird background
     public class CustomColorTable : ProfessionalColorTable
     {
         public CustomColorTable()
@@ -583,9 +528,15 @@ namespace GUI.Utils
             UseSystemColors = false;
         }
 
+        public override Color ToolStripDropDownBackground => Themer.CurrentThemeColors.AppMiddle;
+        public override Color MenuBorder => Themer.CurrentThemeColors.Border;
+        public override Color MenuItemBorder => Themer.CurrentThemeColors.Accent;
+        public override Color MenuItemPressedGradientBegin => Themer.CurrentThemeColors.HoverAccent;
+        public override Color MenuItemPressedGradientEnd => Themer.CurrentThemeColors.HoverAccent;
+        public override Color MenuItemSelectedGradientBegin => Themer.CurrentThemeColors.HoverAccent;
+        public override Color MenuItemSelectedGradientEnd => Themer.CurrentThemeColors.HoverAccent;
         public override Color ImageMarginGradientBegin => Color.Transparent;
         public override Color ImageMarginGradientMiddle => Color.Transparent;
         public override Color ImageMarginGradientEnd => Color.Transparent;
     }
-
 }

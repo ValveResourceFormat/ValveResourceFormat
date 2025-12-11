@@ -82,7 +82,6 @@ namespace GUI.Forms
             cancelButton.CornerRadius = 5;
             cancelButton.Dock = System.Windows.Forms.DockStyle.Right;
             cancelButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            cancelButton.ForceClicked = false;
             cancelButton.ForeColor = System.Drawing.Color.Black;
             cancelButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             cancelButton.Location = new System.Drawing.Point(807, 454);
