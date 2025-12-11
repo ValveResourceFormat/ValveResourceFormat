@@ -21,6 +21,7 @@ namespace GUI
         {
             copyFileNameToolStripMenuItem.Visible = !isRootNode;
             openWithDefaultAppToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
+            openWithoutViewerToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             viewAssetInfoToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
             toolStripSeparator3.Visible = isRootNode || !isFolderNode;
 
