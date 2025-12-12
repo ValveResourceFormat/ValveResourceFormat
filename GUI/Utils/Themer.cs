@@ -85,7 +85,7 @@ namespace GUI.Utils
             ControlBoxHighlight = Color.FromArgb(170, 170, 170),
             ControlBoxHighlightCloseButton = Color.FromArgb(240, 20, 20),
 
-            HoverAccent = Color.FromArgb(0, 66, 151),
+            HoverAccent = Color.FromArgb(140, 191, 255),
             Accent = Color.FromArgb(99, 161, 255),
 
             ColorMode = SystemColorMode.Classic,

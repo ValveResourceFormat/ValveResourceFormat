@@ -74,11 +74,12 @@ namespace GUI.Controls
 
             var backColor = BackColor;
             var foreColor = ForeColor;
+            var isLight = Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic;
 
             if (!Enabled)
             {
-                backColor = Themer.Brighten(backColor, 0.6f);
-                foreColor = Themer.Brighten(foreColor, 0.6f);
+                backColor = Themer.Brighten(backColor, isLight ? 1.2f : 0.6f);
+                foreColor = Themer.Brighten(foreColor, isLight ? 1.2f : 0.6f);
             }
             else if (Clicked)
             {
@@ -95,7 +96,7 @@ namespace GUI.Controls
             using var roundedRect = Themer.GetRoundedRect(rect, this.AdjustForDPI(CornerRadius));
             pevent.Graphics.FillPath(backBrush, roundedRect);
 
-            using var borderPen = new Pen(Themer.Brighten(backColor, 1.5f), this.AdjustForDPI(1));
+            using var borderPen = new Pen(Themer.Brighten(backColor, isLight ? 0.8f : 1.5f), this.AdjustForDPI(1));
             pevent.Graphics.DrawPath(borderPen, roundedRect);
 
             TextRenderer.DrawText(pevent.Graphics, Text, Font, ClientRectangle, foreColor, LabelFormatFlags);
