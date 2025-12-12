@@ -60,12 +60,13 @@ namespace GUI.Types.PackageViewer
             mainListView.ColumnClick += MainListView_ColumnClick;
             mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
-
             mainListView.ListViewItemSorter = new ListViewColumnSorter();
+
             mainTreeView.HideSelection = false;
             mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
+
             Viewer = viewer;
         }
 
@@ -254,12 +255,15 @@ namespace GUI.Types.PackageViewer
                 SelectedImageIndex = vpkImage,
             };
             control.Nodes.Add(root);
+            control.SelectedNode = root;
 
             CreateNodes(root);
             root.Expand();
 
             control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.EndUpdate();
+
+            MainListView_DisplayNodes(rootVirtual);
         }
 
         private void Control_BeforeExpand(object sender, TreeViewCancelEventArgs e)
