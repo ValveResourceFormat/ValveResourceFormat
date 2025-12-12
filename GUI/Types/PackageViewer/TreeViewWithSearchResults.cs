@@ -617,23 +617,14 @@ namespace GUI.Types.PackageViewer
             }
             else
             {
-                mainListView.Columns[sorter.SortColumn].Text = Columns[sorter.SortColumn];
-
                 sorter.SortColumn = e.Column;
 
                 // For size column, prefer descending first
                 sorter.Order = e.Column == 1 ? SortOrder.Descending : SortOrder.Ascending;
             }
 
-            var sortArrow = sorter.Order switch
-            {
-                SortOrder.Ascending => "▲",
-                SortOrder.Descending => "▼",
-                _ => string.Empty
-            };
-
-            mainListView.Columns[sorter.SortColumn].Text = $"{Columns[sorter.SortColumn]} {sortArrow}";
             mainListView.Sort();
+            mainListView.Invalidate(true);
         }
 
         /// <summary>
@@ -787,8 +778,7 @@ namespace GUI.Types.PackageViewer
         {
             for (var i = 0; i < Columns.Length; i++)
             {
-                // If default column or sort order changes, this needs to be updated
-                mainListView.Columns.Add(i == 0 ? $"{Columns[i]} ▲" : Columns[i]);
+                mainListView.Columns.Add(Columns[i]);
             }
 
             mainListView.SmallImageList = MainForm.ImageList;

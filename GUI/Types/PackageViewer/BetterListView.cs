@@ -105,6 +105,17 @@ namespace GUI.Types.PackageViewer
             TextRenderer.DrawText(e.Graphics, e.Header?.Text ?? "", e.Font,
                 e.Bounds, ForeColor,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+
+            if (ListViewItemSorter is ListViewColumnSorter sorter && e.ColumnIndex == sorter.SortColumn && sorter.Order != SortOrder.None)
+            {
+                var iconName = sorter.Order == SortOrder.Ascending ? "SortUp" : "SortDown";
+
+                var icon = MainForm.ImageList.Images[MainForm.ImageListLookup[iconName]];
+                var x = e.Bounds.Right - icon.Width - this.AdjustForDPI(4);
+                var y = e.Bounds.Top + (e.Bounds.Height - icon.Height) / 2;
+
+                e.Graphics.DrawImage(icon, x, y);
+            }
         }
     }
 }
