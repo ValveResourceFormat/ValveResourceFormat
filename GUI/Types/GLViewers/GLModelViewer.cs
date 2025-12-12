@@ -256,6 +256,7 @@ namespace GUI.Types.GLViewers
                 {
                     materialGroupListBox = UiControl.AddSelection("Material Group", (selectedGroup, _) =>
                     {
+                        using var lockedGl = MakeCurrent();
                         modelSceneNode?.SetMaterialGroup(selectedGroup);
                     });
 
