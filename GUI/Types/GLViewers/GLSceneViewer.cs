@@ -570,11 +570,14 @@ namespace GUI.Types.GLViewers
         protected void AddBaseGridControl()
         {
             UiControl.AddDivider();
-            UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
+            var lightBackgroundCheckbox = UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
                 baseBackground.SetLightBackground(ShowLightBackground);
             });
+
+            lightBackgroundCheckbox.Checked = Themer.CurrentTheme == Themer.AppTheme.Light;
+
             UiControl.AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
             {
                 ShowSolidBackground = v;

@@ -35,6 +35,11 @@ float latitude(float polar) {
     return (sin(polar * PILLARS / 2.0) + 1.0) / 2.0;
 }
 
+vec3 Rgb(int r, int g, int b)
+{
+    return vec3(r, g, b) / 255.0;
+}
+
 void main() {
     if (g_bShowSolidBackground) {
         outputColor = g_bShowLightBackground ? vec4(0.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 1.0, 1.0);
@@ -56,20 +61,23 @@ void main() {
     float sky = pow(smoothstep(0.45, 0.6, upAmount), 2.0);
     float highSky = pow(smoothstep(0.6, 0.85, upAmount), 3.0);
 
-    vec3 SKY_C = vec3(128.0, 128.0, 128.0);
-    vec3 SKY_ALT_C = vec3(55.0, 55.0, 55.0);
-    vec3 HORIZON_C = vec3(55.0, 55.0, 55.0);
-    vec3 HORIZON_ALT_C = vec3(75.0, 75.0, 75.0);
-    vec3 GROUND_C = vec3(33.0, 33.0, 33.0);
-    vec3 GROUND_ALT_C = vec3(44.0, 40.0, 44.0);
+    vec3 vApp = Rgb(44, 49, 61);
 
-    if (g_bShowLightBackground) {
-        SKY_C = vec3(99.0, 161.0, 196.0);
-        SKY_ALT_C = vec3(160.0, 187.0, 245.0);
-        HORIZON_C = vec3(161.0, 164.0, 132.0);
-        HORIZON_ALT_C = vec3(130.0, 184.0, 194.0);
-        GROUND_C = vec3(60.0, 126.0, 104.0);
-        GROUND_ALT_C = vec3(62.0, 95.0, 103.0);
+    vec3 SKY_C = Rgb(158, 158, 158);
+    vec3 SKY_ALT_C = Rgb(75, 75, 75);
+    vec3 HORIZON_C = Rgb(55, 55, 55);
+    vec3 HORIZON_ALT_C = Rgb(75, 75, 75);
+    vec3 GROUND_C = Rgb(43, 43, 43);
+    vec3 GROUND_ALT_C = Rgb(54, 50, 54);
+
+    if (!g_bShowLightBackground)
+    {
+        SKY_C = vApp * 3;
+        SKY_ALT_C = vApp * 2;
+        HORIZON_C = vApp * 1;
+        HORIZON_ALT_C = vApp * 1.2;
+        GROUND_C = vApp * 0.8;
+        GROUND_ALT_C = vApp * 0.9;
     }
 
     // mixing the alternative colors to go through their alt version
@@ -83,5 +91,5 @@ void main() {
     vec3 horizonToSky = mix(groundToHorizon, skyColor, sky);
     vec3 skyToHighSky = mix(horizonToSky, SKY_C, highSky);
 
-    outputColor = vec4(SrgbGammaToLinear(skyToHighSky / 255.0), 1.0);
+    outputColor = vec4(SrgbGammaToLinear(skyToHighSky), 1.0);
 }
