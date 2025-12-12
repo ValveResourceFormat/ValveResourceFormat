@@ -73,6 +73,16 @@ namespace GUI.Types.PackageViewer
                     BetterTreeView.AddFileNode(VirtualRoot, file);
                 }
             }
+
+            foreach (var node in VirtualRoot.Folders)
+            {
+                VirtualRoot.TotalSize += node.Value.TotalSize;
+            }
+
+            foreach (var node in VirtualRoot.Files)
+            {
+                VirtualRoot.TotalSize += node.TotalLength;
+            }
         }
 
         public void Create(TabPage tab)
@@ -110,7 +120,7 @@ namespace GUI.Types.PackageViewer
         {
             var files = new FileSystemEnumerable<string>(
                 inputDirectory,
-                (ref FileSystemEntry entry) => entry.ToSpecifiedFullPath(),
+                (ref entry) => entry.ToSpecifiedFullPath(),
                 new EnumerationOptions
                 {
                     RecurseSubdirectories = true,

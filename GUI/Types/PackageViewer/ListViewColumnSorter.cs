@@ -24,6 +24,16 @@ public class ListViewColumnSorter : IComparer
         var tX = Unsafe.As<BetterListViewItem>(x);
         var tY = Unsafe.As<BetterListViewItem>(y);
 
+        // Parent navigation item always stays at the top
+        if (tX.Tag is BetterListViewItem.ParentNavigationTag)
+        {
+            return -1;
+        }
+        else if (tY.Tag is BetterListViewItem.ParentNavigationTag)
+        {
+            return 1;
+        }
+
         var folderX = tX.IsFolder ? -1 : 1;
         var folderY = tY.IsFolder ? -1 : 1;
 

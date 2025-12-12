@@ -162,6 +162,11 @@ namespace GUI.Types.PackageViewer
             var sorter = mainListView.ListViewItemSorter;
             mainListView.ListViewItemSorter = null;
 
+            if (pkgNode.Parent != null)
+            {
+                AddParentNavigationItemToListView(pkgNode.Parent);
+            }
+
             foreach (var (name, node) in pkgNode.Folders)
             {
                 AddFolderToListView(name, node);
@@ -234,7 +239,6 @@ namespace GUI.Types.PackageViewer
             control.Dock = DockStyle.Fill;
             control.ImageList = MainForm.ImageList;
             control.BeforeExpand += Control_BeforeExpand;
-            control.AfterExpand += Control_AfterExpand;
             control.ShowRootLines = false;
 
             control.GenerateIconList([.. vrfGuiContext.CurrentPackage.Entries.Keys]);
@@ -273,13 +277,6 @@ namespace GUI.Types.PackageViewer
             var node = (BetterTreeNode)e.Node;
             CreateNodes(node);
 
-            mainTreeView.EndUpdate();
-        }
-
-        private void Control_AfterExpand(object sender, TreeViewEventArgs e)
-        {
-            var node = (BetterTreeNode)e.Node;
-
             // If the folder we just expanded contains a single folder, expand it too.
             if (node.Nodes.Count == 1)
             {
@@ -290,6 +287,8 @@ namespace GUI.Types.PackageViewer
                     node.Expand();
                 }
             }
+
+            mainTreeView.EndUpdate();
         }
 
         private void CreateNodes(BetterTreeNode realNode)
@@ -793,6 +792,24 @@ namespace GUI.Types.PackageViewer
             }
 
             mainListView.SmallImageList = MainForm.ImageList;
+        }
+
+        private void AddParentNavigationItemToListView(VirtualPackageNode parentNode)
+        {
+            var image = MainForm.ImageListLookup["FolderUp"];
+            var name = parentNode.Parent == null ? ".." : $".. {parentNode.Name}";
+
+            var item = new BetterListViewItem(name)
+            {
+                ImageIndex = image,
+                PkgNode = parentNode,
+                Tag = BetterListViewItem.ParentNavigationTag,
+            };
+
+            item.SubItems.Add(HumanReadableByteSizeFormatter.Format(parentNode.TotalSize));
+            item.SubItems.Add(string.Empty);
+
+            mainListView.Items.Add(item);
         }
 
         private void AddFolderToListView(string name, VirtualPackageNode node)

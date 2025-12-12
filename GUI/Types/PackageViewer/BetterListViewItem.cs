@@ -8,6 +8,11 @@ namespace GUI.Types.PackageViewer
 #pragma warning restore CA2237
     {
         /// <summary>
+        /// Magic number to identify parent navigation item via Tag property.
+        /// </summary>
+        public const int ParentNavigationTag = 0x50415245;
+
+        /// <summary>
         /// True if this node represents a directory in the tree view
         /// </summary>
         public bool IsFolder => PackageEntry == null;
