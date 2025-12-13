@@ -44,7 +44,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
         if (element is Node { ExternalResourceName: not null } node)
         {
-            var foundFile = vrfGuiContext.FileLoader.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
+            var foundFile = vrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
             if (foundFile.Context != null)
             {
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
