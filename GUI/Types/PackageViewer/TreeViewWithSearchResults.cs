@@ -111,6 +111,14 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
+            // When expanding a folder by double click, the list will automatically scroll to fit
+            // maximum amount of child nodes on screen, but this also triggers a double click on a node
+            // that is now in place after the list scrolled, causing it to open an incorrect file
+            if (node != mainTreeView.SelectedNode)
+            {
+                return;
+            }
+
             PreviewTokenSource?.Cancel();
             OpenPackageEntry?.Invoke(sender, node.PackageEntry);
         }
