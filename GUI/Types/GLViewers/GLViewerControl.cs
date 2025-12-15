@@ -129,10 +129,14 @@ namespace GUI.Types.GLViewers
             return UiControl;
         }
 
-        public void InitializeRenderLoop()
+        public void InitializeRenderLoop(bool renderImmediately = false)
         {
             RenderLoopThread.RegisterInstance();
-            RenderLoopThread.SetCurrentGLControl(this);
+
+            if (renderImmediately)
+            {
+                RenderLoopThread.SetCurrentGLControl(this);
+            }
         }
 
         protected virtual void AddUiControls()
