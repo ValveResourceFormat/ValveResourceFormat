@@ -54,7 +54,7 @@ namespace GUI.Controls
 
         private void Scan()
         {
-            var recentImage = MainForm.ImageListLookup["History Dark"];
+            var recentImage = MainForm.ImageListLookup["History"];
 
             // Bookmarks
             {

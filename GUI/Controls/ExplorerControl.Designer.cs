@@ -83,7 +83,7 @@ namespace GUI.Controls
             // 
             revealInFileExplorerToolStripMenuItem.Name = "revealInFileExplorerToolStripMenuItem";
             revealInFileExplorerToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
-            revealInFileExplorerToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Folder.svg";
+            revealInFileExplorerToolStripMenuItem.SVGImageResourceName = "GUI.Icons.OpenInExplorer.svg";
             revealInFileExplorerToolStripMenuItem.Text = "R&eveal in File Explorer";
             revealInFileExplorerToolStripMenuItem.Click += OnRevealInFileExplorerClick;
             // 
@@ -107,7 +107,7 @@ namespace GUI.Controls
             // 
             removeFromRecentToolStripMenuItem.Name = "removeFromRecentToolStripMenuItem";
             removeFromRecentToolStripMenuItem.Size = new System.Drawing.Size(216, 30);
-            removeFromRecentToolStripMenuItem.SVGImageResourceName = "GUI.Icons.History Dark.svg";
+            removeFromRecentToolStripMenuItem.SVGImageResourceName = "GUI.Icons.HistoryRemove.svg";
             removeFromRecentToolStripMenuItem.Text = "&Remove from Recent";
             removeFromRecentToolStripMenuItem.Click += OnRemoveFromRecentClick;
             // 

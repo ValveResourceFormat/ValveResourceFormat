@@ -1062,7 +1062,7 @@ namespace GUI
             var welcomeTab = new ThemedTabPage("Welcome")
             {
                 ToolTipText = "Welcome",
-                ImageIndex = ImageListLookup["Favorite Dark"],
+                ImageIndex = ImageListLookup["WelcomeScreen"],
             };
 
             try
