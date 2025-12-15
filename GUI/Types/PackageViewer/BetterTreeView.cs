@@ -273,7 +273,7 @@ namespace GUI.Types.PackageViewer
 
         public void GenerateIconList(IEnumerable<string> extensions)
         {
-            var defaultImage = MainForm.ImageListLookup["File"];
+            var defaultImage = MainForm.Icons["File"];
 
             ExtensionIconList = [];
 
@@ -289,7 +289,7 @@ namespace GUI.Types.PackageViewer
                 ExtensionIconList.Add(originalExtension, image);
             }
 
-            FolderImage = MainForm.ImageListLookup["Folder"];
+            FolderImage = MainForm.Icons["Folder"];
         }
 
         public static VirtualPackageNode AddFolderNode(VirtualPackageNode currentNode, string directory, uint size)

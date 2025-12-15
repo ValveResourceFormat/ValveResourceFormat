@@ -29,12 +29,23 @@ namespace GUI
     {
         // Disposable fields should be disposed
         // for some reason disposing it makes closing GUI very slow
+        //
+        // Never lookup icons from this list, use Icons and ExtensionIcons properties.
         public static ImageList ImageList { get; private set; }
-        public static Dictionary<string, int> ImageListLookup { get; private set; }
+
+        /// <summary>
+        /// Lookup an UI icon from GUI/Icons/ folder.
+        /// </summary>
+        public static Dictionary<string, int> Icons { get; private set; } = [];
+
+        /// <summary>
+        /// Lookup a file extension icon from GUI/Icons/AssetTypes/ folder.
+        /// </summary>
+        public static Dictionary<string, int> ExtensionIcons { get; private set; } = [];
 
         private readonly string[] Args;
 
-        private SearchForm searchForm;
+        private SearchForm searchForm = new();
 
         static MainForm()
         {
@@ -48,49 +59,16 @@ namespace GUI
 
         public MainForm(string[] args)
         {
-            InitializeComponent();
-
             Args = args;
-
-            LoadIcons();
-            mainTabs.ImageList = ImageList;
-            mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
-
-            var version = Application.ProductVersion;
-            var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture);
-            string versionDisplay;
-
-            if (versionPlus > 0)
-            {
-                // If version ends with ".0", display part of the commit hash, otherwise the zero is replaced with CI build number
-                if (version[versionPlus - 2] == '.' && version[versionPlus - 1] == '0')
-                {
-                    versionPlus += 8;
-                }
-
-                versionDisplay = string.Concat("v", version.AsSpan(0, versionPlus));
-            }
-            else
-            {
-                versionDisplay = string.Concat("v", version);
-
-#if !CI_RELEASE_BUILD // Set in Directory.Build.props
-                versionDisplay += "-dev";
-#endif
-            }
-
-#if DEBUG
-            versionDisplay += " (DEBUG)";
-#endif
-
-            mainFormBottomPanel.SetVersionText(versionDisplay);
-
-            searchForm = new SearchForm();
 
             Settings.Load();
             Themer.InitializeTheme();
+            LoadIcons();
+            InitializeComponent();
             Themer.ApplyTheme(this);
 
+            mainTabs.ImageList = ImageList;
+            mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
             mainTabs.BackColor = Themer.CurrentThemeColors.App;
             mainTabs.SelectTabColor = Themer.CurrentThemeColors.AppMiddle;
             mainTabs.SelectedForeColor = Themer.CurrentThemeColors.Contrast;
@@ -100,6 +78,38 @@ namespace GUI
             mainTabs.SelectionLine = false;
             mainTabs.EndEllipsis = true;
             mainTabs.TabTopRadius = 8;
+
+            // Display version
+            {
+                var version = Application.ProductVersion;
+                var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture);
+                string versionDisplay;
+
+                if (versionPlus > 0)
+                {
+                    // If version ends with ".0", display part of the commit hash, otherwise the zero is replaced with CI build number
+                    if (version[versionPlus - 2] == '.' && version[versionPlus - 1] == '0')
+                    {
+                        versionPlus += 8;
+                    }
+
+                    versionDisplay = string.Concat("v", version.AsSpan(0, versionPlus));
+                }
+                else
+                {
+                    versionDisplay = string.Concat("v", version);
+
+#if !CI_RELEASE_BUILD // Set in Directory.Build.props
+                    versionDisplay += "-dev";
+#endif
+                }
+
+#if DEBUG
+                versionDisplay += " (DEBUG)";
+#endif
+
+                mainFormBottomPanel.SetVersionText(versionDisplay);
+            }
 
             CheckForUpdatesIfNecessary();
 
@@ -130,39 +140,69 @@ namespace GUI
             };
 
             var assembly = Assembly.GetExecutingAssembly();
+            var resources = assembly.GetManifestResourceNames().Where(static r => r.StartsWith("GUI.Icons.", StringComparison.Ordinal));
 
-            var names = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Icons.", StringComparison.Ordinal)).ToList();
-
-            ImageListLookup = new(names.Count);
-
-            foreach (var name in names)
+            if (Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic)
             {
-                var splitName = name.Split('.');
+                // In light mode, sort icons so that _light icons come first
+                resources = resources.OrderByDescending(static r => r.Contains("_light", StringComparison.Ordinal));
+            }
+            else
+            {
+                // In dark mode, just filter out all _light icons
+                resources = resources.Where(static r => !r.Contains("_light", StringComparison.Ordinal));
+            }
 
-                var fileName = splitName[^2];
-                var extension = splitName[^1];
+            foreach (var fullName in resources)
+            {
+                var name = fullName.AsSpan("GUI.Icons.".Length);
+                var extension = Path.GetExtension(name);
+                name = Path.GetFileNameWithoutExtension(name);
 
-                using var stream = assembly.GetManifestResourceStream(name);
+                var isAssetType = name.StartsWith("AssetTypes.", StringComparison.Ordinal);
+                var isLightIcon = name.EndsWith("_light", StringComparison.Ordinal);
+
+                if (isAssetType)
+                {
+                    name = name["AssetTypes.".Length..];
+                }
+
+                if (isLightIcon)
+                {
+                    name = name[..^"_light".Length];
+                }
+
+                using var stream = assembly.GetManifestResourceStream(fullName);
                 Debug.Assert(stream is not null);
 
-                if (extension == "svg")
+                var iconName = name.ToString();
+                var index = ImageList.Images.Count;
+
+                if (isAssetType)
+                {
+                    if (!ExtensionIcons.TryAdd(iconName, index))
+                    {
+                        continue;
+                    }
+                }
+                else if (!Icons.TryAdd(iconName, index))
+                {
+                    continue;
+                }
+
+                if (extension.SequenceEqual(".svg"))
                 {
 #pragma warning disable CA2000 // Dispose objects before losing scope, this is a false positive
                     using var svg = new SKSvg();
 #pragma warning restore CA2000
                     svg.Load(stream);
 
-                    ImageList.Images.Add(fileName, Themer.SvgToBitmap(svg, ImageList.ImageSize.Width, ImageList.ImageSize.Height));
+                    ImageList.Images.Add(fullName, Themer.SvgToBitmap(svg, ImageList.ImageSize.Width, ImageList.ImageSize.Height));
                 }
                 else
                 {
-                    ImageList.Images.Add(fileName, Image.FromStream(stream));
+                    ImageList.Images.Add(fullName, Image.FromStream(stream));
                 }
-
-                // Keep our own lookup because IndexOfKey is slow and not thread safe
-                var index = ImageList.Images.IndexOfKey(fileName); // O(n)
-                ImageListLookup.Add(fileName, index);
-                Debug.Assert(index >= 0);
             }
         }
 
@@ -275,7 +315,7 @@ namespace GUI
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);
             var consoleTabPage = consoleTab.CreateTab();
-            consoleTabPage.ImageIndex = ImageListLookup["Log"];
+            consoleTabPage.ImageIndex = Icons["Log"];
             mainTabs.TabPages.Add(consoleTabPage);
             consoleTab.InitializeFont();
 
@@ -576,7 +616,7 @@ namespace GUI
             var seettingsTab = new ThemedTabPage("Settings")
             {
                 ToolTipText = "Settings",
-                ImageIndex = ImageListLookup["Settings"],
+                ImageIndex = Icons["Settings"],
             };
 
             try
@@ -1038,7 +1078,7 @@ namespace GUI
             var explorerTab = new ThemedTabPage("Explorer")
             {
                 ToolTipText = "Explorer",
-                ImageIndex = ImageListLookup["Explorer"],
+                ImageIndex = Icons["Explorer"],
             };
 
             try
@@ -1062,7 +1102,7 @@ namespace GUI
             var welcomeTab = new ThemedTabPage("Welcome")
             {
                 ToolTipText = "Welcome",
-                ImageIndex = ImageListLookup["Favorite Dark"],
+                ImageIndex = Icons["WelcomeScreen"],
             };
 
             try
@@ -1088,7 +1128,7 @@ namespace GUI
                 extension = extension[0..^2];
             }
 
-            var lookup = ImageListLookup.GetAlternateLookup<ReadOnlySpan<char>>();
+            var lookup = ExtensionIcons.GetAlternateLookup<ReadOnlySpan<char>>();
 
             if (lookup.TryGetValue(extension, out var image))
             {
@@ -1100,7 +1140,7 @@ namespace GUI
                 return image;
             }
 
-            return ImageListLookup["File"];
+            return Icons["File"];
         }
 
         private void ClearConsoleToolStripMenuItem_Click(object sender, EventArgs e)
