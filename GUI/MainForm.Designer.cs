@@ -121,7 +121,7 @@ namespace GUI
             openToolStripMenuItem.Name = "openToolStripMenuItem";
             openToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.O;
             openToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
-            openToolStripMenuItem.SVGImageResourceName = "GUI.Icons.IconActionCreate.svg";
+            openToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Open.svg";
             openToolStripMenuItem.Text = "&Open";
             openToolStripMenuItem.Click += OpenToolStripMenuItem_Click;
             // 
@@ -134,7 +134,7 @@ namespace GUI
             // 
             registerVpkFileAssociationToolStripMenuItem.Name = "registerVpkFileAssociationToolStripMenuItem";
             registerVpkFileAssociationToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
-            registerVpkFileAssociationToolStripMenuItem.SVGImageResourceName = "GUI.Icons.IconActionVPKLink.svg";
+            registerVpkFileAssociationToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKLink.svg";
             registerVpkFileAssociationToolStripMenuItem.Text = "Open VPKs with this app";
             registerVpkFileAssociationToolStripMenuItem.Click += RegisterVpkFileAssociationToolStripMenuItem_Click;
             // 
@@ -142,7 +142,7 @@ namespace GUI
             // 
             createVpkFromFolderToolStripMenuItem.Name = "createVpkFromFolderToolStripMenuItem";
             createVpkFromFolderToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
-            createVpkFromFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.IconActionCreate.svg";
+            createVpkFromFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKCreate.svg";
             createVpkFromFolderToolStripMenuItem.Text = "Create VPK from folder";
             createVpkFromFolderToolStripMenuItem.Click += CreateVpkFromFolderToolStripMenuItem_Click;
             // 
@@ -155,7 +155,7 @@ namespace GUI
             // 
             openWelcomeScreenToolStripMenuItem.Name = "openWelcomeScreenToolStripMenuItem";
             openWelcomeScreenToolStripMenuItem.Size = new System.Drawing.Size(211, 30);
-            openWelcomeScreenToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Favorite Dark.svg";
+            openWelcomeScreenToolStripMenuItem.SVGImageResourceName = "GUI.Icons.WelcomeScreen.svg";
             openWelcomeScreenToolStripMenuItem.Text = "Open welcome screen";
             openWelcomeScreenToolStripMenuItem.Click += OnOpenWelcomeScreenToolStripMenuItem_Click;
             // 
@@ -200,7 +200,7 @@ namespace GUI
             // 
             aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
             aboutToolStripMenuItem.Size = new System.Drawing.Size(76, 32);
-            aboutToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Info.svg";
+            aboutToolStripMenuItem.SVGImageResourceName = "GUI.Icons.About.svg";
             aboutToolStripMenuItem.Text = "About";
             aboutToolStripMenuItem.Click += OnAboutItemClick;
             // 
@@ -209,7 +209,7 @@ namespace GUI
             recoverDeletedToolStripMenuItem.ImageTransparentColor = System.Drawing.Color.Magenta;
             recoverDeletedToolStripMenuItem.Name = "recoverDeletedToolStripMenuItem";
             recoverDeletedToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
-            recoverDeletedToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Find.svg";
+            recoverDeletedToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Recover.svg";
             recoverDeletedToolStripMenuItem.Text = "Recover deleted files";
             recoverDeletedToolStripMenuItem.Click += RecoverDeletedToolStripMenuItem_Click;
             // 
@@ -301,7 +301,7 @@ namespace GUI
             // 
             clearConsoleToolStripMenuItem.Name = "clearConsoleToolStripMenuItem";
             clearConsoleToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
-            clearConsoleToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyAsPath.svg";
+            clearConsoleToolStripMenuItem.SVGImageResourceName = "GUI.Icons.ClearLog.svg";
             clearConsoleToolStripMenuItem.Text = "Clear console";
             clearConsoleToolStripMenuItem.Click += ClearConsoleToolStripMenuItem_Click;
             // 
@@ -338,7 +338,7 @@ namespace GUI
             // 
             copyFileNameToolStripMenuItem.Name = "copyFileNameToolStripMenuItem";
             copyFileNameToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
-            copyFileNameToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyAsPath.svg";
+            copyFileNameToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyName.svg";
             copyFileNameToolStripMenuItem.Text = "Copy name";
             copyFileNameToolStripMenuItem.Click += CopyFileNameToolStripMenuItem_Click;
             // 
@@ -346,7 +346,7 @@ namespace GUI
             // 
             copyFileNameOnDiskToolStripMenuItem.Name = "copyFileNameOnDiskToolStripMenuItem";
             copyFileNameOnDiskToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
-            copyFileNameOnDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyAsPath.svg";
+            copyFileNameOnDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.CopyURL.svg";
             copyFileNameOnDiskToolStripMenuItem.Text = "Copy URL";
             copyFileNameOnDiskToolStripMenuItem.Click += CopyFileNameOnDiskToolStripMenuItem_Click;
             // 
@@ -359,7 +359,7 @@ namespace GUI
             // 
             openWithoutViewerToolStripMenuItem.Name = "openWithoutViewerToolStripMenuItem";
             openWithoutViewerToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
-            openWithoutViewerToolStripMenuItem.SVGImageResourceName = "GUI.Icons.IconActionOpen.svg";
+            openWithoutViewerToolStripMenuItem.SVGImageResourceName = "GUI.Icons.OpenWithoutViewer.svg";
             openWithoutViewerToolStripMenuItem.Text = "Open without viewer";
             openWithoutViewerToolStripMenuItem.Click += OpenWithoutViewerToolStripMenuItem_Click;
             // 
@@ -383,7 +383,7 @@ namespace GUI
             // 
             verifyPackageContentsToolStripMenuItem.Name = "verifyPackageContentsToolStripMenuItem";
             verifyPackageContentsToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
-            verifyPackageContentsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.IconActionVerifyVPKContent-1.svg";
+            verifyPackageContentsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKVerifyContent.svg";
             verifyPackageContentsToolStripMenuItem.Text = "Verify package contents";
             verifyPackageContentsToolStripMenuItem.Click += VerifyPackageContentsToolStripMenuItem_Click;
             // 
@@ -400,7 +400,7 @@ namespace GUI
             // 
             vpkEditCreateFolderToolStripMenuItem.Name = "vpkEditCreateFolderToolStripMenuItem";
             vpkEditCreateFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
-            vpkEditCreateFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Folder.svg";
+            vpkEditCreateFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FolderCreate.svg";
             vpkEditCreateFolderToolStripMenuItem.Text = "Create folder";
             vpkEditCreateFolderToolStripMenuItem.Click += OnVpkCreateFolderToolStripMenuItem_Click;
             // 
@@ -408,7 +408,7 @@ namespace GUI
             // 
             vpkEditAddExistingFolderToolStripMenuItem.Name = "vpkEditAddExistingFolderToolStripMenuItem";
             vpkEditAddExistingFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
-            vpkEditAddExistingFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Folder.svg";
+            vpkEditAddExistingFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FolderAdd.svg";
             vpkEditAddExistingFolderToolStripMenuItem.Text = "&Add existing folder";
             vpkEditAddExistingFolderToolStripMenuItem.Click += OnVpkAddNewFolderToolStripMenuItem_Click;
             // 
@@ -416,7 +416,7 @@ namespace GUI
             // 
             vpkEditAddExistingFilesToolStripMenuItem.Name = "vpkEditAddExistingFilesToolStripMenuItem";
             vpkEditAddExistingFilesToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
-            vpkEditAddExistingFilesToolStripMenuItem.SVGImageResourceName = "GUI.Icons.IconActionCreate.svg";
+            vpkEditAddExistingFilesToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FileAdd.svg";
             vpkEditAddExistingFilesToolStripMenuItem.Text = "Add existing &files";
             vpkEditAddExistingFilesToolStripMenuItem.Click += OnVpkAddNewFileToolStripMenuItem_Click;
             // 
@@ -424,7 +424,7 @@ namespace GUI
             // 
             vpkEditRemoveThisFolderToolStripMenuItem.Name = "vpkEditRemoveThisFolderToolStripMenuItem";
             vpkEditRemoveThisFolderToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
-            vpkEditRemoveThisFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.IconActionRemove.svg";
+            vpkEditRemoveThisFolderToolStripMenuItem.SVGImageResourceName = "GUI.Icons.FolderRemove.svg";
             vpkEditRemoveThisFolderToolStripMenuItem.Text = "&Remove this folder";
             vpkEditRemoveThisFolderToolStripMenuItem.Click += OnVpkEditingRemoveThisToolStripMenuItem_Click;
             // 
@@ -440,7 +440,7 @@ namespace GUI
             // 
             vpkEditSaveToDiskToolStripMenuItem.Name = "vpkEditSaveToDiskToolStripMenuItem";
             vpkEditSaveToDiskToolStripMenuItem.Size = new System.Drawing.Size(181, 30);
-            vpkEditSaveToDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Folder VPK.svg";
+            vpkEditSaveToDiskToolStripMenuItem.SVGImageResourceName = "GUI.Icons.VPKSave.svg";
             vpkEditSaveToDiskToolStripMenuItem.Text = "&Save VPK to disk";
             vpkEditSaveToDiskToolStripMenuItem.Click += OnSaveVPKToDiskToolStripMenuItem_Click;
             // 
