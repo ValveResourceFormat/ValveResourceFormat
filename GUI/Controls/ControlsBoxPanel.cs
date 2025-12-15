@@ -10,6 +10,11 @@ public class ControlsBoxPanel : Panel
     public ControlsBoxPanel()
     {
         DoubleBuffered = true;
+
+        SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+        SetStyle(ControlStyles.UserPaint, true);
+
+        BackColor = Color.Transparent;
     }
 
     // These are DPI compensated.

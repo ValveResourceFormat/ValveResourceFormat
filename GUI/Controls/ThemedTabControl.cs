@@ -93,6 +93,7 @@ namespace GUI.Controls
             SetStyle(ControlStyles.UserPaint |
                      ControlStyles.AllPaintingInWmPaint |
                      ControlStyles.ResizeRedraw |
+                     ControlStyles.SupportsTransparentBackColor |
                      ControlStyles.OptimizedDoubleBuffer, true);
 
             DrawMode = TabDrawMode.OwnerDrawFixed;

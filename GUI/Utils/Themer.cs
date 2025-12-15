@@ -459,7 +459,7 @@ namespace GUI.Utils
         {
             if (!e.ToolStrip.IsDropDown)
             {
-                e.ToolStrip.BackColor = Themer.CurrentThemeColors.App;
+                e.ToolStrip.BackColor = Color.Transparent;
             }
 
             base.OnRenderToolStripBackground(e);
