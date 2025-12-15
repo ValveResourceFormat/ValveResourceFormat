@@ -13,18 +13,11 @@ namespace GUI.Controls
             set => base.ImageScalingSize = new Size(this.AdjustForDPI(value.Width), this.AdjustForDPI(value.Height));
         }
 
-        public ThemedMenuStrip() : base()
-        {
-            SetStyle(ControlStyles.SupportsTransparentBackColor, true);
-            SetStyle(ControlStyles.UserPaint, true);
-
-            BackColor = Color.Transparent;
-        }
-
         protected override void OnCreateControl()
         {
             base.OnCreateControl();
 
+            BackColor = Themer.CurrentThemeColors.App;
             RenderMode = ToolStripRenderMode.Professional;
             Renderer = new DarkToolStripRenderer(new CustomColorTable());
         }

@@ -69,7 +69,7 @@ namespace GUI
 
             mainTabs.ImageList = ImageList;
             mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
-            mainTabs.BackColor = Color.Transparent;
+            mainTabs.BackColor = Themer.CurrentThemeColors.App;
             mainTabs.SelectTabColor = Themer.CurrentThemeColors.AppMiddle;
             mainTabs.SelectedForeColor = Themer.CurrentThemeColors.Contrast;
             mainTabs.ForeColor = Themer.CurrentThemeColors.ContrastSoft;
