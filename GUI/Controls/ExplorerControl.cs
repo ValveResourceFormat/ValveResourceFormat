@@ -54,11 +54,11 @@ namespace GUI.Controls
 
         private void Scan()
         {
-            var recentImage = MainForm.ImageListLookup["History"];
+            var recentImage = MainForm.Icons["History"];
 
             // Bookmarks
             {
-                var bookmarkImage = MainForm.ImageListLookup["Bookmarks"];
+                var bookmarkImage = MainForm.Icons["Bookmarks"];
                 var bookmarkedFilesTreeNode = new TreeNode("Bookmarks")
                 {
                     ImageIndex = bookmarkImage,
@@ -136,11 +136,11 @@ namespace GUI.Controls
                 return;
             }
 
-            var vpkImage = MainForm.ImageListLookup["vpk"];
-            var vcsImage = MainForm.ImageListLookup["vcs"];
-            var mapImage = MainForm.ImageListLookup["map"];
-            var pluginImage = MainForm.ImageListLookup["Plugin"];
-            var folderImage = MainForm.ImageListLookup["Folder"];
+            var vpkImage = MainForm.ExtensionIcons["vpk"];
+            var vcsImage = MainForm.ExtensionIcons["vcs"];
+            var mapImage = MainForm.ExtensionIcons["map"];
+            var pluginImage = MainForm.Icons["Plugin"];
+            var folderImage = MainForm.Icons["Folder"];
 
             int GetSortPriorityForImage(int image)
             {
@@ -568,7 +568,7 @@ namespace GUI.Controls
 
                 if (WorkshopAddons.TryGetValue(path, out var displayTitle))
                 {
-                    imageIndexFile = MainForm.ImageListLookup["Plugin"];
+                    imageIndexFile = MainForm.Icons["Plugin"];
                     pathDisplay = $"{pathDisplay} {displayTitle}";
                 }
                 else

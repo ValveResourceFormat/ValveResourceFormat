@@ -258,7 +258,7 @@ namespace GUI
 
             if (tab != null)
             {
-                tab.ImageIndex = ImageListLookup["Info"];
+                tab.ImageIndex = Icons["Info"];
                 mainTabs.TabPages.Add(tab);
                 mainTabs.SelectTab(tab);
             }
@@ -385,7 +385,7 @@ namespace GUI
                     ToolTipText = "New VPK"
                 };
                 tab.Controls.Add(contents);
-                tab.ImageIndex = ImageListLookup["vpk"];
+                tab.ImageIndex = ExtensionIcons["vpk"];
                 mainTabs.TabPages.Add(tab);
                 mainTabs.SelectTab(tab);
 

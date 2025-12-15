@@ -258,7 +258,7 @@ namespace GUI.Types.PackageViewer
             }
 
             var name = Path.GetFileName(vrfGuiContext.FileName);
-            var vpkImage = MainForm.ImageListLookup["vpk"];
+            var vpkImage = MainForm.ExtensionIcons["vpk"];
 
             var root = new BetterTreeNode(name, rootVirtual)
             {
@@ -347,7 +347,7 @@ namespace GUI.Types.PackageViewer
             }
             else if (!mainTreeView.ExtensionIconList.TryGetValue(file.TypeName, out image))
             {
-                image = MainForm.ImageListLookup["File"];
+                image = MainForm.Icons["File"];
             }
 
             var newNode = new BetterTreeNode(fileName, file)
@@ -428,7 +428,7 @@ namespace GUI.Types.PackageViewer
 
                 Invoke((MethodInvoker)(() =>
                 {
-                    var deletedImage = MainForm.ImageListLookup["Deleted"];
+                    var deletedImage = MainForm.Icons["Recover"];
 
                     if (foundFiles.Count == 0)
                     {
@@ -794,7 +794,7 @@ namespace GUI.Types.PackageViewer
 
         private void AddParentNavigationItemToListView(VirtualPackageNode parentNode)
         {
-            var image = MainForm.ImageListLookup["FolderUp"];
+            var image = MainForm.Icons["FolderUp"];
             var name = parentNode.Parent == null ? ".." : $".. {parentNode.Name}";
 
             var item = new BetterListViewItem(name)
@@ -828,7 +828,7 @@ namespace GUI.Types.PackageViewer
         {
             if (!mainTreeView.ExtensionIconList.TryGetValue(file.TypeName, out var image))
             {
-                image = MainForm.ImageListLookup["File"];
+                image = MainForm.Icons["File"];
             }
 
             var item = new BetterListViewItem(file.GetFileName())

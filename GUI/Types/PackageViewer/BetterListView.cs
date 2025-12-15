@@ -110,7 +110,7 @@ namespace GUI.Types.PackageViewer
             {
                 var iconName = sorter.Order == SortOrder.Ascending ? "SortUp" : "SortDown";
 
-                var icon = MainForm.ImageList.Images[MainForm.ImageListLookup[iconName]];
+                var icon = MainForm.ImageList.Images[MainForm.Icons[iconName]];
                 var x = e.Bounds.Right - icon.Width - this.AdjustForDPI(4);
                 var y = e.Bounds.Top + (e.Bounds.Height - icon.Height) / 2;
 
