@@ -1,0 +1,17 @@
+ani anim
+bsp map
+clip anim
+fbx mdl
+jpg png
+mp3 wav
+nmclip anim
+nmgrph anmgrph
+nmskel skel
+phy phys
+sndevts sndstck
+vmt mat
+vrman pdi
+vtf tex
+vtx mesh
+vvd morf
+wrld map

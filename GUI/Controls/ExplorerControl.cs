@@ -780,7 +780,7 @@ namespace GUI.Controls
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             var embeddedResources = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
 
-            var imageIndex = MainForm.GetImageIndexForExtension("bsp");
+            var imageIndex = MainForm.Icons["Folder"];
             var embeddedFilesTreeNode = new TreeNode("Embedded Resources")
             {
                 ImageIndex = imageIndex,

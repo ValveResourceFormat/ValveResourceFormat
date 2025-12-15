@@ -153,8 +153,15 @@ namespace GUI
                 resources = resources.Where(static r => !r.Contains("_light", StringComparison.Ordinal));
             }
 
+            const string AssetTypesAliasesFile = "GUI.Icons.AssetTypes.aliases.txt";
+
             foreach (var fullName in resources)
             {
+                if (fullName == AssetTypesAliasesFile)
+                {
+                    continue;
+                }
+
                 var name = fullName.AsSpan("GUI.Icons.".Length);
                 var extension = Path.GetExtension(name);
                 name = Path.GetFileNameWithoutExtension(name);
@@ -202,6 +209,18 @@ namespace GUI
                 else
                 {
                     ImageList.Images.Add(fullName, Image.FromStream(stream));
+                }
+            }
+
+            {
+                using var stream = assembly.GetManifestResourceStream(AssetTypesAliasesFile);
+                using var reader = new StreamReader(stream);
+
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    var space = line.IndexOf(' ', StringComparison.Ordinal);
+                    Debug.Assert(ExtensionIcons.TryAdd(line[..space], ExtensionIcons[line[(space + 1)..]]));
                 }
             }
         }
