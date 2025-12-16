@@ -7,7 +7,7 @@ using ValveResourceFormat.Compression;
 
 namespace Tests
 {
-    public class MeshOptimizerTest
+    public partial class MeshOptimizerTest
     {
         // note: 4 6 5 triangle here is a combo-breaker:
         // we encode it without rotating, a=next, c=next - this means we do *not* bump next to 6
