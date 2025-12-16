@@ -85,7 +85,7 @@ namespace ValveResourceFormat.NavMesh
             }
 
             var version = binaryReader.ReadUInt32();
-            if (version < 30 || version > 35)
+            if (version < 30 || version > 36)
             {
                 throw new UnexpectedMagicException("Unsupported nav version", version, nameof(version));
             }
@@ -98,6 +98,11 @@ namespace ValveResourceFormat.NavMesh
 
             var unk1 = binaryReader.ReadUInt32();
             IsAnalyzed = (unk1 & 0x00000001) > 0;
+
+            if (Version >= 36)
+            {
+                ReadKV3(binaryReader); //TODO: What's stored here? dl_hideout contains an empty kv3 here
+            }
 
             Vector3[][] polygons = null;
             if (Version >= 31)
@@ -123,6 +128,11 @@ namespace ValveResourceFormat.NavMesh
                 }
             }
 
+            if (Version >= 36)
+            {
+                ReadKV3(binaryReader); //TODO: What's stored here? dl_hideout contains an empty kv3 here
+            }
+
             ReadAreas(binaryReader, polygons);
 
             ReadLadders(binaryReader);
@@ -133,27 +143,37 @@ namespace ValveResourceFormat.NavMesh
             GenerationParams = new NavMeshGenerationParams();
             GenerationParams.Read(binaryReader, this);
 
+            //TODO: Version 36 seems to store another kv3 at the end (not sure if before or after custom data)
+
             ReadCustomData(binaryReader);
 
             Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
         }
 
+        private BinaryKV3 ReadKV3(BinaryReader binaryReader)
+        {
+            while (binaryReader.ReadByte() == 0)
+            {
+                //Reading past 0x00 padding
+            }
+            binaryReader.BaseStream.Position--;
+
+            var kv3 = new BinaryKV3
+            {
+                Offset = (uint)(binaryReader.BaseStream.Position)
+            };
+            kv3.Read(binaryReader);
+            return kv3;
+        }
+
         private void ReadCustomData(BinaryReader binaryReader)
         {
-            if (SubVersion > 0)
+            if (SubVersion <= 0)
             {
-                while (binaryReader.ReadByte() == 0)
-                {
-                    //Reading past 0x00 padding
-                }
-
-                var kv3 = new BinaryKV3();
-                kv3.Offset = (uint)(binaryReader.BaseStream.Position - 1);
-                kv3.Size = (uint)(binaryReader.BaseStream.Length - kv3.Offset);
-                kv3.Read(binaryReader);
-
-                CustomData = kv3.Data;
+                return;
             }
+            var kv3 = ReadKV3(binaryReader);
+            CustomData = kv3.Data;
         }
 
         private void ReadLadders(BinaryReader binaryReader)
