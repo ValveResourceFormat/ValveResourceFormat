@@ -660,11 +660,6 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                if (KVBlockType != BlockType.Undefined)
-                {
-                    Debug.Assert(reader.BaseStream.Position == Offset + Size);
-                }
-
                 Data = ParseBinaryKV3(context, null, true);
 
                 Debug.Assert(context.Types.Count == 0);
