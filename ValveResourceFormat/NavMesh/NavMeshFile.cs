@@ -56,6 +56,16 @@ namespace ValveResourceFormat.NavMesh
         public KVObject CustomData { get; set; }
 
         /// <summary>
+        /// Unknown KV3 data stored in v36 .nav files.
+        /// </summary>
+        public KVObject KV3Unknown1 { get; set; }
+
+        /// <summary>
+        /// Unknown KV3 data stored in v36 .nav files.
+        /// </summary>
+        public KVObject KV3Unknown2 { get; set; }
+
+        /// <summary>
         /// Reads the navigation mesh from a file.
         /// </summary>
         public void Read(string filename)
@@ -101,7 +111,7 @@ namespace ValveResourceFormat.NavMesh
 
             if (Version >= 36)
             {
-                ReadKV3(binaryReader); //TODO: What's stored here? dl_hideout contains an empty kv3 here
+                KV3Unknown1 = ReadKV3(binaryReader); //TODO: What's stored here? dl_hideout contains an empty kv3 here
             }
 
             Vector3[][] polygons = null;
@@ -130,7 +140,7 @@ namespace ValveResourceFormat.NavMesh
 
             if (Version >= 36)
             {
-                ReadKV3(binaryReader); //TODO: What's stored here? dl_hideout contains an empty kv3 here
+                KV3Unknown2 = ReadKV3(binaryReader); //TODO: What's stored here? dl_hideout contains an empty kv3 here
             }
 
             ReadAreas(binaryReader, polygons);
@@ -150,7 +160,7 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
         }
 
-        private static BinaryKV3 ReadKV3(BinaryReader binaryReader)
+        private static KVObject ReadKV3(BinaryReader binaryReader)
         {
             while (binaryReader.ReadByte() == 0)
             {
@@ -160,10 +170,10 @@ namespace ValveResourceFormat.NavMesh
 
             var kv3 = new BinaryKV3
             {
-                Offset = (uint)(binaryReader.BaseStream.Position)
+                Offset = (uint)binaryReader.BaseStream.Position
             };
             kv3.Read(binaryReader);
-            return kv3;
+            return kv3?.Data;
         }
 
         private void ReadCustomData(BinaryReader binaryReader)
@@ -172,8 +182,7 @@ namespace ValveResourceFormat.NavMesh
             {
                 return;
             }
-            var kv3 = ReadKV3(binaryReader);
-            CustomData = kv3.Data;
+            CustomData = ReadKV3(binaryReader);
         }
 
         private void ReadLadders(BinaryReader binaryReader)

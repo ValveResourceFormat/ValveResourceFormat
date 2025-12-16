@@ -56,20 +56,38 @@ namespace GUI.Types.Viewers
 
             if (navMeshFile.CustomData != null)
             {
-                var subVersionPage = new ThemedTabPage("NAV CUSTOM DATA");
+                var page = CreateKVTab("NAV CUSTOM DATA", navMeshFile.CustomData);
+                tabControl.Controls.Add(page);
+            }
 
-                var kv = new KV3File(navMeshFile.CustomData);
-                var subVersionDataText = kv.ToString();
-                var subVersionDataTextControl = CodeTextBox.Create(subVersionDataText, CodeTextBox.HighlightLanguage.None);
+            if (navMeshFile.KV3Unknown1 != null)
+            {
+                var page = CreateKVTab("NAV UNKNOWN KV3 1", navMeshFile.KV3Unknown1);
+                tabControl.Controls.Add(page);
+            }
 
-                subVersionPage.Controls.Add(subVersionDataTextControl);
-                tabControl.Controls.Add(subVersionPage);
+            if (navMeshFile.KV3Unknown2 != null)
+            {
+                var page = CreateKVTab("NAV UNKNOWN KV3 2", navMeshFile.KV3Unknown2);
+                tabControl.Controls.Add(page);
             }
         }
 
         public void Dispose()
         {
             glViewer?.Dispose();
+        }
+
+        private ThemedTabPage CreateKVTab(string tabName, KVObject kvObject)
+        {
+            var kvPage = new ThemedTabPage(tabName);
+
+            var kv = new KV3File(kvObject);
+            var kvText = kv.ToString();
+            var kvTextControl = CodeTextBox.Create(kvText, CodeTextBox.HighlightLanguage.None);
+
+            kvPage.Controls.Add(kvTextControl);
+            return kvPage;
         }
     }
 }
