@@ -150,7 +150,7 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
         }
 
-        private BinaryKV3 ReadKV3(BinaryReader binaryReader)
+        private static BinaryKV3 ReadKV3(BinaryReader binaryReader)
         {
             while (binaryReader.ReadByte() == 0)
             {
