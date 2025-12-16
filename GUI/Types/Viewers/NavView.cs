@@ -78,7 +78,7 @@ namespace GUI.Types.Viewers
             glViewer?.Dispose();
         }
 
-        private ThemedTabPage CreateKVTab(string tabName, KVObject kvObject)
+        private static ThemedTabPage CreateKVTab(string tabName, KVObject kvObject)
         {
             var kvPage = new ThemedTabPage(tabName);
 
