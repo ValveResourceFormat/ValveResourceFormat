@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Compression
             return (ushort)((0 - (v & 1)) ^ (v >> 1));
         }
 
-        private static Span<byte> DecodeBytesGroup(Span<byte> data, Span<byte> destination, int bits)
+        private static ReadOnlySpan<byte> DecodeBytesGroup(ReadOnlySpan<byte> data, Span<byte> destination, int bits)
         {
             int dataVar;
             byte b;
@@ -182,7 +182,7 @@ namespace ValveResourceFormat.Compression
             }
         }
 
-        private static Span<byte> DecodeBytes(Span<byte> data, Span<byte> destination, Span<int> bits)
+        private static ReadOnlySpan<byte> DecodeBytes(ReadOnlySpan<byte> data, Span<byte> destination, ReadOnlySpan<int> bits)
         {
             if (destination.Length % ByteGroupSize != 0)
             {
@@ -257,7 +257,7 @@ namespace ValveResourceFormat.Compression
             return buffer;
         }
 
-        private static Span<byte> DecodeVertexBlock(Span<byte> data, Span<byte> vertexData, int vertexCount, int vertexSize, Span<byte> lastVertex, Span<byte> channels, int version)
+        private static ReadOnlySpan<byte> DecodeVertexBlock(ReadOnlySpan<byte> data, Span<byte> vertexData, int vertexCount, int vertexSize, Span<byte> lastVertex, ReadOnlySpan<byte> channels, int version)
         {
             if (vertexCount <= 0 || vertexCount > VertexBlockMaxSize)
             {
@@ -342,7 +342,7 @@ namespace ValveResourceFormat.Compression
         /// <summary>
         /// Decodes a vertex buffer from compressed format.
         /// </summary>
-        public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, Span<byte> buffer, bool useSimd = true)
+        public static byte[] DecodeVertexBuffer(int vertexCount, int vertexSize, ReadOnlySpan<byte> buffer, bool useSimd = true)
         {
             if (vertexSize <= 0 || vertexSize > 256)
             {

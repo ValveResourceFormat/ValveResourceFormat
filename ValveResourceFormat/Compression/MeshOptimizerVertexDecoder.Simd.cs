@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Compression
             return Sse2.UnpackLow(sm0, sm1r).AsByte();
         }
 
-        private static Span<byte> DecodeBytesGroupSimd(Span<byte> data, Span<byte> destination, int hbits)
+        private static ReadOnlySpan<byte> DecodeBytesGroupSimd(ReadOnlySpan<byte> data, Span<byte> destination, int hbits)
         {
             switch (hbits)
             {
@@ -281,7 +281,7 @@ namespace ValveResourceFormat.Compression
             }
         }
 
-        private static Span<byte> DecodeVertexBlockSimd(Span<byte> data, Span<byte> vertexData, int vertexCount, int vertexSize, Span<byte> lastVertex, Span<byte> channels, int version)
+        private static ReadOnlySpan<byte> DecodeVertexBlockSimd(ReadOnlySpan<byte> data, Span<byte> vertexData, int vertexCount, int vertexSize, Span<byte> lastVertex, ReadOnlySpan<byte> channels, int version)
         {
             if (vertexCount <= 0 || vertexCount > VertexBlockMaxSize)
             {
@@ -392,7 +392,7 @@ namespace ValveResourceFormat.Compression
             return (v32 << r | v32 >>> (32 - r)).AsByte();
         }
 
-        private static Span<byte> DecodeBytesSimd(Span<byte> data, Span<byte> destination, int hshift)
+        private static ReadOnlySpan<byte> DecodeBytesSimd(ReadOnlySpan<byte> data, Span<byte> destination, int hshift)
         {
             if (destination.Length % ByteGroupSize != 0)
             {

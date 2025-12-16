@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Compression
             offset = (offset + (cond ? 1 : 0)) & 15;
         }
 
-        private static uint DecodeVByte(Span<byte> data, ref int position)
+        private static uint DecodeVByte(ReadOnlySpan<byte> data, ref int position)
         {
             var lead = (uint)data[position++];
 
@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Compression
             return result;
         }
 
-        private static uint DecodeIndex(Span<byte> data, uint last, ref int position)
+        private static uint DecodeIndex(ReadOnlySpan<byte> data, uint last, ref int position)
         {
             var v = DecodeVByte(data, ref position);
             var d = (uint)((v >> 1) ^ -(v & 1));
@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Compression
         /// <summary>
         /// Decodes an index buffer from compressed format.
         /// </summary>
-        public static byte[] DecodeIndexBuffer(int indexCount, int indexSize, Span<byte> buffer)
+        public static byte[] DecodeIndexBuffer(int indexCount, int indexSize, ReadOnlySpan<byte> buffer)
         {
             if (indexCount % 3 != 0)
             {
