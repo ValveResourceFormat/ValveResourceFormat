@@ -1226,6 +1226,7 @@ namespace CLI
             }
 
             var gltfExporter = CreateGltfExporter(fileLoader);
+            var highestShaderModelFeatures = type == "vcs" ? GetHighestShaderModelFeatures(entries) : null;
 
             foreach (var (file, filePath) in FilteredEntries(entries))
             {
@@ -1281,9 +1282,8 @@ namespace CLI
                         // VCS files require multiple files to be decompiled together
                         if (isVcsFile)
                         {
-                            var fileName = Path.GetFileNameWithoutExtension(filePath);
-                            // Only parse features files
-                            if (!fileName.EndsWith("_features", StringComparison.Ordinal))
+                            // Only parse the highest SM of features files
+                            if (!highestShaderModelFeatures!.Contains(filePath))
                             {
                                 continue;
                             }
@@ -1292,6 +1292,7 @@ namespace CLI
                             contentFile = new ShaderExtract(collection).ToContentFile();
 
                             // Remove the last part from the file name ("_features", ...)
+                            var fileName = Path.GetFileNameWithoutExtension(filePath);
                             var newFileNameBase = fileName.AsSpan(0, fileName.LastIndexOf('_'));
                             var directory = Path.GetDirectoryName(filePath);
 
@@ -1364,6 +1365,29 @@ namespace CLI
 
             gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);
             return gltfModelExporter;
+        }
+
+        private HashSet<string> GetHighestShaderModelFeatures(IEnumerable<PackageEntry> entries)
+        {
+            var highestByShader = new Dictionary<string, (string FilePath, VcsShaderModelType ShaderModel)>();
+
+            foreach (var (entry, filePath) in FilteredEntries(entries))
+            {
+                if (entry.TypeName != "vcs") continue;
+
+                var (shaderName, programType, _, shaderModel) = ShaderUtilHelpers.ComputeVCSFileName(filePath);
+                if (programType != VcsProgramType.Features)
+                {
+                    continue;
+                }
+
+                if (!highestByShader.TryGetValue(shaderName, out var existing) || shaderModel > existing.ShaderModel)
+                {
+                    highestByShader[shaderName] = (filePath, shaderModel);
+                }
+            }
+
+            return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
         }
 
         private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
