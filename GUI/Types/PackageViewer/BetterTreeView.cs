@@ -26,6 +26,19 @@ namespace GUI.Types.PackageViewer
 
         public VrfGuiContext VrfGuiContext { get; set; }
 
+        // Disable horizontal scrollbar
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                const int TVS_NOHSCROLL = 0x8000;
+
+                var cp = base.CreateParams;
+                cp.Style |= TVS_NOHSCROLL;
+                return cp;
+            }
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
