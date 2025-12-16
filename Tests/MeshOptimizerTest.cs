@@ -37,6 +37,20 @@ namespace Tests
             0x68, 0x98, 0x01, 0x69, 0x00, 0x00
         ];
 
+        private static readonly short[] kVertexV1DeltasExpected = [
+            248, 248, 240, 240, 249, 250, 243, 244, 250, 252, 246, 248, 251, 254, 249, 252,
+            252, 256, 252, 256, 253, 258, 255, 260, 254, 260, 258, 264, 255, 262, 261, 268,
+            256, 264, 264, 272, 257, 262, 267, 268, 258, 260, 270, 264, 259, 258, 273, 260,
+            260, 256, 276, 256, 261, 254, 279, 252, 262, 252, 282, 248, 263, 250, 285, 244,
+        ];
+
+        private static readonly byte[] kVertexV1Deltas = [
+            0xa1, 0x99, 0x99, 0x01, 0x2a, 0xaa, 0xaa, 0xaa, 0x02, 0x04, 0x44, 0x44, 0x44, 0x43, 0x33, 0x33,
+            0x33, 0x02, 0x06, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x02, 0x08, 0x88, 0x88, 0x88, 0x87,
+            0x77, 0x77, 0x77, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0xf8, 0x00, 0xf8, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0x01, 0x01,
+        ];
+
         private static readonly int[] kIndexBufferV1ThreeEdgesExpected = [0, 1, 2, 1, 0, 3, 2, 1, 4, 0, 2, 5];
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -239,6 +253,27 @@ namespace Tests
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMode2Data, useSimd: true);
             Assert.That(decoded, Is.EqualTo(kVertexMode2Expected));
+        }
+
+        [Test]
+        [Category("Vertex Decoder")]
+        public void DecodeVertexV1Deltas()
+        {
+            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 8, kVertexV1Deltas, useSimd: false);
+            Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray(), Is.EqualTo(kVertexV1DeltasExpected));
+        }
+
+        [Test]
+        [Category("Vertex Decoder SIMD")]
+        public void DecodeVertexV1DeltasSimd()
+        {
+            if (!MeshOptimizerVertexDecoder.IsHardwareAccelerated)
+            {
+                Assert.Ignore("Vector128 is not hardware accelerated.");
+            }
+
+            var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 8, kVertexV1Deltas, useSimd: true);
+            Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray(), Is.EqualTo(kVertexV1DeltasExpected));
         }
     }
 }
