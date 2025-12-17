@@ -1,4 +1,4 @@
-using System.Linq;
+using System.Collections.Frozen;
 using System.Reflection;
 using ValveResourceFormat.IO;
 
@@ -9,6 +9,35 @@ namespace ValveResourceFormat;
 /// </summary>
 public static class ResourceTypeExtensions
 {
+    private static readonly FrozenDictionary<ResourceType, string> ResourceTypeToExtension;
+    private static readonly FrozenDictionary<string, ResourceType>.AlternateLookup<ReadOnlySpan<char>> ExtensionCharsToResourceType;
+
+#pragma warning disable CA1810 // Initialize static fields inline
+    static ResourceTypeExtensions()
+#pragma warning restore CA1810
+    {
+        var typeToExtension = new Dictionary<ResourceType, string>();
+        var extensionToType = new Dictionary<string, ResourceType>(StringComparer.Ordinal);
+
+        var fields = typeof(ResourceType).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+        foreach (var field in fields)
+        {
+            var extension = field.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
+
+            if (extension != null && field.GetValue(null) is ResourceType resourceType)
+            {
+                typeToExtension[resourceType] = extension;
+                extensionToType[extension] = resourceType;
+            }
+        }
+
+        ResourceTypeToExtension = typeToExtension.ToFrozenDictionary();
+        ExtensionCharsToResourceType = extensionToType
+            .ToFrozenDictionary(StringComparer.Ordinal)
+            .GetAlternateLookup<ReadOnlySpan<char>>();
+    }
+
     /// <summary>
     /// Return <see cref="ExtensionAttribute"/> for given <see cref="ResourceType"/>.
     /// </summary>
@@ -21,12 +50,7 @@ public static class ResourceTypeExtensions
             return null;
         }
 
-        var intValue = (int)value;
-        var field = typeof(ResourceType)
-            .GetFields(BindingFlags.Public | BindingFlags.Static)
-            .FirstOrDefault(f => (int)(f.GetRawConstantValue() ?? 0) == intValue);
-
-        return field?.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
+        return ResourceTypeToExtension.TryGetValue(value, out var extension) ? extension : null;
     }
 
     internal static ResourceType DetermineByFileExtension(ReadOnlySpan<char> extension)
@@ -38,18 +62,8 @@ public static class ResourceTypeExtensions
 
         extension = extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
 
-        var fields = typeof(ResourceType).GetFields(BindingFlags.Public | BindingFlags.Static);
-
-        foreach (var field in fields)
-        {
-            var fieldExtension = field.GetCustomAttribute<ExtensionAttribute>(inherit: false)?.Extension;
-
-            if (MemoryExtensions.Equals(fieldExtension, extension, StringComparison.Ordinal) && field.GetValue(null) is { } fieldType)
-            {
-                return (ResourceType)fieldType;
-            }
-        }
-
-        return ResourceType.Unknown;
+        return ExtensionCharsToResourceType.TryGetValue(extension, out var resourceType)
+            ? resourceType
+            : ResourceType.Unknown;
     }
 }

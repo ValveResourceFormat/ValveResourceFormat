@@ -199,7 +199,7 @@ namespace ValveResourceFormat
 
             if (FileName != null)
             {
-                ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(FileName));
+                ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(FileName.AsSpan()));
             }
 
             Version = Reader.ReadUInt16();
