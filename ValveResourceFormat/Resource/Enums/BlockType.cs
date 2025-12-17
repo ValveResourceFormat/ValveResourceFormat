@@ -139,5 +139,10 @@ namespace ValveResourceFormat
         /// Mesh Index Buffer. Contains index buffer data for meshes.
         /// </summary>
         MIDX = 'M' | ('I' << 8) | ('D' << 16) | ('X' << 24),
+
+        /// <summary>
+        /// Mesh Adjacency Buffer.
+        /// </summary>
+        MADJ = 'M' | ('A' << 8) | ('D' << 16) | ('J' << 24),
     }
 }

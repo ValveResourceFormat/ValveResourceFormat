@@ -289,7 +289,7 @@ namespace GUI.Types.Viewers
             foreach (var block in resource.Blocks)
             {
                 // They are just binary blobs, and the actual layout of them is stored in CTRL, so the tabs are not useful here
-                if (block.Type is BlockType.MVTX or BlockType.MIDX)
+                if (block.Type is BlockType.MVTX or BlockType.MIDX or BlockType.MADJ)
                 {
                     continue;
                 }
