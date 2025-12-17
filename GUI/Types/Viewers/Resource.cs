@@ -226,8 +226,6 @@ namespace GUI.Types.Viewers
             {
                 Dock = DockStyle.Fill,
                 Multiline = true,
-                Padding = new Point(0),
-                Margin = new Padding(0)
             };
             containerTabPage.Controls.Add(resTabs);
             //containerTabPage.PerformLayout();
