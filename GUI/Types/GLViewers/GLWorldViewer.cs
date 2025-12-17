@@ -116,8 +116,8 @@ namespace GUI.Types.GLViewers
                 yaw = float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture) * MathF.PI / 180f;
             }
 
-            Camera.SaveCurrentForTransition();
-            Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
+            Input.SaveCameraForTransition();
+            Input.Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
         }
 
         private void OnRestoreCameraRequest(object sender, RestoreCameraRequestEvent e)
@@ -126,8 +126,8 @@ namespace GUI.Types.GLViewers
             {
                 if (savedFloats.Length == 5)
                 {
-                    Camera.SaveCurrentForTransition();
-                    Camera.SetLocationPitchYaw(
+                    Input.SaveCameraForTransition();
+                    Input.Camera.SetLocationPitchYaw(
                         new Vector3(savedFloats[0], savedFloats[1], savedFloats[2]),
                         savedFloats[3],
                         savedFloats[4]);
@@ -175,17 +175,16 @@ namespace GUI.Types.GLViewers
                 {
                     CameraMatrices = LoadedWorld.CameraMatrices;
 
-                    Camera.SetFromTransformMatrix(CameraMatrices[0]);
-                    // Put the location above the camera model for better transition
-                    Camera.SetLocation(Camera.Location + Camera.GetUpVector() * 50f);
+                    Input.Camera.SetFromTransformMatrix(CameraMatrices[0]);
+                    Input.MoveCamera(0, 0, 50f); // Put the location above the camera model for better transition
                     cameraSet = true;
                 }
             }
 
             if (!cameraSet)
             {
-                Camera.SetLocation(new Vector3(256));
-                Camera.LookAt(Vector3.Zero);
+                Input.Camera.SetLocation(new Vector3(256));
+                Input.Camera.LookAt(Vector3.Zero);
             }
 
             if (worldNode != null)
@@ -199,10 +198,8 @@ namespace GUI.Types.GLViewers
         {
             base.OnFirstPaint();
 
-            var location = Camera.Location;
-            Camera.SetLocation(Camera.Location - Camera.GetForwardVector() * 150f);
-            Camera.SaveCurrentForTransition();
-            Camera.SetLocation(location);
+            Input.MoveCamera(0, 0, -150f);
+            Input.MoveCamera(0, 0, 150f, transition: true);
         }
 
         protected override void AddUiControls()
@@ -240,8 +237,8 @@ namespace GUI.Types.GLViewers
                 {
                     if (index > 0)
                     {
-                        Camera.SaveCurrentForTransition();
-                        Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
+                        Input.SaveCameraForTransition();
+                        Input.Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
                     }
                 });
                 cameraComboBox.BeginUpdate();
@@ -359,9 +356,9 @@ namespace GUI.Types.GLViewers
             var cameraHeight = bbox.Center.Y + size.Y * 2f;
 
             var location = new Vector3(bbox.Center.X + distance, cameraHeight, bbox.Center.Z + distance);
-            Camera.SaveCurrentForTransition();
-            Camera.SetLocation(location);
-            Camera.LookAt(bbox.Center);
+            Input.SaveCameraForTransition();
+            Input.Camera.SetLocation(location);
+            Input.Camera.LookAt(bbox.Center);
 
             // Ensure the node is visible
             if (!node.LayerEnabled)
@@ -596,8 +593,8 @@ namespace GUI.Types.GLViewers
                 var unscaledZ = transform.M33 / scaleZ;
                 var pitch = MathF.Asin(-unscaledZ);
 
-                viewerControl.Camera.CopyFrom(Camera);
-                viewerControl.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+                viewerControl.Input.Camera.CopyFrom(Camera);
+                viewerControl.Input.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
 
                 if (viewerControl is not GLModelViewer glModelViewer || sceneNode is not ModelSceneNode worldModel)
                 {

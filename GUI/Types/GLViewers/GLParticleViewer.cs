@@ -44,8 +44,8 @@ namespace GUI.Types.GLViewers
         {
             base.OnGLLoad();
 
-            Camera.SetLocation(new Vector3(200, 200, 200));
-            Camera.LookAt(Vector3.Zero);
+            Input.Camera.SetLocation(new Vector3(200, 200, 200));
+            Input.Camera.LookAt(Vector3.Zero);
         }
 
         protected override void AddUiControls()
