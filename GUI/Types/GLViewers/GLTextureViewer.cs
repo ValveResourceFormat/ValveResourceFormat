@@ -120,11 +120,11 @@ namespace GUI.Types.GLViewers
             (ChannelMapping.R, ChannelSplitting.None, "Red"),
             (ChannelMapping.G, ChannelSplitting.None, "Green"),
             (ChannelMapping.B, ChannelSplitting.None, "Blue"),
-            (ChannelMapping.RGB, ChannelSplitting.None, "Opaque"),
-            (ChannelMapping.RGBA, ChannelSplitting.None, "Transparent"),
+            (ChannelMapping.RGB, ChannelSplitting.None, "RGB (Opaque)"),
+            (ChannelMapping.RGBA, ChannelSplitting.None, "RGBA (Transparent)"),
             (ChannelMapping.A, ChannelSplitting.None, "Alpha"),
-            (ChannelMapping.RGBA, ChannelSplitting.Alpha, "Opaque with split Alpha"),
-            (ChannelMapping.RGBA, ChannelSplitting.FourChannels, "Four channel split"),
+            (ChannelMapping.RGBA, ChannelSplitting.Alpha, "RGB | A (Separate channels)"),
+            (ChannelMapping.RGBA, ChannelSplitting.FourChannels, "R | G | B | A (Separate channels)"),
         ];
 
         private GLTextureViewer(VrfGuiContext guiContext) : base(guiContext)
@@ -468,8 +468,8 @@ namespace GUI.Types.GLViewers
             }
 
             channelsComboBox.SelectedIndex = Svg != null
-                ? Array.FindIndex(ChannelsComboBoxOrder, channel => channel.ChoiceString == "Transparent")
-                : Array.FindIndex(ChannelsComboBoxOrder, channel => channel.ChoiceString == "Opaque");
+                ? Array.FindIndex(ChannelsComboBoxOrder, channel => channel.Channels == ChannelMapping.RGBA)
+                : Array.FindIndex(ChannelsComboBoxOrder, channel => channel.Channels == ChannelMapping.RGB);
 
             var samplingComboBox = UiControl.AddSelection("Sampling", (name, index) =>
             {
