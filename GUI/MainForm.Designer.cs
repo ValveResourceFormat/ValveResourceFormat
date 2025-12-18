@@ -97,13 +97,13 @@ namespace GUI
             // 
             // menuStrip
             // 
+            menuStrip.BackColor = System.Drawing.Color.FromArgb(218, 218, 218);
             menuStrip.Dock = DockStyle.Fill;
             menuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
             menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, explorerToolStripMenuItem, findToolStripButton, settingsToolStripMenuItem, aboutToolStripMenuItem });
             menuStrip.Location = new System.Drawing.Point(38, 0);
             menuStrip.Name = "menuStrip";
             menuStrip.Padding = new Padding(0, 8, 0, 8);
-            menuStrip.RenderMode = ToolStripRenderMode.Professional;
             menuStrip.Size = new System.Drawing.Size(511, 48);
             menuStrip.TabIndex = 0;
             // 
@@ -215,6 +215,7 @@ namespace GUI
             // 
             // mainTabs
             // 
+            mainTabs.AccentColor = System.Drawing.Color.FromArgb(99, 161, 255);
             mainTabs.Appearance = TabAppearance.Buttons;
             mainTabs.BaseTabWidth = 200;
             mainTabs.Dock = DockStyle.Fill;
@@ -470,7 +471,6 @@ namespace GUI
             // 
             mainLogo.BackgroundImageLayout = ImageLayout.Center;
             mainLogo.Dock = DockStyle.Fill;
-            mainLogo.Image = (System.Drawing.Image)resources.GetObject("mainLogo.Image");
             mainLogo.Location = new System.Drawing.Point(4, 4);
             mainLogo.Margin = new Padding(0);
             mainLogo.Name = "mainLogo";
