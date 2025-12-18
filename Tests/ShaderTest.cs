@@ -464,7 +464,7 @@ namespace Tests
         [Test, TestCaseSource(nameof(SpirvReflectionTestCases))]
         public void TestSpirvReflection(string shaderFile, int staticCombo, int dynamicCombo)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
+            if (!IsSpirvCrossAvailable())
             {
                 Assert.Ignore("There are no native binaries for SPIR-V on arm linux yet.");
                 return;

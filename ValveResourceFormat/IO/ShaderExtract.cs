@@ -83,11 +83,6 @@ public sealed class ShaderExtract
     /// <summary>Gets the shader collection.</summary>
     public ShaderCollection Shaders { get; init; }
 
-    /// <summary>
-    /// A delegate that takes in SPIR-V bytecode and returns HLSL.
-    /// </summary>
-    public Func<VfxShaderFileVulkan, string> SpirvCompiler { get; set; }
-
     /// <summary>Gets the features program data.</summary>
     public VfxProgramData Features => Shaders.Features;
     /// <summary>Gets the mesh shader program data.</summary>
@@ -278,7 +273,14 @@ public sealed class ShaderExtract
         writer.WriteLine($"Description = \"{Features.FeaturesHeader.FileDescription}\";");
         writer.WriteLine($"DevShader = {(Features.FeaturesHeader.DevShader ? "true" : "false")};");
         writer.WriteLine($"Version = {Features.FeaturesHeader.Version};");
-        writer.WriteLine($"// VcsVersion = {Features.VcsVersion};");
+
+        var programs = Shaders
+            .Where(s => s.VcsProgramType != VcsProgramType.Features)
+            .Select(s => ShaderUtilHelpers.ComputeVcsProgramType(s.VcsProgramType));
+        writer.WriteLine();
+        writer.WriteLine($"// VcsVersion: {Features.VcsVersion}");
+        writer.WriteLine($"// Platform: {Features.VcsPlatformType}_SM{Features.VcsShaderModelType}");
+        writer.WriteLine($"// Programs: {string.Join(", ", programs)}");
 
         writer.Indent--;
         writer.WriteLine("}");
@@ -696,13 +698,9 @@ public sealed class ShaderExtract
                     variant0Source.Append(glsl.GetDecompiledFile());
                     variant0Source.AppendLine("// ---------  GLSL source end  --------- ");
                 }
-                else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty())
+                else if (gpuSource is VfxShaderFileVulkan spirv && !spirv.IsEmpty() && ShaderUtilHelpers.IsSpirvCrossAvailable())
                 {
-                    var code = SpirvCompiler is null
-                        ? spirv.GetDecompiledFile()
-                        : SpirvCompiler.Invoke(spirv);
-
-                    variant0Source.Append(code);
+                    variant0Source.Append(spirv.GetDecompiledFile());
                     variant0Source.AppendLine("// ---------  SPIRV -> HLSL end  --------- ");
                 }
             }
