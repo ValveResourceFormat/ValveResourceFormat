@@ -102,6 +102,11 @@ Export a model with only specific animations included:
 ./Source2Viewer-CLI.exe -i "steam" --stats
 ```
 
+### Decompile all shaders
+```powershell
+./Source2Viewer-CLI.exe -i "<game>/shaders_vulkan_dir.vpk" --vpk_decompile --vpk_extensions "vcs" --output "."
+```
+
 ## Argument Stability
 
 Command-line arguments and their behavior may change in future releases. We do not guarantee stability of the CLI interface. If you are writing scripts that depend on specific arguments or output formats, be prepared to update them when upgrading to newer versions.
