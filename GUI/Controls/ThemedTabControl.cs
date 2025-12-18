@@ -100,8 +100,7 @@ namespace GUI.Controls
             BaseTabWidth = 200;
             TabHeight = 32;
             TabTopRadius = 0;
-
-            ItemSize = new Size(BaseTabWidth, TabHeight);
+            Padding = new Point(12, 8);
 
             BackColor = Themer.CurrentThemeColors.AppMiddle;
             SelectTabColor = Themer.CurrentThemeColors.AppSoft;

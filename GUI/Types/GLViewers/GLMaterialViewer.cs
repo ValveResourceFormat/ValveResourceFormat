@@ -59,8 +59,6 @@ namespace GUI.Types.GLViewers
         public GLMaterialViewer(VrfGuiContext guiContext, Resource resource) : base(guiContext)
         {
             Resource = resource;
-
-            Camera.ModifySpeed(0);
         }
 
         public void SetTabControl(TabControl tabs)
@@ -647,7 +645,8 @@ namespace GUI.Types.GLViewers
             base.PostSceneLoad();
             sunAngles = new Vector2(19, 196);
 
-            Camera.OrbitModeAlways = true;
+            Input.OrbitModeAlways = true;
+            Input.OrbitTarget = Vector3.Zero;
 
             UpdateSunAngles();
             Scene.UpdateBuffers();
@@ -656,16 +655,18 @@ namespace GUI.Types.GLViewers
 
         protected override void OnFirstPaint()
         {
-            Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
+            Input.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
             if (renderMat.IsCs2Water)
             {
-                Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, MathUtils.ToRadians(-90f));
+                Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, MathUtils.ToRadians(-90f));
             }
 
             if (previewNode != null)
             {
-                Camera.EnableOrbitMode(previewNode.BoundingBox.Center);
+                Input.OrbitTarget = previewNode.BoundingBox.Center;
             }
+
+            Input.ForceUpdate = true;
         }
 
         public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)

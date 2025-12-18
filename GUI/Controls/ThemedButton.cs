@@ -65,8 +65,8 @@ namespace GUI.Controls
         {
             pevent.Graphics.Clear(Parent?.BackColor ?? BackColor);
             var rect = ClientRectangle;
-            rect.Width -= 1;
-            rect.Height -= 1;
+            rect.Width -= 2;
+            rect.Height -= 2;
 
             pevent.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             pevent.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
@@ -97,6 +97,7 @@ namespace GUI.Controls
             pevent.Graphics.FillPath(backBrush, roundedRect);
 
             using var borderPen = new Pen(Themer.Brighten(backColor, isLight ? 0.8f : 1.5f), this.AdjustForDPI(1));
+            borderPen.Alignment = PenAlignment.Inset;
             pevent.Graphics.DrawPath(borderPen, roundedRect);
 
             TextRenderer.DrawText(pevent.Graphics, Text, Font, ClientRectangle, foreColor, LabelFormatFlags);

@@ -11,6 +11,10 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 
+#if DEBUG
+using System.Reflection;
+#endif
+
 #nullable disable
 
 namespace GUI.Controls
@@ -780,12 +784,11 @@ namespace GUI.Controls
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             var embeddedResources = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
 
-            var imageIndex = MainForm.GetImageIndexForExtension("bsp");
+            var imageIndex = MainForm.Icons["Folder"];
             var embeddedFilesTreeNode = new TreeNode("Embedded Resources")
             {
                 ImageIndex = imageIndex,
                 SelectedImageIndex = imageIndex,
-                ContextMenuStrip = recentFilesContextMenuStrip,
             };
 
             foreach (var embeddedResource in embeddedResources)
@@ -801,6 +804,46 @@ namespace GUI.Controls
                 };
                 embeddedFilesTreeNode.Nodes.Add(debugTreeNode);
             }
+
+            // Icons
+            var iconsImageIndex = MainForm.Icons["Folder"];
+            var iconsTreeNode = new TreeNode("Icons")
+            {
+                ImageIndex = iconsImageIndex,
+                SelectedImageIndex = iconsImageIndex,
+            };
+
+            foreach (var iconEntry in MainForm.Icons)
+            {
+                var iconNode = new TreeNode(iconEntry.Key)
+                {
+                    ImageIndex = iconEntry.Value,
+                    SelectedImageIndex = iconEntry.Value,
+                };
+                iconsTreeNode.Nodes.Add(iconNode);
+            }
+
+            embeddedFilesTreeNode.Nodes.Add(iconsTreeNode);
+
+            // Extensions
+            var extensionsImageIndex = MainForm.Icons["Folder"];
+            var extensionsTreeNode = new TreeNode("Extensions")
+            {
+                ImageIndex = extensionsImageIndex,
+                SelectedImageIndex = extensionsImageIndex,
+            };
+
+            foreach (var extEntry in MainForm.ExtensionIcons)
+            {
+                var extNode = new TreeNode(extEntry.Key)
+                {
+                    ImageIndex = extEntry.Value,
+                    SelectedImageIndex = extEntry.Value,
+                };
+                extensionsTreeNode.Nodes.Add(extNode);
+            }
+
+            embeddedFilesTreeNode.Nodes.Add(extensionsTreeNode);
 
             treeView.Nodes.Add(embeddedFilesTreeNode);
         }

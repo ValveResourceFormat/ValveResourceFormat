@@ -199,7 +199,7 @@ namespace ValveResourceFormat
 
             if (FileName != null)
             {
-                ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(FileName));
+                ResourceType = ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(FileName.AsSpan()));
             }
 
             Version = Reader.ReadUInt16();
@@ -512,6 +512,7 @@ namespace ValveResourceFormat
                 BlockType.TBUF => new TBUF(),
                 BlockType.MVTX => new MeshVertexBuffer(),
                 BlockType.MIDX => new MeshIndexBuffer(),
+                BlockType.MADJ => new MeshAdjacencyBuffer(),
                 BlockType.CTRL => new BinaryKV3(BlockType.CTRL),
                 BlockType.MDAT => new Mesh(BlockType.MDAT),
                 BlockType.INSG => new BinaryKV3(BlockType.INSG),

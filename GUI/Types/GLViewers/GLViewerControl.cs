@@ -31,6 +31,7 @@ namespace GUI.Types.GLViewers
 
         public float Uptime { get; private set; }
         public Camera Camera { get; protected set; }
+        public UserInput Input { get; protected set; }
         public Types.Renderer.TextRenderer TextRenderer { get; protected set; }
 
         protected virtual void OnGLLoad() { }
@@ -64,6 +65,7 @@ namespace GUI.Types.GLViewers
         public GLViewerControl(VrfGuiContext guiContext)
         {
             Camera = new Camera();
+            Input = new UserInput();
 
             TextRenderer = new(guiContext, Camera);
             postProcessRenderer = new(guiContext);
@@ -385,9 +387,9 @@ namespace GUI.Types.GLViewers
 
         protected virtual void OnMouseWheel(object sender, MouseEventArgs e)
         {
-            var modifier = Camera.OnMouseWheel(e.Delta);
+            var modifier = Input.OnMouseWheel(e.Delta);
 
-            if (Camera.OrbitMode)
+            if (Input.OrbitMode)
             {
                 SetMoveSpeedOrZoomLabel($"Orbit distance: {modifier:0.0} (scroll to change)");
             }
@@ -665,7 +667,7 @@ namespace GUI.Types.GLViewers
             var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
             Uptime += frameTime;
 
-            if (MouseOverRenderArea && !isTextureViewer)
+            if ((MouseOverRenderArea || Input.ForceUpdate) && !isTextureViewer)
             {
                 var pressedKeys = CurrentlyPressedKeys;
                 var modifierKeys = Control.ModifierKeys;
@@ -680,12 +682,12 @@ namespace GUI.Types.GLViewers
                     pressedKeys |= TrackedKeys.Alt;
                 }
 
-                Camera.Tick(frameTime, pressedKeys, MouseDelta);
+                Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Camera);
                 LastMouseDelta = MouseDelta;
                 MouseDelta = Point.Empty;
             }
 
-            Camera.RecalculateMatrices(Uptime);
+            Camera.RecalculateMatrices();
 
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 

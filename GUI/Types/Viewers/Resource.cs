@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -224,8 +226,6 @@ namespace GUI.Types.Viewers
             {
                 Dock = DockStyle.Fill,
                 Multiline = true,
-                Padding = new Point(0),
-                Margin = new Padding(0)
             };
             containerTabPage.Controls.Add(resTabs);
             //containerTabPage.PerformLayout();
@@ -286,11 +286,15 @@ namespace GUI.Types.Viewers
                 return;
             }
 
+            List<RawBinary>? binaryBuffers = null;
+
             foreach (var block in resource.Blocks)
             {
                 // They are just binary blobs, and the actual layout of them is stored in CTRL, so the tabs are not useful here
-                if (block.Type is BlockType.MVTX or BlockType.MIDX)
+                if (block is RawBinary rawBlock && block.Type is BlockType.MVTX or BlockType.MIDX or BlockType.MADJ)
                 {
+                    binaryBuffers ??= [];
+                    binaryBuffers.Add(rawBlock);
                     continue;
                 }
 
@@ -380,6 +384,22 @@ namespace GUI.Types.Viewers
                 {
                     resTabs.SelectTab(blockTab);
                 }
+            }
+
+            if (binaryBuffers != null)
+            {
+                var blockTab = new ThemedTabPage("Buffers");
+                resTabs.TabPages.Add(blockTab);
+
+                var text = new StringBuilder();
+
+                foreach (var block in binaryBuffers)
+                {
+                    text.AppendLine(CultureInfo.InvariantCulture, $"{block.Type} - {block.Size} bytes");
+                }
+
+                var textBox = CodeTextBox.Create(text.ToString());
+                blockTab.Controls.Add(textBox);
             }
 
             try

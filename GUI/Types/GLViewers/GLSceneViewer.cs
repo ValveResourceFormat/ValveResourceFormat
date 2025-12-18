@@ -227,8 +227,8 @@ namespace GUI.Types.GLViewers
                     location = new(offset);
                 }
 
-                Camera.SetLocation(location);
-                Camera.LookAt(bbox.Center);
+                Input.Camera.SetLocation(location);
+                Input.Camera.LookAt(bbox.Center);
             }
 
             staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.GuiContext, false);

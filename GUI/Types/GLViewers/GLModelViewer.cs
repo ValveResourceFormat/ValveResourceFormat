@@ -454,7 +454,7 @@ namespace GUI.Types.GLViewers
                     Translation = modelSceneNode.Transform.Translation + rootMotionDelta,
                 };
 
-                Camera.SetLocation(Camera.Location + rootMotionDelta);
+                Input.Camera.Location += rootMotionDelta;
                 LastRootMotionPosition = animationFrame.Movement.Position;
             }
 
@@ -494,7 +494,7 @@ namespace GUI.Types.GLViewers
                     {
                         foundFile.Context.GLPostLoadAction = (viewerControl) =>
                         {
-                            viewerControl.Camera.CopyFrom(Camera);
+                            viewerControl.Input.Camera.CopyFrom(Camera);
                         };
 
                         Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
