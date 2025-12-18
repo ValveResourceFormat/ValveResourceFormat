@@ -22,7 +22,7 @@ vec4 UnpackColor32(uint nColor)
     vResult.b = (nColor >> 16) & 0xff;
     vResult.g = (nColor >> 8) & 0xff;
     vResult.r = (nColor >> 0) & 0xff;
-    vResult.rgba *= ( 1 / 255.f );
+    vResult.rgba *= ( 1.0 / 255.0 );
     return vResult;
 }
 

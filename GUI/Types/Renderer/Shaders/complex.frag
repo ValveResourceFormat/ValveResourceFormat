@@ -75,10 +75,11 @@ centroid in vec3 vCentroidNormalOut;
 in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
-in vec4 vVertexColorOut;
+centroid in vec4 vVertexColorOut;
 
 out vec4 outputColor;
 
+uniform sampler2D g_tBlueNoise;
 uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tTintMask;
@@ -414,6 +415,16 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 #if (translucent) || (alphatest)
     mat.Opacity = color.a;
+#else
+    // D_OPAQUE_FADE
+    if (vVertexColorOut.a <= (254.0/255.0))
+    {
+        vec4 blueNoiseZeroToOne = texelFetch(g_tBlueNoise, ivec2(mod(gl_FragCoord.xy, textureSize(g_tBlueNoise, 0))), 0);
+        if (vVertexColorOut.a <= blueNoiseZeroToOne.x)
+        {
+            discard;
+        }
+    }
 #endif
 
 #if (defined(static_overlay_vfx_common) && (F_PAINT_VERTEX_COLORS == 1))

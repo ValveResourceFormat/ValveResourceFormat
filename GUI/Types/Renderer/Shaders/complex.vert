@@ -142,7 +142,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
     in vec4 vCOLOR;
 #endif
 
-out vec4 vVertexColorOut;
+centroid out vec4 vVertexColorOut;
 out vec3 vFragPosition;
 out vec3 vNormalOut;
 out vec3 vTangentOut;

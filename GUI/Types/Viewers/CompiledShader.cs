@@ -19,8 +19,6 @@ namespace GUI.Types.Viewers
         private TreeView fileListView;
         private readonly VrfGuiContext vrfGuiContext;
 
-        public static string SpvToHlsl(VfxShaderFileVulkan file) => file.GetDecompiledFile();
-
         public static bool IsAccepted(uint magic)
         {
             return magic == VfxProgramData.MAGIC;
@@ -194,10 +192,7 @@ namespace GUI.Types.Viewers
             // ShaderExtract cannot continue without the features file present
             if (shaderCollection.Features is not null)
             {
-                var shaderExtract = new ShaderExtract(shaderCollection)
-                {
-                    SpirvCompiler = SpvToHlsl,
-                };
+                var shaderExtract = new ShaderExtract(shaderCollection);
 
                 collectionNode.Tag = shaderExtract;
                 DisplayExtractedVfx(shaderExtract);

@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
+using Svg.Skia;
 
 namespace GUI.Forms
 {
@@ -13,6 +15,17 @@ namespace GUI.Forms
         public AboutForm()
         {
             InitializeComponent();
+
+            Icon = Program.MainForm.Icon;
+
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                using var svg = new SKSvg();
+                using var svgResource = assembly.GetManifestResourceStream(Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic ? "GUI.Icons.Logo_light.svg" : "GUI.Icons.Logo.svg");
+                Debug.Assert(svgResource is not null);
+                svg.Load(svgResource);
+                icon.Image = Themer.SvgToBitmap(svg, icon.Width, icon.Height);
+            }
 
             // Start the decoder thread so that it fetches the opengl version and is ready for the version copy
             if (GLEnvironment.GpuRendererAndDriver == null && HardwareAcceleratedTextureDecoder.Decoder is GLTextureDecoder decoder)

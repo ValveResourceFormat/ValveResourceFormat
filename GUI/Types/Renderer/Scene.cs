@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using GUI.Types.GLViewers;
 using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -11,6 +12,7 @@ namespace GUI.Types.Renderer
     {
         public readonly struct UpdateContext
         {
+            public required GLSceneViewer View { get; init; }
             public required TextRenderer TextRenderer { get; init; }
             public required float Timestep { get; init; }
         }
