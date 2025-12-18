@@ -244,6 +244,12 @@ namespace GUI.Types.Renderer
             scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
         }
 
+        static bool IsCamera(string cls)
+            => cls == "sky_camera"
+            || cls == "point_devshot_camera"
+            || cls == "point_camera_vertical_fov"
+            || cls == "point_camera";
+
         private void LoadEntitiesFromLump(EntityLump entityLump, string layerName, Matrix4x4 parentTransform)
         {
             var childEntities = entityLump.GetChildEntityNames();
@@ -278,12 +284,6 @@ namespace GUI.Types.Renderer
 
             static bool IsFog(string cls)
                 => cls is "env_cubemap_fog" or "env_gradient_fog";
-
-            static bool IsCamera(string cls)
-                => cls == "sky_camera"
-                || cls == "point_devshot_camera"
-                || cls == "point_camera_vertical_fov"
-                || cls == "point_camera";
 
             var entities = entityLump.GetEntities().ToList();
             var entitiesReordered = entities
@@ -1120,13 +1120,13 @@ namespace GUI.Types.Renderer
             }
             else if (resource.ResourceType == ResourceType.Model)
             {
-                var modelNode = new ModelSceneNode(scene, (Model?)resource.DataBlock, null, isWorldPreview: true)
-                {
-                    Transform = transformationMatrix,
-                    LayerName = layerName,
-                    Name = filename,
-                    EntityData = entity,
-                };
+                var modelNode = IsCamera(classname)
+                    ? new CameraSceneNode(scene, (Model)resource.DataBlock!)
+                    : new ModelSceneNode(scene, (Model?)resource.DataBlock, null, isWorldPreview: true) { Name = filename };
+
+                modelNode.Transform = transformationMatrix;
+                modelNode.LayerName = layerName;
+                modelNode.EntityData = entity;
 
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 

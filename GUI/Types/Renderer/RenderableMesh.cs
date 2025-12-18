@@ -15,6 +15,7 @@ namespace GUI.Types.Renderer
     {
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
+        public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
 
         private readonly VrfGuiContext guiContext;
         public List<DrawCall> DrawCallsOpaque { get; } = [];
