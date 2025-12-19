@@ -2,6 +2,7 @@ ani anim
 apng png
 avif png
 bsp map
+cfg ini
 clip anim
 fbx mdl
 gif png
