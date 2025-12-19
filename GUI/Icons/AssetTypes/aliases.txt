@@ -11,9 +11,11 @@ mp3 wav
 nmclip anim
 nmgrph anmgrph
 nmskel skel
+otf ttf
 phy phys
 shader vcs
 sndevts sndstck
+vfont ttf
 vmt mat
 vrman pdi
 vtf tex
