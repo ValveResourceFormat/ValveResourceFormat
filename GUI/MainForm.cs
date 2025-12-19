@@ -63,8 +63,8 @@ namespace GUI
 
             Settings.Load();
             Themer.InitializeTheme();
-            LoadIcons();
             InitializeComponent();
+            LoadIcons();
             Themer.ApplyTheme(this);
 
             mainTabs.ImageList = ImageList;
@@ -205,6 +205,11 @@ namespace GUI
                     svg.Load(stream);
 
                     ImageList.Images.Add(fullName, Themer.SvgToBitmap(svg, ImageList.ImageSize.Width, ImageList.ImageSize.Height));
+
+                    if (iconName == "Logo")
+                    {
+                        mainLogo.Image = Themer.SvgToBitmap(svg, mainLogo.Width, mainLogo.Height);
+                    }
                 }
                 else
                 {

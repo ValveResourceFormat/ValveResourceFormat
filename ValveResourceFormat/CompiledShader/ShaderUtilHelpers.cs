@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.CompiledShader
@@ -435,6 +436,13 @@ namespace ValveResourceFormat.CompiledShader
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(t, VfxVariableTypeToString.Length, nameof(type));
 
             return VfxVariableTypeToString[t];
+        }
+
+        internal static bool IsSpirvCrossAvailable()
+        {
+            // https://github.com/amerkoleci/Vortice.Vulkan/issues/66
+            var isLinuxArm64 = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
+            return !isLinuxArm64;
         }
 
         internal class OutputFormatterTabulatedData(IndentedTextWriter OutputWriter)

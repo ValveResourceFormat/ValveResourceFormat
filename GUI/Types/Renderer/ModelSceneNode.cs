@@ -75,6 +75,8 @@ namespace GUI.Types.Renderer
                 SetMaterialGroup(skin);
             }
 
+            Name = model.Name;
+
             LoadMeshes(model);
             UpdateBoundingBox();
             LoadAnimations(model, embededAnimationsOnly: isWorldPreview);
