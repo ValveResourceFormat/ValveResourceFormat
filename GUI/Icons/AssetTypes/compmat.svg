@@ -11,12 +11,11 @@
 <circle cx="10.75" cy="16.75" r="1" fill="url(#paint3_radial_200_108)"/>
 <rect x="9" y="17.1213" width="3" height="3" rx="1.5" transform="rotate(-45 9 17.1213)" stroke="#FF9500" stroke-width="0.35"/>
 <path d="M4.75 4.75C4.75 3.64543 5.64543 2.75 6.75 2.75H13.4216C13.952 2.75 14.4607 2.96071 14.8358 3.33579L18.6642 7.16421C19.0393 7.53929 19.25 8.04799 19.25 8.57843V19.2459C19.25 20.3505 18.3546 21.2459 17.25 21.2459H6.75C5.64543 21.2459 4.75 20.3505 4.75 19.2459V4.75Z" stroke="url(#paint4_linear_200_108)" stroke-width="1.5"/>
-<path d="M15.3662 2.80567L19.1944 6.6338C19.5715 7.01096 19.8279 7.48646 19.9385 8.00001H16C14.8954 8.00001 14 7.10458 14 6.00001L14 2.06155C14.5136 2.17211 14.9891 2.42851 15.3662 2.80567Z" fill="#D9DFE1"/>
 </g>
 <defs>
 <linearGradient id="paint0_linear_200_108" x1="20" y1="2" x2="4" y2="22" gradientUnits="userSpaceOnUse">
-<stop stop-color="#708189"/>
-<stop offset="1" stop-color="#3E474E"/>
+<stop offset="0.2" stop-color="#708189"/>
+<stop offset="0.9" stop-color="#3E474E"/>
 </linearGradient>
 <radialGradient id="paint1_radial_200_108" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(9.5 8) rotate(90) scale(2)">
 <stop stop-color="white"/>
