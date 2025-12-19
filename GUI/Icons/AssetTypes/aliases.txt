@@ -1,6 +1,7 @@
 ani anim
 apng png
 avif png
+bmp png
 bsp map
 cfg ini
 clip anim
