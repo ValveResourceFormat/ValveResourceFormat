@@ -19,6 +19,7 @@ shader vcs
 sndevts sndstck
 vfont ttf
 vmt mat
+vnmgraph anmgrph
 vrman pdi
 vtf tex
 vtx mesh
