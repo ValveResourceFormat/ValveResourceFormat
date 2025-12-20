@@ -7,6 +7,7 @@ cfg ini
 clip anim
 fbx mdl
 gif png
+html xml
 jpg png
 mp3 wav
 nmclip anim
