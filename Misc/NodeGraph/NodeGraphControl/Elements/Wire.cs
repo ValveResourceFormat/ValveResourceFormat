@@ -16,6 +16,7 @@ namespace NodeGraphControl {
                     _from = null;
                 } else {
                     if (_to != null 
+                        && !_to.Hub
                         && value.ValueType != _to.ValueType 
                         && !value.ValueType.IsSubclassOf(_to.ValueType))
                         throw new Exception("Type mismatch!");
@@ -38,6 +39,7 @@ namespace NodeGraphControl {
                     _to = null;
                 } else {
                     if (_from != null
+                        && !value.Hub
                         && value.ValueType != _from.ValueType
                         && !_from.ValueType.IsSubclassOf(value.ValueType))
                         throw new Exception("Type mismatch!");

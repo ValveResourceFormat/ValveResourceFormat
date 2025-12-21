@@ -43,6 +43,7 @@ namespace NodeGraphControl.Elements {
 
         protected Color HeaderColor { get; set; } // TODO add default color
         protected Color BaseColor { get; set; } // TODO add default color
+        protected Color TextColor { get; set; }
         
         [Browsable(false)] public bool Selected { get; set; } = false;
 
@@ -207,18 +208,20 @@ namespace NodeGraphControl.Elements {
                 if (socket.GetType() == typeof(SocketIn)) {
                     var socketIn = (SocketIn) socket;
 
-                    // draw socket
-                    DrawSocket(
-                        g,
-                        socketIn.Pivot,
-                        CommonStates.GetColorByType(socketIn.ValueType),
-                        (socketIn.IsConnected()),
-                        socketIn.Hub
-                    );
+                    if (!socketIn.DisplayOnly) {
+                        // draw socket
+                        DrawSocket(
+                            g,
+                            socketIn.Pivot,
+                            CommonStates.GetColorByType(socketIn.ValueType),
+                            (socketIn.IsConnected()),
+                            socketIn.Hub
+                        );
+                    }
 
                     // draw socket caption
                     DrawSocketCaption(g,
-                        new PointF(socketIn.Pivot.X + SocketSize, socketIn.Pivot.Y), socketIn, Alignment.Left
+                        new PointF(socketIn.Pivot.X + (socketIn.DisplayOnly ? 0 : SocketSize), socketIn.Pivot.Y), socketIn, Alignment.Left
                     );
                 }
 
@@ -277,7 +280,7 @@ namespace NodeGraphControl.Elements {
                 textColor = Color.Goldenrod;
             } else {
                 text = socket.SocketName;
-                textColor = Color.Gray;
+                textColor = TextColor;
             }
 
             var sSizeF = g.MeasureString(text, SocketCaptionFont);

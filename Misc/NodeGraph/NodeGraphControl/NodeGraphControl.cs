@@ -132,7 +132,102 @@ namespace NodeGraphControl {
         }
 
         public void AddTypeColorPair<T>(Color color) {
-            CommonStates.TypeColor.Add(typeof(T), color);
+            CommonStates.TypeColor.TryAdd(typeof(T), color);
+        }
+
+        public void LayoutNodes(float padding = 20f) {
+            if (_graphNodes.Count == 0)
+                return;
+
+            const int maxIterations = 100;
+
+            // Simple overlap removal algorithm using iterative repositioning
+            for (int iteration = 0; iteration < maxIterations; iteration++) {
+                bool hasOverlap = false;
+
+                for (int i = 0; i < _graphNodes.Count; i++) {
+                    var nodeA = _graphNodes[i];
+                    nodeA.Calculate();
+
+                    for (int j = i + 1; j < _graphNodes.Count; j++) {
+                        var nodeB = _graphNodes[j];
+                        nodeB.Calculate();
+
+                        // Check if nodes overlap
+                        var boundsA = nodeA.BoundsFull;
+                        var boundsB = nodeB.BoundsFull;
+
+                        // Add padding to bounds for overlap check
+                        var paddedBoundsA = new RectangleF(
+                            boundsA.X - padding / 2,
+                            boundsA.Y - padding / 2,
+                            boundsA.Width + padding,
+                            boundsA.Height + padding);
+
+                        var paddedBoundsB = new RectangleF(
+                            boundsB.X - padding / 2,
+                            boundsB.Y - padding / 2,
+                            boundsB.Width + padding,
+                            boundsB.Height + padding);
+
+                        if (paddedBoundsA.IntersectsWith(paddedBoundsB)) {
+                            hasOverlap = true;
+
+                            // Calculate separation vector
+                            var centerA = new PointF(nodeA.Pivot.X, nodeA.Pivot.Y);
+                            var centerB = new PointF(nodeB.Pivot.X, nodeB.Pivot.Y);
+
+                            var dx = centerB.X - centerA.X;
+                            var dy = centerB.Y - centerA.Y;
+                            var distance = (float)Math.Sqrt(dx * dx + dy * dy);
+
+                            if (distance < 1f) {
+                                // Nodes are at same position, push apart arbitrarily
+                                dx = 1f;
+                                dy = 1f;
+                                distance = (float)Math.Sqrt(2);
+                            }
+
+                            // Normalize direction vector
+                            dx /= distance;
+                            dy /= distance;
+
+                            // Calculate required separation
+                            var overlapX = (paddedBoundsA.Width + paddedBoundsB.Width) / 2 - Math.Abs(centerB.X - centerA.X);
+                            var overlapY = (paddedBoundsA.Height + paddedBoundsB.Height) / 2 - Math.Abs(centerB.Y - centerA.Y);
+
+                            // Move nodes apart (both nodes move half the distance)
+                            var moveX = dx * overlapX / 2;
+                            var moveY = dy * overlapY / 2;
+
+                            // Prefer horizontal separation for better graph readability
+                            if (Math.Abs(dx) > 0.1f) {
+                                nodeA.Location = new Point(
+                                    (int)Math.Round(nodeA.Location.X - moveX),
+                                    nodeA.Location.Y);
+                                nodeB.Location = new Point(
+                                    (int)Math.Round(nodeB.Location.X + moveX),
+                                    nodeB.Location.Y);
+                            } else {
+                                nodeA.Location = new Point(
+                                    nodeA.Location.X,
+                                    (int)Math.Round(nodeA.Location.Y - moveY));
+                                nodeB.Location = new Point(
+                                    nodeB.Location.X,
+                                    (int)Math.Round(nodeB.Location.Y + moveY));
+                            }
+
+                            nodeA.Calculate();
+                            nodeB.Calculate();
+                        }
+                    }
+                }
+
+                if (!hasOverlap)
+                    break;
+            }
+
+            Invalidate();
         }
 
         #endregion
@@ -210,6 +305,21 @@ namespace NodeGraphControl {
                 _gridColor = value;
                 _gridPen = new Pen(_gridColor);
                 _gridBrush = new SolidBrush(_gridColor);
+                Invalidate();
+            }
+        }
+
+        // canvas background color
+        private Color _canvasBackgroundColor = Color.FromArgb(23, 25, 31);
+
+        [Description("The background color of the canvas"), Category("Appearance")]
+        public Color CanvasBackgroundColor {
+            get { return _canvasBackgroundColor; }
+            set {
+                if (_canvasBackgroundColor == value)
+                    return;
+
+                _canvasBackgroundColor = value;
                 Invalidate();
             }
         }
@@ -345,7 +455,7 @@ namespace NodeGraphControl {
 
                 // draw wire
                 var wireColor = CommonStates.GetColorByType(wire.From.ValueType);
-                var wireWidth = (wire == lastHover) ? 6f : 2f;
+                var wireWidth = (wire == lastHover) ? 4f : 3f;
                 var wirePath = DrawWire(g, new Pen(wireColor, wireWidth), xFrom, yFrom, xTo, yTo);
 
                 // create wire region
@@ -481,7 +591,7 @@ namespace NodeGraphControl {
         private void OnDrawBackground(PaintEventArgs e) {
             Graphics g = e.Graphics;
 
-            e.Graphics.Clear(Color.FromArgb(23, 25, 31));
+            e.Graphics.Clear(_canvasBackgroundColor);
 
             if (_gridStyle == EGridStyle.None)
                 return;
@@ -1040,7 +1150,7 @@ namespace NodeGraphControl {
         private IElement FindElementAtOriginal(PointF point) {
             foreach (var node in _graphNodes) {
                 // find socket
-                foreach (var socket in node.Sockets.Where(socket => socket.BoundsFull.Contains(point))) {
+                foreach (var socket in node.Sockets.Where(socket => !socket.DisplayOnly && socket.BoundsFull.Contains(point))) {
                     if (socket.GetType() == typeof(SocketIn))
                         return (SocketIn) socket;
                     if (socket.GetType() == typeof(SocketOut))

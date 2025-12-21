@@ -12,6 +12,8 @@ namespace NodeGraphControl.Elements {
 
         public string ValueTypeStr;
 
+        public bool DisplayOnly { get; set; }
+
         protected readonly AbstractNode Owner;
 
         private RectangleF _bounds;
@@ -27,7 +29,7 @@ namespace NodeGraphControl.Elements {
             ValueType = valueType;
             SocketName = socketName;
             Owner = owner;
-            ValueTypeStr = ValueType.ToString().Split('.').Last();
+            ValueTypeStr = ValueType.ToString().Split('.')[^1].Split('+')[^1];
         }
 
         public abstract void Connect(Wire wire);
