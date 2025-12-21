@@ -542,8 +542,12 @@ namespace NodeGraphControl {
         protected override void OnMouseWheel(MouseEventArgs e) {
             base.OnMouseWheel(e);
 
-            var center = new PointF(this.Width / 2f, this.Height / 2f);
-            var centerTranslated = GetTranslatedPosition(center);
+            var mousePosition = new PointF(e.Location.X, e.Location.Y);
+            
+            // Get world position under mouse before zoom
+            Span<PointF> points = [ mousePosition ];
+            inverse_transformation.TransformPoints(points);
+            var worldPosition = points[0];
 
             // zoom in (mouse wheel ↑)
             if (e.Delta > 0) {
@@ -556,7 +560,18 @@ namespace NodeGraphControl {
             }
 
             UpdateMatrices();
-            FocusView(centerTranslated);
+            
+            // Calculate where that world position is now in screen space
+            Span<PointF> screenPoints = [ worldPosition ];
+            transformation.TransformPoints(screenPoints);
+            var newScreenPosition = screenPoints[0];
+            
+            // Adjust translation to keep the world position under the mouse
+            translation.X += mousePosition.X - newScreenPosition.X;
+            translation.Y += mousePosition.Y - newScreenPosition.Y;
+            
+            UpdateMatrices();
+            Invalidate();
         }
 
         #endregion
