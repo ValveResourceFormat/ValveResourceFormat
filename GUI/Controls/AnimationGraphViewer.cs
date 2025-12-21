@@ -586,10 +586,42 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             node.Calculate();
         }
 
+        var finalPose = new Node(null!)
+        {
+            Name = "Result",
+            NodeType = "FinalPose",
+            Location = new Point(300, 0)
+        };
+        var finalPoseInput = new SocketIn(typeof(Pose), "Out", finalPose, hub: false);
+        finalPose.Sockets.Add(finalPoseInput);
+        AddNode(finalPose);
+        finalPose.StartNode = true;
+
         var root = CreateNode(nodePaths, nodes, rootNodeIdx);
-        root.StartNode = true;
+
+        var rootOutput = new SocketOut(typeof(Pose), string.Empty, root);
+        root.Sockets.Add(rootOutput);
+        Connect(rootOutput, finalPoseInput);
 
         CreateChildren(root, rootNodeIdx);
+
+        // create some unreferenced nodes
+        for (var i = 0; i < nodes.Length; i++)
+        {
+            var exists = createdNodes.ContainsKey(i);
+            if (exists)
+            {
+                continue;
+            }
+
+            var className = GetType(i);
+
+            if (className.StartsWith("ControlParameter", StringComparison.Ordinal))
+            {
+                CreateNode(nodePaths, nodes, i);
+                continue;
+            }
+        }
 
         LayoutNodes(30f);
         Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Length}) or {createdNodes.Count / (float)nodes.Length:P}.");
