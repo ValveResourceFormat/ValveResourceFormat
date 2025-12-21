@@ -269,19 +269,11 @@ namespace NodeGraphControl.Elements {
             Center // just in case... why not have an option to align to center
         }
 
-        private readonly Font SocketCaptionFont = new Font(new FontFamily("Helvetica"), 10f, FontStyle.Bold);
+        public readonly Font SocketCaptionFont = new Font(new FontFamily("Helvetica"), 10f, FontStyle.Bold);
 
         private void DrawSocketCaption(Graphics g, PointF center, AbstractSocket socket, Alignment alignment) {
-            string text;
-            Color textColor;
-
-            if (CommonStates.SocketCaptionTypeToggle) {
-                text = socket.ValueTypeStr;
-                textColor = Color.Goldenrod;
-            } else {
-                text = socket.SocketName;
-                textColor = TextColor;
-            }
+            var text = socket.SocketName;
+            var textColor = TextColor;
 
             var sSizeF = g.MeasureString(text, SocketCaptionFont);
             var position = PointF.Empty;

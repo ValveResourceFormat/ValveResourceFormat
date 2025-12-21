@@ -14,20 +14,32 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
     public AnimationGraphViewer(VrfGuiContext guiContext, KVObject data) : base()
     {
-        Dock = DockStyle.Fill;
-        GridStyle = EGridStyle.Grid;
-
-        // CurrentTheme ?
-        CanvasBackgroundColor = Color.FromArgb(50, 50, 50);
-        NodeColor = Color.FromArgb(70, 70, 70);
-        NodeTextColor = Color.FromArgb(230, 230, 230);
-        GridColor = Color.White;
-
         vrfGuiContext = guiContext;
         graphDefinition = data;
 
-        AddTypeColorPair<Pose>(Color.LightGreen);
-        AddTypeColorPair<Value>(Color.LightBlue);
+        Dock = DockStyle.Fill;
+        GridStyle = EGridStyle.Grid;
+
+        CanvasBackgroundColor = Color.FromArgb(40, 40, 40);
+        NodeColor = Color.FromArgb(60, 60, 60);
+        NodeTextColor = Color.FromArgb(230, 230, 230);
+        GridColor = Color.White;
+
+        PoseColor = Color.LightGreen;
+        ValueColor = Color.LightBlue;
+
+        if (Themer.CurrentTheme == Themer.AppTheme.Dark)
+        {
+            CanvasBackgroundColor = Themer.CurrentThemeColors.AppMiddle;
+            NodeColor = Themer.CurrentThemeColors.AppSoft;
+            GridColor = Themer.CurrentThemeColors.ContrastSoft;
+
+            PoseColor = ControlPaint.Dark(PoseColor);
+            ValueColor = ControlPaint.Dark(ValueColor);
+        }
+
+        AddTypeColorPair<Pose>(PoseColor);
+        AddTypeColorPair<Value>(ValueColor);
 
         CreateGraph();
     }
@@ -38,7 +50,8 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
     private bool firstPaint = true;
     public static Color NodeColor { get; set; }
     public static Color NodeTextColor { get; set; }
-
+    public static Color PoseColor { get; set; }
+    public static Color ValueColor { get; set; }
 
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -138,8 +151,10 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             // child node already exists, all we do is connect to its existing output.
             if (childNode.Sockets.Count > 0)
             {
-                var output = childNode.Sockets.FirstOrDefault(s => s is SocketOut) as SocketOut;
-                return (childNode, output);
+                if (childNode.Sockets.FirstOrDefault(s => s is SocketOut) is SocketOut output)
+                {
+                    return (childNode, output);
+                }
             }
 
             var moreWidthFurtherDeep = depth * 70;
@@ -593,6 +608,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         {
             Data = data;
             BaseColor = NodeColor;
+            HeaderColor = ControlPaint.Light(NodeColor);
             TextColor = NodeTextColor;
         }
 
@@ -632,20 +648,20 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             var position = new PointF
             {
                 X = Location.X + 3,
-                Y = Location.Y + 45
+                Y = Location.Y + 55
             };
 
             var fileExtensionStart = ExternalResourceName.LastIndexOf('.');
             var trimStr = ExternalResourceName[..fileExtensionStart];
-            trimStr = trimStr.Replace(".vnmgraph", string.Empty);
+            trimStr = trimStr.Replace(".vnmgraph", string.Empty, StringComparison.Ordinal);
             trimStr = trimStr.Split('/').LastOrDefault() ?? trimStr;
             if (trimStr.Length > 23)
             {
                 trimStr = '…' + trimStr[^22..];
             }
 
-            using var brush = new SolidBrush(Color.MediumOrchid);
-            g.DrawString(trimStr, font, brush, position);
+            using var brush = new SolidBrush(PoseColor);
+            g.DrawString(trimStr, base.SocketCaptionFont, brush, position);
         }
     }
 

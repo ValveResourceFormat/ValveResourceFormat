@@ -504,7 +504,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.NmGraph:
                     {
                         var specialTabPage = new ThemedTabPage("ANIMATION GRAPH");
-                        specialTabPage.Controls.Add(new AnimationGraphViewer(vrfGuiContext, ((BinaryKV3)resource.DataBlock).Data));
+                        specialTabPage.Controls.Add(new AnimationGraphViewer(vrfGuiContext, ((BinaryKV3)resource.DataBlock!).Data));
                         resTabs.TabPages.Add(specialTabPage);
                         return true;
                     }

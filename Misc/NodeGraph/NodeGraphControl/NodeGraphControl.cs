@@ -1047,12 +1047,6 @@ namespace NodeGraphControl {
                 ResetView();
             }
 
-            // switch name -> type
-            if ((e.KeyData & Keys.Alt) == Keys.Alt) {
-                CommonStates.SocketCaptionTypeToggle = true;
-                Refresh();
-            }
-
             // show bounds (dev)
             if (e.KeyCode == Keys.X) {
                 _renderBounds = true;
@@ -1107,12 +1101,6 @@ namespace NodeGraphControl {
 
         protected override void OnKeyUp(KeyEventArgs e) {
             base.OnKeyUp(e);
-
-            // switch type -> name
-            if ((e.KeyData & Keys.Menu) == Keys.Menu) {
-                CommonStates.SocketCaptionTypeToggle = false;
-                Refresh();
-            }
 
             // hide bounds (dev)
             if ((e.KeyData & Keys.X) == Keys.X) {
