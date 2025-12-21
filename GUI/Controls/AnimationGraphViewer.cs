@@ -330,6 +330,21 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             {
                 node.AddText(data.GetProperty<string>("m_boneMaskID"));
             }
+            else if (node.NodeType is "ConstTarget")
+            {
+                var value = data.GetProperty<KVObject>("m_value");
+                var boneId = value.GetProperty<string>("m_boneID");
+                var isBoneTarget = value.GetProperty<bool>("m_bIsBoneTarget");
+                var isUsingBoneSpaceOffsets = value.GetProperty<bool>("m_bIsUsingBoneSpaceOffsets");
+                var hasOffsets = value.GetProperty<bool>("m_bHasOffsets");
+                var isSet = value.GetProperty<bool>("m_bIsSet");
+
+                node.AddText($"Bone: {boneId}");
+                node.AddText($"Is Bone Target: {isBoneTarget}");
+                node.AddText($"Bone Space Offsets: {isUsingBoneSpaceOffsets}");
+                node.AddText($"Has Offsets: {hasOffsets}");
+                node.AddText($"Is Set: {isSet}");
+            }
             else if (node.NodeType is "SpeedScale")
             {
                 CreateInputAndChild(node, 3, data.GetInt32Property("m_nChildNodeIdx"), 100, 300, "Input");
