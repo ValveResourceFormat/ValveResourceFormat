@@ -1,5 +1,7 @@
 #nullable disable
 
+using GUI.Utils;
+
 namespace GUI.Forms
 {
     partial class SearchForm : ThemedForm
@@ -31,6 +33,13 @@ namespace GUI.Forms
             searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents (Case Sensitive)", SearchType.FileContents));
             searchTypeComboBox.Items.Add(new SearchTypeItem("File Contents Hex Bytes", SearchType.FileContentsHex));
             searchTypeComboBox.SelectedIndex = 0;
+        }
+
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            findTextBox.BackColor = Themer.CurrentThemeColors.AppMiddle;
         }
 
         /// <summary>
