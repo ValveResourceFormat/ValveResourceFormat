@@ -5,10 +5,13 @@ bmp png
 bsp map
 cfg ini
 clip anim
+csv txt
 fbx mdl
+gameevents vdf
 gif png
 html xml
 jpg png
+lst vdf
 mp3 wav
 nmclip anim
 nmgrph anmgrph
