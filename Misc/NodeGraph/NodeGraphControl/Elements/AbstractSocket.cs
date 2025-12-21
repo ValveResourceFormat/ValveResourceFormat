@@ -2,8 +2,11 @@ using System;
 using System.Drawing;
 using System.Linq;
 
-namespace NodeGraphControl.Elements {
-    public abstract class AbstractSocket : IElement {
+#nullable disable
+namespace NodeGraphControl.Elements
+{
+    public abstract class AbstractSocket : IElement
+    {
         public string SocketName { get; protected set; }
 
         public string SocketDescription { get; set; }
@@ -18,14 +21,16 @@ namespace NodeGraphControl.Elements {
 
         private RectangleF _bounds;
 
-        public RectangleF BoundsFull {
+        public RectangleF BoundsFull
+        {
             get => _bounds;
             set => _bounds = value;
         }
 
         public PointF Pivot { get; set; }
 
-        public AbstractSocket(Type valueType, string socketName, AbstractNode owner) {
+        protected AbstractSocket(Type valueType, string socketName, AbstractNode owner)
+        {
             ValueType = valueType;
             SocketName = socketName;
             Owner = owner;
@@ -33,7 +38,7 @@ namespace NodeGraphControl.Elements {
         }
 
         public abstract void Connect(Wire wire);
-        
+
         public abstract void DisconnectAll();
 
         public abstract void Disconnect(Wire wire);

@@ -5,18 +5,22 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
 
-namespace NodeGraphControl.Elements {
-    public enum NodeBoundsArea {
+#nullable disable
+namespace NodeGraphControl.Elements
+{
+    public enum NodeBoundsArea
+    {
         HEADER,
         BASE,
         FOOTER,
         NONE
     }
 
-    public abstract class AbstractNode : IElement {
+    public abstract class AbstractNode : IElement
+    {
         protected float NodeWidth = 200;
 
-        public bool StartNode = false;
+        public bool StartNode;
 
         public List<AbstractSocket> Sockets { get; } = new List<AbstractSocket>();
 
@@ -37,14 +41,14 @@ namespace NodeGraphControl.Elements {
         [Category("Location")] public PointF Pivot { get; private set; }
 
         public string Name { get; set; }
-        
+
         [ReadOnly(true)] public string NodeType { get; set; }
         public string Description { get; set; }
 
         protected Color HeaderColor { get; set; } // TODO add default color
         protected Color BaseColor { get; set; } // TODO add default color
         protected Color TextColor { get; set; }
-        
+
         [Browsable(false)] public bool Selected { get; set; } = false;
 
         [Category("Bounds")] public RectangleF BoundsFull { get; private set; }
@@ -56,7 +60,8 @@ namespace NodeGraphControl.Elements {
 
         public event EventHandler InvokeRepaint;
 
-        protected void OnInvokeRepaint(EventArgs e) {
+        protected void OnInvokeRepaint(EventArgs e)
+        {
             EventHandler handler = InvokeRepaint;
             handler?.Invoke(this, e);
         }
@@ -69,16 +74,19 @@ namespace NodeGraphControl.Elements {
 
         public abstract void Execute();
 
-        public AbstractSocket GetSocketByName(string name) {
-            foreach (var socket in Sockets) {
-                if (socket.SocketName.Equals(name))
+        public AbstractSocket GetSocketByName(string name)
+        {
+            foreach (var socket in Sockets)
+            {
+                if (socket.SocketName == name)
                     return socket;
             }
 
             return null;
         }
 
-        public NodeBoundsArea GetBoundsArea(PointF point) {
+        public NodeBoundsArea GetBoundsArea(PointF point)
+        {
             if (BoundsHeader.Contains(point)) return NodeBoundsArea.HEADER;
             if (BoundsBase.Contains(point)) return NodeBoundsArea.BASE;
             if (BoundsFooter.Contains(point)) return NodeBoundsArea.FOOTER;
@@ -86,8 +94,10 @@ namespace NodeGraphControl.Elements {
             return NodeBoundsArea.NONE;
         }
 
-        public void Disconnect() {
-            foreach (var socket in Sockets) {
+        public void Disconnect()
+        {
+            foreach (var socket in Sockets)
+            {
                 socket.DisconnectAll();
             }
         }
@@ -96,14 +106,16 @@ namespace NodeGraphControl.Elements {
 
         #region CalculateDimensions
 
-        public void Calculate() {
+        public void Calculate()
+        {
             if (MinBaseHeight == 0)
                 MinBaseHeight = SocketSize * 4; // default minimum height
 
             var countIn = 0;
             var countOut = 0;
 
-            foreach (var socket in Sockets) {
+            foreach (var socket in Sockets)
+            {
                 if (socket.GetType() == typeof(SocketIn)) countIn++;
                 if (socket.GetType() == typeof(SocketOut)) countOut++;
             }
@@ -124,13 +136,16 @@ namespace NodeGraphControl.Elements {
             countIn = 0;
             countOut = 0;
 
-            foreach (var socket in Sockets) {
-                if (socket.GetType() == typeof(SocketIn)) {
+            foreach (var socket in Sockets)
+            {
+                if (socket.GetType() == typeof(SocketIn))
+                {
                     countIn++;
                     socket.Pivot = new PointF(Location.X, Location.Y + HeaderHeight + _socketSplit * countIn);
                 }
 
-                if (socket.GetType() == typeof(SocketOut)) {
+                if (socket.GetType() == typeof(SocketOut))
+                {
                     countOut++;
                     socket.Pivot = new PointF(Location.X + NodeWidth, Location.Y + HeaderHeight + _socketSplit * countOut);
                 }
@@ -146,7 +161,8 @@ namespace NodeGraphControl.Elements {
 
         #region Draw
 
-        public virtual void Draw(Graphics g) {
+        public virtual void Draw(Graphics g)
+        {
             int cornerSize = CommonStates.CornerSize;
             var left = Location.X;
             var top = Location.Y;
@@ -154,8 +170,16 @@ namespace NodeGraphControl.Elements {
             var bottom = Location.Y + FullHeight;
             var bottomHeader = Location.Y + HeaderHeight;
 
+            using var baseColorBrush = new SolidBrush(BaseColor);
+            using var headerColorBrush = new SolidBrush(HeaderColor);
+
+            using var headerTextBrush = new SolidBrush(Color.LightGray);
+            using var headerTypeTextBrush = new SolidBrush(Color.Orange);
+            using var penEmpty = new Pen(Color.Empty);
+
             // base
-            using (var path = new GraphicsPath(FillMode.Winding)) {
+            using (var path = new GraphicsPath(FillMode.Winding))
+            {
                 path.AddArc(left, top, cornerSize, cornerSize, 180, 90);
                 path.AddArc(right - cornerSize, top, cornerSize, cornerSize, 270, 90);
 
@@ -166,12 +190,13 @@ namespace NodeGraphControl.Elements {
                 DropShadow(g, path);
 
                 // g.SmoothingMode = SmoothingMode.HighQuality;
-                g.FillPath(new SolidBrush(BaseColor), path);
-                g.DrawPath(new Pen(Color.Empty), path);
+                g.FillPath(baseColorBrush, path);
+                g.DrawPath(penEmpty, path);
             }
 
             // header
-            using (var path = new GraphicsPath(FillMode.Winding)) {
+            using (var path = new GraphicsPath(FillMode.Winding))
+            {
                 path.AddArc(left, top, cornerSize, cornerSize, 180, 90);
                 path.AddArc(right - cornerSize, top, cornerSize, cornerSize, 270, 90);
                 path.AddLine(right, top + cornerSize, right, bottomHeader);
@@ -179,18 +204,16 @@ namespace NodeGraphControl.Elements {
                 path.CloseFigure();
 
                 // g.SmoothingMode = SmoothingMode.HighQuality;
-                g.FillPath(new SolidBrush(HeaderColor), path);
-                g.DrawPath(new Pen(Color.Empty), path);
+                g.FillPath(headerColorBrush, path);
+                g.DrawPath(penEmpty, path);
 
                 float nodeTextOffset = 2f;
                 float nodeTypePositionY = Location.Y + nodeTextOffset + 2;
                 float nodeNamePositionY = Location.Y + HeaderHeight / 2 + nodeTextOffset;
                 float nodeStringPositionX = Location.X + nodeTextOffset;
 
-                var headerFont = new Font(FontFamily.GenericSansSerif, 9f, FontStyle.Bold);
-
-                g.DrawString(Name, headerFont, new SolidBrush(Color.LightGray), nodeStringPositionX, nodeTypePositionY);
-                g.DrawString(NodeType, headerFont, new SolidBrush(Color.Orange), nodeStringPositionX, nodeNamePositionY);
+                g.DrawString(Name, HeaderFont, headerTextBrush, nodeStringPositionX, nodeTypePositionY);
+                g.DrawString(NodeType, HeaderFont, headerTypeTextBrush, nodeStringPositionX, nodeNamePositionY);
             }
 
             // sockets
@@ -201,14 +224,18 @@ namespace NodeGraphControl.Elements {
 
         #region DrawSockets
 
-        private void DrawSockets(Graphics g) {
+        private void DrawSockets(Graphics g)
+        {
             // g.SmoothingMode = SmoothingMode.HighQuality;
 
-            foreach (var socket in Sockets) {
-                if (socket.GetType() == typeof(SocketIn)) {
-                    var socketIn = (SocketIn) socket;
+            foreach (var socket in Sockets)
+            {
+                if (socket.GetType() == typeof(SocketIn))
+                {
+                    var socketIn = (SocketIn)socket;
 
-                    if (!socketIn.DisplayOnly) {
+                    if (!socketIn.DisplayOnly)
+                    {
                         // draw socket
                         DrawSocket(
                             g,
@@ -225,8 +252,9 @@ namespace NodeGraphControl.Elements {
                     );
                 }
 
-                if (socket.GetType() == typeof(SocketOut)) {
-                    var socketOut = (SocketOut) socket;
+                if (socket.GetType() == typeof(SocketOut))
+                {
+                    var socketOut = (SocketOut)socket;
 
                     // draw socket
                     DrawSocket(
@@ -245,40 +273,50 @@ namespace NodeGraphControl.Elements {
             }
         }
 
-        private void DrawSocket(Graphics g, PointF center, Color eColor, bool fill, bool hub) {
-            var ePen = new Pen(eColor, 1.8f);
+        private static void DrawSocket(Graphics g, PointF center, Color eColor, bool fill, bool hub)
+        {
+            using var ePen = new Pen(eColor, 1.8f);
+            using var eBrush = new SolidBrush(eColor);
+
             var eX = center.X - SocketSize / 2f;
             var eY = center.Y - SocketSize / 2f;
 
-            if (hub) {
+            if (hub)
+            {
                 if (fill)
-                    g.FillRectangle(new SolidBrush(eColor), eX + 2, eY - 1, SocketSize - 2, SocketSize + 1);
+                    g.FillRectangle(eBrush, eX + 2, eY - 1, SocketSize - 2, SocketSize + 1);
                 else
                     g.DrawRectangle(ePen, eX + 2, eY - 1, SocketSize - 2, SocketSize + 1);
-            } else {
+            }
+            else
+            {
                 if (fill)
-                    g.FillEllipse(new SolidBrush(eColor), eX, eY, SocketSize, SocketSize);
+                    g.FillEllipse(eBrush, eX, eY, SocketSize, SocketSize);
                 else
                     g.DrawEllipse(ePen, eX, eY, SocketSize, SocketSize);
             }
         }
 
-        private enum Alignment {
+        private enum Alignment
+        {
             Left,
             Right,
             Center // just in case... why not have an option to align to center
         }
 
-        public readonly Font SocketCaptionFont = new Font(new FontFamily("Helvetica"), 10f, FontStyle.Bold);
+        public static readonly Font SocketCaptionFont = new Font(new FontFamily("Helvetica"), 10f, FontStyle.Bold);
+        public static readonly Font HeaderFont = new Font(FontFamily.GenericSansSerif, 9f, FontStyle.Bold);
 
-        private void DrawSocketCaption(Graphics g, PointF center, AbstractSocket socket, Alignment alignment) {
+        private void DrawSocketCaption(Graphics g, PointF center, AbstractSocket socket, Alignment alignment)
+        {
             var text = socket.SocketName;
             var textColor = TextColor;
 
             var sSizeF = g.MeasureString(text, SocketCaptionFont);
             var position = PointF.Empty;
 
-            switch (alignment) {
+            switch (alignment)
+            {
                 case Alignment.Left:
                     position.X = center.X;
                     break;
@@ -293,11 +331,12 @@ namespace NodeGraphControl.Elements {
             }
 
             position.Y = center.Y - (sSizeF.Height / 2);
+            using var brush = new SolidBrush(textColor);
 
             g.DrawString(
                 text,
                 SocketCaptionFont,
-                new SolidBrush(textColor),
+                brush,
                 position.X,
                 position.Y
             );
@@ -314,20 +353,23 @@ namespace NodeGraphControl.Elements {
         private readonly Color _shadowColor = Color.FromArgb(7, 7, 7);
         private readonly Color _shadowColorSelected = Color.FromArgb(255, 255, 255);
 
-        private void DropShadow(Graphics g, GraphicsPath path) {
+        private void DropShadow(Graphics g, GraphicsPath path)
+        {
             // g.SmoothingMode = SmoothingMode.AntiAlias;
-            
+
             // Change in alpha between pens.
             const float delta = (ShadowMaxOpacity / ShadowSteps) / ShadowSteps;
 
             // Initial alpha.
             var alpha = delta;
 
-            for (var thickness = ShadowThickness; thickness >= 1; thickness--) {
+            for (var thickness = ShadowThickness; thickness >= 1; thickness--)
+            {
                 var color = (Selected)
-                    ? Color.FromArgb((int) alpha, _shadowColorSelected)
-                    : Color.FromArgb((int) alpha, _shadowColor);
-                using (var pen = new Pen(color, thickness)) {
+                    ? Color.FromArgb((int)alpha, _shadowColorSelected)
+                    : Color.FromArgb((int)alpha, _shadowColor);
+                using (var pen = new Pen(color, thickness))
+                {
                     pen.EndCap = LineCap.Round;
                     pen.StartCap = LineCap.Round;
                     g.DrawPath(pen, path);

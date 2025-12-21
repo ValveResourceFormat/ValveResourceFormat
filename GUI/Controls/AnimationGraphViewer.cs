@@ -693,7 +693,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
 
             using var brush = new SolidBrush(PoseColor);
-            g.DrawString(trimStr, base.SocketCaptionFont, brush, position);
+            g.DrawString(trimStr, SocketCaptionFont, brush, position);
         }
     }
 

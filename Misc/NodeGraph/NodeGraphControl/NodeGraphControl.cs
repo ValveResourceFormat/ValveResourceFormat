@@ -9,11 +9,16 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using NodeGraphControl.Elements;
 
-namespace NodeGraphControl {
-    public partial class NodeGraphControl : Control {
+#nullable disable
+
+namespace NodeGraphControl
+{
+    public partial class NodeGraphControl : Control
+    {
         #region Constructor
 
-        public NodeGraphControl() {
+        public NodeGraphControl()
+        {
             InitializeComponent();
             this.SetStyle(
                 ControlStyles.AllPaintingInWmPaint | ControlStyles.Opaque | ControlStyles.OptimizedDoubleBuffer |
@@ -24,8 +29,10 @@ namespace NodeGraphControl {
 
         #region Interface
 
-        public void Run() {
-            foreach (var abstractNode in _graphNodes.Where(abstractNode => abstractNode.StartNode)) {
+        public void Run()
+        {
+            foreach (var abstractNode in _graphNodes.Where(abstractNode => abstractNode.StartNode))
+            {
                 abstractNode.Execute();
             }
         }
@@ -33,7 +40,8 @@ namespace NodeGraphControl {
         private readonly List<ContextNode> _contextNodeList = new List<ContextNode>();
 
         public void AddContextNodeType<T>(string contextName, string contextDescription, string contextCategory)
-            where T : AbstractNode {
+            where T : AbstractNode
+        {
             var cn = new ContextNode();
 
             const string defaultDescription = "No Description";
@@ -62,7 +70,8 @@ namespace NodeGraphControl {
             return node;
         }
 
-        public void DeleteNode(AbstractNode node) {
+        public void DeleteNode(AbstractNode node)
+        {
             node.Disconnect();
             _graphNodes.Remove(node);
             ValidateConnections();
@@ -70,10 +79,13 @@ namespace NodeGraphControl {
             Refresh();
         }
 
-        private void DeleteSelectedNodes() {
-            for (var i = _graphNodes.Count - 1; i >= 0; i--) {
+        private void DeleteSelectedNodes()
+        {
+            for (var i = _graphNodes.Count - 1; i >= 0; i--)
+            {
                 var node = _graphNodes[i];
-                if (node.Selected) {
+                if (node.Selected)
+                {
                     node.Disconnect();
                     _graphNodes.Remove(node);
                 }
@@ -84,10 +96,12 @@ namespace NodeGraphControl {
             Refresh();
         }
 
-        public void Connect(SocketOut from, SocketIn to) {
+        public void Connect(SocketOut from, SocketIn to)
+        {
             Wire wire = null;
 
-            try {
+            try
+            {
                 wire = new Wire(from, to);
                 to.Connect(wire);
                 from.Connect(wire);
@@ -95,7 +109,9 @@ namespace NodeGraphControl {
                 _connections.Add(wire);
 
                 wire.Flow();
-            } catch (Exception e) {
+            }
+            catch (Exception e)
+            {
                 wire?.Disconnect();
                 Console.WriteLine(e);
             }
@@ -103,7 +119,8 @@ namespace NodeGraphControl {
             ValidateConnections();
         }
 
-        private void Disconnect(Wire wire) {
+        private void Disconnect(Wire wire)
+        {
             if (wire == null)
                 return;
 
@@ -111,45 +128,55 @@ namespace NodeGraphControl {
             _connections.Remove(wire);
         }
 
-        private void ValidateConnections() {
-            for (var i = _connections.Count - 1; i >= 0; i--) {
+        private void ValidateConnections()
+        {
+            for (var i = _connections.Count - 1; i >= 0; i--)
+            {
                 var con = _connections[i];
 
                 if (con.From == null || con.To == null
                                      || !con.From.ContainsConnection(con)
-                                     || !con.To.ContainsConnection(con)) {
+                                     || !con.To.ContainsConnection(con))
+                {
                     Disconnect(con);
                 }
             }
         }
 
-        public void SetNodeSelected(bool selected) {
-            foreach (var node in _graphNodes) {
+        public void SetNodeSelected(bool selected)
+        {
+            foreach (var node in _graphNodes)
+            {
                 node.Selected = selected;
             }
 
             HandleSelection();
         }
 
-        public void AddTypeColorPair<T>(Color color) {
+        public static void AddTypeColorPair<T>(Color color)
+        {
             CommonStates.TypeColor.TryAdd(typeof(T), color);
         }
 
-        public void LayoutNodes(float padding = 20f) {
+        public void LayoutNodes(float padding = 20f)
+        {
             if (_graphNodes.Count == 0)
                 return;
 
             const int maxIterations = 100;
 
             // Simple overlap removal algorithm using iterative repositioning
-            for (int iteration = 0; iteration < maxIterations; iteration++) {
+            for (int iteration = 0; iteration < maxIterations; iteration++)
+            {
                 bool hasOverlap = false;
 
-                for (int i = 0; i < _graphNodes.Count; i++) {
+                for (int i = 0; i < _graphNodes.Count; i++)
+                {
                     var nodeA = _graphNodes[i];
                     nodeA.Calculate();
 
-                    for (int j = i + 1; j < _graphNodes.Count; j++) {
+                    for (int j = i + 1; j < _graphNodes.Count; j++)
+                    {
                         var nodeB = _graphNodes[j];
                         nodeB.Calculate();
 
@@ -170,7 +197,8 @@ namespace NodeGraphControl {
                             boundsB.Width + padding,
                             boundsB.Height + padding);
 
-                        if (paddedBoundsA.IntersectsWith(paddedBoundsB)) {
+                        if (paddedBoundsA.IntersectsWith(paddedBoundsB))
+                        {
                             hasOverlap = true;
 
                             // Calculate separation vector
@@ -181,7 +209,8 @@ namespace NodeGraphControl {
                             var dy = centerB.Y - centerA.Y;
                             var distance = (float)Math.Sqrt(dx * dx + dy * dy);
 
-                            if (distance < 1f) {
+                            if (distance < 1f)
+                            {
                                 // Nodes are at same position, push apart arbitrarily
                                 dx = 1f;
                                 dy = 1f;
@@ -201,14 +230,17 @@ namespace NodeGraphControl {
                             var moveY = dy * overlapY / 2;
 
                             // Prefer horizontal separation for better graph readability
-                            if (Math.Abs(dx) > 0.1f) {
+                            if (Math.Abs(dx) > 0.1f)
+                            {
                                 nodeA.Location = new Point(
                                     (int)Math.Round(nodeA.Location.X - moveX),
                                     nodeA.Location.Y);
                                 nodeB.Location = new Point(
                                     (int)Math.Round(nodeB.Location.X + moveX),
                                     nodeB.Location.Y);
-                            } else {
+                            }
+                            else
+                            {
                                 nodeA.Location = new Point(
                                     nodeA.Location.X,
                                     (int)Math.Round(nodeA.Location.Y - moveY));
@@ -246,7 +278,8 @@ namespace NodeGraphControl {
 
         #region EventHandlers
 
-        private void n_InvokeRepaint(object sender, EventArgs e) {
+        private void n_InvokeRepaint(object sender, EventArgs e)
+        {
             Invalidate();
         }
 
@@ -255,7 +288,8 @@ namespace NodeGraphControl {
         #region GridSettings
 
         // grid style
-        public enum EGridStyle {
+        public enum EGridStyle
+        {
             Grid,
             Dots,
             None
@@ -264,9 +298,11 @@ namespace NodeGraphControl {
         private EGridStyle _gridStyle = EGridStyle.Grid;
 
         [Description("The type of rendered grid"), Category("Appearance"), DisplayName("Grid Style")]
-        public EGridStyle GridStyle {
+        public EGridStyle GridStyle
+        {
             get { return _gridStyle; }
-            set {
+            set
+            {
                 if (_gridStyle == value)
                     return;
 
@@ -279,9 +315,11 @@ namespace NodeGraphControl {
         private int _gridStep = 16 * 8;
 
         [Description("The distance between the largest grid lines"), Category("Appearance")]
-        public int GridStep {
+        public int GridStep
+        {
             get { return _gridStep; }
-            set {
+            set
+            {
                 if (_gridStep == value)
                     return;
 
@@ -296,9 +334,11 @@ namespace NodeGraphControl {
         private Brush _gridBrush = new SolidBrush(Color.LightGray);
 
         [Description("The color for the grid lines with the largest gap between them"), Category("Appearance")]
-        public Color GridColor {
+        public Color GridColor
+        {
             get { return _gridColor; }
-            set {
+            set
+            {
                 if (_gridColor == value)
                     return;
 
@@ -313,9 +353,11 @@ namespace NodeGraphControl {
         private Color _canvasBackgroundColor = Color.FromArgb(23, 25, 31);
 
         [Description("The background color of the canvas"), Category("Appearance")]
-        public Color CanvasBackgroundColor {
+        public Color CanvasBackgroundColor
+        {
             get { return _canvasBackgroundColor; }
-            set {
+            set
+            {
                 if (_canvasBackgroundColor == value)
                     return;
 
@@ -330,13 +372,14 @@ namespace NodeGraphControl {
 
         private readonly List<AbstractNode> _graphNodes = new List<AbstractNode>();
         private readonly List<Wire> _connections = new List<Wire>();
-        private Wire _tempWire = null;
+        private Wire _tempWire;
 
         #endregion
 
         #region regionToBeSorted
 
-        private enum CommandMode {
+        private enum CommandMode
+        {
             Edit,
             MarqueSelection,
             MoveSelection,
@@ -348,9 +391,9 @@ namespace NodeGraphControl {
         private CommandMode _command = CommandMode.Edit;
 
         // IElement internalDragOverElement;
-        bool mouseMoved = false;
-        bool dragging = false;
-        bool abortDrag = false;
+        bool mouseMoved;
+        bool dragging;
+        bool abortDrag;
 
         Point lastLocation;
         PointF snappedLocation;
@@ -363,15 +406,17 @@ namespace NodeGraphControl {
 
         PointF translation;
         float zoom = 1.0f;
-        private float zoomLast = 0;
+        private float zoomLast;
 
         readonly Matrix transformation = new Matrix();
         readonly Matrix inverse_transformation = new Matrix();
 
-        private void UpdateMatrices() {
+        private void UpdateMatrices()
+        {
             zoom = Utils.Clamp(0.25f, 4.00f, zoom);
 
-            if (Math.Abs(zoom - zoomLast) > 0.01f) {
+            if (Math.Abs(zoom - zoomLast) > 0.01f)
+            {
                 zoomLast = zoom;
                 ZoomChanged?.Invoke(this, zoom);
             }
@@ -389,12 +434,14 @@ namespace NodeGraphControl {
 
         #region GetTransformedLocation
         // TODO refactor
-        private PointF GetTransformedLocation() {
-            var points = new[] {snappedLocation};
+        private PointF GetTransformedLocation()
+        {
+            var points = new[] { snappedLocation };
             inverse_transformation.TransformPoints(points);
             var transformed_location = points[0];
 
-            if (abortDrag) {
+            if (abortDrag)
+            {
                 transformed_location = originalLocation;
             }
 
@@ -406,9 +453,10 @@ namespace NodeGraphControl {
         #region OnPaint
 
         // temp
-        private bool _renderBounds = false;
+        private bool _renderBounds;
 
-        protected override void OnPaint(PaintEventArgs e) {
+        protected override void OnPaint(PaintEventArgs e)
+        {
             base.OnPaint(e);
 
             // initialization and settings
@@ -431,7 +479,7 @@ namespace NodeGraphControl {
             OnDrawBackground(e);
 
             // temp crosshair
-            var pW = new Pen(Color.Gray, 3f);
+            using var pW = new Pen(Color.Gray, 3f);
             g.DrawLine(pW, -_gridStep, 0, _gridStep, 0);
             g.DrawLine(pW, 0, -_gridStep, 0, _gridStep);
 
@@ -443,7 +491,8 @@ namespace NodeGraphControl {
             g.SmoothingMode = SmoothingMode.HighQuality;
 
             // draw all wires
-            foreach (var wire in _connections) {
+            foreach (var wire in _connections)
+            {
                 var xFrom = wire.From.BoundsFull.X + wire.From.BoundsFull.Width / 2f;
                 var yFrom = wire.From.BoundsFull.Y + wire.From.BoundsFull.Height / 2f;
                 var xTo = wire.To.BoundsFull.X + wire.To.BoundsFull.Width / 2;
@@ -456,81 +505,101 @@ namespace NodeGraphControl {
                 // draw wire
                 var wireColor = CommonStates.GetColorByType(wire.From.ValueType);
                 var wireWidth = (wire == lastHover) ? 4f : 3f;
-                var wirePath = DrawWire(g, new Pen(wireColor, wireWidth), xFrom, yFrom, xTo, yTo);
+                using var pen = new Pen(wireColor, wireWidth);
+                using var wirePath = DrawWire(g, pen, xFrom, yFrom, xTo, yTo);
 
                 // create wire region
-                wirePath.Widen(new Pen(Color.Empty, 10f));
+                using var widePen = new Pen(Color.Empty, 10f);
+                wirePath.Widen(widePen);
                 var wireRegion = new Region(wirePath);
                 wire.Region = wireRegion;
 
                 // and eventually draw it
                 if (_renderBounds)
-                    g.FillRegion(new SolidBrush(Color.Brown), wireRegion);
+                {
+                    using var boundsBrush = new SolidBrush(Color.Brown);
+                    g.FillRegion(boundsBrush, wireRegion);
+                }
             }
 
             // draw all nodes
-            foreach (var node in _graphNodes) {
+            foreach (var node in _graphNodes)
+            {
                 node.Draw(g);
             }
 
             // render bounds
-            if (_renderBounds) {
-                foreach (var node in _graphNodes) {
-                    foreach (var socket in node.Sockets) {
-                        g.DrawRectangle(new Pen(Color.Aqua), socket.BoundsFull.X, socket.BoundsFull.Y,
+            if (_renderBounds)
+            {
+                using var pen = new Pen(Color.Aqua);
+                foreach (var node in _graphNodes)
+                {
+                    foreach (var socket in node.Sockets)
+                    {
+                        g.DrawRectangle(pen, socket.BoundsFull.X, socket.BoundsFull.Y,
                             socket.BoundsFull.Width,
                             socket.BoundsFull.Height);
                     }
 
-                    g.DrawRectangle(new Pen(Color.Aqua), node.BoundsHeader.X, node.BoundsHeader.Y, node.BoundsHeader.Width, node.BoundsHeader.Height);
-                    g.DrawRectangle(new Pen(Color.Aqua), node.BoundsBase.X, node.BoundsBase.Y, node.BoundsBase.Width, node.BoundsBase.Height);
-                    g.DrawRectangle(new Pen(Color.Aqua), node.BoundsFooter.X, node.BoundsFooter.Y, node.BoundsFooter.Width, node.BoundsFooter.Height);
+                    g.DrawRectangle(pen, node.BoundsHeader.X, node.BoundsHeader.Y, node.BoundsHeader.Width, node.BoundsHeader.Height);
+                    g.DrawRectangle(pen, node.BoundsBase.X, node.BoundsBase.Y, node.BoundsBase.Width, node.BoundsBase.Height);
+                    g.DrawRectangle(pen, node.BoundsFooter.X, node.BoundsFooter.Y, node.BoundsFooter.Width, node.BoundsFooter.Height);
                 }
             }
 
             // draw temp wire during wiring mode
-            if (_command == CommandMode.Wiring && _tempWire != null) {
+            if (_command == CommandMode.Wiring && _tempWire != null)
+            {
                 float xFrom, yFrom, xTo, yTo;
 
                 var cursorPoint = GetTranslatedPosition(PointToClient(Cursor.Position));
+                using var tempWirePen = new Pen(Color.White, 2f);
 
-                if (_tempWire.From != null) {
+                if (_tempWire.From != null)
+                {
                     xFrom = _tempWire.From.BoundsFull.X + _tempWire.From.BoundsFull.Width / 2f;
                     yFrom = _tempWire.From.BoundsFull.Y + _tempWire.From.BoundsFull.Height / 2f;
                     xTo = cursorPoint.X;
                     yTo = cursorPoint.Y;
 
-                    DrawWire(g, new Pen(Color.White, 2f), xFrom, yFrom, xTo, yTo);
-                } else if (_tempWire.To != null) {
+                    using var _ = DrawWire(g, tempWirePen, xFrom, yFrom, xTo, yTo);
+                }
+                else if (_tempWire.To != null)
+                {
                     xFrom = cursorPoint.X;
                     yFrom = cursorPoint.Y;
                     xTo = _tempWire.To.BoundsFull.X + _tempWire.To.BoundsFull.Width / 2;
                     yTo = _tempWire.To.BoundsFull.Y + _tempWire.To.BoundsFull.Height / 2;
 
-                    DrawWire(g, new Pen(Color.White, 2f), xFrom, yFrom, xTo, yTo);
+                    using var _ = DrawWire(g, tempWirePen, xFrom, yFrom, xTo, yTo);
                 }
             }
 
             // draw marque
-            if (_command == CommandMode.MarqueSelection) {
+            if (_command == CommandMode.MarqueSelection)
+            {
                 var marqueRectangle = GetMarqueRectangle();
-                g.FillRectangle(new SolidBrush(Color.FromArgb(15, 64, 64, 127)), marqueRectangle);
+                using var marqueBrush = new SolidBrush(Color.FromArgb(15, 64, 64, 127));
+                g.FillRectangle(marqueBrush, marqueRectangle);
                 g.DrawRectangle(Pens.DarkGray, marqueRectangle.X, marqueRectangle.Y, marqueRectangle.Width,
                     marqueRectangle.Height);
             }
         }
 
         // wire style
-        public enum EWireStyle {
+        public enum EWireStyle
+        {
             Bezier, Line, StepLine
         }
 
         private EWireStyle _wireStyle = EWireStyle.Bezier;
 
         [Description("The style in which wires will be drown"), Category("Experimental")]
-        public EWireStyle WireStyle {
+        public EWireStyle WireStyle
+        {
             get { return _wireStyle; }
-            set {
+            set
+            {
                 if (_wireStyle == value)
                     return;
 
@@ -540,14 +609,16 @@ namespace NodeGraphControl {
         }
 
         // wire middle points spread (percentage)
-        private int _wireMiddlePointsSpread = 0;
+        private int _wireMiddlePointsSpread;
 
         [Description("The middle point of wires spread in percentages"), Category("Experimental")]
-        public int WireMiddlePointsSpread {
+        public int WireMiddlePointsSpread
+        {
             get { return _wireMiddlePointsSpread; }
-            set {
+            set
+            {
                 var tempValue = Math.Min(100, Math.Max(0, value));
-                if(_wireMiddlePointsSpread == tempValue)
+                if (_wireMiddlePointsSpread == tempValue)
                     return;
 
                 _wireMiddlePointsSpread = tempValue;
@@ -555,27 +626,32 @@ namespace NodeGraphControl {
             }
         }
 
-        private GraphicsPath DrawWire(Graphics g, Pen pen, float xFrom, float yFrom, float xTo, float yTo) {
+        private GraphicsPath DrawWire(Graphics g, Pen pen, float xFrom, float yFrom, float xTo, float yTo)
+        {
             var from = new PointF(xFrom, yFrom);
             var to = new PointF(xTo, yTo);
 
             var path = new GraphicsPath(FillMode.Winding);
 
-            if (_wireStyle == EWireStyle.Line) {
+            if (_wireStyle == EWireStyle.Line)
+            {
                 path.AddLine(from, to);
-            } else {
+            }
+            else
+            {
                 var distance = to.X - from.X;
                 var spreadDistance = ((distance / 2f) / 100f) * _wireMiddlePointsSpread;
 
                 var fromHalf = new PointF(from.X + distance / 2 - spreadDistance, from.Y);
                 var toHalf = new PointF(from.X + distance / 2 + spreadDistance, to.Y);
 
-                PointF[] pathPoints = {from, fromHalf, toHalf, to};
+                PointF[] pathPoints = { from, fromHalf, toHalf, to };
 
                 if (_wireStyle == EWireStyle.StepLine)
                     path.AddLines(pathPoints);
 
-                if (_wireStyle == EWireStyle.Bezier) {
+                if (_wireStyle == EWireStyle.Bezier)
+                {
                     path.AddBeziers(pathPoints);
                 }
             }
@@ -588,7 +664,8 @@ namespace NodeGraphControl {
 
         #region OnDrawBackground
 
-        private void OnDrawBackground(PaintEventArgs e) {
+        private void OnDrawBackground(PaintEventArgs e)
+        {
             Graphics g = e.Graphics;
 
             e.Graphics.Clear(_canvasBackgroundColor);
@@ -608,11 +685,12 @@ namespace NodeGraphControl {
             var top = points[0].Y;
             var bottom = points[1].Y;
 
-            var largeXOffset = ((float) Math.Round(left / _gridStep) * _gridStep);
-            var largeYOffset = ((float) Math.Round(top / _gridStep) * _gridStep);
+            var largeXOffset = ((float)Math.Round(left / _gridStep) * _gridStep);
+            var largeYOffset = ((float)Math.Round(top / _gridStep) * _gridStep);
 
             // grid
-            if (_gridStyle == EGridStyle.Grid) {
+            if (_gridStyle == EGridStyle.Grid)
+            {
                 for (var x = largeXOffset; x < right; x += _gridStep)
                     g.DrawLine(_gridPen, x, top, x, bottom);
 
@@ -621,10 +699,11 @@ namespace NodeGraphControl {
             }
 
             // dots
-            if (_gridStyle == EGridStyle.Dots) {
+            if (_gridStyle == EGridStyle.Dots)
+            {
                 for (var x = largeXOffset; x < right; x += _gridStep)
-                for (var y = largeYOffset; y < bottom; y += _gridStep)
-                    g.FillRectangle(_gridBrush, x, y, 2, 2);
+                    for (var y = largeYOffset; y < bottom; y += _gridStep)
+                        g.FillRectangle(_gridBrush, x, y, 2, 2);
             }
         }
 
@@ -632,7 +711,8 @@ namespace NodeGraphControl {
 
         #region GetMarqueRectangle
 
-        private RectangleF GetMarqueRectangle() {
+        private RectangleF GetMarqueRectangle()
+        {
             var transformedLocation = GetTransformedLocation();
             var x1 = transformedLocation.X;
             var y1 = transformedLocation.Y;
@@ -649,37 +729,40 @@ namespace NodeGraphControl {
 
         #region OnMouseWheel
 
-        protected override void OnMouseWheel(MouseEventArgs e) {
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
             base.OnMouseWheel(e);
 
             var mousePosition = new PointF(e.Location.X, e.Location.Y);
-            
+
             // Get world position under mouse before zoom
-            Span<PointF> points = [ mousePosition ];
+            Span<PointF> points = [mousePosition];
             inverse_transformation.TransformPoints(points);
             var worldPosition = points[0];
 
             // zoom in (mouse wheel ↑)
-            if (e.Delta > 0) {
+            if (e.Delta > 0)
+            {
                 zoom += 0.05f;
             }
 
             // zoom out (mouse wheel ↓)
-            if (e.Delta < 0) {
+            if (e.Delta < 0)
+            {
                 zoom -= 0.1f;
             }
 
             UpdateMatrices();
-            
+
             // Calculate where that world position is now in screen space
-            Span<PointF> screenPoints = [ worldPosition ];
+            Span<PointF> screenPoints = [worldPosition];
             transformation.TransformPoints(screenPoints);
             var newScreenPosition = screenPoints[0];
-            
+
             // Adjust translation to keep the world position under the mouse
             translation.X += mousePosition.X - newScreenPosition.X;
             translation.Y += mousePosition.Y - newScreenPosition.Y;
-            
+
             UpdateMatrices();
             Invalidate();
         }
@@ -688,13 +771,14 @@ namespace NodeGraphControl {
 
         #region MouseProperties
 
-        private bool leftMouseButton = false;
-        private bool rightMouseButton = false;
+        private bool leftMouseButton;
+        private bool rightMouseButton;
 
         private IElement lastHover;
 
-        private void UpdateOriginalLocation(Point location) {
-            var points = new PointF[] {location};
+        private void UpdateOriginalLocation(Point location)
+        {
+            var points = new PointF[] { location };
             inverse_transformation.TransformPoints(points);
             var transformed_location = points[0];
 
@@ -707,7 +791,8 @@ namespace NodeGraphControl {
 
         #region OnMouseDown
 
-        protected override void OnMouseDown(MouseEventArgs e) {
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
             base.OnMouseDown(e);
             this.Focus();
 
@@ -715,23 +800,31 @@ namespace NodeGraphControl {
 
             var element = FindElementAtOriginal(originalLocation);
 
-            if ((e.Button & MouseButtons.Left) != 0) {
+            if ((e.Button & MouseButtons.Left) != 0)
+            {
                 leftMouseButton = true;
 
-                if (_command == CommandMode.Edit) {
-                    if (element == null && Control.ModifierKeys != Keys.Shift) {
+                if (_command == CommandMode.Edit)
+                {
+                    if (element == null && Control.ModifierKeys != Keys.Shift)
+                    {
                         SetNodeSelected(false);
                         Refresh();
                     }
 
-                    if (element is AbstractNode abstractNode) {
-                        if (Control.ModifierKeys != Keys.Shift && !abstractNode.Selected) {
+                    if (element is AbstractNode abstractNode)
+                    {
+                        if (Control.ModifierKeys != Keys.Shift && !abstractNode.Selected)
+                        {
                             SetNodeSelected(false);
                         }
 
-                        if (Control.ModifierKeys == Keys.Shift) {
+                        if (Control.ModifierKeys == Keys.Shift)
+                        {
                             abstractNode.Selected = !abstractNode.Selected;
-                        } else {
+                        }
+                        else
+                        {
                             abstractNode.Selected = true;
                         }
 
@@ -740,16 +833,21 @@ namespace NodeGraphControl {
                     }
                 }
 
-                if (leftMouseButton && rightMouseButton) {
+                if (leftMouseButton && rightMouseButton)
+                {
                     _command = CommandMode.ScaleView;
                     return;
                 }
 
-                if (element == null) {
+                if (element == null)
+                {
                     // Use marquee selection if Ctrl or Shift is held
-                    if (Control.ModifierKeys == Keys.Control || Control.ModifierKeys == Keys.Shift) {
+                    if (Control.ModifierKeys == Keys.Control || Control.ModifierKeys == Keys.Shift)
+                    {
                         _command = CommandMode.MarqueSelection;
-                    } else {
+                    }
+                    else
+                    {
                         _command = CommandMode.TranslateView;
                     }
                     return;
@@ -757,58 +855,69 @@ namespace NodeGraphControl {
 
 
 
-                if (element is SocketIn socketIn) {
+                if (element is SocketIn socketIn)
+                {
                     _command = CommandMode.Wiring;
 
-                    if (socketIn.Hub || !socketIn.IsConnected()) {
-                        _tempWire = new Wire {From = null, To = socketIn};
-                    } else {
+                    if (socketIn.Hub || !socketIn.IsConnected())
+                    {
+                        _tempWire = new Wire { From = null, To = socketIn };
+                    }
+                    else
+                    {
                         Wire connection = socketIn.GetAllConnections()[0];
 
-                        _tempWire = new Wire {From = connection.From, To = null};
+                        _tempWire = new Wire { From = connection.From, To = null };
                         Disconnect(connection);
                     }
 
                     return;
                 }
 
-                if (element is SocketOut socketOut) {
+                if (element is SocketOut socketOut)
+                {
                     _command = CommandMode.Wiring;
-                    _tempWire = new Wire {From = socketOut};
+                    _tempWire = new Wire { From = socketOut };
                     return;
                 }
 
-                if (element is AbstractNode node) {
+                if (element is AbstractNode node)
+                {
                     _command = CommandMode.MoveSelection;
                     BringNodeToFront(node);
                 }
             }
 
-            if ((e.Button & MouseButtons.Right) != 0) {
+            if ((e.Button & MouseButtons.Right) != 0)
+            {
                 rightMouseButton = true;
 
-                if (leftMouseButton && rightMouseButton) {
+                if (leftMouseButton && rightMouseButton)
+                {
                     _command = CommandMode.ScaleView;
                     return;
                 }
 
-                if (_command == CommandMode.Edit && FindElementAtMousePoint(e.Location) == null) {
+                if (_command == CommandMode.Edit && FindElementAtMousePoint(e.Location) == null)
+                {
                     rightMouseButton = false;
                     //OpenContextMenu(e.Location);
                     return;
                 }
             }
 
-            if (e.Button == MouseButtons.Middle) {
+            if (e.Button == MouseButtons.Middle)
+            {
                 _command = CommandMode.TranslateView;
             }
 
-            var points = new[] {originalLocation};
+            var points = new[] { originalLocation };
             transformation.TransformPoints(points);
-            originalMouseLocation = this.PointToScreen(new Point((int) points[0].X, (int) points[0].Y));
+            originalMouseLocation = this.PointToScreen(new Point((int)points[0].X, (int)points[0].Y));
         }
 
-        private void BringNodeToFront(AbstractNode node) {
+        private void BringNodeToFront(AbstractNode node)
+        {
             if (_graphNodes.Remove(node))
                 _graphNodes.Add(node);
 
@@ -819,21 +928,25 @@ namespace NodeGraphControl {
 
         #region OnMouseMove
 
-        protected override void OnMouseMove(MouseEventArgs e) {
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
             base.OnMouseMove(e);
 
             Point currentLocation;
             PointF transformed_location;
-            if (abortDrag) {
+            if (abortDrag)
+            {
                 transformed_location = originalLocation;
 
-                var points = new PointF[] {originalLocation};
+                var points = new PointF[] { originalLocation };
                 transformation.TransformPoints(points);
-                currentLocation = new Point((int) points[0].X, (int) points[0].Y);
-            } else {
+                currentLocation = new Point((int)points[0].X, (int)points[0].Y);
+            }
+            else
+            {
                 currentLocation = e.Location;
 
-                var points = new PointF[] {currentLocation};
+                var points = new PointF[] { currentLocation };
                 inverse_transformation.TransformPoints(points);
                 transformed_location = points[0];
             }
@@ -841,42 +954,50 @@ namespace NodeGraphControl {
             var deltaX = (lastLocation.X - currentLocation.X) / zoom;
             var deltaY = (lastLocation.Y - currentLocation.Y) / zoom;
 
-            switch (_command) {
-                case CommandMode.TranslateView: {
-                    if (!mouseMoved) {
-                        if ((Math.Abs(deltaX) > 1) ||
-                            (Math.Abs(deltaY) > 1))
-                            mouseMoved = true;
-                    }
+            switch (_command)
+            {
+                case CommandMode.TranslateView:
+                    {
+                        if (!mouseMoved)
+                        {
+                            if ((Math.Abs(deltaX) > 1) ||
+                                (Math.Abs(deltaY) > 1))
+                                mouseMoved = true;
+                        }
 
-                    if (mouseMoved &&
-                        (Math.Abs(deltaX) > 0) ||
-                        (Math.Abs(deltaY) > 0)) {
-                        translation.X -= deltaX * zoom;
-                        translation.Y -= deltaY * zoom;
+                        if (mouseMoved &&
+                            (Math.Abs(deltaX) > 0) ||
+                            (Math.Abs(deltaY) > 0))
+                        {
+                            translation.X -= deltaX * zoom;
+                            translation.Y -= deltaY * zoom;
+                            snappedLocation = lastLocation = currentLocation;
+                            Invalidate();
+                        }
+
+                        return;
+                    }
+                case CommandMode.MoveSelection:
+                    {
+                        foreach (var node in _graphNodes.Where(node => node.Selected))
+                        {
+                            node.Location = new Point((int)Math.Round(node.Location.X - deltaX),
+                                (int)Math.Round(node.Location.Y - deltaY));
+                            node.Calculate();
+                        }
+
                         snappedLocation = lastLocation = currentLocation;
                         Invalidate();
+                        return;
                     }
-
-                    return;
-                }
-                case CommandMode.MoveSelection: {
-                    foreach (var node in _graphNodes.Where(node => node.Selected)) {
-                        node.Location = new Point((int) Math.Round(node.Location.X - deltaX),
-                            (int) Math.Round(node.Location.Y - deltaY));
-                        node.Calculate();
+                case CommandMode.Wiring:
+                    {
+                        Invalidate();
+                        return;
                     }
-
-                    snappedLocation = lastLocation = currentLocation;
-                    Invalidate();
-                    return;
-                }
-                case CommandMode.Wiring: {
-                    Invalidate();
-                    return;
-                }
                 case CommandMode.MarqueSelection:
-                    if (!mouseMoved) {
+                    if (!mouseMoved)
+                    {
                         if ((Math.Abs(deltaX) > 1) ||
                             (Math.Abs(deltaY) > 1))
                             mouseMoved = true;
@@ -884,10 +1005,12 @@ namespace NodeGraphControl {
 
                     if (mouseMoved &&
                         (Math.Abs(deltaX) > 0) ||
-                        (Math.Abs(deltaY) > 0)) {
+                        (Math.Abs(deltaY) > 0))
+                    {
                         var marque_rectangle = GetMarqueRectangle();
 
-                        foreach (var node in _graphNodes) {
+                        foreach (var node in _graphNodes)
+                        {
                             bool contains = marque_rectangle.Contains(node.Pivot);
                             node.Selected = contains || (Control.ModifierKeys == Keys.Shift && node.Selected);
                         }
@@ -898,15 +1021,17 @@ namespace NodeGraphControl {
 
                     return;
 
-                default: {
-                    var element = FindElementAtOriginal(transformed_location);
+                default:
+                    {
+                        var element = FindElementAtOriginal(transformed_location);
 
-                    if (lastHover != element && (lastHover is Wire || element is Wire)) {
-                        lastHover = element;
-                        Invalidate();
-                        return;
+                        if (lastHover != element && (lastHover is Wire || element is Wire))
+                        {
+                            lastHover = element;
+                            Invalidate();
+                            return;
+                        }
                     }
-                }
                     break;
             }
         }
@@ -915,44 +1040,53 @@ namespace NodeGraphControl {
 
         #region OnMouseUp
 
-        protected override void OnMouseUp(MouseEventArgs e) {
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
             base.OnMouseUp(e);
 
             UpdateOriginalLocation(e.Location);
 
             var element = FindElementAtOriginal(originalLocation);
 
-            if ((e.Button & MouseButtons.Left) != 0) {
+            if ((e.Button & MouseButtons.Left) != 0)
+            {
                 leftMouseButton = false;
 
-                if (_command == CommandMode.ScaleView) {
+                if (_command == CommandMode.ScaleView)
+                {
                     _command = CommandMode.Edit;
                     return;
                 }
 
-                if (_command == CommandMode.TranslateView) {
+                if (_command == CommandMode.TranslateView)
+                {
                     _command = CommandMode.Edit;
                     return;
                 }
 
-                if (_command == CommandMode.MarqueSelection) {
+                if (_command == CommandMode.MarqueSelection)
+                {
                     _command = CommandMode.Edit;
                     HandleSelection();
                     Refresh();
                     return;
                 }
 
-                if (_command == CommandMode.MoveSelection) {
+                if (_command == CommandMode.MoveSelection)
+                {
                     _command = CommandMode.Edit;
                     return;
                 }
 
-                if (_command == CommandMode.Wiring && _tempWire != null) {
-                    if (_tempWire.From != null && element is SocketIn @socketIn) {
+                if (_command == CommandMode.Wiring && _tempWire != null)
+                {
+                    if (_tempWire.From != null && element is SocketIn @socketIn)
+                    {
                         Connect(_tempWire.From, @socketIn);
                     }
 
-                    if (_tempWire.To != null && element is SocketOut @socketOut) {
+                    if (_tempWire.To != null && element is SocketOut @socketOut)
+                    {
                         Connect(@socketOut, _tempWire.To);
                     }
 
@@ -963,16 +1097,20 @@ namespace NodeGraphControl {
                 }
             }
 
-            if ((e.Button & MouseButtons.Right) != 0) {
+            if ((e.Button & MouseButtons.Right) != 0)
+            {
                 rightMouseButton = false;
-                if (_command == CommandMode.ScaleView) {
+                if (_command == CommandMode.ScaleView)
+                {
                     _command = CommandMode.Edit;
                     return;
                 }
             }
 
-            if ((e.Button & MouseButtons.Middle) != 0) {
-                if (_command == CommandMode.TranslateView) {
+            if ((e.Button & MouseButtons.Middle) != 0)
+            {
+                if (_command == CommandMode.TranslateView)
+                {
                     _command = CommandMode.Edit;
                     return;
                 }
@@ -981,25 +1119,30 @@ namespace NodeGraphControl {
             if (!dragging)
                 return;
 
-            try {
+            try
+            {
                 Point currentLocation;
                 PointF transformed_location;
-                if (abortDrag) {
+                if (abortDrag)
+                {
                     transformed_location = originalLocation;
 
-                    var points = new PointF[] {originalLocation};
+                    var points = new PointF[] { originalLocation };
                     transformation.TransformPoints(points);
-                    currentLocation = new Point((int) points[0].X, (int) points[0].Y);
-                } else {
+                    currentLocation = new Point((int)points[0].X, (int)points[0].Y);
+                }
+                else
+                {
                     currentLocation = e.Location;
 
-                    var points = new PointF[] {currentLocation};
+                    var points = new PointF[] { currentLocation };
                     inverse_transformation.TransformPoints(points);
                     transformed_location = points[0];
                 }
 
 
-                switch (_command) {
+                switch (_command)
+                {
                     case CommandMode.MarqueSelection:
                         this.Invalidate();
                         return;
@@ -1012,7 +1155,9 @@ namespace NodeGraphControl {
                     case CommandMode.Edit:
                         break;
                 }
-            } finally {
+            }
+            finally
+            {
                 dragging = false;
                 _command = CommandMode.Edit;
 
@@ -1024,13 +1169,16 @@ namespace NodeGraphControl {
 
         #region OnMouseClick
 
-        protected override void OnMouseClick(MouseEventArgs e) {
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
             base.OnMouseClick(e);
 
-            if (e.Button == MouseButtons.Left) {
+            if (e.Button == MouseButtons.Left)
+            {
             }
 
-            if (e.Button == MouseButtons.Right) {
+            if (e.Button == MouseButtons.Right)
+            {
                 // TODO context menu
             }
         }
@@ -1039,58 +1187,67 @@ namespace NodeGraphControl {
 
         #region OnKeyDown
 
-        protected override void OnKeyDown(KeyEventArgs e) {
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
             base.OnKeyDown(e);
 
             // reset view
-            if (e.KeyCode == Keys.Space) {
+            if (e.KeyCode == Keys.Space)
+            {
                 ResetView();
             }
 
             // show bounds (dev)
-            if (e.KeyCode == Keys.X) {
+            if (e.KeyCode == Keys.X)
+            {
                 _renderBounds = true;
                 Refresh();
             }
 
             // focus view to center of the selection
-            if (e.KeyCode == Keys.F) {
+            if (e.KeyCode == Keys.F)
+            {
 
                 int count = 0;
                 double x = 0, y = 0;
 
-                foreach (var node in _graphNodes.Where(node => node.Selected)) {
+                foreach (var node in _graphNodes.Where(node => node.Selected))
+                {
                     x += node.Pivot.X;
                     y += node.Pivot.Y;
                     count++;
                 }
 
-                if(count == 0)
+                if (count == 0)
                     return;
 
-                var avgPoint = new PointF((float) (x / count), (float) (y / count));
+                var avgPoint = new PointF((float)(x / count), (float)(y / count));
                 FocusView(avgPoint);
             }
 
             // back to edit mode
-            if ((e.KeyData & Keys.Escape) == Keys.Escape) {
+            if ((e.KeyData & Keys.Escape) == Keys.Escape)
+            {
                 _command = CommandMode.Edit;
             }
 
             // select all
-            if (e.Control && e.KeyCode == Keys.A) {
+            if (e.Control && e.KeyCode == Keys.A)
+            {
                 SetNodeSelected(true);
                 Refresh();
             }
 
             // deselect all
-            if (e.Control && e.Shift && e.KeyCode == Keys.A) {
+            if (e.Control && e.Shift && e.KeyCode == Keys.A)
+            {
                 SetNodeSelected(false);
                 Refresh();
             }
 
             // delete selected
-            if ((e.KeyData & Keys.Delete) == Keys.Delete) {
+            if ((e.KeyData & Keys.Delete) == Keys.Delete)
+            {
                 DeleteSelectedNodes();
             }
         }
@@ -1099,11 +1256,13 @@ namespace NodeGraphControl {
 
         #region OnKeyUp
 
-        protected override void OnKeyUp(KeyEventArgs e) {
+        protected override void OnKeyUp(KeyEventArgs e)
+        {
             base.OnKeyUp(e);
 
             // hide bounds (dev)
-            if ((e.KeyData & Keys.X) == Keys.X) {
+            if ((e.KeyData & Keys.X) == Keys.X)
+            {
                 _renderBounds = false;
                 Refresh();
             }
@@ -1113,56 +1272,66 @@ namespace NodeGraphControl {
 
         #region SpaceInMatrix
 
-        protected void ResetView() {
+        protected void ResetView()
+        {
             translation.X = (Width / 2f);
             translation.Y = (Height / 2f);
             zoom = 1f;
             Refresh();
         }
 
-        protected void FocusView(PointF focusPoint) {
+        protected void FocusView(PointF focusPoint)
+        {
             var translatedLocation = GetOriginalPosition(new PointF(focusPoint.X, focusPoint.Y));
             translation.X -= translatedLocation.X - Width / 2f;
             translation.Y -= translatedLocation.Y - Height / 2f;
             Invalidate();
         }
 
-        private PointF GetTranslatedPosition(Point mouseClick) {
-            var points = new PointF[] {mouseClick};
+        private PointF GetTranslatedPosition(Point mouseClick)
+        {
+            var points = new PointF[] { mouseClick };
             inverse_transformation.TransformPoints(points);
             return points[0];
         }
 
-        private PointF GetTranslatedPosition(PointF positionInsideClip) {
-            var points = new PointF[] {positionInsideClip};
+        private PointF GetTranslatedPosition(PointF positionInsideClip)
+        {
+            var points = new PointF[] { positionInsideClip };
             inverse_transformation.TransformPoints(points);
             return points[0];
         }
 
-        private PointF GetOriginalPosition(PointF transformed) {
-            var points = new[] {transformed};
+        private PointF GetOriginalPosition(PointF transformed)
+        {
+            var points = new[] { transformed };
             transformation.TransformPoints(points);
             return points[0];
         }
 
-        private IElement FindElementAtOriginal(PointF point) {
-            foreach (var node in _graphNodes) {
+        private IElement FindElementAtOriginal(PointF point)
+        {
+            foreach (var node in _graphNodes)
+            {
                 // find socket
-                foreach (var socket in node.Sockets.Where(socket => !socket.DisplayOnly && socket.BoundsFull.Contains(point))) {
+                foreach (var socket in node.Sockets.Where(socket => !socket.DisplayOnly && socket.BoundsFull.Contains(point)))
+                {
                     if (socket.GetType() == typeof(SocketIn))
-                        return (SocketIn) socket;
+                        return (SocketIn)socket;
                     if (socket.GetType() == typeof(SocketOut))
-                        return (SocketOut) socket;
+                        return (SocketOut)socket;
                 }
 
                 // find node
-                if (node.BoundsFull.Contains(point)) {
+                if (node.BoundsFull.Contains(point))
+                {
                     return node;
                 }
             }
 
             // find wire
-            for (int i = _connections.Count - 1; i >= 0; i--) {
+            for (int i = _connections.Count - 1; i >= 0; i--)
+            {
                 var wire = _connections[i];
                 if (wire.Region != null && wire.Region.IsVisible(point))
                     return wire;
@@ -1171,100 +1340,105 @@ namespace NodeGraphControl {
             return null;
         }
 
-        public IElement FindElementAtMousePoint(Point mouseClickPosition) {
+        public IElement FindElementAtMousePoint(Point mouseClickPosition)
+        {
             var position = GetTranslatedPosition(mouseClickPosition);
             return FindElementAtOriginal(position);
         }
 
         #endregion
-/*
-        #region ContextMenu
+        /*
+                #region ContextMenu
 
-        private Point _contextMenuMouseClick;
+                private Point _contextMenuMouseClick;
 
 
-        private void OpenContextMenu(Point location)
-        {
-            _contextMenuMouseClick = location;
-
-            var contextMenu = new ContextMenu();
-            var categories = new List<MenuItem>();
-
-            var menuItemAdd = new MenuItem("Add Node");
-            var menuItemExit = new MenuItem("Exit", MenuItemClickExit); // TODO remove temp exit item
-
-            foreach (var contextNode in _contextNodeList)
-            {
-                var cnName = contextNode.NodeName;
-                var cnCat = contextNode.NodeCategory;
-
-                if (cnCat.Equals(""))
-                    menuItemAdd.MenuItems.Add(cnName, MenuItemClickNode);
-                else
+                private void OpenContextMenu(Point location)
                 {
-                    var categoryMenuItem = categories.Find(item => item.Text.Equals(cnCat));
-                    if (categoryMenuItem != null)
+                    _contextMenuMouseClick = location;
+
+                    var contextMenu = new ContextMenu();
+                    var categories = new List<MenuItem>();
+
+                    var menuItemAdd = new MenuItem("Add Node");
+                    var menuItemExit = new MenuItem("Exit", MenuItemClickExit); // TODO remove temp exit item
+
+                    foreach (var contextNode in _contextNodeList)
                     {
-                        categoryMenuItem.MenuItems.Add(new MenuItem(cnName, MenuItemClickNode));
+                        var cnName = contextNode.NodeName;
+                        var cnCat = contextNode.NodeCategory;
+
+                        if (cnCat.Equals(""))
+                            menuItemAdd.MenuItems.Add(cnName, MenuItemClickNode);
+                        else
+                        {
+                            var categoryMenuItem = categories.Find(item => item.Text.Equals(cnCat));
+                            if (categoryMenuItem != null)
+                            {
+                                categoryMenuItem.MenuItems.Add(new MenuItem(cnName, MenuItemClickNode));
+                            }
+                            else
+                            {
+                                categoryMenuItem = new MenuItem(cnCat);
+                                categoryMenuItem.MenuItems.Add(new MenuItem(cnName, MenuItemClickNode));
+                                categories.Add(categoryMenuItem);
+                            }
+                        }
                     }
-                    else
+
+                    foreach (var category in categories)
                     {
-                        categoryMenuItem = new MenuItem(cnCat);
-                        categoryMenuItem.MenuItems.Add(new MenuItem(cnName, MenuItemClickNode));
-                        categories.Add(categoryMenuItem);
+                        menuItemAdd.MenuItems.Add(category);
                     }
+
+                    contextMenu.MenuItems.AddRange(new[] {
+                        menuItemAdd, menuItemExit
+                    });
+
+                    contextMenu.Show(this, location);
                 }
-            }
 
-            foreach (var category in categories)
-            {
-                menuItemAdd.MenuItems.Add(category);
-            }
+                // TODO remove this... exit will be handled by application
+                private void MenuItemClickExit(object sender, EventArgs e) {
+                    Application.Exit();
+                }
 
-            contextMenu.MenuItems.AddRange(new[] {
-                menuItemAdd, menuItemExit
-            });
+                private void MenuItemClickNode(object sender, EventArgs e) {
+                    if (!(sender is MenuItem item)) return;
 
-            contextMenu.Show(this, location);
-        }
+                    var contextNode = _contextNodeList.Find(context => context.NodeName.Equals(item.Text));
+                    var nodeType = contextNode.NodeType;
 
-        // TODO remove this... exit will be handled by application
-        private void MenuItemClickExit(object sender, EventArgs e) {
-            Application.Exit();
-        }
+                    var newNodeObj = (AbstractNode) Activator.CreateInstance(nodeType);
 
-        private void MenuItemClickNode(object sender, EventArgs e) {
-            if (!(sender is MenuItem item)) return;
+                    var locationTranslated = GetTranslatedPosition(_contextMenuMouseClick);
 
-            var contextNode = _contextNodeList.Find(context => context.NodeName.Equals(item.Text));
-            var nodeType = contextNode.NodeType;
+                    newNodeObj.Location = new Point((int) locationTranslated.X, (int) locationTranslated.Y);
+                    newNodeObj.Calculate();
+                    newNodeObj.Execute();
 
-            var newNodeObj = (AbstractNode) Activator.CreateInstance(nodeType);
+                    AddNode(newNodeObj);
 
-            var locationTranslated = GetTranslatedPosition(_contextMenuMouseClick);
+                    Refresh();
+                }
 
-            newNodeObj.Location = new Point((int) locationTranslated.X, (int) locationTranslated.Y);
-            newNodeObj.Calculate();
-            newNodeObj.Execute();
-
-            AddNode(newNodeObj);
-
-            Refresh();
-        }
-
-        #endregion
-*/
+                #endregion
+        */
         #region NodeSelection
 
         private List<AbstractNode> lastSelected = new List<AbstractNode>();
 
-        private void HandleSelection() {
+        private void HandleSelection()
+        {
             var selected = _graphNodes.Where(node => node.Selected).ToList();
 
-            if (lastSelected.Count != selected.Count) {
+            if (lastSelected.Count != selected.Count)
+            {
                 SelectionChanged?.Invoke(this, selected);
                 lastSelected = selected;
-            } else if (!lastSelected.SequenceEqual(selected)) {
+            }
+            else if (!lastSelected.SequenceEqual(selected))
+            {
                 SelectionChanged?.Invoke(this, selected);
                 lastSelected = selected;
             }

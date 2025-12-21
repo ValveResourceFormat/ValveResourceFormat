@@ -1,4 +1,6 @@
-namespace NodeGraphControl.Elements {
-    public interface IElement {
+namespace NodeGraphControl.Elements
+{
+    public interface IElement
+    {
     }
 }
