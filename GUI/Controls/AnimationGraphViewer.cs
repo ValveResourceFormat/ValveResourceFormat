@@ -18,8 +18,9 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         GridStyle = EGridStyle.Grid;
 
         // CurrentTheme ?
-        CanvasBackgroundColor = Color.FromArgb(255, 50, 50, 50);
-        NodeColor = Color.FromArgb(255, 70, 70, 70);
+        CanvasBackgroundColor = Color.FromArgb(50, 50, 50);
+        NodeColor = Color.FromArgb(70, 70, 70);
+        NodeTextColor = Color.FromArgb(230, 230, 230);
         GridColor = Color.White;
 
         vrfGuiContext = guiContext;
@@ -36,6 +37,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
     private bool firstPaint = true;
     public static Color NodeColor { get; set; }
+    public static Color NodeTextColor { get; set; }
 
 
     protected override void OnPaint(PaintEventArgs e)
@@ -591,7 +593,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         {
             Data = data;
             BaseColor = NodeColor;
-            TextColor = Color.FromArgb(200, 200, 200);
+            TextColor = NodeTextColor;
         }
 
         public void AddSpace() => CreateTextSocket<string>(string.Empty);

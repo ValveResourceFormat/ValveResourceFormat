@@ -746,7 +746,12 @@ namespace NodeGraphControl {
                 }
 
                 if (element == null) {
-                    _command = CommandMode.MarqueSelection;
+                    // Use marquee selection if Ctrl or Shift is held
+                    if (Control.ModifierKeys == Keys.Control || Control.ModifierKeys == Keys.Shift) {
+                        _command = CommandMode.MarqueSelection;
+                    } else {
+                        _command = CommandMode.TranslateView;
+                    }
                     return;
                 }
 
@@ -921,6 +926,11 @@ namespace NodeGraphControl {
                 leftMouseButton = false;
 
                 if (_command == CommandMode.ScaleView) {
+                    _command = CommandMode.Edit;
+                    return;
+                }
+
+                if (_command == CommandMode.TranslateView) {
                     _command = CommandMode.Edit;
                     return;
                 }
