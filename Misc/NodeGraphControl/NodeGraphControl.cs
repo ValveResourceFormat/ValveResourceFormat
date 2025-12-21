@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.Linq;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using NodeGraphControl.Elements;
@@ -413,7 +414,7 @@ namespace NodeGraphControl
 
         private void UpdateMatrices()
         {
-            zoom = Utils.Clamp(0.25f, 4.00f, zoom);
+            zoom = Math.Clamp(zoom, 0.25f, 4.00f);
 
             if (Math.Abs(zoom - zoomLast) > 0.01f)
             {
@@ -499,7 +500,7 @@ namespace NodeGraphControl
                 var yTo = wire.To.BoundsFull.Y + wire.To.BoundsFull.Height / 2;
 
                 // skip wire if there is no distance between two points
-                if (Utils.Distance(xFrom, yFrom, xTo, yTo) < 1d)
+                if (Vector2.Distance(new Vector2(xFrom, yFrom), new Vector2(xTo, yTo)) < 1f)
                     continue;
 
                 // draw wire
