@@ -229,7 +229,7 @@ namespace GUI.Types.Renderer
 
             shader ??= Shader;
 
-            if (shader.Name == "vrf.picking")
+            if (shader.Name is "vrf.picking" or "vrf.outline")
             {
                 // Discard material data for picking shader, (blend modes, etc.)
                 return;
@@ -283,7 +283,11 @@ namespace GUI.Types.Renderer
                 GL.DepthMask(false);
             }
 
-            if (blendMode >= BlendMode.Translucent)
+            if (blendMode == BlendMode.AlphaTest)
+            {
+                GL.Enable(EnableCap.SampleAlphaToCoverage);
+            }
+            else if (blendMode >= BlendMode.Translucent)
             {
                 if (IsOverlay)
                 {
@@ -326,6 +330,11 @@ namespace GUI.Types.Renderer
                 {
                     GL.Disable(EnableCap.Blend);
                 }
+            }
+
+            if (blendMode == BlendMode.AlphaTest)
+            {
+                GL.Disable(EnableCap.SampleAlphaToCoverage);
             }
 
             if (hasDepthBias || IsOverlay)
