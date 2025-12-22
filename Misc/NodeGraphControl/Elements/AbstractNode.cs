@@ -41,9 +41,10 @@ namespace NodeGraphControl.Elements
         [ReadOnly(true)] public string NodeType { get; set; }
         public string Description { get; set; }
 
-        protected SKColor HeaderColor { get; set; } // TODO add default color
+        public SKColor HeaderColor { get; set; } // TODO add default color
         protected SKColor BaseColor { get; set; } // TODO add default color
         protected SKColor TextColor { get; set; }
+        public SKColor TypeColor { get; set; } = SKColors.Orange;
 
         [Browsable(false)] public bool Selected { get; set; } = false;
 
@@ -223,9 +224,9 @@ namespace NodeGraphControl.Elements
                 float nodeNamePositionY = Location.Y + HeaderHeight / 2 + nodeTextOffset;
                 float nodeStringPositionX = Location.X + nodeTextOffset;
 
-                using var headerFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold).ToFont(9f);
+                using var headerFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold).ToFont(12f);
                 using var headerTextPaint = new SKPaint { Color = SKColors.LightGray, IsAntialias = true };
-                using var headerTypePaint = new SKPaint { Color = SKColors.Orange, IsAntialias = true };
+                using var headerTypePaint = new SKPaint { Color = TypeColor, IsAntialias = true };
 
                 canvas.DrawText(Name, nodeStringPositionX, nodeTypePositionY + 10f, headerFont, headerTextPaint);
                 canvas.DrawText(NodeType, nodeStringPositionX, nodeNamePositionY + 10f, headerFont, headerTypePaint);
@@ -261,7 +262,7 @@ namespace NodeGraphControl.Elements
 
                     // draw socket caption
                     DrawSocketCaption(canvas,
-                        new SKPoint(socketIn.Pivot.X + (socketIn.DisplayOnly ? 0 : SocketSize), socketIn.Pivot.Y), socketIn, Alignment.Left
+                        new SKPoint(socketIn.Pivot.X + (socketIn.DisplayOnly ? 5 : SocketSize), socketIn.Pivot.Y), socketIn, Alignment.Left
                     );
                 }
 
@@ -335,7 +336,7 @@ namespace NodeGraphControl.Elements
             var textColor = TextColor;
 
             using var typeface = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold);
-            using var font = typeface.ToFont(10f);
+            using var font = typeface.ToFont(13f);
             using var textPaint = new SKPaint { Color = textColor, IsAntialias = true };
 
             float textWidth;

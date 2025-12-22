@@ -27,21 +27,15 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         GridColor = SKColors.White;
 
         PoseColor = SKColors.LightGreen;
-        ValueColor = new SKColor(173, 216, 230); // LightBlue
+        ValueColor = SKColors.LightBlue;
 
         if (Themer.CurrentTheme == Themer.AppTheme.Dark)
         {
-            var bgColor = Themer.CurrentThemeColors.AppMiddle;
-            CanvasBackgroundColor = new SKColor(bgColor.R, bgColor.G, bgColor.B, bgColor.A);
-            var nodeColor = Themer.CurrentThemeColors.AppSoft;
-            NodeColor = new SKColor(nodeColor.R, nodeColor.G, nodeColor.B, nodeColor.A);
-            var gridColor = Themer.CurrentThemeColors.ContrastSoft;
-            GridColor = new SKColor(gridColor.R, gridColor.G, gridColor.B, gridColor.A);
-
-            var darkPose = ControlPaint.Dark(Color.LightGreen);
-            PoseColor = new SKColor(darkPose.R, darkPose.G, darkPose.B);
-            var darkValue = ControlPaint.Dark(Color.LightBlue);
-            ValueColor = new SKColor(darkValue.R, darkValue.G, darkValue.B);
+            CanvasBackgroundColor = ToSKColor(Themer.CurrentThemeColors.AppMiddle);
+            NodeColor = ToSKColor(Themer.CurrentThemeColors.AppSoft);
+            GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
+            PoseColor = ToSKColor(ControlPaint.Dark(Color.LightGreen, 0.3f));
+            ValueColor = ToSKColor(ControlPaint.Dark(Color.LightBlue, 0.3f));
         }
 
         AddTypeColorPair<Pose>(PoseColor);
@@ -52,6 +46,8 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
     private struct Pose;
     private struct Value;
+
+    private static SKColor ToSKColor(Color color) => new(color.R, color.G, color.B, color.A);
 
     private bool firstPaint = true;
     public static SKColor NodeColor { get; set; }
@@ -194,6 +190,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 Console.WriteLine($"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
             }
 
+            childNode.UpdateTypeColorFromOutput();
             childNode.Calculate(); // node and wire position
             previousChildLocation = childNode.Location;
             previousChildHeight = (int)childNode.BoundsFull.Height;
@@ -331,6 +328,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     layerNode.AddText($"Ignore Events: {layer.GetProperty<bool>("m_bIgnoreEvents")}");
                     layerNode.AddText($"Is State Machine Layer: {layer.GetProperty<bool>("m_bIsStateMachineLayer")}");
                     layerNode.AddText($"Blend Mode: {layer.GetStringProperty("m_blendMode")}");
+                    layerNode.UpdateTypeColorFromOutput();
                     layerNode.Calculate();
                     layerIndex++;
                 }
@@ -589,6 +587,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 Console.WriteLine($"Unhandled node type: {node.NodeType} ({node.Name})");
             }
 
+            node.UpdateTypeColorFromOutput();
             node.Calculate();
         }
 
@@ -598,6 +597,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             NodeType = "FinalPose",
             Location = new SKPoint(300, 0),
             StartNode = true,
+            TypeColor = PoseColor,
         };
         var finalPoseInput = new SocketIn(typeof(Pose), "Out", finalPose, hub: false);
         finalPose.Sockets.Add(finalPoseInput);
@@ -646,9 +646,22 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         {
             Data = data;
             BaseColor = NodeColor;
-            var lightNodeColor = ControlPaint.Light(Color.FromArgb(NodeColor.Red, NodeColor.Green, NodeColor.Blue));
-            HeaderColor = new SKColor(lightNodeColor.R, lightNodeColor.G, lightNodeColor.B);
             TextColor = NodeTextColor;
+            HeaderColor = ToSKColor(ControlPaint.Light(Color.FromArgb(NodeColor.Red, NodeColor.Green, NodeColor.Blue)));
+        }
+
+        public void UpdateTypeColorFromOutput()
+        {
+            var outputSocket = Sockets.OfType<SocketOut>().FirstOrDefault();
+
+            if (outputSocket != null)
+            {
+                var typeColor = NodeGraphControl.CommonStates.GetColorByType(outputSocket.ValueType);
+                if (typeColor != SKColor.Empty && typeColor != NodeGraphControl.CommonStates.DefaultTypeColor)
+                {
+                    TypeColor = typeColor;
+                }
+            }
         }
 
         public void AddSpace() => CreateTextSocket<string>(string.Empty);
@@ -673,6 +686,8 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         public override bool IsReady() => true;
         public override void Execute() { }
 
+        private static readonly SKFont ArialFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(15f);
+
         public override void Draw(SKCanvas canvas)
         {
             base.Draw(canvas);
@@ -681,8 +696,6 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             {
                 return;
             }
-
-            using var font = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(9f);
 
             var position = new SKPoint
             {
@@ -700,7 +713,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
 
             using var paint = new SKPaint { Color = PoseColor, IsAntialias = true };
-            canvas.DrawText(trimStr, position.X, position.Y + font.Size, font, paint);
+            canvas.DrawText(trimStr, position.X, position.Y + ArialFont.Size, ArialFont, paint);
         }
     }
 

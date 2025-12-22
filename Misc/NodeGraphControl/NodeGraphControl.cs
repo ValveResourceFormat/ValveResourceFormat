@@ -420,8 +420,8 @@ namespace NodeGraphControl
                 ZoomChanged?.Invoke(this, zoom);
             }
 
-            transformation = SKMatrix.CreateTranslation(translation.X, translation.Y);
-            transformation = transformation.PostConcat(SKMatrix.CreateScale(zoom, zoom));
+            transformation = SKMatrix.CreateScale(zoom, zoom);
+            transformation = transformation.PostConcat(SKMatrix.CreateTranslation(translation.X, translation.Y));
 
             transformation.TryInvert(out inverse_transformation);
         }
@@ -1305,83 +1305,7 @@ namespace NodeGraphControl
         }
 
         #endregion
-        /*
-                #region ContextMenu
 
-                private Point _contextMenuMouseClick;
-
-
-                private void OpenContextMenu(Point location)
-                {
-                    _contextMenuMouseClick = location;
-
-                    var contextMenu = new ContextMenu();
-                    var categories = new List<MenuItem>();
-
-                    var menuItemAdd = new MenuItem("Add Node");
-                    var menuItemExit = new MenuItem("Exit", MenuItemClickExit); // TODO remove temp exit item
-
-                    foreach (var contextNode in _contextNodeList)
-                    {
-                        var cnName = contextNode.NodeName;
-                        var cnCat = contextNode.NodeCategory;
-
-                        if (cnCat.Equals(""))
-                            menuItemAdd.MenuItems.Add(cnName, MenuItemClickNode);
-                        else
-                        {
-                            var categoryMenuItem = categories.Find(item => item.Text.Equals(cnCat));
-                            if (categoryMenuItem != null)
-                            {
-                                categoryMenuItem.MenuItems.Add(new MenuItem(cnName, MenuItemClickNode));
-                            }
-                            else
-                            {
-                                categoryMenuItem = new MenuItem(cnCat);
-                                categoryMenuItem.MenuItems.Add(new MenuItem(cnName, MenuItemClickNode));
-                                categories.Add(categoryMenuItem);
-                            }
-                        }
-                    }
-
-                    foreach (var category in categories)
-                    {
-                        menuItemAdd.MenuItems.Add(category);
-                    }
-
-                    contextMenu.MenuItems.AddRange(new[] {
-                        menuItemAdd, menuItemExit
-                    });
-
-                    contextMenu.Show(this, location);
-                }
-
-                // TODO remove this... exit will be handled by application
-                private void MenuItemClickExit(object sender, EventArgs e) {
-                    Application.Exit();
-                }
-
-                private void MenuItemClickNode(object sender, EventArgs e) {
-                    if (!(sender is MenuItem item)) return;
-
-                    var contextNode = _contextNodeList.Find(context => context.NodeName.Equals(item.Text));
-                    var nodeType = contextNode.NodeType;
-
-                    var newNodeObj = (AbstractNode) Activator.CreateInstance(nodeType);
-
-                    var locationTranslated = GetTranslatedPosition(_contextMenuMouseClick);
-
-                    newNodeObj.Location = new Point((int) locationTranslated.X, (int) locationTranslated.Y);
-                    newNodeObj.Calculate();
-                    newNodeObj.Execute();
-
-                    AddNode(newNodeObj);
-
-                    Refresh();
-                }
-
-                #endregion
-        */
         #region NodeSelection
 
         private List<AbstractNode> lastSelected = [];
