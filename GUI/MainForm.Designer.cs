@@ -86,6 +86,7 @@ namespace GUI
             mainLogo = new PictureBox();
             controlsBoxPanel = new ControlsBoxPanel();
             mainFormBottomPanel = new MainFormBottomPanel();
+            toolStripSeparator5 = new ToolStripSeparator();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
             vpkContextMenu.SuspendLayout();
@@ -240,12 +241,12 @@ namespace GUI
             // 
             // tabContextMenuStrip
             // 
-            tabContextMenuStrip.BackColor = System.Drawing.Color.FromArgb(244, 244, 244);
+            tabContextMenuStrip.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
+            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, toolStripSeparator5, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
             tabContextMenuStrip.LayoutStyle = ToolStripLayoutStyle.Table;
             tabContextMenuStrip.Name = "contextMenuStrip1";
-            tabContextMenuStrip.Size = new System.Drawing.Size(234, 214);
+            tabContextMenuStrip.Size = new System.Drawing.Size(234, 220);
             // 
             // closeToolStripMenuItem
             // 
@@ -390,7 +391,7 @@ namespace GUI
             // 
             // vpkEditingContextMenu
             // 
-            vpkEditingContextMenu.BackColor = System.Drawing.Color.FromArgb(244, 244, 244);
+            vpkEditingContextMenu.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             vpkEditingContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
             vpkEditingContextMenu.ImeMode = ImeMode.Off;
             vpkEditingContextMenu.Items.AddRange(new ToolStripItem[] { vpkEditCreateFolderToolStripMenuItem, vpkEditAddExistingFolderToolStripMenuItem, vpkEditAddExistingFilesToolStripMenuItem, vpkEditRemoveThisFolderToolStripMenuItem, vpkEditRemoveThisFileToolStripMenuItem, vpkEditSaveToDiskToolStripMenuItem });
@@ -500,6 +501,11 @@ namespace GUI
             mainFormBottomPanel.Size = new System.Drawing.Size(749, 30);
             mainFormBottomPanel.TabIndex = 4;
             // 
+            // toolStripSeparator5
+            // 
+            toolStripSeparator5.Name = "toolStripSeparator5";
+            toolStripSeparator5.Size = new System.Drawing.Size(230, 6);
+            // 
             // MainForm
             // 
             AllowDrop = true;
@@ -581,6 +587,7 @@ namespace GUI
         private ThemedContextMenuStrip vpkEditingContextMenu;
         private MainFormBottomPanel mainFormBottomPanel;
         private ThemedToolStripMenuItem validateShadersToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator5;
     }
 }
 
