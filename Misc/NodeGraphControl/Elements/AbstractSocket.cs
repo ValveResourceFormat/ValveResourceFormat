@@ -1,4 +1,4 @@
-using System.Drawing;
+using SkiaSharp;
 
 #nullable disable
 namespace NodeGraphControl.Elements
@@ -17,15 +17,15 @@ namespace NodeGraphControl.Elements
 
         protected AbstractNode Owner { get; private set; }
 
-        private RectangleF _bounds;
+        private SKRect _bounds;
 
-        public RectangleF BoundsFull
+        public SKRect BoundsFull
         {
             get => _bounds;
             set => _bounds = value;
         }
 
-        public PointF Pivot { get; set; }
+        public SKPoint Pivot { get; set; }
 
         protected AbstractSocket(Type valueType, string socketName, AbstractNode owner)
         {

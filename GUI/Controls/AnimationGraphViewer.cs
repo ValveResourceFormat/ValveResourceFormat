@@ -1,4 +1,5 @@
 using System.Drawing;
+using SkiaSharp;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -20,22 +21,27 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         Dock = DockStyle.Fill;
         GridStyle = EGridStyle.Grid;
 
-        CanvasBackgroundColor = Color.FromArgb(40, 40, 40);
-        NodeColor = Color.FromArgb(60, 60, 60);
-        NodeTextColor = Color.FromArgb(230, 230, 230);
-        GridColor = Color.White;
+        CanvasBackgroundColor = new SKColor(40, 40, 40);
+        NodeColor = new SKColor(60, 60, 60);
+        NodeTextColor = new SKColor(230, 230, 230);
+        GridColor = SKColors.White;
 
-        PoseColor = Color.LightGreen;
-        ValueColor = Color.LightBlue;
+        PoseColor = SKColors.LightGreen;
+        ValueColor = new SKColor(173, 216, 230); // LightBlue
 
         if (Themer.CurrentTheme == Themer.AppTheme.Dark)
         {
-            CanvasBackgroundColor = Themer.CurrentThemeColors.AppMiddle;
-            NodeColor = Themer.CurrentThemeColors.AppSoft;
-            GridColor = Themer.CurrentThemeColors.ContrastSoft;
+            var bgColor = Themer.CurrentThemeColors.AppMiddle;
+            CanvasBackgroundColor = new SKColor(bgColor.R, bgColor.G, bgColor.B, bgColor.A);
+            var nodeColor = Themer.CurrentThemeColors.AppSoft;
+            NodeColor = new SKColor(nodeColor.R, nodeColor.G, nodeColor.B, nodeColor.A);
+            var gridColor = Themer.CurrentThemeColors.ContrastSoft;
+            GridColor = new SKColor(gridColor.R, gridColor.G, gridColor.B, gridColor.A);
 
-            PoseColor = ControlPaint.Dark(PoseColor);
-            ValueColor = ControlPaint.Dark(ValueColor);
+            var darkPose = ControlPaint.Dark(Color.LightGreen);
+            PoseColor = new SKColor(darkPose.R, darkPose.G, darkPose.B);
+            var darkValue = ControlPaint.Dark(Color.LightBlue);
+            ValueColor = new SKColor(darkValue.R, darkValue.G, darkValue.B);
         }
 
         AddTypeColorPair<Pose>(PoseColor);
@@ -48,17 +54,17 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
     private struct Value;
 
     private bool firstPaint = true;
-    public static Color NodeColor { get; set; }
-    public static Color NodeTextColor { get; set; }
-    public static Color PoseColor { get; set; }
-    public static Color ValueColor { get; set; }
+    public static SKColor NodeColor { get; set; }
+    public static SKColor NodeTextColor { get; set; }
+    public static SKColor PoseColor { get; set; }
+    public static SKColor ValueColor { get; set; }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         if (firstPaint)
         {
             firstPaint = false;
-            FocusView(PointF.Empty);
+            FocusView(SKPoint.Empty);
         }
 
         base.OnPaint(e);
@@ -104,7 +110,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         {
             var childIndex = node.Sockets.Count;
             horizontalOffset += totalChildren * 15; // offset for each child node
-            childNode.Location = node.Location - new Size(horizontalOffset, totalChildren * childNodeHeight / 2 - childIndex * childNodeHeight);
+            childNode.Location = new SKPoint(node.Location.X - horizontalOffset, node.Location.Y - (totalChildren * childNodeHeight / 2 - childIndex * childNodeHeight));
         }
 
         Dictionary<int, Node> createdNodes = new(nodes.Length);
@@ -129,7 +135,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
         // Used for calculating some node position.
         var depth = 0;
-        var previousChildLocation = new Point(0, 0);
+        var previousChildLocation = SKPoint.Empty;
         var previousChildHeight = 0;
 
         (Node, SocketIn) CreateInputAndChild<ValueType>(Node parent, int totalChildren, int nodeIdx, int height = 100, int offset = 300, string? parentInputName = null, string? childOutputName = null, bool hub = false)
@@ -174,7 +180,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             if (previousChildHeight > 0)
             {
                 // No vertical overlap
-                childNode.Location = new Point(childNode.Location.X, Math.Max(childNode.Location.Y, previousChildLocation.Y + height));
+                childNode.Location = new SKPoint(childNode.Location.X, Math.Max(childNode.Location.Y, previousChildLocation.Y + height));
             }
 
             try
@@ -294,7 +300,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     });
 
                     CalculateChildNodeLocation(node, layerDefinition.Length, layerNode, 100, 300);
-                    layerNode.Location = new Point(layerNode.Location.X, layerNode.Location.Y + 140 * layerIndex);
+                    layerNode.Location = new SKPoint(layerNode.Location.X, layerNode.Location.Y + 140 * layerIndex);
 
                     var layerOutput = new SocketOut(typeof(Pose), string.Empty, layerNode);
                     layerNode.Sockets.Add(layerOutput);
@@ -590,7 +596,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         {
             Name = "Result",
             NodeType = "FinalPose",
-            Location = new Point(300, 0),
+            Location = new SKPoint(300, 0),
             StartNode = true,
         };
         var finalPoseInput = new SocketIn(typeof(Pose), "Out", finalPose, hub: false);
@@ -640,7 +646,8 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         {
             Data = data;
             BaseColor = NodeColor;
-            HeaderColor = ControlPaint.Light(NodeColor);
+            var lightNodeColor = ControlPaint.Light(Color.FromArgb(NodeColor.Red, NodeColor.Green, NodeColor.Blue));
+            HeaderColor = new SKColor(lightNodeColor.R, lightNodeColor.G, lightNodeColor.B);
             TextColor = NodeTextColor;
         }
 
@@ -666,18 +673,18 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         public override bool IsReady() => true;
         public override void Execute() { }
 
-        public override void Draw(Graphics g)
+        public override void Draw(SKCanvas canvas)
         {
-            base.Draw(g);
+            base.Draw(canvas);
 
             if (string.IsNullOrEmpty(ExternalResourceName))
             {
                 return;
             }
 
-            using var font = new Font(FontFamily.GenericSansSerif, 9f, FontStyle.Regular);
+            using var font = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(9f);
 
-            var position = new PointF
+            var position = new SKPoint
             {
                 X = Location.X + 3,
                 Y = Location.Y + 55
@@ -692,8 +699,8 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 trimStr = '…' + trimStr[^22..];
             }
 
-            using var brush = new SolidBrush(PoseColor);
-            g.DrawString(trimStr, SocketCaptionFont, brush, position);
+            using var paint = new SKPaint { Color = PoseColor, IsAntialias = true };
+            canvas.DrawText(trimStr, position.X, position.Y + font.Size, font, paint);
         }
     }
 

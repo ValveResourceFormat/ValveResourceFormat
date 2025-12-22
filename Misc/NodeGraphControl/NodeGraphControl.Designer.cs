@@ -16,10 +16,7 @@ namespace NodeGraphControl {
                 components.Dispose();
             }
 
-            _gridPen.Dispose();
-            _gridBrush.Dispose();
-            transformation.Dispose();
-            inverse_transformation.Dispose();
+            _gridPaint?.Dispose();
 
             // foreach (var node in _graphNodes) {
             //     node.Dispose();

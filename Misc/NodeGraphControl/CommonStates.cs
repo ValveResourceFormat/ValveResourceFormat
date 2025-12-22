@@ -1,4 +1,4 @@
-using System.Drawing;
+using SkiaSharp;
 
 namespace NodeGraphControl
 {
@@ -8,14 +8,14 @@ namespace NodeGraphControl
 
         public static byte NodeColorAlpha { get; set; } = 235;
 
-        public static Color DefaultTypeColor { get; set; } = Color.Fuchsia;
+        public static SKColor DefaultTypeColor { get; set; } = SKColors.Fuchsia;
 
-        public static readonly Dictionary<Type, Color> TypeColor = [];
+        public static readonly Dictionary<Type, SKColor> TypeColor = [];
 
-        public static Color GetColorByType(Type type)
+        public static SKColor GetColorByType(Type type)
         {
             TypeColor.TryGetValue(type, out var color);
-            return (!color.IsEmpty) ? color : DefaultTypeColor;
+            return (color != SKColor.Empty) ? color : DefaultTypeColor;
         }
 
         // todo wire style

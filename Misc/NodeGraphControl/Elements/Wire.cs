@@ -1,4 +1,4 @@
-using System.Drawing;
+using SkiaSharp;
 using NodeGraphControl.Elements;
 
 #nullable disable
@@ -6,7 +6,7 @@ namespace NodeGraphControl
 {
     public class Wire : NodeUIElement
     {
-        public Region Region { get; set; }
+        public SKPath HitTestPath { get; set; }
 
         private SocketOut _from;
 

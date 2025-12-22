@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Text;
+using SkiaSharp;
+using SkiaSharp.Views.Desktop;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -11,16 +11,13 @@ using NodeGraphControl.Elements;
 
 namespace NodeGraphControl
 {
-    public partial class NodeGraphControl : Control
+    public partial class NodeGraphControl : SKControl
     {
         #region Constructor
 
         public NodeGraphControl()
         {
             InitializeComponent();
-            SetStyle(
-                ControlStyles.AllPaintingInWmPaint | ControlStyles.Opaque | ControlStyles.OptimizedDoubleBuffer |
-                ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.UserPaint, true);
         }
 
         #endregion
@@ -153,7 +150,7 @@ namespace NodeGraphControl
             HandleSelection();
         }
 
-        public static void AddTypeColorPair<T>(Color color)
+        public static void AddTypeColorPair<T>(SKColor color)
         {
             CommonStates.TypeColor.TryAdd(typeof(T), color);
         }
@@ -187,25 +184,17 @@ namespace NodeGraphControl
                         var boundsB = nodeB.BoundsFull;
 
                         // Add padding to bounds for overlap check
-                        var paddedBoundsA = new RectangleF(
-                            boundsA.X - padding / 2,
-                            boundsA.Y - padding / 2,
-                            boundsA.Width + padding,
-                            boundsA.Height + padding);
+                        var paddedBoundsA = SKRect.Inflate(boundsA, padding / 2, padding / 2);
 
-                        var paddedBoundsB = new RectangleF(
-                            boundsB.X - padding / 2,
-                            boundsB.Y - padding / 2,
-                            boundsB.Width + padding,
-                            boundsB.Height + padding);
+                        var paddedBoundsB = SKRect.Inflate(boundsB, padding / 2, padding / 2);
 
                         if (paddedBoundsA.IntersectsWith(paddedBoundsB))
                         {
                             hasOverlap = true;
 
                             // Calculate separation vector
-                            var centerA = new PointF(nodeA.Pivot.X, nodeA.Pivot.Y);
-                            var centerB = new PointF(nodeB.Pivot.X, nodeB.Pivot.Y);
+                            var centerA = new SKPoint(nodeA.Pivot.X, nodeA.Pivot.Y);
+                            var centerB = new SKPoint(nodeB.Pivot.X, nodeB.Pivot.Y);
 
                             var dx = centerB.X - centerA.X;
                             var dy = centerB.Y - centerA.Y;
@@ -234,19 +223,19 @@ namespace NodeGraphControl
                             // Prefer horizontal separation for better graph readability
                             if (Math.Abs(dx) > 0.1f)
                             {
-                                nodeA.Location = new Point(
+                                nodeA.Location = new SKPoint(
                                     (int)Math.Round(nodeA.Location.X - moveX),
                                     nodeA.Location.Y);
-                                nodeB.Location = new Point(
+                                nodeB.Location = new SKPoint(
                                     (int)Math.Round(nodeB.Location.X + moveX),
                                     nodeB.Location.Y);
                             }
                             else
                             {
-                                nodeA.Location = new Point(
+                                nodeA.Location = new SKPoint(
                                     nodeA.Location.X,
                                     (int)Math.Round(nodeA.Location.Y - moveY));
-                                nodeB.Location = new Point(
+                                nodeB.Location = new SKPoint(
                                     nodeB.Location.X,
                                     (int)Math.Round(nodeB.Location.Y + moveY));
                             }
@@ -337,12 +326,11 @@ namespace NodeGraphControl
         }
 
         // grid color
-        private Color _gridColor = Color.LightGray;
-        private Pen _gridPen = new(Color.LightGray);
-        private Brush _gridBrush = new SolidBrush(Color.LightGray);
+        private SKColor _gridColor = SKColors.LightGray;
+        private SKPaint _gridPaint = new() { Color = SKColors.LightGray, StrokeWidth = 1f, IsAntialias = true };
 
         [Description("The color for the grid lines with the largest gap between them"), Category("Appearance")]
-        public Color GridColor
+        public SKColor GridColor
         {
             get { return _gridColor; }
             set
@@ -353,17 +341,17 @@ namespace NodeGraphControl
                 }
 
                 _gridColor = value;
-                _gridPen = new Pen(_gridColor);
-                _gridBrush = new SolidBrush(_gridColor);
+                _gridPaint?.Dispose();
+                _gridPaint = new SKPaint { Color = _gridColor, StrokeWidth = 1f, IsAntialias = true };
                 Invalidate();
             }
         }
 
         // canvas background color
-        private Color _canvasBackgroundColor = Color.FromArgb(23, 25, 31);
+        private SKColor _canvasBackgroundColor = new SKColor(23, 25, 31);
 
         [Description("The background color of the canvas"), Category("Appearance")]
-        public Color CanvasBackgroundColor
+        public SKColor CanvasBackgroundColor
         {
             get { return _canvasBackgroundColor; }
             set
@@ -406,21 +394,21 @@ namespace NodeGraphControl
         bool mouseMoved;
         bool dragging;
 
-        Point lastLocation;
-        PointF snappedLocation;
-        PointF originalLocation;
-        Point originalMouseLocation;
+        SKPoint lastLocation;
+        SKPoint snappedLocation;
+        SKPoint originalLocation;
+        SKPoint originalMouseLocation;
 
         #endregion
 
         #region UpdateMatrices
 
-        PointF translation;
+        SKPoint translation;
         float zoom = 1.0f;
         private float zoomLast;
 
-        readonly Matrix transformation = new();
-        readonly Matrix inverse_transformation = new();
+        SKMatrix transformation = SKMatrix.Identity;
+        SKMatrix inverse_transformation = SKMatrix.Identity;
 
         private void UpdateMatrices()
         {
@@ -432,25 +420,19 @@ namespace NodeGraphControl
                 ZoomChanged?.Invoke(this, zoom);
             }
 
-            transformation.Reset();
-            transformation.Translate(translation.X, translation.Y);
-            transformation.Scale(zoom, zoom);
+            transformation = SKMatrix.CreateTranslation(translation.X, translation.Y);
+            transformation = transformation.PostConcat(SKMatrix.CreateScale(zoom, zoom));
 
-            inverse_transformation.Reset();
-            inverse_transformation.Scale(1.0f / zoom, 1.0f / zoom);
-            inverse_transformation.Translate(-translation.X, -translation.Y);
+            transformation.TryInvert(out inverse_transformation);
         }
 
         #endregion
 
         #region GetTransformedLocation
         // TODO refactor
-        private PointF GetTransformedLocation()
+        private SKPoint GetTransformedLocation()
         {
-            var points = new[] { snappedLocation };
-            inverse_transformation.TransformPoints(points);
-            var transformed_location = points[0];
-            return transformed_location;
+            return inverse_transformation.MapPoint(snappedLocation);
         }
 
         #endregion
@@ -460,33 +442,24 @@ namespace NodeGraphControl
         // temp
         private bool _renderBounds;
 
-        protected override void OnPaint(PaintEventArgs e)
+        protected override void OnPaintSurface(SKPaintSurfaceEventArgs e)
         {
-            base.OnPaint(e);
-
-            // initialization and settings
-            var g = e.Graphics;
-
-            g.PageUnit = GraphicsUnit.Pixel;
-            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-
-            // CompositingQuality dependent on zoom value.
-            // Close view uses HightSpeed, distant view is GammaCorrected (high quality)
-            g.CompositingQuality = zoom < 1f ? CompositingQuality.GammaCorrected : CompositingQuality.HighSpeed;
+            base.OnPaintSurface(e);
+            
+            var canvas = e.Surface.Canvas;
+            canvas.Clear(_canvasBackgroundColor);
 
             // update matrices
             UpdateMatrices();
-            g.Transform = transformation;
+            canvas.SetMatrix(transformation);
 
             // draw background
-            OnDrawBackground(e);
+            OnDrawBackground(canvas, e.Info.Width, e.Info.Height);
 
             // temp crosshair
-            using var pW = new Pen(Color.Gray, 3f);
-            g.DrawLine(pW, -_gridStep, 0, _gridStep, 0);
-            g.DrawLine(pW, 0, -_gridStep, 0, _gridStep);
+            using var crosshairPaint = new SKPaint { Color = SKColors.Gray, StrokeWidth = 3f, IsAntialias = true };
+            canvas.DrawLine(-_gridStep, 0, _gridStep, 0, crosshairPaint);
+            canvas.DrawLine(0, -_gridStep, 0, _gridStep, crosshairPaint);
 
             // return if no nodes
             if (_graphNodes.Count == 0)
@@ -494,16 +467,13 @@ namespace NodeGraphControl
                 return;
             }
 
-            // set smoothing mode quality
-            g.SmoothingMode = SmoothingMode.HighQuality;
-
             // draw all wires
             foreach (var wire in _connections)
             {
-                var xFrom = wire.From.BoundsFull.X + wire.From.BoundsFull.Width / 2f;
-                var yFrom = wire.From.BoundsFull.Y + wire.From.BoundsFull.Height / 2f;
-                var xTo = wire.To.BoundsFull.X + wire.To.BoundsFull.Width / 2;
-                var yTo = wire.To.BoundsFull.Y + wire.To.BoundsFull.Height / 2;
+                var xFrom = wire.From.BoundsFull.MidX;
+                var yFrom = wire.From.BoundsFull.MidY;
+                var xTo = wire.To.BoundsFull.MidX;
+                var yTo = wire.To.BoundsFull.MidY;
 
                 // skip wire if there is no distance between two points
                 if (Vector2.Distance(new Vector2(xFrom, yFrom), new Vector2(xTo, yTo)) < 1f)
@@ -514,45 +484,41 @@ namespace NodeGraphControl
                 // draw wire
                 var wireColor = CommonStates.GetColorByType(wire.From.ValueType);
                 var wireWidth = (wire == lastHover) ? 4f : 3f;
-                using var pen = new Pen(wireColor, wireWidth);
-                using var wirePath = DrawWire(g, pen, xFrom, yFrom, xTo, yTo);
+                using var wirePaint = new SKPaint { Color = wireColor, StrokeWidth = wireWidth, IsAntialias = true, Style = SKPaintStyle.Stroke };
+                using var wirePath = DrawWire(canvas, wirePaint, xFrom, yFrom, xTo, yTo);
 
-                // create wire region
-                using var widePen = new Pen(Color.Empty, 10f);
-                wirePath.Widen(widePen);
-                var wireRegion = new Region(wirePath);
-                wire.Region = wireRegion;
+                // Create a wider path for hit testing
+                using var widerPaint = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 10f };
+                wire.HitTestPath = widerPaint.GetFillPath(wirePath);
 
                 // and eventually draw it
                 if (_renderBounds)
                 {
-                    using var boundsBrush = new SolidBrush(Color.Brown);
-                    g.FillRegion(boundsBrush, wireRegion);
+                    using var boundsPaint = new SKPaint { Color = new SKColor(165, 42, 42), IsAntialias = true, Style = SKPaintStyle.Fill };
+                    canvas.DrawPath(wirePath, boundsPaint);
                 }
             }
 
             // draw all nodes
             foreach (var node in _graphNodes)
             {
-                node.Draw(g);
+                node.Draw(canvas);
             }
 
             // render bounds
             if (_renderBounds)
             {
-                using var pen = new Pen(Color.Aqua);
+                using var boundsPaint = new SKPaint { Color = SKColors.Aqua, Style = SKPaintStyle.Stroke, StrokeWidth = 1f, IsAntialias = true };
                 foreach (var node in _graphNodes)
                 {
                     foreach (var socket in node.Sockets)
                     {
-                        g.DrawRectangle(pen, socket.BoundsFull.X, socket.BoundsFull.Y,
-                            socket.BoundsFull.Width,
-                            socket.BoundsFull.Height);
+                        canvas.DrawRect(socket.BoundsFull, boundsPaint);
                     }
 
-                    g.DrawRectangle(pen, node.BoundsHeader.X, node.BoundsHeader.Y, node.BoundsHeader.Width, node.BoundsHeader.Height);
-                    g.DrawRectangle(pen, node.BoundsBase.X, node.BoundsBase.Y, node.BoundsBase.Width, node.BoundsBase.Height);
-                    g.DrawRectangle(pen, node.BoundsFooter.X, node.BoundsFooter.Y, node.BoundsFooter.Width, node.BoundsFooter.Height);
+                    canvas.DrawRect(node.BoundsHeader, boundsPaint);
+                    canvas.DrawRect(node.BoundsBase, boundsPaint);
+                    canvas.DrawRect(node.BoundsFooter, boundsPaint);
                 }
             }
 
@@ -562,25 +528,25 @@ namespace NodeGraphControl
                 float xFrom, yFrom, xTo, yTo;
 
                 var cursorPoint = GetTranslatedPosition(PointToClient(Cursor.Position));
-                using var tempWirePen = new Pen(Color.White, 2f);
+                using var tempWirePaint = new SKPaint { Color = SKColors.White, StrokeWidth = 2f, IsAntialias = true, Style = SKPaintStyle.Stroke };
 
                 if (_tempWire.From != null)
                 {
-                    xFrom = _tempWire.From.BoundsFull.X + _tempWire.From.BoundsFull.Width / 2f;
-                    yFrom = _tempWire.From.BoundsFull.Y + _tempWire.From.BoundsFull.Height / 2f;
+                    xFrom = _tempWire.From.BoundsFull.MidX;
+                    yFrom = _tempWire.From.BoundsFull.MidY;
                     xTo = cursorPoint.X;
                     yTo = cursorPoint.Y;
 
-                    using var _ = DrawWire(g, tempWirePen, xFrom, yFrom, xTo, yTo);
+                    using var _ = DrawWire(canvas, tempWirePaint, xFrom, yFrom, xTo, yTo);
                 }
                 else if (_tempWire.To != null)
                 {
                     xFrom = cursorPoint.X;
                     yFrom = cursorPoint.Y;
-                    xTo = _tempWire.To.BoundsFull.X + _tempWire.To.BoundsFull.Width / 2;
-                    yTo = _tempWire.To.BoundsFull.Y + _tempWire.To.BoundsFull.Height / 2;
+                    xTo = _tempWire.To.BoundsFull.MidX;
+                    yTo = _tempWire.To.BoundsFull.MidY;
 
-                    using var _ = DrawWire(g, tempWirePen, xFrom, yFrom, xTo, yTo);
+                    using var _ = DrawWire(canvas, tempWirePaint, xFrom, yFrom, xTo, yTo);
                 }
             }
 
@@ -588,10 +554,10 @@ namespace NodeGraphControl
             if (_command == CommandMode.MarqueSelection)
             {
                 var marqueRectangle = GetMarqueRectangle();
-                using var marqueBrush = new SolidBrush(Color.FromArgb(15, 64, 64, 127));
-                g.FillRectangle(marqueBrush, marqueRectangle);
-                g.DrawRectangle(Pens.DarkGray, marqueRectangle.X, marqueRectangle.Y, marqueRectangle.Width,
-                    marqueRectangle.Height);
+                using var marquePaint = new SKPaint { Color = new SKColor(64, 64, 127, 15), IsAntialias = true, Style = SKPaintStyle.Fill };
+                canvas.DrawRect(marqueRectangle, marquePaint);
+                using var marqueStrokePaint = new SKPaint { Color = SKColors.DarkGray, Style = SKPaintStyle.Stroke, StrokeWidth = 1f, IsAntialias = true };
+                canvas.DrawRect(marqueRectangle, marqueStrokePaint);
             }
         }
 
@@ -639,39 +605,42 @@ namespace NodeGraphControl
             }
         }
 
-        private GraphicsPath DrawWire(Graphics g, Pen pen, float xFrom, float yFrom, float xTo, float yTo)
+        private SKPath DrawWire(SKCanvas canvas, SKPaint paint, float xFrom, float yFrom, float xTo, float yTo)
         {
-            var from = new PointF(xFrom, yFrom);
-            var to = new PointF(xTo, yTo);
+            var from = new SKPoint(xFrom, yFrom);
+            var to = new SKPoint(xTo, yTo);
 
-            var path = new GraphicsPath(FillMode.Winding);
+            var path = new SKPath();
 
             if (_wireStyle == EWireStyle.Line)
             {
-                path.AddLine(from, to);
+                path.MoveTo(from);
+                path.LineTo(to);
             }
             else
             {
                 var distance = to.X - from.X;
                 var spreadDistance = ((distance / 2f) / 100f) * _wireMiddlePointsSpread;
 
-                var fromHalf = new PointF(from.X + distance / 2 - spreadDistance, from.Y);
-                var toHalf = new PointF(from.X + distance / 2 + spreadDistance, to.Y);
-
-                PointF[] pathPoints = [from, fromHalf, toHalf, to];
+                var fromHalf = new SKPoint(from.X + distance / 2 - spreadDistance, from.Y);
+                var toHalf = new SKPoint(from.X + distance / 2 + spreadDistance, to.Y);
 
                 if (_wireStyle == EWireStyle.StepLine)
                 {
-                    path.AddLines(pathPoints);
+                    path.MoveTo(from);
+                    path.LineTo(fromHalf);
+                    path.LineTo(toHalf);
+                    path.LineTo(to);
                 }
 
                 if (_wireStyle == EWireStyle.Bezier)
                 {
-                    path.AddBeziers(pathPoints);
+                    path.MoveTo(from);
+                    path.CubicTo(fromHalf, toHalf, to);
                 }
             }
 
-            g.DrawPath(pen, path);
+            canvas.DrawPath(path, paint);
             return path;
         }
 
@@ -679,28 +648,20 @@ namespace NodeGraphControl
 
         #region OnDrawBackground
 
-        private void OnDrawBackground(PaintEventArgs e)
+        private void OnDrawBackground(SKCanvas canvas, int width, int height)
         {
-            var g = e.Graphics;
-
-            e.Graphics.Clear(_canvasBackgroundColor);
-
             if (_gridStyle == EGridStyle.None)
             {
                 return;
             }
 
-            var points = new PointF[] {
-                new(e.ClipRectangle.Left, e.ClipRectangle.Top),
-                new(e.ClipRectangle.Right, e.ClipRectangle.Bottom)
-            };
+            var topLeft = inverse_transformation.MapPoint(new SKPoint(0, 0));
+            var bottomRight = inverse_transformation.MapPoint(new SKPoint(width, height));
 
-            inverse_transformation.TransformPoints(points);
-
-            var left = points[0].X;
-            var right = points[1].X;
-            var top = points[0].Y;
-            var bottom = points[1].Y;
+            var left = topLeft.X;
+            var right = bottomRight.X;
+            var top = topLeft.Y;
+            var bottom = bottomRight.Y;
 
             var largeXOffset = ((float)Math.Round(left / _gridStep) * _gridStep);
             var largeYOffset = ((float)Math.Round(top / _gridStep) * _gridStep);
@@ -710,25 +671,27 @@ namespace NodeGraphControl
             {
                 for (var x = largeXOffset; x < right; x += _gridStep)
                 {
-                    g.DrawLine(_gridPen, x, top, x, bottom);
+                    canvas.DrawLine(x, top, x, bottom, _gridPaint);
                 }
 
                 for (var y = largeYOffset; y < bottom; y += _gridStep)
                 {
-                    g.DrawLine(_gridPen, left, y, right, y);
+                    canvas.DrawLine(left, y, right, y, _gridPaint);
                 }
             }
 
             // dots
             if (_gridStyle == EGridStyle.Dots)
             {
+                _gridPaint.Style = SKPaintStyle.Fill;
                 for (var x = largeXOffset; x < right; x += _gridStep)
                 {
                     for (var y = largeYOffset; y < bottom; y += _gridStep)
                     {
-                        g.FillRectangle(_gridBrush, x, y, 2, 2);
+                        canvas.DrawRect(x, y, 2, 2, _gridPaint);
                     }
                 }
+                _gridPaint.Style = SKPaintStyle.Stroke;
             }
         }
 
@@ -736,7 +699,7 @@ namespace NodeGraphControl
 
         #region GetMarqueRectangle
 
-        private RectangleF GetMarqueRectangle()
+        private SKRect GetMarqueRectangle()
         {
             var transformedLocation = GetTransformedLocation();
             var x1 = transformedLocation.X;
@@ -747,7 +710,7 @@ namespace NodeGraphControl
             var y = Math.Min(y1, y2);
             var width = Math.Max(x1, x2) - x;
             var height = Math.Max(y1, y2) - y;
-            return new RectangleF(x, y, width, height);
+            return new SKRect(x, y, x + width, y + height);
         }
 
         #endregion
@@ -758,12 +721,10 @@ namespace NodeGraphControl
         {
             base.OnMouseWheel(e);
 
-            var mousePosition = new PointF(e.Location.X, e.Location.Y);
+            var mousePosition = new SKPoint(e.Location.X, e.Location.Y);
 
             // Get world position under mouse before zoom
-            Span<PointF> points = [mousePosition];
-            inverse_transformation.TransformPoints(points);
-            var worldPosition = points[0];
+            var worldPosition = inverse_transformation.MapPoint(mousePosition);
 
             // zoom in (mouse wheel ↑)
             if (e.Delta > 0)
@@ -780,9 +741,7 @@ namespace NodeGraphControl
             UpdateMatrices();
 
             // Calculate where that world position is now in screen space
-            Span<PointF> screenPoints = [worldPosition];
-            transformation.TransformPoints(screenPoints);
-            var newScreenPosition = screenPoints[0];
+            var newScreenPosition = transformation.MapPoint(worldPosition);
 
             // Adjust translation to keep the world position under the mouse
             translation.X += mousePosition.X - newScreenPosition.X;
@@ -803,13 +762,10 @@ namespace NodeGraphControl
 
         private void UpdateOriginalLocation(Point location)
         {
-            var points = new PointF[] { location };
-            inverse_transformation.TransformPoints(points);
-            var transformed_location = points[0];
+            var skLocation = new SKPoint(location.X, location.Y);
+            originalLocation = inverse_transformation.MapPoint(skLocation);
 
-            originalLocation = transformed_location;
-
-            snappedLocation = lastLocation = location;
+            snappedLocation = lastLocation = skLocation;
         }
 
         #endregion
@@ -936,9 +892,8 @@ namespace NodeGraphControl
                 _command = CommandMode.TranslateView;
             }
 
-            var points = new[] { originalLocation };
-            transformation.TransformPoints(points);
-            originalMouseLocation = PointToScreen(new Point((int)points[0].X, (int)points[0].Y));
+            var transformedPoint = transformation.MapPoint(originalLocation);
+            originalMouseLocation = new SKPoint(transformedPoint.X, transformedPoint.Y);
         }
 
         private void BringNodeToFront(AbstractNode node)
@@ -959,10 +914,8 @@ namespace NodeGraphControl
         {
             base.OnMouseMove(e);
 
-            var currentLocation = e.Location;
-            var points = new PointF[] { currentLocation };
-            inverse_transformation.TransformPoints(points);
-            var transformed_location = points[0];
+            var currentLocation = new SKPoint(e.Location.X, e.Location.Y);
+            var transformed_location = inverse_transformation.MapPoint(currentLocation);
 
             var deltaX = (lastLocation.X - currentLocation.X) / zoom;
             var deltaY = (lastLocation.Y - currentLocation.Y) / zoom;
@@ -996,7 +949,7 @@ namespace NodeGraphControl
                     {
                         foreach (var node in _graphNodes.Where(node => node.Selected))
                         {
-                            node.Location = new Point((int)Math.Round(node.Location.X - deltaX),
+                            node.Location = new SKPoint((int)Math.Round(node.Location.X - deltaX),
                                 (int)Math.Round(node.Location.Y - deltaY));
                             node.Calculate();
                         }
@@ -1140,11 +1093,8 @@ namespace NodeGraphControl
 
             try
             {
-                var currentLocation = e.Location;
-
-                var points = new PointF[] { currentLocation };
-                inverse_transformation.TransformPoints(points);
-                var transformed_location = points[0];
+                var currentLocation = new SKPoint(e.Location.X, e.Location.Y);
+                var transformed_location = inverse_transformation.MapPoint(currentLocation);
 
                 switch (_command)
                 {
@@ -1228,7 +1178,7 @@ namespace NodeGraphControl
                     return;
                 }
 
-                var avgPoint = new PointF((float)(x / count), (float)(y / count));
+                var avgPoint = new SKPoint((float)(x / count), (float)(y / count));
                 FocusView(avgPoint);
             }
 
@@ -1287,36 +1237,30 @@ namespace NodeGraphControl
             Refresh();
         }
 
-        protected void FocusView(PointF focusPoint)
+        protected void FocusView(SKPoint focusPoint)
         {
-            var translatedLocation = GetOriginalPosition(new PointF(focusPoint.X, focusPoint.Y));
+            var translatedLocation = GetOriginalPosition(focusPoint);
             translation.X -= translatedLocation.X - Width / 2f;
             translation.Y -= translatedLocation.Y - Height / 2f;
             Invalidate();
         }
 
-        private PointF GetTranslatedPosition(Point mouseClick)
+        private SKPoint GetTranslatedPosition(Point mouseClick)
         {
-            var points = new PointF[] { mouseClick };
-            inverse_transformation.TransformPoints(points);
-            return points[0];
+            return inverse_transformation.MapPoint(new SKPoint(mouseClick.X, mouseClick.Y));
         }
 
-        private PointF GetTranslatedPosition(PointF positionInsideClip)
+        private SKPoint GetTranslatedPosition(SKPoint positionInsideClip)
         {
-            var points = new PointF[] { positionInsideClip };
-            inverse_transformation.TransformPoints(points);
-            return points[0];
+            return inverse_transformation.MapPoint(positionInsideClip);
         }
 
-        private PointF GetOriginalPosition(PointF transformed)
+        private SKPoint GetOriginalPosition(SKPoint transformed)
         {
-            var points = new[] { transformed };
-            transformation.TransformPoints(points);
-            return points[0];
+            return transformation.MapPoint(transformed);
         }
 
-        private NodeUIElement FindElementAtOriginal(PointF point)
+        private NodeUIElement FindElementAtOriginal(SKPoint point)
         {
             foreach (var node in _graphNodes)
             {
@@ -1345,7 +1289,7 @@ namespace NodeGraphControl
             for (int i = _connections.Count - 1; i >= 0; i--)
             {
                 var wire = _connections[i];
-                if (wire.Region != null && wire.Region.IsVisible(point))
+                if (wire.HitTestPath != null && wire.HitTestPath.Contains(point.X, point.Y))
                 {
                     return wire;
                 }
