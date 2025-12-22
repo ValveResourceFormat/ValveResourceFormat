@@ -30,6 +30,7 @@
     <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
     <PackageReference Include="OpenTK" Version="4.9.4" />
     <PackageReference Include="Svg.Skia" Version="3.2.1" />
+    <PackageReference Include="SkiaSharp.Views.WindowsForms" Version="3.119.1" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Icons\**" />
@@ -47,10 +48,6 @@
       <Project>{E685E563-5F49-4D8D-8342-A7354229E54F}</Project>
       <Name>ValveResourceFormat</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Misc\NodeGraphControl\NodeGraphControl.csproj">
-        <Project>{329d2374-b63c-4d82-88ab-5e628df1449a}</Project>
-        <Name>NodeGraphControl</Name>
-      </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />

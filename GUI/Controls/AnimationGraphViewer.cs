@@ -658,7 +658,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
             if (outputSocket != null)
             {
-                var typeColor = NodeGraphControl.CommonStates.GetColorByType(outputSocket.ValueType);
+                var typeColor = NodeGraphControl.SharedState.GetColorByType(outputSocket.ValueType);
                 if (typeColor != SKColor.Empty)
                 {
                     HeaderColor = typeColor;

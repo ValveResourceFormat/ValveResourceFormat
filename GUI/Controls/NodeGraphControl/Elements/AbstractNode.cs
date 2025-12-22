@@ -23,8 +23,9 @@ namespace NodeGraphControl.Elements
             SKFont[] fonts = [HeaderNameFont, HeaderTypeFont, SocketCaptionFont];
             foreach (var font in fonts)
             {
-                font.Hinting = SKFontHinting.Full;
+                font.Hinting = SKFontHinting.Normal;
                 font.Subpixel = true;
+                font.Edging = SKFontEdging.SubpixelAntialias;
             }
         }
 
@@ -214,7 +215,7 @@ namespace NodeGraphControl.Elements
 
         public virtual void Draw(SKCanvas canvas)
         {
-            int cornerSize = CommonStates.CornerSize;
+            int cornerSize = SharedState.CornerSize;
             var left = Location.X;
             var top = Location.Y;
             var right = Location.X + NodeWidth;
@@ -283,7 +284,7 @@ namespace NodeGraphControl.Elements
                         DrawSocket(
                             canvas,
                             socketIn.Pivot,
-                            CommonStates.GetColorByType(socketIn.ValueType),
+                            SharedState.GetColorByType(socketIn.ValueType),
                             (socketIn.IsConnected()),
                             socketIn.Hub
                         );
@@ -303,7 +304,7 @@ namespace NodeGraphControl.Elements
                     DrawSocket(
                         canvas,
                         socketOut.Pivot,
-                        CommonStates.GetColorByType(socketOut.ValueType),
+                        SharedState.GetColorByType(socketOut.ValueType),
                         (socketOut.IsConnected()),
                         false
                     );

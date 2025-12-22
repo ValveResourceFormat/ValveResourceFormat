@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace NodeGraphControl
 {
-    public static class CommonStates
+    public static class SharedState
     {
         public const int CornerSize = 12;
 

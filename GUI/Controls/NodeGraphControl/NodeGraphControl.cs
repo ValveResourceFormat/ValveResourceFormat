@@ -11,6 +11,12 @@ using NodeGraphControl.Elements;
 
 namespace NodeGraphControl
 {
+    /*
+        NodeGraphControl
+        MIT License
+        Copyright (c) 2021 amaurote
+        https://github.com/amaurote/NodeGraphControl
+    */
     public partial class NodeGraphControl : SKControl
     {
         #region Constructor
@@ -152,7 +158,7 @@ namespace NodeGraphControl
 
         public static void AddTypeColorPair<T>(SKColor color)
         {
-            CommonStates.TypeColor.TryAdd(typeof(T), color);
+            SharedState.TypeColor.TryAdd(typeof(T), color);
         }
 
         public void LayoutNodes(float padding = 20f)
@@ -482,7 +488,7 @@ namespace NodeGraphControl
                 }
 
                 // draw wire
-                var wireColor = CommonStates.GetColorByType(wire.From.ValueType);
+                var wireColor = SharedState.GetColorByType(wire.From.ValueType);
                 var wireWidth = (wire == lastHover) ? 4f : 3f;
                 using var wirePaint = new SKPaint { Color = wireColor, StrokeWidth = wireWidth, IsAntialias = true, Style = SKPaintStyle.Stroke };
                 using var wirePath = DrawWire(canvas, wirePaint, xFrom, yFrom, xTo, yTo);
