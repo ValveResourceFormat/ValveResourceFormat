@@ -60,6 +60,7 @@ namespace GUI
             closeToolStripMenuItems = new ThemedToolStripMenuItem();
             closeToolStripMenuItemsToRight = new ThemedToolStripMenuItem();
             closeToolStripMenuItemsToLeft = new ThemedToolStripMenuItem();
+            toolStripSeparator5 = new ToolStripSeparator();
             exportAsIsToolStripMenuItem = new ThemedToolStripMenuItem();
             decompileExportToolStripMenuItem = new ThemedToolStripMenuItem();
             clearConsoleToolStripMenuItem = new ThemedToolStripMenuItem();
@@ -86,7 +87,6 @@ namespace GUI
             mainLogo = new PictureBox();
             controlsBoxPanel = new ControlsBoxPanel();
             mainFormBottomPanel = new MainFormBottomPanel();
-            toolStripSeparator5 = new ToolStripSeparator();
             menuStrip.SuspendLayout();
             tabContextMenuStrip.SuspendLayout();
             vpkContextMenu.SuspendLayout();
@@ -179,7 +179,6 @@ namespace GUI
             // 
             // findToolStripButton
             // 
-            findToolStripButton.Enabled = false;
             findToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             findToolStripButton.Name = "findToolStripButton";
             findToolStripButton.Padding = new Padding(4);
@@ -282,6 +281,11 @@ namespace GUI
             closeToolStripMenuItemsToLeft.SVGImageResourceName = "GUI.Icons.CloseAllTabsLeft.svg";
             closeToolStripMenuItemsToLeft.Text = "Close all tabs to &left";
             closeToolStripMenuItemsToLeft.Click += CloseToolStripMenuItemsToLeft_Click;
+            // 
+            // toolStripSeparator5
+            // 
+            toolStripSeparator5.Name = "toolStripSeparator5";
+            toolStripSeparator5.Size = new System.Drawing.Size(230, 6);
             // 
             // exportAsIsToolStripMenuItem
             // 
@@ -500,11 +504,6 @@ namespace GUI
             mainFormBottomPanel.Name = "mainFormBottomPanel";
             mainFormBottomPanel.Size = new System.Drawing.Size(749, 30);
             mainFormBottomPanel.TabIndex = 4;
-            // 
-            // toolStripSeparator5
-            // 
-            toolStripSeparator5.Name = "toolStripSeparator5";
-            toolStripSeparator5.Size = new System.Drawing.Size(230, 6);
             // 
             // MainForm
             // 
