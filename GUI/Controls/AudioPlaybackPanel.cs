@@ -32,21 +32,8 @@ namespace GUI.Controls
         {
             base.OnHandleCreated(e);
 
-            {
-                using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.AudioPlay.svg");
-                Debug.Assert(svgResource is not null);
-                using var svg = new SKSvg();
-                svg.Load(svgResource);
-                buttonPlay.Image = Themer.SvgToBitmap(svg, this.AdjustForDPI(buttonPlay.Image.Width), this.AdjustForDPI(buttonPlay.Image.Height));
-            }
-
-            {
-                using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.AudioPause.svg");
-                Debug.Assert(svgResource is not null);
-                using var svg = new SKSvg();
-                svg.Load(svgResource);
-                buttonPause.Image = Themer.SvgToBitmap(svg, this.AdjustForDPI(buttonPause.Image.Width), this.AdjustForDPI(buttonPause.Image.Height));
-            }
+            buttonPlay.Image = Themer.CreateImage(this, buttonPlay.Image, "AudioPlay");
+            buttonPause.Image = Themer.CreateImage(this, buttonPause.Image, "AudioPause");
         }
 
         private void OnButtonPlayClick(object sender, EventArgs e) => Play();
