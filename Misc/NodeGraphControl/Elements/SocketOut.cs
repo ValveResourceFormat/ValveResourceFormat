@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 
 #nullable disable
@@ -7,7 +5,7 @@ namespace NodeGraphControl.Elements
 {
     public class SocketOut : AbstractSocket
     {
-        private readonly List<Wire> OutputConnections = new List<Wire>();
+        private readonly List<Wire> OutputConnections = [];
 
         public SocketOut(Type valueType, string name, AbstractNode owner) : base(valueType, name, owner)
         {
@@ -18,11 +16,13 @@ namespace NodeGraphControl.Elements
         public void UpdateValue(object value)
         {
             if (value.Equals(Value))
+            {
                 return;
+            }
 
             if (value != null && value.GetType() != ValueType)
             {
-                throw new Exception("Incompatible Type: " + value.GetType() + " ! Expected: " + ValueType + ".");
+                throw new ArgumentException("Incompatible Type: " + value.GetType() + " ! Expected: " + ValueType + ".", nameof(value));
             }
             else
             {
@@ -38,7 +38,7 @@ namespace NodeGraphControl.Elements
         {
             if (OutputConnections.Any(connection => wire.To == connection.To))
             {
-                throw new Exception("Connection already exists");
+                throw new InvalidOperationException("Connection already exists");
             }
             else
             {

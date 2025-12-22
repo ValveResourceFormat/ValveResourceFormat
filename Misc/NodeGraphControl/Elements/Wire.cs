@@ -1,4 +1,3 @@
-using System;
 using System.Drawing;
 using NodeGraphControl.Elements;
 
@@ -26,13 +25,17 @@ namespace NodeGraphControl
                         && !_to.Hub
                         && value.ValueType != _to.ValueType
                         && !value.ValueType.IsSubclassOf(_to.ValueType))
-                        throw new Exception("Type mismatch!");
+                    {
+                        throw new InvalidOperationException("Type mismatch!");
+                    }
 
                     if (value.GetType() == typeof(SocketOut))
+                    {
                         _from = value;
+                    }
                     else
                     {
-                        throw new Exception("Can't connect output to output!");
+                        throw new InvalidOperationException("Can't connect output to output!");
                     }
                 }
             }
@@ -55,13 +58,17 @@ namespace NodeGraphControl
                         && !value.Hub
                         && value.ValueType != _from.ValueType
                         && !_from.ValueType.IsSubclassOf(value.ValueType))
-                        throw new Exception("Type mismatch!");
+                    {
+                        throw new InvalidOperationException("Type mismatch!");
+                    }
 
                     if (value.GetType() == typeof(SocketIn))
+                    {
                         _to = value;
+                    }
                     else
                     {
-                        throw new Exception("Can't connect input to input!");
+                        throw new InvalidOperationException("Can't connect input to input!");
                     }
                 }
             }

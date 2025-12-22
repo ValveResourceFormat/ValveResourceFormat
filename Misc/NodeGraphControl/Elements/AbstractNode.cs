@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Linq;
 
 #nullable disable
 namespace NodeGraphControl.Elements
@@ -62,7 +59,7 @@ namespace NodeGraphControl.Elements
 
         protected void OnInvokeRepaint(EventArgs e)
         {
-            EventHandler handler = InvokeRepaint;
+            var handler = InvokeRepaint;
             handler?.Invoke(this, e);
         }
 
@@ -79,7 +76,9 @@ namespace NodeGraphControl.Elements
             foreach (var socket in Sockets)
             {
                 if (socket.SocketName == name)
+                {
                     return socket;
+                }
             }
 
             return null;
@@ -87,9 +86,20 @@ namespace NodeGraphControl.Elements
 
         public NodeBoundsArea GetBoundsArea(PointF point)
         {
-            if (BoundsHeader.Contains(point)) return NodeBoundsArea.HEADER;
-            if (BoundsBase.Contains(point)) return NodeBoundsArea.BASE;
-            if (BoundsFooter.Contains(point)) return NodeBoundsArea.FOOTER;
+            if (BoundsHeader.Contains(point))
+            {
+                return NodeBoundsArea.HEADER;
+            }
+
+            if (BoundsBase.Contains(point))
+            {
+                return NodeBoundsArea.BASE;
+            }
+
+            if (BoundsFooter.Contains(point))
+            {
+                return NodeBoundsArea.FOOTER;
+            }
 
             return NodeBoundsArea.NONE;
         }
@@ -109,15 +119,24 @@ namespace NodeGraphControl.Elements
         public void Calculate()
         {
             if (MinBaseHeight == 0)
+            {
                 MinBaseHeight = SocketSize * 4; // default minimum height
+            }
 
             var countIn = 0;
             var countOut = 0;
 
             foreach (var socket in Sockets)
             {
-                if (socket.GetType() == typeof(SocketIn)) countIn++;
-                if (socket.GetType() == typeof(SocketOut)) countOut++;
+                if (socket.GetType() == typeof(SocketIn))
+                {
+                    countIn++;
+                }
+
+                if (socket.GetType() == typeof(SocketOut))
+                {
+                    countOut++;
+                }
             }
 
             var socketsHeight = (SocketSize * 4) * Math.Max(countIn, countOut);
@@ -284,16 +303,24 @@ namespace NodeGraphControl.Elements
             if (hub)
             {
                 if (fill)
+                {
                     g.FillRectangle(eBrush, eX + 2, eY - 1, SocketSize - 2, SocketSize + 1);
+                }
                 else
+                {
                     g.DrawRectangle(ePen, eX + 2, eY - 1, SocketSize - 2, SocketSize + 1);
+                }
             }
             else
             {
                 if (fill)
+                {
                     g.FillEllipse(eBrush, eX, eY, SocketSize, SocketSize);
+                }
                 else
+                {
                     g.DrawEllipse(ePen, eX, eY, SocketSize, SocketSize);
+                }
             }
         }
 
@@ -304,8 +331,8 @@ namespace NodeGraphControl.Elements
             Center // just in case... why not have an option to align to center
         }
 
-        public static readonly Font SocketCaptionFont = new Font(new FontFamily("Helvetica"), 10f, FontStyle.Bold);
-        public static readonly Font HeaderFont = new Font(FontFamily.GenericSansSerif, 9f, FontStyle.Bold);
+        public static readonly Font SocketCaptionFont = new(new FontFamily("Helvetica"), 10f, FontStyle.Bold);
+        public static readonly Font HeaderFont = new(FontFamily.GenericSansSerif, 9f, FontStyle.Bold);
 
         private void DrawSocketCaption(Graphics g, PointF center, AbstractSocket socket, Alignment alignment)
         {
@@ -315,21 +342,13 @@ namespace NodeGraphControl.Elements
             var sSizeF = g.MeasureString(text, SocketCaptionFont);
             var position = PointF.Empty;
 
-            switch (alignment)
+            position.X = alignment switch
             {
-                case Alignment.Left:
-                    position.X = center.X;
-                    break;
-                case Alignment.Right:
-                    position.X = center.X - sSizeF.Width;
-                    break;
-                case Alignment.Center:
-                    position.X = center.X + sSizeF.Width / 2;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(alignment), alignment, null);
-            }
-
+                Alignment.Left => center.X,
+                Alignment.Right => center.X - sSizeF.Width,
+                Alignment.Center => center.X + sSizeF.Width / 2,
+                _ => throw new ArgumentOutOfRangeException(nameof(alignment), alignment, null),
+            };
             position.Y = center.Y - (sSizeF.Height / 2);
             using var brush = new SolidBrush(textColor);
 

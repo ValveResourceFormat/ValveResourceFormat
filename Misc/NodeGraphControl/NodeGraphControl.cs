@@ -1,11 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.Linq;
-using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using NodeGraphControl.Elements;
@@ -21,7 +18,7 @@ namespace NodeGraphControl
         public NodeGraphControl()
         {
             InitializeComponent();
-            this.SetStyle(
+            SetStyle(
                 ControlStyles.AllPaintingInWmPaint | ControlStyles.Opaque | ControlStyles.OptimizedDoubleBuffer |
                 ControlStyles.ResizeRedraw | ControlStyles.Selectable | ControlStyles.UserPaint, true);
         }
@@ -38,7 +35,7 @@ namespace NodeGraphControl
             }
         }
 
-        private readonly List<ContextNode> _contextNodeList = new List<ContextNode>();
+        private readonly List<ContextNode> _contextNodeList = [];
 
         public void AddContextNodeType<T>(string contextName, string contextDescription, string contextCategory)
             where T : AbstractNode
@@ -51,7 +48,7 @@ namespace NodeGraphControl
             // create name from type
             var typeStr = typeof(T).ToString().Split('.').Last();
             // insert space before Capital letter and ignore acronyms
-            var nameFromTypeStr = Regex.Replace(typeStr, @"((?<=\p{Ll})\p{Lu})|((?!\A)\p{Lu}(?>\p{Ll}))", " $0");
+            var nameFromTypeStr = MyRegex().Replace(typeStr, " $0");
 
             // add context node data
             cn.NodeType = typeof(T);
@@ -123,7 +120,9 @@ namespace NodeGraphControl
         private void Disconnect(Wire wire)
         {
             if (wire == null)
+            {
                 return;
+            }
 
             wire.Disconnect();
             _connections.Remove(wire);
@@ -162,7 +161,9 @@ namespace NodeGraphControl
         public void LayoutNodes(float padding = 20f)
         {
             if (_graphNodes.Count == 0)
+            {
                 return;
+            }
 
             const int maxIterations = 100;
 
@@ -257,7 +258,9 @@ namespace NodeGraphControl
                 }
 
                 if (!hasOverlap)
+                {
                     break;
+                }
             }
 
             Invalidate();
@@ -305,7 +308,9 @@ namespace NodeGraphControl
             set
             {
                 if (_gridStyle == value)
+                {
                     return;
+                }
 
                 _gridStyle = value;
                 Invalidate();
@@ -322,7 +327,9 @@ namespace NodeGraphControl
             set
             {
                 if (_gridStep == value)
+                {
                     return;
+                }
 
                 _gridStep = value;
                 Invalidate();
@@ -331,7 +338,7 @@ namespace NodeGraphControl
 
         // grid color
         private Color _gridColor = Color.LightGray;
-        private Pen _gridPen = new Pen(Color.LightGray);
+        private Pen _gridPen = new(Color.LightGray);
         private Brush _gridBrush = new SolidBrush(Color.LightGray);
 
         [Description("The color for the grid lines with the largest gap between them"), Category("Appearance")]
@@ -341,7 +348,9 @@ namespace NodeGraphControl
             set
             {
                 if (_gridColor == value)
+                {
                     return;
+                }
 
                 _gridColor = value;
                 _gridPen = new Pen(_gridColor);
@@ -360,7 +369,9 @@ namespace NodeGraphControl
             set
             {
                 if (_canvasBackgroundColor == value)
+                {
                     return;
+                }
 
                 _canvasBackgroundColor = value;
                 Invalidate();
@@ -371,8 +382,8 @@ namespace NodeGraphControl
 
         #region Elements
 
-        private readonly List<AbstractNode> _graphNodes = new List<AbstractNode>();
-        private readonly List<Wire> _connections = new List<Wire>();
+        private readonly List<AbstractNode> _graphNodes = [];
+        private readonly List<Wire> _connections = [];
         private Wire _tempWire;
 
         #endregion
@@ -408,8 +419,8 @@ namespace NodeGraphControl
         float zoom = 1.0f;
         private float zoomLast;
 
-        readonly Matrix transformation = new Matrix();
-        readonly Matrix inverse_transformation = new Matrix();
+        readonly Matrix transformation = new();
+        readonly Matrix inverse_transformation = new();
 
         private void UpdateMatrices()
         {
@@ -454,7 +465,7 @@ namespace NodeGraphControl
             base.OnPaint(e);
 
             // initialization and settings
-            Graphics g = e.Graphics;
+            var g = e.Graphics;
 
             g.PageUnit = GraphicsUnit.Pixel;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
@@ -479,7 +490,9 @@ namespace NodeGraphControl
 
             // return if no nodes
             if (_graphNodes.Count == 0)
+            {
                 return;
+            }
 
             // set smoothing mode quality
             g.SmoothingMode = SmoothingMode.HighQuality;
@@ -494,7 +507,9 @@ namespace NodeGraphControl
 
                 // skip wire if there is no distance between two points
                 if (Vector2.Distance(new Vector2(xFrom, yFrom), new Vector2(xTo, yTo)) < 1f)
+                {
                     continue;
+                }
 
                 // draw wire
                 var wireColor = CommonStates.GetColorByType(wire.From.ValueType);
@@ -595,7 +610,9 @@ namespace NodeGraphControl
             set
             {
                 if (_wireStyle == value)
+                {
                     return;
+                }
 
                 _wireStyle = value;
                 Invalidate();
@@ -613,7 +630,9 @@ namespace NodeGraphControl
             {
                 var tempValue = Math.Min(100, Math.Max(0, value));
                 if (_wireMiddlePointsSpread == tempValue)
+                {
                     return;
+                }
 
                 _wireMiddlePointsSpread = tempValue;
                 Invalidate();
@@ -639,10 +658,12 @@ namespace NodeGraphControl
                 var fromHalf = new PointF(from.X + distance / 2 - spreadDistance, from.Y);
                 var toHalf = new PointF(from.X + distance / 2 + spreadDistance, to.Y);
 
-                PointF[] pathPoints = { from, fromHalf, toHalf, to };
+                PointF[] pathPoints = [from, fromHalf, toHalf, to];
 
                 if (_wireStyle == EWireStyle.StepLine)
+                {
                     path.AddLines(pathPoints);
+                }
 
                 if (_wireStyle == EWireStyle.Bezier)
                 {
@@ -660,16 +681,18 @@ namespace NodeGraphControl
 
         private void OnDrawBackground(PaintEventArgs e)
         {
-            Graphics g = e.Graphics;
+            var g = e.Graphics;
 
             e.Graphics.Clear(_canvasBackgroundColor);
 
             if (_gridStyle == EGridStyle.None)
+            {
                 return;
+            }
 
             var points = new PointF[] {
-                new PointF(e.ClipRectangle.Left, e.ClipRectangle.Top),
-                new PointF(e.ClipRectangle.Right, e.ClipRectangle.Bottom)
+                new(e.ClipRectangle.Left, e.ClipRectangle.Top),
+                new(e.ClipRectangle.Right, e.ClipRectangle.Bottom)
             };
 
             inverse_transformation.TransformPoints(points);
@@ -686,18 +709,26 @@ namespace NodeGraphControl
             if (_gridStyle == EGridStyle.Grid)
             {
                 for (var x = largeXOffset; x < right; x += _gridStep)
+                {
                     g.DrawLine(_gridPen, x, top, x, bottom);
+                }
 
                 for (var y = largeYOffset; y < bottom; y += _gridStep)
+                {
                     g.DrawLine(_gridPen, left, y, right, y);
+                }
             }
 
             // dots
             if (_gridStyle == EGridStyle.Dots)
             {
                 for (var x = largeXOffset; x < right; x += _gridStep)
+                {
                     for (var y = largeYOffset; y < bottom; y += _gridStep)
+                    {
                         g.FillRectangle(_gridBrush, x, y, 2, 2);
+                    }
+                }
             }
         }
 
@@ -788,7 +819,7 @@ namespace NodeGraphControl
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
-            this.Focus();
+            Focus();
 
             UpdateOriginalLocation(e.Location);
 
@@ -859,7 +890,7 @@ namespace NodeGraphControl
                     }
                     else
                     {
-                        Wire connection = socketIn.GetAllConnections()[0];
+                        var connection = socketIn.AllConnections[0];
 
                         _tempWire = new Wire { From = connection.From, To = null };
                         Disconnect(connection);
@@ -907,13 +938,15 @@ namespace NodeGraphControl
 
             var points = new[] { originalLocation };
             transformation.TransformPoints(points);
-            originalMouseLocation = this.PointToScreen(new Point((int)points[0].X, (int)points[0].Y));
+            originalMouseLocation = PointToScreen(new Point((int)points[0].X, (int)points[0].Y));
         }
 
         private void BringNodeToFront(AbstractNode node)
         {
             if (_graphNodes.Remove(node))
+            {
                 _graphNodes.Add(node);
+            }
 
             Refresh();
         }
@@ -982,7 +1015,9 @@ namespace NodeGraphControl
                     {
                         if ((Math.Abs(deltaX) > 1) ||
                             (Math.Abs(deltaY) > 1))
+                        {
                             mouseMoved = true;
+                        }
                     }
 
                     if (mouseMoved &&
@@ -1189,7 +1224,9 @@ namespace NodeGraphControl
                 }
 
                 if (count == 0)
+                {
                     return;
+                }
 
                 var avgPoint = new PointF((float)(x / count), (float)(y / count));
                 FocusView(avgPoint);
@@ -1287,9 +1324,14 @@ namespace NodeGraphControl
                 foreach (var socket in node.Sockets.Where(socket => !socket.DisplayOnly && socket.BoundsFull.Contains(point)))
                 {
                     if (socket.GetType() == typeof(SocketIn))
+                    {
                         return (SocketIn)socket;
+                    }
+
                     if (socket.GetType() == typeof(SocketOut))
+                    {
                         return (SocketOut)socket;
+                    }
                 }
 
                 // find node
@@ -1304,7 +1346,9 @@ namespace NodeGraphControl
             {
                 var wire = _connections[i];
                 if (wire.Region != null && wire.Region.IsVisible(point))
+                {
                     return wire;
+                }
             }
 
             return null;
@@ -1396,7 +1440,7 @@ namespace NodeGraphControl
         */
         #region NodeSelection
 
-        private List<AbstractNode> lastSelected = new List<AbstractNode>();
+        private List<AbstractNode> lastSelected = [];
 
         private void HandleSelection()
         {
@@ -1413,6 +1457,9 @@ namespace NodeGraphControl
                 lastSelected = selected;
             }
         }
+
+        [GeneratedRegex(@"((?<=\p{Ll})\p{Lu})|((?!\A)\p{Lu}(?>\p{Ll}))")]
+        private static partial Regex MyRegex();
 
         #endregion
     }

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 
 #nullable disable
@@ -30,7 +28,7 @@ namespace NodeGraphControl.Elements
         {
             if (InputConnections.Any(connection => connection.Key.From == wire.From))
             {
-                throw new Exception("Connection already exists");
+                throw new InvalidOperationException("Connection already exists");
             }
 
             if (Hub)
@@ -47,21 +45,25 @@ namespace NodeGraphControl.Elements
             }
         }
 
-        public object GetSingleValue()
+        public object SingleValue
         {
-            if (Hub)
-                throw new Exception("GetSingleValue is invalid when Socket is Hub");
+            get
+            {
+                if (Hub)
+                {
+                    throw new InvalidOperationException("SingleValue is invalid when Socket is Hub");
+                }
 
-            if (InputConnections.Count == 0)
-                return null;
+                if (InputConnections.Count == 0)
+                {
+                    return null;
+                }
 
-            return InputConnections.Values.ToList()[0];
+                return InputConnections.Values.ToList()[0];
+            }
         }
 
-        public List<object> GetValues()
-        {
-            return InputConnections.Values.ToList();
-        }
+        public List<object> Values => [.. InputConnections.Values];
 
         public override void DisconnectAll()
         {
@@ -85,9 +87,6 @@ namespace NodeGraphControl.Elements
             return InputConnections.ContainsKey(wire);
         }
 
-        public List<Wire> GetAllConnections()
-        {
-            return InputConnections.Keys.ToList();
-        }
+        public List<Wire> AllConnections => [.. InputConnections.Keys];
     }
 }

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Drawing;
 
 namespace NodeGraphControl
@@ -12,12 +10,11 @@ namespace NodeGraphControl
 
         public static Color DefaultTypeColor { get; set; } = Color.Fuchsia;
 
-        public static readonly Dictionary<Type, Color> TypeColor = new Dictionary<Type, Color>();
+        public static readonly Dictionary<Type, Color> TypeColor = [];
 
         public static Color GetColorByType(Type type)
         {
-            Color color;
-            TypeColor.TryGetValue(type, out color);
+            TypeColor.TryGetValue(type, out var color);
             return (!color.IsEmpty) ? color : DefaultTypeColor;
         }
 
