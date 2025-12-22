@@ -699,10 +699,33 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 return;
             }
 
+            // Determine which icon to use based on the file extension
+            var isGraphFile = ExternalResourceName.Contains(".vnmgraph", StringComparison.OrdinalIgnoreCase);
+            var iconName = isGraphFile ? "anmgrph" : "anim";
+
+            // Get icon from cache
+            IconCache.TryGetValue(iconName, out var iconToUse);
+
+            const int iconSize = 16;
+
+            var yOffset = Sockets.Count > 1 ? 55 : 45;
             var position = new SKPoint
             {
                 X = Location.X + 3,
-                Y = Location.Y + 55
+                Y = Location.Y + yOffset
+            };
+
+            // Draw the icon
+            if (iconToUse != null)
+            {
+                canvas.DrawBitmap(iconToUse, position.X, position.Y);
+            }
+
+            // Draw the text next to the icon
+            var textPosition = new SKPoint
+            {
+                X = position.X + iconSize + 6,
+                Y = position.Y + ArialFont.Size + 1
             };
 
             var fileExtensionStart = ExternalResourceName.LastIndexOf('.');
@@ -715,7 +738,20 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
 
             using var paint = new SKPaint { Color = PoseColor, IsAntialias = true };
-            canvas.DrawText(trimStr, position.X, position.Y + ArialFont.Size, ArialFont, paint);
+            canvas.DrawText(trimStr, textPosition.X, textPosition.Y, ArialFont, paint);
+        }
+
+        private static readonly Dictionary<string, SKBitmap> IconCache = [];
+
+        static Node()
+        {
+            LoadIcon("anim");
+            LoadIcon("anmgrph");
+        }
+
+        private static void LoadIcon(string iconName)
+        {
+            IconCache[iconName] = Themer.GetSvgBitmap("AssetTypes." + iconName, 24, 24);
         }
     }
 
