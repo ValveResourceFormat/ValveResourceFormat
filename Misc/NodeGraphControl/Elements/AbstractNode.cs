@@ -16,23 +16,23 @@ namespace NodeGraphControl.Elements
         NONE
     }
 
-    public abstract class AbstractNode : IElement
+    public abstract class AbstractNode : NodeUIElement
     {
-        protected float NodeWidth = 200;
+        protected float NodeWidth { get; set; } = 200f;
 
-        public bool StartNode;
+        public bool StartNode { get; init; }
 
-        public List<AbstractSocket> Sockets { get; } = new List<AbstractSocket>();
+        public List<AbstractSocket> Sockets { get; } = [];
 
         protected const float HeaderHeight = 40;
 
         protected float MinBaseHeight { get; set; }
 
         private float _baseHeight;
-        protected float FullHeight;
+        protected float FullHeight { get; private set; }
         private float _socketSplit;
 
-        protected float FooterHeight;
+        protected float FooterHeight { get; private set; }
 
         private const float SocketSize = 8;
 

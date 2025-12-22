@@ -5,9 +5,8 @@ using NodeGraphControl.Elements;
 #nullable disable
 namespace NodeGraphControl
 {
-    public class Wire : IElement
+    public class Wire : NodeUIElement
     {
-
         public Region Region { get; set; }
 
         private SocketOut _from;

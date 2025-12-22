@@ -8,9 +8,9 @@ namespace NodeGraphControl.Elements
     public class SocketIn : AbstractSocket
     {
 
-        private readonly Dictionary<Wire, object> InputConnections = new Dictionary<Wire, object>();
+        private readonly Dictionary<Wire, object> InputConnections = [];
 
-        public readonly bool Hub;
+        public bool Hub { get; init; }
 
         public SocketIn(Type valueType, string name, AbstractNode owner, bool hub) : base(valueType, name, owner)
         {

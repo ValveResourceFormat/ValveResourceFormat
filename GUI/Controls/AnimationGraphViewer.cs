@@ -241,7 +241,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
                 if (hasWeightsSet)
                 {
-                    totalWeight = Math.Max(1, weights.Cast<int>().Sum());
+                    totalWeight = Math.Max(1, weights.Sum(w => (int)w));
                 }
 
                 var i = 0;
@@ -590,12 +590,12 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         {
             Name = "Result",
             NodeType = "FinalPose",
-            Location = new Point(300, 0)
+            Location = new Point(300, 0),
+            StartNode = true,
         };
         var finalPoseInput = new SocketIn(typeof(Pose), "Out", finalPose, hub: false);
         finalPose.Sockets.Add(finalPoseInput);
         AddNode(finalPose);
-        finalPose.StartNode = true;
 
         var root = CreateNode(nodePaths, nodes, rootNodeIdx);
 

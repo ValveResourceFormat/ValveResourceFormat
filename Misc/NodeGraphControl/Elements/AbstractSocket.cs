@@ -5,19 +5,19 @@ using System.Linq;
 #nullable disable
 namespace NodeGraphControl.Elements
 {
-    public abstract class AbstractSocket : IElement
+    public abstract class AbstractSocket : NodeUIElement
     {
         public string SocketName { get; protected set; }
 
         public string SocketDescription { get; set; }
 
-        public readonly Type ValueType;
+        public Type ValueType { get; private set; }
 
-        public string ValueTypeStr;
+        public string ValueTypeStr { get; private set; }
 
         public bool DisplayOnly { get; set; }
 
-        protected readonly AbstractNode Owner;
+        protected AbstractNode Owner { get; private set; }
 
         private RectangleF _bounds;
 

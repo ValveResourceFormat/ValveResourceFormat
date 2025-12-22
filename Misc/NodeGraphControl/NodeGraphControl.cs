@@ -391,10 +391,9 @@ namespace NodeGraphControl
 
         private CommandMode _command = CommandMode.Edit;
 
-        // IElement internalDragOverElement;
+        // NodeUIElement internalDragOverElement;
         bool mouseMoved;
         bool dragging;
-        bool abortDrag;
 
         Point lastLocation;
         PointF snappedLocation;
@@ -440,12 +439,6 @@ namespace NodeGraphControl
             var points = new[] { snappedLocation };
             inverse_transformation.TransformPoints(points);
             var transformed_location = points[0];
-
-            if (abortDrag)
-            {
-                transformed_location = originalLocation;
-            }
-
             return transformed_location;
         }
 
@@ -775,7 +768,7 @@ namespace NodeGraphControl
         private bool leftMouseButton;
         private bool rightMouseButton;
 
-        private IElement lastHover;
+        private NodeUIElement lastHover;
 
         private void UpdateOriginalLocation(Point location)
         {
@@ -933,24 +926,10 @@ namespace NodeGraphControl
         {
             base.OnMouseMove(e);
 
-            Point currentLocation;
-            PointF transformed_location;
-            if (abortDrag)
-            {
-                transformed_location = originalLocation;
-
-                var points = new PointF[] { originalLocation };
-                transformation.TransformPoints(points);
-                currentLocation = new Point((int)points[0].X, (int)points[0].Y);
-            }
-            else
-            {
-                currentLocation = e.Location;
-
-                var points = new PointF[] { currentLocation };
-                inverse_transformation.TransformPoints(points);
-                transformed_location = points[0];
-            }
+            var currentLocation = e.Location;
+            var points = new PointF[] { currentLocation };
+            inverse_transformation.TransformPoints(points);
+            var transformed_location = points[0];
 
             var deltaX = (lastLocation.X - currentLocation.X) / zoom;
             var deltaY = (lastLocation.Y - currentLocation.Y) / zoom;
@@ -963,7 +942,9 @@ namespace NodeGraphControl
                         {
                             if ((Math.Abs(deltaX) > 1) ||
                                 (Math.Abs(deltaY) > 1))
+                            {
                                 mouseMoved = true;
+                            }
                         }
 
                         if (mouseMoved &&
@@ -1118,34 +1099,22 @@ namespace NodeGraphControl
             }
 
             if (!dragging)
+            {
                 return;
+            }
 
             try
             {
-                Point currentLocation;
-                PointF transformed_location;
-                if (abortDrag)
-                {
-                    transformed_location = originalLocation;
+                var currentLocation = e.Location;
 
-                    var points = new PointF[] { originalLocation };
-                    transformation.TransformPoints(points);
-                    currentLocation = new Point((int)points[0].X, (int)points[0].Y);
-                }
-                else
-                {
-                    currentLocation = e.Location;
-
-                    var points = new PointF[] { currentLocation };
-                    inverse_transformation.TransformPoints(points);
-                    transformed_location = points[0];
-                }
-
+                var points = new PointF[] { currentLocation };
+                inverse_transformation.TransformPoints(points);
+                var transformed_location = points[0];
 
                 switch (_command)
                 {
                     case CommandMode.MarqueSelection:
-                        this.Invalidate();
+                        Invalidate();
                         return;
                     case CommandMode.ScaleView:
                         return;
@@ -1310,7 +1279,7 @@ namespace NodeGraphControl
             return points[0];
         }
 
-        private IElement FindElementAtOriginal(PointF point)
+        private NodeUIElement FindElementAtOriginal(PointF point)
         {
             foreach (var node in _graphNodes)
             {
@@ -1341,7 +1310,7 @@ namespace NodeGraphControl
             return null;
         }
 
-        public IElement FindElementAtMousePoint(Point mouseClickPosition)
+        public NodeUIElement FindElementAtMousePoint(Point mouseClickPosition)
         {
             var position = GetTranslatedPosition(mouseClickPosition);
             return FindElementAtOriginal(position);

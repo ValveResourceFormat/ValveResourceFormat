@@ -1,6 +1,6 @@
 namespace NodeGraphControl.Elements
 {
-    public interface IElement
+    public abstract class NodeUIElement
     {
     }
 }
