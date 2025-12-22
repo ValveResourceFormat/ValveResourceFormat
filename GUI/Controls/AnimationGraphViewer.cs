@@ -26,16 +26,16 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         NodeTextColor = new SKColor(230, 230, 230);
         GridColor = SKColors.White;
 
-        PoseColor = SKColors.LightGreen;
-        ValueColor = SKColors.LightBlue;
+        PoseColor = new SKColor(173, 255, 47);
+        ValueColor = new SKColor(0, 191, 255);
 
         if (Themer.CurrentTheme == Themer.AppTheme.Dark)
         {
             CanvasBackgroundColor = ToSKColor(Themer.CurrentThemeColors.AppMiddle);
             NodeColor = ToSKColor(Themer.CurrentThemeColors.AppSoft);
             GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
-            PoseColor = ToSKColor(ControlPaint.Dark(Color.LightGreen, 0.3f));
-            ValueColor = ToSKColor(ControlPaint.Dark(Color.LightBlue, 0.3f));
+            //PoseColor = ToSKColor(ControlPaint.Dark(Color.LightGreen, 0f));
+            //ValueColor = ToSKColor(ControlPaint.Dark(Color.LightBlue, 0f));
         }
 
         AddTypeColorPair<Pose>(PoseColor);
@@ -597,8 +597,9 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             NodeType = "FinalPose",
             Location = new SKPoint(300, 0),
             StartNode = true,
-            TypeColor = PoseColor,
+            HeaderColor = PoseColor,
         };
+
         var finalPoseInput = new SocketIn(typeof(Pose), "Out", finalPose, hub: false);
         finalPose.Sockets.Add(finalPoseInput);
         AddNode(finalPose);
@@ -639,7 +640,6 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
     {
         public KVObject Data { get; set; }
 
-        // todo: polymorphism
         public string? ExternalResourceName { get; set; }
 
         public Node(KVObject data)
@@ -648,6 +648,8 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             BaseColor = NodeColor;
             TextColor = NodeTextColor;
             HeaderColor = ToSKColor(ControlPaint.Light(Color.FromArgb(NodeColor.Red, NodeColor.Green, NodeColor.Blue)));
+            HeaderTextColor = new SKColor(5, 5, 5);
+            HeaderTypeColor = new SKColor(25, 25, 25);
         }
 
         public void UpdateTypeColorFromOutput()
@@ -657,9 +659,9 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             if (outputSocket != null)
             {
                 var typeColor = NodeGraphControl.CommonStates.GetColorByType(outputSocket.ValueType);
-                if (typeColor != SKColor.Empty && typeColor != NodeGraphControl.CommonStates.DefaultTypeColor)
+                if (typeColor != SKColor.Empty)
                 {
-                    TypeColor = typeColor;
+                    HeaderColor = typeColor;
                 }
             }
         }

@@ -14,6 +14,20 @@ namespace NodeGraphControl.Elements
 
     public abstract class AbstractNode : NodeUIElement
     {
+        private static readonly SKFont HeaderNameFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(14f);
+        private static readonly SKFont HeaderTypeFont = SKTypeface.FromFamilyName("Roboto", SKFontStyle.Bold).ToFont(10f);
+        private static readonly SKFont SocketCaptionFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(13f);
+
+        static AbstractNode()
+        {
+            SKFont[] fonts = [HeaderNameFont, HeaderTypeFont, SocketCaptionFont];
+            foreach (var font in fonts)
+            {
+                font.Hinting = SKFontHinting.Full;
+                font.Subpixel = true;
+            }
+        }
+
         protected float NodeWidth { get; set; } = 200f;
 
         public bool StartNode { get; init; }
@@ -36,15 +50,21 @@ namespace NodeGraphControl.Elements
 
         [Category("Location")] public SKPoint Pivot { get; private set; }
 
-        public string Name { get; set; }
+        private bool remeasureWidth;
+        public string Name
+        {
+            get;
+            set { field = value; remeasureWidth = true; }
+        }
 
         [ReadOnly(true)] public string NodeType { get; set; }
         public string Description { get; set; }
 
-        public SKColor HeaderColor { get; set; } // TODO add default color
-        protected SKColor BaseColor { get; set; } // TODO add default color
+        public SKColor HeaderColor { get; set; }
+        protected SKColor BaseColor { get; set; }
         protected SKColor TextColor { get; set; }
-        public SKColor TypeColor { get; set; } = SKColors.Orange;
+        public SKColor HeaderTypeColor { get; set; } = SKColors.Orange;
+        public SKColor HeaderTextColor { get; set; } = SKColors.LightGray;
 
         [Browsable(false)] public bool Selected { get; set; } = false;
 
@@ -118,6 +138,16 @@ namespace NodeGraphControl.Elements
 
         public void Calculate()
         {
+            if (remeasureWidth)
+            {
+                HeaderNameFont.MeasureText(Name ?? string.Empty, out var nameBounds);
+
+                var maxTextWidth = nameBounds.Width;
+                var minWidth = maxTextWidth + 20f; // Add padding (10px each side)
+                NodeWidth = Math.Max(200f, minWidth); // Minimum 200px
+                remeasureWidth = false;
+            }
+
             if (MinBaseHeight == 0)
             {
                 MinBaseHeight = SocketSize * 4; // default minimum height
@@ -219,17 +249,16 @@ namespace NodeGraphControl.Elements
 
                 canvas.DrawPath(path, headerColorPaint);
 
-                float nodeTextOffset = 2f;
-                float nodeTypePositionY = Location.Y + nodeTextOffset + 2;
-                float nodeNamePositionY = Location.Y + HeaderHeight / 2 + nodeTextOffset;
-                float nodeStringPositionX = Location.X + nodeTextOffset;
+                var nodeTextOffset = 8f;
+                var nodeTypePositionY = Location.Y + nodeTextOffset + 2;
+                var nodeNamePositionY = Location.Y + HeaderHeight / 2 + nodeTextOffset;
+                var nodeStringPositionX = Location.X + nodeTextOffset;
 
-                using var headerFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold).ToFont(12f);
-                using var headerTextPaint = new SKPaint { Color = SKColors.LightGray, IsAntialias = true };
-                using var headerTypePaint = new SKPaint { Color = TypeColor, IsAntialias = true };
+                using var headerTextPaint = new SKPaint { Color = HeaderTextColor, IsAntialias = true };
+                using var headerTypePaint = new SKPaint { Color = HeaderTypeColor, IsAntialias = true };
 
-                canvas.DrawText(Name, nodeStringPositionX, nodeTypePositionY + 10f, headerFont, headerTextPaint);
-                canvas.DrawText(NodeType, nodeStringPositionX, nodeNamePositionY + 10f, headerFont, headerTypePaint);
+                canvas.DrawText(Name, nodeStringPositionX, nodeTypePositionY + 10f, HeaderNameFont, headerTextPaint);
+                canvas.DrawText(NodeType, nodeStringPositionX, nodeNamePositionY + 7f, HeaderTypeFont, headerTypePaint);
             }
 
             // sockets
@@ -335,15 +364,12 @@ namespace NodeGraphControl.Elements
             var text = socket.SocketName;
             var textColor = TextColor;
 
-            using var typeface = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold);
-            using var font = typeface.ToFont(13f);
             using var textPaint = new SKPaint { Color = textColor, IsAntialias = true };
 
-            float textWidth;
             SKRect bounds;
-            font.MeasureText(text, out bounds, textPaint);
-            textWidth = bounds.Width;
-            var metrics = font.Metrics;
+            SocketCaptionFont.MeasureText(text, out bounds, textPaint);
+            var textWidth = bounds.Width;
+            var metrics = SocketCaptionFont.Metrics;
             var textHeight = metrics.Descent - metrics.Ascent;
 
             float positionX = alignment switch
@@ -355,7 +381,7 @@ namespace NodeGraphControl.Elements
             };
             float positionY = center.Y - metrics.Ascent - textHeight / 2;
 
-            canvas.DrawText(text, positionX, positionY, font, textPaint);
+            canvas.DrawText(text, positionX, positionY, SocketCaptionFont, textPaint);
         }
 
         #endregion
