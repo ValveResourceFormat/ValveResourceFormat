@@ -136,8 +136,8 @@ namespace GUI.Controls
             }
 
             var vpkImage = MainForm.ExtensionIcons["vpk"];
-            var vcsImage = MainForm.ExtensionIcons["vcs"];
-            var mapImage = MainForm.ExtensionIcons["map"];
+            var vcsImage = MainForm.Icons["FolderShaders"];
+            var mapImage = MainForm.Icons["FolderMap"];
             var pluginImage = MainForm.Icons["Plugin"];
             var folderImage = MainForm.Icons["Folder"];
 
