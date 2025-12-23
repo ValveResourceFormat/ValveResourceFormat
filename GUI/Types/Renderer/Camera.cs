@@ -153,7 +153,7 @@ namespace GUI.Types.Renderer
             var maxHorizontalExtent = 0f;
             var maxVerticalExtent = 0f;
 
-            for (int i = 0; i < 8; i++)
+            for (var i = 0; i < 8; i++)
             {
                 var corner = new Vector3(
                     (i & 1) != 0 ? halfWidth : -halfWidth,

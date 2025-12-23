@@ -414,7 +414,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     node.AddText($"Event: '{eventId}'");
                 }
             }
-            else if (node.NodeType.EndsWith("Math"))
+            else if (node.NodeType.EndsWith("Math", StringComparison.Ordinal))
             {
                 var inputNodeIdxA = data.GetProperty("m_nInputValueNodeIdxA", -1);
                 var inputNodeIdxB = data.GetProperty("m_nInputValueNodeIdxB", -1);
@@ -436,7 +436,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     }
                 }
             }
-            else if (node.NodeType.EndsWith("Comparison"))
+            else if (node.NodeType.EndsWith("Comparison", StringComparison.Ordinal))
             {
                 var childNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx");
                 CreateInputAndChild<Value>(node, 1, childNodeIdx, 100, 300, GetName(childNodeIdx));
@@ -578,7 +578,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     node.ExternalResourceName = resources[dataSlotIdx];
                 }
             }
-            else if (node.NodeType.StartsWith("ControlParameter"))
+            else if (node.NodeType.StartsWith("ControlParameter", StringComparison.Ordinal))
             {
                 node.Description = "Graph input value set by game code.";
             }

@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Drawing;
 using SkiaSharp;
-using SkiaSharp.Views.Desktop;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -171,16 +170,16 @@ namespace NodeGraphControl
             const int maxIterations = 100;
 
             // Simple overlap removal algorithm using iterative repositioning
-            for (int iteration = 0; iteration < maxIterations; iteration++)
+            for (var iteration = 0; iteration < maxIterations; iteration++)
             {
-                bool hasOverlap = false;
+                var hasOverlap = false;
 
-                for (int i = 0; i < _graphNodes.Count; i++)
+                for (var i = 0; i < _graphNodes.Count; i++)
                 {
                     var nodeA = _graphNodes[i];
                     nodeA.Calculate();
 
-                    for (int j = i + 1; j < _graphNodes.Count; j++)
+                    for (var j = i + 1; j < _graphNodes.Count; j++)
                     {
                         var nodeB = _graphNodes[j];
                         nodeB.Calculate();
@@ -265,9 +264,11 @@ namespace NodeGraphControl
 
         #region Events
 
+#pragma warning disable CA1003 // Use generic event handler instances
         public event EventHandler<List<AbstractNode>> SelectionChanged;
 
         public event EventHandler<float> ZoomChanged;
+#pragma warning restore CA1003 // Use generic event handler instances
 
         #endregion
 
@@ -354,7 +355,7 @@ namespace NodeGraphControl
         }
 
         // canvas background color
-        private SKColor _canvasBackgroundColor = new SKColor(23, 25, 31);
+        private SKColor _canvasBackgroundColor = new(23, 25, 31);
 
         [Description("The background color of the canvas"), Category("Appearance")]
         public SKColor CanvasBackgroundColor
@@ -451,7 +452,7 @@ namespace NodeGraphControl
         protected override void OnPaintSurface(SKPaintSurfaceEventArgs e)
         {
             base.OnPaintSurface(e);
-            
+
             var canvas = e.Surface.Canvas;
             canvas.Clear(_canvasBackgroundColor);
 
@@ -987,7 +988,7 @@ namespace NodeGraphControl
 
                         foreach (var node in _graphNodes)
                         {
-                            bool contains = marque_rectangle.Contains(node.Pivot);
+                            var contains = marque_rectangle.Contains(node.Pivot);
                             node.Selected = contains || (Control.ModifierKeys == Keys.Shift && node.Selected);
                         }
 
@@ -1169,7 +1170,7 @@ namespace NodeGraphControl
             if (e.KeyCode == Keys.F)
             {
 
-                int count = 0;
+                var count = 0;
                 double x = 0, y = 0;
 
                 foreach (var node in _graphNodes.Where(node => node.Selected))
@@ -1292,7 +1293,7 @@ namespace NodeGraphControl
             }
 
             // find wire
-            for (int i = _connections.Count - 1; i >= 0; i--)
+            for (var i = _connections.Count - 1; i >= 0; i--)
             {
                 var wire = _connections[i];
                 if (wire.HitTestPath != null && wire.HitTestPath.Contains(point.X, point.Y))

@@ -215,7 +215,7 @@ namespace NodeGraphControl.Elements
 
         public virtual void Draw(SKCanvas canvas)
         {
-            int cornerSize = SharedState.CornerSize;
+            var cornerSize = SharedState.CornerSize;
             var left = Location.X;
             var top = Location.Y;
             var right = Location.X + NodeWidth;
@@ -367,20 +367,19 @@ namespace NodeGraphControl.Elements
 
             using var textPaint = new SKPaint { Color = textColor, IsAntialias = true };
 
-            SKRect bounds;
-            SocketCaptionFont.MeasureText(text, out bounds, textPaint);
+            SocketCaptionFont.MeasureText(text, out var bounds, textPaint);
             var textWidth = bounds.Width;
             var metrics = SocketCaptionFont.Metrics;
             var textHeight = metrics.Descent - metrics.Ascent;
 
-            float positionX = alignment switch
+            var positionX = alignment switch
             {
                 Alignment.Left => center.X,
                 Alignment.Right => center.X - textWidth,
                 Alignment.Center => center.X - textWidth / 2,
                 _ => throw new ArgumentOutOfRangeException(nameof(alignment), alignment, null),
             };
-            float positionY = center.Y - metrics.Ascent - textHeight / 2;
+            var positionY = center.Y - metrics.Ascent - textHeight / 2;
 
             canvas.DrawText(text, positionX, positionY, SocketCaptionFont, textPaint);
         }
@@ -393,8 +392,8 @@ namespace NodeGraphControl.Elements
         private const float ShadowMaxOpacity = 32.0f;
         private const int ShadowThickness = 10;
 
-        private readonly SKColor _shadowColor = new SKColor(7, 7, 7);
-        private readonly SKColor _shadowColorSelected = new SKColor(255, 255, 255);
+        private readonly SKColor _shadowColor = new(7, 7, 7);
+        private readonly SKColor _shadowColorSelected = new(255, 255, 255);
 
         private void DropShadow(SKCanvas canvas, SKPath path)
         {
@@ -408,7 +407,7 @@ namespace NodeGraphControl.Elements
             {
                 var baseColor = (Selected) ? _shadowColorSelected : _shadowColor;
                 var color = new SKColor(baseColor.Red, baseColor.Green, baseColor.Blue, (byte)alpha);
-                
+
                 using var paint = new SKPaint
                 {
                     Color = color,
@@ -417,7 +416,7 @@ namespace NodeGraphControl.Elements
                     IsAntialias = true,
                     StrokeCap = SKStrokeCap.Round
                 };
-                
+
                 canvas.DrawPath(path, paint);
 
                 alpha += delta;
