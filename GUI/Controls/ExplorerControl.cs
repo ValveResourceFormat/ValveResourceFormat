@@ -138,7 +138,7 @@ namespace GUI.Controls
             var vpkImage = MainForm.ExtensionIcons["vpk"];
             var vcsImage = MainForm.Icons["FolderShaders"];
             var mapImage = MainForm.Icons["FolderMap"];
-            var pluginImage = MainForm.Icons["Plugin"];
+            var pluginImage = MainForm.Icons["FolderPlugin"];
             var folderImage = MainForm.Icons["Folder"];
 
             int GetSortPriorityForImage(int image)
@@ -567,7 +567,7 @@ namespace GUI.Controls
 
                 if (WorkshopAddons.TryGetValue(path, out var displayTitle))
                 {
-                    imageIndexFile = MainForm.Icons["Plugin"];
+                    imageIndexFile = MainForm.Icons["FolderPlugin"];
                     pathDisplay = $"{pathDisplay} {displayTitle}";
                 }
                 else
@@ -772,7 +772,8 @@ namespace GUI.Controls
             using var graphics = Graphics.FromImage(destImage);
             graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
             graphics.SmoothingMode = SmoothingMode.HighQuality;
-            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            graphics.PixelOffsetMode = PixelOffsetMode.Half;
+            graphics.CompositingMode = CompositingMode.SourceCopy;
             graphics.DrawImage(originalImage, destRect, 0, 0, originalImage.Width, originalImage.Height, GraphicsUnit.Pixel);
 
             return destImage;
