@@ -138,7 +138,7 @@ namespace GUI.Controls
             var vpkImage = MainForm.ExtensionIcons["vpk"];
             var vcsImage = MainForm.Icons["FolderShaders"];
             var mapImage = MainForm.Icons["FolderMap"];
-            var pluginImage = MainForm.Icons["Plugin"];
+            var pluginImage = MainForm.Icons["FolderPlugin"];
             var folderImage = MainForm.Icons["Folder"];
 
             int GetSortPriorityForImage(int image)
