@@ -465,21 +465,6 @@ namespace GUI
                 Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
             }
 #endif
-
-            ShowHideSearch();
-        }
-
-        private void ShowHideSearch()
-        {
-            // enable/disable the search button as necessary
-            if (mainTabs.SelectedTab != null && mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults package)
-            {
-                findToolStripButton.Enabled = true;
-            }
-            else
-            {
-                findToolStripButton.Enabled = false;
-            }
         }
 
         private int GetTabIndex(TabPage tab)
@@ -861,8 +846,6 @@ namespace GUI
                     {
                         Cursor.Current = Cursors.Default;
                     }
-
-                    ShowHideSearch();
                 });
             },
             TaskContinuationOptions.OnlyOnRanToCompletion);
@@ -1066,24 +1049,64 @@ namespace GUI
         }
 
         /// <summary>
-        /// When the user clicks to search from the toolbar, open a dialog with search options. If the user clicks OK in the dialog,
-        /// perform a search in the selected tab's TreeView for the entered value and display the results in a ListView.
+        /// Handles find/search functionality for the selected tab.
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
         /// <param name="e">Event data.</param>
         private void FindToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var result = searchForm.ShowDialog();
-            if (result == DialogResult.OK)
+            if (mainTabs.SelectedTab == null)
             {
-                // start searching only if the user entered non-empty string, a tab exists, and a tab is selected
-                var searchText = searchForm.SearchText;
-                if (!string.IsNullOrEmpty(searchText) && mainTabs.TabCount > 0 && mainTabs.SelectedTab != null)
+                return;
+            }
+
+            var codeTextBox = FindCodeTextBoxInControl(mainTabs.SelectedTab);
+            if (codeTextBox != null)
+            {
+                codeTextBox.ShowFindDialog();
+                return;
+            }
+
+            var package = mainTabs.SelectedTab.Controls.OfType<TreeViewWithSearchResults>().FirstOrDefault();
+            if (package != null)
+            {
+                var result = searchForm.ShowDialog();
+                if (result == DialogResult.OK)
                 {
-                    var treeView = mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults;
-                    treeView.SearchAndFillResults(searchText, searchForm.SelectedSearchType);
+                    var searchText = searchForm.SearchText;
+                    if (!string.IsNullOrEmpty(searchText))
+                    {
+                        package.SearchAndFillResults(searchText, searchForm.SelectedSearchType);
+                    }
+                }
+                return;
+            }
+
+            mainTabs.SelectedTab.Controls.OfType<ExplorerControl>().FirstOrDefault()?.FocusFilter();
+        }
+
+        private static CodeTextBox FindCodeTextBoxInControl(Control container)
+        {
+            if (container is CodeTextBox codeTextBox)
+            {
+                return codeTextBox;
+            }
+
+            if (container is TabControl tabControl && tabControl.SelectedTab != null)
+            {
+                return FindCodeTextBoxInControl(tabControl.SelectedTab);
+            }
+
+            foreach (Control child in container.Controls)
+            {
+                var found = FindCodeTextBoxInControl(child);
+                if (found != null)
+                {
+                    return found;
                 }
             }
+
+            return null;
         }
 
         private void OpenExplorer_Click(object sender, EventArgs e) => OpenExplorer();

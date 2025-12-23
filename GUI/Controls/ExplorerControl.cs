@@ -704,6 +704,11 @@ namespace GUI.Controls
             filterTextBox.Focus();
         }
 
+        public void FocusFilter()
+        {
+            filterTextBox.Focus();
+        }
+
         private int GetOrLoadAppImage(int appID, KVObject libraryAssetsKv, string libraryCachePath)
         {
             var imageKey = $"@app{appID}";

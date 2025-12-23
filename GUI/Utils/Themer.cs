@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Reflection;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
@@ -423,14 +425,14 @@ namespace GUI.Utils
             return path;
         }
 
-        public static Bitmap SvgToBitmap(SKSvg svg, int width, int height)
+        public static SKBitmap SvgToSkiaBitmap(SKSvg svg, int width, int height)
         {
             if (svg.Picture == null)
             {
                 throw new InvalidOperationException("SKSVG must contain an image");
             }
 
-            using var skBitmap = new SKBitmap(width, height);
+            var skBitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(skBitmap);
 
             canvas.Clear(SKColors.Transparent);
@@ -443,6 +445,28 @@ namespace GUI.Utils
             canvas.DrawPicture(svg.Picture);
             canvas.Flush();
 
+            return skBitmap;
+        }
+
+        public static Bitmap SvgToBitmap(SKSvg svg, int width, int height)
+        {
+            using var skBitmap = SvgToSkiaBitmap(svg, width, height);
+            return skBitmap.ToBitmap();
+        }
+
+        internal static SKBitmap GetSvgBitmap(string iconName, int width, int height)
+        {
+            using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream($"GUI.Icons.{iconName}.svg");
+            Debug.Assert(svgResource is not null);
+            using var svg = new SKSvg();
+            svg.Load(svgResource);
+            return SvgToSkiaBitmap(svg, width, height);
+        }
+
+        internal static Bitmap CreateImage(Control parentControl, Image baseImage, string iconName)
+        {
+            Debug.Assert(baseImage is not null, "There must be a base image assigned to determine size.");
+            using var skBitmap = GetSvgBitmap(iconName, parentControl.AdjustForDPI(baseImage.Width), parentControl.AdjustForDPI(baseImage.Height));
             return skBitmap.ToBitmap();
         }
     }
