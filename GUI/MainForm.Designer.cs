@@ -60,6 +60,7 @@ namespace GUI
             closeToolStripMenuItems = new ThemedToolStripMenuItem();
             closeToolStripMenuItemsToRight = new ThemedToolStripMenuItem();
             closeToolStripMenuItemsToLeft = new ThemedToolStripMenuItem();
+            toolStripSeparator5 = new ToolStripSeparator();
             exportAsIsToolStripMenuItem = new ThemedToolStripMenuItem();
             decompileExportToolStripMenuItem = new ThemedToolStripMenuItem();
             clearConsoleToolStripMenuItem = new ThemedToolStripMenuItem();
@@ -178,7 +179,6 @@ namespace GUI
             // 
             // findToolStripButton
             // 
-            findToolStripButton.Enabled = false;
             findToolStripButton.ImageTransparentColor = System.Drawing.Color.Magenta;
             findToolStripButton.Name = "findToolStripButton";
             findToolStripButton.Padding = new Padding(4);
@@ -240,12 +240,12 @@ namespace GUI
             // 
             // tabContextMenuStrip
             // 
-            tabContextMenuStrip.BackColor = System.Drawing.Color.FromArgb(244, 244, 244);
+            tabContextMenuStrip.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
+            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, toolStripSeparator5, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
             tabContextMenuStrip.LayoutStyle = ToolStripLayoutStyle.Table;
             tabContextMenuStrip.Name = "contextMenuStrip1";
-            tabContextMenuStrip.Size = new System.Drawing.Size(234, 214);
+            tabContextMenuStrip.Size = new System.Drawing.Size(234, 220);
             // 
             // closeToolStripMenuItem
             // 
@@ -281,6 +281,11 @@ namespace GUI
             closeToolStripMenuItemsToLeft.SVGImageResourceName = "GUI.Icons.CloseAllTabsLeft.svg";
             closeToolStripMenuItemsToLeft.Text = "Close all tabs to &left";
             closeToolStripMenuItemsToLeft.Click += CloseToolStripMenuItemsToLeft_Click;
+            // 
+            // toolStripSeparator5
+            // 
+            toolStripSeparator5.Name = "toolStripSeparator5";
+            toolStripSeparator5.Size = new System.Drawing.Size(230, 6);
             // 
             // exportAsIsToolStripMenuItem
             // 
@@ -390,7 +395,7 @@ namespace GUI
             // 
             // vpkEditingContextMenu
             // 
-            vpkEditingContextMenu.BackColor = System.Drawing.Color.FromArgb(244, 244, 244);
+            vpkEditingContextMenu.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             vpkEditingContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
             vpkEditingContextMenu.ImeMode = ImeMode.Off;
             vpkEditingContextMenu.Items.AddRange(new ToolStripItem[] { vpkEditCreateFolderToolStripMenuItem, vpkEditAddExistingFolderToolStripMenuItem, vpkEditAddExistingFilesToolStripMenuItem, vpkEditRemoveThisFolderToolStripMenuItem, vpkEditRemoveThisFileToolStripMenuItem, vpkEditSaveToDiskToolStripMenuItem });
@@ -581,6 +586,7 @@ namespace GUI
         private ThemedContextMenuStrip vpkEditingContextMenu;
         private MainFormBottomPanel mainFormBottomPanel;
         private ThemedToolStripMenuItem validateShadersToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator5;
     }
 }
 

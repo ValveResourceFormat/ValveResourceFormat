@@ -11,6 +11,19 @@ namespace GUI.Controls
     [ToolboxBitmap(typeof(TreeView))]
     class TreeViewDoubleBuffered : TreeView
     {
+        // Disable horizontal scrollbar
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                const int TVS_NOHSCROLL = 0x8000;
+
+                var cp = base.CreateParams;
+                cp.Style |= TVS_NOHSCROLL;
+                return cp;
+            }
+        }
+
         public TreeViewDoubleBuffered() : base()
         {
             DoubleBuffered = true;

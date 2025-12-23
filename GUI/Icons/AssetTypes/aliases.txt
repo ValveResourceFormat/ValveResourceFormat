@@ -4,9 +4,11 @@ avif png
 bmp png
 bsp map
 cfg ini
+conf ini
 clip anim
 csv txt
 fbx mdl
+raw bin
 gameevents vdf
 gif png
 html xml
@@ -17,6 +19,7 @@ nmclip anim
 nmgrph anmgrph
 nmskel skel
 otf ttf
+ttc ttf
 phy phys
 shader vcs
 sndevts sndstck
@@ -29,3 +32,4 @@ vtx mesh
 vvd morf
 webp png
 wrld map
+pop vdf

@@ -71,12 +71,7 @@ namespace GUI.Forms
         {
             base.OnHandleCreated(e);
 
-            using var svgResource = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Icons.ColorEyeDropper.svg");
-            Debug.Assert(svgResource is not null);
-            using var svg = new SKSvg();
-            svg.Load(svgResource);
-            Debug.Assert(EyedropperButton.BackgroundImage is not null);
-            EyedropperButton.BackgroundImage = Themer.SvgToBitmap(svg, this.AdjustForDPI(EyedropperButton.BackgroundImage.Width), this.AdjustForDPI(EyedropperButton.BackgroundImage.Height));
+            EyedropperButton.Image = Themer.CreateImage(this, EyedropperButton.BackgroundImage!, "ColorEyeDropper");
         }
 
         public void UpdateAllControls(bool updateSliderValue = true)
