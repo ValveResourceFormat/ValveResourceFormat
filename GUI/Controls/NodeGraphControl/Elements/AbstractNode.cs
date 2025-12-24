@@ -1,18 +1,9 @@
-using System.ComponentModel;
 using SkiaSharp;
 
 #nullable disable
 namespace NodeGraphControl.Elements
 {
-    public enum NodeBoundsArea
-    {
-        HEADER,
-        BASE,
-        FOOTER,
-        NONE
-    }
-
-    public abstract class AbstractNode : NodeUIElement
+    public abstract class AbstractNode : NodeUIElement, IDisposable
     {
         private static readonly SKFont HeaderNameFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(14f);
         private static readonly SKFont HeaderTypeFont = SKTypeface.FromFamilyName("Roboto", SKFontStyle.Bold).ToFont(10f);
@@ -31,8 +22,6 @@ namespace NodeGraphControl.Elements
 
         protected float NodeWidth { get; set; } = 200f;
 
-        public bool StartNode { get; init; }
-
         public List<AbstractSocket> Sockets { get; } = [];
 
         protected const float HeaderHeight = 40;
@@ -47,9 +36,17 @@ namespace NodeGraphControl.Elements
 
         private const float SocketSize = 8;
 
-        [Category("Location"), ReadOnly(true)] public SKPoint Location { get; set; }
+        // Reusable paint objects to avoid allocations in render loop
+        private readonly SKPaint baseColorPaint = new() { IsAntialias = true, Style = SKPaintStyle.Fill };
+        private readonly SKPaint headerColorPaint = new() { IsAntialias = true, Style = SKPaintStyle.Fill };
+        private readonly SKPaint headerTextPaint = new() { IsAntialias = true };
+        private readonly SKPaint headerTypePaint = new() { IsAntialias = true };
+        private readonly SKPaint textPaint = new() { IsAntialias = true };
+        private readonly SKPaint ePaint = new() { StrokeWidth = 1.8f, IsAntialias = true };
 
-        [Category("Location")] public SKPoint Pivot { get; private set; }
+        public SKPoint Location { get; set; }
+
+        public SKPoint Pivot { get; private set; }
 
         private bool remeasureWidth;
         public string Name
@@ -58,8 +55,7 @@ namespace NodeGraphControl.Elements
             set { field = value; remeasureWidth = true; }
         }
 
-        [ReadOnly(true)] public string NodeType { get; set; }
-        public string Description { get; set; }
+        public string NodeType { get; set; }
 
         public SKColor HeaderColor { get; set; }
         protected SKColor BaseColor { get; set; }
@@ -67,75 +63,12 @@ namespace NodeGraphControl.Elements
         public SKColor HeaderTypeColor { get; set; } = SKColors.Orange;
         public SKColor HeaderTextColor { get; set; } = SKColors.LightGray;
 
-        [Browsable(false)] public bool Selected { get; set; } = false;
+        public bool Selected { get; set; }
 
-        [Category("Bounds")] public SKRect BoundsFull { get; private set; }
-        [Category("Bounds")] public SKRect BoundsHeader { get; private set; }
-        [Category("Bounds")] public SKRect BoundsBase { get; private set; }
-        [Category("Bounds")] public SKRect BoundsFooter { get; private set; }
-
-        #region Events
-
-        public event EventHandler InvokeRepaint;
-
-        protected void OnInvokeRepaint(EventArgs e)
-        {
-            var handler = InvokeRepaint;
-            handler?.Invoke(this, e);
-        }
-
-        #endregion
-
-        #region Interface
-
-        public abstract bool IsReady();
-
-        public abstract void Execute();
-
-        public AbstractSocket GetSocketByName(string name)
-        {
-            foreach (var socket in Sockets)
-            {
-                if (socket.SocketName == name)
-                {
-                    return socket;
-                }
-            }
-
-            return null;
-        }
-
-        public NodeBoundsArea GetBoundsArea(SKPoint point)
-        {
-            if (BoundsHeader.Contains(point))
-            {
-                return NodeBoundsArea.HEADER;
-            }
-
-            if (BoundsBase.Contains(point))
-            {
-                return NodeBoundsArea.BASE;
-            }
-
-            if (BoundsFooter.Contains(point))
-            {
-                return NodeBoundsArea.FOOTER;
-            }
-
-            return NodeBoundsArea.NONE;
-        }
-
-        public void Disconnect()
-        {
-            foreach (var socket in Sockets)
-            {
-                socket.DisconnectAll();
-            }
-        }
-
-        #endregion
-
-        #region CalculateDimensions
+        public SKRect BoundsFull { get; private set; }
+        public SKRect BoundsHeader { get; private set; }
+        public SKRect BoundsBase { get; private set; }
+        public SKRect BoundsFooter { get; private set; }
 
         public void Calculate()
         {
@@ -159,12 +92,11 @@ namespace NodeGraphControl.Elements
 
             foreach (var socket in Sockets)
             {
-                if (socket.GetType() == typeof(SocketIn))
+                if (socket is SocketIn)
                 {
                     countIn++;
                 }
-
-                if (socket.GetType() == typeof(SocketOut))
+                else if (socket is SocketOut)
                 {
                     countOut++;
                 }
@@ -188,13 +120,12 @@ namespace NodeGraphControl.Elements
 
             foreach (var socket in Sockets)
             {
-                if (socket.GetType() == typeof(SocketIn))
+                if (socket is SocketIn)
                 {
                     countIn++;
                     socket.Pivot = new SKPoint(Location.X, Location.Y + HeaderHeight + _socketSplit * countIn);
                 }
-
-                if (socket.GetType() == typeof(SocketOut))
+                else if (socket is SocketOut)
                 {
                     countOut++;
                     socket.Pivot = new SKPoint(Location.X + NodeWidth, Location.Y + HeaderHeight + _socketSplit * countOut);
@@ -209,10 +140,6 @@ namespace NodeGraphControl.Elements
             }
         }
 
-        #endregion
-
-        #region Draw
-
         public virtual void Draw(SKCanvas canvas)
         {
             var cornerSize = SharedState.CornerSize;
@@ -222,8 +149,8 @@ namespace NodeGraphControl.Elements
             var bottom = Location.Y + FullHeight;
             var bottomHeader = Location.Y + HeaderHeight;
 
-            using var baseColorPaint = new SKPaint { Color = BaseColor, IsAntialias = true, Style = SKPaintStyle.Fill };
-            using var headerColorPaint = new SKPaint { Color = HeaderColor, IsAntialias = true, Style = SKPaintStyle.Fill };
+            baseColorPaint.Color = BaseColor;
+            headerColorPaint.Color = HeaderColor;
 
             // base
             using (var path = new SKPath())
@@ -231,9 +158,12 @@ namespace NodeGraphControl.Elements
                 var rect = SKRect.Create(left, top, NodeWidth, FullHeight);
                 path.AddRoundRect(rect, cornerSize / 2f, cornerSize / 2f);
 
-                DropShadow(canvas, path);
-
+                // Shadow
+                var baseColor = Selected ? HeaderColor : new(7, 7, 7);
+                using var shadowFilter = SKImageFilter.CreateDropShadow(0, 0, 10, 10, baseColor.WithAlpha((byte)128));
+                baseColorPaint.ImageFilter = shadowFilter;
                 canvas.DrawPath(path, baseColorPaint);
+                baseColorPaint.ImageFilter = null;
             }
 
             // header
@@ -255,8 +185,8 @@ namespace NodeGraphControl.Elements
                 var nodeNamePositionY = Location.Y + HeaderHeight / 2 + nodeTextOffset;
                 var nodeStringPositionX = Location.X + nodeTextOffset;
 
-                using var headerTextPaint = new SKPaint { Color = HeaderTextColor, IsAntialias = true };
-                using var headerTypePaint = new SKPaint { Color = HeaderTypeColor, IsAntialias = true };
+                headerTextPaint.Color = HeaderTextColor;
+                headerTypePaint.Color = HeaderTypeColor;
 
                 canvas.DrawText(Name, nodeStringPositionX, nodeTypePositionY + 10f, HeaderNameFont, headerTextPaint);
                 canvas.DrawText(NodeType, nodeStringPositionX, nodeNamePositionY + 7f, HeaderTypeFont, headerTypePaint);
@@ -266,17 +196,12 @@ namespace NodeGraphControl.Elements
             DrawSockets(canvas);
         }
 
-        #endregion
-
-        #region DrawSockets
-
         private void DrawSockets(SKCanvas canvas)
         {
             foreach (var socket in Sockets)
             {
-                if (socket.GetType() == typeof(SocketIn))
+                if (socket is SocketIn socketIn)
                 {
-                    var socketIn = (SocketIn)socket;
 
                     if (!socketIn.DisplayOnly)
                     {
@@ -295,10 +220,8 @@ namespace NodeGraphControl.Elements
                         new SKPoint(socketIn.Pivot.X + (socketIn.DisplayOnly ? 5 : SocketSize), socketIn.Pivot.Y), socketIn, Alignment.Left
                     );
                 }
-
-                if (socket.GetType() == typeof(SocketOut))
+                else if (socket is SocketOut socketOut)
                 {
-                    var socketOut = (SocketOut)socket;
 
                     // draw socket
                     DrawSocket(
@@ -317,9 +240,9 @@ namespace NodeGraphControl.Elements
             }
         }
 
-        private static void DrawSocket(SKCanvas canvas, SKPoint center, SKColor eColor, bool fill, bool hub)
+        private void DrawSocket(SKCanvas canvas, SKPoint center, SKColor eColor, bool fill, bool hub)
         {
-            using var ePaint = new SKPaint { Color = eColor, StrokeWidth = 1.8f, IsAntialias = true };
+            ePaint.Color = eColor;
 
             var eX = center.X - SocketSize / 2f;
             var eY = center.Y - SocketSize / 2f;
@@ -357,15 +280,13 @@ namespace NodeGraphControl.Elements
         {
             Left,
             Right,
-            Center // just in case... why not have an option to align to center
+            Center,
         }
 
         private void DrawSocketCaption(SKCanvas canvas, SKPoint center, AbstractSocket socket, Alignment alignment)
         {
             var text = socket.SocketName;
-            var textColor = TextColor;
-
-            using var textPaint = new SKPaint { Color = textColor, IsAntialias = true };
+            textPaint.Color = TextColor;
 
             SocketCaptionFont.MeasureText(text, out var bounds, textPaint);
             var textWidth = bounds.Width;
@@ -384,45 +305,23 @@ namespace NodeGraphControl.Elements
             canvas.DrawText(text, positionX, positionY, SocketCaptionFont, textPaint);
         }
 
-        #endregion
-
-        #region DropShadow
-
-        private const int ShadowSteps = 4;
-        private const float ShadowMaxOpacity = 32.0f;
-        private const int ShadowThickness = 10;
-
-        private readonly SKColor _shadowColor = new(7, 7, 7);
-        private readonly SKColor _shadowColorSelected = new(255, 255, 255);
-
-        private void DropShadow(SKCanvas canvas, SKPath path)
+        protected virtual void Dispose(bool disposing)
         {
-            // Change in alpha between pens.
-            const float delta = (ShadowMaxOpacity / ShadowSteps) / ShadowSteps;
-
-            // Initial alpha.
-            var alpha = delta;
-
-            for (var thickness = ShadowThickness; thickness >= 1; thickness--)
+            if (disposing)
             {
-                var baseColor = (Selected) ? _shadowColorSelected : _shadowColor;
-                var color = new SKColor(baseColor.Red, baseColor.Green, baseColor.Blue, (byte)alpha);
-
-                using var paint = new SKPaint
-                {
-                    Color = color,
-                    Style = SKPaintStyle.Stroke,
-                    StrokeWidth = thickness,
-                    IsAntialias = true,
-                    StrokeCap = SKStrokeCap.Round
-                };
-
-                canvas.DrawPath(path, paint);
-
-                alpha += delta;
+                baseColorPaint?.Dispose();
+                headerColorPaint?.Dispose();
+                headerTextPaint?.Dispose();
+                headerTypePaint?.Dispose();
+                textPaint?.Dispose();
+                ePaint?.Dispose();
             }
         }
 
-        #endregion
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
     }
 }

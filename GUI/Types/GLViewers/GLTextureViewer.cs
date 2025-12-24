@@ -52,14 +52,14 @@ namespace GUI.Types.GLViewers
         private SKBitmap NextBitmapToSet;
         private int NextBitmapVersion;
 
-        private Vector2? ClickPosition;
-        private Vector2 Position;
+        protected Vector2? ClickPosition;
+        protected Vector2 Position;
         private Vector2 PositionOld;
-        private float TextureScale = 1f;
+        protected float TextureScale = 1f;
         private float TextureScaleOld = 1f;
-        private float TextureScaleChangeTime = 10f;
-        private float OriginalWidth;
-        private float OriginalHeight;
+        protected float TextureScaleChangeTime = 10f;
+        protected float OriginalWidth;
+        protected float OriginalHeight;
 
         private int SelectedMip;
         private int SelectedDepth;
@@ -1180,13 +1180,13 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private void InvalidateRender()
+        protected void InvalidateRender()
         {
             NumRendersLastHash = 0;
             GLControl?.Invalidate();
         }
 
-        private void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
+        protected virtual void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
         {
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
@@ -1225,7 +1225,7 @@ namespace GUI.Types.GLViewers
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
 
-        private (float Scale, Vector2 Position) GetCurrentPositionAndScale()
+        protected (float Scale, Vector2 Position) GetCurrentPositionAndScale()
         {
             var time = Math.Min(TextureScaleChangeTime / 0.4f, 1.0f);
             time = 1f - MathF.Pow(1f - time, 5f); // easeOutQuint

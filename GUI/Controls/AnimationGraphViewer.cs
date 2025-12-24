@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 using NodeGraphControl.Elements;
 using SkiaSharp;
@@ -8,40 +9,46 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers;
 
-internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
+internal class AnimationGraphViewer : GLNodeGraphViewer
 {
-    private readonly VrfGuiContext vrfGuiContext;
     private readonly KVObject graphDefinition;
 
-    public AnimationGraphViewer(VrfGuiContext guiContext, KVObject data) : base()
+    public AnimationGraphViewer(VrfGuiContext guiContext, KVObject data)
+        : base(guiContext, CreateAndConfigureNodeGraph(data, out var graphDef))
     {
-        vrfGuiContext = guiContext;
-        graphDefinition = data;
+        graphDefinition = graphDef;
 
-        Dock = DockStyle.Fill;
-        GridStyle = EGridStyle.Grid;
+        CreateGraph();
+    }
 
-        CanvasBackgroundColor = new SKColor(40, 40, 40);
+    private static NodeGraphControl.NodeGraphControl CreateAndConfigureNodeGraph(KVObject data, out KVObject graphDef)
+    {
+        graphDef = data;
+        var nodeGraph = new NodeGraphControl.NodeGraphControl();
+
+        nodeGraph.GridStyle = NodeGraphControl.NodeGraphControl.EGridStyle.Grid;
+
+        nodeGraph.CanvasBackgroundColor = new SKColor(40, 40, 40);
         NodeColor = new SKColor(60, 60, 60);
         NodeTextColor = new SKColor(230, 230, 230);
-        GridColor = SKColors.White;
+        nodeGraph.GridColor = SKColors.White;
 
         PoseColor = new SKColor(173, 255, 47);
         ValueColor = new SKColor(0, 191, 255);
 
         if (Themer.CurrentTheme == Themer.AppTheme.Dark)
         {
-            CanvasBackgroundColor = ToSKColor(Themer.CurrentThemeColors.AppMiddle);
+            nodeGraph.CanvasBackgroundColor = ToSKColor(Themer.CurrentThemeColors.AppMiddle);
             NodeColor = ToSKColor(Themer.CurrentThemeColors.AppSoft);
-            GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
+            nodeGraph.GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
             //PoseColor = ToSKColor(ControlPaint.Dark(Color.LightGreen, 0f));
             //ValueColor = ToSKColor(ControlPaint.Dark(Color.LightBlue, 0f));
         }
 
-        AddTypeColorPair<Pose>(PoseColor);
-        AddTypeColorPair<Value>(ValueColor);
+        NodeGraphControl.NodeGraphControl.AddTypeColorPair<Pose>(PoseColor);
+        NodeGraphControl.NodeGraphControl.AddTypeColorPair<Value>(ValueColor);
 
-        CreateGraph();
+        return nodeGraph;
     }
 
     private struct Pose;
@@ -49,38 +56,10 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
     private static SKColor ToSKColor(Color color) => new(color.R, color.G, color.B, color.A);
 
-    private bool firstPaint = true;
     public static SKColor NodeColor { get; set; }
     public static SKColor NodeTextColor { get; set; }
     public static SKColor PoseColor { get; set; }
     public static SKColor ValueColor { get; set; }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        if (firstPaint)
-        {
-            firstPaint = false;
-            FocusView(SKPoint.Empty);
-        }
-
-        base.OnPaint(e);
-    }
-
-    protected override void OnMouseDoubleClick(MouseEventArgs e)
-    {
-        base.OnMouseDoubleClick(e);
-
-        var element = FindElementAtMousePoint(e.Location);
-
-        if (element is Node { ExternalResourceName: not null } node)
-        {
-            var foundFile = vrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
-            if (foundFile.Context != null)
-            {
-                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
-            }
-        }
-    }
 
     private void CreateGraph()
     {
@@ -96,9 +75,9 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
         string GetType(int nodeIdx)
         {
             var className = nodes[nodeIdx].GetStringProperty("_class");
-            const string Preffix = "CNm";
+            const string Prefix = "CNm";
             const string Suffix = "Node::CDefinition";
-            var @type = className[Preffix.Length..^Suffix.Length];
+            var @type = className[Prefix.Length..^Suffix.Length];
             return @type;
         }
 
@@ -124,7 +103,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 NodeType = GetType(nodeIdx),
             };
 
-            AddNode(node);
+            nodeGraph.AddNode(node);
             createdNodes[nodeIdx] = node;
             return node;
         }
@@ -141,7 +120,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
             var input = new SocketIn(typeof(ValueType), parentInputName ?? childNode.Name, parent, hub: hub);
             parent.Sockets.Add(input);
-            Connect(childNodeOutput, input);
+            nodeGraph.Connect(childNodeOutput, input);
 
             return (childNode, input);
         }
@@ -221,13 +200,13 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                     if (stateInputIdx != -1)
                     {
                         var (_, stateNodeOut) = CreateChild<Pose>(node, children.Length, stateInputIdx, 150, 500);
-                        Connect(stateNodeOut, input);
+                        nodeGraph.Connect(stateNodeOut, input);
                     }
 
                     if (entryConditionNodeIdx != -1)
                     {
                         var (_, childOutput) = CreateChild<Value>(node, children.Length, entryConditionNodeIdx, 80, 300, stateName);
-                        Connect(childOutput, input);
+                        nodeGraph.Connect(childOutput, input);
                     }
                 }
             }
@@ -274,7 +253,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 {
                     var (_, optionInput) = CreateInputAndChild<Pose>(node, options.Length, optionNodeIdx, 80, 300, hub: true);
                     var (_, conditionOutput) = CreateChild<Value>(node, options.Length, conditionNodeIdx, 80, 300);
-                    Connect(conditionOutput, optionInput);
+                    nodeGraph.Connect(conditionOutput, optionInput);
                     i++;
                 }
             }
@@ -290,7 +269,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
                 var layerIndex = 0;
                 foreach (var layer in layerDefinition)
                 {
-                    var layerNode = AddNode(new Node(layerDefinition[layerIndex])
+                    var layerNode = nodeGraph.AddNode(new Node(layerDefinition[layerIndex])
                     {
                         Name = $"Layer{layerIndex}",
                         NodeType = "_LayerDefinition_",
@@ -301,7 +280,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
 
                     var layerOutput = new SocketOut(typeof(Pose), string.Empty, layerNode);
                     layerNode.Sockets.Add(layerOutput);
-                    Connect(layerOutput, layerInput);
+                    nodeGraph.Connect(layerOutput, layerInput);
                     CreateInputAndChild<Pose>(layerNode, 1, layer.GetInt32Property("m_nInputNodeIdx"), 100, 400);
 
                     // Optional inputs
@@ -580,7 +559,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
             else if (node.NodeType.StartsWith("ControlParameter", StringComparison.Ordinal))
             {
-                node.Description = "Graph input value set by game code.";
+                // Graph input value set by game code.
             }
             else
             {
@@ -596,19 +575,18 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             Name = "Result",
             NodeType = "FinalPose",
             Location = new SKPoint(300, 0),
-            StartNode = true,
             HeaderColor = PoseColor,
         };
 
         var finalPoseInput = new SocketIn(typeof(Pose), "Out", finalPose, hub: false);
         finalPose.Sockets.Add(finalPoseInput);
-        AddNode(finalPose);
+        nodeGraph.AddNode(finalPose);
 
         var root = CreateNode(nodePaths, nodes, rootNodeIdx);
 
         var rootOutput = new SocketOut(typeof(Pose), string.Empty, root);
         root.Sockets.Add(rootOutput);
-        Connect(rootOutput, finalPoseInput);
+        nodeGraph.Connect(rootOutput, finalPoseInput);
 
         CreateChildren(root, rootNodeIdx);
 
@@ -630,7 +608,7 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             }
         }
 
-        LayoutNodes(30f);
+        nodeGraph.LayoutNodes(30f);
         Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Length}) or {createdNodes.Count / (float)nodes.Length:P}.");
     }
 
@@ -684,9 +662,6 @@ internal class AnimationGraphViewer : NodeGraphControl.NodeGraphControl
             Sockets.Add(socket);
             return socket;
         }
-
-        public override bool IsReady() => true;
-        public override void Execute() { }
 
         private static readonly SKFont ArialFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(15f);
 
