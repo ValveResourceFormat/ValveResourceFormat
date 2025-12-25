@@ -353,25 +353,6 @@ namespace GUI.Utils
             return (int)(value * control.DeviceDpi / 96f);
         }
 
-        public static Color Brighten(Color color, float brightnessFactor)
-        {
-            // Ensure brightnessFactor is within valid range (can be extended if necessary)
-            brightnessFactor = Math.Max(0, brightnessFactor);
-
-            // Adjust each color channel by multiplying it with the brightness factor
-            var r = (int)(color.R * brightnessFactor);
-            var g = (int)(color.G * brightnessFactor);
-            var b = (int)(color.B * brightnessFactor);
-
-            // Ensure values don't exceed 255
-            r = Math.Min(255, r);
-            g = Math.Min(255, g);
-            b = Math.Min(255, b);
-
-            // Return the new color
-            return Color.FromArgb(color.A, r, g, b);
-        }
-
         public static GraphicsPath GetRoundedRect(Rectangle bounds, int radius, bool onlyTop = false)
         {
             var diameter = radius * 2;
