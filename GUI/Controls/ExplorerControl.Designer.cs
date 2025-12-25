@@ -123,7 +123,7 @@ namespace GUI.Controls
             // 
             clearRecentFilesToolStripMenuItem.Name = "clearRecentFilesToolStripMenuItem";
             clearRecentFilesToolStripMenuItem.Size = new System.Drawing.Size(169, 30);
-            clearRecentFilesToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Clear.svg";
+            clearRecentFilesToolStripMenuItem.SVGImageResourceName = "GUI.Icons.HistoryClear.svg";
             clearRecentFilesToolStripMenuItem.Text = "&Clear recent files";
             clearRecentFilesToolStripMenuItem.Click += OnClearRecentFilesClick;
             // 
