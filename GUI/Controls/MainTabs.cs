@@ -74,9 +74,9 @@ internal class MainTabs : ThemedTabControl
         tab.Dispose();
     }
 
-    protected override void OnMouseDown(MouseEventArgs e)
+    protected override void OnMouseClick(MouseEventArgs e)
     {
-        base.OnMouseDown(e);
+        base.OnMouseClick(e);
 
         if (e.Button == MouseButtons.Left && IsCloseButtonHovered)
         {
