@@ -241,6 +241,8 @@ namespace GUI.Controls
 
         protected int HoveredIndex { get; private set; } = -1;
 
+        protected int RightSideTextPadding { get; set; }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
@@ -343,7 +345,7 @@ namespace GUI.Controls
             var textRect = new Rectangle(
                 tabRect.X,
                 tabRect.Y,
-                tabRect.Width,
+                tabRect.Width - RightSideTextPadding,
                 tabRect.Height
             );
 
