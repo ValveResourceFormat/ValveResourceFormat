@@ -1,7 +1,8 @@
 using System.Linq;
 
 #nullable disable
-namespace NodeGraphControl.Elements
+
+namespace GUI.Types.Graphs
 {
     public class SocketOut : AbstractSocket
     {
@@ -27,5 +28,7 @@ namespace NodeGraphControl.Elements
         {
             return OutputConnections.Count > 0;
         }
+
+        public override IReadOnlyList<Wire> Connections => OutputConnections;
     }
 }

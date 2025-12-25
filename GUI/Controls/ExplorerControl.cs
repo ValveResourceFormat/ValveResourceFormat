@@ -596,7 +596,10 @@ namespace GUI.Controls
 
                         if (isVpk)
                         {
-                            imageIndexGame = MainForm.ImageList.Images.IndexOfKey($"@app{game.AppID}");
+                            if (!MainForm.GameIcons.TryGetValue(game.AppID, out imageIndexGame))
+                            {
+                                imageIndexGame = -1;
+                            }
                         }
 
                         break;
@@ -711,13 +714,12 @@ namespace GUI.Controls
 
         private int GetOrLoadAppImage(int appID, KVObject libraryAssetsKv, string libraryCachePath)
         {
-            var imageKey = $"@app{appID}";
-            var treeNodeImage = MainForm.ImageList.Images.IndexOfKey(imageKey);
-
-            if (treeNodeImage >= 0)
+            if (MainForm.GameIcons.TryGetValue(appID, out var treeNodeImage))
             {
                 return treeNodeImage;
             }
+
+            treeNodeImage = -1;
 
             try
             {
@@ -746,10 +748,10 @@ namespace GUI.Controls
 
                     InvokeWorkaround(() =>
                     {
-                        MainForm.ImageList.Images.Add(imageKey, appIcon);
+                        treeNodeImage = MainForm.ImageList.Images.Count;
+                        MainForm.AddFixedImageToImageList(appIcon, MainForm.ImageList);
+                        MainForm.GameIcons.Add(appID, treeNodeImage);
                     });
-
-                    treeNodeImage = MainForm.ImageList.Images.IndexOfKey(imageKey);
                 }
             }
             catch (Exception)
@@ -765,7 +767,7 @@ namespace GUI.Controls
             var originalImage = Image.FromFile(path);
 
             var destRect = new Rectangle(0, 0, MainForm.ImageList.ImageSize.Width, MainForm.ImageList.ImageSize.Height);
-            var destImage = new Bitmap(MainForm.ImageList.ImageSize.Width, MainForm.ImageList.ImageSize.Height);
+            var destImage = new Bitmap(destRect.Width, destRect.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
             destImage.SetResolution(originalImage.HorizontalResolution, originalImage.VerticalResolution);
 

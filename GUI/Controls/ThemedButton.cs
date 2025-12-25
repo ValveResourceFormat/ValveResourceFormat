@@ -78,8 +78,8 @@ namespace GUI.Controls
 
             if (!Enabled)
             {
-                backColor = Themer.Brighten(backColor, isLight ? 1.2f : 0.6f);
-                foreColor = Themer.Brighten(foreColor, isLight ? 1.2f : 0.6f);
+                backColor = isLight ? ControlPaint.Light(backColor, 0.6f) : ControlPaint.Dark(backColor, 0.2f);
+                foreColor = isLight ? ControlPaint.Light(foreColor, 0.6f) : ControlPaint.Dark(foreColor, 0.2f);
             }
             else if (Clicked)
             {
@@ -96,7 +96,7 @@ namespace GUI.Controls
             using var roundedRect = Themer.GetRoundedRect(rect, this.AdjustForDPI(CornerRadius));
             pevent.Graphics.FillPath(backBrush, roundedRect);
 
-            using var borderPen = new Pen(Themer.Brighten(backColor, isLight ? 0.8f : 1.5f), this.AdjustForDPI(1));
+            using var borderPen = new Pen(isLight ? ControlPaint.Dark(backColor, 0.01f) : ControlPaint.Light(backColor, 0.4f), this.AdjustForDPI(1));
             borderPen.Alignment = PenAlignment.Inset;
             pevent.Graphics.DrawPath(borderPen, roundedRect);
 

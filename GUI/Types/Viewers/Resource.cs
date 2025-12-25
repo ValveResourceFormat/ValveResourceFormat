@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Types.GLViewers;
+using GUI.Types.Graphs;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;

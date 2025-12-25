@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -8,6 +9,30 @@ namespace GUI.Controls;
 
 internal class MainTabs : ThemedTabControl
 {
+    private int _closeButtonSize;
+    private int CloseButtonSize
+    {
+        set { _closeButtonSize = value; RightSideTextPadding = _closeButtonSize + this.AdjustForDPI(10); }
+        get { return _closeButtonSize; }
+    }
+
+    private int tabHeight;
+    [Description("Height of tabs"), Category("Appearance")]
+    public new int TabHeight
+    {
+        get { return tabHeight; }
+        set { tabHeight = this.AdjustForDPI(value); SetCloseButtonSize(); }
+    }
+
+    public MainTabs()
+    {
+        SetCloseButtonSize();
+    }
+
+    private void SetCloseButtonSize()
+    {
+        CloseButtonSize = TabHeight / 4;
+    }
 
     protected bool IsCloseButtonHovered { get; private set; }
 
@@ -24,7 +49,7 @@ internal class MainTabs : ThemedTabControl
 
             if (tabRect.Contains(e.Location) && i > 0)
             {
-                IsCloseButtonHovered = GetCloseButtonRect(tabRect).Contains(this.PointToClient(Cursor.Position));
+                IsCloseButtonHovered = GetCloseButtonRect(tabRect, this.AdjustForDPI(10)).Contains(this.PointToClient(Cursor.Position));
                 break;
             }
         }
@@ -74,9 +99,9 @@ internal class MainTabs : ThemedTabControl
         tab.Dispose();
     }
 
-    protected override void OnMouseDown(MouseEventArgs e)
+    protected override void OnMouseClick(MouseEventArgs e)
     {
-        base.OnMouseDown(e);
+        base.OnMouseClick(e);
 
         if (e.Button == MouseButtons.Left && IsCloseButtonHovered)
         {
@@ -84,9 +109,9 @@ internal class MainTabs : ThemedTabControl
         }
     }
 
-    private Rectangle GetCloseButtonRect(Rectangle tabRect)
+    private Rectangle GetCloseButtonRect(Rectangle tabRect, int padding = 0)
     {
-        int closeButtonSize = TabHeight / 3;
+        int closeButtonSize = CloseButtonSize + padding;
         int closeButtonCenteringOffset = (tabRect.Top - closeButtonSize + TabHeight) / 2;
         return new Rectangle(tabRect.Right - closeButtonCenteringOffset - closeButtonSize, closeButtonCenteringOffset, closeButtonSize, closeButtonSize);
     }
@@ -105,14 +130,35 @@ internal class MainTabs : ThemedTabControl
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            bool isCloseButtonHighlighted = HoveredIndex == i && (IsCloseButtonHovered || isHovered && !isSelected);
-            using Pen closeButtonPen = new Pen(isCloseButtonHighlighted ? SelectedForeColor : ForeColor);
+            using Pen closeButtonPen = new Pen(SelectedForeColor);
             closeButtonPen.Width = this.AdjustForDPI(1);
 
-            var closeButtonRect = GetCloseButtonRect(GetTabRect(i));
+            if (HoveredIndex == i && IsCloseButtonHovered)
+            {
+                var closeButtonRectCircle = GetCloseButtonRect(GetTabRect(i), this.AdjustForDPI(10));
 
-            e.Graphics.DrawLine(closeButtonPen, closeButtonRect.X, closeButtonRect.Y, closeButtonRect.Right, closeButtonRect.Bottom);
-            e.Graphics.DrawLine(closeButtonPen, closeButtonRect.X, closeButtonRect.Bottom, closeButtonRect.Right, closeButtonRect.Top);
+                Color closeButtonCircleColor = BackColor;
+
+                if (isSelected)
+                {
+                    closeButtonCircleColor = SelectTabColor;
+                }
+                else if (isHovered)
+                {
+                    closeButtonCircleColor = HoverColor;
+                }
+
+                closeButtonCircleColor = Themer.CurrentThemeColors.ColorMode == SystemColorMode.Dark ?
+                    ControlPaint.Light(closeButtonCircleColor, 0.4f) :
+                    ControlPaint.Dark(closeButtonCircleColor, 0.01f);
+
+                using Brush closeButtonCircleBrush = new SolidBrush(closeButtonCircleColor);
+                e.Graphics.FillEllipse(closeButtonCircleBrush, closeButtonRectCircle);
+            }
+            var closeButtonRectX = GetCloseButtonRect(GetTabRect(i));
+
+            e.Graphics.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Y, closeButtonRectX.Right, closeButtonRectX.Bottom);
+            e.Graphics.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Bottom, closeButtonRectX.Right, closeButtonRectX.Top);
         }
     }
 }

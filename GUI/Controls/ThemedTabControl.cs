@@ -241,6 +241,8 @@ namespace GUI.Controls
 
         protected int HoveredIndex { get; private set; } = -1;
 
+        protected int RightSideTextPadding { get; set; }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
@@ -343,7 +345,7 @@ namespace GUI.Controls
             var textRect = new Rectangle(
                 tabRect.X,
                 tabRect.Y,
-                tabRect.Width,
+                tabRect.Width - RightSideTextPadding,
                 tabRect.Height
             );
 
@@ -366,8 +368,7 @@ namespace GUI.Controls
 
                 if (imageIndex > -1)
                 {
-                    var image = ImageList.Images[imageIndex];
-                    g.DrawImage(image, imageRect.Left, imageRect.Top, imageRect.Height, imageRect.Height);
+                    ImageList.Draw(g, imageRect.Left, imageRect.Top, imageRect.Height, imageRect.Height, imageIndex);
                 }
 
                 var oldTextX = textRect.X;

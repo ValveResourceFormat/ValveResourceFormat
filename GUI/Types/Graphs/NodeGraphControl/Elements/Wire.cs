@@ -1,8 +1,7 @@
-using NodeGraphControl.Elements;
 using SkiaSharp;
 
 #nullable disable
-namespace NodeGraphControl
+namespace GUI.Types.Graphs
 {
     public class Wire : NodeUIElement
     {

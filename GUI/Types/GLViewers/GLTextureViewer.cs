@@ -42,7 +42,7 @@ namespace GUI.Types.GLViewers
             Linear,
         }
 
-        private VrfGuiContext GuiContext;
+        protected VrfGuiContext GuiContext;
         private Resource Resource;
         private SKBitmap Bitmap;
         private SKSvg Svg;
