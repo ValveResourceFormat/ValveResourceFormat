@@ -54,7 +54,7 @@ namespace GUI
 
         private void CloseToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            CloseTab(FetchToolstripTabContext(sender));
+            mainTabs.CloseTab(FetchToolstripTabContext(sender));
         }
 
         private void CloseToolStripMenuItemsToLeft_Click(object sender, EventArgs e)

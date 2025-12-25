@@ -239,7 +239,8 @@ namespace GUI.Controls
             }
         }
 
-        int HoveredIndex = -1;
+        protected int HoveredIndex { get; private set; } = -1;
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);

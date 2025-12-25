@@ -158,12 +158,20 @@ namespace GUI.Types.Renderer
             {
                 Debug.Assert(physResource?.FileName != null);
 
+                var timer = Stopwatch.StartNew();
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
                 {
                     physSceneNode.LayerName = "world_layer_base";
 
                     scene.Add(physSceneNode, true);
                 }
+
+                Log.Debug(nameof(WorldLoader), $"Loading physics debug renderer took {timer.Elapsed.TotalSeconds:F2} seconds.");
+
+                timer.Restart();
+                scene.PhysicsWorld = new Rubikon(phys);
+
+                Log.Debug(nameof(WorldLoader), $"Loading physics world took {timer.Elapsed.TotalSeconds:F2} seconds.");
             }
         }
 

@@ -301,7 +301,7 @@ namespace ValveResourceFormat.IO
         {
             for (var i = 0; i < meshes.Length; i++)
             {
-                PhysicsMeshes.Add(new PhysMeshData(meshes.ElementAt(i)));
+                PhysicsMeshes.Add(new PhysMeshData(meshes[i]));
             }
         }
 

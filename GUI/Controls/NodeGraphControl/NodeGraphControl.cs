@@ -1,8 +1,5 @@
-using System.ComponentModel;
-using System.Drawing;
 using SkiaSharp;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using NodeGraphControl.Elements;
 
@@ -16,148 +13,59 @@ namespace NodeGraphControl
         Copyright (c) 2021 amaurote
         https://github.com/amaurote/NodeGraphControl
     */
-    public partial class NodeGraphControl : SKControl
+    public class NodeGraphControl : IDisposable
     {
-        #region Constructor
-
         public NodeGraphControl()
         {
-            InitializeComponent();
+            //
         }
 
-        #endregion
+        private bool disposed;
 
-        #region Interface
-
-        public void Run()
+        protected virtual void Dispose(bool disposing)
         {
-            foreach (var abstractNode in _graphNodes.Where(abstractNode => abstractNode.StartNode))
+            if (!disposed)
             {
-                abstractNode.Execute();
+                if (disposing)
+                {
+                    _gridPaint?.Dispose();
+                }
+
+                disposed = true;
             }
         }
 
-        private readonly List<ContextNode> _contextNodeList = [];
-
-        public void AddContextNodeType<T>(string contextName, string contextDescription, string contextCategory)
-            where T : AbstractNode
+        public void Dispose()
         {
-            var cn = new ContextNode();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-            const string defaultDescription = "No Description";
-            const string defaultCategory = "";
+        public event EventHandler GraphChanged;
 
-            // create name from type
-            var typeStr = typeof(T).ToString().Split('.').Last();
-            // insert space before Capital letter and ignore acronyms
-            var nameFromTypeStr = MyRegex().Replace(typeStr, " $0");
-
-            // add context node data
-            cn.NodeType = typeof(T);
-
-            cn.NodeName = (!string.IsNullOrEmpty(contextName)) ? contextName : nameFromTypeStr;
-            cn.NodeDescription = (!string.IsNullOrEmpty(contextDescription)) ? contextDescription : defaultDescription;
-            cn.NodeCategory = (!string.IsNullOrEmpty(contextCategory)) ? contextCategory : defaultCategory;
-
-            _contextNodeList.Add(cn);
+        private void OnGraphChanged()
+        {
+            GraphChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public T AddNode<T>(T node) where T : AbstractNode
         {
-            node.InvokeRepaint += n_InvokeRepaint;
             _graphNodes.Add(node);
             node.Calculate();
             return node;
         }
 
-        public void DeleteNode(AbstractNode node)
-        {
-            node.Disconnect();
-            _graphNodes.Remove(node);
-            ValidateConnections();
-            HandleSelection();
-            Refresh();
-        }
-
-        private void DeleteSelectedNodes()
-        {
-            for (var i = _graphNodes.Count - 1; i >= 0; i--)
-            {
-                var node = _graphNodes[i];
-                if (node.Selected)
-                {
-                    node.Disconnect();
-                    _graphNodes.Remove(node);
-                }
-            }
-
-            ValidateConnections();
-            HandleSelection();
-            Refresh();
-        }
-
-        public void Connect(SocketOut from, SocketIn to)
-        {
-            Wire wire = null;
-
-            try
-            {
-                wire = new Wire(from, to);
-                to.Connect(wire);
-                from.Connect(wire);
-
-                _connections.Add(wire);
-
-                wire.Flow();
-            }
-            catch (Exception e)
-            {
-                wire?.Disconnect();
-                Console.WriteLine(e);
-            }
-
-            ValidateConnections();
-        }
-
-        private void Disconnect(Wire wire)
-        {
-            if (wire == null)
-            {
-                return;
-            }
-
-            wire.Disconnect();
-            _connections.Remove(wire);
-        }
-
-        private void ValidateConnections()
-        {
-            for (var i = _connections.Count - 1; i >= 0; i--)
-            {
-                var con = _connections[i];
-
-                if (con.From == null || con.To == null
-                                     || !con.From.ContainsConnection(con)
-                                     || !con.To.ContainsConnection(con))
-                {
-                    Disconnect(con);
-                }
-            }
-        }
-
-        public void SetNodeSelected(bool selected)
-        {
-            foreach (var node in _graphNodes)
-            {
-                node.Selected = selected;
-            }
-
-            HandleSelection();
-        }
-
         public static void AddTypeColorPair<T>(SKColor color)
         {
             SharedState.TypeColor.TryAdd(typeof(T), color);
+        }
+
+        internal void Connect(SocketOut from, SocketIn to)
+        {
+            var wire = new Wire(from, to);
+            to.Connect(wire);
+            from.Connect(wire);
+            _connections.Add(wire);
         }
 
         public void LayoutNodes(float padding = 20f)
@@ -257,35 +165,8 @@ namespace NodeGraphControl
                 }
             }
 
-            Invalidate();
+            OnGraphChanged();
         }
-
-        #endregion
-
-        #region Events
-
-#pragma warning disable CA1003 // Use generic event handler instances
-        public event EventHandler<List<AbstractNode>> SelectionChanged;
-
-        public event EventHandler<float> ZoomChanged;
-#pragma warning restore CA1003 // Use generic event handler instances
-
-        #endregion
-
-        #region EventData
-
-        #endregion
-
-        #region EventHandlers
-
-        private void n_InvokeRepaint(object sender, EventArgs e)
-        {
-            Invalidate();
-        }
-
-        #endregion
-
-        #region GridSettings
 
         // grid style
         public enum EGridStyle
@@ -297,7 +178,6 @@ namespace NodeGraphControl
 
         private EGridStyle _gridStyle = EGridStyle.Grid;
 
-        [Description("The type of rendered grid"), Category("Appearance"), DisplayName("Grid Style")]
         public EGridStyle GridStyle
         {
             get { return _gridStyle; }
@@ -309,14 +189,13 @@ namespace NodeGraphControl
                 }
 
                 _gridStyle = value;
-                Invalidate();
+                OnGraphChanged();
             }
         }
 
         // grid step
         private int _gridStep = 16 * 8;
 
-        [Description("The distance between the largest grid lines"), Category("Appearance")]
         public int GridStep
         {
             get { return _gridStep; }
@@ -328,7 +207,7 @@ namespace NodeGraphControl
                 }
 
                 _gridStep = value;
-                Invalidate();
+                OnGraphChanged();
             }
         }
 
@@ -336,7 +215,6 @@ namespace NodeGraphControl
         private SKColor _gridColor = SKColors.LightGray;
         private SKPaint _gridPaint = new() { Color = SKColors.LightGray, StrokeWidth = 1f, IsAntialias = true };
 
-        [Description("The color for the grid lines with the largest gap between them"), Category("Appearance")]
         public SKColor GridColor
         {
             get { return _gridColor; }
@@ -350,14 +228,13 @@ namespace NodeGraphControl
                 _gridColor = value;
                 _gridPaint?.Dispose();
                 _gridPaint = new SKPaint { Color = _gridColor, StrokeWidth = 1f, IsAntialias = true };
-                Invalidate();
+                OnGraphChanged();
             }
         }
 
         // canvas background color
         private SKColor _canvasBackgroundColor = new(23, 25, 31);
 
-        [Description("The background color of the canvas"), Category("Appearance")]
         public SKColor CanvasBackgroundColor
         {
             get { return _canvasBackgroundColor; }
@@ -369,301 +246,217 @@ namespace NodeGraphControl
                 }
 
                 _canvasBackgroundColor = value;
-                Invalidate();
+                OnGraphChanged();
             }
         }
-
-        #endregion
-
-        #region Elements
 
         private readonly List<AbstractNode> _graphNodes = [];
         private readonly List<Wire> _connections = [];
-        private Wire _tempWire;
 
-        #endregion
-
-        #region regionToBeSorted
-
-        private enum CommandMode
-        {
-            Edit,
-            MarqueSelection,
-            MoveSelection,
-            Wiring,
-            TranslateView,
-            ScaleView
-        }
-
-        private CommandMode _command = CommandMode.Edit;
-
-        // NodeUIElement internalDragOverElement;
-        bool mouseMoved;
-        bool dragging;
-
+        private bool isMoving;
         SKPoint lastLocation;
-        SKPoint snappedLocation;
-        SKPoint originalLocation;
-        SKPoint originalMouseLocation;
 
-        #endregion
-
-        #region UpdateMatrices
-
-        SKPoint translation;
-        float zoom = 1.0f;
-        private float zoomLast;
-
-        SKMatrix transformation = SKMatrix.Identity;
-        SKMatrix inverse_transformation = SKMatrix.Identity;
-
-        private void UpdateMatrices()
+        public void RenderToCanvas(SKCanvas canvas, SKPoint topLeft, SKPoint bottomRight)
         {
-            zoom = Math.Clamp(zoom, 0.25f, 4.00f);
-
-            if (Math.Abs(zoom - zoomLast) > 0.01f)
-            {
-                zoomLast = zoom;
-                ZoomChanged?.Invoke(this, zoom);
-            }
-
-            transformation = SKMatrix.CreateScale(zoom, zoom);
-            transformation = transformation.PostConcat(SKMatrix.CreateTranslation(translation.X, translation.Y));
-
-            transformation.TryInvert(out inverse_transformation);
-        }
-
-        #endregion
-
-        #region GetTransformedLocation
-        // TODO refactor
-        private SKPoint GetTransformedLocation()
-        {
-            return inverse_transformation.MapPoint(snappedLocation);
-        }
-
-        #endregion
-
-        #region OnPaint
-
-        // temp
-        private bool _renderBounds;
-
-        protected override void OnPaintSurface(SKPaintSurfaceEventArgs e)
-        {
-            base.OnPaintSurface(e);
-
-            var canvas = e.Surface.Canvas;
             canvas.Clear(_canvasBackgroundColor);
 
-            // update matrices
-            UpdateMatrices();
-            canvas.SetMatrix(transformation);
+            OnDrawBackground(canvas, topLeft, bottomRight);
 
-            // draw background
-            OnDrawBackground(canvas, e.Info.Width, e.Info.Height);
-
-            // temp crosshair
-            using var crosshairPaint = new SKPaint { Color = SKColors.Gray, StrokeWidth = 3f, IsAntialias = true };
-            canvas.DrawLine(-_gridStep, 0, _gridStep, 0, crosshairPaint);
-            canvas.DrawLine(0, -_gridStep, 0, _gridStep, crosshairPaint);
-
-            // return if no nodes
+            // Return if no nodes
             if (_graphNodes.Count == 0)
             {
                 return;
             }
 
-            // draw all wires
-            foreach (var wire in _connections)
+            // Take snapshots to avoid collection modification during enumeration (render thread vs UI thread)
+            var connectionSnapshot = _connections.ToArray();
+            var nodeSnapshot = _graphNodes.ToArray();
+
+            // Draw all wires
+            foreach (var wire in connectionSnapshot)
             {
                 var xFrom = wire.From.BoundsFull.MidX;
                 var yFrom = wire.From.BoundsFull.MidY;
                 var xTo = wire.To.BoundsFull.MidX;
                 var yTo = wire.To.BoundsFull.MidY;
 
-                // skip wire if there is no distance between two points
                 if (Vector2.Distance(new Vector2(xFrom, yFrom), new Vector2(xTo, yTo)) < 1f)
                 {
                     continue;
                 }
 
-                // draw wire
                 var wireColor = SharedState.GetColorByType(wire.From.ValueType);
-                var wireWidth = (wire == lastHover) ? 4f : 3f;
+                var wireWidth = (wire == lastHover) ? 5f : 3f;
                 using var wirePaint = new SKPaint { Color = wireColor, StrokeWidth = wireWidth, IsAntialias = true, Style = SKPaintStyle.Stroke };
                 using var wirePath = DrawWire(canvas, wirePaint, xFrom, yFrom, xTo, yTo);
 
-                // Create a wider path for hit testing
                 using var widerPaint = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 10f };
                 wire.HitTestPath = widerPaint.GetFillPath(wirePath);
-
-                // and eventually draw it
-                if (_renderBounds)
-                {
-                    using var boundsPaint = new SKPaint { Color = new SKColor(165, 42, 42), IsAntialias = true, Style = SKPaintStyle.Fill };
-                    canvas.DrawPath(wirePath, boundsPaint);
-                }
             }
 
-            // draw all nodes
-            foreach (var node in _graphNodes)
+            // Draw all nodes
+            foreach (var node in nodeSnapshot)
             {
                 node.Draw(canvas);
             }
+        }
 
-            // render bounds
-            if (_renderBounds)
+        // Find element at graph-space point
+        public NodeUIElement FindElementAt(SKPoint graphPoint)
+        {
+            return FindElementAtOriginal(graphPoint);
+        }
+
+        // Get the bounds of the entire graph in graph space
+        public SKRect GetGraphBounds()
+        {
+            if (_graphNodes.Count == 0)
             {
-                using var boundsPaint = new SKPaint { Color = SKColors.Aqua, Style = SKPaintStyle.Stroke, StrokeWidth = 1f, IsAntialias = true };
-                foreach (var node in _graphNodes)
+                return new SKRect(-1000, -1000, 1000, 1000); // Default large area
+            }
+
+            var minX = float.MaxValue;
+            var minY = float.MaxValue;
+            var maxX = float.MinValue;
+            var maxY = float.MinValue;
+
+            foreach (var node in _graphNodes)
+            {
+                var bounds = node.BoundsFull;
+                minX = Math.Min(minX, bounds.Left);
+                minY = Math.Min(minY, bounds.Top);
+                maxX = Math.Max(maxX, bounds.Right);
+                maxY = Math.Max(maxY, bounds.Bottom);
+            }
+
+            // Add some padding
+            const float padding = 200f;
+            return new SKRect(minX - padding, minY - padding, maxX + padding, maxY + padding);
+        }
+
+        public void HandleMouseDown(SKPoint graphPoint, MouseButtons button, Keys modifiers)
+        {
+            UpdateOriginalLocation(graphPoint);
+
+            var element = FindElementAtOriginal(lastLocation);
+
+            if ((button & MouseButtons.Left) != 0)
+            {
+                if (!isMoving)
                 {
-                    foreach (var socket in node.Sockets)
+                    if (element == null && modifiers != Keys.Shift)
                     {
-                        canvas.DrawRect(socket.BoundsFull, boundsPaint);
+                        // Deselect all nodes when clicking on empty space
+                        foreach (var n in _graphNodes)
+                        {
+                            n.Selected = false;
+                        }
+                        OnGraphChanged();
                     }
 
-                    canvas.DrawRect(node.BoundsHeader, boundsPaint);
-                    canvas.DrawRect(node.BoundsBase, boundsPaint);
-                    canvas.DrawRect(node.BoundsFooter, boundsPaint);
+                    if (element is AbstractNode abstractNode)
+                    {
+                        if (modifiers != Keys.Shift && !abstractNode.Selected)
+                        {
+                            // Deselect all other nodes
+                            foreach (var n in _graphNodes)
+                            {
+                                n.Selected = false;
+                            }
+                        }
+
+                        if (modifiers == Keys.Shift)
+                        {
+                            abstractNode.Selected = !abstractNode.Selected;
+                        }
+                        else
+                        {
+                            abstractNode.Selected = true;
+                        }
+
+                        OnGraphChanged();
+                    }
                 }
-            }
 
-            // draw temp wire during wiring mode
-            if (_command == CommandMode.Wiring && _tempWire != null)
-            {
-                float xFrom, yFrom, xTo, yTo;
-
-                var cursorPoint = GetTranslatedPosition(PointToClient(Cursor.Position));
-                using var tempWirePaint = new SKPaint { Color = SKColors.White, StrokeWidth = 2f, IsAntialias = true, Style = SKPaintStyle.Stroke };
-
-                if (_tempWire.From != null)
+                if (element is AbstractNode node)
                 {
-                    xFrom = _tempWire.From.BoundsFull.MidX;
-                    yFrom = _tempWire.From.BoundsFull.MidY;
-                    xTo = cursorPoint.X;
-                    yTo = cursorPoint.Y;
-
-                    using var _ = DrawWire(canvas, tempWirePaint, xFrom, yFrom, xTo, yTo);
+                    isMoving = true;
+                    BringNodeToFront(node);
                 }
-                else if (_tempWire.To != null)
-                {
-                    xFrom = cursorPoint.X;
-                    yFrom = cursorPoint.Y;
-                    xTo = _tempWire.To.BoundsFull.MidX;
-                    yTo = _tempWire.To.BoundsFull.MidY;
-
-                    using var _ = DrawWire(canvas, tempWirePaint, xFrom, yFrom, xTo, yTo);
-                }
-            }
-
-            // draw marque
-            if (_command == CommandMode.MarqueSelection)
-            {
-                var marqueRectangle = GetMarqueRectangle();
-                using var marquePaint = new SKPaint { Color = new SKColor(64, 64, 127, 15), IsAntialias = true, Style = SKPaintStyle.Fill };
-                canvas.DrawRect(marqueRectangle, marquePaint);
-                using var marqueStrokePaint = new SKPaint { Color = SKColors.DarkGray, Style = SKPaintStyle.Stroke, StrokeWidth = 1f, IsAntialias = true };
-                canvas.DrawRect(marqueRectangle, marqueStrokePaint);
             }
         }
 
-        // wire style
-        public enum EWireStyle
+        public void HandleMouseMove(SKPoint graphPoint)
         {
-            Bezier, Line, StepLine
-        }
-
-        private EWireStyle _wireStyle = EWireStyle.Bezier;
-
-        [Description("The style in which wires will be drown"), Category("Experimental")]
-        public EWireStyle WireStyle
-        {
-            get { return _wireStyle; }
-            set
+            if (isMoving)
             {
-                if (_wireStyle == value)
+                var delta = new SKPoint(
+                    graphPoint.X - lastLocation.X,
+                    graphPoint.Y - lastLocation.Y
+                );
+
+                foreach (var node in _graphNodes.Where(node => node.Selected))
                 {
-                    return;
+                    node.Location = new SKPoint(
+                        (int)Math.Round(node.Location.X + delta.X),
+                        (int)Math.Round(node.Location.Y + delta.Y)
+                    );
+                    node.Calculate();
                 }
 
-                _wireStyle = value;
-                Invalidate();
+                lastLocation = graphPoint;
+                OnGraphChanged();
+                return;
+            }
+
+            var element = FindElementAtOriginal(graphPoint);
+
+            if (lastHover != element)
+            {
+                lastHover = element;
+                OnGraphChanged();
+                return;
             }
         }
 
-        // wire middle points spread (percentage)
-        private int _wireMiddlePointsSpread;
-
-        [Description("The middle point of wires spread in percentages"), Category("Experimental")]
-        public int WireMiddlePointsSpread
+        public void HandleMouseUp(SKPoint graphPoint, MouseButtons button)
         {
-            get { return _wireMiddlePointsSpread; }
-            set
-            {
-                var tempValue = Math.Min(100, Math.Max(0, value));
-                if (_wireMiddlePointsSpread == tempValue)
-                {
-                    return;
-                }
+            UpdateOriginalLocation(graphPoint);
 
-                _wireMiddlePointsSpread = tempValue;
-                Invalidate();
-            }
+            isMoving = false;
         }
 
-        private SKPath DrawWire(SKCanvas canvas, SKPaint paint, float xFrom, float yFrom, float xTo, float yTo)
+        private void UpdateOriginalLocation(SKPoint graphPoint)
+        {
+            lastLocation = graphPoint;
+        }
+
+        private static SKPath DrawWire(SKCanvas canvas, SKPaint paint, float xFrom, float yFrom, float xTo, float yTo)
         {
             var from = new SKPoint(xFrom, yFrom);
             var to = new SKPoint(xTo, yTo);
 
             var path = new SKPath();
 
-            if (_wireStyle == EWireStyle.Line)
-            {
-                path.MoveTo(from);
-                path.LineTo(to);
-            }
-            else
-            {
-                var distance = to.X - from.X;
-                var spreadDistance = ((distance / 2f) / 100f) * _wireMiddlePointsSpread;
+            var distance = to.X - from.X;
+            var spreadDistance = ((distance / 2f) / 100f) * 1;
 
-                var fromHalf = new SKPoint(from.X + distance / 2 - spreadDistance, from.Y);
-                var toHalf = new SKPoint(from.X + distance / 2 + spreadDistance, to.Y);
+            var fromHalf = new SKPoint(from.X + distance / 2 - spreadDistance, from.Y);
+            var toHalf = new SKPoint(from.X + distance / 2 + spreadDistance, to.Y);
 
-                if (_wireStyle == EWireStyle.StepLine)
-                {
-                    path.MoveTo(from);
-                    path.LineTo(fromHalf);
-                    path.LineTo(toHalf);
-                    path.LineTo(to);
-                }
-
-                if (_wireStyle == EWireStyle.Bezier)
-                {
-                    path.MoveTo(from);
-                    path.CubicTo(fromHalf, toHalf, to);
-                }
-            }
+            path.MoveTo(from);
+            path.CubicTo(fromHalf, toHalf, to);
 
             canvas.DrawPath(path, paint);
             return path;
         }
 
-        #endregion
-
-        #region OnDrawBackground
-
-        private void OnDrawBackground(SKCanvas canvas, int width, int height)
+        private void OnDrawBackground(SKCanvas canvas, SKPoint topLeft, SKPoint bottomRight)
         {
             if (_gridStyle == EGridStyle.None)
             {
                 return;
             }
-
-            var topLeft = inverse_transformation.MapPoint(new SKPoint(0, 0));
-            var bottomRight = inverse_transformation.MapPoint(new SKPoint(width, height));
 
             var left = topLeft.X;
             var right = bottomRight.X;
@@ -702,206 +495,7 @@ namespace NodeGraphControl
             }
         }
 
-        #endregion
-
-        #region GetMarqueRectangle
-
-        private SKRect GetMarqueRectangle()
-        {
-            var transformedLocation = GetTransformedLocation();
-            var x1 = transformedLocation.X;
-            var y1 = transformedLocation.Y;
-            var x2 = originalLocation.X;
-            var y2 = originalLocation.Y;
-            var x = Math.Min(x1, x2);
-            var y = Math.Min(y1, y2);
-            var width = Math.Max(x1, x2) - x;
-            var height = Math.Max(y1, y2) - y;
-            return new SKRect(x, y, x + width, y + height);
-        }
-
-        #endregion
-
-        #region OnMouseWheel
-
-        protected override void OnMouseWheel(MouseEventArgs e)
-        {
-            base.OnMouseWheel(e);
-
-            var mousePosition = new SKPoint(e.Location.X, e.Location.Y);
-
-            // Get world position under mouse before zoom
-            var worldPosition = inverse_transformation.MapPoint(mousePosition);
-
-            // zoom in (mouse wheel ↑)
-            if (e.Delta > 0)
-            {
-                zoom += 0.05f;
-            }
-
-            // zoom out (mouse wheel ↓)
-            if (e.Delta < 0)
-            {
-                zoom -= 0.1f;
-            }
-
-            UpdateMatrices();
-
-            // Calculate where that world position is now in screen space
-            var newScreenPosition = transformation.MapPoint(worldPosition);
-
-            // Adjust translation to keep the world position under the mouse
-            translation.X += mousePosition.X - newScreenPosition.X;
-            translation.Y += mousePosition.Y - newScreenPosition.Y;
-
-            UpdateMatrices();
-            Invalidate();
-        }
-
-        #endregion
-
-        #region MouseProperties
-
-        private bool leftMouseButton;
-        private bool rightMouseButton;
-
         private NodeUIElement lastHover;
-
-        private void UpdateOriginalLocation(Point location)
-        {
-            var skLocation = new SKPoint(location.X, location.Y);
-            originalLocation = inverse_transformation.MapPoint(skLocation);
-
-            snappedLocation = lastLocation = skLocation;
-        }
-
-        #endregion
-
-        #region OnMouseDown
-
-        protected override void OnMouseDown(MouseEventArgs e)
-        {
-            base.OnMouseDown(e);
-            Focus();
-
-            UpdateOriginalLocation(e.Location);
-
-            var element = FindElementAtOriginal(originalLocation);
-
-            if ((e.Button & MouseButtons.Left) != 0)
-            {
-                leftMouseButton = true;
-
-                if (_command == CommandMode.Edit)
-                {
-                    if (element == null && Control.ModifierKeys != Keys.Shift)
-                    {
-                        SetNodeSelected(false);
-                        Refresh();
-                    }
-
-                    if (element is AbstractNode abstractNode)
-                    {
-                        if (Control.ModifierKeys != Keys.Shift && !abstractNode.Selected)
-                        {
-                            SetNodeSelected(false);
-                        }
-
-                        if (Control.ModifierKeys == Keys.Shift)
-                        {
-                            abstractNode.Selected = !abstractNode.Selected;
-                        }
-                        else
-                        {
-                            abstractNode.Selected = true;
-                        }
-
-                        HandleSelection();
-                        Refresh();
-                    }
-                }
-
-                if (leftMouseButton && rightMouseButton)
-                {
-                    _command = CommandMode.ScaleView;
-                    return;
-                }
-
-                if (element == null)
-                {
-                    // Use marquee selection if Ctrl or Shift is held
-                    if (Control.ModifierKeys == Keys.Control || Control.ModifierKeys == Keys.Shift)
-                    {
-                        _command = CommandMode.MarqueSelection;
-                    }
-                    else
-                    {
-                        _command = CommandMode.TranslateView;
-                    }
-                    return;
-                }
-
-
-
-                if (element is SocketIn socketIn)
-                {
-                    _command = CommandMode.Wiring;
-
-                    if (socketIn.Hub || !socketIn.IsConnected())
-                    {
-                        _tempWire = new Wire { From = null, To = socketIn };
-                    }
-                    else
-                    {
-                        var connection = socketIn.AllConnections[0];
-
-                        _tempWire = new Wire { From = connection.From, To = null };
-                        Disconnect(connection);
-                    }
-
-                    return;
-                }
-
-                if (element is SocketOut socketOut)
-                {
-                    _command = CommandMode.Wiring;
-                    _tempWire = new Wire { From = socketOut };
-                    return;
-                }
-
-                if (element is AbstractNode node)
-                {
-                    _command = CommandMode.MoveSelection;
-                    BringNodeToFront(node);
-                }
-            }
-
-            if ((e.Button & MouseButtons.Right) != 0)
-            {
-                rightMouseButton = true;
-
-                if (leftMouseButton && rightMouseButton)
-                {
-                    _command = CommandMode.ScaleView;
-                    return;
-                }
-
-                if (_command == CommandMode.Edit && FindElementAtMousePoint(e.Location) == null)
-                {
-                    rightMouseButton = false;
-                    //OpenContextMenu(e.Location);
-                    return;
-                }
-            }
-
-            if (e.Button == MouseButtons.Middle)
-            {
-                _command = CommandMode.TranslateView;
-            }
-
-            var transformedPoint = transformation.MapPoint(originalLocation);
-            originalMouseLocation = new SKPoint(transformedPoint.X, transformedPoint.Y);
-        }
 
         private void BringNodeToFront(AbstractNode node)
         {
@@ -910,361 +504,7 @@ namespace NodeGraphControl
                 _graphNodes.Add(node);
             }
 
-            Refresh();
-        }
-
-        #endregion
-
-        #region OnMouseMove
-
-        protected override void OnMouseMove(MouseEventArgs e)
-        {
-            base.OnMouseMove(e);
-
-            var currentLocation = new SKPoint(e.Location.X, e.Location.Y);
-            var transformed_location = inverse_transformation.MapPoint(currentLocation);
-
-            var deltaX = (lastLocation.X - currentLocation.X) / zoom;
-            var deltaY = (lastLocation.Y - currentLocation.Y) / zoom;
-
-            switch (_command)
-            {
-                case CommandMode.TranslateView:
-                    {
-                        if (!mouseMoved)
-                        {
-                            if ((Math.Abs(deltaX) > 1) ||
-                                (Math.Abs(deltaY) > 1))
-                            {
-                                mouseMoved = true;
-                            }
-                        }
-
-                        if (mouseMoved &&
-                            (Math.Abs(deltaX) > 0) ||
-                            (Math.Abs(deltaY) > 0))
-                        {
-                            translation.X -= deltaX * zoom;
-                            translation.Y -= deltaY * zoom;
-                            snappedLocation = lastLocation = currentLocation;
-                            Invalidate();
-                        }
-
-                        return;
-                    }
-                case CommandMode.MoveSelection:
-                    {
-                        foreach (var node in _graphNodes.Where(node => node.Selected))
-                        {
-                            node.Location = new SKPoint((int)Math.Round(node.Location.X - deltaX),
-                                (int)Math.Round(node.Location.Y - deltaY));
-                            node.Calculate();
-                        }
-
-                        snappedLocation = lastLocation = currentLocation;
-                        Invalidate();
-                        return;
-                    }
-                case CommandMode.Wiring:
-                    {
-                        Invalidate();
-                        return;
-                    }
-                case CommandMode.MarqueSelection:
-                    if (!mouseMoved)
-                    {
-                        if ((Math.Abs(deltaX) > 1) ||
-                            (Math.Abs(deltaY) > 1))
-                        {
-                            mouseMoved = true;
-                        }
-                    }
-
-                    if (mouseMoved &&
-                        (Math.Abs(deltaX) > 0) ||
-                        (Math.Abs(deltaY) > 0))
-                    {
-                        var marque_rectangle = GetMarqueRectangle();
-
-                        foreach (var node in _graphNodes)
-                        {
-                            var contains = marque_rectangle.Contains(node.Pivot);
-                            node.Selected = contains || (Control.ModifierKeys == Keys.Shift && node.Selected);
-                        }
-
-                        snappedLocation = lastLocation = currentLocation;
-                        Invalidate();
-                    }
-
-                    return;
-
-                default:
-                    {
-                        var element = FindElementAtOriginal(transformed_location);
-
-                        if (lastHover != element && (lastHover is Wire || element is Wire))
-                        {
-                            lastHover = element;
-                            Invalidate();
-                            return;
-                        }
-                    }
-                    break;
-            }
-        }
-
-        #endregion
-
-        #region OnMouseUp
-
-        protected override void OnMouseUp(MouseEventArgs e)
-        {
-            base.OnMouseUp(e);
-
-            UpdateOriginalLocation(e.Location);
-
-            var element = FindElementAtOriginal(originalLocation);
-
-            if ((e.Button & MouseButtons.Left) != 0)
-            {
-                leftMouseButton = false;
-
-                if (_command == CommandMode.ScaleView)
-                {
-                    _command = CommandMode.Edit;
-                    return;
-                }
-
-                if (_command == CommandMode.TranslateView)
-                {
-                    _command = CommandMode.Edit;
-                    return;
-                }
-
-                if (_command == CommandMode.MarqueSelection)
-                {
-                    _command = CommandMode.Edit;
-                    HandleSelection();
-                    Refresh();
-                    return;
-                }
-
-                if (_command == CommandMode.MoveSelection)
-                {
-                    _command = CommandMode.Edit;
-                    return;
-                }
-
-                if (_command == CommandMode.Wiring && _tempWire != null)
-                {
-                    if (_tempWire.From != null && element is SocketIn @socketIn)
-                    {
-                        Connect(_tempWire.From, @socketIn);
-                    }
-
-                    if (_tempWire.To != null && element is SocketOut @socketOut)
-                    {
-                        Connect(@socketOut, _tempWire.To);
-                    }
-
-                    _tempWire = null;
-                    _command = CommandMode.Edit;
-                    Refresh();
-                    return;
-                }
-            }
-
-            if ((e.Button & MouseButtons.Right) != 0)
-            {
-                rightMouseButton = false;
-                if (_command == CommandMode.ScaleView)
-                {
-                    _command = CommandMode.Edit;
-                    return;
-                }
-            }
-
-            if ((e.Button & MouseButtons.Middle) != 0)
-            {
-                if (_command == CommandMode.TranslateView)
-                {
-                    _command = CommandMode.Edit;
-                    return;
-                }
-            }
-
-            if (!dragging)
-            {
-                return;
-            }
-
-            try
-            {
-                var currentLocation = new SKPoint(e.Location.X, e.Location.Y);
-                var transformed_location = inverse_transformation.MapPoint(currentLocation);
-
-                switch (_command)
-                {
-                    case CommandMode.MarqueSelection:
-                        Invalidate();
-                        return;
-                    case CommandMode.ScaleView:
-                        return;
-                    case CommandMode.TranslateView:
-                        return;
-
-                    default:
-                    case CommandMode.Edit:
-                        break;
-                }
-            }
-            finally
-            {
-                dragging = false;
-                _command = CommandMode.Edit;
-
-                base.OnMouseUp(e);
-            }
-        }
-
-        #endregion
-
-        #region OnMouseClick
-
-        protected override void OnMouseClick(MouseEventArgs e)
-        {
-            base.OnMouseClick(e);
-
-            if (e.Button == MouseButtons.Left)
-            {
-            }
-
-            if (e.Button == MouseButtons.Right)
-            {
-                // TODO context menu
-            }
-        }
-
-        #endregion
-
-        #region OnKeyDown
-
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            base.OnKeyDown(e);
-
-            // reset view
-            if (e.KeyCode == Keys.Space)
-            {
-                ResetView();
-            }
-
-            // show bounds (dev)
-            if (e.KeyCode == Keys.X)
-            {
-                _renderBounds = true;
-                Refresh();
-            }
-
-            // focus view to center of the selection
-            if (e.KeyCode == Keys.F)
-            {
-
-                var count = 0;
-                double x = 0, y = 0;
-
-                foreach (var node in _graphNodes.Where(node => node.Selected))
-                {
-                    x += node.Pivot.X;
-                    y += node.Pivot.Y;
-                    count++;
-                }
-
-                if (count == 0)
-                {
-                    return;
-                }
-
-                var avgPoint = new SKPoint((float)(x / count), (float)(y / count));
-                FocusView(avgPoint);
-            }
-
-            // back to edit mode
-            if ((e.KeyData & Keys.Escape) == Keys.Escape)
-            {
-                _command = CommandMode.Edit;
-            }
-
-            // select all
-            if (e.Control && e.KeyCode == Keys.A)
-            {
-                SetNodeSelected(true);
-                Refresh();
-            }
-
-            // deselect all
-            if (e.Control && e.Shift && e.KeyCode == Keys.A)
-            {
-                SetNodeSelected(false);
-                Refresh();
-            }
-
-            // delete selected
-            if ((e.KeyData & Keys.Delete) == Keys.Delete)
-            {
-                DeleteSelectedNodes();
-            }
-        }
-
-        #endregion
-
-        #region OnKeyUp
-
-        protected override void OnKeyUp(KeyEventArgs e)
-        {
-            base.OnKeyUp(e);
-
-            // hide bounds (dev)
-            if ((e.KeyData & Keys.X) == Keys.X)
-            {
-                _renderBounds = false;
-                Refresh();
-            }
-        }
-
-        #endregion
-
-        #region SpaceInMatrix
-
-        protected void ResetView()
-        {
-            translation.X = (Width / 2f);
-            translation.Y = (Height / 2f);
-            zoom = 1f;
-            Refresh();
-        }
-
-        protected void FocusView(SKPoint focusPoint)
-        {
-            var translatedLocation = GetOriginalPosition(focusPoint);
-            translation.X -= translatedLocation.X - Width / 2f;
-            translation.Y -= translatedLocation.Y - Height / 2f;
-            Invalidate();
-        }
-
-        private SKPoint GetTranslatedPosition(Point mouseClick)
-        {
-            return inverse_transformation.MapPoint(new SKPoint(mouseClick.X, mouseClick.Y));
-        }
-
-        private SKPoint GetTranslatedPosition(SKPoint positionInsideClip)
-        {
-            return inverse_transformation.MapPoint(positionInsideClip);
-        }
-
-        private SKPoint GetOriginalPosition(SKPoint transformed)
-        {
-            return transformation.MapPoint(transformed);
+            OnGraphChanged();
         }
 
         private NodeUIElement FindElementAtOriginal(SKPoint point)
@@ -1274,14 +514,14 @@ namespace NodeGraphControl
                 // find socket
                 foreach (var socket in node.Sockets.Where(socket => !socket.DisplayOnly && socket.BoundsFull.Contains(point)))
                 {
-                    if (socket.GetType() == typeof(SocketIn))
+                    if (socket is SocketIn)
                     {
-                        return (SocketIn)socket;
+                        return socket;
                     }
 
-                    if (socket.GetType() == typeof(SocketOut))
+                    if (socket is SocketOut)
                     {
-                        return (SocketOut)socket;
+                        return socket;
                     }
                 }
 
@@ -1304,38 +544,5 @@ namespace NodeGraphControl
 
             return null;
         }
-
-        public NodeUIElement FindElementAtMousePoint(Point mouseClickPosition)
-        {
-            var position = GetTranslatedPosition(mouseClickPosition);
-            return FindElementAtOriginal(position);
-        }
-
-        #endregion
-
-        #region NodeSelection
-
-        private List<AbstractNode> lastSelected = [];
-
-        private void HandleSelection()
-        {
-            var selected = _graphNodes.Where(node => node.Selected).ToList();
-
-            if (lastSelected.Count != selected.Count)
-            {
-                SelectionChanged?.Invoke(this, selected);
-                lastSelected = selected;
-            }
-            else if (!lastSelected.SequenceEqual(selected))
-            {
-                SelectionChanged?.Invoke(this, selected);
-                lastSelected = selected;
-            }
-        }
-
-        [GeneratedRegex(@"((?<=\p{Ll})\p{Lu})|((?!\A)\p{Lu}(?>\p{Ll}))")]
-        private static partial Regex MyRegex();
-
-        #endregion
     }
 }

@@ -429,7 +429,7 @@ namespace GUI
             //if the user presses CTRL + W, and there is a tab open, close the active tab
             if (keyData == (Keys.Control | Keys.W) && mainTabs.SelectedTab != null)
             {
-                CloseTab(mainTabs.SelectedTab);
+                mainTabs.CloseTab(mainTabs.SelectedTab);
             }
 
             //if the user presses CTRL + Q, close all open tabs
@@ -467,20 +467,6 @@ namespace GUI
 #endif
         }
 
-        private int GetTabIndex(TabPage tab)
-        {
-            //Work out the index of the requested tab
-            for (var i = 0; i < mainTabs.TabPages.Count; i++)
-            {
-                if (mainTabs.TabPages[i] == tab)
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
         private void CloseAndReOpenActiveTab()
         {
             var tab = mainTabs.SelectedTab;
@@ -490,34 +476,10 @@ namespace GUI
                     exportData.PackageEntry?.GetFullPath() ?? exportData.VrfGuiContext.FileName
                 );
                 OpenFile(newFileContext, packageEntry);
-                CloseTab(tab);
+                mainTabs.CloseTab(tab);
             }
         }
 
-        private void CloseTab(TabPage tab)
-        {
-            var tabIndex = GetTabIndex(tab);
-            var isClosingCurrentTab = tabIndex == mainTabs.SelectedIndex;
-
-            //The console cannot be closed!
-            if (tabIndex == 0)
-            {
-                return;
-            }
-
-            //Close the requested tab
-            Log.Info(nameof(MainForm), $"Closing {tab.Text}");
-
-            RenderLoopThread.UnsetIfClosingParentOfCurrentGLControl(tab);
-
-            if (isClosingCurrentTab && tabIndex > 0)
-            {
-                mainTabs.SelectedIndex = tabIndex - 1;
-            }
-
-            mainTabs.TabPages.Remove(tab);
-            tab.Dispose();
-        }
 
         private void CloseAllTabs()
         {
@@ -527,16 +489,16 @@ namespace GUI
             var tabCount = mainTabs.TabPages.Count;
             for (var i = 1; i < tabCount; i++)
             {
-                CloseTab(mainTabs.TabPages[tabCount - i]);
+                mainTabs.CloseTab(mainTabs.TabPages[tabCount - i]);
             }
         }
 
         private void CloseTabsToLeft(TabPage basePage)
         {
             //Close all tabs to the left of the base (excluding console)
-            for (var i = GetTabIndex(basePage) - 1; i > 0; i--)
+            for (var i = mainTabs.GetTabIndex(basePage) - 1; i > 0; i--)
             {
-                CloseTab(mainTabs.TabPages[i]);
+                mainTabs.CloseTab(mainTabs.TabPages[i]);
             }
         }
 
@@ -551,7 +513,7 @@ namespace GUI
                     break;
                 }
 
-                CloseTab(mainTabs.TabPages[tabCount - i]);
+                mainTabs.CloseTab(mainTabs.TabPages[tabCount - i]);
             }
         }
 
@@ -580,7 +542,7 @@ namespace GUI
 
             if (e.Button == MouseButtons.Middle)
             {
-                CloseTab(thisTab);
+                mainTabs.CloseTab(thisTab);
             }
             else if (e.Button == MouseButtons.Right)
             {

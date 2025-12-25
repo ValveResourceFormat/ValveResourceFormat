@@ -54,7 +54,7 @@ namespace GUI
             settingsToolStripMenuItem = new ThemedToolStripMenuItem();
             aboutToolStripMenuItem = new ThemedToolStripMenuItem();
             recoverDeletedToolStripMenuItem = new ThemedToolStripMenuItem();
-            mainTabs = new ThemedTabControl();
+            mainTabs = new MainTabs();
             tabContextMenuStrip = new ThemedContextMenuStrip(components);
             closeToolStripMenuItem = new ThemedToolStripMenuItem();
             closeToolStripMenuItems = new ThemedToolStripMenuItem();
@@ -576,7 +576,7 @@ namespace GUI
         private ToolStripSeparator toolStripSeparator3;
         private ToolStripSeparator toolStripSeparator4;
         private ThemedToolStripMenuItem openWelcomeScreenToolStripMenuItem;
-        private ThemedTabControl mainTabs;
+        private MainTabs mainTabs;
         private Controls.TransparentPanel transparentPanel1;
         private Controls.ControlsBoxPanel controlsBoxPanel;
         private PictureBox mainLogo;

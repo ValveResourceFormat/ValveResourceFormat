@@ -83,7 +83,6 @@ namespace GUI.Types.Viewers
                 case ResourceType.Texture:
                 case ResourceType.PanoramaVectorGraphic:
                     GLViewer = new GLTextureViewer(vrfGuiContext, resource);
-                    GLViewer.InitializeLoad();
                     GLViewerTabName = "TEXTURE";
                     break;
 
@@ -91,7 +90,6 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is ParticleSystem particleData)
                     {
                         GLViewer = new GLParticleViewer(vrfGuiContext, particleData);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "PARTICLE";
                     }
                     break;
@@ -103,7 +101,6 @@ namespace GUI.Types.Viewers
                         if (mapResource != null && mapResource.DataBlock is World mapWorldData)
                         {
                             GLViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true);
-                            GLViewer.InitializeLoad();
                             GLViewerTabName = "MAP";
                         }
                         else
@@ -117,7 +114,6 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is World worldData)
                     {
                         GLViewer = new GLWorldViewer(vrfGuiContext, worldData);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "MAP";
                     }
                     break;
@@ -126,7 +122,6 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is WorldNode worldNodeData)
                     {
                         GLViewer = new GLWorldViewer(vrfGuiContext, worldNodeData);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "WORLD NODE";
                     }
                     break;
@@ -135,7 +130,6 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Model modelData)
                     {
                         GLViewer = new GLModelViewer(vrfGuiContext, modelData);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "MODEL";
                     }
                     break;
@@ -144,7 +138,6 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is Mesh meshData)
                     {
                         GLViewer = new GLMeshViewer(vrfGuiContext, meshData);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "MESH";
                     }
                     break;
@@ -153,7 +146,6 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is SmartProp smartPropData)
                     {
                         GLViewer = new GLSmartPropViewer(vrfGuiContext, smartPropData);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "SMART PROP";
                     }
                     break;
@@ -162,21 +154,26 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is AnimGraph animGraphData)
                     {
                         GLViewer = new GLAnimGraphViewer(vrfGuiContext, animGraphData);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "ANIMATION GRAPH";
                     }
                     break;
 
                 case ResourceType.NmClip:
                     GLViewer = new GLAnimationViewer(vrfGuiContext, resource);
-                    GLViewer.InitializeLoad();
                     GLViewerTabName = "ANIMATION CLIP";
                     break;
 
                 case ResourceType.NmSkeleton:
                     GLViewer = new GLAnimationViewer(vrfGuiContext, resource);
-                    GLViewer.InitializeLoad();
                     GLViewerTabName = "SKELETON";
+                    break;
+
+                case ResourceType.NmGraph:
+                    if (resource.DataBlock is BinaryKV3 binaryKV3)
+                    {
+                        GLViewer = new AnimationGraphViewer(vrfGuiContext, binaryKV3.Data);
+                        GLViewerTabName = "ANIMATION GRAPH";
+                    }
                     break;
 
                 case ResourceType.Material:
@@ -184,13 +181,11 @@ namespace GUI.Types.Viewers
                         if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
                         {
                             GLViewer = new GLSkyboxViewer(vrfGuiContext, resource);
-                            GLViewer.InitializeLoad();
                             GLViewerTabName = "SKYBOX";
                         }
                         else
                         {
                             GLViewer = new GLMaterialViewer(vrfGuiContext, resource);
-                            GLViewer.InitializeLoad();
                             GLViewerTabName = "MATERIAL";
                         }
                         break;
@@ -200,7 +195,6 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is PhysAggregateData physAggregateData)
                     {
                         GLViewer = new GLModelViewer(vrfGuiContext, physAggregateData);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "PHYSICS";
                     }
                     break;
@@ -209,11 +203,12 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is PostProcessing postProcessing && postProcessing.Data.ContainsKey("m_colorCorrectionVolumeData"))
                     {
                         GLViewer = new GLTextureViewer(vrfGuiContext, resource);
-                        GLViewer.InitializeLoad();
                         GLViewerTabName = "LUT";
                     }
                     break;
             }
+
+            GLViewer?.InitializeLoad();
         }
 
         public void Create(TabPage containerTabPage)
@@ -500,14 +495,6 @@ namespace GUI.Types.Viewers
                         return true;
                     }
                     break;
-
-                case ResourceType.NmGraph:
-                    {
-                        var specialTabPage = new ThemedTabPage("ANIMATION GRAPH");
-                        specialTabPage.Controls.Add(new AnimationGraphViewer(vrfGuiContext, ((BinaryKV3)resource.DataBlock!).Data));
-                        resTabs.TabPages.Add(specialTabPage);
-                        return true;
-                    }
 
                 case ResourceType.ChoreoSceneFileData:
                     {

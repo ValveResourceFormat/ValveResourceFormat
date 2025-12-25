@@ -26,6 +26,7 @@ internal class UserInput
     private float TransitionEndTime = -1f;
     private CameraLite StartingCamera;
     public Camera Camera;
+    public Rubikon? PhysicsWorld { get; set; }
 
     // Orbit controls
     public bool OrbitMode => OrbitTarget != null;
@@ -45,7 +46,7 @@ internal class UserInput
     private const float MaxOrbitDistance = 10000f;
     private const float OrbitZoomSpeed = 0.1f;
 
-    // private TrackedKeys PreviousKeys;
+    private TrackedKeys PreviousKeys;
 
     /// <summary>
     /// Force an input update on the next tick.
@@ -81,10 +82,25 @@ internal class UserInput
 
         if (!OrbitModeAlways)
         {
-            // TODO: Use traces to find the point at which we intersect geo, and use that as orbit target
-            OrbitTarget = keyboardState.HasFlag(TrackedKeys.Alt)
-                ? Camera.Location + Camera.Forward * 100
-                : null;
+            var holdingAlt = keyboardState.HasFlag(TrackedKeys.Alt);
+            var justPressedAlt = holdingAlt && !PreviousKeys.HasFlag(TrackedKeys.Alt);
+
+            if (!holdingAlt)
+            {
+                OrbitTarget = null;
+            }
+            else if (justPressedAlt)
+            {
+                OrbitTarget = null;
+
+                var traceResult = PhysicsWorld?.TraceRay(Camera.Location, Camera.Location + Camera.Forward * 10000f);
+                if (traceResult is { Hit: true, HitPosition: var hitPosition })
+                {
+                    OrbitTarget = hitPosition;
+                }
+
+            }
+
         }
 
         if (OrbitMode)
@@ -101,12 +117,15 @@ internal class UserInput
         renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch, finalCamera.Yaw);
         renderCamera.ClampRotation();
 
-        // PreviousKeys = keyboardState;
+        PreviousKeys = keyboardState;
     }
+
+    private CameraLite CameraPositionAngles
+        => new(Camera.Location, Camera.Pitch, Camera.Yaw);
 
     public void SaveCameraForTransition(float transitionDuration = 1.5f)
     {
-        StartingCamera = new(Camera.Location, Camera.Pitch, Camera.Yaw);
+        StartingCamera = CameraPositionAngles;
         TransitionDuration = transitionDuration;
         TransitionEndTime = Uptime + transitionDuration;
     }
@@ -115,7 +134,7 @@ internal class UserInput
     {
         if (TransitionEndTime < Uptime)
         {
-            return new(Camera.Location, Camera.Pitch, Camera.Yaw);
+            return CameraPositionAngles;
         }
 
         var time = 1f - MathF.Pow((TransitionEndTime - Uptime) / TransitionDuration, 5f); // easeOutQuint
@@ -129,6 +148,8 @@ internal class UserInput
 
     private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState)
     {
+        var previousCamera = CameraPositionAngles;
+
         if (keyboardState.HasFlag(TrackedKeys.MouseRight))
         {
             var speed = deltaTime * OrbitDistance / 2;
@@ -142,6 +163,7 @@ internal class UserInput
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
+            Camera.ClampRotation();
         }
 
         if (keyboardState.HasFlag(TrackedKeys.Forward))
@@ -157,7 +179,48 @@ internal class UserInput
         Camera.RecalculateDirectionVectors();
         var forward = Camera.Forward;
         var target = OrbitTarget ?? Vector3.Zero;
-        Camera.Location = target - forward * OrbitDistance;
+        var newLocation = target - forward * OrbitDistance;
+
+        Camera.Location = newLocation;
+
+        var (clipped, clippedPos, clippedTime) = ClipOrbitMovement(previousCamera.Location, newLocation);
+        if (clipped)
+        {
+            Camera.Location = clippedPos;
+            Camera.Yaw = float.Lerp(previousCamera.Yaw, Camera.Yaw, clippedTime);
+            Camera.Pitch = float.Lerp(previousCamera.Pitch, Camera.Pitch, clippedTime);
+
+            var direction = clippedPos - target;
+            OrbitDistance = direction.Length();
+        }
+    }
+
+    private (bool Clipped, Vector3 ClipPosition, float ImpactTime) ClipOrbitMovement(Vector3 fromLocation, Vector3 toLocation)
+    {
+        const float minDistance = 8f;
+        const float margin = 0.01f;
+
+        if (PhysicsWorld != null)
+        {
+            var movementDelta = toLocation - fromLocation;
+            var movementDistance = movementDelta.Length();
+
+            if (movementDistance >= 0.001f)
+            {
+                var direction = Vector3.Normalize(movementDelta);
+
+                var extendedRay = toLocation + direction * minDistance;
+                var extendedDistance = movementDistance + minDistance;
+
+                var traceResult = PhysicsWorld.TraceRay(fromLocation, extendedRay);
+                if (traceResult is { Hit: true, HitPosition: var hitPosition, Distance: var distance })
+                {
+                    return (true, hitPosition - (direction * (minDistance + margin)), distance / extendedDistance);
+                }
+            }
+        }
+
+        return (false, toLocation, 1f);
     }
 
     private void HandleFreeFlightControls(float deltaTime, TrackedKeys keyboardState)
