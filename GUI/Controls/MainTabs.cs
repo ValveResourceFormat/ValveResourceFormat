@@ -34,27 +34,31 @@ internal class MainTabs : ThemedTabControl
         CloseButtonSize = TabHeight / 4;
     }
 
-    protected bool IsCloseButtonHovered { get; private set; }
+    protected int CloseButtonHoveredIndex { get; private set; } = -1;
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
 
-        bool oldIsCloseButtonHovered = IsCloseButtonHovered;
-        IsCloseButtonHovered = false;
+        var oldCloseButtonHoveredIndex = CloseButtonHoveredIndex;
+        CloseButtonHoveredIndex = -1;
 
-        for (var i = 0; i < TabCount; i++)
+        for (var i = 1; i < TabCount; i++)
         {
             var tabRect = GetTabRect(i);
 
-            if (tabRect.Contains(e.Location) && i > 0)
+            if (tabRect.Contains(e.Location))
             {
-                IsCloseButtonHovered = GetCloseButtonRect(tabRect, this.AdjustForDPI(10)).Contains(this.PointToClient(Cursor.Position));
+                if (GetCloseButtonRect(tabRect, this.AdjustForDPI(10)).Contains(PointToClient(Cursor.Position)))
+                {
+                    CloseButtonHoveredIndex = i;
+                }
+
                 break;
             }
         }
 
-        if (oldIsCloseButtonHovered != IsCloseButtonHovered)
+        if (oldCloseButtonHoveredIndex != CloseButtonHoveredIndex)
         {
             Invalidate();
         }
@@ -103,16 +107,16 @@ internal class MainTabs : ThemedTabControl
     {
         base.OnMouseClick(e);
 
-        if (e.Button == MouseButtons.Left && IsCloseButtonHovered)
+        if (e.Button == MouseButtons.Left && CloseButtonHoveredIndex > -1)
         {
-            CloseTab(TabPages[HoveredIndex]);
+            CloseTab(TabPages[CloseButtonHoveredIndex]);
         }
     }
 
     private Rectangle GetCloseButtonRect(Rectangle tabRect, int padding = 0)
     {
-        int closeButtonSize = CloseButtonSize + padding;
-        int closeButtonCenteringOffset = (tabRect.Top - closeButtonSize + TabHeight) / 2;
+        var closeButtonSize = CloseButtonSize + padding;
+        var closeButtonCenteringOffset = (tabRect.Top - closeButtonSize + TabHeight) / 2;
         return new Rectangle(tabRect.Right - closeButtonCenteringOffset - closeButtonSize, closeButtonCenteringOffset, closeButtonSize, closeButtonSize);
     }
 
@@ -130,14 +134,21 @@ internal class MainTabs : ThemedTabControl
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using Pen closeButtonPen = new Pen(SelectedForeColor);
+            var textColor = ForeColor;
+
+            if (isSelected || isHovered)
+            {
+                textColor = SelectedForeColor;
+            }
+
+            using var closeButtonPen = new Pen(textColor);
             closeButtonPen.Width = this.AdjustForDPI(1);
 
-            if (HoveredIndex == i && IsCloseButtonHovered)
+            if (CloseButtonHoveredIndex == i)
             {
                 var closeButtonRectCircle = GetCloseButtonRect(GetTabRect(i), this.AdjustForDPI(10));
 
-                Color closeButtonCircleColor = BackColor;
+                var closeButtonCircleColor = BackColor;
 
                 if (isSelected)
                 {
@@ -162,5 +173,3 @@ internal class MainTabs : ThemedTabControl
         }
     }
 }
-
-
