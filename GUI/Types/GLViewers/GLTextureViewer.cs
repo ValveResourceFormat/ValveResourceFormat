@@ -840,6 +840,11 @@ namespace GUI.Types.GLViewers
             var scaleMinMax = new Vector2(0.1f, 50f);
             scaleMinMax *= 256 / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y);
 
+            if (this is GLNodeGraphViewer)
+            {
+                scaleMinMax.Y = 2f;
+            }
+
             TextureScale = Math.Clamp(TextureScale, scaleMinMax.X, scaleMinMax.Y);
 
             var pos = new Vector2(e.Location.X, e.Location.Y);
