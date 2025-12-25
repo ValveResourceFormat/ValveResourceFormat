@@ -1,9 +1,12 @@
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
+using Svg.Skia;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Graphs;
@@ -722,7 +725,11 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             // Draw the icon
             if (iconToUse != null)
             {
-                canvas.DrawBitmap(iconToUse, position.X, position.Y);
+                var picture = iconToUse.Picture;
+                Debug.Assert(picture is not null);
+
+                var scaleMatrix = SKMatrix.CreateScale(iconSize / picture.CullRect.Width, iconSize / picture.CullRect.Height);
+                canvas.DrawPicture(picture, position);
             }
 
             // Draw the text next to the icon
@@ -745,17 +752,27 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             canvas.DrawText(trimStr, textPosition.X, textPosition.Y, ArialFont, paint);
         }
 
-        private static readonly Dictionary<string, SKBitmap> IconCache = [];
+        private static readonly Dictionary<string, SKSvg> IconCache = [];
 
         static Node()
         {
-            LoadIcon("anim");
-            LoadIcon("anmgrph");
-        }
+            var assembly = Assembly.GetExecutingAssembly();
 
-        private static void LoadIcon(string iconName)
-        {
-            IconCache[iconName] = Themer.GetSvgBitmap("AssetTypes." + iconName, 24, 24);
+            string[] icons =
+            [
+                "anim",
+                "anmgrph",
+            ];
+
+            foreach (var iconName in icons)
+            {
+                using var svgResource = assembly.GetManifestResourceStream($"GUI.Icons.AssetTypes.{iconName}.svg");
+                Debug.Assert(svgResource is not null);
+
+                var svg = new SKSvg();
+                svg.Load(svgResource);
+                IconCache[iconName] = svg;
+            }
         }
     }
 
