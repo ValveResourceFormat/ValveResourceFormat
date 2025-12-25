@@ -767,7 +767,7 @@ namespace GUI.Controls
             var originalImage = Image.FromFile(path);
 
             var destRect = new Rectangle(0, 0, MainForm.ImageList.ImageSize.Width, MainForm.ImageList.ImageSize.Height);
-            var destImage = new Bitmap(MainForm.ImageList.ImageSize.Width, MainForm.ImageList.ImageSize.Height);
+            var destImage = new Bitmap(destRect.Width, destRect.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
             destImage.SetResolution(originalImage.HorizontalResolution, originalImage.VerticalResolution);
 
