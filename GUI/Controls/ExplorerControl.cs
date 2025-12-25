@@ -456,9 +456,18 @@ namespace GUI.Controls
                 var isBookmarked = Settings.Config.BookmarkedFiles.Contains(path);
                 var isRecent = Settings.Config.RecentFiles.Contains(path);
 
-                addToFavoritesToolStripMenuItem.Visible = !isBookmarked;
-                removeFromFavoritesToolStripMenuItem.Visible = isBookmarked;
-                removeFromRecentToolStripMenuItem.Visible = isRecent;
+                if (e.Node.Parent == null)
+                {
+                    addToFavoritesToolStripMenuItem.Visible = false;
+                    removeFromFavoritesToolStripMenuItem.Visible = false;
+                    removeFromRecentToolStripMenuItem.Visible = false;
+                }
+                else
+                {
+                    addToFavoritesToolStripMenuItem.Visible = !isBookmarked;
+                    removeFromFavoritesToolStripMenuItem.Visible = isBookmarked;
+                    removeFromRecentToolStripMenuItem.Visible = isRecent;
+                }
 
                 fileContextMenuStrip.Show(e.Node.TreeView, e.Location);
             }
