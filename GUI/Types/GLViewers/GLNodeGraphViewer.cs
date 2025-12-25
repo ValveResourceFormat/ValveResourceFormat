@@ -1,5 +1,6 @@
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Graphs;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -11,7 +12,7 @@ namespace GUI.Types.GLViewers
 {
     class GLNodeGraphViewer : GLTextureViewer
     {
-        protected readonly NodeGraphControl.NodeGraphControl nodeGraph;
+        protected readonly NodeGraphControl nodeGraph;
         private SKRect graphBounds;
         private bool needsFit = true;
 
@@ -22,7 +23,7 @@ namespace GUI.Types.GLViewers
         private SKSurface surface;
         private SKSizeI lastSize;
 
-        public GLNodeGraphViewer(VrfGuiContext guiContext, NodeGraphControl.NodeGraphControl graph)
+        public GLNodeGraphViewer(VrfGuiContext guiContext, NodeGraphControl graph)
             : base(guiContext, (SKBitmap)null)
         {
             nodeGraph = graph;
@@ -33,6 +34,13 @@ namespace GUI.Types.GLViewers
         private void OnGraphChanged(object sender, System.EventArgs e)
         {
             InvalidateRender();
+        }
+
+        protected override void AddUiControls()
+        {
+            base.AddUiControls();
+
+            UiControl.HideSidebar();
         }
 
         protected override void OnGLLoad()
@@ -104,14 +112,41 @@ namespace GUI.Types.GLViewers
 
             if (needsFit)
             {
+                graphBounds = nodeGraph.GetGraphBounds();
+                OriginalWidth = (int)graphBounds.Width;
+                OriginalHeight = (int)graphBounds.Height;
                 FitToViewport();
                 needsFit = false;
             }
+            else
+            {
+                // Update graphBounds and compensate Position for any origin shift
+                var newGraphBounds = nodeGraph.GetGraphBounds();
+
+                // Compensate for changes in graph origin to prevent visual jumps
+                var deltaLeft = newGraphBounds.Left - graphBounds.Left;
+                var deltaTop = newGraphBounds.Top - graphBounds.Top;
+
+                if (deltaLeft != 0 || deltaTop != 0)
+                {
+                    Position = new System.Numerics.Vector2(
+                        Position.X - deltaLeft * TextureScale,
+                        Position.Y - deltaTop * TextureScale
+                    );
+                    TextureScaleChangeTime = 10f; // Skip interpolation for instant compensation
+                }
+
+                // Update dimensions only if size changed
+                if ((int)newGraphBounds.Width != OriginalWidth || (int)newGraphBounds.Height != OriginalHeight)
+                {
+                    OriginalWidth = (int)newGraphBounds.Width;
+                    OriginalHeight = (int)newGraphBounds.Height;
+                }
+
+                graphBounds = newGraphBounds;
+            }
 
             var (scale, position) = GetCurrentPositionAndScale();
-            graphBounds = nodeGraph.GetGraphBounds();
-            OriginalWidth = (int)graphBounds.Width;
-            OriginalHeight = (int)graphBounds.Height;
 
             canvas.Clear(nodeGraph.CanvasBackgroundColor);
             canvas.Save();
@@ -205,10 +240,10 @@ namespace GUI.Types.GLViewers
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
 
-            nodeGraph.HandleMouseUp(graphPoint, e.Button);
+            nodeGraph.HandleMouseUp(graphPoint);
         }
 
-        private SKPoint ScreenToGraph(SKPoint screenPoint)
+        protected SKPoint ScreenToGraph(SKPoint screenPoint)
         {
             // Convert screen to canvas coordinates (accounting for pan/zoom)
             var canvasX = (screenPoint.X + Position.X) / TextureScale;

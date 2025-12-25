@@ -164,6 +164,20 @@ partial class RendererControl : UserControl
         splitContainer.SplitterDistance = 450;
     }
 
+    public void HideSidebar()
+    {
+        splitContainer.IsSplitterFixed = true;
+
+        if (splitContainer.FixedPanel == FixedPanel.Panel2)
+        {
+            splitContainer.Panel2Collapsed = true;
+        }
+        else
+        {
+            splitContainer.Panel1Collapsed = true;
+        }
+    }
+
     private static void SetControlLocation(Control control)
     {
         control.Dock = DockStyle.Top;

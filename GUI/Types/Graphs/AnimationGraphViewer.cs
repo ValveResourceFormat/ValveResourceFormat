@@ -3,11 +3,10 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
-using NodeGraphControl.Elements;
 using SkiaSharp;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Viewers;
+namespace GUI.Types.Graphs;
 
 internal class AnimationGraphViewer : GLNodeGraphViewer
 {
@@ -21,14 +20,44 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
         CreateGraph();
     }
 
-    private static NodeGraphControl.NodeGraphControl CreateAndConfigureNodeGraph(KVObject data, out KVObject graphDef)
+    public override void Dispose()
+    {
+        GLControl?.MouseDoubleClick -= OnMouseDoubleClick;
+        base.Dispose();
+    }
+
+    protected override void AddUiControls()
+    {
+        base.AddUiControls();
+
+        GLControl.MouseDoubleClick += OnMouseDoubleClick;
+    }
+
+    private void OnMouseDoubleClick(object? sender, MouseEventArgs e)
+    {
+        var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
+        var graphPoint = ScreenToGraph(screenPoint);
+        var element = nodeGraph.FindElementAt(graphPoint);
+
+        if (element is Node { ExternalResourceName: not null } node)
+        {
+            var foundFile = GuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
+            if (foundFile.Context != null)
+            {
+                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+            }
+        }
+    }
+
+    private static NodeGraphControl CreateAndConfigureNodeGraph(KVObject data, out KVObject graphDef)
     {
         graphDef = data;
-        var nodeGraph = new NodeGraphControl.NodeGraphControl();
+        var nodeGraph = new NodeGraphControl
+        {
+            GridStyle = NodeGraphControl.EGridStyle.Grid,
 
-        nodeGraph.GridStyle = NodeGraphControl.NodeGraphControl.EGridStyle.Grid;
-
-        nodeGraph.CanvasBackgroundColor = new SKColor(40, 40, 40);
+            CanvasBackgroundColor = new SKColor(40, 40, 40)
+        };
         NodeColor = new SKColor(60, 60, 60);
         NodeTextColor = new SKColor(230, 230, 230);
         nodeGraph.GridColor = SKColors.White;
@@ -45,8 +74,8 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             //ValueColor = ToSKColor(ControlPaint.Dark(Color.LightBlue, 0f));
         }
 
-        NodeGraphControl.NodeGraphControl.AddTypeColorPair<Pose>(PoseColor);
-        NodeGraphControl.NodeGraphControl.AddTypeColorPair<Value>(ValueColor);
+        NodeGraphControl.AddTypeColorPair<Pose>(PoseColor);
+        NodeGraphControl.AddTypeColorPair<Value>(ValueColor);
 
         return nodeGraph;
     }
@@ -636,7 +665,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
             if (outputSocket != null)
             {
-                var typeColor = NodeGraphControl.SharedState.GetColorByType(outputSocket.ValueType);
+                var typeColor = NodeGraphControl.GetColorByType(outputSocket.ValueType);
                 if (typeColor != SKColor.Empty)
                 {
                     HeaderColor = typeColor;

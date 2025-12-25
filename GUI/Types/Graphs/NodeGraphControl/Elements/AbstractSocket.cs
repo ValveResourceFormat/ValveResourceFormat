@@ -1,7 +1,8 @@
 using SkiaSharp;
 
 #nullable disable
-namespace NodeGraphControl.Elements
+
+namespace GUI.Types.Graphs
 {
     public abstract class AbstractSocket : NodeUIElement
     {

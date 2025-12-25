@@ -1,11 +1,10 @@
 using SkiaSharp;
 using System.Linq;
 using System.Windows.Forms;
-using NodeGraphControl.Elements;
 
 #nullable disable
 
-namespace NodeGraphControl
+namespace GUI.Types.Graphs
 {
     /*
         NodeGraphControl
@@ -15,6 +14,18 @@ namespace NodeGraphControl
     */
     public class NodeGraphControl : IDisposable
     {
+        public const int CornerSize = 12;
+
+        public static SKColor DefaultTypeColor { get; set; } = SKColors.Fuchsia;
+
+        public static readonly Dictionary<Type, SKColor> TypeColor = [];
+
+        public static SKColor GetColorByType(Type type)
+        {
+            TypeColor.TryGetValue(type, out var color);
+            return (color != SKColor.Empty) ? color : DefaultTypeColor;
+        }
+
         public NodeGraphControl()
         {
             //
@@ -57,7 +68,7 @@ namespace NodeGraphControl
 
         public static void AddTypeColorPair<T>(SKColor color)
         {
-            SharedState.TypeColor.TryAdd(typeof(T), color);
+            TypeColor.TryAdd(typeof(T), color);
         }
 
         internal void Connect(SocketOut from, SocketIn to)
@@ -253,7 +264,7 @@ namespace NodeGraphControl
         private readonly List<AbstractNode> _graphNodes = [];
         private readonly List<Wire> _connections = [];
 
-        private bool isMoving;
+        public bool IsMoving { get; private set; }
         SKPoint lastLocation;
 
         public void RenderToCanvas(SKCanvas canvas, SKPoint topLeft, SKPoint bottomRight)
@@ -285,7 +296,7 @@ namespace NodeGraphControl
                     continue;
                 }
 
-                var wireColor = SharedState.GetColorByType(wire.From.ValueType);
+                var wireColor = GetColorByType(wire.From.ValueType);
                 var wireWidth = (wire == lastHover) ? 5f : 3f;
                 using var wirePaint = new SKPaint { Color = wireColor, StrokeWidth = wireWidth, IsAntialias = true, Style = SKPaintStyle.Stroke };
                 using var wirePath = DrawWire(canvas, wirePaint, xFrom, yFrom, xTo, yTo);
@@ -342,7 +353,7 @@ namespace NodeGraphControl
 
             if ((button & MouseButtons.Left) != 0)
             {
-                if (!isMoving)
+                if (!IsMoving)
                 {
                     if (element == null && modifiers != Keys.Shift)
                     {
@@ -380,7 +391,7 @@ namespace NodeGraphControl
 
                 if (element is AbstractNode node)
                 {
-                    isMoving = true;
+                    IsMoving = true;
                     BringNodeToFront(node);
                 }
             }
@@ -388,7 +399,7 @@ namespace NodeGraphControl
 
         public void HandleMouseMove(SKPoint graphPoint)
         {
-            if (isMoving)
+            if (IsMoving)
             {
                 var delta = new SKPoint(
                     graphPoint.X - lastLocation.X,
@@ -419,11 +430,11 @@ namespace NodeGraphControl
             }
         }
 
-        public void HandleMouseUp(SKPoint graphPoint, MouseButtons button)
+        public void HandleMouseUp(SKPoint graphPoint)
         {
             UpdateOriginalLocation(graphPoint);
 
-            isMoving = false;
+            IsMoving = false;
         }
 
         private void UpdateOriginalLocation(SKPoint graphPoint)

@@ -1,4 +1,4 @@
-namespace NodeGraphControl.Elements
+namespace GUI.Types.Graphs
 {
     public abstract class NodeUIElement
     {

@@ -1,7 +1,8 @@
 using System.Linq;
 
 #nullable disable
-namespace NodeGraphControl.Elements
+
+namespace GUI.Types.Graphs
 {
     public class SocketOut : AbstractSocket
     {

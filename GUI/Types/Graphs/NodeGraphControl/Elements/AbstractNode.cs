@@ -1,7 +1,8 @@
 using SkiaSharp;
 
 #nullable disable
-namespace NodeGraphControl.Elements
+
+namespace GUI.Types.Graphs
 {
     public abstract class AbstractNode : NodeUIElement, IDisposable
     {
@@ -142,7 +143,7 @@ namespace NodeGraphControl.Elements
 
         public virtual void Draw(SKCanvas canvas)
         {
-            var cornerSize = SharedState.CornerSize;
+            var cornerSize = NodeGraphControl.CornerSize;
             var left = Location.X;
             var top = Location.Y;
             var right = Location.X + NodeWidth;
@@ -209,7 +210,7 @@ namespace NodeGraphControl.Elements
                         DrawSocket(
                             canvas,
                             socketIn.Pivot,
-                            SharedState.GetColorByType(socketIn.ValueType),
+                            NodeGraphControl.GetColorByType(socketIn.ValueType),
                             (socketIn.IsConnected()),
                             socketIn.Hub
                         );
@@ -227,7 +228,7 @@ namespace NodeGraphControl.Elements
                     DrawSocket(
                         canvas,
                         socketOut.Pivot,
-                        SharedState.GetColorByType(socketOut.ValueType),
+                        NodeGraphControl.GetColorByType(socketOut.ValueType),
                         (socketOut.IsConnected()),
                         false
                     );
