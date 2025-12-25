@@ -28,5 +28,7 @@ namespace GUI.Types.Graphs
         {
             return OutputConnections.Count > 0;
         }
+
+        public override IReadOnlyList<Wire> Connections => OutputConnections;
     }
 }

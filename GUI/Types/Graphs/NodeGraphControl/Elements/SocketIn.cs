@@ -38,5 +38,7 @@ namespace GUI.Types.Graphs
         {
             return InputConnections.Count > 0;
         }
+
+        public override IReadOnlyList<Wire> Connections => InputConnections;
     }
 }

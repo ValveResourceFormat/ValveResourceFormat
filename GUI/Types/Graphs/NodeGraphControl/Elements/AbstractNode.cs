@@ -64,8 +64,6 @@ namespace GUI.Types.Graphs
         public SKColor HeaderTypeColor { get; set; } = SKColors.Orange;
         public SKColor HeaderTextColor { get; set; } = SKColors.LightGray;
 
-        public bool Selected { get; set; }
-
         public SKRect BoundsFull { get; private set; }
         public SKRect BoundsHeader { get; private set; }
         public SKRect BoundsBase { get; private set; }
@@ -141,7 +139,7 @@ namespace GUI.Types.Graphs
             }
         }
 
-        public virtual void Draw(SKCanvas canvas)
+        public virtual void Draw(SKCanvas canvas, bool isPrimarySelected, bool isConnected, bool isHovered)
         {
             var cornerSize = NodeGraphControl.CornerSize;
             var left = Location.X;
@@ -159,12 +157,44 @@ namespace GUI.Types.Graphs
                 var rect = SKRect.Create(left, top, NodeWidth, FullHeight);
                 path.AddRoundRect(rect, cornerSize / 2f, cornerSize / 2f);
 
-                // Shadow
-                var baseColor = Selected ? HeaderColor : new(7, 7, 7);
-                using var shadowFilter = SKImageFilter.CreateDropShadow(0, 0, 10, 10, baseColor.WithAlpha((byte)128));
+                SKColor shadowColor;
+                var shadowBlur = 10f;
+
+                if (isPrimarySelected)
+                {
+                    shadowColor = HeaderColor;
+                    shadowBlur = 15f;
+                }
+                else if (isConnected)
+                {
+                    shadowColor = HeaderColor.WithAlpha(128);
+                }
+                else if (isHovered)
+                {
+                    shadowColor = new SKColor(200, 200, 255);
+                    shadowBlur = 20f;
+                }
+                else
+                {
+                    shadowColor = new SKColor(7, 7, 7);
+                }
+
+                using var shadowFilter = SKImageFilter.CreateDropShadow(0, 0, shadowBlur, shadowBlur, shadowColor.WithAlpha((byte)128));
                 baseColorPaint.ImageFilter = shadowFilter;
                 canvas.DrawPath(path, baseColorPaint);
                 baseColorPaint.ImageFilter = null;
+
+                if (isPrimarySelected || isConnected)
+                {
+                    using var borderPaint = new SKPaint
+                    {
+                        Style = SKPaintStyle.Stroke,
+                        Color = shadowColor,
+                        StrokeWidth = isPrimarySelected ? 2f : 1.5f,
+                        IsAntialias = true
+                    };
+                    canvas.DrawPath(path, borderPaint);
+                }
             }
 
             // header

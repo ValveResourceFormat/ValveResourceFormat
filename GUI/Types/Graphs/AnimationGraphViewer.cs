@@ -694,9 +694,9 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
         private static readonly SKFont ArialFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(15f);
 
-        public override void Draw(SKCanvas canvas)
+        public override void Draw(SKCanvas canvas, bool isPrimarySelected, bool isConnected, bool isHovered)
         {
-            base.Draw(canvas);
+            base.Draw(canvas, isPrimarySelected, isConnected, isHovered);
 
             if (string.IsNullOrEmpty(ExternalResourceName))
             {

@@ -1,6 +1,6 @@
-using SkiaSharp;
 using System.Linq;
 using System.Windows.Forms;
+using SkiaSharp;
 
 #nullable disable
 
@@ -264,6 +264,10 @@ namespace GUI.Types.Graphs
         private readonly List<AbstractNode> _graphNodes = [];
         private readonly List<Wire> _connections = [];
 
+        private NodeUIElement lastHoveredNode;
+        private AbstractNode primarySelectedNode;
+        private readonly HashSet<AbstractNode> connectedNodes = [];
+
         public bool IsMoving { get; private set; }
         SKPoint lastLocation;
 
@@ -297,7 +301,7 @@ namespace GUI.Types.Graphs
                 }
 
                 var wireColor = GetColorByType(wire.From.ValueType);
-                var wireWidth = (wire == lastHover) ? 5f : 3f;
+                var wireWidth = (wire == lastHoveredNode) ? 5f : 3f;
                 using var wirePaint = new SKPaint { Color = wireColor, StrokeWidth = wireWidth, IsAntialias = true, Style = SKPaintStyle.Stroke };
                 using var wirePath = DrawWire(canvas, wirePaint, xFrom, yFrom, xTo, yTo);
 
@@ -308,14 +312,12 @@ namespace GUI.Types.Graphs
             // Draw all nodes
             foreach (var node in nodeSnapshot)
             {
-                node.Draw(canvas);
-            }
-        }
+                var isPrimarySelected = (node == primarySelectedNode);
+                var isConnected = !isPrimarySelected && connectedNodes.Contains(node);
+                var isHovered = !isPrimarySelected && !isConnected && (node == lastHoveredNode);
 
-        // Find element at graph-space point
-        public NodeUIElement FindElementAt(SKPoint graphPoint)
-        {
-            return FindElementAtOriginal(graphPoint);
+                node.Draw(canvas, isPrimarySelected, isConnected, isHovered);
+            }
         }
 
         // Get the bounds of the entire graph in graph space
@@ -349,43 +351,27 @@ namespace GUI.Types.Graphs
         {
             UpdateOriginalLocation(graphPoint);
 
-            var element = FindElementAtOriginal(lastLocation);
+            var element = FindElementAt(lastLocation);
 
             if ((button & MouseButtons.Left) != 0)
             {
+                if (element == null && modifiers != Keys.Shift)
+                {
+                    ClearSelection();
+                }
+
                 if (!IsMoving)
                 {
-                    if (element == null && modifiers != Keys.Shift)
-                    {
-                        // Deselect all nodes when clicking on empty space
-                        foreach (var n in _graphNodes)
-                        {
-                            n.Selected = false;
-                        }
-                        OnGraphChanged();
-                    }
-
                     if (element is AbstractNode abstractNode)
                     {
-                        if (modifiers != Keys.Shift && !abstractNode.Selected)
-                        {
-                            // Deselect all other nodes
-                            foreach (var n in _graphNodes)
-                            {
-                                n.Selected = false;
-                            }
-                        }
-
                         if (modifiers == Keys.Shift)
                         {
-                            abstractNode.Selected = !abstractNode.Selected;
+                            ToggleSelection(abstractNode);
                         }
                         else
                         {
-                            abstractNode.Selected = true;
+                            SetPrimarySelection(abstractNode);
                         }
-
-                        OnGraphChanged();
                     }
                 }
 
@@ -397,7 +383,7 @@ namespace GUI.Types.Graphs
             }
         }
 
-        public void HandleMouseMove(SKPoint graphPoint)
+        public void HandleMouseMove(SKPoint graphPoint, Keys modifiers = Keys.None)
         {
             if (IsMoving)
             {
@@ -406,13 +392,26 @@ namespace GUI.Types.Graphs
                     graphPoint.Y - lastLocation.Y
                 );
 
-                foreach (var node in _graphNodes.Where(node => node.Selected))
+                var moveAllConnected = (modifiers & Keys.Control) != 0;
+
+                if (moveAllConnected && connectedNodes.Count > 0)
                 {
-                    node.Location = new SKPoint(
-                        (int)Math.Round(node.Location.X + delta.X),
-                        (int)Math.Round(node.Location.Y + delta.Y)
+                    foreach (var node in connectedNodes)
+                    {
+                        node.Location = new SKPoint(
+                            (int)Math.Round(node.Location.X + delta.X),
+                            (int)Math.Round(node.Location.Y + delta.Y)
+                        );
+                        node.Calculate();
+                    }
+                }
+                else if (primarySelectedNode != null)
+                {
+                    primarySelectedNode.Location = new SKPoint(
+                        (int)Math.Round(primarySelectedNode.Location.X + delta.X),
+                        (int)Math.Round(primarySelectedNode.Location.Y + delta.Y)
                     );
-                    node.Calculate();
+                    primarySelectedNode.Calculate();
                 }
 
                 lastLocation = graphPoint;
@@ -420,13 +419,12 @@ namespace GUI.Types.Graphs
                 return;
             }
 
-            var element = FindElementAtOriginal(graphPoint);
+            var element = FindElementAt(graphPoint);
 
-            if (lastHover != element)
+            if (lastHoveredNode != element)
             {
-                lastHover = element;
+                lastHoveredNode = element;
                 OnGraphChanged();
-                return;
             }
         }
 
@@ -506,8 +504,6 @@ namespace GUI.Types.Graphs
             }
         }
 
-        private NodeUIElement lastHover;
-
         private void BringNodeToFront(AbstractNode node)
         {
             if (_graphNodes.Remove(node))
@@ -518,11 +514,14 @@ namespace GUI.Types.Graphs
             OnGraphChanged();
         }
 
-        private NodeUIElement FindElementAtOriginal(SKPoint point)
+        // Find element at graph-space point
+        public NodeUIElement FindElementAt(SKPoint point)
         {
-            foreach (var node in _graphNodes)
+            // Iterate in reverse order to find topmost (frontmost) nodes first
+            for (var i = _graphNodes.Count - 1; i >= 0; i--)
             {
-                // find socket
+                var node = _graphNodes[i];
+
                 foreach (var socket in node.Sockets.Where(socket => !socket.DisplayOnly && socket.BoundsFull.Contains(point)))
                 {
                     if (socket is SocketIn)
@@ -536,14 +535,12 @@ namespace GUI.Types.Graphs
                     }
                 }
 
-                // find node
                 if (node.BoundsFull.Contains(point))
                 {
                     return node;
                 }
             }
 
-            // find wire
             for (var i = _connections.Count - 1; i >= 0; i--)
             {
                 var wire = _connections[i];
@@ -554,6 +551,112 @@ namespace GUI.Types.Graphs
             }
 
             return null;
+        }
+
+        private void TraverseConnectedGraph(AbstractNode startNode)
+        {
+            connectedNodes.Clear();
+            if (startNode == null)
+            {
+                return;
+            }
+
+            connectedNodes.Add(startNode);
+
+            // Traverse upstream: follow inputs backwards from primary node to find all source nodes
+            TraverseUpstream(startNode, connectedNodes);
+
+            // Traverse downstream: follow outputs forward from primary node to find all destination nodes
+            TraverseDownstream(startNode, connectedNodes);
+        }
+
+        private static void TraverseUpstream(AbstractNode startNode, HashSet<AbstractNode> visited)
+        {
+            var queue = new Queue<AbstractNode>();
+            queue.Enqueue(startNode);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+
+                // Only follow input sockets (go backwards in the flow)
+                foreach (var socket in current.Sockets.OfType<SocketIn>())
+                {
+                    foreach (var wire in socket.Connections)
+                    {
+                        var sourceNode = wire.From.Owner;
+                        if (sourceNode != null && visited.Add(sourceNode))
+                        {
+                            queue.Enqueue(sourceNode);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void TraverseDownstream(AbstractNode startNode, HashSet<AbstractNode> visited)
+        {
+            var queue = new Queue<AbstractNode>();
+            queue.Enqueue(startNode);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+
+                // Only follow output sockets (go forward in the flow)
+                foreach (var socket in current.Sockets.OfType<SocketOut>())
+                {
+                    foreach (var wire in socket.Connections)
+                    {
+                        var destNode = wire.To.Owner;
+                        if (destNode != null && visited.Add(destNode))
+                        {
+                            queue.Enqueue(destNode);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void SetPrimarySelection(AbstractNode node)
+        {
+            primarySelectedNode = node;
+            TraverseConnectedGraph(node);
+
+            foreach (var connectedNode in connectedNodes)
+            {
+                if (connectedNode != primarySelectedNode && _graphNodes.Remove(connectedNode))
+                {
+                    _graphNodes.Add(connectedNode);
+                }
+            }
+
+            // Bring primary node to front last (so it's on top)
+            if (_graphNodes.Remove(primarySelectedNode))
+            {
+                _graphNodes.Add(primarySelectedNode);
+            }
+        }
+
+        private void ToggleSelection(AbstractNode node)
+        {
+            if (primarySelectedNode == node || connectedNodes.Contains(node))
+            {
+                primarySelectedNode = null;
+                connectedNodes.Clear();
+            }
+            else
+            {
+                SetPrimarySelection(node);
+            }
+            OnGraphChanged();
+        }
+
+        private void ClearSelection()
+        {
+            primarySelectedNode = null;
+            connectedNodes.Clear();
+            OnGraphChanged();
         }
     }
 }

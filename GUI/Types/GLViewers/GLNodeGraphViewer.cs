@@ -198,21 +198,17 @@ namespace GUI.Types.GLViewers
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
 
-            // Left click: check if clicking on a node/wire or empty space
+            nodeGraph.HandleMouseDown(graphPoint, e.Button, Control.ModifierKeys);
+
             if (e.Button == MouseButtons.Left && Control.ModifierKeys == Keys.None)
             {
                 var element = nodeGraph.FindElementAt(graphPoint);
 
-                // If clicking empty space, pan instead
                 if (element == null)
                 {
                     base.OnMouseDown(sender, e);
-                    return;
                 }
             }
-
-            // Forward to node graph for node interaction
-            nodeGraph.HandleMouseDown(graphPoint, e.Button, Control.ModifierKeys);
         }
 
         protected override void OnMouseMove(object sender, MouseEventArgs e)
@@ -220,15 +216,13 @@ namespace GUI.Types.GLViewers
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
 
-            // Check if we're panning the view (ClickPosition is set by GLTextureViewer)
             if (ClickPosition.HasValue)
             {
                 base.OnMouseMove(sender, e);
                 return;
             }
 
-            // Forward to node graph for node dragging
-            nodeGraph.HandleMouseMove(graphPoint);
+            nodeGraph.HandleMouseMove(graphPoint, Control.ModifierKeys);
         }
 
         protected override void OnMouseUp(object sender, MouseEventArgs e)

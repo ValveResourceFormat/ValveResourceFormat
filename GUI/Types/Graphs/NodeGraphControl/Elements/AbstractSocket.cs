@@ -12,7 +12,7 @@ namespace GUI.Types.Graphs
 
         public bool DisplayOnly { get; set; }
 
-        protected AbstractNode Owner { get; private set; }
+        public AbstractNode Owner { get; private set; }
 
         private SKRect _bounds;
 
@@ -34,5 +34,7 @@ namespace GUI.Types.Graphs
         public abstract void Connect(Wire wire);
 
         public abstract bool IsConnected();
+
+        public abstract IReadOnlyList<Wire> Connections { get; }
     }
 }
