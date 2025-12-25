@@ -368,8 +368,7 @@ namespace GUI.Controls
 
                 if (imageIndex > -1)
                 {
-                    var image = ImageList.Images[imageIndex];
-                    g.DrawImage(image, imageRect.Left, imageRect.Top, imageRect.Height, imageRect.Height);
+                    ImageList.Draw(g, imageRect.Left, imageRect.Top, imageRect.Height, imageRect.Height, imageIndex);
                 }
 
                 var oldTextX = textRect.X;
