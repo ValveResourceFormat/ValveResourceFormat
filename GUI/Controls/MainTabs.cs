@@ -24,9 +24,34 @@ internal class MainTabs : ThemedTabControl
         set { tabHeight = this.AdjustForDPI(value); SetCloseButtonSize(); }
     }
 
+    private readonly ToolTip tabToolTip = new();
+    private int lastHoveredTabIndex = -1;
+    private readonly Timer tooltipTimer = new();
+    private int pendingTooltipTabIndex = -1;
+
     public MainTabs()
     {
         SetCloseButtonSize();
+
+        // Enable tooltip on the control
+        tabToolTip.ShowAlways = true;
+        tabToolTip.Active = true;
+
+        // Set up tooltip delay timer
+        tooltipTimer.Interval = 1000; // 1 second delay
+        tooltipTimer.Tick += TooltipTimer_Tick;
+    }
+
+    private void TooltipTimer_Tick(object? sender, EventArgs e)
+    {
+        tooltipTimer.Stop();
+
+        if (pendingTooltipTabIndex >= 0 && pendingTooltipTabIndex < TabPages.Count)
+        {
+            var tabText = TabPages[pendingTooltipTabIndex].Text;
+            var mousePos = PointToClient(Cursor.Position);
+            tabToolTip.Show(tabText, this, mousePos.X, mousePos.Y + 20, 3000);
+        }
     }
 
     private void SetCloseButtonSize()
@@ -40,6 +65,7 @@ internal class MainTabs : ThemedTabControl
     {
         base.OnMouseMove(e);
 
+        var hoveredTabIndex = -1;
         var oldCloseButtonHoveredIndex = CloseButtonHoveredIndex;
         CloseButtonHoveredIndex = -1;
 
@@ -49,6 +75,8 @@ internal class MainTabs : ThemedTabControl
 
             if (tabRect.Contains(e.Location))
             {
+                hoveredTabIndex = i;
+
                 if (GetCloseButtonRect(tabRect, this.AdjustForDPI(10)).Contains(PointToClient(Cursor.Position)))
                 {
                     CloseButtonHoveredIndex = i;
@@ -58,10 +86,40 @@ internal class MainTabs : ThemedTabControl
             }
         }
 
+        // Update tooltip when hovering over a different tab
+        if (hoveredTabIndex != lastHoveredTabIndex)
+        {
+            // Stop any pending tooltip
+            tooltipTimer.Stop();
+            tabToolTip.Hide(this);
+
+            if (hoveredTabIndex >= 0 && hoveredTabIndex < TabPages.Count)
+            {
+                // Start timer to show tooltip after delay
+                pendingTooltipTabIndex = hoveredTabIndex;
+                tooltipTimer.Start();
+            }
+            else
+            {
+                pendingTooltipTabIndex = -1;
+            }
+
+            lastHoveredTabIndex = hoveredTabIndex;
+        }
+
         if (oldCloseButtonHoveredIndex != CloseButtonHoveredIndex)
         {
             Invalidate();
         }
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        tooltipTimer.Stop();
+        tabToolTip.Hide(this);
+        lastHoveredTabIndex = -1;
+        pendingTooltipTabIndex = -1;
     }
 
     public int GetTabIndex(TabPage tab)
@@ -171,5 +229,16 @@ internal class MainTabs : ThemedTabControl
             e.Graphics.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Y, closeButtonRectX.Right, closeButtonRectX.Bottom);
             e.Graphics.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Bottom, closeButtonRectX.Right, closeButtonRectX.Top);
         }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            tooltipTimer?.Stop();
+            tooltipTimer?.Dispose();
+            tabToolTip?.Dispose();
+        }
+        base.Dispose(disposing);
     }
 }
