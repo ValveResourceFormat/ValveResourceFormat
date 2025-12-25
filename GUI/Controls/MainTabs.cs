@@ -149,8 +149,8 @@ internal class MainTabs : ThemedTabControl
                 }
 
                 closeButtonCircleColor = Themer.CurrentThemeColors.ColorMode == SystemColorMode.Dark ?
-                    ControlPaint.Dark(closeButtonCircleColor, 0.2f) :
-                    ControlPaint.Light(closeButtonCircleColor, 0.2f);
+                    ControlPaint.Light(closeButtonCircleColor, 0.4f) :
+                    ControlPaint.Dark(closeButtonCircleColor, 0.01f);
 
                 using Brush closeButtonCircleBrush = new SolidBrush(closeButtonCircleColor);
                 e.Graphics.FillEllipse(closeButtonCircleBrush, closeButtonRectCircle);
