@@ -772,8 +772,7 @@ namespace GUI.Controls
             using var graphics = Graphics.FromImage(destImage);
             graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
             graphics.SmoothingMode = SmoothingMode.HighQuality;
-            graphics.PixelOffsetMode = PixelOffsetMode.Half;
-            graphics.CompositingMode = CompositingMode.SourceCopy;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
             graphics.DrawImage(originalImage, destRect, 0, 0, originalImage.Width, originalImage.Height, GraphicsUnit.Pixel);
 
             return destImage;
