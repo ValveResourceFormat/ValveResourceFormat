@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -18,7 +19,8 @@ using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using Svg.Skia;
 using ValveResourceFormat.IO;
-
+using Windows.Win32;
+using Windows.Win32.Graphics.Gdi;
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
 #nullable disable
@@ -42,6 +44,11 @@ namespace GUI
         /// Lookup a file extension icon from GUI/Icons/AssetTypes/ folder.
         /// </summary>
         public static Dictionary<string, int> ExtensionIcons { get; private set; } = [];
+
+        /// <summary>
+        /// Lookup a game icon by appid that are loaded by the Explorer control from Steam.
+        /// </summary>
+        public static Dictionary<int, int> GameIcons { get; private set; } = [];
 
         private readonly string[] Args;
 
@@ -201,10 +208,11 @@ namespace GUI
                 {
 #pragma warning disable CA2000 // Dispose objects before losing scope, this is a false positive
                     using var svg = new SKSvg();
-#pragma warning restore CA2000
                     svg.Load(stream);
 
-                    ImageList.Images.Add(fullName, Themer.SvgToBitmap(svg, ImageList.ImageSize.Width, ImageList.ImageSize.Height));
+                    using var bitmap = Themer.SvgToBitmap(svg, ImageList.ImageSize.Width, ImageList.ImageSize.Height);
+                    AddFixedImageToImageList(bitmap, ImageList);
+#pragma warning restore CA2000
 
                     if (iconName == "Logo")
                     {
@@ -213,7 +221,7 @@ namespace GUI
                 }
                 else
                 {
-                    ImageList.Images.Add(fullName, Image.FromStream(stream));
+                    Debug.Assert(false, "Use only svg icons");
                 }
             }
 
@@ -710,7 +718,10 @@ namespace GUI
                     {
                         if (vrfGuiContext.FileName.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
                         {
-                            tab.ImageIndex = ImageList.Images.IndexOfKey($"@app{game.AppID}");
+                            if (GameIcons.TryGetValue(game.AppID, out var imageIndexGame))
+                            {
+                                tab.ImageIndex = imageIndexGame;
+                            }
 
                             break;
                         }
@@ -1206,6 +1217,32 @@ namespace GUI
                     mainFormBottomPanel.SetNewVersionAvailable();
                 }).ConfigureAwait(false);
             }
+        }
+
+        // Based on https://www.codeproject.com/articles/Adding-and-using-32-bit-alphablended-images-and-ic
+        // Fixes adding images with proper transparency without incorrect anti aliasing
+        public static unsafe void AddFixedImageToImageList(Bitmap bm, ImageList il)
+        {
+            Debug.Assert(bm.Size == il.ImageSize);
+
+            var bmi = new BITMAPINFO();
+            bmi.bmiHeader.biSize = (uint)sizeof(BITMAPINFOHEADER);
+            bmi.bmiHeader.biBitCount = 32;
+            bmi.bmiHeader.biPlanes = 1;
+            bmi.bmiHeader.biWidth = bm.Width;
+            bmi.bmiHeader.biHeight = bm.Height;
+
+            bm.RotateFlip(RotateFlipType.RotateNoneFlipY);
+
+            using var hBitmap = PInvoke.CreateDIBSection((HDC)IntPtr.Zero, &bmi, DIB_USAGE.DIB_RGB_COLORS, out var ppvBits, null, 0);
+
+            var bitmapData = bm.LockBits(new Rectangle(0, 0, bm.Width, bm.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            var byteCount = bm.Height * bitmapData.Stride;
+            Buffer.MemoryCopy((void*)bitmapData.Scan0, ppvBits, byteCount, byteCount);
+            bm.UnlockBits(bitmapData);
+
+            using var ilHandle = new DeleteObjectSafeHandle(il.Handle, ownsHandle: false);
+            PInvoke.ImageList_Add(ilHandle, hBitmap, default);
         }
     }
 }

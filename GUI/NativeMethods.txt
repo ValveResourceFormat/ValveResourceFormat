@@ -1,4 +1,5 @@
 AppendMenu
+CreateDIBSection
 DwmDefWindowProc
 DwmGetWindowAttribute
 DwmSetWindowAttribute
@@ -16,6 +17,7 @@ HTTOP
 HTTOPLEFT
 HTTOPRIGHT
 HTTRANSPARENT
+ImageList_Add
 MENU_ITEM_FLAGS
 NCCALCSIZE_PARAMS
 PostMessage
