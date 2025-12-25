@@ -11,10 +11,6 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 
-#if DEBUG
-using System.Reflection;
-#endif
-
 #nullable disable
 
 namespace GUI.Controls
@@ -136,9 +132,9 @@ namespace GUI.Controls
             }
 
             var vpkImage = MainForm.ExtensionIcons["vpk"];
-            var vcsImage = MainForm.ExtensionIcons["vcs"];
-            var mapImage = MainForm.ExtensionIcons["map"];
-            var pluginImage = MainForm.Icons["Plugin"];
+            var vcsImage = MainForm.Icons["FolderShaders"];
+            var mapImage = MainForm.Icons["FolderMap"];
+            var pluginImage = MainForm.Icons["FolderPlugin"];
             var folderImage = MainForm.Icons["Folder"];
 
             int GetSortPriorityForImage(int image)
@@ -567,7 +563,7 @@ namespace GUI.Controls
 
                 if (WorkshopAddons.TryGetValue(path, out var displayTitle))
                 {
-                    imageIndexFile = MainForm.Icons["Plugin"];
+                    imageIndexFile = MainForm.Icons["FolderPlugin"];
                     pathDisplay = $"{pathDisplay} {displayTitle}";
                 }
                 else
@@ -575,17 +571,23 @@ namespace GUI.Controls
                     var extension = Path.GetExtension(path).ToLowerInvariant().AsSpan();
                     isVpk = MemoryExtensions.Equals(extension, ".vpk", StringComparison.Ordinal);
 
-                    if (isVpk && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
+                    if (isVpk && Path.GetFileName(path.AsSpan()).StartsWith("shaders_", StringComparison.Ordinal))
                     {
-                        extension = ".map";
+                        imageIndexFile = MainForm.Icons["FolderShaders"];
                     }
-
-                    if (extension.Length > 0)
+                    else if (isVpk && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
                     {
-                        extension = extension[1..];
+                        imageIndexFile = MainForm.Icons["FolderMap"];
                     }
+                    else
+                    {
+                        if (extension.Length > 0)
+                        {
+                            extension = extension[1..];
+                        }
 
-                    imageIndexFile = MainForm.GetImageIndexForExtension(extension);
+                        imageIndexFile = MainForm.GetImageIndexForExtension(extension);
+                    }
                 }
 
                 foreach (var game in SteamGames)
