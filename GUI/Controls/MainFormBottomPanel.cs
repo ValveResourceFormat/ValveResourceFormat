@@ -35,6 +35,11 @@ public partial class MainFormBottomPanel : UserControl
         Invalidate();
     }
 
+    public void HideVersionLabel()
+    {
+        versionLabel.Visible = false;
+    }
+
     public void SetVersionText(string text)
     {
         versionLabel.Text = text;

@@ -387,7 +387,7 @@ namespace GUI
             }
 
 #if SCREENSHOT_MODE
-            versionLabel.Visible = false;
+            mainFormBottomPanel.HideVersionLabel();
             SetBounds(x: 100, y: 100, width: 1800 + 22, height: 1200 + 11); // Tweak size as needed
 #endif
         }
