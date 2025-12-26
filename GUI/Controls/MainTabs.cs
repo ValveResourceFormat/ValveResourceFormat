@@ -152,12 +152,13 @@ internal class MainTabs : ThemedTabControl
 
         RenderLoopThread.UnsetIfClosingParentOfCurrentGLControl(tab);
 
+        TabPages.Remove(tab);
+
         if (isClosingCurrentTab && tabIndex > 0)
         {
             SelectedIndex = tabIndex - 1;
         }
 
-        TabPages.Remove(tab);
         tab.Dispose();
     }
 
