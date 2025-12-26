@@ -17,6 +17,9 @@ namespace GUI.Types.Renderer
     {
         private readonly Scene scene;
         private readonly VrfGuiContext guiContext;
+
+        public string MapName { get; }
+
         public readonly World World;
 
         public List<Entity> Entities { get; } = [];
@@ -37,6 +40,7 @@ namespace GUI.Types.Renderer
 
         public WorldLoader(World world, Scene scene)
         {
+            MapName = Path.GetDirectoryName(world.Resource!.FileName!)!;
             World = world;
             this.scene = scene;
             guiContext = scene.GuiContext;
@@ -128,9 +132,8 @@ namespace GUI.Types.Renderer
             // TODO: Ideally we would use the vrman files to find relevant files.
             var timer = Stopwatch.StartNew();
 
-            string? worldPhysicsFolder = Path.GetDirectoryName(World.Resource!.FileName);
             PhysAggregateData? phys = null;
-            var physResource = guiContext.LoadFile(Path.Join(worldPhysicsFolder, "world_physics.vmdl_c"));
+            var physResource = guiContext.LoadFile(Path.Join(MapName, "world_physics.vmdl_c"));
 
             if (physResource != null)
             {
@@ -138,7 +141,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                physResource = guiContext.LoadFile(Path.Join(worldPhysicsFolder, "world_physics.vphys_c"));
+                physResource = guiContext.LoadFile(Path.Join(MapName, "world_physics.vphys_c"));
 
                 if (physResource != null)
                 {
@@ -1066,7 +1069,7 @@ namespace GUI.Types.Renderer
 
         public void LoadNavigationMesh()
         {
-            var navFilePath = Path.ChangeExtension(guiContext.FileName, ".nav");
+            var navFilePath = Path.ChangeExtension(MapName, ".nav");
             try
             {
                 using var navFileStream = guiContext.GetFileStream(navFilePath);
