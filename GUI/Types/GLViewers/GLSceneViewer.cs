@@ -145,8 +145,9 @@ namespace GUI.Types.GLViewers
                     brdfLutResource.Read(brdfStream);
                 }
 
-                // TODO: add annoying force clamp for lut
-                Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", GuiContext.MaterialLoader.LoadTexture(brdfLutResource)));
+                var brdfLutTexture = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
+                brdfLutTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+                Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
             }
             finally
             {

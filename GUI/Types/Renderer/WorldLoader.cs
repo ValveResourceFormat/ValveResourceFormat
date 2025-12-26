@@ -127,6 +127,7 @@ namespace GUI.Types.Renderer
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
             string? worldPhysicsFolder = null;
+            var timer = Stopwatch.StartNew();
 
             if (Path.GetExtension(guiContext.FileName) == ".vmap_c")
             {
@@ -157,8 +158,10 @@ namespace GUI.Types.Renderer
             if (phys != null)
             {
                 Debug.Assert(physResource?.FileName != null);
+                Log.Debug(nameof(WorldLoader), $"Loading physics data took {timer.Elapsed.TotalSeconds:F2} seconds.");
 
-                var timer = Stopwatch.StartNew();
+                timer.Restart();
+
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
                 {
                     physSceneNode.LayerName = "world_layer_base";
