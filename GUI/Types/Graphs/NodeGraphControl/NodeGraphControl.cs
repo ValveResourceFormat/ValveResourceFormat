@@ -347,14 +347,22 @@ namespace GUI.Types.Graphs
 
             var path = new SKPath();
 
-            var distance = to.X - from.X;
-            var spreadDistance = ((distance / 2f) / 100f) * 1;
+            var dx = to.X - from.X;
+            var dy = to.Y - from.Y;
+            var absDx = Math.Abs(dx);
+            var absDy = Math.Abs(dy);
 
-            var fromHalf = new SKPoint(from.X + distance / 2 - spreadDistance, from.Y);
-            var toHalf = new SKPoint(from.X + distance / 2 + spreadDistance, to.Y);
+            var horizontalOffset = absDx * 0.5f + 50f / (absDx + 50f) * 50f;
+
+            var backwardAmount = Math.Max(0, -dx);
+            var backwardFactor = backwardAmount / (backwardAmount + 100f);
+            var verticalOffset = backwardFactor * (50f / (1f + absDy / 50f) + dy * 0.1f);
+
+            var fromControl = new SKPoint(from.X + horizontalOffset, from.Y + verticalOffset);
+            var toControl = new SKPoint(to.X - horizontalOffset, to.Y + verticalOffset);
 
             path.MoveTo(from);
-            path.CubicTo(fromHalf, toHalf, to);
+            path.CubicTo(fromControl, toControl, to);
 
             canvas.DrawPath(path, paint);
             return path;
