@@ -877,6 +877,43 @@ namespace GUI.Types.GLViewers
 
         protected override void OnMouseWheel(object sender, MouseEventArgs e)
         {
+            var isShiftPressed = (CurrentlyPressedKeys & TrackedKeys.Shift) > 0;
+            var isCtrlPressed = (CurrentlyPressedKeys & TrackedKeys.Control) > 0;
+
+            if (isShiftPressed || isCtrlPressed)
+            {
+                (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
+                TextureScaleChangeTime = 0f;
+                ClickPosition = null;
+
+                var panSpeed = 50f;
+                if ((CurrentlyPressedKeys & TrackedKeys.Alt) > 0)
+                {
+                    panSpeed *= 2f;
+                }
+
+                var delta = Vector2.Zero;
+
+                if (isShiftPressed)
+                {
+                    delta.Y = e.Delta > 0 ? -panSpeed : panSpeed;
+                }
+                else if (isCtrlPressed)
+                {
+                    delta.X = e.Delta > 0 ? -panSpeed : panSpeed;
+                }
+
+                if (!IsZoomedIn)
+                {
+                    MovedFromOrigin_Unzoomed = true;
+                }
+
+                Position += delta;
+                ClampPosition();
+                InvalidateRender();
+                return;
+            }
+
             (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
             TextureScaleChangeTime = 0f;
             ClickPosition = null;
