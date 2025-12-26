@@ -299,8 +299,8 @@ namespace GUI.Types.Graphs
                     foreach (var node in connectedNodes)
                     {
                         node.Location = new SKPoint(
-                            (int)Math.Round(node.Location.X + delta.X),
-                            (int)Math.Round(node.Location.Y + delta.Y)
+                            node.Location.X + delta.X,
+                            node.Location.Y + delta.Y
                         );
                         node.Calculate();
                     }
@@ -308,8 +308,8 @@ namespace GUI.Types.Graphs
                 else if (primarySelectedNode != null)
                 {
                     primarySelectedNode.Location = new SKPoint(
-                        (int)Math.Round(primarySelectedNode.Location.X + delta.X),
-                        (int)Math.Round(primarySelectedNode.Location.Y + delta.Y)
+                        primarySelectedNode.Location.X + delta.X,
+                        primarySelectedNode.Location.Y + delta.Y
                     );
                     primarySelectedNode.Calculate();
                 }
