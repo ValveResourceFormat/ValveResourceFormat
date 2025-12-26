@@ -126,18 +126,9 @@ namespace GUI.Types.Renderer
         public void LoadWorldPhysics()
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
-            string? worldPhysicsFolder = null;
             var timer = Stopwatch.StartNew();
 
-            if (Path.GetExtension(guiContext.FileName) == ".vmap_c")
-            {
-                worldPhysicsFolder = guiContext.FileName[..^7];
-            }
-            else
-            {
-                worldPhysicsFolder = Path.GetDirectoryName(guiContext.FileName);
-            }
-
+            string? worldPhysicsFolder = Path.GetDirectoryName(World.Resource!.FileName);
             PhysAggregateData? phys = null;
             var physResource = guiContext.LoadFile(Path.Join(worldPhysicsFolder, "world_physics.vmdl_c"));
 
