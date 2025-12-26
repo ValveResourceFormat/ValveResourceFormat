@@ -19,9 +19,8 @@ namespace GUI.Forms
             Icon = Program.MainForm.Icon;
 
             {
-                var assembly = Assembly.GetExecutingAssembly();
                 using var svg = new SKSvg();
-                using var svgResource = assembly.GetManifestResourceStream(Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic ? "GUI.Icons.Logo_light.svg" : "GUI.Icons.Logo.svg");
+                using var svgResource = Program.Assembly.GetManifestResourceStream(Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic ? "GUI.Icons.Logo_light.svg" : "GUI.Icons.Logo.svg");
                 Debug.Assert(svgResource is not null);
                 svg.Load(svgResource);
                 icon.Image = Themer.SvgToBitmap(svg, icon.Width, icon.Height);

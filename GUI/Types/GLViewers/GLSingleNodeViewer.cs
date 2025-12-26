@@ -42,8 +42,7 @@ namespace GUI.Types.GLViewers
 
         private void LoadDefaultEnvironmentMap()
         {
-            var assembly = Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
+            using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
 
             using var resource = new Resource()
             {

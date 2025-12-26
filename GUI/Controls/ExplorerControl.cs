@@ -794,8 +794,7 @@ namespace GUI.Controls
 #if DEBUG
         private void DebugAddEmbeddedResourcesToTree()
         {
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var embeddedResources = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
+            var embeddedResources = Program.Assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
 
             var imageIndex = MainForm.Icons["Folder"];
             var embeddedFilesTreeNode = new TreeNode("Embedded Resources")
@@ -870,8 +869,7 @@ namespace GUI.Controls
 
             var name = path["vrf_embedded:".Length..];
 
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream(name);
+            using var stream = Program.Assembly.GetManifestResourceStream(name);
             using var ms = new MemoryStream((int)stream.Length);
 
             using var package = new SteamDatabase.ValvePak.Package();

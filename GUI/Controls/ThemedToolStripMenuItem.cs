@@ -56,7 +56,6 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
             return;
         }
 
-        var assembly = Assembly.GetExecutingAssembly();
         var resourceName = SVGImageResourceName;
         Stream? svgResource = null;
 
@@ -64,11 +63,11 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
         if (Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic)
         {
             var lightVariantName = $"{resourceName.AsSpan()[..^4]}_light.svg";
-            svgResource = assembly.GetManifestResourceStream(lightVariantName);
+            svgResource = Program.Assembly.GetManifestResourceStream(lightVariantName);
         }
 
         svgResource
-            ??= assembly.GetManifestResourceStream(resourceName)
+            ??= Program.Assembly.GetManifestResourceStream(resourceName)
             ?? throw new InvalidOperationException($"Failed to find resource `{resourceName}` for SVG icon in ${nameof(ThemedToolStripMenuItem)}.");
 
         using (svgResource)

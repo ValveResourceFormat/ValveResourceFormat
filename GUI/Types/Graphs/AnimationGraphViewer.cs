@@ -729,8 +729,6 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
         static Node()
         {
-            var assembly = Assembly.GetExecutingAssembly();
-
             string[] icons =
             [
                 "anim",
@@ -739,7 +737,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
             foreach (var iconName in icons)
             {
-                using var svgResource = assembly.GetManifestResourceStream($"GUI.Icons.AssetTypes.{iconName}.svg");
+                using var svgResource = Program.Assembly.GetManifestResourceStream($"GUI.Icons.AssetTypes.{iconName}.svg");
                 Debug.Assert(svgResource is not null);
 
                 var svg = new SKSvg();

@@ -146,8 +146,7 @@ namespace GUI
                 ImageSize = new Size(this.AdjustForDPI(24), this.AdjustForDPI(24)),
             };
 
-            var assembly = Assembly.GetExecutingAssembly();
-            var resources = assembly.GetManifestResourceNames().Where(static r => r.StartsWith("GUI.Icons.", StringComparison.Ordinal));
+            var resources = Program.Assembly.GetManifestResourceNames().Where(static r => r.StartsWith("GUI.Icons.", StringComparison.Ordinal));
 
             if (Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic)
             {
@@ -186,7 +185,7 @@ namespace GUI
                     name = name[..^"_light".Length];
                 }
 
-                using var stream = assembly.GetManifestResourceStream(fullName);
+                using var stream = Program.Assembly.GetManifestResourceStream(fullName);
                 Debug.Assert(stream is not null);
 
                 var iconName = name.ToString();
@@ -226,7 +225,7 @@ namespace GUI
             }
 
             {
-                using var stream = assembly.GetManifestResourceStream(AssetTypesAliasesFile);
+                using var stream = Program.Assembly.GetManifestResourceStream(AssetTypesAliasesFile);
                 using var reader = new StreamReader(stream);
 
                 string line;

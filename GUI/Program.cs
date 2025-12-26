@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -13,6 +14,7 @@ namespace GUI
     {
 #nullable disable
         public static MainForm MainForm { get; private set; }
+        public static Assembly Assembly { get; private set; }
 #nullable enable
 
         /// <summary>
@@ -32,6 +34,7 @@ namespace GUI
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
+            Assembly = Assembly.GetExecutingAssembly();
             MainForm = new MainForm(args);
 
             Application.Run(MainForm);

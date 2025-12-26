@@ -252,8 +252,7 @@ namespace GUI.Forms
 
             if (!File.Exists(vpkIconPath))
             {
-                var assembly = Assembly.GetExecutingAssembly();
-                using var iconStream = assembly.GetManifestResourceStream("GUI.Utils.vpk.ico");
+                using var iconStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.vpk.ico");
                 using var iconDiskStream = File.OpenWrite(vpkIconPath);
                 iconStream.CopyTo(iconDiskStream);
             }
