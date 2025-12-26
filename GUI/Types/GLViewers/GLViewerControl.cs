@@ -815,9 +815,13 @@ namespace GUI.Types.GLViewers
             Keys.D => TrackedKeys.Right,
             Keys.Q => TrackedKeys.Up,
             Keys.Z => TrackedKeys.Down,
+            Keys.Up => TrackedKeys.Forward,
+            Keys.Down => TrackedKeys.Back,
+            Keys.Left => TrackedKeys.Left,
+            Keys.Right => TrackedKeys.Right,
             Keys.ControlKey => TrackedKeys.Control,
-            Keys.LShiftKey => TrackedKeys.Shift,
-            Keys.LMenu => TrackedKeys.Alt,
+            Keys.ShiftKey or Keys.LShiftKey => TrackedKeys.Shift,
+            Keys.Menu or Keys.LMenu => TrackedKeys.Alt,
             _ => TrackedKeys.None,
         };
 
