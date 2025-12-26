@@ -6,7 +6,6 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -20,6 +19,8 @@ using SteamDatabase.ValvePak;
 using Svg.Skia;
 using ValveResourceFormat.IO;
 using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.Graphics.Dwm;
 using Windows.Win32.Graphics.Gdi;
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
@@ -387,8 +388,12 @@ namespace GUI
             }
 
 #if SCREENSHOT_MODE
-            mainFormBottomPanel.HideVersionLabel();
-            SetBounds(x: 100, y: 100, width: 1800 + 22, height: 1200 + 11); // Tweak size as needed
+            mainFormBottomPanel.Visible = false;
+            SetBounds(x: 100, y: 100, width: 480 + 6, height: 480 + 3); // Tweak size as needed
+            unsafe
+            {
+                var preference = 1; PInvoke.DwmSetWindowAttribute((HWND)Handle, (DWMWINDOWATTRIBUTE)33, &preference, sizeof(int));
+            }
 #endif
         }
 
