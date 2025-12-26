@@ -422,8 +422,13 @@ namespace GUI.Types.Graphs
             {
                 var node = _graphNodes[i];
 
-                foreach (var socket in node.Sockets.Where(socket => !socket.DisplayOnly && socket.BoundsFull.Contains(point)))
+                foreach (var socket in node.Sockets)
                 {
+                    if (socket.DisplayOnly || !socket.BoundsFull.Contains(point))
+                    {
+                        continue;
+                    }
+
                     if (socket is SocketIn)
                     {
                         return socket;

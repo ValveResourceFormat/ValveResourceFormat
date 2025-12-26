@@ -711,7 +711,11 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             var fileExtensionStart = ExternalResourceName.LastIndexOf('.');
             var trimStr = ExternalResourceName[..fileExtensionStart];
             trimStr = trimStr.Replace(".vnmgraph", string.Empty, StringComparison.Ordinal);
-            trimStr = trimStr.Split('/').LastOrDefault() ?? trimStr;
+            var lastSlashIndex = trimStr.LastIndexOf('/');
+            if (lastSlashIndex >= 0)
+            {
+                trimStr = trimStr[(lastSlashIndex + 1)..];
+            }
             if (trimStr.Length > 23)
             {
                 trimStr = '…' + trimStr[^22..];
