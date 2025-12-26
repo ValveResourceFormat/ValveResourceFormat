@@ -221,7 +221,7 @@ namespace GUI.Controls
             var enumerationOptions = new EnumerationOptions
             {
                 RecurseSubdirectories = true,
-                MaxRecursionDepth = 5,
+                MaxRecursionDepth = 6,
                 BufferSize = 65536,
             };
 
