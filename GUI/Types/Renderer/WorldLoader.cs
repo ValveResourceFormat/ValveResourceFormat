@@ -49,15 +49,41 @@ namespace GUI.Types.Renderer
 
             if (mapResourceReferences != null)
             {
-                Parallel.ForEach(mapResourceReferences.ResourceRefInfoList, resourceReference =>
+                Resource? PreloadResource(string resourceName)
                 {
-                    var resource = guiContext.LoadFileCompiled(resourceReference.Name);
+                    var resource = guiContext.LoadFileCompiled(resourceName);
                     if (resource is { DataBlock: Model model })
                     {
                         foreach (var mesh in model.GetEmbeddedMeshes())
                         {
                             var __ = mesh.Mesh.VBIB;
                         }
+                    }
+
+                    return resource;
+                }
+
+                Parallel.ForEach(mapResourceReferences.ResourceRefInfoList, resourceReference =>
+                {
+                    var resource = PreloadResource(resourceReference.Name);
+
+                    if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump })
+                    {
+                        HashSet<string> toolIcons = new();
+                        foreach (var entity in entityLump.GetEntities())
+                        {
+                            var className = entity.GetProperty<string>("classname");
+                            var hammerEntity = HammerEntities.Get(className);
+                            if (hammerEntity?.Icons.Length > 0)
+                            {
+                                toolIcons.UnionWith(hammerEntity.Icons);
+                            }
+                        }
+
+                        Parallel.ForEach(toolIcons, file =>
+                        {
+                            PreloadResource(file);
+                        });
                     }
                 });
             }
