@@ -96,11 +96,12 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Map:
                     {
-                        var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName![..^7], "world.vwrld_c"));
+                        var mapResource = vrfGuiContext.LoadFile($"{resource.FileName![..^7]}/world.vwrld_c");
+                        var mapExternalReferences = resource.ExternalReferences;
 
                         if (mapResource != null && mapResource.DataBlock is World mapWorldData)
                         {
-                            GLViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, isFromVmap: true);
+                            GLViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, mapExternalReferences);
                             GLViewerTabName = "MAP";
                         }
                         else
@@ -121,7 +122,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.WorldNode:
                     if (resource.DataBlock is WorldNode worldNodeData)
                     {
-                        GLViewer = new GLWorldViewer(vrfGuiContext, worldNodeData);
+                        GLViewer = new GLWorldViewer(vrfGuiContext, worldNodeData, resource.ExternalReferences);
                         GLViewerTabName = "WORLD NODE";
                     }
                     break;

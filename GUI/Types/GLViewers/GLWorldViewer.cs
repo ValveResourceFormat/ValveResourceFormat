@@ -5,6 +5,7 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Renderer;
 using GUI.Utils;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -22,6 +23,7 @@ namespace GUI.Types.GLViewers
     {
         private readonly World world;
         private readonly WorldNode worldNode;
+        private readonly ResourceExtRefList mapExternalReferences;
         private CheckedListBox worldLayersComboBox;
         private CheckedListBox physicsGroupsComboBox;
         private ComboBox cameraComboBox;
@@ -32,17 +34,19 @@ namespace GUI.Types.GLViewers
         private WorldNodeLoader LoadedWorldNode;
         public WorldLoader LoadedWorld;
 
-        public GLWorldViewer(VrfGuiContext guiContext, World world, bool isFromVmap = false)
+        public GLWorldViewer(VrfGuiContext guiContext, World world, ResourceExtRefList externalReferences = null)
             : base(guiContext)
         {
             this.world = world;
-            Scene.EnableOcclusionCulling = isFromVmap;
+            mapExternalReferences = externalReferences;
+            Scene.EnableOcclusionCulling = externalReferences != null;
         }
 
-        public GLWorldViewer(VrfGuiContext guiContext, WorldNode worldNode)
+        public GLWorldViewer(VrfGuiContext guiContext, WorldNode worldNode, ResourceExtRefList externalReferences = null)
             : base(guiContext)
         {
             this.worldNode = worldNode;
+            mapExternalReferences = externalReferences;
         }
 
         public override void Dispose()
@@ -157,7 +161,7 @@ namespace GUI.Types.GLViewers
 
             if (world != null)
             {
-                LoadedWorld = new WorldLoader(world, Scene);
+                LoadedWorld = new WorldLoader(world, Scene, mapExternalReferences);
 
                 if (LoadedWorld.SkyboxScene != null)
                 {
@@ -188,7 +192,7 @@ namespace GUI.Types.GLViewers
 
             if (worldNode != null)
             {
-                LoadedWorldNode = new WorldNodeLoader(GuiContext, worldNode);
+                LoadedWorldNode = new WorldNodeLoader(GuiContext, worldNode, mapExternalReferences);
                 LoadedWorldNode.Load(Scene);
             }
         }
