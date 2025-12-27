@@ -19,8 +19,6 @@ using SteamDatabase.ValvePak;
 using Svg.Skia;
 using ValveResourceFormat.IO;
 using Windows.Win32;
-using Windows.Win32.Foundation;
-using Windows.Win32.Graphics.Dwm;
 using Windows.Win32.Graphics.Gdi;
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
@@ -392,7 +390,11 @@ namespace GUI
             SetBounds(x: 100, y: 100, width: 480 + 6, height: 480 + 3); // Tweak size as needed
             unsafe
             {
-                var preference = 1; PInvoke.DwmSetWindowAttribute((HWND)Handle, (DWMWINDOWATTRIBUTE)33, &preference, sizeof(int));
+                var preference = Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_DONOTROUND;
+                PInvoke.DwmSetWindowAttribute((Windows.Win32.Foundation.HWND)Handle,
+                    Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE,
+                    &preference,
+                    sizeof(Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE));
             }
 #endif
         }
@@ -568,6 +570,7 @@ namespace GUI
                 closeToolStripMenuItem.Visible = tabIndex != 0;
 
                 var canExport = thisTab.Tag is ExportData exportData;
+                toolStripSeparator5.Visible = canExport || tabIndex == 0;
                 exportAsIsToolStripMenuItem.Visible = canExport;
                 decompileExportToolStripMenuItem.Visible = canExport;
 

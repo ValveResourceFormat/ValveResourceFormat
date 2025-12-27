@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using GUI.Utils;
+using Windows.Win32.Graphics.Dwm;
 
 namespace GUI.Controls;
 
@@ -28,5 +29,20 @@ internal class ThemedContextMenuStrip : ContextMenuStrip
         BackColor = Themer.CurrentThemeColors.AppMiddle;
         RenderMode = ToolStripRenderMode.Professional;
         Renderer = new DarkToolStripRenderer(new CustomColorTable());
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+
+        unsafe
+        {
+            var preference = DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_ROUND;
+            Windows.Win32.PInvoke.DwmSetWindowAttribute(
+                (Windows.Win32.Foundation.HWND)Handle,
+                DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE,
+                &preference,
+                sizeof(DWM_WINDOW_CORNER_PREFERENCE));
+        }
     }
 }

@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using System.Windows.Forms;
 using GUI.Utils;
 using Microsoft.Win32;

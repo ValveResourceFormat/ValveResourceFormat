@@ -1,4 +1,3 @@
-using System.Reflection;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
