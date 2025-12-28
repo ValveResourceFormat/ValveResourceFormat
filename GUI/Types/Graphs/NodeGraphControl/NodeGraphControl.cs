@@ -12,7 +12,7 @@ namespace GUI.Types.Graphs
         Copyright (c) 2021 amaurote
         https://github.com/amaurote/NodeGraphControl
     */
-    public class NodeGraphControl : IDisposable
+    public partial class NodeGraphControl : IDisposable
     {
         public const int CornerSize = 12;
 
@@ -77,106 +77,6 @@ namespace GUI.Types.Graphs
             to.Connect(wire);
             from.Connect(wire);
             _connections.Add(wire);
-        }
-
-        public void LayoutNodes(float padding = 20f)
-        {
-            if (_graphNodes.Count == 0)
-            {
-                return;
-            }
-
-            const int maxIterations = 100;
-
-            // Simple overlap removal algorithm using iterative repositioning
-            for (var iteration = 0; iteration < maxIterations; iteration++)
-            {
-                var hasOverlap = false;
-
-                for (var i = 0; i < _graphNodes.Count; i++)
-                {
-                    var nodeA = _graphNodes[i];
-                    nodeA.Calculate();
-
-                    for (var j = i + 1; j < _graphNodes.Count; j++)
-                    {
-                        var nodeB = _graphNodes[j];
-                        nodeB.Calculate();
-
-                        // Check if nodes overlap
-                        var boundsA = nodeA.BoundsFull;
-                        var boundsB = nodeB.BoundsFull;
-
-                        // Add padding to bounds for overlap check
-                        var paddedBoundsA = SKRect.Inflate(boundsA, padding / 2, padding / 2);
-
-                        var paddedBoundsB = SKRect.Inflate(boundsB, padding / 2, padding / 2);
-
-                        if (paddedBoundsA.IntersectsWith(paddedBoundsB))
-                        {
-                            hasOverlap = true;
-
-                            // Calculate separation vector
-                            var centerA = new SKPoint(nodeA.Pivot.X, nodeA.Pivot.Y);
-                            var centerB = new SKPoint(nodeB.Pivot.X, nodeB.Pivot.Y);
-
-                            var dx = centerB.X - centerA.X;
-                            var dy = centerB.Y - centerA.Y;
-                            var distance = (float)Math.Sqrt(dx * dx + dy * dy);
-
-                            if (distance < 1f)
-                            {
-                                // Nodes are at same position, push apart arbitrarily
-                                dx = 1f;
-                                dy = 1f;
-                                distance = (float)Math.Sqrt(2);
-                            }
-
-                            // Normalize direction vector
-                            dx /= distance;
-                            dy /= distance;
-
-                            // Calculate required separation
-                            var overlapX = (paddedBoundsA.Width + paddedBoundsB.Width) / 2 - Math.Abs(centerB.X - centerA.X);
-                            var overlapY = (paddedBoundsA.Height + paddedBoundsB.Height) / 2 - Math.Abs(centerB.Y - centerA.Y);
-
-                            // Move nodes apart (both nodes move half the distance)
-                            var moveX = dx * overlapX / 2;
-                            var moveY = dy * overlapY / 2;
-
-                            // Prefer horizontal separation for better graph readability
-                            if (Math.Abs(dx) > 0.1f)
-                            {
-                                nodeA.Location = new SKPoint(
-                                    (int)Math.Round(nodeA.Location.X - moveX),
-                                    nodeA.Location.Y);
-                                nodeB.Location = new SKPoint(
-                                    (int)Math.Round(nodeB.Location.X + moveX),
-                                    nodeB.Location.Y);
-                            }
-                            else
-                            {
-                                nodeA.Location = new SKPoint(
-                                    nodeA.Location.X,
-                                    (int)Math.Round(nodeA.Location.Y - moveY));
-                                nodeB.Location = new SKPoint(
-                                    nodeB.Location.X,
-                                    (int)Math.Round(nodeB.Location.Y + moveY));
-                            }
-
-                            nodeA.Calculate();
-                            nodeB.Calculate();
-                        }
-                    }
-                }
-
-                if (!hasOverlap)
-                {
-                    break;
-                }
-            }
-
-            OnGraphChanged();
         }
 
         // grid style
@@ -399,8 +299,8 @@ namespace GUI.Types.Graphs
                     foreach (var node in connectedNodes)
                     {
                         node.Location = new SKPoint(
-                            (int)Math.Round(node.Location.X + delta.X),
-                            (int)Math.Round(node.Location.Y + delta.Y)
+                            node.Location.X + delta.X,
+                            node.Location.Y + delta.Y
                         );
                         node.Calculate();
                     }
@@ -408,8 +308,8 @@ namespace GUI.Types.Graphs
                 else if (primarySelectedNode != null)
                 {
                     primarySelectedNode.Location = new SKPoint(
-                        (int)Math.Round(primarySelectedNode.Location.X + delta.X),
-                        (int)Math.Round(primarySelectedNode.Location.Y + delta.Y)
+                        primarySelectedNode.Location.X + delta.X,
+                        primarySelectedNode.Location.Y + delta.Y
                     );
                     primarySelectedNode.Calculate();
                 }
@@ -447,14 +347,22 @@ namespace GUI.Types.Graphs
 
             var path = new SKPath();
 
-            var distance = to.X - from.X;
-            var spreadDistance = ((distance / 2f) / 100f) * 1;
+            var dx = to.X - from.X;
+            var dy = to.Y - from.Y;
+            var absDx = Math.Abs(dx);
+            var absDy = Math.Abs(dy);
 
-            var fromHalf = new SKPoint(from.X + distance / 2 - spreadDistance, from.Y);
-            var toHalf = new SKPoint(from.X + distance / 2 + spreadDistance, to.Y);
+            var horizontalOffset = absDx * 0.5f + 50f / (absDx + 50f) * 50f;
+
+            var backwardAmount = Math.Max(0, -dx);
+            var backwardFactor = backwardAmount / (backwardAmount + 100f);
+            var verticalOffset = backwardFactor * (50f / (1f + absDy / 50f) + dy * 0.1f);
+
+            var fromControl = new SKPoint(from.X + horizontalOffset, from.Y + verticalOffset);
+            var toControl = new SKPoint(to.X - horizontalOffset, to.Y + verticalOffset);
 
             path.MoveTo(from);
-            path.CubicTo(fromHalf, toHalf, to);
+            path.CubicTo(fromControl, toControl, to);
 
             canvas.DrawPath(path, paint);
             return path;
@@ -522,8 +430,13 @@ namespace GUI.Types.Graphs
             {
                 var node = _graphNodes[i];
 
-                foreach (var socket in node.Sockets.Where(socket => !socket.DisplayOnly && socket.BoundsFull.Contains(point)))
+                foreach (var socket in node.Sockets)
                 {
+                    if (socket.DisplayOnly || !socket.BoundsFull.Contains(point))
+                    {
+                        continue;
+                    }
+
                     if (socket is SocketIn)
                     {
                         return socket;

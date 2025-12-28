@@ -1,12 +1,9 @@
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Globalization;
-using System.Reflection;
 using System.Windows.Forms;
 using GUI.Utils;
-using Svg.Skia;
 
 namespace GUI.Forms
 {

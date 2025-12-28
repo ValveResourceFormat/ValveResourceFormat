@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
@@ -17,6 +19,9 @@ namespace GUI.Types.Renderer
     {
         private readonly Scene scene;
         private readonly VrfGuiContext guiContext;
+
+        public string MapName { get; }
+
         public readonly World World;
 
         public List<Entity> Entities { get; } = [];
@@ -35,11 +40,53 @@ namespace GUI.Types.Renderer
         public float WorldScale { get; set; } = 1.0f;
         // TODO: also store skybox reference rotation
 
-        public WorldLoader(World world, Scene scene)
+        public WorldLoader(World world, Scene scene, ResourceExtRefList? mapResourceReferences)
         {
+            MapName = Path.GetDirectoryName(world.Resource!.FileName!)!.Replace('\\', '/');
             World = world;
             this.scene = scene;
             guiContext = scene.GuiContext;
+
+            if (mapResourceReferences != null)
+            {
+                Resource? PreloadResource(string resourceName)
+                {
+                    var resource = guiContext.LoadFileCompiled(resourceName);
+                    if (resource is { DataBlock: Model model })
+                    {
+                        foreach (var mesh in model.GetEmbeddedMeshes())
+                        {
+                            var __ = mesh.Mesh.VBIB;
+                        }
+                    }
+
+                    return resource;
+                }
+
+                Parallel.ForEach(mapResourceReferences.ResourceRefInfoList, resourceReference =>
+                {
+                    var resource = PreloadResource(resourceReference.Name);
+
+                    if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump })
+                    {
+                        HashSet<string> toolIcons = new();
+                        foreach (var entity in entityLump.GetEntities())
+                        {
+                            var className = entity.GetProperty<string>("classname");
+                            var hammerEntity = HammerEntities.Get(className);
+                            if (hammerEntity?.Icons.Length > 0)
+                            {
+                                toolIcons.UnionWith(hammerEntity.Icons);
+                            }
+                        }
+
+                        Parallel.ForEach(toolIcons, file =>
+                        {
+                            PreloadResource(file);
+                        });
+                    }
+                });
+            }
 
             Load();
         }
@@ -112,7 +159,7 @@ namespace GUI.Types.Renderer
 
                     MainWorldNode ??= worldNodeData;
 
-                    var subloader = new WorldNodeLoader(guiContext, worldNodeData, worldNodeResource.ExternalReferences);
+                    var subloader = new WorldNodeLoader(guiContext, worldNodeData);
                     subloader.Load(scene);
 
                     foreach (var layer in subloader.LayerNames)
@@ -126,19 +173,8 @@ namespace GUI.Types.Renderer
         public void LoadWorldPhysics()
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
-            string? worldPhysicsFolder = null;
-
-            if (Path.GetExtension(guiContext.FileName) == ".vmap_c")
-            {
-                worldPhysicsFolder = guiContext.FileName[..^7];
-            }
-            else
-            {
-                worldPhysicsFolder = Path.GetDirectoryName(guiContext.FileName);
-            }
-
             PhysAggregateData? phys = null;
-            var physResource = guiContext.LoadFile(Path.Join(worldPhysicsFolder, "world_physics.vmdl_c"));
+            var physResource = guiContext.LoadFile($"{MapName}/world_physics.vmdl_c");
 
             if (physResource != null)
             {
@@ -146,7 +182,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                physResource = guiContext.LoadFile(Path.Join(worldPhysicsFolder, "world_physics.vphys_c"));
+                physResource = guiContext.LoadFile($"{MapName}/world_physics.vphys_c");
 
                 if (physResource != null)
                 {
@@ -158,20 +194,13 @@ namespace GUI.Types.Renderer
             {
                 Debug.Assert(physResource?.FileName != null);
 
-                var timer = Stopwatch.StartNew();
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
                 {
                     physSceneNode.LayerName = "world_layer_base";
-
                     scene.Add(physSceneNode, true);
                 }
 
-                Log.Debug(nameof(WorldLoader), $"Loading physics debug renderer took {timer.Elapsed.TotalSeconds:F2} seconds.");
-
-                timer.Restart();
                 scene.PhysicsWorld = new Rubikon(phys);
-
-                Log.Debug(nameof(WorldLoader), $"Loading physics world took {timer.Elapsed.TotalSeconds:F2} seconds.");
             }
         }
 
@@ -1034,7 +1063,7 @@ namespace GUI.Types.Renderer
             SkyboxScene = new Scene(guiContext);
             SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
 
-            var skyboxResult = new WorldLoader(skyboxWorldData, SkyboxScene);
+            var skyboxResult = new WorldLoader(skyboxWorldData, SkyboxScene, null);
 
             // Take origin and angles from skybox_reference
             EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
@@ -1072,7 +1101,7 @@ namespace GUI.Types.Renderer
 
         public void LoadNavigationMesh()
         {
-            var navFilePath = Path.ChangeExtension(guiContext.FileName, ".nav");
+            var navFilePath = Path.ChangeExtension(MapName, ".nav");
             try
             {
                 using var navFileStream = guiContext.GetFileStream(navFilePath);

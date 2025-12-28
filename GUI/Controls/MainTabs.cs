@@ -24,9 +24,34 @@ internal class MainTabs : ThemedTabControl
         set { tabHeight = this.AdjustForDPI(value); SetCloseButtonSize(); }
     }
 
+    private readonly ToolTip tabToolTip = new();
+    private int lastHoveredTabIndex = -1;
+    private readonly Timer tooltipTimer = new();
+    private int pendingTooltipTabIndex = -1;
+
     public MainTabs()
     {
         SetCloseButtonSize();
+
+        // Enable tooltip on the control
+        tabToolTip.ShowAlways = true;
+        tabToolTip.Active = true;
+
+        // Set up tooltip delay timer
+        tooltipTimer.Interval = 1000; // 1 second delay
+        tooltipTimer.Tick += TooltipTimer_Tick;
+    }
+
+    private void TooltipTimer_Tick(object? sender, EventArgs e)
+    {
+        tooltipTimer.Stop();
+
+        if (pendingTooltipTabIndex >= 0 && pendingTooltipTabIndex < TabPages.Count)
+        {
+            var tabText = TabPages[pendingTooltipTabIndex].Text;
+            var mousePos = PointToClient(Cursor.Position);
+            tabToolTip.Show(tabText, this, mousePos.X, mousePos.Y + 20, 3000);
+        }
     }
 
     private void SetCloseButtonSize()
@@ -34,30 +59,67 @@ internal class MainTabs : ThemedTabControl
         CloseButtonSize = TabHeight / 4;
     }
 
-    protected bool IsCloseButtonHovered { get; private set; }
+    protected int CloseButtonHoveredIndex { get; private set; } = -1;
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
 
-        bool oldIsCloseButtonHovered = IsCloseButtonHovered;
-        IsCloseButtonHovered = false;
+        var hoveredTabIndex = -1;
+        var oldCloseButtonHoveredIndex = CloseButtonHoveredIndex;
+        CloseButtonHoveredIndex = -1;
 
-        for (var i = 0; i < TabCount; i++)
+        for (var i = 1; i < TabCount; i++)
         {
             var tabRect = GetTabRect(i);
 
-            if (tabRect.Contains(e.Location) && i > 0)
+            if (tabRect.Contains(e.Location))
             {
-                IsCloseButtonHovered = GetCloseButtonRect(tabRect, this.AdjustForDPI(10)).Contains(this.PointToClient(Cursor.Position));
+                hoveredTabIndex = i;
+
+                if (GetCloseButtonRect(tabRect, this.AdjustForDPI(10)).Contains(PointToClient(Cursor.Position)))
+                {
+                    CloseButtonHoveredIndex = i;
+                }
+
                 break;
             }
         }
 
-        if (oldIsCloseButtonHovered != IsCloseButtonHovered)
+        // Update tooltip when hovering over a different tab
+        if (hoveredTabIndex != lastHoveredTabIndex)
+        {
+            // Stop any pending tooltip
+            tooltipTimer.Stop();
+            tabToolTip.Hide(this);
+
+            if (hoveredTabIndex >= 0 && hoveredTabIndex < TabPages.Count)
+            {
+                // Start timer to show tooltip after delay
+                pendingTooltipTabIndex = hoveredTabIndex;
+                tooltipTimer.Start();
+            }
+            else
+            {
+                pendingTooltipTabIndex = -1;
+            }
+
+            lastHoveredTabIndex = hoveredTabIndex;
+        }
+
+        if (oldCloseButtonHoveredIndex != CloseButtonHoveredIndex)
         {
             Invalidate();
         }
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        tooltipTimer.Stop();
+        tabToolTip.Hide(this);
+        lastHoveredTabIndex = -1;
+        pendingTooltipTabIndex = -1;
     }
 
     public int GetTabIndex(TabPage tab)
@@ -90,12 +152,13 @@ internal class MainTabs : ThemedTabControl
 
         RenderLoopThread.UnsetIfClosingParentOfCurrentGLControl(tab);
 
+        TabPages.Remove(tab);
+
         if (isClosingCurrentTab && tabIndex > 0)
         {
             SelectedIndex = tabIndex - 1;
         }
 
-        TabPages.Remove(tab);
         tab.Dispose();
     }
 
@@ -103,16 +166,16 @@ internal class MainTabs : ThemedTabControl
     {
         base.OnMouseClick(e);
 
-        if (e.Button == MouseButtons.Left && IsCloseButtonHovered)
+        if (e.Button == MouseButtons.Left && CloseButtonHoveredIndex > -1)
         {
-            CloseTab(TabPages[HoveredIndex]);
+            CloseTab(TabPages[CloseButtonHoveredIndex]);
         }
     }
 
     private Rectangle GetCloseButtonRect(Rectangle tabRect, int padding = 0)
     {
-        int closeButtonSize = CloseButtonSize + padding;
-        int closeButtonCenteringOffset = (tabRect.Top - closeButtonSize + TabHeight) / 2;
+        var closeButtonSize = CloseButtonSize + padding;
+        var closeButtonCenteringOffset = (tabRect.Top - closeButtonSize + TabHeight) / 2;
         return new Rectangle(tabRect.Right - closeButtonCenteringOffset - closeButtonSize, closeButtonCenteringOffset, closeButtonSize, closeButtonSize);
     }
 
@@ -130,14 +193,21 @@ internal class MainTabs : ThemedTabControl
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using Pen closeButtonPen = new Pen(SelectedForeColor);
+            var textColor = ForeColor;
+
+            if (isSelected || isHovered)
+            {
+                textColor = SelectedForeColor;
+            }
+
+            using var closeButtonPen = new Pen(textColor);
             closeButtonPen.Width = this.AdjustForDPI(1);
 
-            if (HoveredIndex == i && IsCloseButtonHovered)
+            if (CloseButtonHoveredIndex == i)
             {
                 var closeButtonRectCircle = GetCloseButtonRect(GetTabRect(i), this.AdjustForDPI(10));
 
-                Color closeButtonCircleColor = BackColor;
+                var closeButtonCircleColor = BackColor;
 
                 if (isSelected)
                 {
@@ -161,6 +231,15 @@ internal class MainTabs : ThemedTabControl
             e.Graphics.DrawLine(closeButtonPen, closeButtonRectX.X, closeButtonRectX.Bottom, closeButtonRectX.Right, closeButtonRectX.Top);
         }
     }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            tooltipTimer?.Stop();
+            tooltipTimer?.Dispose();
+            tabToolTip?.Dispose();
+        }
+        base.Dispose(disposing);
+    }
 }
-
-

@@ -22,7 +22,7 @@
     <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.5" />
     <PackageReference Include="SkiaSharp" Version="3.119.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.1" />
-    <PackageReference Include="System.IO.Hashing" Version="10.0.0" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.1" />
     <PackageReference Include="TinyBCSharp" Version="0.1.2" />
     <PackageReference Include="ValveKeyValue" Version="0.20.0.417" />
     <PackageReference Include="ValvePak" Version="4.0.0.142" />

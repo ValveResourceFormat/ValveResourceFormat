@@ -1,11 +1,8 @@
-using System.Diagnostics;
 using System.Globalization;
-using System.Reflection;
 using System.Windows.Forms;
 using GUI.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
-using Svg.Skia;
 
 #nullable disable
 

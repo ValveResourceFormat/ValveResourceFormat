@@ -67,6 +67,7 @@ namespace ValveResourceFormat.ResourceTypes
         private KVObject cachedKeyValues;
         private Skeleton cachedSkeleton;
         private FlexController[] cachedFlexControllers;
+        private List<(Mesh Mesh, int MeshIndex, string Name)> cachedEmbeddedMeshes;
 
         /// <summary>
         /// Gets the hitbox sets for this model.
@@ -200,12 +201,18 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Enumerable of mesh, mesh index, and name tuples.</returns>
         public IEnumerable<(Mesh Mesh, int MeshIndex, string Name)> GetEmbeddedMeshes()
         {
+            if (cachedEmbeddedMeshes != null)
+            {
+                return cachedEmbeddedMeshes;
+            }
+
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
             var embeddedMeshes = ctrl?.Data.GetArray("embedded_meshes");
 
             if (embeddedMeshes == null)
             {
-                return [];
+                cachedEmbeddedMeshes = [];
+                return cachedEmbeddedMeshes;
             }
 
             var meshes = new List<(Mesh Mesh, int MeshIndex, string Name)>(embeddedMeshes.Length);
@@ -236,7 +243,8 @@ namespace ValveResourceFormat.ResourceTypes
                 meshes.Add((mesh, meshIndex, name));
             }
 
-            return meshes;
+            cachedEmbeddedMeshes = meshes;
+            return cachedEmbeddedMeshes;
         }
 
         private (Mesh Mesh, int MeshIndex, string Name) ParseEmbeddedMesh2(KVObject embeddedMesh)

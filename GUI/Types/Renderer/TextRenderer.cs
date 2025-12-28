@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -52,8 +51,7 @@ namespace GUI.Types.Renderer
 
         public void Load()
         {
-            var assembly = Assembly.GetExecutingAssembly();
-            using var fontStream = assembly.GetManifestResourceStream("GUI.Utils.jetbrains_mono_msdf.png");
+            using var fontStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.jetbrains_mono_msdf.png");
             using var bitmap = SKBitmap.Decode(fontStream);
 
             shader = guiContext.ShaderLoader.LoadShader("vrf.font_msdf");

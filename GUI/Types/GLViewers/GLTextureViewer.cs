@@ -75,6 +75,7 @@ namespace GUI.Types.GLViewers
 
         private CheckedListBox decodeFlagsListBox;
         private bool ShowLightBackground;
+        private bool WasMovingLastFrame;
 
         private int DisplayedImageCount => Math.Max(1 << (int)ChannelSplitMode, VisualizeTiling ? 2 : 1);
 
@@ -568,7 +569,10 @@ namespace GUI.Types.GLViewers
 
         private void OnSaveButtonClick(object sender, EventArgs e)
         {
-            Debug.Assert(Resource != null);
+            if (Resource == null)
+            {
+                return;
+            }
 
             var filter = "PNG Image|*.png|JPG Image|*.jpg";
             var alternativeImageFormatIndex = 2;
@@ -736,6 +740,10 @@ namespace GUI.Types.GLViewers
 
         protected override void OnKeyDown(object sender, KeyEventArgs e)
         {
+            base.OnKeyDown(sender, e);
+
+            InvalidateRender();
+
             if (e.KeyData == (Keys.Control | Keys.S))
             {
                 OnSaveButtonClick(null, null);
@@ -759,31 +767,76 @@ namespace GUI.Types.GLViewers
                 OnMouseWheel(null, new MouseEventArgs(MouseButtons.None, 0, GLControl.Width / 2, GLControl.Height / 2, -1));
                 return;
             }
+        }
 
-            if (e.KeyCode is Keys.Up or Keys.Down or Keys.Left or Keys.Right)
+        private void HandleArrowKeyMovement(float frameTime)
+        {
+            var movementKeys = CurrentlyPressedKeys &
+                (TrackedKeys.Forward | TrackedKeys.Back |
+                 TrackedKeys.Left | TrackedKeys.Right);
+
+            var isMovingThisFrame = movementKeys != TrackedKeys.None;
+
+            if (!isMovingThisFrame)
             {
-                var move = 10f * TextureScale;
-                var delta = e.KeyCode switch
-                {
-                    Keys.Up => new Vector2(0, -move),
-                    Keys.Down => new Vector2(0, move),
-                    Keys.Left => new Vector2(-move, 0),
-                    Keys.Right => new Vector2(move, 0),
-                    _ => throw new NotImplementedException(),
-                };
+                WasMovingLastFrame = false;
+                return;
+            }
 
+            var baseSpeed = 300f;
+            var speedMultiplier = 1f;
+
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Shift))
+            {
+                speedMultiplier = 4f;
+            }
+            else if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Control))
+            {
+                speedMultiplier = 2f;
+            }
+
+            var moveDistance = baseSpeed * speedMultiplier * frameTime;
+
+            var delta = Vector2.Zero;
+
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Forward))
+            {
+                delta.Y -= moveDistance;
+            }
+
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Back))
+            {
+                delta.Y += moveDistance;
+            }
+
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Left))
+            {
+                delta.X -= moveDistance;
+            }
+
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Right))
+            {
+                delta.X += moveDistance;
+            }
+
+            if (delta != Vector2.Zero)
+            {
                 if (!IsZoomedIn)
                 {
                     MovedFromOrigin_Unzoomed = true;
                 }
 
-                (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
-                TextureScaleChangeTime = 0f;
+                if (!WasMovingLastFrame)
+                {
+                    (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
+                    TextureScaleChangeTime = 0f;
+                }
+
+                WasMovingLastFrame = true;
+
                 Position += delta;
                 ClampPosition();
             }
-
-            base.OnKeyDown(sender, e);
         }
 
         protected override void OnMouseMove(object sender, MouseEventArgs e)
@@ -824,6 +877,43 @@ namespace GUI.Types.GLViewers
 
         protected override void OnMouseWheel(object sender, MouseEventArgs e)
         {
+            var isShiftPressed = (CurrentlyPressedKeys & TrackedKeys.Shift) > 0;
+            var isCtrlPressed = (CurrentlyPressedKeys & TrackedKeys.Control) > 0;
+
+            if (isShiftPressed || isCtrlPressed)
+            {
+                (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
+                TextureScaleChangeTime = 0f;
+                ClickPosition = null;
+
+                var panSpeed = 50f;
+                if ((CurrentlyPressedKeys & TrackedKeys.Alt) > 0)
+                {
+                    panSpeed *= 2f;
+                }
+
+                var delta = Vector2.Zero;
+
+                if (isShiftPressed)
+                {
+                    delta.Y = e.Delta > 0 ? -panSpeed : panSpeed;
+                }
+                else if (isCtrlPressed)
+                {
+                    delta.X = e.Delta > 0 ? -panSpeed : panSpeed;
+                }
+
+                if (!IsZoomedIn)
+                {
+                    MovedFromOrigin_Unzoomed = true;
+                }
+
+                Position += delta;
+                ClampPosition();
+                InvalidateRender();
+                return;
+            }
+
             (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
             TextureScaleChangeTime = 0f;
             ClickPosition = null;
@@ -839,6 +929,11 @@ namespace GUI.Types.GLViewers
 
             var scaleMinMax = new Vector2(0.1f, 50f);
             scaleMinMax *= 256 / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y);
+
+            if (this is GLNodeGraphViewer)
+            {
+                scaleMinMax.Y = 2f;
+            }
 
             TextureScale = Math.Clamp(TextureScale, scaleMinMax.X, scaleMinMax.Y);
 
@@ -1132,6 +1227,8 @@ namespace GUI.Types.GLViewers
 
         protected override void OnPaint(RenderEventArgs e)
         {
+            HandleArrowKeyMovement(e.FrameTime);
+
             if (NextBitmapToSet != null)
             {
                 texture?.Delete();

@@ -1,4 +1,3 @@
-using System.Drawing;
 using GUI.Utils;
 
 namespace GUI.Types.Renderer

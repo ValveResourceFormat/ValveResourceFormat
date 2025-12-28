@@ -494,7 +494,7 @@ namespace GUI
             controlsBoxPanel.Dock = DockStyle.Right;
             controlsBoxPanel.Location = new System.Drawing.Point(549, 0);
             controlsBoxPanel.Name = "controlsBoxPanel";
-            controlsBoxPanel.Size = new System.Drawing.Size(200, 48);
+            controlsBoxPanel.Size = new System.Drawing.Size(150, 48);
             controlsBoxPanel.TabIndex = 1;
             // 
             // mainFormBottomPanel

@@ -1,15 +1,38 @@
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
-using System.Reflection;
 using System.Windows.Forms;
 using GUI.Utils;
 using Svg.Skia;
+using Windows.Win32.Graphics.Dwm;
 
 namespace GUI.Controls;
 
 public class ThemedToolStripMenuItem : ToolStripMenuItem
 {
+    public ThemedToolStripMenuItem()
+    {
+        DropDown.HandleCreated += OnDropDownHandleCreated;
+    }
+
+    private static void OnDropDownHandleCreated(object? sender, EventArgs e)
+    {
+        if (sender is not ToolStripDropDown dropDown || dropDown.Handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        unsafe
+        {
+            var cornerPreference = DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_ROUND;
+            Windows.Win32.PInvoke.DwmSetWindowAttribute(
+                (Windows.Win32.Foundation.HWND)dropDown.Handle,
+                DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE,
+                &cornerPreference,
+                sizeof(DWM_WINDOW_CORNER_PREFERENCE));
+        }
+    }
+
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public override Image? Image
     {
@@ -56,7 +79,6 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
             return;
         }
 
-        var assembly = Assembly.GetExecutingAssembly();
         var resourceName = SVGImageResourceName;
         Stream? svgResource = null;
 
@@ -64,11 +86,11 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
         if (Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic)
         {
             var lightVariantName = $"{resourceName.AsSpan()[..^4]}_light.svg";
-            svgResource = assembly.GetManifestResourceStream(lightVariantName);
+            svgResource = Program.Assembly.GetManifestResourceStream(lightVariantName);
         }
 
         svgResource
-            ??= assembly.GetManifestResourceStream(resourceName)
+            ??= Program.Assembly.GetManifestResourceStream(resourceName)
             ?? throw new InvalidOperationException($"Failed to find resource `{resourceName}` for SVG icon in ${nameof(ThemedToolStripMenuItem)}.");
 
         using (svgResource)

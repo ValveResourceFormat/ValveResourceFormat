@@ -6,7 +6,6 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -146,8 +145,7 @@ namespace GUI
                 ImageSize = new Size(this.AdjustForDPI(24), this.AdjustForDPI(24)),
             };
 
-            var assembly = Assembly.GetExecutingAssembly();
-            var resources = assembly.GetManifestResourceNames().Where(static r => r.StartsWith("GUI.Icons.", StringComparison.Ordinal));
+            var resources = Program.Assembly.GetManifestResourceNames().Where(static r => r.StartsWith("GUI.Icons.", StringComparison.Ordinal));
 
             if (Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic)
             {
@@ -186,7 +184,7 @@ namespace GUI
                     name = name[..^"_light".Length];
                 }
 
-                using var stream = assembly.GetManifestResourceStream(fullName);
+                using var stream = Program.Assembly.GetManifestResourceStream(fullName);
                 Debug.Assert(stream is not null);
 
                 var iconName = name.ToString();
@@ -226,7 +224,7 @@ namespace GUI
             }
 
             {
-                using var stream = assembly.GetManifestResourceStream(AssetTypesAliasesFile);
+                using var stream = Program.Assembly.GetManifestResourceStream(AssetTypesAliasesFile);
                 using var reader = new StreamReader(stream);
 
                 string line;
@@ -388,8 +386,16 @@ namespace GUI
             }
 
 #if SCREENSHOT_MODE
-            versionLabel.Visible = false;
-            SetBounds(x: 100, y: 100, width: 1800 + 22, height: 1200 + 11); // Tweak size as needed
+            mainFormBottomPanel.Visible = false;
+            SetBounds(x: 100, y: 100, width: 480 + 6, height: 480 + 3); // Tweak size as needed
+            unsafe
+            {
+                var preference = Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_DONOTROUND;
+                PInvoke.DwmSetWindowAttribute((Windows.Win32.Foundation.HWND)Handle,
+                    Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE,
+                    &preference,
+                    sizeof(Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE));
+            }
 #endif
         }
 
@@ -564,6 +570,7 @@ namespace GUI
                 closeToolStripMenuItem.Visible = tabIndex != 0;
 
                 var canExport = thisTab.Tag is ExportData exportData;
+                toolStripSeparator5.Visible = canExport || tabIndex == 0;
                 exportAsIsToolStripMenuItem.Visible = canExport;
                 decompileExportToolStripMenuItem.Visible = canExport;
 

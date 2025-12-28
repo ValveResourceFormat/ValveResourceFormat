@@ -1,7 +1,6 @@
 #if DEBUG
 using System.ComponentModel;
 using System.Globalization;
-using System.Reflection;
 
 namespace GUI.Controls;
 
@@ -24,8 +23,7 @@ public class SvgResourceNameConverter : TypeConverter
     {
         var svgResources = new List<string> { string.Empty };
 
-        var assembly = Assembly.GetExecutingAssembly();
-        var resourceNames = assembly.GetManifestResourceNames();
+        var resourceNames = Program.Assembly.GetManifestResourceNames();
 
         foreach (var resourceName in resourceNames)
         {

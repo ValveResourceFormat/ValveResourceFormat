@@ -149,7 +149,7 @@ namespace GUI.Types.Renderer
 #endif
 
                 var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
-                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}'{argsDescription} compiled and linked successfully");
+                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}'{argsDescription} compiled {(blocking ? "and linked" : string.Empty)} successfully");
 
                 return shader;
             }

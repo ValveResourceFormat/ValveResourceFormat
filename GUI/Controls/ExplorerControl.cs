@@ -11,10 +11,6 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 
-#if DEBUG
-using System.Reflection;
-#endif
-
 #nullable disable
 
 namespace GUI.Controls
@@ -225,7 +221,7 @@ namespace GUI.Controls
             var enumerationOptions = new EnumerationOptions
             {
                 RecurseSubdirectories = true,
-                MaxRecursionDepth = 5,
+                MaxRecursionDepth = 6,
                 BufferSize = 65536,
             };
 
@@ -460,9 +456,18 @@ namespace GUI.Controls
                 var isBookmarked = Settings.Config.BookmarkedFiles.Contains(path);
                 var isRecent = Settings.Config.RecentFiles.Contains(path);
 
-                addToFavoritesToolStripMenuItem.Visible = !isBookmarked;
-                removeFromFavoritesToolStripMenuItem.Visible = isBookmarked;
-                removeFromRecentToolStripMenuItem.Visible = isRecent;
+                if (e.Node.Parent == null)
+                {
+                    addToFavoritesToolStripMenuItem.Visible = false;
+                    removeFromFavoritesToolStripMenuItem.Visible = false;
+                    removeFromRecentToolStripMenuItem.Visible = false;
+                }
+                else
+                {
+                    addToFavoritesToolStripMenuItem.Visible = !isBookmarked;
+                    removeFromFavoritesToolStripMenuItem.Visible = isBookmarked;
+                    removeFromRecentToolStripMenuItem.Visible = isRecent;
+                }
 
                 fileContextMenuStrip.Show(e.Node.TreeView, e.Location);
             }
@@ -575,17 +580,23 @@ namespace GUI.Controls
                     var extension = Path.GetExtension(path).ToLowerInvariant().AsSpan();
                     isVpk = MemoryExtensions.Equals(extension, ".vpk", StringComparison.Ordinal);
 
-                    if (isVpk && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
+                    if (isVpk && Path.GetFileName(path.AsSpan()).StartsWith("shaders_", StringComparison.Ordinal))
                     {
-                        extension = ".map";
+                        imageIndexFile = MainForm.Icons["FolderShaders"];
                     }
-
-                    if (extension.Length > 0)
+                    else if (isVpk && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
                     {
-                        extension = extension[1..];
+                        imageIndexFile = MainForm.Icons["FolderMap"];
                     }
+                    else
+                    {
+                        if (extension.Length > 0)
+                        {
+                            extension = extension[1..];
+                        }
 
-                    imageIndexFile = MainForm.GetImageIndexForExtension(extension);
+                        imageIndexFile = MainForm.GetImageIndexForExtension(extension);
+                    }
                 }
 
                 foreach (var game in SteamGames)
@@ -783,8 +794,7 @@ namespace GUI.Controls
 #if DEBUG
         private void DebugAddEmbeddedResourcesToTree()
         {
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var embeddedResources = assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
+            var embeddedResources = Program.Assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
 
             var imageIndex = MainForm.Icons["Folder"];
             var embeddedFilesTreeNode = new TreeNode("Embedded Resources")
@@ -859,8 +869,7 @@ namespace GUI.Controls
 
             var name = path["vrf_embedded:".Length..];
 
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream(name);
+            using var stream = Program.Assembly.GetManifestResourceStream(name);
             using var ms = new MemoryStream((int)stream.Length);
 
             using var package = new SteamDatabase.ValvePak.Package();

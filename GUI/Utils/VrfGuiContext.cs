@@ -243,6 +243,9 @@ namespace GUI.Utils
         // Override to add support for caching resources
         public override Resource? LoadFile(string file)
         {
+            // Some files come with backward slashes which ruin our cache
+            file = file.Replace('\\', '/');
+
             // TODO: Might conflict where same file name is available in different paths
             if (CachedResources.TryGetValue(file, out var resource) && resource.Reader != null)
             {

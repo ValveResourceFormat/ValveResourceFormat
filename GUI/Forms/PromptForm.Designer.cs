@@ -48,7 +48,7 @@ namespace GUI.Forms
             // 
             // inputTextBox
             // 
-            inputTextBox.Location = new System.Drawing.Point(13, 31);
+            inputTextBox.Location = new System.Drawing.Point(13, 40);
             inputTextBox.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             inputTextBox.Name = "inputTextBox";
             inputTextBox.Size = new System.Drawing.Size(380, 25);
@@ -56,25 +56,41 @@ namespace GUI.Forms
             // 
             // cancelButton
             // 
+            cancelButton.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            cancelButton.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            cancelButton.CornerRadius = 5;
             cancelButton.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            cancelButton.Location = new System.Drawing.Point(13, 71);
+            cancelButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            cancelButton.ForeColor = System.Drawing.Color.Black;
+            cancelButton.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
+            cancelButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            cancelButton.Location = new System.Drawing.Point(13, 76);
             cancelButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             cancelButton.Name = "cancelButton";
             cancelButton.Size = new System.Drawing.Size(88, 31);
+            cancelButton.Style = true;
             cancelButton.TabIndex = 5;
             cancelButton.Text = "Cancel";
-            cancelButton.UseVisualStyleBackColor = true;
+            cancelButton.UseVisualStyleBackColor = false;
             // 
             // submitButton
             // 
+            submitButton.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            submitButton.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            submitButton.CornerRadius = 5;
             submitButton.DialogResult = System.Windows.Forms.DialogResult.OK;
-            submitButton.Location = new System.Drawing.Point(305, 71);
+            submitButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            submitButton.ForeColor = System.Drawing.Color.Black;
+            submitButton.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
+            submitButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            submitButton.Location = new System.Drawing.Point(305, 76);
             submitButton.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
             submitButton.Name = "submitButton";
             submitButton.Size = new System.Drawing.Size(88, 31);
+            submitButton.Style = true;
             submitButton.TabIndex = 0;
             submitButton.Text = "Submit";
-            submitButton.UseVisualStyleBackColor = true;
+            submitButton.UseVisualStyleBackColor = false;
             // 
             // PromptForm
             // 
@@ -82,12 +98,13 @@ namespace GUI.Forms
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 17F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             CancelButton = cancelButton;
-            ClientSize = new System.Drawing.Size(406, 116);
+            ClientSize = new System.Drawing.Size(406, 127);
             Controls.Add(textLabel);
             Controls.Add(inputTextBox);
             Controls.Add(cancelButton);
             Controls.Add(submitButton);
             Font = new System.Drawing.Font("Segoe UI", 10F);
+            ForeColor = System.Drawing.Color.Black;
             FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -106,7 +123,7 @@ namespace GUI.Forms
 
         private System.Windows.Forms.Label textLabel;
         private System.Windows.Forms.TextBox inputTextBox;
-        private System.Windows.Forms.Button cancelButton;
-        private System.Windows.Forms.Button submitButton;
+        private ThemedButton cancelButton;
+        private ThemedButton submitButton;
     }
 }
