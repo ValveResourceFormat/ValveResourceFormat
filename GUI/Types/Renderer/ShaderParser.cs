@@ -12,12 +12,12 @@ namespace GUI.Types.Renderer
     partial class ShaderParser
     {
         public const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
-        private const string ExpectedShaderVersion = "#version 460";
+        public const string ExpectedShaderVersion = "#version 460";
         private const string RenderModeDefinePrefix = "renderMode_";
 
         [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
-        [GeneratedRegex("^#define (?<ParamName>(?:renderMode|F|S|D)_\\S+) (?<DefaultValue>\\S+)")]
+        [GeneratedRegex("^#define (?<ParamName>(?:renderMode|F|S|D)_\\S+) (?<DefaultValue>[0-9]+)")]
         private static partial Regex RegexDefine();
 
 #if DEBUG
@@ -47,7 +47,7 @@ namespace GUI.Types.Renderer
 
         public void Reset()
         {
-            builder.Clear();
+            ClearBuilder();
             sourceFileNumber = 0;
             SourceFiles.Clear();
 
@@ -56,9 +56,8 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        public string PreprocessShader(string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
+        public string PreprocessShader(string shaderFile, ParsedShaderData parsedData)
         {
-            var isFirstLine = true;
             var resolvedIncludes = new HashSet<string>(4);
 
             void AppendLineNumber(int a, int b)
@@ -125,17 +124,15 @@ namespace GUI.Types.Renderer
                             throw new ShaderCompilerException($"First line must be '{ExpectedShaderVersion}' in '{shaderFileToLoad}'");
                         }
 
-                        if (isInclude)
-                        {
 #if DEBUG
-                            currentSourceLines.Add($"// :VrfPreprocessed {line}");
+                        currentSourceLines.Add($"// :VrfPreprocessed {line}");
 #endif
 
-                            builder.Append('\n');
+                        builder.Append('\n');
 
-                            // We add #version even in includes so that they can be compiled individually for better editing experience
-                            continue;
-                        }
+                        // We add #version even in includes so that they can be compiled individually for better editing experience
+                        // Skip #version for main shader - will be prepended in header
+                        continue;
                     }
 
 #if DEBUG
@@ -167,7 +164,8 @@ namespace GUI.Types.Renderer
                         if (match.Success)
                         {
                             var defineName = match.Groups["ParamName"].Value;
-                            byte value = 0;
+                            var defaultValueStr = match.Groups["DefaultValue"].Value;
+                            var value = byte.Parse(defaultValueStr, CultureInfo.InvariantCulture);
 
                             if (defineName.StartsWith(RenderModeDefinePrefix, StringComparison.Ordinal))
                             {
@@ -193,28 +191,25 @@ namespace GUI.Types.Renderer
                                     value = (byte)index;
                                     RenderModes.AddShaderId(renderMode, value);
                                 }
-                            }
-                            else
-                            {
-                                parsedData.Defines.Add(defineName);
 
-                                // Check if this parameter is in the arguments
-                                if (!arguments.TryGetValue(defineName, out value))
+                                builder.Append("#define ");
+                                builder.Append(defineName);
+                                builder.Append(' ');
+                                builder.Append(value.ToString(CultureInfo.InvariantCulture));
+                                builder.Append(" // :VrfPreprocessed\n");
+
+                                continue;
+                            }
+
+                            // Defines are removed from source code and will be prepended later
+                            if (!parsedData.Defines.TryAdd(defineName, value))
+                            {
+                                // Defines can be shared between vert and frag
+                                if (parsedData.Defines[defineName] != value)
                                 {
-                                    builder.Append(line);
-                                    builder.Append('\n');
-                                    continue;
+                                    throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' contains a duplicate define '{defineName}' with different default value");
                                 }
                             }
-
-                            // Overwrite default value
-                            var newValue = value.ToString(CultureInfo.InvariantCulture);
-
-                            builder.Append("#define ");
-                            builder.Append(defineName);
-                            builder.Append(' ');
-                            builder.Append(newValue);
-                            builder.Append(" // :VrfPreprocessed\n");
 
                             continue;
                         }
@@ -252,22 +247,35 @@ namespace GUI.Types.Renderer
                         // Fix an issue where #include is inside of an #if, which messes up line numbers
                         AppendLineNumber(lineNum, currentSourceFileNumber);
                     }
-
-                    // Append original shader name as a define
-                    if (isFirstLine)
-                    {
-                        isFirstLine = false;
-                        builder.Append("#define ");
-                        builder.Append(Path.GetFileNameWithoutExtension(originalShaderName));
-                        builder.Append("_vfx 1 // :VrfPreprocessed\n");
-                        AppendLineNumber(lineNum, currentSourceFileNumber);
-                    }
                 }
             }
 
             LoadShaderString(shaderFile, null, isInclude: false);
 
             return builder.ToString();
+        }
+
+        public static IEnumerable<string> GetAvailableShaderNames()
+        {
+            const string VertexExtension = ".vert";
+#if DEBUG
+            var dirInfo = new DirectoryInfo(ShaderRootDirectory);
+            var files = dirInfo.GetFiles($"*{VertexExtension}", SearchOption.TopDirectoryOnly);
+
+            foreach (var file in files)
+            {
+                yield return Path.GetFileNameWithoutExtension(file.FullName);
+            }
+#else
+            var resources = Program.Assembly.GetManifestResourceNames()
+                .Where(static r => r.StartsWith(ShaderDirectory, StringComparison.Ordinal))
+                .Where(static r => r.EndsWith(VertexExtension, StringComparison.Ordinal));
+            foreach (var resource in resources)
+            {
+                var shaderName = resource[ShaderDirectory.Length..^VertexExtension.Length];
+                yield return shaderName;
+            }
+#endif
         }
 
 #if !DEBUG
@@ -281,6 +289,7 @@ namespace GUI.Types.Renderer
 #else
         // Path to the folder where the ValveResourceFormat.sln is on disk (parent of the GUI folder)
         private static readonly string SolutionRootDirector = GetSolutionRootDirectory();
+        private static readonly string ShaderRootDirectory = Path.Combine(SolutionRootDirector, ShaderDirectory.Replace('.', Path.DirectorySeparatorChar));
 
         private static FileStream GetShaderStream(string name)
         {
@@ -304,7 +313,7 @@ namespace GUI.Types.Renderer
 
         public static string GetShaderDiskPath(string name)
         {
-            return Path.Combine(SolutionRootDirector, ShaderDirectory.Replace('.', '/'), name);
+            return Path.Combine(ShaderRootDirectory, name);
         }
 
         private static string GetSolutionRootDirectory()

@@ -4,7 +4,7 @@
 #include "common/features.glsl"
 #include "csgo_environment_features.glsl"
 
-#define S_SPECULAR 1 // Indirect
+#define IBL 1
 
 in vec3 vFragPosition;
 
