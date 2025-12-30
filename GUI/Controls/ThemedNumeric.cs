@@ -196,10 +196,7 @@ namespace GUI.Controls
         protected override int Clamp(int value)
         {
             var clamped = Math.Clamp(value, MinValue, MaxValue);
-
-            var offset = clamped - MinValue;
-            var snapped = MinValue + (int)Math.Round((double)offset / Increment) * Increment;
-
+            var snapped = (int)Math.Round((double)clamped / Increment) * Increment;
             return Math.Clamp(snapped, MinValue, MaxValue);
         }
 
