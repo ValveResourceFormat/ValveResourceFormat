@@ -121,7 +121,7 @@ namespace GUI.Types.Renderer
 
             bool TryBindTexture(RenderMaterial mat, string name, string path)
             {
-                if (mat.Shader.GetUniformLocation(name) != -1)
+                if (mat.Shader.UniformNames.Contains(name))
                 {
                     var srgbRead = mat.Shader.SrgbUniforms.Contains(name);
                     mat.Textures[name] = GetTexture(path, srgbRead, anisotropicFiltering: true);

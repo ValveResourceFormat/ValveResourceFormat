@@ -26,10 +26,11 @@ namespace GUI.Types.Renderer
 #endif
 
         // regex that detects
+        // uniform sampler{dim} x;
         // uniform sampler{dim} a; // SrgbRead(true)
         // uniform vec{dim} b = vec3(1.0); // SrgbRead(true)
-        [GeneratedRegex("^uniform (?<Type>(?:sampler|vec)\\S+) (?<Name>\\S+)(?:\\s*=\\s*[^;]+)?;\\s*// SrgbRead\\(true\\)")]
-        private static partial Regex RegexUniformWithSrgbRead();
+        [GeneratedRegex("^uniform (?<Type>(?:sampler|vec)\\S+) (?<Name>\\S+)(?:\\s*=\\s*[^;]+)?;[ \t]*(?<SrgbRead>// SrgbRead\\(true\\))?")]
+        private static partial Regex RegexUniform();
 
         private readonly StringBuilder builder = new(1024);
         private int sourceFileNumber;
@@ -68,6 +69,9 @@ namespace GUI.Types.Renderer
                 builder.Append(b.ToString(CultureInfo.InvariantCulture));
                 builder.Append('\n');
             }
+
+            // simulate first time compile
+            // builder.Append($"// {Guid.CreateVersion7()}");
 
             void LoadShaderString(string shaderFileToLoad, string? parentFile, bool isInclude)
             {
@@ -216,13 +220,17 @@ namespace GUI.Types.Renderer
                         }
 
                         // sRGB uniforms or samplers
-                        match = RegexUniformWithSrgbRead().Match(line);
+                        match = RegexUniform().Match(line);
                         if (match.Success)
                         {
                             var uniformType = match.Groups["Type"].Value;
                             var uniformName = match.Groups["Name"].Value;
 
-                            parsedData.SrgbUniforms.Add(uniformName);
+                            parsedData.Uniforms.Add(uniformName);
+                            if (match.Groups["SrgbRead"].Success)
+                            {
+                                parsedData.SrgbUniforms.Add(uniformName);
+                            }
                         }
 
 #if DEBUG

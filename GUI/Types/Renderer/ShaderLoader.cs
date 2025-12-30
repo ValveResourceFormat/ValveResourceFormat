@@ -44,6 +44,7 @@ namespace GUI.Types.Renderer
         {
             public HashSet<string> Defines = [];
             public HashSet<string> RenderModes = [];
+            public HashSet<string> Uniforms = [];
             public HashSet<string> SrgbUniforms = [];
 
 #if DEBUG
@@ -122,6 +123,7 @@ namespace GUI.Types.Renderer
                     Program = shaderProgram,
                     ShaderObjects = [vertexShader, fragmentShader],
                     RenderModes = parsedData.RenderModes,
+                    UniformNames = parsedData.Uniforms,
                     SrgbUniforms = parsedData.SrgbUniforms
                 };
 
