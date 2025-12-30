@@ -93,9 +93,10 @@ void main()
 
     vTexCoordOut = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0, g_vTexCoordOffset0, g_vTexCoordScroll0);
     vTexCoord1Out = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1, g_vTexCoordOffset1, g_vTexCoordScroll1);
+#if (F_TWO_LAYER_BLEND == 0)
     vTexCoord2Out = getTexCoord(g_flTexCoordScale2, g_flTexCoordRotate2, g_vTexCoordOffset2, g_vTexCoordScroll2);
     vTexCoord3Out = getTexCoord(g_flTexCoordScale3, g_flTexCoordRotate3, g_vTexCoordOffset3, g_vTexCoordScroll3);
-
+#endif
 
     //vTEXCOORD1 - (X,Y,Z) - tex1, 2, and 3 blend softness (not working right now), W - reserved for worldspace uvs
     //vTEXCOORD2 - Painted tint color

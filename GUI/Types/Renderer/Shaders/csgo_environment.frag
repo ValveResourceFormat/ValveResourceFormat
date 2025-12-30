@@ -233,7 +233,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     vec3 overlayFactor = vec3(1.0);
 
-    #if (F_SHARED_COLOR_OVERLAY == 1)
+    #if defined(g_tSharedColorOverlay)
         vec3 overlay = texture(g_tSharedColorOverlay, vTexCoord.zw).rgb * 2.0 - 1.0;
         vec3 _15235 = (((vec3(1.0) - pow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast)
             + ((pow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast)) + vec3(1.0);
@@ -259,7 +259,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec3 tintFactor1 = mix(vec3(1.0), (g_vTextureColorTint1.rgb), tintMask1);
     color.rgb = tintResult * tintFactor1;
 
-    #if (F_SHARED_COLOR_OVERLAY == 1)
+    #if defined(g_tSharedColorOverlay)
         // 0=Both, 1=Layer 1
         const bool g_bColorOverlayLayer1 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 1;
         const bool g_bColorOverlayMaskLayer1 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 1;
@@ -302,7 +302,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec3 tintFactor2 = mix(vec3(1.0), (g_vTextureColorTint2.rgb), tintMask2);
     color2.rgb = tintResult2 * tintFactor2;
 
-    #if (F_SHARED_COLOR_OVERLAY == 1)
+    #if defined(g_tSharedColorOverlay)
         // 0=Both, 2=Layer 2
         const bool g_bColorOverlayLayer2 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 2;
         const bool g_bColorOverlayMaskLayer2 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 2;
