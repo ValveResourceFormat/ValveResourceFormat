@@ -54,22 +54,37 @@ namespace GUI.Types.Renderer
                     var resource = guiContext.LoadFileCompiled(resourceName);
                     if (resource is { DataBlock: Model model })
                     {
-                        foreach (var mesh in model.GetEmbeddedMeshes())
+                        lock (resource)
                         {
-                            var __ = mesh.Mesh.VBIB;
+                            foreach (var mesh in model.GetEmbeddedMeshes())
+                            {
+                                var __ = mesh.Mesh.VBIB;
+                            }
                         }
                     }
 
                     return resource;
                 }
 
-                Parallel.ForEach(mapResourceReferences.ResourceRefInfoList, resourceReference =>
+                var resourceNames = mapResourceReferences.ResourceRefInfoList
+                    .Select(x => x.Name)
+                    .Where(r => !r.StartsWith("_bakeresourcecache", StringComparison.Ordinal));
+
+                Parallel.ForEach(resourceNames, resourceReference =>
                 {
-                    var resource = PreloadResource(resourceReference.Name);
+                    var resource = PreloadResource(resourceReference);
+
+                    if (resource is { ExternalReferences.ResourceRefInfoList: var refs })
+                    {
+                        Parallel.ForEach(refs, extRef =>
+                        {
+                            PreloadResource(extRef.Name);
+                        });
+                    }
 
                     if (resource is { ResourceType: ResourceType.EntityLump, DataBlock: EntityLump entityLump })
                     {
-                        HashSet<string> toolIcons = new();
+                        HashSet<string> toolIcons = [];
                         foreach (var entity in entityLump.GetEntities())
                         {
                             var className = entity.GetProperty<string>("classname");
