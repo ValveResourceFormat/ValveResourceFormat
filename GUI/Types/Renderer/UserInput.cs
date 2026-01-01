@@ -232,11 +232,11 @@ internal class UserInput
         {
             // Camera truck and pedestal movement (blender calls this pan)
             var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
+            var screenRight = Vector3.Normalize(Vector3.Cross(Vector3.UnitZ, Camera.Forward));
+            var screenUp = Vector3.Cross(Camera.Forward, screenRight);
 
-            var location = Camera.Location;
-
-            Camera.Location += Camera.Up * speed * -MouseDelta2D.Y;
-            Camera.Location += Camera.Right * speed * MouseDelta2D.X;
+            Camera.Location -= screenRight * speed * MouseDelta2D.X;
+            Camera.Location -= screenUp * speed * MouseDelta2D.Y;
             return;
         }
 
