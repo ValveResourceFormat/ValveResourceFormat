@@ -202,15 +202,7 @@ namespace GUI.Types.Renderer
         public void ClampRotation()
         {
             const float PITCH_LIMIT = 89.5f * MathF.PI / 180f;
-
-            if (Pitch >= PITCH_LIMIT)
-            {
-                Pitch = PITCH_LIMIT;
-            }
-            else if (Pitch <= -PITCH_LIMIT)
-            {
-                Pitch = -PITCH_LIMIT;
-            }
+            Pitch = Math.Clamp(Pitch, -PITCH_LIMIT, PITCH_LIMIT);
         }
 
         private static float GetFOV()

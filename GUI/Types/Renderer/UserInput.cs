@@ -245,6 +245,7 @@ internal class UserInput
 
         Camera.Pitch -= MouseDeltaPitchYaw.X;
         Camera.Yaw -= MouseDeltaPitchYaw.Y;
+        Camera.ClampRotation();
     }
 
 
