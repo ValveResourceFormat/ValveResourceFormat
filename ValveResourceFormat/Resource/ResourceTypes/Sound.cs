@@ -502,11 +502,11 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine($"Format: {AudioFormat}");
             writer.WriteLine($"Channels: {Channels}");
 
-            var loopStart = TimeSpan.FromSeconds(LoopStart);
-            writer.WriteLine($"LoopStart: ({loopStart}) {LoopStart}");
+            var loopStart = TimeSpan.FromSeconds((double)LoopStart / SampleRate);
+            writer.WriteLine($"LoopStart: {LoopStart} ({loopStart})");
 
-            var loopEnd = TimeSpan.FromSeconds(LoopEnd);
-            writer.WriteLine($"LoopEnd: ({loopEnd}) {LoopEnd}");
+            var loopEnd = TimeSpan.FromSeconds((double)LoopEnd / SampleRate);
+            writer.WriteLine($"LoopEnd: {LoopEnd} ({loopEnd})");
 
             var duration = TimeSpan.FromSeconds(Duration);
             writer.WriteLine($"Duration: {duration} ({Duration})");
