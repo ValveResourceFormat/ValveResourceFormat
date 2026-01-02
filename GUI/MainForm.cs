@@ -214,7 +214,8 @@ namespace GUI
 
                     if (iconName == "Logo")
                     {
-                        mainLogo.Image = Themer.SvgToBitmap(svg, mainLogo.Width, mainLogo.Height);
+                        var iconSize = this.AdjustForDPI(24);
+                        mainLogo.Image = Themer.SvgToBitmap(svg, iconSize, iconSize);
                     }
                 }
                 else

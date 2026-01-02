@@ -98,13 +98,13 @@ uniform sampler2D g_tTintMask;
 #endif
 
 #if defined(vr_complex_vfx)
-    #define S_SPECULAR F_SPECULAR
+    #define IBL F_SPECULAR
 #elif defined(csgo_generic_vfx_common)
-    #define S_SPECULAR F_SPECULAR_INDIRECT
+    #define IBL F_SPECULAR_INDIRECT
 #elif defined(generic_vfx)
-    #define S_SPECULAR 0
+    #define IBL 0
 #else
-    #define S_SPECULAR 1 // Indirect
+    #define IBL 1 // Indirect
 #endif
 
 #define TINT_NOT_APPLIED

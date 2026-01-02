@@ -2,8 +2,10 @@ namespace GUI.Types.Renderer;
 
 internal class UserInput
 {
-    private const float MovementSpeed = 200f; // WASD movement, per second
+    private const float MovementSpeed = 250f; // WASD movement, per second
     private const float AltMovementSpeed = 10f; // Holding shift or alt movement
+    private const float Acceleration = 10f; // Acceleration multiplier
+    private const float Deceleration = 8f; // Deceleration multiplier
 
     private readonly float[] SpeedModifiers =
     [
@@ -47,6 +49,7 @@ internal class UserInput
     private const float OrbitZoomSpeed = 0.1f;
 
     private TrackedKeys PreviousKeys;
+    private Vector3 Velocity = Vector3.Zero;
 
     /// <summary>
     /// Force an input update on the next tick.
@@ -125,7 +128,7 @@ internal class UserInput
 
     public void SaveCameraForTransition(float transitionDuration = 1.5f)
     {
-        StartingCamera = CameraPositionAngles;
+        StartingCamera = GetInterpolatedCamera();
         TransitionDuration = transitionDuration;
         TransitionEndTime = Uptime + transitionDuration;
     }
@@ -229,11 +232,11 @@ internal class UserInput
         {
             // Camera truck and pedestal movement (blender calls this pan)
             var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
+            var screenRight = Vector3.Normalize(Vector3.Cross(Vector3.UnitZ, Camera.Forward));
+            var screenUp = Vector3.Cross(Camera.Forward, screenRight);
 
-            var location = Camera.Location;
-
-            Camera.Location += Camera.Up * speed * -MouseDelta2D.Y;
-            Camera.Location += Camera.Right * speed * MouseDelta2D.X;
+            Camera.Location -= screenRight * speed * MouseDelta2D.X;
+            Camera.Location -= screenUp * speed * MouseDelta2D.Y;
             return;
         }
 
@@ -242,6 +245,7 @@ internal class UserInput
 
         Camera.Pitch -= MouseDeltaPitchYaw.X;
         Camera.Yaw -= MouseDeltaPitchYaw.Y;
+        Camera.ClampRotation();
     }
 
 
@@ -298,37 +302,46 @@ internal class UserInput
 
     private void HandleKeyboardInput(float deltaTime, TrackedKeys keyboardState)
     {
-        var speed = MovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
+        var maxSpeed = MovementSpeed * SpeedModifiers[CurrentSpeedModifier];
+        var targetVelocity = Vector3.Zero;
 
         if (keyboardState.HasFlag(TrackedKeys.Forward))
         {
-            Camera.Location += Camera.Forward * speed;
+            targetVelocity += Camera.Forward * maxSpeed;
         }
 
         if (keyboardState.HasFlag(TrackedKeys.Back))
         {
-            Camera.Location -= Camera.Forward * speed;
+            targetVelocity -= Camera.Forward * maxSpeed;
         }
 
         if (keyboardState.HasFlag(TrackedKeys.Right))
         {
-            Camera.Location += Camera.Right * speed;
+            targetVelocity += Camera.Right * maxSpeed;
         }
 
         if (keyboardState.HasFlag(TrackedKeys.Left))
         {
-            Camera.Location -= Camera.Right * speed;
+            targetVelocity -= Camera.Right * maxSpeed;
         }
 
         if (keyboardState.HasFlag(TrackedKeys.Down))
         {
-            Camera.Location += new Vector3(0, 0, -speed);
+            targetVelocity += new Vector3(0, 0, -maxSpeed);
         }
 
         if (keyboardState.HasFlag(TrackedKeys.Up))
         {
-            Camera.Location += new Vector3(0, 0, speed);
+            targetVelocity += new Vector3(0, 0, maxSpeed);
         }
+
+        // Apply acceleration or deceleration
+        var hasInput = targetVelocity.LengthSquared() > 0.01f;
+        var smoothingFactor = hasInput ? Acceleration : Deceleration;
+        Velocity = Vector3.Lerp(Velocity, targetVelocity, 1f - MathF.Exp(-smoothingFactor * deltaTime));
+
+        // Apply velocity to camera position
+        Camera.Location += Velocity * deltaTime;
     }
 
     public void OrbitZoom(float delta)

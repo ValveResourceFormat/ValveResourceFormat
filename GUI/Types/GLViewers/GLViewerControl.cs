@@ -50,6 +50,7 @@ namespace GUI.Types.GLViewers
         protected Point LastMouseDelta { get; private set; }
 
         private readonly Lock glLock = new();
+        private bool wasPaused;
         private long lastUpdate;
         private long lastFpsUpdate;
         private string lastFps;
@@ -64,6 +65,8 @@ namespace GUI.Types.GLViewers
 
         public GLViewerControl(VrfGuiContext guiContext)
         {
+            lastUpdate = Stopwatch.GetTimestamp();
+
             Camera = new Camera();
             Input = new UserInput();
 
@@ -589,8 +592,6 @@ namespace GUI.Types.GLViewers
             MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
 
             OnGLLoad();
-
-            lastUpdate = Stopwatch.GetTimestamp();
         }
 
         static bool loadedBindings;
@@ -615,7 +616,11 @@ namespace GUI.Types.GLViewers
 
         protected virtual void OnFirstPaint()
         {
-            //
+            var current = Stopwatch.GetTimestamp();
+            var elapsed = Stopwatch.GetElapsedTime(lastUpdate, current);
+            lastUpdate = current;
+
+            Log.Debug(nameof(GLViewerControl), $"First Paint: {elapsed}");
         }
 
         protected virtual void OnPaint(RenderEventArgs e)
@@ -659,14 +664,16 @@ namespace GUI.Types.GLViewers
                 FirstPaint = false;
             }
 
-            var isTextureViewer = this is GLTextureViewer;
-            var elapsed = Stopwatch.GetElapsedTime(lastUpdate, currentTime);
+            var elapsed = wasPaused && !isPaused
+                ? TimeSpan.Zero
+                : Stopwatch.GetElapsedTime(lastUpdate, currentTime);
             lastUpdate = currentTime;
 
-            // Clamp frametime because it is possible to go past 1 second when gl control is paused which may cause issues in things like particle rendering
+            // Clamp frametime so it does not cause issues in things like particle rendering
             var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
             Uptime += frameTime;
 
+            var isTextureViewer = this is GLTextureViewer;
             if ((MouseOverRenderArea || Input.ForceUpdate) && !isTextureViewer)
             {
                 var pressedKeys = CurrentlyPressedKeys;
@@ -724,8 +731,10 @@ namespace GUI.Types.GLViewers
 
             if (!isTextureViewer)
             {
+                wasPaused = false;
                 if (isPaused)
                 {
+                    wasPaused = true;
                     TextRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
                     {
                         X = 2f,

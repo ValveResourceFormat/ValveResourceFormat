@@ -16,6 +16,7 @@ namespace GUI.Types.Renderer
         public required int[] ShaderObjects { get; init; }
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public required HashSet<string> RenderModes { get; init; }
+        public required HashSet<string> UniformNames { get; init; }
         public required HashSet<string> SrgbUniforms { get; init; }
         public readonly HashSet<string> ReservedTexuresUsed = [];
 

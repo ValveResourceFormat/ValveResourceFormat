@@ -228,7 +228,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 #endif
 
     // Environment Maps
-#if defined(S_SPECULAR) && (S_SPECULAR == 1)
+#if defined(IBL) && (IBL == 1)
     float normalizationTerm = GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
 
     lighting.SpecularIndirect = GetEnvironment(mat) * normalizationTerm;
