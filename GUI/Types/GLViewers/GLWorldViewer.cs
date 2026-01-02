@@ -70,17 +70,15 @@ namespace GUI.Types.GLViewers
 
             UiControl.AddControl(exposureLabel);
 
-            var exposureSlider = UiControl.AddTrackBar((exposureAmountInt) =>
+            var exposureSlider = UiControl.AddTrackBar((exposureAmount) =>
             {
-                var exposure = exposureAmountInt / 10f;
+                var exposure = exposureAmount * 10;
                 UpdateExposureText(exposure);
                 Scene.PostProcessInfo.CustomExposure = exposure;
             });
 
-            exposureSlider.TrackBar.Minimum = 1;
-            exposureSlider.TrackBar.Maximum = 80;
             var sceneExposure = Scene.PostProcessInfo.CalculateTonemapScalar();
-            exposureSlider.TrackBar.Value = (int)(sceneExposure * 10);
+            exposureSlider.Slider.Value = sceneExposure / 10;
             UpdateExposureText(sceneExposure);
         }
 

@@ -15,7 +15,7 @@ namespace GUI.Types.GLViewers
     {
         private readonly ParticleSystem particleSystem;
         private ParticleSceneNode particleSceneNode;
-        private GLViewerTrackBarControl slowmodeTrackBar;
+        private GLViewerSliderControl slowmodeTrackBar;
 
         private bool ShowRenderBounds { get; set; }
 
@@ -55,12 +55,8 @@ namespace GUI.Types.GLViewers
 
             slowmodeTrackBar = UiControl.AddTrackBar(value =>
             {
-                particleSceneNode.FrametimeMultiplier = value / 100f;
+                particleSceneNode.FrametimeMultiplier = value;
             });
-            slowmodeTrackBar.TrackBar.TickFrequency = 10;
-            slowmodeTrackBar.TrackBar.Minimum = 0;
-            slowmodeTrackBar.TrackBar.Maximum = 100;
-            slowmodeTrackBar.TrackBar.Value = 100;
 
             UiControl.AddCheckBox("Show render bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
 

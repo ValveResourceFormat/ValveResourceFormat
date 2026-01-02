@@ -23,8 +23,8 @@ namespace GUI.Types.GLViewers
         private CheckBox showSkeletonCheckbox;
         private ComboBox hitboxComboBox;
         private Label animationTimeLabel;
-        private GLViewerTrackBarControl animationTrackBar;
-        private GLViewerTrackBarControl slowmodeTrackBar;
+        private GLViewerSliderControl animationTrackBar;
+        private GLViewerSliderControl slowmodeTrackBar;
         public CheckedListBox meshGroupListBox { get; private set; }
         public ComboBox materialGroupListBox { get; private set; }
         private ModelSceneNode modelSceneNode;
@@ -94,30 +94,26 @@ namespace GUI.Types.GLViewers
             {
                 if (animationController != null)
                 {
-                    animationController.Frame = frame;
+                    animationController.Frame = (int)(frame * animationController.ActiveAnimation.FrameCount);
                 }
             });
 
             slowmodeTrackBar = UiControl.AddTrackBar(value =>
             {
-                animationController.FrametimeMultiplier = value / 100f;
+                animationController.FrametimeMultiplier = value;
             });
-            slowmodeTrackBar.TrackBar.TickFrequency = 10;
-            slowmodeTrackBar.TrackBar.Minimum = 0;
-            slowmodeTrackBar.TrackBar.Maximum = 100;
-            slowmodeTrackBar.TrackBar.Value = 100;
 
             animationPlayPause.Enabled = false;
             animationTrackBar.Enabled = false;
             slowmodeTrackBar.Enabled = false;
 
             var previousPaused = false;
-            animationTrackBar.TrackBar.MouseDown += (_, __) =>
+            animationTrackBar.Slider.MouseDown += (_, __) =>
             {
                 previousPaused = animationController.IsPaused;
                 animationController.IsPaused = true;
             };
-            animationTrackBar.TrackBar.MouseUp += (_, __) =>
+            animationTrackBar.Slider.MouseUp += (_, __) =>
             {
                 animationController.IsPaused = previousPaused;
             };
@@ -318,20 +314,16 @@ namespace GUI.Types.GLViewers
                     {
                         maximum = 0;
                     }
-                    if (animationTrackBar.TrackBar.Maximum != maximum)
-                    {
-                        animationTrackBar.TrackBar.Maximum = maximum;
-                        animationTrackBar.TrackBar.TickFrequency = maximum / 10;
-                    }
+
                     animationTrackBar.Enabled = animation != null;
                     animationPlayPause.Enabled = animation != null;
                     slowmodeTrackBar.Enabled = animation != null;
 
                     frame = 0;
                 }
-                else if (animationTrackBar.TrackBar.Value != frame)
+                else if (animation != null && animationPlayPause.Checked && (int)(animationTrackBar.Slider.Value / animation.FrameCount) != frame)
                 {
-                    animationTrackBar.TrackBar.Value = frame;
+                    animationTrackBar.Slider.Value = (float)frame / animation.FrameCount;
 
                 }
 
