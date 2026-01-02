@@ -22,6 +22,7 @@ namespace GUI.Controls
         private readonly WaveStream WaveStream;
         private readonly MemoryStream audioData;
         private readonly SampleChannel? SampleChannel;
+        private readonly LoopingSampleProvider? LoopingProvider;
 
         private Bitmap? WavePeakBitmap;
 
@@ -106,8 +107,15 @@ namespace GUI.Controls
                 }
 
                 SampleChannel.Volume = volumeSlider.Value;
+
+                LoopingProvider = new LoopingSampleProvider(SampleChannel, WaveStream, LoopMarkers.Start, LoopMarkers.End)
+                {
+                    EnableLooping = Looping
+                };
+                LoopingProvider.LoopOccurred += OnLoopOccurred;
+
                 WaveOut.PlaybackStopped += OnPlaybackStopped;
-                WaveOut.Init(SampleChannel);
+                WaveOut.Init(LoopingProvider);
 
                 stream = null;
             }
@@ -137,6 +145,8 @@ namespace GUI.Controls
         private void SetLooping(bool looping)
         {
             Looping = looping;
+
+            LoopingProvider?.EnableLooping = looping;
 
             if (Looping)
             {
@@ -520,11 +530,20 @@ namespace GUI.Controls
             });
         }
 
+        void OnLoopOccurred(object? sender, EventArgs e)
+        {
+            // Reset playback timing to account for the loop
+            playbackStopwatch.Restart();
+            playbackStartPosition = WaveStream.CurrentTime;
+        }
+
         private void CloseWaveOut()
         {
             playbackTimer.Enabled = false;
 
-            if (WaveOut != null)
+            LoopingProvider?.LoopOccurred -= OnLoopOccurred;
+
+            if (WaveOut is not null)
             {
                 WaveOut.PlaybackStopped -= OnPlaybackStopped;
                 WaveOut.Stop();
@@ -538,6 +557,7 @@ namespace GUI.Controls
 
             WavePeakBitmap?.Dispose();
             WaveStream?.Dispose();
+            audioData?.Dispose();
         }
 
         private void Tick(object? sender, EventArgs e)
@@ -567,17 +587,6 @@ namespace GUI.Controls
             else
             {
                 currentTime = WaveStream.CurrentTime;
-            }
-
-            if (Looping)
-            {
-                var sampleCount = (WaveStream.Length / WaveStream.BlockAlign);
-                var endLoopTime = (float)LoopMarkers.End / sampleCount * WaveStream.TotalTime;
-
-                if (currentTime >= endLoopTime)
-                {
-                    UpdatePlaybackProgression(LoopMarkers.Start / sampleCount);
-                }
             }
 
             var progression = (float)Math.Min(1, currentTime.TotalSeconds / WaveStream.TotalTime.TotalSeconds);
@@ -636,6 +645,68 @@ namespace GUI.Controls
         {
             UpdatePlaybackProgression(0);
             Play();
+        }
+
+        /// <summary>
+        /// Sample provider that handles looping at specified frame positions.
+        /// </summary>
+        private class LoopingSampleProvider : ISampleProvider
+        {
+            private readonly ISampleProvider source;
+            private readonly WaveStream waveStream;
+            private readonly long loopStartFrame;
+            private readonly long loopEndFrame;
+
+            public LoopingSampleProvider(ISampleProvider source, WaveStream waveStream, int loopStart, int loopEnd)
+            {
+                this.source = source;
+                this.waveStream = waveStream;
+                loopStartFrame = loopStart;
+                loopEndFrame = loopEnd;
+            }
+
+            public WaveFormat WaveFormat => source.WaveFormat;
+
+            public bool EnableLooping { get; set; }
+
+            public event EventHandler? LoopOccurred;
+
+            public int Read(float[] buffer, int offset, int count)
+            {
+                var totalRead = 0;
+
+                while (totalRead < count)
+                {
+                    var samplesToRead = count - totalRead;
+
+                    if (EnableLooping && loopEndFrame > loopStartFrame)
+                    {
+                        var currentFrame = waveStream.Position / waveStream.BlockAlign;
+                        var framesUntilLoop = loopEndFrame - currentFrame;
+
+                        if (framesUntilLoop <= 0)
+                        {
+                            waveStream.Position = loopStartFrame * waveStream.BlockAlign;
+                            LoopOccurred?.Invoke(this, EventArgs.Empty);
+                            continue;
+                        }
+
+                        var samplesUntilLoop = (int)framesUntilLoop * WaveFormat.Channels;
+                        samplesToRead = Math.Min(samplesToRead, samplesUntilLoop);
+                    }
+
+                    var samplesRead = source.Read(buffer, offset + totalRead, samplesToRead);
+
+                    if (samplesRead == 0)
+                    {
+                        break;
+                    }
+
+                    totalRead += samplesRead;
+                }
+
+                return totalRead;
+            }
         }
     }
 }
