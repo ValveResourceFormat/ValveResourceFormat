@@ -30,202 +30,308 @@ namespace GUI.Controls
         private void InitializeComponent()
         {
             components = new System.ComponentModel.Container();
-            var resources = new System.ComponentModel.ComponentResourceManager(typeof(AudioPlaybackPanel));
-            toolStrip1 = new System.Windows.Forms.ToolStrip();
-            buttonPlay = new System.Windows.Forms.ToolStripButton();
-            buttonPause = new System.Windows.Forms.ToolStripButton();
-            toolStripLabel1 = new System.Windows.Forms.ToolStripLabel();
-            labelCurrentTime = new System.Windows.Forms.ToolStripLabel();
-            toolStripLabel3 = new System.Windows.Forms.ToolStripLabel();
-            labelTotalTime = new System.Windows.Forms.ToolStripLabel();
-            trackBarPosition = new System.Windows.Forms.TrackBar();
+            playPauseButton = new ThemedButton();
+            labelCurrentTime = new System.Windows.Forms.Label();
+            waveFormPictureBox = new System.Windows.Forms.PictureBox();
             playbackTimer = new System.Windows.Forms.Timer(components);
-            label3 = new System.Windows.Forms.Label();
-            waveformPainter2 = new NAudio.Gui.WaveformPainter();
-            waveformPainter1 = new NAudio.Gui.WaveformPainter();
-            volumeMeter2 = new NAudio.Gui.VolumeMeter();
-            volumeMeter1 = new NAudio.Gui.VolumeMeter();
-            volumeSlider1 = new NAudio.Gui.VolumeSlider();
-            toolStrip1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)trackBarPosition).BeginInit();
+            playbackSlider = new Slider();
+            tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
+            panel1 = new System.Windows.Forms.Panel();
+            tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
+            loopButton = new ThemedButton();
+            rewindLeftButton = new ThemedButton();
+            panel2 = new System.Windows.Forms.Panel();
+            tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
+            volumeSlider = new Slider();
+            volumePictureBox = new System.Windows.Forms.PictureBox();
+            tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
+            tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
+            ((System.ComponentModel.ISupportInitialize)waveFormPictureBox).BeginInit();
+            tableLayoutPanel1.SuspendLayout();
+            panel1.SuspendLayout();
+            tableLayoutPanel2.SuspendLayout();
+            panel2.SuspendLayout();
+            tableLayoutPanel5.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)volumePictureBox).BeginInit();
+            tableLayoutPanel3.SuspendLayout();
+            tableLayoutPanel4.SuspendLayout();
             SuspendLayout();
             // 
-            // toolStrip1
+            // playPauseButton
             // 
-            toolStrip1.GripStyle = System.Windows.Forms.ToolStripGripStyle.Hidden;
-            toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { buttonPlay, buttonPause, toolStripLabel1, labelCurrentTime, toolStripLabel3, labelTotalTime });
-            toolStrip1.Location = new System.Drawing.Point(0, 0);
-            toolStrip1.Name = "toolStrip1";
-            toolStrip1.Size = new System.Drawing.Size(626, 25);
-            toolStrip1.TabIndex = 15;
-            toolStrip1.Text = "toolStrip1";
-            // 
-            // buttonPlay
-            // 
-            buttonPlay.Image = (System.Drawing.Image)resources.GetObject("buttonPlay.Image");
-            buttonPlay.ImageTransparentColor = System.Drawing.Color.Magenta;
-            buttonPlay.Name = "buttonPlay";
-            buttonPlay.Size = new System.Drawing.Size(49, 22);
-            buttonPlay.Text = "Play";
-            buttonPlay.Click += OnButtonPlayClick;
-            // 
-            // buttonPause
-            // 
-            buttonPause.Image = (System.Drawing.Image)resources.GetObject("buttonPause.Image");
-            buttonPause.ImageTransparentColor = System.Drawing.Color.Magenta;
-            buttonPause.Name = "buttonPause";
-            buttonPause.Size = new System.Drawing.Size(58, 22);
-            buttonPause.Text = "Pause";
-            buttonPause.Click += OnButtonPauseClick;
-            // 
-            // toolStripLabel1
-            // 
-            toolStripLabel1.Name = "toolStripLabel1";
-            toolStripLabel1.Size = new System.Drawing.Size(80, 22);
-            toolStripLabel1.Text = "Current Time:";
+            playPauseButton.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            playPauseButton.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            playPauseButton.CornerRadius = 5;
+            playPauseButton.Dock = System.Windows.Forms.DockStyle.Fill;
+            playPauseButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            playPauseButton.ForeColor = System.Drawing.Color.Black;
+            playPauseButton.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
+            playPauseButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            playPauseButton.Location = new System.Drawing.Point(2, 0);
+            playPauseButton.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            playPauseButton.Name = "playPauseButton";
+            playPauseButton.Size = new System.Drawing.Size(53, 33);
+            playPauseButton.Style = true;
+            playPauseButton.TabIndex = 20;
+            playPauseButton.Text = "Play";
+            playPauseButton.UseVisualStyleBackColor = false;
+            playPauseButton.Click += OnPlayPauseButtonClick;
             // 
             // labelCurrentTime
             // 
+            labelCurrentTime.Dock = System.Windows.Forms.DockStyle.Fill;
+            labelCurrentTime.Font = new System.Drawing.Font("Cascadia Mono", 12F);
+            labelCurrentTime.Location = new System.Drawing.Point(171, 8);
+            labelCurrentTime.Margin = new System.Windows.Forms.Padding(0);
             labelCurrentTime.Name = "labelCurrentTime";
-            labelCurrentTime.Size = new System.Drawing.Size(49, 22);
-            labelCurrentTime.Text = "00:00.00";
+            labelCurrentTime.Padding = new System.Windows.Forms.Padding(4, 0, 0, 0);
+            labelCurrentTime.Size = new System.Drawing.Size(452, 33);
+            labelCurrentTime.TabIndex = 21;
+            labelCurrentTime.Text = "00:00.00 / 00:00.00";
+            labelCurrentTime.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            labelCurrentTime.UseCompatibleTextRendering = true;
             // 
-            // toolStripLabel3
+            // waveFormPictureBox
             // 
-            toolStripLabel3.Name = "toolStripLabel3";
-            toolStripLabel3.Size = new System.Drawing.Size(66, 22);
-            toolStripLabel3.Text = "Total Time:";
-            // 
-            // labelTotalTime
-            // 
-            labelTotalTime.Name = "labelTotalTime";
-            labelTotalTime.Size = new System.Drawing.Size(49, 22);
-            labelTotalTime.Text = "00:00.00";
-            // 
-            // trackBarPosition
-            // 
-            trackBarPosition.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            trackBarPosition.LargeChange = 10;
-            trackBarPosition.Location = new System.Drawing.Point(21, 188);
-            trackBarPosition.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            trackBarPosition.Maximum = 100;
-            trackBarPosition.Name = "trackBarPosition";
-            trackBarPosition.Size = new System.Drawing.Size(600, 45);
-            trackBarPosition.TabIndex = 16;
-            trackBarPosition.Scroll += OnTrackBarPositionScroll;
+            waveFormPictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            waveFormPictureBox.Location = new System.Drawing.Point(3, 3);
+            waveFormPictureBox.Name = "waveFormPictureBox";
+            waveFormPictureBox.Size = new System.Drawing.Size(805, 437);
+            waveFormPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            waveFormPictureBox.TabIndex = 24;
+            waveFormPictureBox.TabStop = false;
+            waveFormPictureBox.MouseDown += WaveFormPictureBox_MouseDown;
+            waveFormPictureBox.MouseEnter += WaveFormPictureBox_MouseEnter;
+            waveFormPictureBox.MouseLeave += WaveFormPictureBox_MouseLeave;
+            waveFormPictureBox.MouseMove += WaveFormPictureBox_MouseMove;
+            waveFormPictureBox.MouseUp += WaveFormPictureBox_MouseUp;
             // 
             // playbackTimer
             // 
-            playbackTimer.Interval = 500;
-            playbackTimer.Tick += OnTimerTick;
+            playbackTimer.Interval = 16;
+            playbackTimer.Tick += Tick;
             // 
-            // label3
+            // playbackSlider
             // 
-            label3.AutoSize = true;
-            label3.Location = new System.Drawing.Point(26, 236);
-            label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(50, 15);
-            label3.TabIndex = 17;
-            label3.Text = "Volume:";
+            playbackSlider.BackColor = System.Drawing.SystemColors.Control;
+            playbackSlider.Dock = System.Windows.Forms.DockStyle.Fill;
+            playbackSlider.ForeColor = System.Drawing.Color.Black;
+            playbackSlider.KnobSize = 14;
+            playbackSlider.Location = new System.Drawing.Point(3, 446);
+            playbackSlider.Name = "playbackSlider";
+            playbackSlider.Size = new System.Drawing.Size(805, 24);
+            playbackSlider.SliderColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            playbackSlider.SliderHeight = 6;
+            playbackSlider.TabIndex = 0;
+            playbackSlider.Value = 0F;
             // 
-            // waveformPainter2
+            // tableLayoutPanel1
             // 
-            waveformPainter2.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            waveformPainter2.BackColor = System.Drawing.Color.FromArgb(255, 255, 192);
-            waveformPainter2.ForeColor = System.Drawing.Color.SaddleBrown;
-            waveformPainter2.Location = new System.Drawing.Point(67, 113);
-            waveformPainter2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            waveformPainter2.Name = "waveformPainter2";
-            waveformPainter2.Size = new System.Drawing.Size(554, 69);
-            waveformPainter2.TabIndex = 19;
-            waveformPainter2.Text = "waveformPainter1";
+            tableLayoutPanel1.ColumnCount = 2;
+            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 77.391304F));
+            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 22.608696F));
+            tableLayoutPanel1.Controls.Add(panel1, 0, 0);
+            tableLayoutPanel1.Controls.Add(panel2, 1, 0);
+            tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel1.Location = new System.Drawing.Point(3, 476);
+            tableLayoutPanel1.Name = "tableLayoutPanel1";
+            tableLayoutPanel1.RowCount = 1;
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel1.Size = new System.Drawing.Size(805, 49);
+            tableLayoutPanel1.TabIndex = 26;
             // 
-            // waveformPainter1
+            // panel1
             // 
-            waveformPainter1.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            waveformPainter1.BackColor = System.Drawing.Color.FromArgb(255, 255, 192);
-            waveformPainter1.ForeColor = System.Drawing.Color.SaddleBrown;
-            waveformPainter1.Location = new System.Drawing.Point(67, 39);
-            waveformPainter1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            waveformPainter1.Name = "waveformPainter1";
-            waveformPainter1.Size = new System.Drawing.Size(554, 69);
-            waveformPainter1.TabIndex = 19;
-            waveformPainter1.Text = "waveformPainter1";
+            panel1.Controls.Add(labelCurrentTime);
+            panel1.Controls.Add(tableLayoutPanel2);
+            panel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            panel1.Location = new System.Drawing.Point(0, 0);
+            panel1.Margin = new System.Windows.Forms.Padding(0);
+            panel1.Name = "panel1";
+            panel1.Padding = new System.Windows.Forms.Padding(0, 8, 0, 8);
+            panel1.Size = new System.Drawing.Size(623, 49);
+            panel1.TabIndex = 0;
             // 
-            // volumeMeter2
+            // tableLayoutPanel2
             // 
-            volumeMeter2.Amplitude = 0F;
-            volumeMeter2.ForeColor = System.Drawing.Color.FromArgb(0, 192, 0);
-            volumeMeter2.Location = new System.Drawing.Point(43, 39);
-            volumeMeter2.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            volumeMeter2.MaxDb = 3F;
-            volumeMeter2.MinDb = -60F;
-            volumeMeter2.Name = "volumeMeter2";
-            volumeMeter2.Size = new System.Drawing.Size(16, 143);
-            volumeMeter2.TabIndex = 18;
-            volumeMeter2.Text = "volumeMeter1";
+            tableLayoutPanel2.ColumnCount = 3;
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
+            tableLayoutPanel2.Controls.Add(playPauseButton, 0, 0);
+            tableLayoutPanel2.Controls.Add(loopButton, 1, 0);
+            tableLayoutPanel2.Controls.Add(rewindLeftButton, 2, 0);
+            tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Left;
+            tableLayoutPanel2.Location = new System.Drawing.Point(0, 8);
+            tableLayoutPanel2.Margin = new System.Windows.Forms.Padding(0);
+            tableLayoutPanel2.Name = "tableLayoutPanel2";
+            tableLayoutPanel2.RowCount = 1;
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel2.Size = new System.Drawing.Size(171, 33);
+            tableLayoutPanel2.TabIndex = 22;
             // 
-            // volumeMeter1
+            // loopButton
             // 
-            volumeMeter1.Amplitude = 0F;
-            volumeMeter1.ForeColor = System.Drawing.Color.FromArgb(0, 192, 0);
-            volumeMeter1.Location = new System.Drawing.Point(21, 39);
-            volumeMeter1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            volumeMeter1.MaxDb = 3F;
-            volumeMeter1.MinDb = -60F;
-            volumeMeter1.Name = "volumeMeter1";
-            volumeMeter1.Size = new System.Drawing.Size(16, 143);
-            volumeMeter1.TabIndex = 18;
-            volumeMeter1.Text = "volumeMeter1";
+            loopButton.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            loopButton.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            loopButton.CornerRadius = 5;
+            loopButton.Dock = System.Windows.Forms.DockStyle.Fill;
+            loopButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            loopButton.ForeColor = System.Drawing.Color.Black;
+            loopButton.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
+            loopButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            loopButton.Location = new System.Drawing.Point(59, 0);
+            loopButton.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            loopButton.Name = "loopButton";
+            loopButton.Size = new System.Drawing.Size(53, 33);
+            loopButton.Style = true;
+            loopButton.TabIndex = 21;
+            loopButton.Text = "repeat";
+            loopButton.UseVisualStyleBackColor = false;
+            loopButton.Click += loopButton_Click;
             // 
-            // volumeSlider1
+            // rewindLeftButton
             // 
-            volumeSlider1.Location = new System.Drawing.Point(84, 233);
-            volumeSlider1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            volumeSlider1.Name = "volumeSlider1";
-            volumeSlider1.Size = new System.Drawing.Size(112, 18);
-            volumeSlider1.TabIndex = 11;
-            volumeSlider1.VolumeChanged += OnVolumeSliderChanged;
+            rewindLeftButton.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            rewindLeftButton.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            rewindLeftButton.CornerRadius = 5;
+            rewindLeftButton.Dock = System.Windows.Forms.DockStyle.Fill;
+            rewindLeftButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            rewindLeftButton.ForeColor = System.Drawing.Color.Black;
+            rewindLeftButton.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
+            rewindLeftButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
+            rewindLeftButton.Location = new System.Drawing.Point(116, 0);
+            rewindLeftButton.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            rewindLeftButton.Name = "rewindLeftButton";
+            rewindLeftButton.Size = new System.Drawing.Size(53, 33);
+            rewindLeftButton.Style = true;
+            rewindLeftButton.TabIndex = 22;
+            rewindLeftButton.Text = "<<";
+            rewindLeftButton.UseVisualStyleBackColor = false;
+            rewindLeftButton.Click += rewindLeftButton_Click;
+            // 
+            // panel2
+            // 
+            panel2.Controls.Add(tableLayoutPanel5);
+            panel2.Dock = System.Windows.Forms.DockStyle.Fill;
+            panel2.Location = new System.Drawing.Point(623, 0);
+            panel2.Margin = new System.Windows.Forms.Padding(0);
+            panel2.Name = "panel2";
+            panel2.Size = new System.Drawing.Size(182, 49);
+            panel2.TabIndex = 1;
+            // 
+            // tableLayoutPanel5
+            // 
+            tableLayoutPanel5.ColumnCount = 2;
+            tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 24F));
+            tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel5.Controls.Add(volumeSlider, 1, 0);
+            tableLayoutPanel5.Controls.Add(volumePictureBox, 0, 0);
+            tableLayoutPanel5.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel5.Location = new System.Drawing.Point(0, 0);
+            tableLayoutPanel5.Name = "tableLayoutPanel5";
+            tableLayoutPanel5.RowCount = 1;
+            tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel5.Size = new System.Drawing.Size(182, 49);
+            tableLayoutPanel5.TabIndex = 19;
+            // 
+            // volumeSlider
+            // 
+            volumeSlider.BackColor = System.Drawing.SystemColors.Control;
+            volumeSlider.Dock = System.Windows.Forms.DockStyle.Fill;
+            volumeSlider.ForeColor = System.Drawing.Color.Black;
+            volumeSlider.KnobSize = 14;
+            volumeSlider.Location = new System.Drawing.Point(24, 12);
+            volumeSlider.Margin = new System.Windows.Forms.Padding(0, 12, 0, 12);
+            volumeSlider.Name = "volumeSlider";
+            volumeSlider.Size = new System.Drawing.Size(158, 25);
+            volumeSlider.SliderColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            volumeSlider.SliderHeight = 6;
+            volumeSlider.TabIndex = 18;
+            volumeSlider.Value = 0F;
+            // 
+            // volumePictureBox
+            // 
+            volumePictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            volumePictureBox.Location = new System.Drawing.Point(0, 0);
+            volumePictureBox.Margin = new System.Windows.Forms.Padding(0);
+            volumePictureBox.Name = "volumePictureBox";
+            volumePictureBox.Size = new System.Drawing.Size(24, 49);
+            volumePictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            volumePictureBox.TabIndex = 19;
+            volumePictureBox.TabStop = false;
+            // 
+            // tableLayoutPanel3
+            // 
+            tableLayoutPanel3.ColumnCount = 1;
+            tableLayoutPanel3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel3.Controls.Add(tableLayoutPanel4, 0, 0);
+            tableLayoutPanel3.Controls.Add(tableLayoutPanel1, 1, 1);
+            tableLayoutPanel3.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel3.Location = new System.Drawing.Point(4, 4);
+            tableLayoutPanel3.Margin = new System.Windows.Forms.Padding(0);
+            tableLayoutPanel3.Name = "tableLayoutPanel3";
+            tableLayoutPanel3.RowCount = 2;
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 55F));
+            tableLayoutPanel3.Size = new System.Drawing.Size(811, 528);
+            tableLayoutPanel3.TabIndex = 25;
+            // 
+            // tableLayoutPanel4
+            // 
+            tableLayoutPanel4.ColumnCount = 1;
+            tableLayoutPanel4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel4.Controls.Add(playbackSlider, 1, 1);
+            tableLayoutPanel4.Controls.Add(waveFormPictureBox, 0, 0);
+            tableLayoutPanel4.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel4.Location = new System.Drawing.Point(0, 0);
+            tableLayoutPanel4.Margin = new System.Windows.Forms.Padding(0);
+            tableLayoutPanel4.Name = "tableLayoutPanel4";
+            tableLayoutPanel4.RowCount = 2;
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
+            tableLayoutPanel4.Size = new System.Drawing.Size(811, 473);
+            tableLayoutPanel4.TabIndex = 25;
             // 
             // AudioPlaybackPanel
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            Controls.Add(waveformPainter2);
-            Controls.Add(waveformPainter1);
-            Controls.Add(volumeMeter2);
-            Controls.Add(volumeMeter1);
-            Controls.Add(label3);
-            Controls.Add(trackBarPosition);
-            Controls.Add(toolStrip1);
-            Controls.Add(volumeSlider1);
-            Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            Controls.Add(tableLayoutPanel3);
+            Margin = new System.Windows.Forms.Padding(0);
             Name = "AudioPlaybackPanel";
-            Size = new System.Drawing.Size(626, 270);
-            toolStrip1.ResumeLayout(false);
-            toolStrip1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)trackBarPosition).EndInit();
+            Padding = new System.Windows.Forms.Padding(4);
+            Size = new System.Drawing.Size(819, 536);
+            ((System.ComponentModel.ISupportInitialize)waveFormPictureBox).EndInit();
+            tableLayoutPanel1.ResumeLayout(false);
+            panel1.ResumeLayout(false);
+            tableLayoutPanel2.ResumeLayout(false);
+            panel2.ResumeLayout(false);
+            tableLayoutPanel5.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)volumePictureBox).EndInit();
+            tableLayoutPanel3.ResumeLayout(false);
+            tableLayoutPanel4.ResumeLayout(false);
             ResumeLayout(false);
-            PerformLayout();
 
         }
 
         #endregion
-        private NAudio.Gui.VolumeSlider volumeSlider1;
-        private System.Windows.Forms.ToolStrip toolStrip1;
-        private System.Windows.Forms.ToolStripButton buttonPlay;
-        private System.Windows.Forms.ToolStripButton buttonPause;
-        private System.Windows.Forms.TrackBar trackBarPosition;
-        private System.Windows.Forms.ToolStripLabel toolStripLabel1;
-        private System.Windows.Forms.ToolStripLabel labelCurrentTime;
-        private System.Windows.Forms.ToolStripLabel toolStripLabel3;
-        private System.Windows.Forms.ToolStripLabel labelTotalTime;
-        private System.Windows.Forms.Label label3;
-        private NAudio.Gui.VolumeMeter volumeMeter1;
-        private NAudio.Gui.VolumeMeter volumeMeter2;
-        private NAudio.Gui.WaveformPainter waveformPainter1;
-        private NAudio.Gui.WaveformPainter waveformPainter2;
+        private ThemedButton playPauseButton;
+        private System.Windows.Forms.Label labelCurrentTime;
+        private System.Windows.Forms.PictureBox waveFormPictureBox;
         private System.Windows.Forms.Timer playbackTimer;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
+        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Panel panel2;
+        private Slider playbackSlider;
+        private Slider volumeSlider;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
+        private ThemedButton loopButton;
+        private ThemedButton rewindLeftButton;
+        private System.Windows.Forms.PictureBox volumePictureBox;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel5;
     }
 }

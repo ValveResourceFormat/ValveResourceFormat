@@ -23,7 +23,24 @@ namespace GUI.Types.Viewers
         {
             if (stream == null)
             {
-                waveStream = new AudioFileReader(vrfGuiContext.FileName);
+                if (vrfGuiContext.FileName.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+                {
+                    waveStream = new WaveFileReader(vrfGuiContext.FileName);
+                    if (waveStream.WaveFormat.Encoding != WaveFormatEncoding.Pcm && waveStream.WaveFormat.Encoding != WaveFormatEncoding.IeeeFloat)
+                    {
+                        waveStream = WaveFormatConversionStream.CreatePcmStream(waveStream);
+                        waveStream = new BlockAlignReductionStream(waveStream);
+                    }
+                }
+                else if (vrfGuiContext.FileName.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+                {
+                    //waveStream = new MediaFoundationReader(vrfGuiContext.FileName);
+                    waveStream = new Mp3FileReaderBase(vrfGuiContext.FileName, wf => new Mp3FrameDecompressor(wf));
+                }
+                else
+                {
+                    throw new NotImplementedException($"Unknown audio file extension: {Path.GetExtension(vrfGuiContext.FileName)}");
+                }
             }
             else if (vrfGuiContext.FileName!.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase))
             {
@@ -39,36 +56,19 @@ namespace GUI.Types.Viewers
         {
             Debug.Assert(waveStream is not null);
 
-            var audio = new AudioPlaybackPanel(waveStream);
-            tab.Controls.Add(audio);
-
             var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
-            if (isPreview && autoPlay)
-            {
-                audio.HandleCreated += OnHandleCreated;
-            }
+            var audio = new AudioPlaybackPanel(waveStream, isPreview && autoPlay, (0, 0));
+            tab.Controls.Add(audio);
 
             waveStream = null;
 
             return;
         }
 
-        private void OnHandleCreated(object? sender, EventArgs e)
-        {
-            if (sender is AudioPlaybackPanel audio)
-            {
-                audio.HandleCreated -= OnHandleCreated;
-                audio.Invoke(audio.Play);
-            }
-        }
-
         public void Dispose()
         {
-            if (waveStream != null)
-            {
-                waveStream.Dispose();
-                waveStream = null;
-            }
+            waveStream?.Dispose();
+            waveStream = null;
         }
     }
 }

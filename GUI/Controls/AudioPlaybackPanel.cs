@@ -1,92 +1,119 @@
+using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
-#nullable disable
+// Based on https://github.com/naudio/NAudio.WaveFormRenderer (MIT License - Copyright (c) 2021 NAudio)
 
 namespace GUI.Controls
 {
     internal partial class AudioPlaybackPanel : UserControl
     {
-        private WaveOutEvent waveOut;
-        private WaveStream waveStream;
-        private Action<float> setVolumeDelegate;
+        private readonly record struct Peak(float Min, float Max);
+        private readonly record struct Rgb(byte R, byte G, byte B);
 
-        public AudioPlaybackPanel(WaveStream inputStream)
+        private readonly WaveOutEvent WaveOut = new();
+        private readonly WaveStream WaveStream;
+        private readonly MemoryStream audioData;
+        private readonly SampleChannel? SampleChannel;
+
+        private Bitmap? WavePeakBitmap;
+
+        private readonly bool AutoPlay;
+        private bool Looping;
+        private bool WaveformClicked;
+
+        private List<Peak>? cachedPeaks;
+        private float maxAmplitude = 1.0f;
+        private bool peaksNeedRecalculation = true;
+        private int lastRenderedProgressionPixel = -1;
+
+        private readonly Stopwatch playbackStopwatch = new();
+        private TimeSpan playbackStartPosition;
+
+        private readonly (int Start, int End) LoopMarkers;
+
+        private readonly Image PlayImage = MainForm.ImageList.Images[MainForm.Icons["AudioPlay"]];
+        private readonly Image PauseImage = MainForm.ImageList.Images[MainForm.Icons["AudioPause"]];
+        private readonly Image RepeatImage = MainForm.ImageList.Images[MainForm.Icons["AudioRepeat"]];
+        private readonly Image RepeatImagePressed = MainForm.ImageList.Images[MainForm.Icons["AudioRepeatPressed"]];
+
+        public AudioPlaybackPanel(WaveStream inputStream, bool autoPlay, (int start, int end) loopMarkers)
         {
+            AutoPlay = autoPlay;
             Dock = DockStyle.Fill;
 
             InitializeComponent();
 
-            waveStream = inputStream;
-            labelTotalTime.Text = waveStream.TotalTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
-            volumeSlider1.Volume = Settings.Config.Volume;
-        }
+            WaveStream = inputStream;
 
-        protected override void OnHandleCreated(EventArgs e)
-        {
-            base.OnHandleCreated(e);
+            // some files have stupid values;
+            loopMarkers = (Math.Max(0, loopMarkers.start), Math.Max(0, loopMarkers.end));
 
-            buttonPlay.Image = Themer.CreateImage(this, buttonPlay.Image, "AudioPlay");
-            buttonPause.Image = Themer.CreateImage(this, buttonPause.Image, "AudioPause");
-        }
-
-        private void OnButtonPlayClick(object sender, EventArgs e) => Play();
-
-        public void Play()
-        {
-            if (waveOut == null)
+            if (loopMarkers.end > loopMarkers.start)
             {
-                try
-                {
-                    waveOut = new WaveOutEvent();
-                    waveOut.PlaybackStopped += OnPlaybackStopped;
-                    waveOut.Init(CreateInputStream());
-                }
-                catch (Exception driverCreateException)
-                {
-                    MessageBox.Show(driverCreateException.Message, "Failed to play audio");
-                    return;
-                }
+                LoopMarkers = loopMarkers;
+                Looping = true;
+            }
+            else
+            {
+                LoopMarkers = (0, (int)(WaveStream.Length / WaveStream.BlockAlign));
+                Looping = false;
             }
 
-            if (waveOut.PlaybackState == PlaybackState.Playing)
+            volumePictureBox.Image = MainForm.ImageList.Images[MainForm.Icons["AudioVolume"]];
+
+            WaveStream.Position = 0;
+            audioData = new MemoryStream((int)WaveStream.Length);
+            WaveStream.CopyTo(audioData);
+
+            labelCurrentTime.Text = GetCurrentTimeString(WaveStream.CurrentTime);
+            volumeSlider.Value = Settings.Config.Volume;
+
+            WaveStream? stream = null;
+
+            playPauseButton.Image = PlayImage;
+            playPauseButton.Text = "";
+
+            loopButton.Image = Looping ? RepeatImagePressed : RepeatImage;
+            loopButton.Text = "";
+            rewindLeftButton.Image = MainForm.ImageList.Images[MainForm.Icons["AudioRewindLeft"]];
+            rewindLeftButton.Text = "";
+
+            playbackSlider.ValueChanged = Value =>
             {
-                return;
-            }
+                UpdatePlaybackProgression(Value);
+            };
 
-            setVolumeDelegate(volumeSlider1.Volume);
-            waveOut.Play();
-            playbackTimer.Enabled = true;
-            UpdateTime();
-        }
-
-        private MeteringSampleProvider CreateInputStream()
-        {
-            WaveStream stream = null;
+            volumeSlider.ValueChanged = SetVolume;
 
             try
             {
-                SampleChannel sampleChannel;
-
-                if (waveStream.WaveFormat.Encoding == WaveFormatEncoding.Adpcm)
+                if (WaveStream.WaveFormat.Encoding == WaveFormatEncoding.Adpcm)
                 {
-                    stream = WaveFormatConversionStream.CreatePcmStream(waveStream);
-                    sampleChannel = new SampleChannel(stream, true);
+                    stream = WaveFormatConversionStream.CreatePcmStream(WaveStream);
+                    SampleChannel = new SampleChannel(stream, true);
                 }
                 else
                 {
-                    sampleChannel = new SampleChannel(waveStream, true);
+                    SampleChannel = new SampleChannel(WaveStream, true);
                 }
 
+                SampleChannel.Volume = volumeSlider.Value;
+                WaveOut.PlaybackStopped += OnPlaybackStopped;
+                WaveOut.Init(SampleChannel);
+
                 stream = null;
-                sampleChannel.PreVolumeMeter += OnPreVolumeMeter;
-                setVolumeDelegate = vol => sampleChannel.Volume = vol;
-                var postVolumeMeter = new MeteringSampleProvider(sampleChannel);
-                postVolumeMeter.StreamVolume += OnPostVolumeMeter;
-                return postVolumeMeter;
+            }
+            catch (Exception driverCreateException)
+            {
+                Program.ShowError(driverCreateException);
             }
             finally
             {
@@ -94,94 +121,513 @@ namespace GUI.Controls
             }
         }
 
-        void OnPreVolumeMeter(object sender, StreamVolumeEventArgs e)
+        private void SetVolume(float value)
         {
-            waveformPainter1.AddMax(e.MaxSampleValues[0]);
-            waveformPainter2.AddMax(e.MaxSampleValues[1]);
+            SampleChannel?.Volume = value;
+            Settings.Config.Volume = value;
         }
 
-        void OnPostVolumeMeter(object sender, StreamVolumeEventArgs e)
+        private void SetLooping(bool looping)
         {
-            volumeMeter1.Amplitude = e.MaxSampleValues[0];
-            volumeMeter2.Amplitude = e.MaxSampleValues[1];
+            Looping = looping;
+
+            if (Looping)
+            {
+                Play();
+                loopButton.Image = RepeatImagePressed;
+            }
+            else
+            {
+                loopButton.Image = RepeatImage;
+            }
         }
 
-        void OnPlaybackStopped(object sender, StoppedEventArgs e)
+        private string GetCurrentTimeString(TimeSpan currentTime)
+        {
+            return $"{currentTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture)} / {WaveStream.TotalTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture)}";
+        }
+
+        private void UpdatePlaybackProgression(float progression)
+        {
+            progression = Math.Clamp(progression, 0, 1);
+
+            WaveStream.CurrentTime = TimeSpan.FromSeconds(WaveStream.TotalTime.TotalSeconds * progression);
+
+            if (WaveOut.PlaybackState == PlaybackState.Playing)
+            {
+                playbackStopwatch.Restart();
+                playbackStartPosition = WaveStream.CurrentTime;
+
+                if (!playbackSlider.Clicked && !WaveformClicked)
+                {
+                    UpdateTime();
+                }
+            }
+            else
+            {
+                if (playbackSlider.Clicked || WaveformClicked)
+                {
+                    RenderWaveForm(progression);
+                    labelCurrentTime.Text = GetCurrentTimeString(WaveStream.CurrentTime);
+                    playbackSlider.Refresh();
+                    waveFormPictureBox.Refresh();
+                    labelCurrentTime.Refresh();
+                }
+                else
+                {
+                    UpdateTime();
+                }
+            }
+        }
+
+        public void RenderWaveForm(float progression)
+        {
+            if (WaveStream == null)
+            {
+                return;
+            }
+
+            var width = waveFormPictureBox.Width;
+            var height = waveFormPictureBox.Height;
+            var widthProgression = (int)(progression * width);
+
+            if (widthProgression == lastRenderedProgressionPixel
+                && WavePeakBitmap != null
+                && WavePeakBitmap.Width == width
+                && WavePeakBitmap.Height == height
+                && !peaksNeedRecalculation)
+            {
+                return;
+            }
+
+            var widthChanged = WavePeakBitmap == null || WavePeakBitmap.Width != width;
+
+            if (WavePeakBitmap == null || WavePeakBitmap.Width != width || WavePeakBitmap.Height != height)
+            {
+                WavePeakBitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            }
+
+            if (widthChanged)
+            {
+                peaksNeedRecalculation = true;
+            }
+
+            if (peaksNeedRecalculation)
+            {
+                CalculatePeaks(width);
+            }
+
+            var x = 0;
+            var peakIndex = 0;
+            var midPoint = height / 2;
+            var pixelsPerPeak = this.AdjustForDPI(4);
+
+            var colorRaw = Themer.CurrentThemeColors.Accent;
+            var peakColorRgb = new Rgb(colorRaw.R, colorRaw.G, colorRaw.B);
+            var midColorRaw = ControlPaint.Dark(colorRaw, 0.2f);
+            var midColorRgb = new Rgb(midColorRaw.R, midColorRaw.G, midColorRaw.B);
+            var backMidColorRaw = ControlPaint.Dark(midColorRaw, 0.2f);
+            var backMidColorRgb = new Rgb(backMidColorRaw.R, backMidColorRaw.G, backMidColorRaw.B);
+
+            var bmpData = WavePeakBitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+            Span<byte> pixels;
+            unsafe
+            {
+                pixels = new Span<byte>((void*)bmpData.Scan0, bmpData.Stride * height);
+            }
+
+            pixels.Clear();
+
+            while (x < width && peakIndex < cachedPeaks!.Count)
+            {
+                var peak = cachedPeaks[peakIndex];
+                var normalizedMax = peak.Max / maxAmplitude;
+                var normalizedMin = peak.Min / maxAmplitude;
+
+                for (var n = 0; n < pixelsPerPeak && x < width; n++)
+                {
+                    var topY = (int)(midPoint - (normalizedMax * midPoint));
+                    var bottomY = (int)(midPoint - (normalizedMin * midPoint));
+
+                    var isBeforeProgression = x <= widthProgression;
+
+                    if (topY < midPoint)
+                    {
+                        for (var y = topY; y < midPoint; y++)
+                        {
+                            var t = (float)(y - topY) / (midPoint - topY);
+                            var rgb = isBeforeProgression
+                                ? InterpolateColor(peakColorRgb, midColorRgb, t)
+                                : InterpolateColor(midColorRgb, backMidColorRgb, t);
+
+                            SetPixel(pixels, bmpData.Stride, x, y, rgb);
+                        }
+                    }
+
+                    if (bottomY > midPoint)
+                    {
+                        for (var y = midPoint; y < bottomY; y++)
+                        {
+                            var t = (float)(y - midPoint) / (bottomY - midPoint);
+                            var rgb = isBeforeProgression
+                                ? InterpolateColor(midColorRgb, peakColorRgb, t)
+                                : InterpolateColor(backMidColorRgb, midColorRgb, t);
+
+                            SetPixel(pixels, bmpData.Stride, x, y, rgb);
+                        }
+                    }
+
+                    x++;
+                }
+
+                peakIndex++;
+            }
+
+            WavePeakBitmap.UnlockBits(bmpData);
+
+            waveFormPictureBox.Image = WavePeakBitmap;
+            lastRenderedProgressionPixel = widthProgression;
+        }
+
+        private static void SetPixel(Span<byte> pixels, int stride, int x, int y, Rgb rgb)
+        {
+            var position = y * stride + x * 4;
+            pixels[position] = rgb.B;
+            pixels[position + 1] = rgb.G;
+            pixels[position + 2] = rgb.R;
+            pixels[position + 3] = 255;
+        }
+
+        private static Rgb InterpolateColor(Rgb c1, Rgb c2, float t)
+        {
+            return new Rgb(
+                (byte)(c1.R + (c2.R - c1.R) * t),
+                (byte)(c1.G + (c2.G - c1.G) * t),
+                (byte)(c1.B + (c2.B - c1.B) * t)
+            );
+        }
+
+        private void CalculatePeaks(int width)
+        {
+            var pixelsPerPeak = this.AdjustForDPI(4);
+
+            audioData.Position = 0;
+            using var waveStream = new RawSourceWaveStream(audioData, WaveStream.WaveFormat);
+
+            var samples = waveStream.Length / waveStream.BlockAlign;
+            var samplesPerPixel = (double)samples / width;
+
+            var provider = waveStream.ToSampleProvider();
+            var samplesPerPeak = samplesPerPixel * pixelsPerPeak;
+            samplesPerPeak -= samplesPerPeak % waveStream.WaveFormat.BlockAlign;
+            var readBuffer = new float[(int)samplesPerPeak];
+
+            var peaks = new List<Peak>();
+            while (peaks.Count < width / pixelsPerPeak)
+            {
+                var peak = GetNextPeak(provider, readBuffer);
+                peaks.Add(peak);
+            }
+
+            maxAmplitude = peaks.Max(static p => Math.Max(Math.Abs(p.Max), Math.Abs(p.Min)));
+            if (maxAmplitude < 0.0001f)
+            {
+                maxAmplitude = 1.0f;
+            }
+
+            cachedPeaks = peaks;
+            peaksNeedRecalculation = false;
+        }
+
+        private static Peak GetNextPeak(ISampleProvider provider, float[] readBuffer)
+        {
+            var samplesRead = provider.Read(readBuffer, 0, readBuffer.Length);
+
+            if (samplesRead == 0)
+            {
+                return new(0, 0);
+            }
+
+            var max = float.MinValue;
+            var min = float.MaxValue;
+
+            for (var i = 0; i < samplesRead; i++)
+            {
+                var p = readBuffer[i];
+
+                if (max < p)
+                {
+                    max = p;
+                }
+
+                if (min > p)
+                {
+                    min = p;
+                }
+            }
+
+            return new Peak(min, max);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            RenderWaveForm(playbackSlider.Value);
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            WaveStream?.Position = 0;
+
+            if (AutoPlay)
+            {
+                Play();
+            }
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (!Visible)
+            {
+                return base.ProcessCmdKey(ref msg, keyData);
+            }
+
+            const double SeekIncrementSeconds = 5.0;
+            const float VolumeIncrement = 0.05f;
+
+            switch (keyData)
+            {
+                case Keys.Space:
+                case Keys.Enter:
+                    OnPlayPauseButtonClick(this, EventArgs.Empty);
+                    return true;
+
+                case Keys.Left:
+                    SeekRelative(-SeekIncrementSeconds);
+                    return true;
+
+                case Keys.Right:
+                    SeekRelative(SeekIncrementSeconds);
+                    return true;
+
+                case Keys.Up:
+                    volumeSlider.Value += VolumeIncrement;
+                    SetVolume(volumeSlider.Value);
+                    return true;
+
+                case Keys.Down:
+                    volumeSlider.Value -= VolumeIncrement;
+                    SetVolume(volumeSlider.Value);
+                    return true;
+
+                case Keys.Home:
+                    UpdatePlaybackProgression(0f);
+                    playbackSlider.Value = 0f;
+                    return true;
+
+                case Keys.End:
+                    UpdatePlaybackProgression(1f);
+                    playbackSlider.Value = 1f;
+                    return true;
+
+                case Keys.L:
+                    loopButton_Click(this, EventArgs.Empty);
+                    return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private void SeekRelative(double seconds)
+        {
+            if (WaveStream == null)
+            {
+                return;
+            }
+
+            var currentSeconds = WaveStream.CurrentTime.TotalSeconds;
+            var newSeconds = Math.Clamp(currentSeconds + seconds, 0, WaveStream.TotalTime.TotalSeconds);
+            var progression = (float)(newSeconds / WaveStream.TotalTime.TotalSeconds);
+
+            UpdatePlaybackProgression(progression);
+            playbackSlider.Value = progression;
+        }
+
+        private void OnPlayPauseButtonClick(object sender, EventArgs e)
+        {
+            if (WaveOut.PlaybackState == PlaybackState.Playing)
+            {
+                WaveOut.Pause();
+                playbackTimer.Enabled = false;
+                playPauseButton.Image = PlayImage;
+            }
+            else
+            {
+                Play();
+            }
+        }
+
+        public void Play()
+        {
+            if (WaveOut.PlaybackState == PlaybackState.Playing)
+            {
+                return;
+            }
+
+            if (WaveStream.CurrentTime >= WaveStream.TotalTime)
+            {
+                WaveStream.Position = 0;
+            }
+
+            playbackStopwatch.Restart();
+            playbackStartPosition = WaveStream.CurrentTime;
+
+            SampleChannel?.Volume = volumeSlider.Value;
+
+            WaveOut.Play();
+            playbackTimer.Enabled = true;
+            playPauseButton.Image = PauseImage;
+            UpdateTime();
+        }
+
+        void OnPlaybackStopped(object? sender, StoppedEventArgs e)
         {
             if (e.Exception != null)
             {
-                MessageBox.Show(e.Exception.Message, "Playback Device Error");
+                Program.ShowError(e.Exception);
             }
 
-            if (waveStream != null)
+            if (IsDisposed)
             {
-                waveStream.Position = 0;
+                return;
             }
 
-            if (playbackTimer != null)
+            BeginInvoke(() =>
             {
+                playPauseButton.Image = PlayImage;
                 playbackTimer.Enabled = false;
                 UpdateTime();
-            }
+            });
         }
 
         private void CloseWaveOut()
         {
-            if (playbackTimer != null)
-            {
-                playbackTimer.Enabled = false;
-                playbackTimer.Dispose();
-                playbackTimer = null;
-            }
-
-            if (waveOut != null)
-            {
-                waveOut.Stop();
-                waveOut.Dispose();
-                waveOut = null;
-            }
-
-            if (waveStream != null)
-            {
-                waveStream.Dispose();
-                setVolumeDelegate = null;
-                waveStream = null;
-            }
-        }
-
-        private void OnButtonPauseClick(object sender, EventArgs e)
-        {
-            if (waveOut?.PlaybackState == PlaybackState.Playing)
-            {
-                waveOut.Pause();
-            }
-
             playbackTimer.Enabled = false;
+
+            if (WaveOut != null)
+            {
+                WaveOut.PlaybackStopped -= OnPlaybackStopped;
+                WaveOut.Stop();
+                WaveOut.Dispose();
+            }
+
+            PlayImage.Dispose();
+            PauseImage.Dispose();
+            RepeatImage.Dispose();
+            RepeatImagePressed.Dispose();
+
+            WavePeakBitmap?.Dispose();
+            WaveStream?.Dispose();
         }
 
-        private void OnVolumeSliderChanged(object sender, EventArgs e)
-        {
-            setVolumeDelegate?.Invoke(volumeSlider1.Volume);
-
-            Settings.Config.Volume = volumeSlider1.Volume;
-        }
-
-        private void OnTimerTick(object sender, EventArgs e)
+        private void Tick(object? sender, EventArgs e)
         {
             UpdateTime();
         }
 
-        private void OnTrackBarPositionScroll(object sender, EventArgs e)
+        private void UpdateTime(bool updatePlaybackSlider = true)
         {
-            waveStream.CurrentTime = TimeSpan.FromSeconds(waveStream.TotalTime.TotalSeconds * trackBarPosition.Value / 100.0);
-            UpdateTime();
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            var currentTime = playbackStartPosition;
+
+            if (WaveOut.PlaybackState == PlaybackState.Playing)
+            {
+                var elapsed = playbackStopwatch.Elapsed;
+                currentTime = playbackStartPosition + elapsed;
+
+                if (currentTime > WaveStream.TotalTime)
+                {
+                    currentTime = WaveStream.TotalTime;
+                }
+            }
+            else
+            {
+                currentTime = WaveStream.CurrentTime;
+            }
+
+            if (Looping)
+            {
+                var sampleCount = (WaveStream.Length / WaveStream.BlockAlign);
+                var endLoopTime = (float)LoopMarkers.End / sampleCount * WaveStream.TotalTime;
+
+                if (currentTime >= endLoopTime)
+                {
+                    UpdatePlaybackProgression(LoopMarkers.Start / sampleCount);
+                }
+            }
+
+            var progression = (float)Math.Min(1, currentTime.TotalSeconds / WaveStream.TotalTime.TotalSeconds);
+
+            if (updatePlaybackSlider && !playbackSlider.Clicked)
+            {
+                playbackSlider.Value = progression;
+            }
+
+            RenderWaveForm(progression);
+
+            labelCurrentTime.Text = GetCurrentTimeString(currentTime);
         }
 
-        private void UpdateTime()
+        private void WaveFormPictureBox_MouseLeave(object sender, EventArgs e)
         {
-            var currentTime = waveStream.CurrentTime;
-            trackBarPosition.Value = Math.Min(trackBarPosition.Maximum, (int)(100 * currentTime.TotalSeconds / waveStream.TotalTime.TotalSeconds));
-            labelCurrentTime.Text = currentTime.ToString("mm\\:ss\\.ff", CultureInfo.InvariantCulture);
+            Cursor = Cursors.Default;
+        }
+
+        private void WaveFormPictureBox_MouseEnter(object sender, EventArgs e)
+        {
+            Cursor = Cursors.Hand;
+        }
+
+        private void WaveFormPictureBox_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (WaveformClicked)
+            {
+                var progression = (float)e.Location.X / waveFormPictureBox.Width;
+                UpdatePlaybackProgression(progression);
+                playbackSlider.Value = progression;
+            }
+        }
+
+
+        private void WaveFormPictureBox_MouseUp(object sender, MouseEventArgs e)
+        {
+            WaveformClicked = false;
+        }
+
+        private void WaveFormPictureBox_MouseDown(object sender, MouseEventArgs e)
+        {
+            WaveformClicked = true;
+
+            var progression = (float)e.Location.X / waveFormPictureBox.Width;
+            UpdatePlaybackProgression(progression);
+            playbackSlider.Value = progression;
+        }
+
+        private void loopButton_Click(object sender, EventArgs e)
+        {
+            SetLooping(!Looping);
+        }
+
+        private void rewindLeftButton_Click(object sender, EventArgs e)
+        {
+            UpdatePlaybackProgression(0);
+            Play();
         }
     }
 }

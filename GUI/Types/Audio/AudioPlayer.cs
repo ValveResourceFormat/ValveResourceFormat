@@ -23,20 +23,23 @@ namespace GUI.Types.Audio
 
             try
             {
-                WaveStream waveStream = soundData.SoundType switch
+                WaveStream? waveStream = soundData.SoundType switch
                 {
                     Sound.AudioFileType.WAV => new WaveFileReader(stream),
                     Sound.AudioFileType.MP3 => new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf)),
                     Sound.AudioFileType.AAC => new StreamMediaFoundationReader(stream),
                     _ => throw new UnexpectedMagicException("Dont know how to play", (int)soundData.SoundType, nameof(soundData.SoundType)),
                 };
-                var audio = new AudioPlaybackPanel(waveStream);
 
-                tab.Controls.Add(audio);
-
-                if (autoPlay)
+                try
                 {
-                    audio.HandleCreated += OnHandleCreated;
+                    var audio = new AudioPlaybackPanel(waveStream, autoPlay, (soundData.LoopStart, soundData.LoopEnd));
+                    tab.Controls.Add(audio);
+                    waveStream = null;
+                }
+                finally
+                {
+                    waveStream?.Dispose();
                 }
             }
             catch (Exception e)
@@ -50,15 +53,6 @@ namespace GUI.Types.Audio
                 };
 
                 tab.Controls.Add(msg);
-            }
-        }
-
-        private void OnHandleCreated(object? sender, EventArgs e)
-        {
-            if (sender is AudioPlaybackPanel audio)
-            {
-                audio.HandleCreated -= OnHandleCreated;
-                audio.Invoke(audio.Play);
             }
         }
     }
