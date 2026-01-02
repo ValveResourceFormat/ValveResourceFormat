@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -20,6 +21,7 @@ using Svg.Skia;
 using ValveResourceFormat.IO;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
+using Windows.Win32.UI.WindowsAndMessaging;
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
 #nullable disable
@@ -72,6 +74,16 @@ namespace GUI
             InitializeComponent();
             LoadIcons();
             Themer.ApplyTheme(this);
+
+            if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
+            {
+                StartPosition = FormStartPosition.Manual;
+
+                if ((FormWindowState)Settings.Config.WindowState == FormWindowState.Maximized)
+                {
+                    WindowState = FormWindowState.Maximized;
+                }
+            }
 
             mainTabs.ImageList = ImageList;
             mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
@@ -349,6 +361,38 @@ namespace GUI
             mainTabs.TabPages.Add(consoleTabPage);
             consoleTab.InitializeFont();
 
+#if SCREENSHOT_MODE
+            mainFormBottomPanel.Visible = false;
+            SetBounds(x: 100, y: 100, width: 480 + 6, height: 480 + 3); // Tweak size as needed
+            unsafe
+            {
+                var preference = Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_DONOTROUND;
+                PInvoke.DwmSetWindowAttribute((Windows.Win32.Foundation.HWND)Handle,
+                    Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE,
+                    &preference,
+                    sizeof(Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE));
+            }
+#else
+            if (StartPosition == FormStartPosition.Manual)
+            {
+                var maximized = WindowState == FormWindowState.Maximized;
+                var placement = new WINDOWPLACEMENT
+                {
+                    length = (uint)Marshal.SizeOf<WINDOWPLACEMENT>(),
+                    showCmd = maximized ? SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED : SHOW_WINDOW_CMD.SW_SHOWNORMAL,
+                    rcNormalPosition = new Windows.Win32.Foundation.RECT
+                    {
+                        left = Settings.Config.WindowLeft,
+                        top = Settings.Config.WindowTop,
+                        right = Settings.Config.WindowLeft + Settings.Config.WindowWidth,
+                        bottom = Settings.Config.WindowTop + Settings.Config.WindowHeight,
+                    },
+                };
+
+                PInvoke.SetWindowPlacement((Windows.Win32.Foundation.HWND)Handle, placement);
+            }
+#endif
+
             if (Settings.IsFirstStartup)
             {
                 OpenWelcome();
@@ -361,69 +405,24 @@ namespace GUI
             {
                 OpenExplorer();
             }
-
-            var savedWindowDimensionsAreValid = IsOnScreen(new Rectangle(
-                Settings.Config.WindowLeft,
-                Settings.Config.WindowTop,
-                Settings.Config.WindowWidth,
-                Settings.Config.WindowHeight));
-
-            if (savedWindowDimensionsAreValid)
-            {
-                SetBounds(
-                    Settings.Config.WindowLeft,
-                    Settings.Config.WindowTop,
-                    Settings.Config.WindowWidth,
-                    Settings.Config.WindowHeight
-                );
-
-                var newState = (FormWindowState)Settings.Config.WindowState;
-
-                if (newState == FormWindowState.Maximized || newState == FormWindowState.Normal)
-                {
-                    WindowState = newState;
-                }
-            }
-
-#if SCREENSHOT_MODE
-            mainFormBottomPanel.Visible = false;
-            SetBounds(x: 100, y: 100, width: 480 + 6, height: 480 + 3); // Tweak size as needed
-            unsafe
-            {
-                var preference = Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE.DWMWCP_DONOTROUND;
-                PInvoke.DwmSetWindowAttribute((Windows.Win32.Foundation.HWND)Handle,
-                    Windows.Win32.Graphics.Dwm.DWMWINDOWATTRIBUTE.DWMWA_WINDOW_CORNER_PREFERENCE,
-                    &preference,
-                    sizeof(Windows.Win32.Graphics.Dwm.DWM_WINDOW_CORNER_PREFERENCE));
-            }
-#endif
-        }
-
-        // checks if the Rectangle is within bounds of one of the user's screen
-        public bool IsOnScreen(Rectangle formRectangle)
-        {
-            if (formRectangle.Width < MinimumSize.Width || formRectangle.Height < MinimumSize.Height)
-            {
-                return false;
-            }
-
-            return Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(formRectangle));
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
 #if !SCREENSHOT_MODE
-            // save the application window size, position and state (if maximized)
-            (Settings.Config.WindowLeft, Settings.Config.WindowTop, Settings.Config.WindowWidth, Settings.Config.WindowHeight, Settings.Config.WindowState) = WindowState switch
+            var placement = new WINDOWPLACEMENT
             {
-                FormWindowState.Normal => (Left, Top, Width, Height, (int)FormWindowState.Normal),
-                // will restore window to maximized
-                FormWindowState.Maximized => (RestoreBounds.Left, RestoreBounds.Top, RestoreBounds.Width, RestoreBounds.Height, (int)FormWindowState.Maximized),
-                // if minimized restore to Normal instead, using RestoreBound values
-                FormWindowState.Minimized => (RestoreBounds.Left, RestoreBounds.Top, RestoreBounds.Width, RestoreBounds.Height, (int)FormWindowState.Normal),
-                // the default switch should never happen (FormWindowState only takes the values Normal, Maximized, Minimized)
-                _ => (0, 0, 0, 0, (int)FormWindowState.Normal),
+                length = (uint)Marshal.SizeOf<WINDOWPLACEMENT>(),
             };
+
+            if (PInvoke.GetWindowPlacement((Windows.Win32.Foundation.HWND)Handle, ref placement))
+            {
+                Settings.Config.WindowLeft = placement.rcNormalPosition.left;
+                Settings.Config.WindowTop = placement.rcNormalPosition.top;
+                Settings.Config.WindowWidth = placement.rcNormalPosition.right - placement.rcNormalPosition.left;
+                Settings.Config.WindowHeight = placement.rcNormalPosition.bottom - placement.rcNormalPosition.top;
+                Settings.Config.WindowState = (int)(placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED ? FormWindowState.Maximized : FormWindowState.Normal);
+            }
 #endif
 
             Settings.Save();

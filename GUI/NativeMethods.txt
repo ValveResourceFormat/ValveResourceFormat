@@ -25,6 +25,7 @@ PostMessage
 SendMessage
 SetParent
 SetWindowLongPtr
+SetWindowPlacement
 SetWindowTheme
 SHChangeNotify
 ShowWindow
