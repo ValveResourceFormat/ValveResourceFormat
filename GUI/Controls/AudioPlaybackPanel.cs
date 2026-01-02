@@ -121,6 +121,13 @@ namespace GUI.Controls
             }
         }
 
+        protected override void OnCreateControl()
+        {
+            base.OnCreateControl();
+
+            SetLooping(Looping);
+        }
+
         private void SetVolume(float value)
         {
             SampleChannel?.Volume = value;
@@ -133,12 +140,13 @@ namespace GUI.Controls
 
             if (Looping)
             {
-                Play();
                 loopButton.Image = RepeatImagePressed;
+                loopButton.BackColor = Themer.CurrentThemeColors.HoverAccent;
             }
             else
             {
                 loopButton.Image = RepeatImage;
+                loopButton.BackColor = Themer.CurrentThemeColors.Border;
             }
         }
 
