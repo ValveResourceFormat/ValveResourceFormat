@@ -79,7 +79,6 @@ namespace GUI.Controls
             // 
             // labelCurrentTime
             // 
-            labelCurrentTime.Dock = System.Windows.Forms.DockStyle.Fill;
             labelCurrentTime.Font = new System.Drawing.Font("Cascadia Mono", 12F);
             labelCurrentTime.Location = new System.Drawing.Point(171, 8);
             labelCurrentTime.Margin = new System.Windows.Forms.Padding(0);
