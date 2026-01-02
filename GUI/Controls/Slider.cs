@@ -52,24 +52,26 @@ internal class Slider : UserControl
         var filledWidth = knobCenterX - sliderStartX;
         var unfilledWidth = sliderWidth - filledWidth;
 
+        var activeSliderColor = Enabled ? SliderColor : ControlPaint.Dark(SliderColor, 0.5f);
+
         if (filledWidth > 0)
         {
             var filledRectangle = new Rectangle(sliderStartX, sliderY, (int)filledWidth, SliderHeight);
-            using var filledBrush = new SolidBrush(SliderColor);
+            using var filledBrush = new SolidBrush(activeSliderColor);
             e.Graphics.FillRectangle(filledBrush, filledRectangle);
         }
 
         if (unfilledWidth > 0)
         {
             var unfilledRectangle = new Rectangle((int)knobCenterX, sliderY, (int)unfilledWidth, SliderHeight);
-            var unfilledColor = isLight ? ControlPaint.Light(SliderColor, 0.3f) : ControlPaint.Dark(SliderColor, 0.1f);
+            var unfilledColor = isLight ? ControlPaint.Light(activeSliderColor, 0.3f) : ControlPaint.Dark(activeSliderColor, 0.1f);
             using var unfilledBrush = new SolidBrush(unfilledColor);
             e.Graphics.FillRectangle(unfilledBrush, unfilledRectangle);
         }
 
         float knobY = (Height - KnobSize) / 2;
 
-        using var knobBrush = new SolidBrush(SliderColor);
+        using var knobBrush = new SolidBrush(activeSliderColor);
 
         var knobX = Value * (width - KnobSize);
 
@@ -115,18 +117,36 @@ internal class Slider : UserControl
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+
+        if (!Enabled)
+        {
+            return;
+        }
+
         CalcValue();
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
+
+        if (!Enabled)
+        {
+            return;
+        }
+
         Clicked = true;
         CalcValue();
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
+        if (!Enabled)
+        {
+            base.OnMouseUp(e);
+            return;
+        }
+
         Clicked = false;
 
         Cursor.Clip = Rectangle.Empty;
@@ -139,6 +159,11 @@ internal class Slider : UserControl
     {
         base.OnMouseEnter(e);
 
+        if (!Enabled)
+        {
+            return;
+        }
+
         Cursor = Cursors.Hand;
     }
 
@@ -146,6 +171,17 @@ internal class Slider : UserControl
     {
         base.OnMouseLeave(e);
 
+        if (!Enabled)
+        {
+            return;
+        }
+
         Cursor = Cursors.Default;
+    }
+
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        base.OnEnabledChanged(e);
+        Invalidate();
     }
 }
