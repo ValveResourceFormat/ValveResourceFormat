@@ -468,19 +468,19 @@ namespace GUI
             panel1.Dock = DockStyle.Left;
             panel1.Location = new System.Drawing.Point(0, 0);
             panel1.Name = "panel1";
-            panel1.Padding = new Padding(4);
-            panel1.Size = new System.Drawing.Size(38, 48);
+            panel1.Padding = new Padding(4, 8, 4, 8);
+            panel1.Size = new System.Drawing.Size(40, 48);
             panel1.TabIndex = 3;
             // 
             // mainLogo
             // 
             mainLogo.BackgroundImageLayout = ImageLayout.Center;
             mainLogo.Dock = DockStyle.Fill;
-            mainLogo.Location = new System.Drawing.Point(4, 4);
+            mainLogo.Location = new System.Drawing.Point(4, 8);
             mainLogo.Margin = new Padding(0);
             mainLogo.Name = "mainLogo";
-            mainLogo.Size = new System.Drawing.Size(30, 40);
-            mainLogo.SizeMode = PictureBoxSizeMode.Zoom;
+            mainLogo.Size = new System.Drawing.Size(32, 32);
+            mainLogo.SizeMode = PictureBoxSizeMode.CenterImage;
             mainLogo.TabIndex = 2;
             mainLogo.TabStop = false;
             mainLogo.Click += OnMainLogoClick;
