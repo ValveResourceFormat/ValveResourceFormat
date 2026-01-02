@@ -332,14 +332,14 @@ namespace GUI.Controls
             audioData.Position = 0;
             using var waveStream = new RawSourceWaveStream(audioData, WaveStream.WaveFormat);
 
-            var samples = waveStream.Length / waveStream.BlockAlign;
-            var samplesPerPixel = (double)samples / width;
+            var frames = waveStream.Length / waveStream.BlockAlign;
+            var framesPerPixel = (double)frames / width;
+
+            var framesPerPeak = Math.Floor(framesPerPixel * pixelsPerPeak);
+            var samplesPerPeak = (int)(framesPerPeak * waveStream.WaveFormat.Channels);
+            var readBuffer = new float[samplesPerPeak];
 
             var provider = waveStream.ToSampleProvider();
-            var samplesPerPeak = samplesPerPixel * pixelsPerPeak;
-            samplesPerPeak -= samplesPerPeak % waveStream.WaveFormat.BlockAlign;
-            var readBuffer = new float[(int)samplesPerPeak];
-
             var peaks = new List<Peak>();
             while (peaks.Count < width / pixelsPerPeak)
             {
