@@ -15,6 +15,7 @@
     <AssemblyName>Source2Viewer</AssemblyName>
     <SignAssembly>false</SignAssembly>
     <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <NoWarn>NU1901;NU1902;NU1903</NoWarn>
   </PropertyGroup>
   <ItemGroup>
