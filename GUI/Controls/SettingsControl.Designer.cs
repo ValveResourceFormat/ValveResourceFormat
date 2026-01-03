@@ -84,7 +84,6 @@ namespace GUI.Forms
             // 
             // gamePaths
             // 
-            gamePaths.FormattingEnabled = true;
             gamePaths.Location = new System.Drawing.Point(16, 36);
             gamePaths.Margin = new System.Windows.Forms.Padding(0);
             gamePaths.Name = "gamePaths";
@@ -197,7 +196,6 @@ namespace GUI.Forms
             antiAliasingComboBox.DropDownForeColor = System.Drawing.Color.White;
             antiAliasingComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             antiAliasingComboBox.ForeColor = System.Drawing.Color.White;
-            antiAliasingComboBox.FormattingEnabled = true;
             antiAliasingComboBox.HeaderColor = System.Drawing.Color.FromArgb(51, 57, 74);
             antiAliasingComboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
             antiAliasingComboBox.Location = new System.Drawing.Point(170, 33);
@@ -377,7 +375,6 @@ namespace GUI.Forms
             themeComboBox.DropDownForeColor = System.Drawing.Color.White;
             themeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             themeComboBox.ForeColor = System.Drawing.Color.White;
-            themeComboBox.FormattingEnabled = true;
             themeComboBox.HeaderColor = System.Drawing.Color.FromArgb(51, 57, 74);
             themeComboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
             themeComboBox.Location = new System.Drawing.Point(209, 29);

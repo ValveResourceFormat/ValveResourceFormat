@@ -90,7 +90,6 @@ namespace GUI.Forms
             searchTypeComboBox.DropDownForeColor = System.Drawing.Color.Black;
             searchTypeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             searchTypeComboBox.ForeColor = System.Drawing.Color.Black;
-            searchTypeComboBox.FormattingEnabled = true;
             searchTypeComboBox.HeaderColor = System.Drawing.Color.FromArgb(188, 188, 188);
             searchTypeComboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
             searchTypeComboBox.Location = new System.Drawing.Point(13, 53);

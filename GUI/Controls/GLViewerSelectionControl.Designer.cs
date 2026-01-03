@@ -53,7 +53,6 @@ namespace GUI.Controls
             comboBox.DropDownForeColor = System.Drawing.Color.Black;
             comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
             comboBox.ForeColor = System.Drawing.Color.Black;
-            comboBox.FormattingEnabled = true;
             comboBox.HeaderColor = System.Drawing.Color.FromArgb(230, 230, 230);
             comboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
             comboBox.Location = new System.Drawing.Point(0, 15);

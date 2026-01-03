@@ -37,7 +37,6 @@ namespace GUI.Controls
             // 
             checkedListBox.CheckOnClick = true;
             checkedListBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            checkedListBox.FormattingEnabled = true;
             checkedListBox.Location = new System.Drawing.Point(4, 16);
             checkedListBox.Margin = new System.Windows.Forms.Padding(0);
             checkedListBox.Name = "checkedListBox";

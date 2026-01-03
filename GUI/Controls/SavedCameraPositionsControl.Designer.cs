@@ -69,7 +69,6 @@ namespace GUI.Controls
             cmbPositions.DropDownForeColor = System.Drawing.Color.Black;
             cmbPositions.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             cmbPositions.ForeColor = System.Drawing.Color.Black;
-            cmbPositions.FormattingEnabled = true;
             cmbPositions.HeaderColor = System.Drawing.Color.FromArgb(230, 230, 230);
             cmbPositions.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
             cmbPositions.Location = new System.Drawing.Point(4, 19);
