@@ -257,7 +257,10 @@ namespace GUI.Types.PackageViewer
                 DeletedFilesRecovered = true;
             }
 
-            var name = Path.GetFileName(vrfGuiContext.FileName);
+            var fullFilePath = vrfGuiContext.FileName.AsSpan();
+            var fileName = Path.GetFileName(fullFilePath);
+            var parentFolder = Path.GetFileName(Path.GetDirectoryName(fullFilePath));
+            var name = fullFilePath.Length > 0 ? $"{parentFolder}/{fileName}" : fileName.ToString();
             var vpkImage = MainForm.ExtensionIcons["vpk"];
 
             var root = new BetterTreeNode(name, rootVirtual)
