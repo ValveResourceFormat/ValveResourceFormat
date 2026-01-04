@@ -1,11 +1,9 @@
 
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
-using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
 namespace GUI.Types.Renderer;

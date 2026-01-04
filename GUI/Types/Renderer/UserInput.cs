@@ -120,7 +120,7 @@ internal class UserInput
 
         if (!NoclipEnabled)
         {
-            Camera.Location = FpsMovement.ProcessMovement(Camera.Location, keyboardState, deltaTime, Camera.Pitch, Camera.Yaw)
+            Camera.Location = FpsMovement.ProcessMovement(Camera.Location, keyboardState, deltaTime, Camera.Pitch, Camera.Yaw);
         }
         else if (OrbitMode)
         {

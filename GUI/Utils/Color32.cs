@@ -11,9 +11,7 @@ namespace GUI.Utils
         public static readonly Color32 Blue = new(0f, 0f, 1f, 1f);
         public static readonly Color32 Black = new(0f, 0f, 0f, 1f);
         public static readonly Color32 Yellow = new(1f, 1f, 0f, 1f);
-        public static readonly Color32 Green = new(0f, 1f, 0f, 1f);
         public static readonly Color32 Orange = new(1f, 0.5f, 0f, 1f);
-        public static readonly Color32 Blue = new(0f, 0f, 1f, 1f);
         public static readonly Color32 Cyan = new(0f, 1f, 1f, 1f);
 
         public Color32(byte r, byte g, byte b) : this(r, g, b, 255) { }

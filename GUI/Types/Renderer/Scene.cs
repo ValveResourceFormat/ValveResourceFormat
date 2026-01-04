@@ -36,12 +36,11 @@ namespace GUI.Types.Renderer
             public Vector3 Start { get; init; }
             public Vector3 End { get; init; }
             public float? MaxHitDistance { get; init; }
-            public int[] ExpectedTriangles { get; init; }
-            public string Name { get; init; }
-            public ModelSceneNode VisualizerNode { get; set; }
+            public int[]? ExpectedTriangles { get; init; }
+            public required string Name { get; init; }
+            public ModelSceneNode? VisualizerNode { get; set; }
         }
 
-        public Rubikon PhysicsTracer => PhysicsWorld!;
         public ModelSceneNode CameraTraceNodeTest { get; set; }
         public List<PhysicsTraceTest> PhysicsTraceTests { get; set; }
 
@@ -77,7 +76,7 @@ namespace GUI.Types.Renderer
 
         public void Initialize()
         {
-            if (PhysicsTracer != null)
+            if (PhysicsWorld != null)
             {
                 // Camera-based dynamic trace
                 CameraTraceNodeTest = GLMaterialViewer.CreateEnvCubemapSphere(this);
@@ -195,9 +194,9 @@ namespace GUI.Types.Renderer
 
         public void Update(Scene.UpdateContext updateContext)
         {
-            if (PhysicsTracer != null)
+            if (PhysicsWorld != null)
             {
-                var debugText = updateContext.View.selectedNodeRenderer.ScreenDebugText;
+                var debugText = updateContext.View.SelectedNodeRenderer.ScreenDebugText;
                 debugText = string.Empty;
 
                 void AddDebugTextLine(string text, int lineNumber, Color32 color)
@@ -217,14 +216,14 @@ namespace GUI.Types.Renderer
                 for (var i = 0; i < PhysicsTraceTests.Count; i++)
                 {
                     var test = PhysicsTraceTests[i];
-                    var testResult = PhysicsTracer.TraceAABB(test.Start, test.End, test.VisualizerNode.LocalBoundingBox);
+                    var testResult = PhysicsWorld.TraceAABB(test.Start, test.End, test.VisualizerNode.LocalBoundingBox);
 
                     if (testResult.Hit)
                     {
                         test.VisualizerNode.Transform = Matrix4x4.CreateTranslation(testResult.HitPosition);
 
                         // trace backwards from hitpos to ensure we didn't cross any geometry
-                        var backTraceResult = PhysicsTracer.TraceAABB(
+                        var backTraceResult = PhysicsWorld.TraceAABB(
                             testResult.HitPosition + Vector3.Normalize((test.Start - test.End)) * 1e-3f,
                             test.Start,
                             test.VisualizerNode.LocalBoundingBox
@@ -257,10 +256,10 @@ namespace GUI.Types.Renderer
 
 
                 // Camera-based trace
-                var start = updateContext.View.Camera.Location + updateContext.View.Camera.GetForwardVector() * 10f;
-                var end = start + updateContext.View.Camera.GetForwardVector() * 512f;
+                var start = updateContext.View.Camera.Location + updateContext.View.Camera.Forward * 10f;
+                var end = start + updateContext.View.Camera.Forward * 512f;
 
-                var traceResult = PhysicsTracer.TraceAABB(start, end, CameraTraceNodeTest.LocalBoundingBox);
+                var traceResult = PhysicsWorld.TraceAABB(start, end, CameraTraceNodeTest.LocalBoundingBox);
                 if (traceResult.Hit)
                 {
                     CameraTraceNodeTest.Transform = Matrix4x4.CreateTranslation(traceResult.HitPosition);
