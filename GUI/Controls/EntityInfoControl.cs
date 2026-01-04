@@ -1,6 +1,7 @@
 using System.Windows.Forms;
 using GUI.Types.Viewers;
 using GUI.Utils;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Forms
@@ -21,16 +22,7 @@ namespace GUI.Forms
 
         public void ResourceAddDataGridExternalRef(VrfGuiContext vrfGuiContext)
         {
-            Resource.AddDataGridExternalRefAction(vrfGuiContext, dataGridProperties, ColumnValue.Name, (referenceFound) =>
-            {
-                if (referenceFound)
-                {
-                    if (Parent is Form form)
-                    {
-                        form.Close();
-                    }
-                }
-            });
+            AddDataGridExternalRefAction(vrfGuiContext, dataGridProperties, ColumnValue.Name);
         }
 
         public void ShowPropertiesTab()
@@ -91,6 +83,37 @@ namespace GUI.Forms
                 delay,
                 stimesToFire
             ]);
+        }
+
+        private void AddDataGridExternalRefAction(VrfGuiContext vrfGuiContext, DataGridView dataGrid, string columnName)
+        {
+            void OnCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+            {
+                if (e.RowIndex < 0 || sender is not DataGridView grid)
+                {
+                    return;
+                }
+
+                var row = grid.Rows[e.RowIndex];
+                var colName = columnName;
+                var name = (string)row.Cells[colName].Value!;
+
+                var found = Resource.OpenExternalReference(vrfGuiContext, name);
+
+                if (found && Parent is Form form)
+                {
+                    form.Close();
+                }
+            }
+
+            void OnDisposed(object? sender, EventArgs e)
+            {
+                dataGrid.CellDoubleClick -= OnCellDoubleClick;
+                dataGrid.Disposed -= OnDisposed;
+            }
+
+            dataGrid.CellDoubleClick += OnCellDoubleClick;
+            dataGrid.Disposed += OnDisposed;
         }
     }
 }

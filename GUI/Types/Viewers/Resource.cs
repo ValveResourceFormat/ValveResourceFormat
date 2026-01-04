@@ -296,23 +296,10 @@ namespace GUI.Types.Viewers
 
                 if (block.Type == BlockType.RERL && block is ResourceExtRefList externalReferences)
                 {
-                    var externalRefs = new DataGridView
-                    {
-                        Dock = DockStyle.Fill,
-                        AutoGenerateColumns = true,
-                        AutoSize = true,
-                        ReadOnly = true,
-                        AllowUserToAddRows = false,
-                        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                        DataSource =
-                            new BindingSource(
-                                new BindingList<ResourceExtRefList.ResourceReferenceInfo>(externalReferences.ResourceRefInfoList), string.Empty),
-                    };
+                    var externalRefsTree = BuildExternalRefTree(vrfGuiContext, externalReferences.ResourceRefInfoList);
 
-                    AddDataGridExternalRefAction(vrfGuiContext, externalRefs, "Name");
-
-                    var externalRefsTab = new ThemedTabPage("External Refs");
-                    externalRefsTab.Controls.Add(externalRefs);
+                    var externalRefsTab = new ThemedTabPage("References");
+                    externalRefsTab.Controls.Add(externalRefsTree);
                     resTabs.TabPages.Add(externalRefsTab);
 
                     continue;
@@ -526,45 +513,116 @@ namespace GUI.Types.Viewers
             return false;
         }
 
-        public static void AddDataGridExternalRefAction(VrfGuiContext vrfGuiContext, DataGridView dataGrid,
-            string columnName, Action<bool>? secondAction = null)
+        public static bool OpenExternalReference(VrfGuiContext vrfGuiContext, string name)
         {
-            void OnCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+            Log.Debug(nameof(Resource), $"Opening {name} from external refs");
+
+            var foundFile = vrfGuiContext.FindFileWithContext(name + GameFileLoader.CompiledFileSuffix);
+            if (foundFile.Context == null)
             {
-                if (e.RowIndex < 0 || sender is not DataGridView grid)
+                foundFile = vrfGuiContext.FindFileWithContext(name);
+            }
+
+            if (foundFile.Context != null)
+            {
+                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static TreeViewDoubleBuffered BuildExternalRefTree(VrfGuiContext vrfGuiContext, List<ResourceExtRefList.ResourceReferenceInfo> references)
+        {
+            var treeView = new TreeViewDoubleBuffered
+            {
+                Dock = DockStyle.Fill,
+                ImageList = MainForm.ImageList,
+                HideSelection = false,
+                ShowRootLines = true,
+            };
+
+            treeView.BeginUpdate();
+
+            var rootNodes = new Dictionary<string, TreeNode>();
+            var rootLookup = rootNodes.GetAlternateLookup<ReadOnlySpan<char>>();
+            var folderIcon = MainForm.Icons["Folder"];
+
+            foreach (var refInfo in references)
+            {
+                var pathSpan = refInfo.Name.AsSpan();
+                var slashIndex = pathSpan.IndexOf('/');
+
+                ReadOnlySpan<char> rootFolderSpan;
+
+                if (slashIndex >= 0)
                 {
-                    return;
+                    rootFolderSpan = pathSpan[..slashIndex];
+                }
+                else
+                {
+                    rootFolderSpan = [];
                 }
 
-                var row = grid.Rows[e.RowIndex];
-                var colName = columnName;
-                var name = (string)row.Cells[colName].Value!;
-
-                Log.Debug(nameof(Resource), $"Opening {name} from external refs");
-
-                var foundFile = vrfGuiContext.FindFileWithContext(name + GameFileLoader.CompiledFileSuffix);
-                if (foundFile.Context == null)
+                var extensionSpan = Path.GetExtension(pathSpan);
+                if (extensionSpan.Length > 0)
                 {
-                    foundFile = vrfGuiContext.FindFileWithContext(name);
+                    extensionSpan = extensionSpan[1..];
                 }
 
-                var bFound = foundFile.Context != null;
-                if (bFound)
+                var fileIcon = MainForm.GetImageIndexForExtension(extensionSpan);
+                var fileNode = new TreeNode(refInfo.Name)
                 {
-                    Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                    ImageIndex = fileIcon,
+                    SelectedImageIndex = fileIcon,
+                    Tag = refInfo,
+                };
+
+                TreeNode? rootNode = null;
+
+                if (!rootFolderSpan.IsEmpty && !rootLookup.TryGetValue(rootFolderSpan, out rootNode))
+                {
+                    var rootFolder = rootFolderSpan.ToString();
+                    rootNode = new TreeNode(rootFolder)
+                    {
+                        ImageIndex = folderIcon,
+                        SelectedImageIndex = folderIcon,
+                    };
+                    rootNodes[rootFolder] = rootNode;
+                    treeView.Nodes.Add(rootNode);
                 }
 
-                secondAction?.Invoke(bFound);
+                if (rootNode != null)
+                {
+                    rootNode.Nodes.Add(fileNode);
+                }
+                else
+                {
+                    treeView.Nodes.Add(fileNode);
+                }
+            }
+
+            treeView.ExpandAll();
+            treeView.EndUpdate();
+
+            void OnNodeDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
+            {
+                if (e.Node?.Tag is ResourceExtRefList.ResourceReferenceInfo refInfo)
+                {
+                    OpenExternalReference(vrfGuiContext, refInfo.Name);
+                }
             }
 
             void OnDisposed(object? sender, EventArgs e)
             {
-                dataGrid.CellDoubleClick -= OnCellDoubleClick;
-                dataGrid.Disposed -= OnDisposed;
+                treeView.NodeMouseDoubleClick -= OnNodeDoubleClick;
+                treeView.Disposed -= OnDisposed;
             }
 
-            dataGrid.CellDoubleClick += OnCellDoubleClick;
-            dataGrid.Disposed += OnDisposed;
+            treeView.NodeMouseDoubleClick += OnNodeDoubleClick;
+            treeView.Disposed += OnDisposed;
+
+            return treeView;
         }
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
