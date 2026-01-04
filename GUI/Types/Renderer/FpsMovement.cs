@@ -59,7 +59,6 @@ class FpsMovement
     // Movement state
     public Vector3 Velocity { get; private set; }
     private bool OnGround;
-    private bool OldButtonJump;
     private Rubikon? Physics;
 
     // Surface properties (simplified - always 1.0 for now)
@@ -69,7 +68,6 @@ class FpsMovement
     {
         Velocity = Vector3.Zero;
         OnGround = false;
-        OldButtonJump = false;
     }
 
     public void SetPhysics(Rubikon physics)
@@ -80,13 +78,15 @@ class FpsMovement
     /// <summary>
     /// Main movement tick - processes input and updates position/velocity
     /// </summary>
-    public Vector3 ProcessMovement(Vector3 currentPosition, TrackedKeys input, float deltaTime, float pitch, float yaw)
+    public void ProcessMovement(UserInput input, Camera camera, float deltaTime)
     {
-        var position = currentPosition;
+        var position = camera.Location;
+        var pitch = camera.Pitch;
+        var yaw = camera.Yaw;
 
         // Track input state for acceleration modifiers and collision hull
-        var isDucking = (input & TrackedKeys.Control) != 0;
-        var isWalking = (input & TrackedKeys.Shift) != 0 && !isDucking;
+        var isDucking = input.Holding(TrackedKeys.Control);
+        var isWalking = !isDucking && input.Holding(TrackedKeys.Shift);
 
         // Categorize position (check if on ground)
         CategorizePosition(ref position, isDucking);
@@ -99,13 +99,12 @@ class FpsMovement
         }
 
         // Check for jump
-        if ((input & TrackedKeys.Jump) != 0 && !OldButtonJump && OnGround)
+        if (input.Pressed(TrackedKeys.Jump) && OnGround)
         {
             // Prevent bunnyhopping - cap speed before jumping
             PreventBunnyJumping();
             CheckJump(deltaTime);
         }
-        OldButtonJump = (input & TrackedKeys.Jump) != 0;
 
         // Calculate wish velocity from input (with speed modifiers for duck/crouch)
         var (wishdir, wishspeed) = CalculateWishVelocity(input, pitch, yaw);
@@ -140,7 +139,7 @@ class FpsMovement
         Vector3 prevPosition = position;
         // Update position based on velocity (in Source this happens inside TryPlayerMove)
         position = TryPlayerMove2(position, Velocity * deltaTime, isDucking);
-        
+
         // Recategorize position after movement (now that position is updated)
         CategorizePosition(ref position, isDucking);
 
@@ -160,7 +159,8 @@ class FpsMovement
             Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
         }
 
-        return position;
+        camera.Location = position;
+        return;
     }
 
     /// <summary>
@@ -394,7 +394,7 @@ class FpsMovement
     /// <summary>
     /// Calculate desired movement direction and speed from input
     /// </summary>
-    private static (Vector3 wishdir, float wishspeed) CalculateWishVelocity(TrackedKeys input, float pitch, float yaw)
+    private static (Vector3 wishdir, float wishspeed) CalculateWishVelocity(UserInput input, float pitch, float yaw)
     {
         // Calculate forward and right vectors from yaw (ignore pitch for horizontal movement)
         var forward = new Vector3(MathF.Cos(yaw), MathF.Sin(yaw), 0);
@@ -403,22 +403,22 @@ class FpsMovement
         // Determine movement amounts
         float forwardMove = 0, sideMove = 0;
 
-        if ((input & TrackedKeys.Forward) != 0)
+        if (input.Holding(TrackedKeys.Forward))
         {
             forwardMove += MaxSpeedValue;
         }
 
-        if ((input & TrackedKeys.Back) != 0)
+        if (input.Holding(TrackedKeys.Back))
         {
             forwardMove -= MaxSpeedValue;
         }
 
-        if ((input & TrackedKeys.Right) != 0)
+        if (input.Holding(TrackedKeys.Right))
         {
             sideMove += MaxSpeedValue;
         }
 
-        if ((input & TrackedKeys.Left) != 0)
+        if (input.Holding(TrackedKeys.Left))
         {
             sideMove -= MaxSpeedValue;
         }
@@ -438,7 +438,7 @@ class FpsMovement
         }
 
         // Apply duck/crouch speed modifier (from CS:GO cs_gamemovement.cpp)
-        if ((input & TrackedKeys.Control) != 0) // Duck/crouch
+        if (input.Holding(TrackedKeys.Control)) // Duck/crouch
         {
             wishspeed *= DuckSpeedModifier;
         }

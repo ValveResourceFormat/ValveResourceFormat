@@ -50,8 +50,8 @@ internal class UserInput
 
     public readonly FpsMovement FpsMovement = new();
     public bool NoclipEnabled { get; private set; } = true;
-    private bool OldToggleNoclipButton;
 
+    private TrackedKeys Keys;
     private TrackedKeys PreviousKeys;
     private Vector3 Velocity = Vector3.Zero;
 
@@ -68,9 +68,25 @@ internal class UserInput
         Camera = new Camera();
     }
 
+    /// <summary>
+    /// Checks if a key is currently being held down.
+    /// </summary>
+    public bool Holding(TrackedKeys key) => Keys.HasFlag(key);
+
+    /// <summary>
+    /// Checks if a key was just pressed this frame (pressed now but not last frame).
+    /// </summary>
+    public bool Pressed(TrackedKeys key) => Holding(key) && !PreviousKeys.HasFlag(key);
+
+    /// <summary>
+    /// Checks if a key was just released this frame (not pressed now but was pressed last frame).
+    /// </summary>
+    private bool Released(TrackedKeys key) => !Holding(key) && PreviousKeys.HasFlag(key);
+
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)
     {
         Uptime += deltaTime;
+        Keys = keyboardState;
         ForceUpdate = false;
 
         if (!EnableMouseLook)
@@ -89,14 +105,11 @@ internal class UserInput
 
         if (!OrbitModeAlways)
         {
-            var holdingAlt = keyboardState.HasFlag(TrackedKeys.Alt);
-            var justPressedAlt = holdingAlt && !PreviousKeys.HasFlag(TrackedKeys.Alt);
-
-            if (!holdingAlt)
+            if (!Holding(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
             }
-            else if (justPressedAlt)
+            else if (Pressed(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
 
@@ -110,17 +123,17 @@ internal class UserInput
         }
 
         // Handle noclip toggle (X key)
-        if ((keyboardState & TrackedKeys.ToggleNoclip) != 0 && !OldToggleNoclipButton)
+        if (Pressed(TrackedKeys.ToggleNoclip))
         {
             NoclipEnabled = !NoclipEnabled;
         }
 
-        OldToggleNoclipButton = (keyboardState & TrackedKeys.ToggleNoclip) != 0;
-
-
         if (!NoclipEnabled)
         {
-            Camera.Location = FpsMovement.ProcessMovement(Camera.Location, keyboardState, deltaTime, Camera.Pitch, Camera.Yaw);
+            FpsMovement.ProcessMovement(this, Camera, deltaTime);
+            Camera.Pitch -= MouseDeltaPitchYaw.X;
+            Camera.Yaw -= MouseDeltaPitchYaw.Y;
+            Camera.ClampRotation();
         }
         else if (OrbitMode)
         {
