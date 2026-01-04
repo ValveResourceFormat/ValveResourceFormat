@@ -1,6 +1,10 @@
+using System.Drawing;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
+using SkiaSharp;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
@@ -11,6 +15,59 @@ namespace GUI.Types.Viewers
         private readonly SearchDataClass SearchData = new();
         private readonly List<Entity> Entities = [];
         private readonly Action<Entity>? SelectEntityFunc;
+        private readonly VrfGuiContext GuiContext;
+
+        public static ImageList? EntityIconImageList { get; private set; }
+        public static Dictionary<string, int> EntityIconCache { get; private set; } = [];
+        public static HashSet<string> EntityIconLoadAttempted { get; private set; } = [];
+
+        private static int GetDefaultIconIndexForEntity(Entity entity)
+        {
+            if (entity.ContainsKey("model"))
+            {
+                return 1;
+            }
+
+            if (entity.ContainsKey("effect_name"))
+            {
+                return 2;
+            }
+
+            // Return number matches the order of EntityIconImageList.Images.Add calls
+            return 0;
+        }
+
+        public static void InitializeImageList()
+        {
+            if (EntityIconImageList != null)
+            {
+                return;
+            }
+
+            EntityIconImageList = new ImageList
+            {
+                ColorDepth = ColorDepth.Depth32Bit,
+                ImageSize = MainForm.ImageList.ImageSize,
+            };
+
+            if (MainForm.ExtensionIcons.TryGetValue("ents", out var entsIconIndex) &&
+                MainForm.ImageList.Images[entsIconIndex] is Bitmap entsIcon)
+            {
+                EntityIconImageList.Images.Add(entsIcon);
+            }
+
+            if (MainForm.ExtensionIcons.TryGetValue("mdl", out var mdlIconIndex) &&
+                MainForm.ImageList.Images[mdlIconIndex] is Bitmap mdlIcon)
+            {
+                EntityIconImageList.Images.Add(mdlIcon);
+            }
+
+            if (MainForm.ExtensionIcons.TryGetValue("pcf", out var pcfIconIndex) &&
+                MainForm.ImageList.Images[pcfIconIndex] is Bitmap pcfIcon)
+            {
+                EntityIconImageList.Images.Add(pcfIcon);
+            }
+        }
 
         public enum ObjectsToInclude
         {
@@ -40,10 +97,32 @@ namespace GUI.Types.Viewers
             Dock = DockStyle.Fill;
             InitializeComponent();
 
+            GuiContext = guiContext;
             Entities = entities;
             SelectEntityFunc = selectAndFocusEntity;
             EntityInfo.OutputsGrid.CellDoubleClick += EntityInfoGrid_CellDoubleClick;
             EntityInfo.ResourceAddDataGridExternalRef(guiContext);
+            EntityViewerGrid.OwnerDraw = true;
+
+            InitializeImageList();
+            EntityViewerGrid.SmallImageList = EntityIconImageList;
+
+            var allClassnames = Entities
+                .Select(static e => e.GetProperty("classname", string.Empty))
+                .Where(static cn => !string.IsNullOrEmpty(cn))
+                .Where(static cn => !EntityIconLoadAttempted.Contains(cn))
+                .ToHashSet();
+
+            if (allClassnames.Count > 0)
+            {
+                Task.Factory.StartNew(() => LoadEntityIcons(allClassnames)).ContinueWith(t =>
+                {
+                    if (t.Exception != null)
+                    {
+                        Log.Error(nameof(EntityViewer), t.Exception.ToString());
+                    }
+                });
+            }
 
             UpdateGrid();
         }
@@ -116,26 +195,38 @@ namespace GUI.Types.Viewers
                 filteredEntities.Add((entity, classname, targetname));
             }
 
-            EntityViewerGrid.SuspendLayout();
-            EntityViewerGrid.Rows.Clear();
+            EntityViewerGrid.BeginUpdate();
+            EntityViewerGrid.Items.Clear();
 
             if (filteredEntities.Count > 0)
             {
-                var rows = new DataGridViewRow[filteredEntities.Count];
-                for (var i = 0; i < filteredEntities.Count; i++)
-                {
-                    var (entity, classname, targetname) = filteredEntities[i];
-                    var row = new DataGridViewRow();
-                    row.CreateCells(EntityViewerGrid);
-                    row.Cells[0].Value = classname;
-                    row.Cells[1].Value = targetname;
-                    row.Tag = entity;
-                    rows[i] = row;
-                }
-                EntityViewerGrid.Rows.AddRange(rows);
+                var items = filteredEntities
+                    .OrderBy(static e => e.Classname, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(static e => e.Targetname, StringComparer.OrdinalIgnoreCase)
+                    .Select(static e =>
+                    {
+                        var (entity, classname, targetname) = e;
+                        var item = new ListViewItem(classname);
+                        item.SubItems.Add(targetname);
+                        item.Tag = entity;
+
+                        if (EntityIconCache.TryGetValue(classname, out var iconIndex))
+                        {
+                            item.ImageIndex = iconIndex;
+                        }
+                        else
+                        {
+                            item.ImageIndex = GetDefaultIconIndexForEntity(entity);
+                        }
+
+                        return item;
+                    })
+                    .ToArray();
+
+                EntityViewerGrid.Items.AddRange(items);
             }
 
-            EntityViewerGrid.ResumeLayout();
+            EntityViewerGrid.EndUpdate();
 
             // when search changes set first entity as selected in entity props
             if (filteredEntities.Count > 0)
@@ -263,30 +354,31 @@ namespace GUI.Types.Viewers
             UpdateGrid();
         }
 
-        private void EntityViewerGrid_SelectionChanged(object sender, EventArgs e)
+        private void EntityViewerGrid_SelectionChanged(object? sender, EventArgs e)
         {
-            if (EntityViewerGrid.SelectedCells.Count > 0)
+            if (EntityViewerGrid.SelectedItems.Count > 0)
             {
-                var rowIndex = EntityViewerGrid.SelectedCells[0].RowIndex;
-
-                if (EntityViewerGrid.Rows[rowIndex].Tag is Entity entity)
+                if (EntityViewerGrid.SelectedItems[0].Tag is Entity entity)
                 {
                     ShowEntityProperties(entity);
                 }
             }
         }
 
-        private void EntityViewerGrid_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        private void EntityViewerGrid_CellDoubleClick(object? sender, EventArgs e)
         {
-            if (EntityViewerGrid.Rows[e.RowIndex].Tag is Entity entity)
+            if (EntityViewerGrid.SelectedItems.Count > 0)
             {
-                var classname = entity.GetProperty("classname", string.Empty);
-                if (classname == "worldspawn")
+                if (EntityViewerGrid.SelectedItems[0].Tag is Entity entity)
                 {
-                    return;
-                }
+                    var classname = entity.GetProperty("classname", string.Empty);
+                    if (classname == "worldspawn")
+                    {
+                        return;
+                    }
 
-                SelectEntityFunc?.Invoke(entity);
+                    SelectEntityFunc?.Invoke(entity);
+                }
             }
         }
 
@@ -358,32 +450,172 @@ namespace GUI.Types.Viewers
                     if (entityName == targetname)
                     {
                         ShowEntityProperties(entity);
-                        ResetViewerState();
+                        EntityInfo.ShowPropertiesTab();
                     }
                 }
             }
         }
 
-        private void ResetViewerState()
+        private void EntityViewerGrid_Resize(object sender, EventArgs e)
         {
-            // actually not sure if this is better to do cuz it might be annoying to always lose state when jumping
-            // i think the small error of entity property shown not matching selection is fine
+            EntityViewerGrid.SuspendLayout();
+            var half = EntityViewerGrid.ClientSize.Width / 2;
+            EntityViewerGrid.Columns[0].Width = half;
+            EntityViewerGrid.Columns[1].Width = half;
+            EntityViewerGrid.ResumeLayout();
+        }
 
-            //SearchData.Key = string.Empty;
-            //KeyValue_Key.Text = string.Empty;
-            //
-            //SearchData.Value = string.Empty;
-            //KeyValue_Value.Text = string.Empty;
-            //
-            //SearchData.ObjectsToInclude = ObjectsToInclude.Everything;
-            //ObjectsToInclude_Everything.Checked = true;
-            //
-            //SearchData.Class = string.Empty;
-            //ObjectsToInclude_ClassTextBox.Text = string.Empty;
-            //
-            //KeyValue_MatchWholeValue.Checked = false;
+        private void EntityViewerGrid_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            TextRenderer.DrawText(e.Graphics, e.Header?.Text ?? "", e.Font,
+                e.Bounds, ForeColor,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+        }
 
-            EntityInfo.ShowPropertiesTab();
+        private void EntityViewerGrid_DrawItem(object sender, DrawListViewItemEventArgs e)
+        {
+            e.DrawDefault = true;
+
+            if (e.ItemIndex % 2 == 0)
+            {
+                e.Item.BackColor = Themer.CurrentThemeColors.AppSoft;
+            }
+            else
+            {
+                e.Item.BackColor = Themer.CurrentThemeColors.AppMiddle;
+            }
+        }
+
+        private readonly static string[] ToolSpriteTextureKeys = ["g_tColorA", "g_tColorB", "g_tColorC", "g_tColor"];
+
+        private static string? GetTextureFromMaterial(Material material)
+        {
+            foreach (var key in ToolSpriteTextureKeys)
+            {
+                if (material.TextureParams.TryGetValue(key, out var texturePath) && !string.IsNullOrEmpty(texturePath))
+                {
+                    return texturePath;
+                }
+            }
+
+            return null;
+        }
+
+        private Bitmap? LoadIconBitmap(string iconPath)
+        {
+            var materialResource = GuiContext.LoadFileCompiled(iconPath);
+            if (materialResource?.DataBlock is not Material material)
+            {
+                return null;
+            }
+
+            var texturePath = GetTextureFromMaterial(material);
+            if (string.IsNullOrEmpty(texturePath))
+            {
+                return null;
+            }
+
+            var textureResource = GuiContext.LoadFileCompiled(texturePath);
+            if (textureResource?.DataBlock is not Texture texture)
+            {
+                return null;
+            }
+
+            using var skBitmap = texture.GenerateBitmap();
+            if (skBitmap == null)
+            {
+                return null;
+            }
+
+            if (EntityIconImageList != null &&
+                (skBitmap.Width != EntityIconImageList.ImageSize.Width ||
+                 skBitmap.Height != EntityIconImageList.ImageSize.Height))
+            {
+                using var resized = skBitmap.Resize(
+                    new SKImageInfo(EntityIconImageList.ImageSize.Width, EntityIconImageList.ImageSize.Height),
+                    new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)
+                );
+                return resized?.ToBitmap();
+            }
+
+            return skBitmap.ToBitmap();
+        }
+
+        private int AddBitmapToImageList(Bitmap bitmap)
+        {
+            var index = -1;
+
+            if (EntityIconImageList == null)
+            {
+                return index;
+            }
+
+            InvokeWorkaround(() =>
+            {
+                index = EntityIconImageList.Images.Count;
+                MainForm.AddFixedImageToImageList(bitmap, EntityIconImageList);
+            });
+
+            return index;
+        }
+
+        private int LoadEntityIcon(string classname)
+        {
+            EntityIconLoadAttempted.Add(classname);
+
+            var hammerEntity = HammerEntities.Get(classname);
+
+            if (hammerEntity?.Icons != null)
+            {
+                foreach (var iconPath in hammerEntity.Icons)
+                {
+                    if (!iconPath.EndsWith(".vmat", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    using var bitmap = LoadIconBitmap(iconPath);
+                    if (bitmap != null)
+                    {
+                        var index = AddBitmapToImageList(bitmap);
+                        EntityIconCache[classname] = index;
+                        return index;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        private void LoadEntityIcons(HashSet<string> classnames)
+        {
+            foreach (var classname in classnames)
+            {
+                var iconIndex = LoadEntityIcon(classname);
+
+                InvokeWorkaround(() =>
+                {
+                    foreach (ListViewItem item in EntityViewerGrid.Items)
+                    {
+                        if (item.Tag is Entity entity && entity.GetProperty("classname", string.Empty) == classname)
+                        {
+                            item.ImageIndex = iconIndex >= 0 ? iconIndex : GetDefaultIconIndexForEntity(entity);
+                        }
+                    }
+                });
+            }
+        }
+
+        private void InvokeWorkaround(Action action)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(action);
+            }
+            else
+            {
+                action();
+            }
         }
     }
 }

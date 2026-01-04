@@ -30,12 +30,11 @@ partial class EntityViewer
     /// </summary>
     private void InitializeComponent()
     {
-        var dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
-        EntityViewerGrid = new System.Windows.Forms.DataGridView();
-        Class = new System.Windows.Forms.DataGridViewTextBoxColumn();
-        targetname = new System.Windows.Forms.DataGridViewTextBoxColumn();
         tableLayoutPanelLeft = new System.Windows.Forms.TableLayoutPanel();
         groupBox5 = new ThemedGroupBox();
+        EntityViewerGrid = new System.Windows.Forms.ListView();
+        ListHeaderClass = new System.Windows.Forms.ColumnHeader();
+        ListHeaderName = new System.Windows.Forms.ColumnHeader();
         tableLayoutPanelFiltersContainer = new System.Windows.Forms.TableLayoutPanel();
         tableLayoutPanelKeysContainers = new System.Windows.Forms.TableLayoutPanel();
         groupBox3 = new ThemedGroupBox();
@@ -55,7 +54,6 @@ partial class EntityViewer
         EntityPropertiesGroup = new ThemedGroupBox();
         EntityInfo = new GUI.Forms.EntityInfoControl();
         splitContainer = new System.Windows.Forms.SplitContainer();
-        ((System.ComponentModel.ISupportInitialize)EntityViewerGrid).BeginInit();
         tableLayoutPanelLeft.SuspendLayout();
         groupBox5.SuspendLayout();
         tableLayoutPanelFiltersContainer.SuspendLayout();
@@ -70,42 +68,6 @@ partial class EntityViewer
         splitContainer.Panel2.SuspendLayout();
         splitContainer.SuspendLayout();
         SuspendLayout();
-        // 
-        // EntityViewerGrid
-        // 
-        EntityViewerGrid.AllowUserToAddRows = false;
-        EntityViewerGrid.AllowUserToDeleteRows = false;
-        EntityViewerGrid.AllowUserToResizeRows = false;
-        dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.ActiveBorder;
-        EntityViewerGrid.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle2;
-        EntityViewerGrid.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-        EntityViewerGrid.BorderStyle = System.Windows.Forms.BorderStyle.None;
-        EntityViewerGrid.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        EntityViewerGrid.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { Class, targetname });
-        EntityViewerGrid.Dock = System.Windows.Forms.DockStyle.Fill;
-        EntityViewerGrid.Location = new System.Drawing.Point(3, 19);
-        EntityViewerGrid.Margin = new System.Windows.Forms.Padding(0);
-        EntityViewerGrid.MultiSelect = false;
-        EntityViewerGrid.Name = "EntityViewerGrid";
-        EntityViewerGrid.ReadOnly = true;
-        EntityViewerGrid.RowHeadersVisible = false;
-        EntityViewerGrid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-        EntityViewerGrid.Size = new System.Drawing.Size(506, 527);
-        EntityViewerGrid.TabIndex = 0;
-        EntityViewerGrid.CellDoubleClick += EntityViewerGrid_CellDoubleClick;
-        EntityViewerGrid.SelectionChanged += EntityViewerGrid_SelectionChanged;
-        // 
-        // Class
-        // 
-        Class.HeaderText = "Class";
-        Class.Name = "Class";
-        Class.ReadOnly = true;
-        // 
-        // targetname
-        // 
-        targetname.HeaderText = "Name";
-        targetname.Name = "targetname";
-        targetname.ReadOnly = true;
         // 
         // tableLayoutPanelLeft
         // 
@@ -141,6 +103,33 @@ partial class EntityViewer
         groupBox5.TabStop = false;
         groupBox5.Text = "Entity List";
         // 
+        // EntityViewerGrid
+        // 
+        EntityViewerGrid.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { ListHeaderClass, ListHeaderName });
+        EntityViewerGrid.Dock = System.Windows.Forms.DockStyle.Fill;
+        EntityViewerGrid.FullRowSelect = true;
+        EntityViewerGrid.Location = new System.Drawing.Point(3, 19);
+        EntityViewerGrid.Name = "EntityViewerGrid";
+        EntityViewerGrid.Size = new System.Drawing.Size(506, 527);
+        EntityViewerGrid.TabIndex = 0;
+        EntityViewerGrid.UseCompatibleStateImageBehavior = false;
+        EntityViewerGrid.View = System.Windows.Forms.View.Details;
+        EntityViewerGrid.DrawColumnHeader += EntityViewerGrid_DrawColumnHeader;
+        EntityViewerGrid.DrawItem += EntityViewerGrid_DrawItem;
+        EntityViewerGrid.SelectedIndexChanged += EntityViewerGrid_SelectionChanged;
+        EntityViewerGrid.DoubleClick += EntityViewerGrid_CellDoubleClick;
+        EntityViewerGrid.Resize += EntityViewerGrid_Resize;
+        // 
+        // ListHeaderClass
+        // 
+        ListHeaderClass.Text = "Class";
+        ListHeaderClass.Width = 0;
+        // 
+        // ListHeaderName
+        // 
+        ListHeaderName.Text = "Name";
+        ListHeaderName.Width = 0;
+        // 
         // tableLayoutPanelFiltersContainer
         // 
         tableLayoutPanelFiltersContainer.ColumnCount = 2;
@@ -154,7 +143,7 @@ partial class EntityViewer
         tableLayoutPanelFiltersContainer.Name = "tableLayoutPanelFiltersContainer";
         tableLayoutPanelFiltersContainer.RowCount = 1;
         tableLayoutPanelFiltersContainer.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-        tableLayoutPanelFiltersContainer.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+        tableLayoutPanelFiltersContainer.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 184F));
         tableLayoutPanelFiltersContainer.Size = new System.Drawing.Size(512, 184);
         tableLayoutPanelFiltersContainer.TabIndex = 0;
         // 
@@ -169,8 +158,8 @@ partial class EntityViewer
         tableLayoutPanelKeysContainers.Name = "tableLayoutPanelKeysContainers";
         tableLayoutPanelKeysContainers.RowCount = 1;
         tableLayoutPanelKeysContainers.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        tableLayoutPanelKeysContainers.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-        tableLayoutPanelKeysContainers.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+        tableLayoutPanelKeysContainers.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 184F));
+        tableLayoutPanelKeysContainers.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 184F));
         tableLayoutPanelKeysContainers.Size = new System.Drawing.Size(256, 184);
         tableLayoutPanelKeysContainers.TabIndex = 0;
         // 
@@ -422,7 +411,6 @@ partial class EntityViewer
         Name = "EntityViewer";
         Padding = new System.Windows.Forms.Padding(0, 8, 0, 0);
         Size = new System.Drawing.Size(1025, 741);
-        ((System.ComponentModel.ISupportInitialize)EntityViewerGrid).EndInit();
         tableLayoutPanelLeft.ResumeLayout(false);
         groupBox5.ResumeLayout(false);
         tableLayoutPanelFiltersContainer.ResumeLayout(false);
@@ -442,10 +430,6 @@ partial class EntityViewer
     }
 
     #endregion
-
-    private System.Windows.Forms.DataGridView EntityViewerGrid;
-    private System.Windows.Forms.DataGridViewTextBoxColumn Class;
-    private System.Windows.Forms.DataGridViewTextBoxColumn targetname;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelLeft;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelFiltersContainer;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelKeysContainers;
@@ -467,4 +451,7 @@ partial class EntityViewer
     private ThemedGroupBox groupBox3;
     private ThemedGroupBox EntityPropertiesGroup;
     private ThemedGroupBox groupBox5;
+    private System.Windows.Forms.ListView EntityViewerGrid;
+    private System.Windows.Forms.ColumnHeader ListHeaderClass;
+    private System.Windows.Forms.ColumnHeader ListHeaderName;
 }
