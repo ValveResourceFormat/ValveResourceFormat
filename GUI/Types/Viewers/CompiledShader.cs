@@ -67,9 +67,9 @@ namespace GUI.Types.Viewers
         {
             tab.Controls.Add(control);
 
-            var vfxImage = MainForm.GetImageIndexForExtension("_folder");
+            var vfxImage = MainForm.Icons["FolderShaders"];
             var programImage = MainForm.GetImageIndexForExtension("vcs");
-            var comboImage = MainForm.GetImageIndexForExtension("rman");
+            var comboImage = MainForm.GetImageIndexForExtension("pdi");
 
             var materialCollectionIndex = 0;
             var collectionNode = new TreeNode($"{vcsCollectionName}.vfx")
