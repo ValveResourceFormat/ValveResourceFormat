@@ -117,8 +117,8 @@ namespace GUI.Types.Renderer
             }
 
             var parsedData = new ParsedShaderData();
-            var vertexName = $"{shaderFileName}.vert";
-            var fragmentName = $"{shaderFileName}.frag";
+            var vertexName = $"{shaderFileName}.vert.slang";
+            var fragmentName = $"{shaderFileName}.frag.slang";
 
             var vertexSource = Parser.PreprocessShader(vertexName, parsedData);
             parsedData.Sources[(int)ShaderProgramType.Vertex] = vertexSource;
@@ -428,7 +428,7 @@ namespace GUI.Types.Renderer
             var ext = Path.GetExtension(name);
             Parser.Reset();
 
-            if (ext is ".frag" or ".vert")
+            if (ext is ".frag.slang" or ".vert.slang")
             {
                 // If a named shader changed (not an include), then we can only reload this shader
                 name = Path.GetFileNameWithoutExtension(name);
@@ -484,7 +484,7 @@ namespace GUI.Types.Renderer
             using var loader = new ShaderLoader(context);
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
-            var shaders = Directory.GetFiles(folder, filter ?? "*.vert");
+            var shaders = Directory.GetFiles(folder, filter ?? "*.vert.slang");
 
             using var window = new NativeWindow(new()
             {
