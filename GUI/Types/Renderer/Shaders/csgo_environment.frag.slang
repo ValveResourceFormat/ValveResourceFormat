@@ -1,8 +1,8 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/features.glsl"
-#include "csgo_environment_features.glsl"
+#include "common/utils.slang"
+#include "common/features.slang"
+#include "csgo_environment_features.slang"
 
 #define IBL 1
 
@@ -185,16 +185,16 @@ uniform float g_flHeightMapZeroPoint1 = 0.5;
 
 uniform float g_flModelTintAmount = 1.0;
 
-#include "common/ViewConstants.glsl"
-#include "common/LightingConstants.glsl"
+#include "common/ViewConstants.slang"
+#include "common/LightingConstants.slang"
 
-#include "common/fullbright.glsl"
-#include "common/texturing.glsl"
+#include "common/fullbright.slang"
+#include "common/texturing.slang"
 
-#include "common/fog.glsl"
+#include "common/fog.slang"
 
 // Must be last
-#include "common/lighting.glsl"
+#include "common/lighting.slang"
 
 vec3 AdjustBrightnessContrastSaturation(vec3 color, float brightness, float contrast, float saturation)
 {

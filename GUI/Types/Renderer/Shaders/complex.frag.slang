@@ -1,10 +1,10 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/features.glsl"
-#include "common/ViewConstants.glsl"
-#include "common/LightingConstants.glsl"
-#include "complex_features.glsl"
+#include "common/utils.slang"
+#include "common/features.slang"
+#include "common/ViewConstants.slang"
+#include "common/LightingConstants.slang"
+#include "complex_features.slang"
 
 #if defined(vr_complex_vfx) || defined(csgo_complex_vfx)
     #define complex_vfx_common
@@ -281,14 +281,14 @@ uniform sampler2D g_tTintMask;
     uniform sampler2D g_tAnisoGloss;
 #endif
 
-#include "common/fullbright.glsl"
-#include "common/texturing.glsl"
-#include "common/fog.glsl"
+#include "common/fullbright.slang"
+#include "common/texturing.slang"
+#include "common/fog.slang"
 
 // Must be last
-#include "common/lighting.glsl"
+#include "common/lighting.slang"
 
-#include "features/csgo_character_eyes_ps.glsl"
+#include "features/csgo_character_eyes_ps.slang"
 
 // Get material properties
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)

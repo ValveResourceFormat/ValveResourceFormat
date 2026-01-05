@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/utils.glsl"
+#include "common/utils.slang"
 
 #define F_COLOR_CORRECTION_LUT 0
 //#define F_BLOOM 0

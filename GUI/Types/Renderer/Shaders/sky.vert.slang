@@ -48,7 +48,7 @@ const vec4 BOX[36] =
 
 out vec3 vSkyLookupInterpolant;
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 uniform mat4 g_matSkyRotation;
 

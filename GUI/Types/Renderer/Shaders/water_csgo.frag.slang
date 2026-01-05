@@ -1,9 +1,9 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/features.glsl"
-#include "common/ViewConstants.glsl"
-#include "common/LightingConstants.glsl"
+#include "common/utils.slang"
+#include "common/features.slang"
+#include "common/ViewConstants.slang"
+#include "common/LightingConstants.slang"
 
 in vec3 vFragPosition;
 in vec2 vTexCoordOut;
@@ -12,11 +12,11 @@ in vec3 vTangentOut;
 in vec3 vBitangentOut;
 in vec4 vColorBlendValues;
 
-#include "common/lighting_common.glsl"
-#include "common/fullbright.glsl"
-#include "common/texturing.glsl"
-#include "common/fog.glsl"
-#include "common/lighting.glsl"
+#include "common/lighting_common.slang"
+#include "common/fullbright.slang"
+#include "common/texturing.slang"
+#include "common/fog.slang"
+#include "common/lighting.slang"
 
 
 out vec4 outputColor;

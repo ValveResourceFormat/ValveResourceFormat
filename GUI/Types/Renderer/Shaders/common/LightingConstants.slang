@@ -1,5 +1,8 @@
 #version 460
 
+#ifndef VRF_LIGHTINGCONSTANTS_INCLUDE
+#define VRF_LIGHTINGCONSTANTS_INCLUDE
+
 #define MAX_LIGHTS 256
 
 layout(std140, binding = 1) uniform LightingConstants {
@@ -18,3 +21,5 @@ layout(std140, binding = 1) uniform LightingConstants {
 
     vec4 g_vEnvMapSizeConstants;
 };
+
+#endif

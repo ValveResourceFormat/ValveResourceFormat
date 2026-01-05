@@ -64,12 +64,12 @@ out vec4 outputColor;
     uniform vec2 g_vScrollUvDirection;
 #endif
 
-#include "common/utils.glsl"
-#include "common/ViewConstants.glsl"
+#include "common/utils.slang"
+#include "common/ViewConstants.slang"
 
-#include "common/LightingConstants.glsl"
-#include "common/lighting_common.glsl"
-#include "common/shadowmapping.glsl"
+#include "common/LightingConstants.slang"
+#include "common/lighting_common.slang"
+#include "common/shadowmapping.slang"
 
 uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 uniform float g_flOpacityScale = 1.0;

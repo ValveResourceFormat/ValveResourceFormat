@@ -1,11 +1,11 @@
 #version 460
 
-#include "common/instancing.glsl"
-#include "common/animation.glsl"
+#include "common/instancing.slang"
+#include "common/animation.slang"
 
 layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
-#include "common/compression.glsl"
+#include "common/compression.slang"
 
 out vec3 vFragPosition;
 out vec3 vNormalOut;
@@ -14,7 +14,7 @@ out vec3 vBitangentOut;
 out vec2 vTexCoordOut;
 flat out vec4 vTintColorFadeOut;
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 void main()
 {

@@ -1,8 +1,13 @@
 #version 460
-//? #include "LightingConstants.glsl"
-//? #include "features.glsl"
-//? #include "utils.glsl"
-//? #include "fullbright.glsl"
+
+#ifndef VRF_TEXTURING_INCLUDE
+#define VRF_TEXTURING_INCLUDE
+
+#include "ViewConstants.slang"
+#include "LightingConstants.slang"
+#include "features.slang"
+#include "utils.slang"
+#include "fullbright.slang"
 
 #if defined(NEED_CURVATURE) && (F_USE_PER_VERTEX_CURVATURE == 0)
     // Expensive, only used in skin shaders
@@ -146,14 +151,14 @@ vec3 calculateIridescence(float hueAngle, float intensity)
 {
     float segmentIndex = floor(hueAngle * 6.0);
     float segmentPhase = fract(hueAngle * 6.0);
-    
+
     // Calculate transition values
     float fadeOut = intensity * (1.0 - segmentPhase);
     float fadeIn = intensity * segmentPhase;
-    
+
     // Use modulo arithmetic to create a smooth color wheel
     int colorIndex = int(segmentIndex) % 6;
-    
+
     // Return color based on segment
     switch(colorIndex)
     {
@@ -471,3 +476,5 @@ bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampl
     }
     return false;
 }
+
+#endif

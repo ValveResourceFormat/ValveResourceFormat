@@ -1,7 +1,7 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/ViewConstants.glsl"
+#include "common/utils.slang"
+#include "common/ViewConstants.slang"
 
 #define renderMode_Color 0
 #define renderMode_ExtraParams 0
@@ -64,8 +64,8 @@ uniform float g_flFresnelMax = 1.0;
 uniform float g_flFresnelMin;
 uniform float g_flOpacityScale = 1.0;
 
-#include "common/features.glsl"
-#include "common/fog.glsl"
+#include "common/features.slang"
+#include "common/fog.slang"
 
 void main()
 {

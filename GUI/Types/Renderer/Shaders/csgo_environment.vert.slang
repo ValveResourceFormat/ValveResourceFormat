@@ -1,14 +1,14 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/instancing.glsl"
-#include "common/animation.glsl"
-#include "common/features.glsl"
-#include "csgo_environment_features.glsl"
+#include "common/utils.slang"
+#include "common/instancing.slang"
+#include "common/animation.slang"
+#include "common/features.slang"
+#include "csgo_environment_features.slang"
 
 layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
-#include "common/compression.glsl"
+#include "common/compression.slang"
 
 in vec4 vCOLOR;
 in vec2 vTEXCOORD1;
@@ -40,8 +40,8 @@ centroid out vec4 vVertexColor_Alpha;
 uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 uniform float g_flModelTintAmount = 1.0;
 
-#include "common/ViewConstants.glsl"
-#include "common/LightingConstants.glsl"
+#include "common/ViewConstants.slang"
+#include "common/LightingConstants.slang"
 
 // Material 1
 uniform int g_nUVSet1 = 1; // 0=Biplanar, 1=UV1, 2=UV2

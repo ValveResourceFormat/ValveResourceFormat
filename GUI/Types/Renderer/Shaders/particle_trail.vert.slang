@@ -2,7 +2,7 @@
 
 layout (location = 0) in vec3 aVertexPosition;
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 uniform mat4 uModelMatrix;
 
 out vec2 uv;

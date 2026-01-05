@@ -1,6 +1,10 @@
 #version 460
-//? #include "ViewConstants.glsl"
-//? #include "utils.glsl"
+
+#ifndef VRF_FOG_INCLUDE
+#define VRF_FOG_INCLUDE
+
+#include "ViewConstants.slang"
+#include "utils.slang"
 
 // Fog pixel shaders.
 
@@ -132,3 +136,5 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 
     }
 }
+
+#endif

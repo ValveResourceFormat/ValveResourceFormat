@@ -2,7 +2,7 @@
 
 layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
-#include "common/compression.glsl"
+#include "common/compression.slang"
 in vec4 vCOLOR;
 in vec4 vTEXCOORD4;
 
@@ -16,8 +16,8 @@ out vec4 vColorBlendValues;
 uniform float g_flSkyBoxScale;
 uniform float g_flWaterPlaneOffset;
 
-#include "common/features.glsl"
-#include "common/LightingConstants.glsl"
+#include "common/features.slang"
+#include "common/LightingConstants.slang"
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     in vec2 vLightmapUV;
@@ -27,8 +27,8 @@ uniform float g_flWaterPlaneOffset;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
+#include "common/ViewConstants.slang"
+#include "common/instancing.slang"
 
 #define F_REFRACTION 0
 

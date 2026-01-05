@@ -1,13 +1,13 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/instancing.glsl"
-#include "common/animation.glsl"
+#include "common/utils.slang"
+#include "common/instancing.slang"
+#include "common/animation.slang"
 
 #define F_WORLDSPACE_UVS 0
 
 layout (location = 0) in vec3 vPOSITION;
-#include "common/compression.glsl"
+#include "common/compression.slang"
 layout (location = 6) in vec2 vTEXCOORD;
 layout (location = 7) in vec4 vTEXCOORD1;
 layout (location = 8) in vec4 vTEXCOORD2;
@@ -30,7 +30,7 @@ out vec2 vTexCoord2Out;
 out vec2 vTexCoord3Out;
 #endif
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 uniform float g_flTexCoordScale0 = 1.0;
 uniform float g_flTexCoordScale1 = 1.0;

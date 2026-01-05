@@ -1,5 +1,9 @@
 #version 460
-//? #include "utils.glsl"
+
+#ifndef VRF_FULLBRIGHT_INCLUDE
+#define VRF_FULLBRIGHT_INCLUDE
+
+#include "utils.slang"
 
 vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
 {
@@ -16,3 +20,5 @@ vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
     //return XtraLightDiffuse * albedo * flFakeDiffuseLighting + flFakeSpecularLighting;
     return xtraLight * albedo * flFakeDiffuseLighting + flFakeSpecularLighting;
 }
+
+#endif

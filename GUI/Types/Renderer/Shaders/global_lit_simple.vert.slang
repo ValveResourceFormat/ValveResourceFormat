@@ -1,7 +1,7 @@
 #version 460
 
-#include "common/instancing.glsl"
-#include "common/animation.glsl"
+#include "common/instancing.slang"
+#include "common/animation.slang"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_PAINT_VERTEX_COLORS 0
@@ -9,7 +9,7 @@
 
 layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
-#include "common/compression.glsl"
+#include "common/compression.slang"
 
 #if (F_PAINT_VERTEX_COLORS == 1)
     in vec4 vTEXCOORD2;
@@ -26,7 +26,7 @@ flat out vec4 vTintColorFadeOut;
 uniform vec2 g_vTexCoordOffset = vec2(0.0);
 uniform vec2 g_vTexCoordScale = vec2(1.0);
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 void main()
 {

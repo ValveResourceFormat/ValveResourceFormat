@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/utils.glsl"
+#include "common/utils.slang"
 
 in vec3 vFragPosition;
 
@@ -16,7 +16,7 @@ uniform sampler2D g_tFlow;
 uniform sampler2D g_tNormal;
 uniform sampler2D g_tNoise;
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 uniform vec3 g_vWaterFogColor;
 uniform vec3 g_vLowEndSurfaceColor;

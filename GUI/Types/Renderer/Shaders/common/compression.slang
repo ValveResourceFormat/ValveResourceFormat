@@ -1,6 +1,9 @@
 #version 460
 
-#include "utils.glsl"
+#ifndef VRF_COMPRESSION_INCLUDE
+#define VRF_COMPRESSION_INCLUDE
+
+#include "utils.slang"
 
 // File containing vertex inputs and functions to deal with compressed normals and tangents.
 
@@ -17,8 +20,8 @@
 
 mat3 adjoint(in mat4 m)
 {
-    return mat3(cross(m[1].xyz, m[2].xyz), 
-                cross(m[2].xyz, m[0].xyz), 
+    return mat3(cross(m[1].xyz, m[2].xyz),
+                cross(m[2].xyz, m[0].xyz),
                 cross(m[0].xyz, m[1].xyz));
 }
 
@@ -92,7 +95,7 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     // Invert tangent when normal Z is negative
     float tangentSign = (normal.z >= 0.0) ? 1.0 : -1.0;
     // equal to tangentSign * (1.0 + abs(normal.z))
-    float rcpTangentZ = 1.0 / (tangentSign + normal.z); 
+    float rcpTangentZ = 1.0 / (tangentSign + normal.z);
 
     // Be careful of rearranging ops here, could lead to differences in float precision, especially when dealing with compressed data.
     vec3 unalignedTangent;
@@ -107,7 +110,7 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
 
     // This establishes a single direction on the tangent plane that derived from only the normal (has no texcoord info).
     // But it doesn't line up with the texcoords. For that, it uses nPackedFrameT, which is the rotation.
-    
+
     // Angle to use to rotate tangent
     float nPackedFrameT = (Tbits / 2047.0f) * TAU;
 
@@ -129,3 +132,5 @@ void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
         DecompressNormalTangent2(vNORMAL, normal, tangent);
     #endif
 }
+
+#endif

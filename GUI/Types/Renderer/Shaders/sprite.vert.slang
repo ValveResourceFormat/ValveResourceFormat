@@ -5,8 +5,8 @@ layout (location = 3) in vec2 vTEXCOORD;
 
 out vec2 vTexCoordOut;
 
-#include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
+#include "common/ViewConstants.slang"
+#include "common/instancing.slang"
 
 void main()
 {

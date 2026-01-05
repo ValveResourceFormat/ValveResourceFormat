@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/utils.glsl"
+#include "common/utils.slang"
 
 in vec3 vSkyLookupInterpolant;
 out vec4 vColor;

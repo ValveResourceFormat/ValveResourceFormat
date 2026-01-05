@@ -1,6 +1,9 @@
 #version 460
 
-//? #include "LightingConstants.glsl"
+#ifndef VRF_LIGHTING_COMMON_INCLUDE
+#define VRF_LIGHTING_COMMON_INCLUDE
+
+#include "LightingConstants.slang"
 
 struct LightingTerms_t
 {
@@ -52,3 +55,5 @@ vec3 GetLightColor(uint nLightIndex)
 
     return vColor * flBrightness;
 }
+
+#endif

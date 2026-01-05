@@ -1,5 +1,8 @@
 #version 460
 
+#ifndef VRF_VIEWCONSTANTS_INCLUDE
+#define VRF_VIEWCONSTANTS_INCLUDE
+
 layout(std140, binding = 0) uniform ViewConstants {
     mat4 g_matWorldToProjection;
     mat4 g_matProjectionToWorld;
@@ -35,3 +38,5 @@ bool blink()
     const float phase = 0;
     return fract((fract(g_flTime * 0.5) + phase)) < 0.5;
 }
+
+#endif

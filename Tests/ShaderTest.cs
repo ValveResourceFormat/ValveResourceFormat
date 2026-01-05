@@ -479,11 +479,11 @@ namespace Tests
             var code = staticComboEntry.ShaderFiles[dynamicComboEntry.ShaderFileId].GetDecompiledFile();
             code = code.Replace(StringToken.VRF_GENERATOR, string.Empty, StringComparison.Ordinal);
 
-            var referencePath = Path.Combine(ShadersDir, "SpirvOutput", $"{shaderFile}.glsl");
+            var referencePath = Path.Combine(ShadersDir, "SpirvOutput", $"{shaderFile}.slang");
 
             /*{
                 var shadersDirRepo = Path.Combine(TestContext.CurrentContext.TestDirectory, "../../", "Files", "Shaders");
-                var referencePathRepo = Path.Combine(shadersDirRepo, "SpirvOutput", $"{shaderFile}.glsl");
+                var referencePathRepo = Path.Combine(shadersDirRepo, "SpirvOutput", $"{shaderFile}.slang");
                 File.WriteAllText(referencePathRepo, code);
                 return;
             }*/

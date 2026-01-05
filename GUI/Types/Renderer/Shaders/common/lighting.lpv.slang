@@ -1,5 +1,10 @@
 #version 460
 
+#ifndef VRF_LIGHTING_LPV_INCLUDE
+#define VRF_LIGHTING_LPV_INCLUDE
+
+#include "texturing.slang"
+
 #define MAX_LIGHT_PROBES 128
 
 struct LightProbeVolume
@@ -90,3 +95,5 @@ vec3 ComputeLightProbeShading(in MaterialProperties_t mat)
 
     return indirectDiffuse;
 }
+
+#endif

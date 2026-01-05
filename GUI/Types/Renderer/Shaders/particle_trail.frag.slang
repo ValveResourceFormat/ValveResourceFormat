@@ -1,7 +1,7 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/ViewConstants.glsl"
+#include "common/utils.slang"
+#include "common/ViewConstants.slang"
 
 // Render modes -- Switched on/off by code
 #define renderMode_Color 0

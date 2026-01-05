@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 #define F_DEBUG_PICKER 0
 

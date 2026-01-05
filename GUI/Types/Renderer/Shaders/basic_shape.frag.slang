@@ -1,9 +1,9 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/fullbright.glsl"
-#include "common/ViewConstants.glsl"
-#include "common/fog.glsl"
+#include "common/utils.slang"
+#include "common/fullbright.slang"
+#include "common/ViewConstants.slang"
+#include "common/fog.slang"
 
 #define renderMode_Color 0
 #define renderMode_Normals 0

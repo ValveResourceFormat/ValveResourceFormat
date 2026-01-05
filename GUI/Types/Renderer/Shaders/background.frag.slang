@@ -3,8 +3,8 @@
 in vec3 vSkyLookupInterpolant;
 out vec4 outputColor;
 
-#include "common/utils.glsl"
-#include "common/ViewConstants.glsl"
+#include "common/utils.slang"
+#include "common/ViewConstants.slang"
 
 uniform bool g_bShowLightBackground = false;
 uniform bool g_bShowSolidBackground = false;

@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 #define D_ANIMATED 0
 #define D_MORPHED 0
@@ -12,9 +12,9 @@ layout (location = 0) in vec3 vPOSITION;
     layout (location = 0) out vec2 texCoord;
 #endif
 
-#include "common/instancing.glsl"
-#include "common/animation.glsl"
-#include "common/morph.glsl"
+#include "common/instancing.slang"
+#include "common/animation.slang"
+#include "common/morph.slang"
 
 void main()
 {

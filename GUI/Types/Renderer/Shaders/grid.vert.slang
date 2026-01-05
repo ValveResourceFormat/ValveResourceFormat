@@ -4,7 +4,7 @@ in vec2 aVertexPosition;
 out vec3 nearPoint;
 out vec3 farPoint;
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 vec3 UnprojectPoint(float x, float y, float z) {
     mat4 viewInv = inverse(g_matWorldToView);

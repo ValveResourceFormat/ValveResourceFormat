@@ -1,13 +1,13 @@
 #version 460
 
-#include "common/utils.glsl"
+#include "common/utils.slang"
 
 in vec3 vFragPosition;
 out vec4 outputColor;
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
-#include "common/fog.glsl"
+#include "common/fog.slang"
 
 void main(void) {
     outputColor.rgb = vec3(0.0);

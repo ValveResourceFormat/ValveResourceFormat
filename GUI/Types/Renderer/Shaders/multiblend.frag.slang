@@ -74,8 +74,8 @@ uniform vec3 g_vColorTintB1 = vec3(1.0); // SrgbRead(true)
 uniform vec3 g_vColorTintB2 = vec3(1.0); // SrgbRead(true)
 uniform vec3 g_vColorTintB3 = vec3(1.0); // SrgbRead(true)
 
-#include "common/utils.glsl"
-#include "common/ViewConstants.glsl"
+#include "common/utils.slang"
+#include "common/ViewConstants.slang"
 
 uniform float g_flBumpStrength = 1.0;
 
@@ -102,9 +102,9 @@ float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftne
     return smoothstep(minb, maxb, blendFactor);
 }
 
-#include "common/LightingConstants.glsl"
-#include "common/lighting_common.glsl"
-#include "common/shadowmapping.glsl"
+#include "common/LightingConstants.slang"
+#include "common/lighting_common.slang"
+#include "common/shadowmapping.slang"
 
 //Main entry point
 void main()

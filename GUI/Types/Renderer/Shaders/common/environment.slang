@@ -1,11 +1,15 @@
 #version 460
-//? #include "features.glsl"
-//? #include "utils.glsl"
-//? #include "texturing.glsl"
-//? #include "LightingConstants.glsl"
-//? #include "lighting_common.glsl"
-//? #include "pbr.glsl"
-//? #include "lighting.glsl"
+
+#ifndef VRF_ENVIRONMENT_INCLUDE
+#define VRF_ENVIRONMENT_INCLUDE
+
+#include "ViewConstants.slang"
+#include "features.slang"
+#include "utils.slang"
+#include "texturing.slang"
+#include "LightingConstants.slang"
+#include "lighting_common.slang"
+#include "pbr.slang"
 
 #define S_SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
 #define renderMode_Cubemaps 0
@@ -191,7 +195,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-        coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix); 
+        coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix);
 
         envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
     #elif (S_SCENE_CUBEMAP_TYPE == 2)
@@ -281,3 +285,5 @@ vec3 GetEnvironment(MaterialProperties_t mat)
 {
     return GetEnvironment(mat, 1.0);
 }
+
+#endif

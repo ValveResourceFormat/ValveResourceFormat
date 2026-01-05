@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 layout(location = 0) in vec4 vAABBMin_Size;
 layout(location = 1) in ivec2 nIndices;

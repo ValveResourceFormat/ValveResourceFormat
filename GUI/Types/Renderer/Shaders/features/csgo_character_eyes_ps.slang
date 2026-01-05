@@ -1,6 +1,9 @@
 #version 460
 
-#include "csgo_character_eyes_common.glsl"
+#ifndef VRF_CSGO_CHARACTER_EYES_PS_INCLUDE
+#define VRF_CSGO_CHARACTER_EYES_PS_INCLUDE
+
+#include "csgo_character_eyes_common.slang"
 
 #if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
 uniform sampler2D g_tEyeAlbedo1; // SrgbRead(true)
@@ -84,3 +87,5 @@ void ApplyEye(EyePixelInput i, vec2 texCoord, inout MaterialProperties_t mat)
     }
 }
 #endif // defined(csgo_character_vfx) && (F_EYEBALLS == 1)
+
+#endif

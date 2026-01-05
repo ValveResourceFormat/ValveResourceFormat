@@ -39,15 +39,15 @@ uniform sampler2D g_tMasks1;
 uniform sampler2D g_tMasks2;
 //uniform sampler2D g_tDiffuseWarp;
 
-#include "common/utils.glsl"
-#include "common/ViewConstants.glsl"
+#include "common/utils.slang"
+#include "common/ViewConstants.slang"
 
 // Material properties
 uniform float g_flSpecularExponent = 100.0;
 
-#include "common/LightingConstants.glsl"
-#include "common/lighting_common.glsl"
-#include "common/shadowmapping.glsl"
+#include "common/LightingConstants.slang"
+#include "common/lighting_common.slang"
+#include "common/shadowmapping.slang"
 
 //Calculate the normal of this fragment in world space
 vec3 calculateWorldNormal(vec3 vNormalTs)

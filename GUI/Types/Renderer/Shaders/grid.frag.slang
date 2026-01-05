@@ -13,7 +13,7 @@ in vec3 farPoint;
 
 out vec4 outputColor;
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 float computeDepth(vec4 clip_space_pos) {
     return (clip_space_pos.z / clip_space_pos.w);

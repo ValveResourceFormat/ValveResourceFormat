@@ -23,7 +23,7 @@
 uniform TEXTURE_TYPE g_tInputTexture;
 uniform vec4 g_vInputTextureSize;
 
-#include "common/utils.glsl"
+#include "common/utils.slang"
 
 #define YCoCg_Conversion (1 << 0)
 #define RGBM (1 << 1)

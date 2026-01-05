@@ -1,5 +1,8 @@
 #version 460
 
+#ifndef VRF_INSTANCING_INCLUDE
+#define VRF_INSTANCING_INCLUDE
+
 uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
@@ -53,3 +56,5 @@ ObjectData_t GetObjectData()
     object.vTint = GetObjectTintSrgb();
     return object;
 }
+
+#endif

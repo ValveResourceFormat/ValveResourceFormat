@@ -1,7 +1,10 @@
 #version 460
 
-//? #include "common/animation.glsl"
-#include "csgo_character_eyes_common.glsl"
+#ifndef VRF_CSGO_CHARACTER_EYES_VS_INCLUDE
+#define VRF_CSGO_CHARACTER_EYES_VS_INCLUDE
+
+#include "../common/animation.slang"
+#include "csgo_character_eyes_common.slang"
 
 #if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
 // Left eye
@@ -117,3 +120,5 @@ EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
     return o;
 }
 #endif // defined(csgo_character_vfx) && (F_EYEBALLS == 1)
+
+#endif

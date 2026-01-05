@@ -1,6 +1,9 @@
 #version 460
 
-//? #include "ViewConstants.glsl"
+#ifndef VRF_SHADOWMAPPING_INCLUDE
+#define VRF_SHADOWMAPPING_INCLUDE
+
+#include "ViewConstants.slang"
 
 uniform sampler2DShadow g_tShadowDepthBufferDepth;
 
@@ -35,6 +38,8 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
     float edgeDistance = min(distFromEdge.x, distFromEdge.y);
     float edgeFadeOut = smoothstep(0.0, 0.08, edgeDistance);
     shadow *= edgeFadeOut;
-    
+
     return 1.0 - shadow;
 }
+
+#endif

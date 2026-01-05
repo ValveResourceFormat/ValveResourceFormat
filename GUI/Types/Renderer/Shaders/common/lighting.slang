@@ -1,8 +1,7 @@
 #version 460
-//? #include "features.glsl"
-//? #include "utils.glsl"
-//? #include "texturing.glsl"
-//? #include "pbr.glsl"
+
+#ifndef VRF_LIGHTING_INCLUDE
+#define VRF_LIGHTING_INCLUDE
 
 #define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
 
@@ -23,16 +22,20 @@
         uniform sampler2DArray g_tDirectLightShadows;
     #endif
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-    #include "lighting.lpv.glsl"
+    #include "lighting.lpv.slang"
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     in vec3 vPerVertexLightingOut;
 #endif
 
-#include "lighting_common.glsl"
-#include "shadowmapping.glsl"
+#include "features.slang"
+#include "utils.slang"
+#include "texturing.slang"
 
-#include "pbr.glsl"
-#include "environment.glsl"
+#include "lighting_common.slang"
+#include "shadowmapping.slang"
+
+#include "pbr.slang"
+#include "environment.slang"
 
 // https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
 float attenuate_cusp(float s, float falloff)
@@ -324,3 +327,5 @@ bool HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat,
             return false;
     }
 }
+
+#endif

@@ -9,8 +9,8 @@ out vec3 vtxPos;
 
 out vec3 camPos;
 
-#include "common/ViewConstants.glsl"
-#include "common/instancing.glsl"
+#include "common/ViewConstants.slang"
+#include "common/instancing.slang"
 
 void main(void) {
     vtxColor = aVertexColor;

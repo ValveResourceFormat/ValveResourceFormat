@@ -431,10 +431,9 @@ namespace GUI.Types.Renderer
 #if DEBUG
         private void OnHotReload(object? sender, string? name)
         {
-            var ext = Path.GetExtension(name);
             Parser.Reset();
 
-            if (ext is ".slang")
+            if (name != null && (name.EndsWith(".vert.slang", StringComparison.Ordinal) || name.EndsWith(".frag.slang", StringComparison.Ordinal)))
             {
                 // If a named shader changed (not an include), then we can only reload this shader
                 name = ShaderNameFromPath(name!);

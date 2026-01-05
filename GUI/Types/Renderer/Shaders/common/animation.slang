@@ -1,5 +1,10 @@
 #version 460
 
+#ifndef VRF_ANIMATION_INCLUDE
+#define VRF_ANIMATION_INCLUDE
+
+#include "instancing.slang"
+
 layout (location = 1) in uvec4 vBLENDINDICES;
 layout (location = 2) in vec4 vBLENDWEIGHT;
 
@@ -60,3 +65,5 @@ mat4 getSkinMatrix()
 
     return skinMatrix;
 }
+
+#endif

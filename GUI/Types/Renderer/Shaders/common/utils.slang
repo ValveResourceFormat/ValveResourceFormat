@@ -1,5 +1,8 @@
 #version 460
 
+#ifndef VRF_UTILS_INCLUDE
+#define VRF_UTILS_INCLUDE
+
 #define PI 3.1415926535897932384626433832795
 // tau = PI*2
 #define TAU 6.2831853071795864769252867665590
@@ -330,3 +333,5 @@ vec3 DecodeHemiOctahedronNormal(vec2 vHemiOct)
     tangentNormal.y = -tangentNormal.y;
     return tangentNormal;
 }
+
+#endif

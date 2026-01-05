@@ -1,18 +1,18 @@
 #version 460
 
-#include "common/utils.glsl"
-#include "common/features.glsl"
-#include "common/ViewConstants.glsl"
-#include "common/LightingConstants.glsl"
-#include "complex_features.glsl"
+#include "common/utils.slang"
+#include "common/features.slang"
+#include "common/ViewConstants.slang"
+#include "common/LightingConstants.slang"
+#include "complex_features.slang"
 
-#include "common/instancing.glsl"
-#include "common/animation.glsl"
-#include "common/morph.glsl"
+#include "common/instancing.slang"
+#include "common/animation.slang"
+#include "common/morph.slang"
 
 layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
-#include "common/compression.glsl"
+#include "common/compression.slang"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 #define F_NOTINT 0
@@ -237,7 +237,7 @@ vec4 GetTintColorLinear(vec4 vTint)
 
 #endif
 
-#include "features/csgo_character_eyes_vs.glsl"
+#include "features/csgo_character_eyes_vs.slang"
 
 void main()
 {

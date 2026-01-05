@@ -1,11 +1,11 @@
 #version 460
 
-#include "common/instancing.glsl"
-#include "common/animation.glsl"
+#include "common/instancing.slang"
+#include "common/animation.slang"
 
 layout (location = 0) in vec3 vPOSITION;
 layout (location = 3) in vec2 vTEXCOORD;
-#include "common/compression.glsl"
+#include "common/compression.slang"
 in vec4 vCOLOR;
 
 out vec3 vFragPosition;
@@ -13,7 +13,7 @@ out vec3 vNormalOut;
 out vec2 vTexCoordOut;
 centroid out vec4 vColorOut;
 
-#include "common/ViewConstants.glsl"
+#include "common/ViewConstants.slang"
 
 uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 

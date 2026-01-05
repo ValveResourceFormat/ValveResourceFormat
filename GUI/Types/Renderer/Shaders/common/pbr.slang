@@ -1,8 +1,12 @@
 #version 460
-//? #include "features.glsl"
-//? #include "utils.glsl"
-//? #include "texturing.glsl"
-//? #include "lighting_common.glsl"
+
+#ifndef VRF_PBR_INCLUDE
+#define VRF_PBR_INCLUDE
+
+#include "features.slang"
+#include "utils.slang"
+#include "texturing.slang"
+#include "lighting_common.slang"
 
 // DIFFUSE LIGHTING
 
@@ -174,3 +178,5 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
         lighting.TransmissiveDirect += transmissiveLight * lightColor * mat.TransmissiveColor;
     #endif
 }
+
+#endif

@@ -1,5 +1,8 @@
 #version 460
 
+#ifndef VRF_MORPH_INCLUDE
+#define VRF_MORPH_INCLUDE
+
 #define F_MORPH_SUPPORTED 0
 #define bMorphed (morphVertexIdOffset != -1)
 
@@ -29,3 +32,5 @@ vec3 getMorphOffset()
 
     return vec3(0, 0, 0);
 }
+
+#endif
