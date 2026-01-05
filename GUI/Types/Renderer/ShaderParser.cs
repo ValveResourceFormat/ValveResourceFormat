@@ -257,14 +257,13 @@ namespace GUI.Types.Renderer
 
         public static IEnumerable<string> GetAvailableShaderNames()
         {
-            const string VertexExtension = ".vert.slang";
 #if DEBUG
             var dirInfo = new DirectoryInfo(ShaderRootDirectory);
-            var files = dirInfo.GetFiles($"*{VertexExtension}", SearchOption.TopDirectoryOnly);
+            var files = dirInfo.GetFiles($"*{ShaderFileExtension}", SearchOption.TopDirectoryOnly);
 
             foreach (var file in files)
             {
-                yield return Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(file.FullName));
+                yield return ShaderNameFromPath(file.FullName);
             }
 #else
             var resources = Program.Assembly.GetManifestResourceNames()
@@ -272,7 +271,7 @@ namespace GUI.Types.Renderer
                 .Where(static r => r.EndsWith(VertexExtension, StringComparison.Ordinal));
             foreach (var resource in resources)
             {
-                var shaderName = resource[ShaderDirectory.Length..^VertexExtension.Length];
+                var shaderName = resource[ShaderDirectory.Length..^ShaderFileExtension.Length];
                 yield return shaderName;
             }
 #endif

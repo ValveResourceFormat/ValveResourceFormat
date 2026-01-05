@@ -319,6 +319,12 @@ namespace GUI.Types.Renderer
             throw new ShaderCompilerException($"{errorType} {shaderFile} (original={originalShaderName}):\n\n{info}");
         }
 
+        public static string ShaderNameFromPath(string shaderFilePath)
+        {
+            return Path.GetFileName(shaderFilePath[..^ShaderFileExtension.Length]);
+        }
+
+        public const string ShaderFileExtension = ".vert.slang";
         const string VrfInternalShaderPrefix = "vrf.";
 
         // Map Valve's shader names to shader files VRF has
@@ -431,7 +437,7 @@ namespace GUI.Types.Renderer
             if (ext is ".slang")
             {
                 // If a named shader changed (not an include), then we can only reload this shader
-                name = Path.GetFileNameWithoutExtension(name);
+                name = ShaderNameFromPath(name!);
                 ParsedCache.Remove(name!);
             }
             else
@@ -484,7 +490,7 @@ namespace GUI.Types.Renderer
             using var loader = new ShaderLoader(context);
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
-            var shaders = Directory.GetFiles(folder, filter ?? "*.vert.slang");
+            var shaders = Directory.GetFiles(folder, filter ?? $"*{ShaderFileExtension}");
 
             using var window = new NativeWindow(new()
             {
@@ -500,17 +506,17 @@ namespace GUI.Types.Renderer
 
             foreach (var shader in shaders)
             {
-                var shaderFileName = Path.GetFileNameWithoutExtension(shader);
-                var vrfFileName = string.Concat(VrfInternalShaderPrefix, shaderFileName);
+                var shaderName = ShaderNameFromPath(shader);
+                var vrfFileName = string.Concat(VrfInternalShaderPrefix, shaderName);
 
                 if (IsCI)
                 {
-                    Console.WriteLine($"::group::Shader {shaderFileName}");
+                    Console.WriteLine($"::group::Shader {shaderName}");
                 }
 
                 progressReporter.Report($"Compiling {vrfFileName}");
 
-                if (shaderFileName == "texture_decode")
+                if (shaderName == "texture_decode")
                 {
                     loader.LoadShader(vrfFileName, new Dictionary<string, byte>
                     {
