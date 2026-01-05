@@ -268,7 +268,7 @@ namespace GUI.Types.Renderer
 #else
             var resources = Program.Assembly.GetManifestResourceNames()
                 .Where(static r => r.StartsWith(ShaderDirectory, StringComparison.Ordinal))
-                .Where(static r => r.EndsWith(VertexExtension, StringComparison.Ordinal));
+                .Where(static r => r.EndsWith(ShaderFileExtension, StringComparison.Ordinal));
             foreach (var resource in resources)
             {
                 var shaderName = resource[ShaderDirectory.Length..^ShaderFileExtension.Length];
