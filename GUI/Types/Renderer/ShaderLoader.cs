@@ -428,7 +428,7 @@ namespace GUI.Types.Renderer
             var ext = Path.GetExtension(name);
             Parser.Reset();
 
-            if (ext is ".frag.slang" or ".vert.slang")
+            if (ext is ".slang")
             {
                 // If a named shader changed (not an include), then we can only reload this shader
                 name = Path.GetFileNameWithoutExtension(name);
