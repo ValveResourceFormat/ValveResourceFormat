@@ -1,10 +1,9 @@
 using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
-using GUI.Types.GLViewers;
 using GUI.Utils;
 
-namespace GUI.Types.Renderer
+namespace GUI.Types.GLViewers
 {
     partial class RenderLoopThread
     {

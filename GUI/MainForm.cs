@@ -12,6 +12,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
+using GUI.Types.GLViewers;
 using GUI.Types.PackageViewer;
 using GUI.Types.Renderer;
 using GUI.Utils;

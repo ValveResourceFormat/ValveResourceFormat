@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
-using GUI.Types.Renderer;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 
 namespace GUI.Controls;
