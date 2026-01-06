@@ -80,8 +80,13 @@ namespace GUI.Types.Renderer
 
                     if (!string.IsNullOrEmpty(folder))
                     {
-                        shaderFileToLoad = $"{folder}/{shaderFileToLoad}";
+                        shaderFileToLoad = Path.Combine(folder, shaderFileToLoad);
                     }
+
+                    var constPath = AppContext.BaseDirectory;
+                    shaderFileToLoad = Path.GetFullPath(shaderFileToLoad, constPath);
+                    shaderFileToLoad = Path.GetRelativePath(constPath, shaderFileToLoad);
+                    shaderFileToLoad = shaderFileToLoad.Replace(Path.DirectorySeparatorChar, '/');
 
                     if (!resolvedIncludes.Add(shaderFileToLoad))
                     {
