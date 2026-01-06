@@ -14,6 +14,7 @@ namespace GUI.Types.Renderer
         private readonly Random random = new();
 
         public PostProcessState State { get; set; }
+        public bool Enabled { get; set; } = true;
         public float TonemapScalar { get; set; }
         public bool ColorCorrectionEnabled { get; set; } = true;
 
@@ -63,6 +64,7 @@ namespace GUI.Types.Renderer
 
             shader.SetUniform1("g_nNumSamplesMSAA", colorBuffer.NumSamples);
             shader.SetUniform1("g_bFlipY", flipY);
+            shader.SetUniform1("g_bPostProcessEnabled", Enabled);
 
             shader.SetUniform1("g_flToneMapScalarLinear", TonemapScalar);
             SetPostProcessUniforms(shader, State.TonemapSettings);

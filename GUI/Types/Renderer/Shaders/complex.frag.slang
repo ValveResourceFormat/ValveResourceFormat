@@ -708,22 +708,22 @@ void main()
     {
         // No bumpmaps, full reflectivity
         vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-        outputColor.rgb = viewmodeEnvMap;
+        outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
     }
     else if (g_iRenderMode == renderMode_Tint)
     {
-        outputColor = vec4(SrgbGammaToLinear(vVertexColorOut.rgb), vVertexColorOut.a);
+        outputColor = vec4(vVertexColorOut.rgb, vVertexColorOut.a);
     }
 #if defined(foliage_vfx_common)
     else if (g_iRenderMode == renderMode_FoliageParams)
     {
-        outputColor.rgb = SrgbGammaToLinear(vFoliageParamsOut.rgb);
+        outputColor.rgb = vFoliageParamsOut.rgb;
     }
 #endif
 #if defined(terrain_blend_common) && !defined(steampal_2way_blend_mask_vfx)
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
-        outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rgb);
+        outputColor.rgb = vColorBlendValues.rgb;
     }
 #endif
 }

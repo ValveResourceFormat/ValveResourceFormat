@@ -455,20 +455,20 @@ void main()
     {
         // No bumpmaps, full reflectivity
         vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-        outputColor.rgb = viewmodeEnvMap;
+        outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
     }
     else if (g_iRenderMode == renderMode_Tint)
     {
-        outputColor = vec4(SrgbGammaToLinear(vTintColor_ModelAmount.rgb), vVertexColor_Alpha.a);
+        outputColor = vec4(vTintColor_ModelAmount.rgb, vVertexColor_Alpha.a);
     }
     else if (g_iRenderMode == renderMode_VertexColor)
     {
-        outputColor.rgb = SrgbGammaToLinear(vVertexColor_Alpha.rgb);
+        outputColor.rgb = vVertexColor_Alpha.rgb;
     }
 #if defined(csgo_environment_blend_vfx)
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
-        outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.rgb);
+        outputColor.rgb = vColorBlendValues.rgb;
     }
 #endif
 }

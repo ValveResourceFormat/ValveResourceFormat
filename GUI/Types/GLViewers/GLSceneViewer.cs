@@ -715,6 +715,8 @@ namespace GUI.Types.GLViewers
         {
             viewBuffer.Data.RenderMode = RenderModes.GetShaderId(renderMode);
 
+            postProcessRenderer.Enabled = viewBuffer.Data.RenderMode == 0;
+
             Picker.SetRenderMode(renderMode);
             SelectedNodeRenderer.SetRenderMode(renderMode);
 

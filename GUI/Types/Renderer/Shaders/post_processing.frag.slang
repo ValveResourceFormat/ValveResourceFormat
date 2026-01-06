@@ -10,6 +10,7 @@
 
 uniform int g_nNumSamplesMSAA = 1;
 uniform bool g_bFlipY = false;
+uniform bool g_bPostProcessEnabled = true;
 
 float InvNumSamples = 1.0 / float(g_nNumSamplesMSAA);
 
@@ -159,21 +160,20 @@ vec4 SampleColorBuffer(vec2 coords)
 void main()
 {
     vec4 vColor = SampleColorBuffer(gl_FragCoord.xy);
-    vColor.rgb = TonemapColor(vColor.rgb);
 
-    // Finally, convert from Linear to Gamma space
-    vColor.rgb = SrgbLinearToGamma(vColor.rgb);
-
-    const bool bUseLUT = g_flColorCorrectionDefaultWeight > 0.0;
-    if (bUseLUT)
+    if (g_bPostProcessEnabled)
     {
-       vColor.rgb = ApplyColorCorrection(vColor.rgb);
+        vColor.rgb = TonemapColor(vColor.rgb);
+        vColor.rgb = SrgbLinearToGamma(vColor.rgb);
+
+        if (g_flColorCorrectionDefaultWeight > 0.0)
+        {
+            vColor.rgb = ApplyColorCorrection(vColor.rgb);
+        }
+
+        vColor.rgb = DitherColor(vColor.rgb);
     }
 
-    // Not present in CS2, done in msaa_resolve_ps instead
-    vColor.rgb = DitherColor(vColor.rgb);
-
     vColor.rgb = DrawOutline(vColor.rgb);
-
     outputColor = vColor;
 }

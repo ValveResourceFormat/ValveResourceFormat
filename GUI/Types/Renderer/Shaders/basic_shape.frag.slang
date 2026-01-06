@@ -67,14 +67,14 @@ void main(void)
 
     if (g_iRenderMode == renderMode_Color)
     {
-        outputColor = vec4(toolTexture, 1.0);
+        outputColor = vec4(SrgbLinearToGamma(toolTexture), 1.0);
     }
     else if (g_iRenderMode == renderMode_Normals)
     {
-        outputColor = vec4(SrgbGammaToLinear(PackToColor(vtxNormal)), 1.0);
+        outputColor = vec4(PackToColor(vtxNormal), 1.0);
     }
     else if (g_iRenderMode == renderMode_VertexColor)
     {
-        outputColor = vec4(SrgbGammaToLinear(vtxColor.rgb), 1.0);
+        outputColor = vec4(vtxColor.rgb, 1.0);
     }
 }

@@ -908,11 +908,11 @@ void main()
         {
             if (g_iRenderMode == renderMode_Cubemaps)
             {
-                outputColor.rgb = finalReflectionColor;
+                outputColor.rgb = SrgbLinearToGamma(finalReflectionColor);
             }
             else if (g_iRenderMode == renderMode_TerrainBlend)
             {
-                outputColor.rgb = SrgbGammaToLinear(vColorBlendValues.xyz);
+                outputColor.rgb = vColorBlendValues.xyz;
             }
         }
     }

@@ -391,40 +391,41 @@ bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
     {
         case renderMode_FullBright:
             outputColor.rgb = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
+            outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
             return true;
         case renderMode_Color:
-            outputColor = vec4(mat.Albedo, 1.0);
+            outputColor = vec4(SrgbLinearToGamma(mat.Albedo), 1.0);
             return true;
         case renderMode_BumpMap:
-            outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.NormalMap)), 1.0);
+            outputColor = vec4(PackToColor(mat.NormalMap), 1.0);
             return true;
         case renderMode_Tangents:
-            outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.Tangent)), 1.0);
+            outputColor = vec4(PackToColor(mat.Tangent), 1.0);
             return true;
         case renderMode_Normals:
-            outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.GeometricNormal)), 1.0);
+            outputColor = vec4(PackToColor(mat.GeometricNormal), 1.0);
             return true;
         case renderMode_BumpNormals:
-            outputColor = vec4(SrgbGammaToLinear(PackToColor(mat.Normal)), 1.0);
+            outputColor = vec4(PackToColor(mat.Normal), 1.0);
             return true;
         case renderMode_Roughness:
             {
                 #if defined(ANISO_ROUGHNESS)
-                    outputColor.rgb = SrgbGammaToLinear(vec3(mat.Roughness.xy, 0.0));
+                    outputColor.rgb = vec3(mat.Roughness.xy, 0.0);
                 #else
-                    outputColor.rgb = SrgbGammaToLinear(mat.IsometricRoughness.xxx);
+                    outputColor.rgb = mat.IsometricRoughness.xxx;
                 #endif
 
                 return true;
             }
         case renderMode_Metalness:
-            outputColor.rgb = SrgbGammaToLinear(mat.Metalness.xxx);
+            outputColor.rgb = mat.Metalness.xxx;
             return true;
         case renderMode_Height:
-            outputColor.rgb = SrgbGammaToLinear(mat.Height.xxx);
+            outputColor.rgb = mat.Height.xxx;
             return true;
         case renderMode_ExtraParams:
-            outputColor.rgb = SrgbGammaToLinear(mat.ExtraParams.rgb);
+            outputColor.rgb = mat.ExtraParams.rgb;
             return true;
         default:
             return false;
@@ -435,7 +436,7 @@ bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampl
 {
     if (g_iRenderMode == renderMode_UvDensity || g_iRenderMode == renderMode_LightmapUvDensity)
     {
-        outputColor.rgb = mat.Albedo;
+        outputColor.rgb = SrgbLinearToGamma(mat.Albedo);
         vec2 uv = g_iRenderMode == renderMode_UvDensity ? flUVs : mat.LightmapUv.xy;
 
         ivec2 vDims = g_iRenderMode == renderMode_LightmapUvDensity
@@ -459,7 +460,7 @@ bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampl
     }
     else if (g_iRenderMode == renderMode_MipmapUsage)
     {
-        outputColor.rgb = mat.Albedo;
+        outputColor.rgb = SrgbLinearToGamma(mat.Albedo);
 
         ivec2 vTexDimensions = textureSize(representativeTexture, 0);
         float flMipLevel = textureQueryLod(representativeTexture, flUVs).y;

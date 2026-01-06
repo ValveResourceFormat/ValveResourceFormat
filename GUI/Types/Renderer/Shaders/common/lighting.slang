@@ -299,7 +299,7 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
 #define renderMode_Occlusion 0
 #define renderMode_LightmapShadows 0
 
-bool HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat, LightingTerms_t lighting)
+bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat, LightingTerms_t lighting)
 {
     switch (g_iRenderMode)
     {
@@ -328,6 +328,17 @@ bool HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat,
         default:
             return false;
     }
+}
+
+bool HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat, LightingTerms_t lighting)
+{
+    if (_HandleLightingRenderModes(outputColor, mat, lighting))
+    {
+        outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
+        return true;
+    }
+
+    return false;
 }
 
 #endif
