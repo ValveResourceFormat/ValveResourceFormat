@@ -176,4 +176,41 @@ record struct ParticleDefinitionParser(KVObject Data)
 
         return new LiteralVectorProvider(Vector3(key));
     }
+
+    public readonly ITransformProvider TransformInput(string key, ITransformProvider @default) => GetValueOrDefault(key, TransformInput, @default);
+    private readonly ITransformProvider TransformInput(string key)
+    {
+        var property = Data.GetProperty<object>(key);
+
+        if (property is KVObject transformParameters)
+        {
+            var type = transformParameters.GetProperty<string>("m_nType");
+            var parse = new ParticleDefinitionParser(transformParameters);
+
+            switch (type)
+            {
+                case "PT_TYPE_CONTROL_POINT":
+                    {
+                        var controlPoint = parse.Int32("m_nControlPoint");
+                        var useOrientation = parse.Boolean("m_bUseOrientation", true);
+                        return new ControlPointTransformProvider(controlPoint, useOrientation);
+                    }
+                case "PT_TYPE_CONTROL_POINT_RANGE":
+                    // TODO: Implement range support if needed
+                    Log.Warn(nameof(ParticleDefinitionParser), "PT_TYPE_CONTROL_POINT_RANGE not fully supported, using first CP only.");
+                    {
+                        var controlPoint = parse.Int32("m_nControlPoint");
+                        var useOrientation = parse.Boolean("m_bUseOrientation", true);
+                        return new ControlPointTransformProvider(controlPoint, useOrientation);
+                    }
+                case "PT_TYPE_INVALID":
+                case "PT_TYPE_NAMED_VALUE":
+                default:
+                    Log.Warn(nameof(ParticleDefinitionParser), $"Transform type {type} not supported, using identity transform.");
+                    return new IdentityTransformProvider();
+            }
+        }
+
+        return new IdentityTransformProvider();
+    }
 }
