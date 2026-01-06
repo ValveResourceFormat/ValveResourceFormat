@@ -80,18 +80,13 @@ namespace GUI.Types.Renderer
 
                     if (!string.IsNullOrEmpty(folder))
                     {
-                        shaderFileToLoad = Path.Combine(folder, shaderFileToLoad);
+                        shaderFileToLoad = $"{folder}/{shaderFileToLoad}";
                     }
 
-                    var normalizedPath = Path.GetFullPath(shaderFileToLoad, ShaderRootDirectory);
-                    var relativePath = Path.GetRelativePath(ShaderRootDirectory, normalizedPath);
-
-                    if (!resolvedIncludes.Add(relativePath))
+                    if (!resolvedIncludes.Add(shaderFileToLoad))
                     {
                         return;
                     }
-
-                    shaderFileToLoad = relativePath;
                 }
 
                 using var stream = GetShaderStream(shaderFileToLoad);
