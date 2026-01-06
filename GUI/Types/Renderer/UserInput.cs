@@ -4,8 +4,8 @@ internal class UserInput
 {
     private const float MovementSpeed = 250f; // WASD movement, per second
     private const float AltMovementSpeed = 10f; // Holding shift or alt movement
-    private const float Acceleration = 10f; // Acceleration multiplier
-    private const float Deceleration = 8f; // Deceleration multiplier
+    private const float Acceleration = 15f; // Acceleration multiplier
+    private const float Deceleration = 20f; // Deceleration multiplier
 
     private readonly float[] SpeedModifiers =
     [
