@@ -1,11 +1,15 @@
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Utils;
+using Windows.Win32;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace GUI.Forms
 {
     partial class EntityInfoForm : ThemedForm
     {
         public EntityInfoControl EntityInfoControl;
+        private static WINDOWPLACEMENT? SavedWindowPlacement;
 
         public EntityInfoForm(VrfGuiContext vrfGuiContext)
         {
@@ -32,17 +36,29 @@ namespace GUI.Forms
             return base.ProcessDialogKey(keyData);
         }
 
-        private void InitializeComponent()
+        protected override void OnShown(System.EventArgs e)
         {
-            SuspendLayout();
-            // 
-            // EntityInfoForm
-            // 
-            ClientSize = new System.Drawing.Size(284, 261);
-            Font = new System.Drawing.Font("Segoe UI", 10F);
-            Name = "EntityInfoForm";
-            ResumeLayout(false);
+            base.OnShown(e);
 
+            if (SavedWindowPlacement is { } placement)
+            {
+                PInvoke.SetWindowPlacement((Windows.Win32.Foundation.HWND)Handle, placement);
+            }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            var placement = new WINDOWPLACEMENT
+            {
+                length = (uint)Marshal.SizeOf<WINDOWPLACEMENT>(),
+            };
+
+            if (PInvoke.GetWindowPlacement((Windows.Win32.Foundation.HWND)Handle, ref placement))
+            {
+                SavedWindowPlacement = placement;
+            }
+
+            base.OnFormClosing(e);
         }
 
         protected override void Dispose(bool disposing)
@@ -53,6 +69,5 @@ namespace GUI.Forms
             }
             base.Dispose(disposing);
         }
-
     }
 }
