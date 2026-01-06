@@ -38,9 +38,7 @@ class ShaderHotReload : IDisposable
 
     public ShaderHotReload()
     {
-        ShaderWatcher.Filters.Add("*.glsl");
-        ShaderWatcher.Filters.Add("*.vert");
-        ShaderWatcher.Filters.Add("*.frag");
+        ShaderWatcher.Filters.Add("*.slang");
 
         ShaderWatcher.Changed += Hotload;
         ShaderWatcher.Created += Hotload;

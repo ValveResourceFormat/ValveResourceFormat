@@ -80,12 +80,16 @@ namespace GUI.Types.Renderer
 
                     if (!string.IsNullOrEmpty(folder))
                     {
-                        shaderFileToLoad = $"{folder}/{shaderFileToLoad}";
+                        shaderFileToLoad = Path.Combine(folder, shaderFileToLoad);
                     }
+
+                    var constPath = AppContext.BaseDirectory;
+                    shaderFileToLoad = Path.GetFullPath(shaderFileToLoad, constPath);
+                    shaderFileToLoad = Path.GetRelativePath(constPath, shaderFileToLoad);
+                    shaderFileToLoad = shaderFileToLoad.Replace(Path.DirectorySeparatorChar, '/');
 
                     if (!resolvedIncludes.Add(shaderFileToLoad))
                     {
-                        //Console.WriteLine($"{shaderFileToLoad} already loaded");
                         return;
                     }
                 }
@@ -257,22 +261,21 @@ namespace GUI.Types.Renderer
 
         public static IEnumerable<string> GetAvailableShaderNames()
         {
-            const string VertexExtension = ".vert";
 #if DEBUG
             var dirInfo = new DirectoryInfo(ShaderRootDirectory);
-            var files = dirInfo.GetFiles($"*{VertexExtension}", SearchOption.TopDirectoryOnly);
+            var files = dirInfo.GetFiles($"*{ShaderFileExtension}", SearchOption.TopDirectoryOnly);
 
             foreach (var file in files)
             {
-                yield return Path.GetFileNameWithoutExtension(file.FullName);
+                yield return ShaderNameFromPath(file.FullName);
             }
 #else
             var resources = Program.Assembly.GetManifestResourceNames()
                 .Where(static r => r.StartsWith(ShaderDirectory, StringComparison.Ordinal))
-                .Where(static r => r.EndsWith(VertexExtension, StringComparison.Ordinal));
+                .Where(static r => r.EndsWith(ShaderFileExtension, StringComparison.Ordinal));
             foreach (var resource in resources)
             {
-                var shaderName = resource[ShaderDirectory.Length..^VertexExtension.Length];
+                var shaderName = resource[ShaderDirectory.Length..^ShaderFileExtension.Length];
                 yield return shaderName;
             }
 #endif
