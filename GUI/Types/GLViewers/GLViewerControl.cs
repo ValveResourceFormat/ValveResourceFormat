@@ -60,7 +60,7 @@ namespace GUI.Types.GLViewers
         private int frametimeQuery2;
 
 #if DEBUG
-        private readonly ShaderLoader ShaderLoader;
+        public ShaderHotReload ShaderHotReload;
 #endif
 
         public GLViewerControl(VrfGuiContext guiContext)
@@ -74,8 +74,7 @@ namespace GUI.Types.GLViewers
             postProcessRenderer = new(guiContext);
 
 #if DEBUG
-            ShaderLoader = guiContext.ShaderLoader;
-            ShaderLoader.EnableHotReload();
+            ShaderHotReload = new ShaderHotReload(this, guiContext.ShaderLoader);
 #endif
         }
 
@@ -107,11 +106,13 @@ namespace GUI.Types.GLViewers
             UiControl.GLControlContainer.Controls.Add(GLControl);
             GLControl.AttachNativeWindow(GLNativeWindow);
 
+#if DEBUG
+            ShaderHotReload.SetSynchronizingObject(GLControl);
+#endif
+
             UiControl.SuspendLayout();
 
 #if DEBUG // We want reload shaders to be the top most button
-            ShaderLoader.ShaderHotReload.SetControl(this);
-
             var button = new ThemedButton
             {
                 Text = "Reload shaders",
@@ -121,7 +122,7 @@ namespace GUI.Types.GLViewers
 
             void OnButtonClick(object s, EventArgs e)
             {
-                ShaderLoader.ReloadAllShaders();
+                ShaderHotReload.ReloadShaders();
             }
 
             UiControl.AddControl(button);
@@ -166,6 +167,7 @@ namespace GUI.Types.GLViewers
             {
                 var title = Program.MainForm.Text;
                 Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
+                Application.DoEvents(); // Force the updated text to show up
 
                 using var bitmap = ReadPixelsToBitmap();
                 ClipboardSetImage(bitmap);
@@ -265,6 +267,10 @@ namespace GUI.Types.GLViewers
 
                 UiControl.Dispose();
             }
+
+#if DEBUG
+            ShaderHotReload?.Dispose();
+#endif
 
             FullScreenForm?.Dispose();
             GLNativeWindow?.Dispose();

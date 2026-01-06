@@ -131,6 +131,10 @@ namespace GUI.Types.GLViewers
         private GLTextureViewer(VrfGuiContext guiContext) : base(guiContext)
         {
             GuiContext = guiContext;
+
+#if DEBUG
+            ShaderHotReload.ShadersReloaded += OnHotReload;
+#endif
         }
 
         protected override void AddUiControls()
@@ -148,10 +152,6 @@ namespace GUI.Types.GLViewers
             };
 
             resetButton.Click += (_, __) => ResetZoom();
-
-#if DEBUG
-            GuiContext.ShaderLoader.ShaderHotReload.ReloadShader += (_, _) => InvalidateRender();
-#endif
 
             UiControl.AddControl(resetButton);
 
@@ -549,6 +549,10 @@ namespace GUI.Types.GLViewers
             base.Dispose();
 
             GLControl?.PreviewKeyDown -= OnPreviewKeyDown;
+
+#if DEBUG
+            ShaderHotReload.ShadersReloaded -= OnHotReload;
+#endif
 
             GuiContext = null;
             Resource = null;
@@ -1332,5 +1336,12 @@ namespace GUI.Types.GLViewers
 
             return (scale, position);
         }
+
+#if DEBUG
+        private void OnHotReload(object sender, string e)
+        {
+            InvalidateRender();
+        }
+#endif
     }
 }

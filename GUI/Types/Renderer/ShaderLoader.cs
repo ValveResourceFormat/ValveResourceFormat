@@ -44,7 +44,6 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext VrfGuiContext;
 
 #if DEBUG
-        internal ShaderHotReload? ShaderHotReload { get; private set; }
         private HashSet<string> LastShaderVariantNames = [];
 
         // TODO: This probably should be ParsedShaderData so we can access it for non-blocking linking
@@ -79,14 +78,6 @@ namespace GUI.Types.Renderer
         {
             VrfGuiContext = guiContext;
         }
-
-#if DEBUG
-        public void EnableHotReload()
-        {
-            ShaderHotReload = new();
-            ShaderHotReload.ReloadShader += OnHotReload;
-        }
-#endif
 
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte>? arguments = null, bool blocking = true)
         {
@@ -353,15 +344,6 @@ namespace GUI.Types.Renderer
 
         protected virtual void Dispose(bool disposing)
         {
-#if DEBUG
-            if (ShaderHotReload != null)
-            {
-                ShaderHotReload.ReloadShader -= OnHotReload;
-                ShaderHotReload.Dispose();
-                ShaderHotReload = null;
-            }
-#endif
-
             ShaderDefines.Clear();
             CachedShaders.Clear();
         }
@@ -434,7 +416,7 @@ namespace GUI.Types.Renderer
         }
 
 #if DEBUG
-        private void OnHotReload(object? sender, string? name)
+        public void ReloadAllShaders(string? name = null)
         {
             Parser.Reset();
 
@@ -450,18 +432,6 @@ namespace GUI.Types.Renderer
                 ParsedCache.Clear();
                 name = null;
             }
-
-            ReloadAllShaders(name);
-        }
-
-        public void ReloadAllShaders(string? name = null)
-        {
-            if (ShaderHotReload?.ViewerControl == null)
-            {
-                return;
-            }
-
-            using var lockedGl = ShaderHotReload.ViewerControl.MakeCurrent();
 
             foreach (var shader in CachedShaders.Values)
             {

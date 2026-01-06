@@ -1,12 +1,13 @@
 #if DEBUG
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
-using GUI.Types.GLViewers;
+using GUI.Types.Renderer;
 using GUI.Utils;
 
-namespace GUI.Types.Renderer;
+namespace GUI.Types.GLViewers;
 
 internal class ShaderHotReload : IDisposable
 {
@@ -33,12 +34,24 @@ internal class ShaderHotReload : IDisposable
     private DateTime lastChanged;
     private DateTime lastReload;
 
-    public GLViewerControl? ViewerControl { get; private set; }
-    public event EventHandler<string?>? ReloadShader;
+    private readonly GLViewerControl ViewerControl;
+    private readonly ShaderLoader ShaderLoader;
 
-    public ShaderHotReload()
+    public event EventHandler<string?>? ShadersReloaded;
+
+    public ShaderHotReload(GLViewerControl viewerControl, ShaderLoader shaderLoader)
     {
+        ViewerControl = viewerControl;
+        ShaderLoader = shaderLoader;
+
         ShaderWatcher.Filters.Add("*.slang");
+    }
+
+    public void SetSynchronizingObject(ISynchronizeInvoke synchronizingObject)
+    {
+        Debug.Assert(ShaderWatcher is not null);
+
+        ShaderWatcher.SynchronizingObject = synchronizingObject;
 
         ShaderWatcher.Changed += Hotload;
         ShaderWatcher.Created += Hotload;
@@ -56,19 +69,15 @@ internal class ShaderHotReload : IDisposable
             ShaderWatcher = null;
 
             reloadSemaphore.Dispose();
-            ViewerControl = null;
         }
     }
 
-    public void SetControl(GLViewerControl glControl)
+    public void ReloadShaders(string? name = null)
     {
-        if (ShaderWatcher == null)
-        {
-            return;
-        }
-
-        ShaderWatcher.SynchronizingObject = glControl.GLControl;
-        ViewerControl = glControl;
+        using var lockedGl = ViewerControl.MakeCurrent();
+        ShaderLoader.ReloadAllShaders(name);
+        ShadersReloaded?.Invoke(this, name);
+        ViewerControl.GLControl.Invalidate();
     }
 
     private void Hotload(object sender, FileSystemEventArgs e)
@@ -119,10 +128,11 @@ internal class ShaderHotReload : IDisposable
         string? error = null;
         var title = Program.MainForm.Text;
         Program.MainForm.Text = "Source 2 Viewer - Reloading shaders…";
+        Application.DoEvents(); // Force the updated text to show up
 
         try
         {
-            ReloadShader?.Invoke(sender, e.Name);
+            ReloadShaders(e.Name);
         }
         catch (Exception ex)
         {
@@ -152,8 +162,6 @@ internal class ShaderHotReload : IDisposable
         {
             errorReloadingPage.BoundDialog?.Close();
         }
-
-        ViewerControl.GLControl.Invalidate();
     }
 }
 #endif

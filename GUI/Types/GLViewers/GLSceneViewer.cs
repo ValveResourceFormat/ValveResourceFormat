@@ -55,7 +55,7 @@ namespace GUI.Types.GLViewers
             Scene = new Scene(guiContext);
 
 #if DEBUG
-            guiContext.ShaderLoader.ShaderHotReload.ReloadShader += OnHotReload;
+            ShaderHotReload.ShadersReloaded += OnHotReload;
 #endif
         }
 
@@ -74,7 +74,7 @@ namespace GUI.Types.GLViewers
             }
 
 #if DEBUG
-            GuiContext.ShaderLoader.ShaderHotReload?.ReloadShader -= OnHotReload;
+            ShaderHotReload.ShadersReloaded -= OnHotReload;
 #endif
         }
 
