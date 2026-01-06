@@ -128,9 +128,10 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 
 	vec3 halfVector = normalize(mat.ViewDir + lightVector);
 
-#if (F_RETRO_REFLECTIVE == 1)
-    normal = GetRetroReflectiveNormal(mat.ExtraParams.r, lightVector, mat.ViewDir, normal, halfVector);
-#endif
+    if (F_RETRO_REFLECTIVE == 1)
+    {
+        normal = GetRetroReflectiveNormal(mat.ExtraParams.r, lightVector, mat.ViewDir, normal, halfVector);
+    }
 
 	float NoH = saturate( dot(normal, halfVector) );
 	float NoV = saturate( dot(normal, mat.ViewDir) );

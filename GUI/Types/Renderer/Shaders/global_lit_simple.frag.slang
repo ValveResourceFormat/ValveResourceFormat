@@ -16,7 +16,7 @@
 #define F_SOLID_COLOR 0
 #define F_NORMAL_MAP 0
 #define F_SPECULAR 0
-#define F_MODULATE_SPECULAR_BY_ALPHA 0
+uniform int F_MODULATE_SPECULAR_BY_ALPHA;
 #define F_TINT_MASK 0
 #define F_TINT_MASK2 0 // what does this do?
 #define F_PAINT_VERTEX_COLORS 0
@@ -167,9 +167,10 @@ void main()
         vec3 specularTexel = texture(g_tSpecular, coordsAll).xyz;
         float NoL = max(dot(lightDirection, worldNormal), 0.0);
         float specular = pow(NoL, 6.0);
-        #if (F_MODULATE_SPECULAR_BY_ALPHA == 1)
+        if (F_MODULATE_SPECULAR_BY_ALPHA == 1)
+        {
             specular *= color.a * vTintColorFadeOut.a;
-        #endif
+        }
         outputColor.rgb *= vec3(1.0) + specularTexel.x * specular * g_flSpecularIntensity * SrgbGammaToLinear(g_vColorTint2.xyz);
         outputColor.rgb += specularTexel.y;
     #endif

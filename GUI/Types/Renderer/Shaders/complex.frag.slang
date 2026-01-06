@@ -25,18 +25,14 @@
 #define F_FULLBRIGHT 0
 #define F_LIT 0
 #define F_UNLIT 0
-#define F_ADDITIVE_BLEND 0
 #define F_ALPHA_TEST 0
 #define F_TRANSLUCENT 0
 #define F_BLEND_MODE 0
 #define F_GLASS 0
-#define F_DISABLE_TONE_MAPPING 0
-#define F_MORPH_SUPPORTED 0
-//#define F_WRINKLE 0
+uniform int F_DISABLE_TONE_MAPPING;
 #define F_SCALE_NORMAL_MAP 0
 // TEXTURING
 #define F_TINT_MASK 0
-#define F_NORMAL_MAP 0
 #define F_FANCY_BLENDING 0
 #define F_METALNESS_TEXTURE 0
 #define F_AMBIENT_OCCLUSION_TEXTURE 0
@@ -48,14 +44,13 @@ uniform int F_DECAL_BLEND_MODE;
 // SHADING
 #define F_SPECULAR 0
 #define F_SPECULAR_INDIRECT 0
-#define F_RETRO_REFLECTIVE 0
 #define F_ANISOTROPIC_GLOSS 0
 #define F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP 0 // only optional in HLA
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
 #define F_USE_BENT_NORMALS 0
 #define F_DIFFUSE_WRAP 0
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0
-#define F_NO_SPECULAR_AT_FULL_ROUGHNESS 0
+uniform int F_NO_SPECULAR_AT_FULL_ROUGHNESS;
 // SKIN
 //#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
 //#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo, weird
@@ -133,7 +128,7 @@ uniform sampler2D g_tTintMask;
 #define _uniformMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 0)
 #define _colorAlphaMetalness ((defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1) || defined(pbr_vfx))
 #define _colorAlphaAO (defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_blend_common) && (F_ENABLE_AMBIENT_OCCLUSION == 1))
-#define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_RETRO_REFLECTIVE == 1) || (F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_vertexlitgeneric_vfx)
+#define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_vertexlitgeneric_vfx)
 #define _ambientOcclusionTexture ((defined(vr_simple_vfx) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || defined(csgo_foliage_vfx) || defined(csgo_weapon_vfx) || defined(csgo_character_vfx) || defined(csgo_generic_vfx_common) || defined(pbr_vfx))
 
 #define unlit (defined(vr_unlit_vfx) || defined(unlit_vfx) || defined(csgo_unlitgeneric_vfx) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0)) || defined(csgo_decalmodulate_vfx)
@@ -259,7 +254,7 @@ uniform sampler2D g_tTintMask;
 
 #endif
 
-#if (F_RETRO_REFLECTIVE == 1)
+#if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0)
     uniform float g_flRetroReflectivity = 1.0;
 #endif
 
@@ -532,10 +527,9 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.Metalness = metalnessTexture.g;
 
-    #if (F_RETRO_REFLECTIVE == 1)
-        // not exclusive to csgo_character
+    if (F_RETRO_REFLECTIVE == 1)
         mat.ExtraParams.x = metalnessTexture.r;
-    #endif
+
     #if defined(csgo_character_vfx)
         mat.ClothMask = metalnessTexture.b * (1.0 - metalnessTexture.g);
     #elif defined(csgo_weapon_vfx)
@@ -572,9 +566,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.TransmissiveColor = F_USE_ALBEDO_FOR_TRANSMISSIVE == 1 ? mat.Albedo : vTransmissiveColor;
     #endif
 
-#if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0) && (F_RETRO_REFLECTIVE == 1)
-    mat.ExtraParams.x = g_flRetroReflectivity;
+#if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0)
+    mat.ExtraParams.x = F_RETRO_REFLECTIVE == 1 ? g_flRetroReflectivity : 0.0;
 #endif
+
 #if defined(vr_complex_vfx)
     mat.ClothMask = F_CLOTH_SHADING == 1 ? 1.0 : 0.0;
 #endif
@@ -671,9 +666,10 @@ void main()
     vec3 diffuseLighting = lighting.DiffuseDirect + lighting.DiffuseIndirect;
     vec3 specularLighting = lighting.SpecularDirect + lighting.SpecularIndirect;
 
-    #if F_NO_SPECULAR_AT_FULL_ROUGHNESS == 1
+    if (F_NO_SPECULAR_AT_FULL_ROUGHNESS == 1)
+    {
         specularLighting = (mat.Roughness == vec2(1.0)) ? vec3(0) : specularLighting;
-    #endif
+    }
 
     // Unique HLA Membrane blend mode: specular unaffected by opacity
     #if defined(vr_complex_vfx) && (F_TRANSLUCENT == 2)
@@ -688,9 +684,10 @@ void main()
 
     ApplyFog(outputColor.rgb, mat.PositionWS);
 
-#if (F_DISABLE_TONE_MAPPING == 1)
-    outputColor.rgb = SrgbGammaToLinear(outputColor.rgb);
-#endif
+    if (F_DISABLE_TONE_MAPPING == 1)
+    {
+        outputColor.rgb = SrgbGammaToLinear(outputColor.rgb);
+    }
 
 #if (blendMod2x || blendModThenAdd)
     vec3 gammaOutput = SrgbLinearToGamma(outputColor.rgb);

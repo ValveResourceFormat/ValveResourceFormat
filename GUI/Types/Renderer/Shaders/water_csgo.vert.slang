@@ -30,8 +30,6 @@ uniform float g_flWaterPlaneOffset;
 #include "common/ViewConstants.slang"
 #include "common/instancing.slang"
 
-#define F_REFRACTION 0
-
 void main()
 {
     vec4 tangent;

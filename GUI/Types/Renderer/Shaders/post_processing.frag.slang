@@ -2,10 +2,6 @@
 
 #include "common/utils.slang"
 
-#define F_COLOR_CORRECTION_LUT 0
-//#define F_BLOOM 0
-//#define F_OLD_TONEMAPPING_CURVE 0 // HLA, linear only. Used in linear viewmodes to disable the tonemapping curve
-
 // Bloom might eventually be supported
 //uniform sampler2D g_tBloom; // t13
 //uniform vec4 g_vBloomUvScaleClamp;
