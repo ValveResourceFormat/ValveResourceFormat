@@ -214,7 +214,7 @@ vec3 AdjustBrightnessContrastSaturation(vec3 color, float brightness, float cont
 MaterialProperties_t GetMaterial(vec3 vertexNormals)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormals);
+    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut, vBitangentOut);
 
     // vTexCoord = Layer1 (xy) shared color overlay (zw)
     // vTexCoord2 = Layer2 (xy) UV2 (zw)

@@ -122,7 +122,7 @@ uniform sampler2D g_tSceneDepth;
 void main()
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vNormalOut);
+    InitProperties(mat, vNormalOut, vFragPosition, vTangentOut, vBitangentOut);
 
     vec4 blueNoiseZeroToOne = texelFetch(g_tBlueNoise, ivec2(mod(gl_FragCoord.xy, textureSize(g_tBlueNoise, 0))), 0);
     vec2 blueNoiseNegHalfToHalf = blueNoiseZeroToOne.xy - 0.5;

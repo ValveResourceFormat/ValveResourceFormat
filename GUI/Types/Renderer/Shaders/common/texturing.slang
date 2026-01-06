@@ -80,13 +80,13 @@ struct MaterialProperties_t
 #endif
 };
 
-void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal)
+void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 PositionWS, vec3 Tangent, vec3 Bitangent)
 {
-    mat.PositionWS = vFragPosition;
-    mat.ViewDir = normalize(g_vCameraPositionWs - vFragPosition);
+    mat.PositionWS = PositionWS;
+    mat.ViewDir = normalize(g_vCameraPositionWs - PositionWS);
     mat.GeometricNormal = normalize(GeometricNormal);
-    mat.Tangent = normalize(vTangentOut);
-    mat.Bitangent = normalize(vBitangentOut);
+    mat.Tangent = normalize(Tangent);
+    mat.Bitangent = normalize(Bitangent);
 
     mat.Albedo = vec3(0.0);
     mat.Opacity = 1.0;

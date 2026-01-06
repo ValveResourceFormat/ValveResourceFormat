@@ -66,7 +66,6 @@ uniform int F_DECAL_BLEND_MODE;
 #define F_HIGH_QUALITY_GLOSS 0
 #define F_BLEND_NORMALS 0
 
-#define F_EYEBALLS 0
 //End of feature defines
 
 in vec3 vFragPosition;
@@ -294,7 +293,7 @@ uniform sampler2D g_tTintMask;
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
     MaterialProperties_t mat;
-    InitProperties(mat, vertexNormals);
+    InitProperties(mat, vertexNormals, vFragPosition, vTangentOut, vBitangentOut);
 
     vec4 color = texture(g_tColor, texCoord);
     vec4 normalTexture = texture(g_tNormal, texCoord);

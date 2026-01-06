@@ -3,6 +3,8 @@
 #ifndef VRF_LIGHTING_INCLUDE
 #define VRF_LIGHTING_INCLUDE
 
+#include "features.slang"
+
 #define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
