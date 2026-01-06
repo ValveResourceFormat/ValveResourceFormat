@@ -6,7 +6,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
 
-partial class Scene
+public partial class Scene
 {
     public enum CubemapType : byte
     {
@@ -25,8 +25,8 @@ partial class Scene
     public class WorldLightingInfo(Scene scene)
     {
         public Dictionary<string, RenderTexture> Lightmaps { get; } = [];
-        public List<SceneLightProbe> LightProbes { get; set; } = [];
-        public List<SceneEnvMap> EnvMaps { get; set; } = [];
+        public List<SceneLightProbe> LightProbes { get; } = [];
+        public List<SceneEnvMap> EnvMaps { get; } = [];
         public Dictionary<int, SceneEnvMap> EnvMapHandshakes { get; } = [];
         public Dictionary<int, SceneLightProbe> ProbeHandshakes { get; } = [];
         public bool HasValidLightmaps { get; set; }
@@ -51,7 +51,7 @@ partial class Scene
         public bool EnableDynamicShadows { get; set; } = true;
 
         public Matrix4x4 SunViewProjection { get; internal set; }
-        public Frustum SunLightFrustum = new();
+        public Frustum SunLightFrustum { get; } = new();
         public float SunLightShadowBias { get; set; } = 0.001f;
         public float SunLightShadowCoverageScale { get; set; } = 1f;
         public bool UseSceneBoundsForSunLightFrustum { get; set; }

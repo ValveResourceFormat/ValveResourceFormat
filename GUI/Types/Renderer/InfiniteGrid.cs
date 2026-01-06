@@ -2,7 +2,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class InfiniteGrid
+    public class InfiniteGrid
     {
         private readonly int vao;
         private readonly Shader shader;

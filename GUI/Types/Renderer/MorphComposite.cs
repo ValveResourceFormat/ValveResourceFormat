@@ -8,7 +8,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
-    class MorphComposite
+    public class MorphComposite
     {
         private const int VertexSize = 16;
 

@@ -2,7 +2,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer.Buffers
 {
-    abstract class Buffer
+    public abstract class Buffer
     {
         public BufferTarget Target { get; }
         public int Handle { get; }

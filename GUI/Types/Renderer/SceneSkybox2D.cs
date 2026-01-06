@@ -2,7 +2,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class SceneSkybox2D
+    public class SceneSkybox2D
     {
         public Vector3 Tint { get; init; } = Vector3.One;
         public Matrix4x4 Transform { get; init; } = Matrix4x4.Identity;

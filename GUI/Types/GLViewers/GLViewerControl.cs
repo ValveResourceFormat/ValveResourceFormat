@@ -16,7 +16,7 @@ using static GUI.Types.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
-    partial class GLViewerControl : IDisposable
+    internal partial class GLViewerControl : IDisposable
     {
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -536,7 +536,7 @@ namespace GUI.Types.GLViewers
 
             GLEnvironment.Initialize();
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
-            GLDefaultFramebuffer = Framebuffer.GetGLDefaultFramebuffer();
+            GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;
 
             GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery1);
             GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery2);

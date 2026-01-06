@@ -7,7 +7,7 @@ using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
 namespace GUI.Types.Renderer;
 
-class Rubikon
+public class Rubikon
 {
     private const int STACK_SIZE = 64;
 

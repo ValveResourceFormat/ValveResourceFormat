@@ -4,7 +4,7 @@ using ValveResourceFormat.NavMesh;
 
 namespace GUI.Types.Renderer
 {
-    class NavMeshSceneNode : ShapeSceneNode
+    public class NavMeshSceneNode : ShapeSceneNode
     {
         private static readonly Color32 NavMeshColor = new(64, 32, 255, 100);
         private static readonly Color32 NavMeshLadderColor = new(16, 255, 32, 100);

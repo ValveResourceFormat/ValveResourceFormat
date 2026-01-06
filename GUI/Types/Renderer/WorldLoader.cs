@@ -15,14 +15,14 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer
 {
-    class WorldLoader
+    public class WorldLoader
     {
         private readonly Scene scene;
         private readonly VrfGuiContext guiContext;
 
         public string MapName { get; }
 
-        public readonly World World;
+        public World World { get; }
 
         public List<Entity> Entities { get; } = [];
         public WorldNode? MainWorldNode { get; private set; }
@@ -781,15 +781,11 @@ namespace GUI.Types.Renderer
 
                 if (classname == "post_processing_volume")
                 {
-                    ExposureSettings exposureParams = new();
-                    exposureParams.LoadFromEntity(entity);
+                    var exposureParams = ExposureSettings.LoadFromEntity(entity);
 
                     var isMaster = entity.GetProperty<bool>("master");
                     var useExposure = entity.GetProperty<bool>("enableexposure");
                     var fadeTime = entity.GetPropertyUnchecked<float>("fadetime");
-
-                    // todo: test where this is enabled/disabled
-                    exposureParams.AutoExposureEnabled = useExposure;
 
                     var postProcess = new ScenePostProcessVolume(scene)
                     {

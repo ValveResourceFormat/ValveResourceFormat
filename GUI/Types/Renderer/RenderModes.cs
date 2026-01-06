@@ -2,11 +2,11 @@ using System.Collections.Immutable;
 
 namespace GUI.Types.Renderer
 {
-    static class RenderModes
+    public static class RenderModes
     {
         public record struct RenderMode(string Name, bool IsHeader = false);
 
-        public static ImmutableList<RenderMode> Items =
+        public static ImmutableList<RenderMode> Items { get; set; } =
         [
             new("Default"),
 

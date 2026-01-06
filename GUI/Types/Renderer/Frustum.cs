@@ -1,6 +1,6 @@
 namespace GUI.Types.Renderer
 {
-    class Frustum
+    public class Frustum
     {
         private Vector4[] Planes = new Vector4[6];
 

@@ -7,16 +7,16 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer
 {
-    struct TonemapSettings
+    public readonly struct TonemapSettings
     {
-        public float ExposureBias; // converted to linear via exp2. Kept as exposurebias for blending purposes
-        public float ShoulderStrength;
-        public float LinearStrength;
-        public float LinearAngle;
-        public float ToeStrength;
-        public float ToeNum;
-        public float ToeDenom;
-        public float WhitePoint; // This is ran through the tonemapper before being given to the shader
+        public float ExposureBias { get; init; } // converted to linear via exp2. Kept as exposurebias for blending purposes
+        public float ShoulderStrength { get; init; }
+        public float LinearStrength { get; init; }
+        public float LinearAngle { get; init; }
+        public float ToeStrength { get; init; }
+        public float ToeNum { get; init; }
+        public float ToeDenom { get; init; }
+        public float WhitePoint { get; init; } // This is ran through the tonemapper before being given to the shader
         // The following params aren't used, I think?
         /*float LuminanceSource; // CS2
         float ExposureBiasShadows; // CS2
@@ -97,18 +97,19 @@ namespace GUI.Types.Renderer
             var denom = inputValue * (inputValue * ShoulderStrength + LinearStrength) + (ToeStrength * ToeDenom);
             return (num / denom) - (ToeNum / ToeDenom);
         }
-    };
-    struct ExposureSettings
+    }
+
+    public readonly struct ExposureSettings
     {
-        public bool AutoExposureEnabled;
+        public bool AutoExposureEnabled { get; init; }
 
-        public float ExposureMin;
-        public float ExposureMax;
+        public float ExposureMin { get; init; }
+        public float ExposureMax { get; init; }
 
-        public float ExposureSpeedUp;
-        public float ExposureSpeedDown;
+        public float ExposureSpeedUp { get; init; }
+        public float ExposureSpeedDown { get; init; }
 
-        public float ExposureCompensation;
+        public float ExposureCompensation { get; init; }
 
         public ExposureSettings()
         {
@@ -120,17 +121,23 @@ namespace GUI.Types.Renderer
             ExposureCompensation = 0.0f;
         }
 
-        public void LoadFromEntity(Entity entity)
+        public static ExposureSettings LoadFromEntity(Entity entity)
         {
-            // todo: These changed to minlogexposure maxlogexposure
-            ExposureMin = entity.GetPropertyUnchecked("minexposure", ExposureMin);
-            ExposureMax = entity.GetPropertyUnchecked("maxexposure", ExposureMax);
-            ExposureSpeedUp = entity.GetPropertyUnchecked("exposurespeedup", ExposureSpeedUp);
-            ExposureSpeedDown = entity.GetPropertyUnchecked("exposurespeeddown", ExposureSpeedDown);
-            ExposureCompensation = entity.GetPropertyUnchecked("exposurecompensation", ExposureCompensation);
+            var def = default(ExposureSettings);
+            return new ExposureSettings
+            {
+                // todo: These changed to minlogexposure maxlogexposure
+                ExposureMin = entity.GetPropertyUnchecked("minexposure", def.ExposureMin),
+                ExposureMax = entity.GetPropertyUnchecked("maxexposure", def.ExposureMax),
+                ExposureSpeedUp = entity.GetPropertyUnchecked("exposurespeedup", def.ExposureSpeedUp),
+                ExposureSpeedDown = entity.GetPropertyUnchecked("exposurespeeddown", def.ExposureSpeedDown),
+                ExposureCompensation = entity.GetPropertyUnchecked("exposurecompensation", def.ExposureCompensation),
+                AutoExposureEnabled = entity.GetProperty<bool>("enableexposure"), // todo: test where this is enabled/disabled
+            };
         }
-    };
-    struct PostProcessState()
+    }
+
+    public struct PostProcessState()
     {
         public TonemapSettings TonemapSettings { get; set; } = new();
         public ExposureSettings ExposureSettings { get; set; } = new();
@@ -140,28 +147,28 @@ namespace GUI.Types.Renderer
         public float ColorCorrectionWeight { get; set; } = 1.0f;
         public int ColorCorrectionLutDimensions { get; set; } = 32;
         public int NumLutsActive { get; set; }
-    };
+    }
 
-    class SceneTonemapController(Scene scene) : SceneNode(scene)
+    public class SceneTonemapController(Scene scene) : SceneNode(scene)
     {
         public ExposureSettings ControllerExposureSettings { get; set; }
     }
 
     // make a parent TriggerSceneNode class?
-    class ScenePostProcessVolume(Scene scene) : SceneNode(scene)
+    public class ScenePostProcessVolume(Scene scene) : SceneNode(scene)
     {
-        public float FadeTime;
-        public bool UseExposure;
+        public float FadeTime { get; init; }
+        public bool UseExposure { get; init; }
 
-        public bool IsMaster;
+        public bool IsMaster { get; init; }
 
         // Don't skip if no postprocess resource. Could still affect exposure
-        public PostProcessing PostProcessingResource;
-        public Model ModelVolume; // dumb
+        public PostProcessing PostProcessingResource { get; set; }
+        public Model ModelVolume { get; set; } // dumb
 
-        public bool IsPostHLA;
+        public bool IsPostHLA { get; set; }
 
-        public bool HasTonemap;
+        public bool HasTonemap { get; set; }
         public TonemapSettings PostProcessTonemapSettings { get; set; } = new();
         public ExposureSettings ExposureSettings { get; set; } = new();
 

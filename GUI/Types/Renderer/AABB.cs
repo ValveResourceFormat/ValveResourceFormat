@@ -1,9 +1,11 @@
 namespace GUI.Types.Renderer
 {
-    internal readonly struct AABB : IEquatable<AABB>
+    public readonly struct AABB : IEquatable<AABB>
     {
+#pragma warning disable CA1051 // Do not declare visible instance fields
         public readonly Vector3 Min;
         public readonly Vector3 Max;
+#pragma warning restore CA1051
 
         public Vector3 Size => Max - Min;
         public Vector3 Center => (Min + Max) * 0.5f;
@@ -92,5 +94,15 @@ namespace GUI.Types.Renderer
         public readonly bool Equals(AABB other) => Min.Equals(other.Min) && Max.Equals(other.Max);
         public override readonly bool Equals(object? obj) => obj is AABB other && Equals(other);
         public override readonly int GetHashCode() => HashCode.Combine(Min.X, Min.Y, Min.Z, Max.X, Max.Y, Max.Z);
+
+        public static bool operator ==(AABB left, AABB right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(AABB left, AABB right)
+        {
+            return !(left == right);
+        }
     }
 }

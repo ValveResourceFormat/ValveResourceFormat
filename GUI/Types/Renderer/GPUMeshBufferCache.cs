@@ -7,7 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    partial class GPUMeshBufferCache
+    public partial class GPUMeshBufferCache
     {
         private readonly Dictionary<string, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];

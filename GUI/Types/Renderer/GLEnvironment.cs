@@ -4,7 +4,7 @@ using OpenTK.Windowing.Common;
 
 namespace GUI.Types.Renderer;
 
-static class GLEnvironment
+public static class GLEnvironment
 {
     private const int VersionMajor = 4;
     private const int VersionMinor = 6;
@@ -13,7 +13,7 @@ static class GLEnvironment
 
 #if DEBUG
     public static ContextFlags Flags => ContextFlags.ForwardCompatible | ContextFlags.Debug;
-    public static int MaxLabelLength;
+    public static int MaxLabelLength { get; private set; }
 #else
     public static ContextFlags Flags => ContextFlags.ForwardCompatible;
 #endif

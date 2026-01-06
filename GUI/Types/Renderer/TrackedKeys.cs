@@ -1,7 +1,9 @@
 namespace GUI.Types.Renderer;
 
 [Flags]
-enum TrackedKeys
+#pragma warning disable CA2217 // Do not mark enums with FlagsAttribute
+public enum TrackedKeys
+#pragma warning restore CA2217
 {
     None = 0,
 

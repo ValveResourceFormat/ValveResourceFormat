@@ -7,7 +7,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
-    class SceneAggregate : SceneNode
+    public class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
 
@@ -17,7 +17,7 @@ namespace GUI.Types.Renderer
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
 
-        internal sealed class Fragment : SceneNode
+        public sealed class Fragment : SceneNode
         {
             public required SceneNode Parent { get; init; }
             public required RenderableMesh RenderMesh { get; init; }

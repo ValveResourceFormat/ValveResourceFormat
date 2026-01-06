@@ -11,7 +11,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace GUI.Types.Renderer
 {
     [DebuggerDisplay("{Name}")]
-    class RenderableMesh
+    public class RenderableMesh
     {
         public AABB BoundingBox { get; }
         public Vector4 Tint { get; set; } = Vector4.One;
@@ -285,10 +285,12 @@ namespace GUI.Types.Renderer
             // Index buffer
             {
                 var indexBufferObject = objectDrawCall.GetSubCollection("m_indexBuffer");
-                var indexBuffer = default(IndexDrawBuffer);
                 var bufferIndex = indexBufferObject.GetUInt32Property("m_hBuffer");
-                indexBuffer.Handle = gpuVbib.IndexBuffers[(int)bufferIndex];
-                indexBuffer.Offset = indexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
+                var indexBuffer = new IndexDrawBuffer
+                {
+                    Handle = gpuVbib.IndexBuffers[(int)bufferIndex],
+                    Offset = indexBufferObject.GetUInt32Property("m_nBindOffsetBytes")
+                };
                 drawCall.IndexBuffer = indexBuffer;
 
                 var indexElementSize = vbib.IndexBuffers[(int)bufferIndex].ElementSizeInBytes;
@@ -311,19 +313,14 @@ namespace GUI.Types.Renderer
 
                 foreach (var vertexBufferObject in vertexBuffers)
                 {
-                    var vertexBuffer = default(VertexDrawBuffer);
                     var bufferIndex = vertexBufferObject.GetUInt32Property("m_hBuffer");
-                    vertexBuffer.Handle = gpuVbib.VertexBuffers[(int)bufferIndex];
-                    vertexBuffer.Offset = vertexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
-
                     var vertexBufferVbib = vbib.VertexBuffers[(int)bufferIndex];
-                    vertexBuffer.ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes;
-                    vertexBuffer.InputLayoutFields = vertexBufferVbib.InputLayoutFields;
+                    var inputLayoutFields = vertexBufferVbib.InputLayoutFields;
 
                     if (BoneWeightCount > 4)
                     {
-                        var newInputLayout = new List<VBIB.RenderInputLayoutField>(vertexBuffer.InputLayoutFields.Length + 2);
-                        foreach (var inputField in vertexBuffer.InputLayoutFields)
+                        var newInputLayout = new List<VBIB.RenderInputLayoutField>(inputLayoutFields.Length + 2);
+                        foreach (var inputField in inputLayoutFields)
                         {
                             if (inputField.SemanticName is "BLENDINDICES" or "BLENDWEIGHT")
                             {
@@ -360,8 +357,16 @@ namespace GUI.Types.Renderer
                             newInputLayout.Add(inputField);
                         }
 
-                        vertexBuffer.InputLayoutFields = [.. newInputLayout];
+                        inputLayoutFields = [.. newInputLayout];
                     }
+
+                    var vertexBuffer = new VertexDrawBuffer
+                    {
+                        Handle = gpuVbib.VertexBuffers[(int)bufferIndex],
+                        Offset = vertexBufferObject.GetUInt32Property("m_nBindOffsetBytes"),
+                        ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes,
+                        InputLayoutFields = inputLayoutFields,
+                    };
 
                     drawCall.VertexBuffers[bindingIndex++] = vertexBuffer;
                 }
@@ -454,7 +459,7 @@ namespace GUI.Types.Renderer
         }
     }
 
-    internal abstract class MeshCollectionNode : SceneNode
+    public abstract class MeshCollectionNode : SceneNode
     {
         public abstract Vector4 Tint { get; set; }
 
@@ -462,6 +467,6 @@ namespace GUI.Types.Renderer
         {
         }
 
-        public List<RenderableMesh> RenderableMeshes { get; protected set; } = [];
+        public List<RenderableMesh> RenderableMeshes { get; protected init; } = [];
     }
 }

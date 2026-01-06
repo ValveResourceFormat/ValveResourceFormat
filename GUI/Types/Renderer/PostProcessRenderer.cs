@@ -5,12 +5,12 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    internal class PostProcessRenderer
+    public class PostProcessRenderer
     {
         private readonly VrfGuiContext guiContext;
         private Shader shader;
 
-        public RenderTexture BlueNoise;
+        public RenderTexture BlueNoise { get; set; }
         private readonly Random random = new();
 
         public PostProcessState State { get; set; }

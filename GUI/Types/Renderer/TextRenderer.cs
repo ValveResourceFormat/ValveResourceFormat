@@ -7,7 +7,7 @@ using SkiaSharp;
 
 namespace GUI.Types.Renderer
 {
-    class TextRenderer
+    public class TextRenderer
     {
         private record FontMetric(Vector4 PlaneBounds, Vector4 AtlasBounds, float Advance);
 
@@ -23,14 +23,14 @@ namespace GUI.Types.Renderer
 
         public struct TextRenderRequest()
         {
-            public float X;
-            public float Y;
-            public float Scale;
-            public Color32 Color = Color32.White;
-            public Vector2 TextOffset = Vector2.Zero;
-            public required string Text;
-            public bool CenterVertical = false;
-            public bool CenterHorizontal = false;
+            public float X { get; set; }
+            public float Y { get; set; }
+            public float Scale { get; set; }
+            public Color32 Color { get; init; } = Color32.White;
+            public Vector2 TextOffset { get; init; } = Vector2.Zero;
+            public required string Text { get; init; }
+            public bool CenterVertical { get; init; } = false;
+            public bool CenterHorizontal { get; init; } = false;
         }
 
         private readonly List<TextRenderRequest> TextRenderRequests = new(10);

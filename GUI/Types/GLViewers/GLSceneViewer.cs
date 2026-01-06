@@ -317,7 +317,7 @@ namespace GUI.Types.GLViewers
                 {
                     TextRenderer = TextRenderer,
                     Timestep = e.FrameTime,
-                    View = this,
+                    Camera = Camera,
                 };
 
                 Scene.Update(updateContext);

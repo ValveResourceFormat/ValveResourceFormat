@@ -20,7 +20,7 @@ namespace GUI.Types.Renderer
         Max = 2,
     }
 
-    partial class ShaderLoader : IDisposable
+    public partial class ShaderLoader : IDisposable
     {
         [GeneratedRegex(@"^(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) ?: error")]
         private static partial Regex NvidiaGlslError();
@@ -44,7 +44,7 @@ namespace GUI.Types.Renderer
         private readonly VrfGuiContext VrfGuiContext;
 
 #if DEBUG
-        public ShaderHotReload? ShaderHotReload { get; private set; }
+        internal ShaderHotReload? ShaderHotReload { get; private set; }
         private HashSet<string> LastShaderVariantNames = [];
 
         // TODO: This probably should be ParsedShaderData so we can access it for non-blocking linking
@@ -53,14 +53,14 @@ namespace GUI.Types.Renderer
 
         public class ParsedShaderData
         {
-            public Dictionary<string, byte> Defines = [];
-            public HashSet<string> RenderModes = [];
-            public HashSet<string> Uniforms = [];
-            public HashSet<string> SrgbUniforms = [];
-            public string[] Sources = new string[(int)ShaderProgramType.Max];
+            public Dictionary<string, byte> Defines { get; } = [];
+            public HashSet<string> RenderModes { get; } = [];
+            public HashSet<string> Uniforms { get; } = [];
+            public HashSet<string> SrgbUniforms { get; } = [];
+            public string[] Sources { get; } = new string[(int)ShaderProgramType.Max];
 
 #if DEBUG
-            public HashSet<string> ShaderVariants = [];
+            public HashSet<string> ShaderVariants { get; } = [];
 #endif
         }
 
@@ -347,6 +347,12 @@ namespace GUI.Types.Renderer
 
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
 #if DEBUG
             if (ShaderHotReload != null)
             {
@@ -358,7 +364,6 @@ namespace GUI.Types.Renderer
 
             ShaderDefines.Clear();
             CachedShaders.Clear();
-            GC.SuppressFinalize(this);
         }
 
         private IEnumerable<KeyValuePair<string, byte>> SortAndFilterArguments(string shaderName, IReadOnlyDictionary<string, byte> arguments)

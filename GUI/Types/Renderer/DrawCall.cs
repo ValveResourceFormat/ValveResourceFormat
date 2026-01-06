@@ -6,7 +6,7 @@ using ValveResourceFormat.Blocks;
 
 namespace GUI.Types.Renderer
 {
-    class DrawCall
+    public class DrawCall
     {
         public PrimitiveType PrimitiveType { get; set; }
         public int BaseVertex { get; set; }
@@ -62,17 +62,17 @@ namespace GUI.Types.Renderer
         }
     }
 
-    internal struct IndexDrawBuffer
+    public readonly struct IndexDrawBuffer
     {
-        public int Handle;
-        public uint Offset;
+        public int Handle { get; init; }
+        public uint Offset { get; init; }
     }
 
-    internal struct VertexDrawBuffer
+    public readonly struct VertexDrawBuffer
     {
-        public int Handle;
-        public uint Offset;
-        public uint ElementSizeInBytes;
-        public VBIB.RenderInputLayoutField[] InputLayoutFields;
+        public int Handle { get; init; }
+        public uint Offset { get; init; }
+        public uint ElementSizeInBytes { get; init; }
+        public VBIB.RenderInputLayoutField[] InputLayoutFields { get; init; }
     }
 }

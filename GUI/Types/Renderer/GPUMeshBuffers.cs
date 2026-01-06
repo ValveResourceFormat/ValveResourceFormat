@@ -4,7 +4,7 @@ using ValveResourceFormat.Blocks;
 
 namespace GUI.Types.Renderer
 {
-    class GPUMeshBuffers
+    public class GPUMeshBuffers
     {
         public int[] VertexBuffers { get; private set; }
         public int[] IndexBuffers { get; private set; }

@@ -2,7 +2,7 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Renderer;
 
-class SceneLight(Scene scene) : SceneNode(scene)
+public class SceneLight(Scene scene) : SceneNode(scene)
 {
     /// <summary>
     /// Light index to a baked lightmap.

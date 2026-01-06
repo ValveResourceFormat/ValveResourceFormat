@@ -4,7 +4,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class QuadIndexBuffer
+    public class QuadIndexBuffer
     {
         public int GLHandle { get; }
 

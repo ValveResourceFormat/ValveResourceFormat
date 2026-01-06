@@ -4,7 +4,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer.Buffers
 {
-    class StorageBuffer : Buffer
+    public class StorageBuffer : Buffer
     {
         public StorageBuffer(ReservedBufferSlots bindingPoint)
             : base(BufferTarget.ShaderStorageBuffer, (int)bindingPoint, bindingPoint.ToString())

@@ -3,7 +3,7 @@ using OpenTK.Mathematics;
 
 namespace GUI.Types.Renderer;
 
-class Framebuffer
+public class Framebuffer
 {
     public int FboHandle { get; }
 
@@ -55,7 +55,7 @@ class Framebuffer
         FboHandle = fboHandle;
         InitialStatus = FramebufferErrorCode.FramebufferComplete;
     }
-    public static Framebuffer GetGLDefaultFramebuffer() => new(fboHandle: 0);
+    public static Framebuffer GLDefaultFramebuffer => new(fboHandle: 0);
     public override bool Equals(object? obj) => obj is Framebuffer other && other.FboHandle == FboHandle;
     public override int GetHashCode() => FboHandle.GetHashCode();
 
@@ -76,11 +76,15 @@ class Framebuffer
     public record class AttachmentFormat(PixelInternalFormat InternalFormat, PixelFormat PixelFormat, PixelType PixelType);
     public record class DepthAttachmentFormat(PixelInternalFormat InternalFormat, PixelType PixelType)
     {
-        public static DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);
-        public static DepthAttachmentFormat Depth32FStencil8 = new(PixelInternalFormat.Depth32fStencil8, PixelType.Float32UnsignedInt248Rev);
+        public static readonly DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);
+        public static readonly DepthAttachmentFormat Depth32FStencil8 = new(PixelInternalFormat.Depth32fStencil8, PixelType.Float32UnsignedInt248Rev);
 
-        public static implicit operator AttachmentFormat(DepthAttachmentFormat depthFormat)
-            => new(depthFormat.InternalFormat, PixelFormat.DepthComponent, depthFormat.PixelType);
+        public static implicit operator AttachmentFormat(DepthAttachmentFormat depthFormat) => depthFormat.ToAttachmentFormat();
+
+        public AttachmentFormat ToAttachmentFormat()
+        {
+            return new(InternalFormat, PixelFormat.DepthComponent, PixelType);
+        }
     }
 
     public static Framebuffer Prepare(string name, int width, int height, int msaa, AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)

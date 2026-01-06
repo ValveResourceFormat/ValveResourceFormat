@@ -1,6 +1,6 @@
 namespace GUI.Types.Renderer;
 
-internal class UserInput
+public class UserInput
 {
     private const float MovementSpeed = 250f; // WASD movement, per second
     private const float AltMovementSpeed = 10f; // Holding shift or alt movement
@@ -27,7 +27,7 @@ internal class UserInput
     private float TransitionDuration = 1.5f;
     private float TransitionEndTime = -1f;
     private CameraLite StartingCamera;
-    public Camera Camera;
+    public Camera Camera { get; }
     public Rubikon? PhysicsWorld { get; set; }
 
     // Orbit controls

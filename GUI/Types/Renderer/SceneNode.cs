@@ -5,7 +5,7 @@ using ValveResourceFormat.ResourceTypes;
 namespace GUI.Types.Renderer
 {
     [DebuggerDisplay("{DebugName,nq}")]
-    internal abstract class SceneNode
+    public abstract class SceneNode
     {
         public Matrix4x4 Transform
         {
@@ -46,7 +46,7 @@ namespace GUI.Types.Renderer
 
         public Scene Scene { get; }
 
-        public List<SceneEnvMap> EnvMaps { get; set; } = [];
+        public List<SceneEnvMap> EnvMaps { get; private set; } = [];
         public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; }
         public Vector3? LightingOrigin { get; set; }
         public int OverlayRenderOrder { get; set; }

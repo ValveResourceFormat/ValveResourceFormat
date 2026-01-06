@@ -2,7 +2,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    class ParticleSceneNode : SceneNode
+    public class ParticleSceneNode : SceneNode
     {
         private readonly ParticleRenderer.ParticleRenderer particleRenderer;
         public float FrametimeMultiplier { get; set; } = 1.0f;

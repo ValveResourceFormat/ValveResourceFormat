@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace GUI.Types.Renderer;
 
-class SceneEnvMap : SceneNode
+public class SceneEnvMap : SceneNode
 {
     public int HandShake { get; init; }
     public required RenderTexture EnvMapTexture { get; init; }
@@ -33,6 +33,7 @@ class SceneEnvMap : SceneNode
     {
         private uint _bucket0;
 
+#pragma warning disable CA1024 // Use properties where appropriate
         public readonly IEnumerable<int> GetVisibleShaderIndices()
         {
             for (var bucket = 0; bucket < 4; bucket++)
@@ -46,6 +47,7 @@ class SceneEnvMap : SceneNode
                 }
             }
         }
+#pragma warning restore CA1024
 
         public EnvMapVisibility128 Store(List<SceneEnvMap> envMaps)
         {

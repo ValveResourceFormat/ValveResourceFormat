@@ -7,7 +7,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
-    class PhysSceneNode : ShapeSceneNode
+    public class PhysSceneNode : ShapeSceneNode
     {
         private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, 0.65f);
         private static readonly Color32 ColorCapsule = new(0.1f, 1f, 0.4f, 0.65f);

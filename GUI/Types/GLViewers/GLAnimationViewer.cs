@@ -56,7 +56,7 @@ namespace GUI.Types.GLViewers
             {
                 TextRenderer = TextRenderer,
                 Timestep = 0f,
-                View = this,
+                Camera = Camera,
             }); // update bbox for viewer
         }
 

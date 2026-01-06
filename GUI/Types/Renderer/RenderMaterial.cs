@@ -7,7 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    enum ReservedTextureSlots
+    public enum ReservedTextureSlots
     {
         BRDFLookup = 0,
         BlueNoise,
@@ -42,7 +42,7 @@ namespace GUI.Types.Renderer
     }
 
     [DebuggerDisplay("{Material.Name} ({Shader.Name})")]
-    class RenderMaterial
+    public class RenderMaterial
     {
         private const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
 

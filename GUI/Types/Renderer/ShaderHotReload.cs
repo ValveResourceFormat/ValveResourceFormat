@@ -8,7 +8,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer;
 
-class ShaderHotReload : IDisposable
+internal class ShaderHotReload : IDisposable
 {
     private FileSystemWatcher? ShaderWatcher = new()
     {

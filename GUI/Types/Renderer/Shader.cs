@@ -4,7 +4,7 @@ using ValveResourceFormat.ThirdParty;
 
 namespace GUI.Types.Renderer
 {
-    class Shader
+    public class Shader
     {
         public string Name { get; }
         public uint NameHash { get; }
@@ -18,13 +18,13 @@ namespace GUI.Types.Renderer
         public required HashSet<string> RenderModes { get; init; }
         public required HashSet<string> UniformNames { get; init; }
         public required HashSet<string> SrgbUniforms { get; init; }
-        public readonly HashSet<string> ReservedTexuresUsed = [];
+        public HashSet<string> ReservedTexuresUsed { get; } = [];
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
-        public RenderMaterial Default;
+        public RenderMaterial Default { get; init; }
         protected MaterialLoader MaterialLoader { get; init; }
 
-        public readonly Dictionary<string, int> Attributes = [];
+        public Dictionary<string, int> Attributes { get; } = [];
 
 #if DEBUG
         public required string FileName { get; init; }

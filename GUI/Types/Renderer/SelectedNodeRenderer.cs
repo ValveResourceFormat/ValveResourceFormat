@@ -5,7 +5,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class SelectedNodeRenderer
+    public class SelectedNodeRenderer
     {
         private readonly Shader shader;
         private readonly int vaoHandle;

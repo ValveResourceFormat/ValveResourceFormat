@@ -6,7 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    class MeshSceneNode : MeshCollectionNode
+    public class MeshSceneNode : MeshCollectionNode
     {
         public override Vector4 Tint
         {

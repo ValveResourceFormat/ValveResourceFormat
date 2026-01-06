@@ -2,7 +2,7 @@ using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 namespace GUI.Types.Renderer;
 
-partial class GPUMeshBufferCache
+public partial class GPUMeshBufferCache
 {
     private QuadIndexBuffer? quadIndices;
 

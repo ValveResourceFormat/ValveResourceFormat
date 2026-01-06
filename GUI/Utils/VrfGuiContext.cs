@@ -12,7 +12,7 @@ using ValveResourceFormat.ToolsAssetInfo;
 
 namespace GUI.Utils
 {
-    class VrfGuiContext : GameFileLoader, IDisposable
+    public class VrfGuiContext : GameFileLoader
     {
         public string FileName { get; }
 
@@ -36,7 +36,7 @@ namespace GUI.Utils
         public ToolsAssetInfo? ToolsAssetInfo { get; set; }
 
         // This is a hack to set camera and properties when clicking a mesh from a model or map
-        public Action<GLViewerControl>? GLPostLoadAction { get; set; }
+        internal Action<GLViewerControl>? GLPostLoadAction { get; set; }
 
         private int Children;
         private bool WantsToBeDisposed;

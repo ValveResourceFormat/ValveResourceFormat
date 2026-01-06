@@ -5,7 +5,7 @@ using ValveResourceFormat.ResourceTypes.ModelData;
 
 namespace GUI.Types.Renderer
 {
-    class HitboxSetSceneNode : SceneNode
+    public class HitboxSetSceneNode : SceneNode
     {
         class HitboxSetData
         {

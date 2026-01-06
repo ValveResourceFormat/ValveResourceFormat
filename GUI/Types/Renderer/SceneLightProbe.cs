@@ -6,7 +6,7 @@ namespace GUI.Types.Renderer;
 
 #nullable disable
 
-class SceneLightProbe : SceneNode
+public class SceneLightProbe : SceneNode
 {
     public int HandShake { get; set; }
 

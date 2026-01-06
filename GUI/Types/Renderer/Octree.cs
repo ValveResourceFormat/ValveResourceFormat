@@ -2,7 +2,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    class Octree
+    public class Octree
     {
         private const int OptimalElementCountLarge = 4;
         private const int OptimalElementCountSmall = 32;

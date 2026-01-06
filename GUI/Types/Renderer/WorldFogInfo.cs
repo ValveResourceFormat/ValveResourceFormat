@@ -5,7 +5,7 @@ namespace GUI.Types.Renderer
     /// <summary>
     /// Represents the fog data for the current scene.
     /// </summary>
-    class WorldFogInfo
+    public class WorldFogInfo
     {
         //private const int VOLFOG_BBOX_LIMIT = 128;
 

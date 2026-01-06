@@ -2,7 +2,7 @@ namespace GUI.Types.Renderer;
 
 #nullable disable
 
-class SceneCubemapFog(Scene scene) : SceneNode(scene)
+public class SceneCubemapFog(Scene scene) : SceneNode(scene)
 {
     public float StartDist { get; set; }
     public float EndDist { get; set; }

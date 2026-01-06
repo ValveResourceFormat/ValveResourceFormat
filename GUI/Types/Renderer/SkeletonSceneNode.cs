@@ -5,7 +5,7 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace GUI.Types.Renderer
 {
-    class SkeletonSceneNode : SceneNode
+    public class SkeletonSceneNode : SceneNode
     {
         public bool Enabled { get; set; }
 

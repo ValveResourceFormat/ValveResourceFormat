@@ -4,7 +4,7 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace GUI.Types.Renderer
 {
-    class FlexStateManager
+    public class FlexStateManager
     {
         private readonly Dictionary<int, int> morphIdToRuleId = [];
         private readonly FlexController[] FlexControllers;

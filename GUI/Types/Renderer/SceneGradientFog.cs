@@ -1,6 +1,6 @@
 namespace GUI.Types.Renderer;
 
-class SceneGradientFog(Scene scene) : SceneNode(scene)
+public class SceneGradientFog(Scene scene) : SceneNode(scene)
 {
     public float StartDist { get; set; }
     public float EndDist { get; set; }
@@ -12,6 +12,7 @@ class SceneGradientFog(Scene scene) : SceneNode(scene)
     public float Strength { get; set; }
     public float MaxOpacity { get; set; }
 
+#pragma warning disable CA1024 // Use properties where appropriate
     public Vector4 GetBiasAndScale()
     {
         var startDist = StartDist;
@@ -26,6 +27,8 @@ class SceneGradientFog(Scene scene) : SceneNode(scene)
 
         return new Vector4(distBias, heightBias, distScale, heightScale);
     }
+#pragma warning restore CA1024
+
     public Vector2 Exponents => new(FalloffExponent, VerticalExponent);
     public Vector4 Color_Opacity => new(Color * Strength, MaxOpacity);
     public Vector2 CullingParams => new(StartDist * StartDist, HeightStart);

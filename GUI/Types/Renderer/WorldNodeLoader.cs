@@ -8,7 +8,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
-    class WorldNodeLoader
+    public class WorldNodeLoader
     {
         private readonly WorldNode node;
         private readonly ResourceExtRefList? externalReferences;

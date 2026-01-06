@@ -14,7 +14,7 @@ using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI.Types.Renderer;
 
-class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
+public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 {
     private record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, CubemapFace Face, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
     {
@@ -278,10 +278,19 @@ class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     public void Dispose()
     {
-        Exit();
-        decodeQueue.Dispose();
-        guiContext.Dispose();
-        Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            Exit();
+            decodeQueue.Dispose();
+            guiContext.Dispose();
+            Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
+        }
     }
 
     public static (SizedInternalFormat SizedInternalFormat, PixelFormat PixelFormat, PixelType PixelType) GetImageExportFormat(bool hdr) => hdr switch

@@ -2,7 +2,7 @@ using GUI.Utils;
 
 namespace GUI.Types.Renderer
 {
-    class Camera
+    public class Camera
     {
         public Vector3 Location { get; set; }
         public float Pitch { get; set; }
@@ -17,8 +17,8 @@ namespace GUI.Types.Renderer
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; } = new Frustum();
 
-        public Vector2 WindowSize;
-        public float AspectRatio;
+        public Vector2 WindowSize { get; private set; }
+        public float AspectRatio { get; private set; }
 
         public Camera()
         {

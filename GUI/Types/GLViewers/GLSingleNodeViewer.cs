@@ -80,7 +80,7 @@ namespace GUI.Types.GLViewers
                 var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
 
                 sunAngles += delta;
-                Scene.envMapBuffer.Data.EnvMaps[0].WorldToLocal *= Matrix4x4.CreateRotationZ(-delta.Y / 80f);
+                Scene.AdjustEnvMapSunAngle(Matrix4x4.CreateRotationZ(-delta.Y / 80f));
                 UpdateSunAngles();
                 Scene.UpdateBuffers();
                 Input.EnableMouseLook = false;

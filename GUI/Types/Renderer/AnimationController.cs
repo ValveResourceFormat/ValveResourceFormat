@@ -3,7 +3,7 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace GUI.Types.Renderer
 {
-    class AnimationController
+    public class AnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
 

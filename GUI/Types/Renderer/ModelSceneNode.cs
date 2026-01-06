@@ -10,7 +10,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Renderer
 {
-    class ModelSceneNode : MeshCollectionNode
+    public class ModelSceneNode : MeshCollectionNode
     {
         public override Vector4 Tint
         {
@@ -32,7 +32,7 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public readonly AnimationController AnimationController;
+        public AnimationController AnimationController { get; }
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
         public bool HasMeshes => meshRenderers.Count > 0;
 
@@ -384,6 +384,7 @@ namespace GUI.Types.Renderer
             }
         }
 
+#pragma warning disable CA1024 // Use properties where appropriate
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
             => meshNamesForLod1;
 
@@ -392,6 +393,7 @@ namespace GUI.Types.Renderer
 
         public ICollection<string> GetActiveMeshGroups()
             => activeMeshGroups;
+#pragma warning restore CA1024 // Use properties where appropriate
 
         private IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
         {
@@ -410,9 +412,10 @@ namespace GUI.Types.Renderer
         {
             activeMeshGroups = new HashSet<string>(meshGroups.Intersect(setMeshGroups));
 
+            RenderableMeshes.Clear();
+
             if (meshGroups.Length > 1)
             {
-                RenderableMeshes.Clear();
                 foreach (var group in activeMeshGroups)
                 {
                     var meshMask = GetActiveMeshMaskForGroup(group).ToArray();
@@ -428,7 +431,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                RenderableMeshes = new List<RenderableMesh>(meshRenderers);
+                RenderableMeshes.AddRange(meshRenderers);
             }
         }
 

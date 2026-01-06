@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Linq;
-using GUI.Types.GLViewers;
 using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -8,11 +7,11 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer
 {
-    partial class Scene : IDisposable
+    public partial class Scene : IDisposable
     {
         public readonly struct UpdateContext
         {
-            public required GLSceneViewer View { get; init; }
+            public required Camera Camera { get; init; }
             public required TextRenderer TextRenderer { get; init; }
             public required float Timestep { get; init; }
         }
@@ -35,7 +34,7 @@ namespace GUI.Types.Renderer
         public Rubikon? PhysicsWorld { get; set; }
 
         private UniformBuffer<LightingConstants>? lightingBuffer;
-        public UniformBuffer<EnvMapArray>? envMapBuffer;
+        private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
 
         public VrfGuiContext GuiContext { get; }
@@ -962,7 +961,8 @@ namespace GUI.Types.Renderer
 #endif
                 if (LightingInfo.CubemapType == CubemapType.CubemapArray)
                 {
-                    node.EnvMaps = []; // no longer needed
+                    node.EnvMaps.Clear(); // no longer needed
+                    node.EnvMaps.TrimExcess();
                 }
             }
         }
@@ -992,11 +992,27 @@ namespace GUI.Types.Renderer
             };
         }
 
+        public void AdjustEnvMapSunAngle(Matrix4x4 delta)
+        {
+            Debug.Assert(envMapBuffer != null);
+
+            envMapBuffer.Data.EnvMaps[0].WorldToLocal *= delta;
+        }
+
         public void Dispose()
         {
-            lightingBuffer?.Dispose();
-            lpvBuffer?.Dispose();
-            envMapBuffer?.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                lightingBuffer?.Dispose();
+                lpvBuffer?.Dispose();
+                envMapBuffer?.Dispose();
+            }
         }
     }
 }

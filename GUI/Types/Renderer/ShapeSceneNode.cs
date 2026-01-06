@@ -4,7 +4,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer
 {
-    abstract class ShapeSceneNode : SceneNode
+    public abstract class ShapeSceneNode : SceneNode
     {
         public virtual bool IsTranslucent { get; } = true;
         public bool IsTranslucentRenderMode { get; set; } = true;
@@ -17,18 +17,18 @@ namespace GUI.Types.Renderer
         public const int HemisphereTriangles = SphereSegments * (2 * SphereBands - 1);
         public const int CapsuleTriangles = 2 * HemisphereTriangles + 2 * SphereSegments;
 
-        protected readonly Shader shader;
-        protected int indexCount;
-        protected int vaoHandle;
+        protected Shader shader { get; init; }
+        protected int indexCount { get; private set; }
+        protected int vaoHandle { get; private set; }
         protected virtual bool Shaded { get; } = true;
-        protected RenderTexture? ToolTexture;
+        protected RenderTexture? ToolTexture { get; set; }
 
         private ShapeSceneNode(Scene scene) : base(scene)
         {
             shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape");
         }
 
-        public ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)
+        internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)
         {
             Init(verts, inds);
         }
@@ -36,7 +36,7 @@ namespace GUI.Types.Renderer
         /// <summary>
         /// Constructs a node with a single box shape
         /// </summary>
-        public ShapeSceneNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color) : this(scene)
+        internal ShapeSceneNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color) : this(scene)
         {
             var verts = new List<SimpleVertexNormal>(8);
             var inds = new List<int>(8 * 9);
@@ -50,7 +50,7 @@ namespace GUI.Types.Renderer
         /// <summary>
         /// Constructs a node with a single capsule shape
         /// </summary>
-        public ShapeSceneNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color) : this(scene)
+        internal ShapeSceneNode(Scene scene, Vector3 from, Vector3 to, float radius, Color32 color) : this(scene)
         {
             var verts = new List<SimpleVertexNormal>(HemisphereVerts * 2);
             var inds = new List<int>(CapsuleTriangles * 6);
@@ -66,7 +66,7 @@ namespace GUI.Types.Renderer
         /// <summary>
         /// Constructs a node with a single sphere shape
         /// </summary>
-        public ShapeSceneNode(Scene scene, Vector3 center, float radius, Color32 color) : this(scene)
+        internal ShapeSceneNode(Scene scene, Vector3 center, float radius, Color32 color) : this(scene)
         {
             var verts = new List<SimpleVertexNormal>(HemisphereVerts * 2);
             var inds = new List<int>(HemisphereTriangles * 6 * 2);
@@ -86,7 +86,8 @@ namespace GUI.Types.Renderer
         {
             indexCount = inds.Count;
 
-            GL.CreateVertexArrays(1, out vaoHandle);
+            GL.CreateVertexArrays(1, out int vaoHandleLocal);
+            vaoHandle = vaoHandleLocal;
             GL.CreateBuffers(1, out int vboHandle);
             GL.CreateBuffers(1, out int iboHandle);
             GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertexNormal.SizeInBytes);
@@ -343,7 +344,7 @@ namespace GUI.Types.Renderer
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
 
-        public static Lazy<ValveResourceFormat.Resource> CubemapResource = new(() =>
+        public static Lazy<ValveResourceFormat.Resource> CubemapResource { get; } = new(() =>
         {
             using var stream = Program.Assembly.GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
             var resource = new ValveResourceFormat.Resource()

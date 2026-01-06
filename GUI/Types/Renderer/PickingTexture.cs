@@ -1,26 +1,28 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
 namespace GUI.Types.Renderer;
 
-class PickingTexture : Framebuffer
+public class PickingTexture : Framebuffer
 {
-    internal enum PickingIntent
+    public enum PickingIntent
     {
         Select,
         Open,
         Details,
     }
 
-    internal struct PickingResponse
+    public readonly struct PickingResponse
     {
-        public PickingIntent Intent;
-        public PixelInfo PixelInfo;
+        public PickingIntent Intent { get; init; }
+        public PixelInfo PixelInfo { get; init; }
     }
 
-    internal struct PixelInfo
+    [StructLayout(LayoutKind.Sequential)]
+    public struct PixelInfo
     {
 #pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
         public uint ObjectId;

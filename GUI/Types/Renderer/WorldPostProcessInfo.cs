@@ -2,7 +2,7 @@ namespace GUI.Types.Renderer;
 
 #nullable disable
 
-partial class Scene
+public partial class Scene
 {
     public class WorldPostProcessInfo()
     {
@@ -25,18 +25,15 @@ partial class Scene
         public SceneTonemapController MasterTonemapController { get; set; }
 
         // Current post processing state
-        public PostProcessState CurrentState = new();
-        public float CustomExposure = -1;
+        public PostProcessState CurrentState { get; private set; } = new();
+        public float CustomExposure { get; set; } = -1;
 
         public void AddPostProcessVolume(ScenePostProcessVolume postProcess)
         {
             if (postProcess.IsMaster)
             {
                 // If there are multiple master volumes, S2 only takes the first one
-                if (MasterPostProcessVolume == null)
-                {
-                    MasterPostProcessVolume = postProcess;
-                }
+                MasterPostProcessVolume ??= postProcess;
                 // if it's marked as master but not the first master volume, it's entirely ignored
             }
             else
@@ -53,29 +50,31 @@ partial class Scene
         public void UpdatePostProcessing(Camera camera)
         {
             // Recalculate post process state
-            CurrentState = new PostProcessState();
+            var newState = new PostProcessState();
 
             // For we SHOULD find the weight of each volume, then blend the values together, and finally blend the remaining values with the Master
 
             // instead we just take the master only
             if (MasterPostProcessVolume != null)
             {
-                CurrentState.ExposureSettings = MasterPostProcessVolume.ExposureSettings;
-                CurrentState.TonemapSettings = MasterPostProcessVolume.PostProcessTonemapSettings;
+                newState.ExposureSettings = MasterPostProcessVolume.ExposureSettings;
+                newState.TonemapSettings = MasterPostProcessVolume.PostProcessTonemapSettings;
 
                 if (MasterPostProcessVolume.ColorCorrectionLUT != null)
                 {
-                    CurrentState.NumLutsActive += 1;
-                    CurrentState.ColorCorrectionLUT = MasterPostProcessVolume.ColorCorrectionLUT;
-                    CurrentState.ColorCorrectionLutDimensions = MasterPostProcessVolume.ColorCorrectionLutDimensions;
+                    newState.NumLutsActive += 1;
+                    newState.ColorCorrectionLUT = MasterPostProcessVolume.ColorCorrectionLUT;
+                    newState.ColorCorrectionLutDimensions = MasterPostProcessVolume.ColorCorrectionLutDimensions;
                 }
             }
 
             // env_tonemap_controller overrides the settings
             if (MasterTonemapController != null)
             {
-                CurrentState.ExposureSettings = MasterTonemapController.ControllerExposureSettings;
+                newState.ExposureSettings = MasterTonemapController.ControllerExposureSettings;
             }
+
+            CurrentState = newState;
         }
 
         public float CalculateTonemapScalar()

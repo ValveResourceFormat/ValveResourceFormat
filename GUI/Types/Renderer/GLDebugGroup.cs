@@ -2,7 +2,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
 
-ref struct GLDebugGroup
+public ref struct GLDebugGroup
 {
     public GLDebugGroup(string name)
     {
