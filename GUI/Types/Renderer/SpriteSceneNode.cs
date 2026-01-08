@@ -1,5 +1,4 @@
 using System.Linq;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
@@ -22,10 +21,10 @@ namespace GUI.Types.Renderer
         private readonly int vaoHandle;
         private readonly RenderMaterial material;
 
-        public SpriteSceneNode(Scene scene, VrfGuiContext vrfGuiContext, Resource resource, Vector3 position)
+        public SpriteSceneNode(Scene scene, RendererContext renderContext, Resource resource, Vector3 position)
             : base(scene)
         {
-            material = vrfGuiContext.MaterialLoader.LoadMaterial(resource);
+            material = renderContext.MaterialLoader.LoadMaterial(resource);
 
             // Forcefully clamp sprites so they don't render extra pixels on edges
             foreach (var texture in material.Textures.Values)

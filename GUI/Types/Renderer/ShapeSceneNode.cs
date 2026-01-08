@@ -25,7 +25,7 @@ namespace GUI.Types.Renderer
 
         private ShapeSceneNode(Scene scene) : base(scene)
         {
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.basic_shape");
+            shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.basic_shape");
         }
 
         internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)

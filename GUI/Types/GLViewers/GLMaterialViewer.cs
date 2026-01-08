@@ -37,12 +37,14 @@ namespace GUI.Types.GLViewers
             Both
         }
 
+
         private readonly Resource Resource;
         private TabControl Tabs;
         private Button openShaderButton;
         private TableLayoutPanel ParamsTable;
         private RenderMaterial renderMat;
         private ComboBox previewObjectComboBox;
+        private RendererContext RendererContext;
 
         private enum PreviewObjectType
         {
@@ -56,9 +58,10 @@ namespace GUI.Types.GLViewers
         private MeshCollectionNode previewNode => previewObjects[currentPreviewObject];
         private ShaderCollection vcsShader;
 
-        public GLMaterialViewer(VrfGuiContext guiContext, Resource resource) : base(guiContext)
+        public GLMaterialViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Resource resource) : base(vrfGuiContext, rendererContext)
         {
             Resource = resource;
+            RendererContext = rendererContext;
         }
 
         public void SetTabControl(TabControl tabs)
@@ -72,6 +75,7 @@ namespace GUI.Types.GLViewers
             openShaderButton?.Dispose();
             previewObjectComboBox?.Dispose();
             vcsShader?.Dispose();
+            RendererContext.Dispose();
 
             base.Dispose();
         }
@@ -81,7 +85,7 @@ namespace GUI.Types.GLViewers
             base.LoadScene();
 
             Scene.ShowToolsMaterials = true;
-            renderMat = GuiContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
+            renderMat = RendererContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
             renderMat.Shader.EnsureLoaded();
 
             {

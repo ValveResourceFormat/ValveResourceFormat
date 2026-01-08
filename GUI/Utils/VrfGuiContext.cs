@@ -29,9 +29,6 @@ namespace GUI.Utils
             }
         }
 
-        public MaterialLoader MaterialLoader { get; }
-        public ShaderLoader ShaderLoader { get; }
-        public GPUMeshBufferCache MeshBufferCache { get; }
         public VrfGuiContext? ParentGuiContext { get; }
         public ToolsAssetInfo? ToolsAssetInfo { get; set; }
 
@@ -53,11 +50,6 @@ namespace GUI.Utils
 #if DEBUG
             Log.Debug(nameof(VrfGuiContext), $"#{ContextId} created");
 #endif
-
-            MaterialLoader = new MaterialLoader(this);
-            ShaderLoader = new ShaderLoader(this);
-            MeshBufferCache = new GPUMeshBufferCache();
-
             FileName = fileName;
             ParentGuiContext = parentGuiContext;
 
@@ -157,8 +149,6 @@ namespace GUI.Utils
                 base.CurrentPackage.Dispose();
                 base.CurrentPackage = null;
             }
-
-            ShaderLoader?.Dispose();
 
             ClearCache();
 

@@ -8,8 +8,8 @@ namespace GUI.Types.GLViewers
     {
         private readonly Resource materialResource;
 
-        public GLSkyboxViewer(VrfGuiContext guiContext, Resource material)
-            : base(guiContext, Frustum.CreateEmpty())
+        public GLSkyboxViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Resource material)
+            : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
         {
             materialResource = material;
         }
@@ -23,7 +23,7 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
-            Skybox2D = new SceneSkybox2D(GuiContext.MaterialLoader.LoadMaterial(materialResource));
+            Skybox2D = new SceneSkybox2D(Scene.RendererContext.MaterialLoader.LoadMaterial(materialResource));
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)

@@ -283,7 +283,7 @@ namespace GUI.Types.Renderer
         {
             animations.AddRange(embededAnimationsOnly
                 ? model.GetEmbeddedAnimations()
-                : model.GetAllAnimations(Scene.GuiContext)
+                : model.GetAllAnimations(Scene.RendererContext.FileLoader)
             );
 
             if (animations.Count != 0)
@@ -297,7 +297,7 @@ namespace GUI.Types.Renderer
             // Get embedded meshes
             foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
             {
-                embeddedMesh.Mesh.LoadExternalMorphData(Scene.GuiContext);
+                embeddedMesh.Mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
 
                 meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
@@ -306,14 +306,14 @@ namespace GUI.Types.Renderer
             // Load referred meshes from file (only load meshes with LoD 1)
             foreach (var refMesh in GetLod1RefMeshes())
             {
-                var newResource = Scene.GuiContext.LoadFileCompiled(refMesh.MeshName);
+                var newResource = Scene.RendererContext.FileLoader.LoadFileCompiled(refMesh.MeshName);
                 if (newResource == null)
                 {
                     continue;
                 }
 
                 var mesh = (Mesh)newResource.DataBlock;
-                mesh.LoadExternalMorphData(Scene.GuiContext);
+                mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMeshData(mesh);
 
                 meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));

@@ -18,7 +18,7 @@ namespace GUI.Types.GLViewers
         public Scene Scene { get; }
         public Scene SkyboxScene { get; protected set; }
         public SceneSkybox2D Skybox2D { get; protected set; }
-        public VrfGuiContext GuiContext => Scene.GuiContext;
+        public VrfGuiContext GuiContext;
 
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
@@ -45,14 +45,15 @@ namespace GUI.Types.GLViewers
         public Framebuffer ShadowDepthBuffer { get; private set; }
         public Framebuffer FramebufferCopy { get; private set; }
 
-        protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : this(guiContext)
+        protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Frustum cullFrustum) : this(vrfGuiContext, rendererContext)
         {
             lockedCullFrustum = cullFrustum;
         }
 
-        protected GLSceneViewer(VrfGuiContext guiContext) : base(guiContext)
+        protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
-            Scene = new Scene(guiContext);
+            GuiContext = vrfGuiContext;
+            Scene = new Scene(rendererContext);
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -144,7 +145,7 @@ namespace GUI.Types.GLViewers
                     brdfLutResource.Read(brdfStream);
                 }
 
-                var brdfLutTexture = GuiContext.MaterialLoader.LoadTexture(brdfLutResource);
+                var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
                 brdfLutTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
                 Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
             }
@@ -158,7 +159,7 @@ namespace GUI.Types.GLViewers
             using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
             cubeFogResource.Read(cubeFogStream);
 
-            var defaultCubeTexture = GuiContext.MaterialLoader.LoadTexture(cubeFogResource);
+            var defaultCubeTexture = Scene.RendererContext.MaterialLoader.LoadTexture(cubeFogResource);
             Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
 
 
@@ -177,7 +178,7 @@ namespace GUI.Types.GLViewers
                     blueNoiseResource.Read(blueNoiseStream);
                 }
 
-                var blueNoise = GuiContext.MaterialLoader.LoadTexture(blueNoiseResource);
+                var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
                 postProcessRenderer.BlueNoise = blueNoise;
                 Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
             }
@@ -235,8 +236,8 @@ namespace GUI.Types.GLViewers
                 Input.Camera.LookAt(bbox.Center);
             }
 
-            staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.GuiContext, false);
-            dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.GuiContext, true);
+            staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.RendererContext, false);
+            dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.RendererContext, true);
         }
 
         protected abstract void LoadScene();
@@ -247,8 +248,8 @@ namespace GUI.Types.GLViewers
         {
             baseGrid = new InfiniteGrid(Scene);
             Skybox2D = baseBackground = new SceneBackground(Scene);
-            SelectedNodeRenderer = new(GuiContext);
-            Picker = new(GuiContext, OnPicked);
+            SelectedNodeRenderer = new(Scene.RendererContext);
+            Picker = new(Scene.RendererContext, OnPicked);
 
             var shadowQuality = Settings.Config.ShadowResolution;
 
@@ -264,12 +265,12 @@ namespace GUI.Types.GLViewers
             ShadowDepthBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
 
-            depthOnlyShaders[(int)DepthOnlyProgram.Static] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only");
+            depthOnlyShaders[(int)DepthOnlyProgram.Static] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only");
             //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
-            depthOnlyShaders[(int)DepthOnlyProgram.Animated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
-            depthOnlyShaders[(int)DepthOnlyProgram.AnimatedEightBones] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 }, { "D_EIGHT_BONE_BLENDING", 1 } });
+            depthOnlyShaders[(int)DepthOnlyProgram.Animated] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
+            depthOnlyShaders[(int)DepthOnlyProgram.AnimatedEightBones] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 }, { "D_EIGHT_BONE_BLENDING", 1 } });
 
-            depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
+            depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
 
             FramebufferCopy = Framebuffer.Prepare(nameof(FramebufferCopy), 4, 4, 0,
                 new Framebuffer.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
@@ -290,7 +291,7 @@ namespace GUI.Types.GLViewers
             PreSceneLoad();
             LoadScene();
             timer.Stop();
-            Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {GuiContext.ShaderLoader.ShaderCount}, materials: {GuiContext.MaterialLoader.MaterialCount}");
+            Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {Scene.RendererContext.ShaderLoader.ShaderCount}, materials: {Scene.RendererContext.MaterialLoader.MaterialCount}");
 
             PostSceneLoad();
 

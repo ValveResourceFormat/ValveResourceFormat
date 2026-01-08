@@ -14,6 +14,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
+using static GUI.Types.Renderer.Scene;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
 #nullable disable
@@ -42,7 +43,8 @@ namespace GUI.Types.GLViewers
             Linear,
         }
 
-        protected VrfGuiContext GuiContext;
+        protected RendererContext RendererContext;
+        protected VrfGuiContext VrfGuiContext;
         private Resource Resource;
         private SKBitmap Bitmap;
         private SKSvg Svg;
@@ -128,9 +130,10 @@ namespace GUI.Types.GLViewers
             (ChannelMapping.RGBA, ChannelSplitting.FourChannels, "R | G | B | A (Separate channels)"),
         ];
 
-        private GLTextureViewer(VrfGuiContext guiContext) : base(guiContext)
+        private GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
-            GuiContext = guiContext;
+            RendererContext = rendererContext;
+            VrfGuiContext = vrfGuiContext;
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -410,17 +413,17 @@ namespace GUI.Types.GLViewers
             return;
         }
 
-        public GLTextureViewer(VrfGuiContext guiContext, SKBitmap bitmap) : this(guiContext)
+        public GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SKBitmap bitmap) : this(vrfGuiContext, rendererContext)
         {
             Bitmap = bitmap;
         }
 
-        public GLTextureViewer(VrfGuiContext guiContext, SKSvg svg) : this(guiContext)
+        public GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SKSvg svg) : this(vrfGuiContext, rendererContext)
         {
             SetSvg(svg);
         }
 
-        public GLTextureViewer(VrfGuiContext guiContext, Resource resource) : this(guiContext)
+        public GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Resource resource) : this(vrfGuiContext, rendererContext)
         {
             Resource = resource;
 
@@ -553,8 +556,6 @@ namespace GUI.Types.GLViewers
 #if DEBUG
             ShaderHotReload.ShadersReloaded -= OnHotReload;
 #endif
-
-            GuiContext = null;
             Resource = null;
 
             Bitmap?.Dispose();
@@ -569,6 +570,8 @@ namespace GUI.Types.GLViewers
 
             decodeFlagsListBox?.Dispose();
             decodeFlagsListBox = null;
+
+            RendererContext.Dispose();
         }
 
         private void OnSaveButtonClick(object sender, EventArgs e)
@@ -1073,7 +1076,7 @@ namespace GUI.Types.GLViewers
                 [textureType] = 1,
             };
 
-            shader = GuiContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
+            shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
         }
 
         private void UploadTexture(bool forceSoftwareDecode)
@@ -1142,7 +1145,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            texture = GuiContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
+            texture = RendererContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
             InvalidateRender();
         }
 
@@ -1322,7 +1325,7 @@ namespace GUI.Types.GLViewers
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
-            GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
 

@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using SkiaSharp;
 using Svg.Skia;
@@ -14,8 +15,8 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 {
     private readonly KVObject graphDefinition;
 
-    public AnimationGraphViewer(VrfGuiContext guiContext, KVObject data)
-        : base(guiContext, CreateAndConfigureNodeGraph(data, out var graphDef))
+    public AnimationGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
+        : base(vrfGuiContext, rendererContext, CreateAndConfigureNodeGraph(data, out var graphDef))
     {
         graphDefinition = graphDef;
 
@@ -43,7 +44,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
         if (element is Node { ExternalResourceName: not null } node)
         {
-            var foundFile = GuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
+            var foundFile = VrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
             if (foundFile.Context != null)
             {
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);

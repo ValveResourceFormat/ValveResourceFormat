@@ -1,3 +1,4 @@
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 
@@ -7,10 +8,10 @@ namespace GUI.Types.GLViewers
 {
     class GLAnimGraphViewer : GLModelViewer
     {
-        public GLAnimGraphViewer(VrfGuiContext guiContext, AnimGraph animGraph) : base(guiContext)
+        public GLAnimGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, AnimGraph animGraph) : base(vrfGuiContext, rendererContext)
         {
             var animGraphAssociatedModel = animGraph.Data.GetProperty<string>("m_modelName");
-            var modelResource = guiContext.LoadFileCompiled(animGraphAssociatedModel) ?? guiContext.LoadFileCompiled("models/dev/error.vmdl");
+            var modelResource = rendererContext.FileLoader.LoadFileCompiled(animGraphAssociatedModel) ?? rendererContext.FileLoader.LoadFileCompiled("models/dev/error.vmdl");
             model = (Model)modelResource?.DataBlock;
         }
     }

@@ -78,18 +78,20 @@ namespace GUI.Types.Viewers
 
         private void InitializeSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
         {
+            using var rendererContext = new Renderer.RendererContext(vrfGuiContext);
+
             switch (resource.ResourceType)
             {
                 case ResourceType.Texture:
                 case ResourceType.PanoramaVectorGraphic:
-                    GLViewer = new GLTextureViewer(vrfGuiContext, resource);
+                    GLViewer = new GLTextureViewer(vrfGuiContext, rendererContext, resource);
                     GLViewerTabName = "TEXTURE";
                     break;
 
                 case ResourceType.Particle:
                     if (resource.DataBlock is ParticleSystem particleData)
                     {
-                        GLViewer = new GLParticleViewer(vrfGuiContext, particleData);
+                        GLViewer = new GLParticleViewer(vrfGuiContext, rendererContext, particleData);
                         GLViewerTabName = "PARTICLE";
                     }
                     break;
@@ -101,7 +103,7 @@ namespace GUI.Types.Viewers
 
                         if (mapResource != null && mapResource.DataBlock is World mapWorldData)
                         {
-                            GLViewer = new GLWorldViewer(vrfGuiContext, mapWorldData, mapExternalReferences);
+                            GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, mapWorldData, mapExternalReferences);
                             GLViewerTabName = "MAP";
                         }
                         else
@@ -114,7 +116,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.World:
                     if (resource.DataBlock is World worldData)
                     {
-                        GLViewer = new GLWorldViewer(vrfGuiContext, worldData);
+                        GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, worldData);
                         GLViewerTabName = "MAP";
                     }
                     break;
@@ -122,7 +124,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.WorldNode:
                     if (resource.DataBlock is WorldNode worldNodeData)
                     {
-                        GLViewer = new GLWorldViewer(vrfGuiContext, worldNodeData, resource.ExternalReferences);
+                        GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, worldNodeData, resource.ExternalReferences);
                         GLViewerTabName = "WORLD NODE";
                     }
                     break;
@@ -130,7 +132,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.Model:
                     if (resource.DataBlock is Model modelData)
                     {
-                        GLViewer = new GLModelViewer(vrfGuiContext, modelData);
+                        GLViewer = new GLModelViewer(vrfGuiContext, rendererContext, modelData);
                         GLViewerTabName = "MODEL";
                     }
                     break;
@@ -138,7 +140,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.Mesh:
                     if (resource.DataBlock is Mesh meshData)
                     {
-                        GLViewer = new GLMeshViewer(vrfGuiContext, meshData);
+                        GLViewer = new GLMeshViewer(vrfGuiContext, rendererContext, meshData);
                         GLViewerTabName = "MESH";
                     }
                     break;
@@ -146,7 +148,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.SmartProp:
                     if (resource.DataBlock is SmartProp smartPropData)
                     {
-                        GLViewer = new GLSmartPropViewer(vrfGuiContext, smartPropData);
+                        GLViewer = new GLSmartPropViewer(vrfGuiContext, rendererContext, smartPropData);
                         GLViewerTabName = "SMART PROP";
                     }
                     break;
@@ -154,25 +156,25 @@ namespace GUI.Types.Viewers
                 case ResourceType.AnimationGraph:
                     if (resource.DataBlock is AnimGraph animGraphData)
                     {
-                        GLViewer = new GLAnimGraphViewer(vrfGuiContext, animGraphData);
+                        GLViewer = new GLAnimGraphViewer(vrfGuiContext, rendererContext, animGraphData);
                         GLViewerTabName = "ANIMATION GRAPH";
                     }
                     break;
 
                 case ResourceType.NmClip:
-                    GLViewer = new GLAnimationViewer(vrfGuiContext, resource);
+                    GLViewer = new GLAnimationViewer(vrfGuiContext, rendererContext, resource);
                     GLViewerTabName = "ANIMATION CLIP";
                     break;
 
                 case ResourceType.NmSkeleton:
-                    GLViewer = new GLAnimationViewer(vrfGuiContext, resource);
+                    GLViewer = new GLAnimationViewer(vrfGuiContext, rendererContext, resource);
                     GLViewerTabName = "SKELETON";
                     break;
 
                 case ResourceType.NmGraph:
                     if (resource.DataBlock is BinaryKV3 binaryKV3)
                     {
-                        GLViewer = new AnimationGraphViewer(vrfGuiContext, binaryKV3.Data);
+                        GLViewer = new AnimationGraphViewer(vrfGuiContext, rendererContext, binaryKV3.Data);
                         GLViewerTabName = "ANIMATION GRAPH";
                     }
                     break;
@@ -181,12 +183,12 @@ namespace GUI.Types.Viewers
                     {
                         if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
                         {
-                            GLViewer = new GLSkyboxViewer(vrfGuiContext, resource);
+                            GLViewer = new GLSkyboxViewer(vrfGuiContext, rendererContext, resource);
                             GLViewerTabName = "SKYBOX";
                         }
                         else
                         {
-                            GLViewer = new GLMaterialViewer(vrfGuiContext, resource);
+                            GLViewer = new GLMaterialViewer(vrfGuiContext, rendererContext, resource);
                             GLViewerTabName = "MATERIAL";
                         }
                         break;
@@ -195,7 +197,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.PhysicsCollisionMesh:
                     if (resource.DataBlock is PhysAggregateData physAggregateData)
                     {
-                        GLViewer = new GLModelViewer(vrfGuiContext, physAggregateData);
+                        GLViewer = new GLModelViewer(vrfGuiContext, rendererContext, physAggregateData);
                         GLViewerTabName = "PHYSICS";
                     }
                     break;
@@ -203,7 +205,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.PostProcessing:
                     if (resource.DataBlock is PostProcessing postProcessing && postProcessing.Data.ContainsKey("m_colorCorrectionVolumeData"))
                     {
-                        GLViewer = new GLTextureViewer(vrfGuiContext, resource);
+                        GLViewer = new GLTextureViewer(vrfGuiContext, rendererContext, resource);
                         GLViewerTabName = "LUT";
                     }
                     break;

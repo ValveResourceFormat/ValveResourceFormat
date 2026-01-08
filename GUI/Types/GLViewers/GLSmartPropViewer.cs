@@ -10,7 +10,7 @@ namespace GUI.Types.GLViewers
     {
         private readonly SmartProp smartProp;
 
-        public GLSmartPropViewer(VrfGuiContext guiContext, SmartProp smartProp) : base(guiContext)
+        public GLSmartPropViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SmartProp smartProp) : base(vrfGuiContext, rendererContext)
         {
             this.smartProp = smartProp;
         }

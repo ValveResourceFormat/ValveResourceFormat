@@ -5,7 +5,7 @@ using GUI.Types.ParticleRenderer.Initializers;
 using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.PreEmissionOperators;
 using GUI.Types.ParticleRenderer.Renderers;
-using GUI.Utils;
+using GUI.Types.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.ParticleRenderer
@@ -118,11 +118,11 @@ namespace GUI.Types.ParticleRenderer
             };
 
         // Register particle renderers
-        private static readonly Dictionary<string, Func<ParticleDefinitionParser, VrfGuiContext, ParticleFunctionRenderer>> RendererDictionary
+        private static readonly Dictionary<string, Func<ParticleDefinitionParser, RendererContext, ParticleFunctionRenderer>> RendererDictionary
             = new()
             {
-                ["C_OP_RenderSprites"] = (rendererInfo, vrfGuiContext) => new RenderSprites(rendererInfo, vrfGuiContext),
-                ["C_OP_RenderTrails"] = (rendererInfo, vrfGuiContext) => new RenderTrails(rendererInfo, vrfGuiContext),
+                ["C_OP_RenderSprites"] = (rendererInfo, rendererContext) => new RenderSprites(rendererInfo, rendererContext),
+                ["C_OP_RenderTrails"] = (rendererInfo, rendererContext) => new RenderTrails(rendererInfo, rendererContext),
             };
 
         // Register particle pre-emission operators (mostly stuff with control points)
@@ -187,11 +187,11 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateRender(string name, KVObject rendererInfo, VrfGuiContext vrfGuiContext, [MaybeNullWhen(false)] out ParticleFunctionRenderer renderer)
+        public static bool TryCreateRender(string name, KVObject rendererInfo, RendererContext rendererContext, [MaybeNullWhen(false)] out ParticleFunctionRenderer renderer)
         {
             if (RendererDictionary.TryGetValue(name, out var factory))
             {
-                renderer = factory(new ParticleDefinitionParser(rendererInfo), vrfGuiContext);
+                renderer = factory(new ParticleDefinitionParser(rendererInfo), rendererContext);
                 return true;
             }
 

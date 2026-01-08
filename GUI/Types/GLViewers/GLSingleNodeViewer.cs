@@ -15,8 +15,8 @@ namespace GUI.Types.GLViewers
     {
         private Framebuffer SaveAsFbo;
 
-        public GLSingleNodeViewer(VrfGuiContext guiContext)
-            : base(guiContext, Frustum.CreateEmpty())
+        public GLSingleNodeViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
+            : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
         {
             //
         }
@@ -49,7 +49,7 @@ namespace GUI.Types.GLViewers
             };
             resource.Read(stream);
 
-            var texture = Scene.GuiContext.MaterialLoader.LoadTexture(resource);
+            var texture = Scene.RendererContext.MaterialLoader.LoadTexture(resource);
             var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
             {
                 Transform = Matrix4x4.Identity,

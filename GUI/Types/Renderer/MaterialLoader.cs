@@ -17,7 +17,7 @@ namespace GUI.Types.Renderer
         private readonly Dictionary<ulong, RenderMaterial> Materials = [];
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
-        private readonly VrfGuiContext VrfGuiContext;
+        private readonly RendererContext RendererContext;
         private RenderTexture? ErrorTexture;
         private RenderTexture? DefaultNormal;
         private RenderTexture? DefaultMask;
@@ -33,9 +33,9 @@ namespace GUI.Types.Renderer
             ["g_tAmbientOcclusion"] = ["g_tLayer1AmbientOcclusion"],
         };
 
-        public MaterialLoader(VrfGuiContext guiContext)
+        public MaterialLoader(RendererContext rendererContext)
         {
-            VrfGuiContext = guiContext;
+            RendererContext = rendererContext;
         }
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
@@ -72,7 +72,7 @@ namespace GUI.Types.Renderer
                 return mat;
             }
 
-            var resource = VrfGuiContext.LoadFileCompiled(name);
+            var resource = RendererContext.FileLoader.LoadFileCompiled(name);
             mat = LoadMaterial(resource, shaderArguments);
 
             Materials.Add(cacheKey, mat);
@@ -91,7 +91,7 @@ namespace GUI.Types.Renderer
             Debug.Assert(vrfMaterial != null);
             var mat = new RenderMaterial(
                 vrfMaterial,
-                VrfGuiContext,
+                RendererContext,
                 shaderArguments
             );
 
@@ -158,7 +158,7 @@ namespace GUI.Types.Renderer
 
         private RenderTexture LoadTexture(string name, bool srgbRead = false)
         {
-            var textureResource = VrfGuiContext.LoadFileCompiled(name);
+            var textureResource = RendererContext.FileLoader.LoadFileCompiled(name);
 
             if (textureResource == null)
             {
@@ -351,7 +351,7 @@ namespace GUI.Types.Renderer
 
         private RenderMaterial GetErrorMaterial()
         {
-            var errorMat = new RenderMaterial(VrfGuiContext.ShaderLoader.LoadShader("vrf.error"));
+            var errorMat = new RenderMaterial(RendererContext.ShaderLoader.LoadShader("vrf.error"));
             return errorMat;
         }
 

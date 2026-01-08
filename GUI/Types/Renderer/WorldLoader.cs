@@ -18,7 +18,7 @@ namespace GUI.Types.Renderer
     public class WorldLoader
     {
         private readonly Scene scene;
-        private readonly VrfGuiContext guiContext;
+        private readonly RendererContext RendererContext;
 
         public string MapName { get; }
 
@@ -45,13 +45,13 @@ namespace GUI.Types.Renderer
             MapName = Path.GetDirectoryName(world.Resource!.FileName!)!.Replace('\\', '/');
             World = world;
             this.scene = scene;
-            guiContext = scene.GuiContext;
+            RendererContext = scene.RendererContext;
 
             if (mapResourceReferences != null)
             {
                 Resource? PreloadResource(string resourceName)
                 {
-                    var resource = guiContext.LoadFileCompiled(resourceName);
+                    var resource = RendererContext.FileLoader.LoadFileCompiled(resourceName);
                     if (resource is { DataBlock: Model model })
                     {
                         lock (resource)
@@ -124,7 +124,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                var newResource = guiContext.LoadFileCompiled(lumpName);
+                var newResource = RendererContext.FileLoader.LoadFileCompiled(lumpName);
 
                 if (newResource == null)
                 {
@@ -160,7 +160,7 @@ namespace GUI.Types.Renderer
             {
                 if (worldNode != null)
                 {
-                    var worldNodeResource = guiContext.LoadFile(string.Concat(worldNode, ".vwnod_c"));
+                    var worldNodeResource = RendererContext.FileLoader.LoadFile(string.Concat(worldNode, ".vwnod_c"));
                     if (worldNodeResource == null)
                     {
                         continue;
@@ -174,7 +174,7 @@ namespace GUI.Types.Renderer
 
                     MainWorldNode ??= worldNodeData;
 
-                    var subloader = new WorldNodeLoader(guiContext, worldNodeData);
+                    var subloader = new WorldNodeLoader(RendererContext, worldNodeData);
                     subloader.Load(scene);
 
                     foreach (var layer in subloader.LayerNames)
@@ -189,7 +189,7 @@ namespace GUI.Types.Renderer
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
             PhysAggregateData? phys = null;
-            var physResource = guiContext.LoadFile($"{MapName}/world_physics.vmdl_c");
+            var physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vmdl_c");
 
             if (physResource != null)
             {
@@ -197,7 +197,7 @@ namespace GUI.Types.Renderer
             }
             else
             {
-                physResource = guiContext.LoadFile($"{MapName}/world_physics.vphys_c");
+                physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vphys_c");
 
                 if (physResource != null)
                 {
@@ -259,7 +259,7 @@ namespace GUI.Types.Renderer
                 if (LightmapNameToUniformName.TryGetValue(name, out var uniformName))
                 {
                     var srgbRead = name == "irradiance";
-                    var renderTexture = guiContext.MaterialLoader.GetTexture(lightmap, srgbRead);
+                    var renderTexture = RendererContext.MaterialLoader.GetTexture(lightmap, srgbRead);
                     result.Lightmaps[uniformName] = renderTexture;
                     MaterialLoader.ReservedTextures.Add(uniformName);
 
@@ -309,7 +309,7 @@ namespace GUI.Types.Renderer
 
             foreach (var childEntityName in childEntities)
             {
-                var newResource = guiContext.LoadFileCompiled(childEntityName);
+                var newResource = RendererContext.FileLoader.LoadFileCompiled(childEntityName);
 
                 if (newResource == null)
                 {
@@ -415,9 +415,9 @@ namespace GUI.Types.Renderer
                         {
                             Translation = Vector3.Zero
                         };
-                        using var skyMaterial = guiContext.LoadFileCompiled(skyname);
+                        using var skyMaterial = RendererContext.FileLoader.LoadFileCompiled(skyname);
 
-                        Skybox2D = new SceneSkybox2D(guiContext.MaterialLoader.LoadMaterial(skyMaterial))
+                        Skybox2D = new SceneSkybox2D(RendererContext.MaterialLoader.LoadMaterial(skyMaterial))
                         {
                             Tint = tintColor,
                             Transform = rotation,
@@ -534,7 +534,7 @@ namespace GUI.Types.Renderer
                         if (fogSource == 0) // Cubemap From Texture, Disabled in CS2
                         {
                             var textureName = entity.GetProperty<string>("cubemapfogtexture");
-                            fogTexture = guiContext.MaterialLoader.GetTexture(textureName);
+                            fogTexture = RendererContext.MaterialLoader.GetTexture(textureName);
                         }
                         else
                         {
@@ -568,8 +568,8 @@ namespace GUI.Types.Renderer
 
                             if (!string.IsNullOrEmpty(material))
                             {
-                                using var matFile = guiContext.LoadFileCompiled(material);
-                                var mat = guiContext.MaterialLoader.LoadMaterial(matFile);
+                                using var matFile = RendererContext.FileLoader.LoadFileCompiled(material);
+                                var mat = RendererContext.MaterialLoader.LoadMaterial(matFile);
 
                                 if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
                                 {
@@ -639,7 +639,7 @@ namespace GUI.Types.Renderer
 
                     if (classname != "env_light_probe_volume")
                     {
-                        var envMapTexture = guiContext.MaterialLoader.GetTexture(
+                        var envMapTexture = RendererContext.MaterialLoader.GetTexture(
                             entity.GetProperty<string>("cubemaptexture")
                         );
 
@@ -667,7 +667,7 @@ namespace GUI.Types.Renderer
 
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
                     {
-                        var irradianceTexture = guiContext.MaterialLoader.GetTexture(
+                        var irradianceTexture = RendererContext.MaterialLoader.GetTexture(
                             entity.GetProperty<string>("lightprobetexture"),
                             srgbRead: true
                         );
@@ -688,13 +688,13 @@ namespace GUI.Types.Renderer
 
                         if (dlsName != null)
                         {
-                            lightProbe.DirectLightScalars = guiContext.MaterialLoader.GetTexture(dlsName);
+                            lightProbe.DirectLightScalars = RendererContext.MaterialLoader.GetTexture(dlsName);
                             lightProbe.DirectLightScalars.SetWrapMode(TextureWrapMode.ClampToEdge);
                         }
 
                         if (dliName != null)
                         {
-                            lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
+                            lightProbe.DirectLightIndices = RendererContext.MaterialLoader.GetTexture(dliName);
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                             lightProbe.DirectLightIndices.SetWrapMode(TextureWrapMode.ClampToEdge);
                         }
@@ -707,7 +707,7 @@ namespace GUI.Types.Renderer
 
                         if (dlsdName != null)
                         {
-                            lightProbe.DirectLightShadows = guiContext.MaterialLoader.GetTexture(dlsdName);
+                            lightProbe.DirectLightShadows = RendererContext.MaterialLoader.GetTexture(dlsdName);
                             lightProbe.DirectLightShadows.SetWrapMode(TextureWrapMode.ClampToEdge);
 
                             lightProbe.AtlasSize = new Vector3(
@@ -747,7 +747,7 @@ namespace GUI.Types.Renderer
 
                 if (particle != null)
                 {
-                    var particleResource = guiContext.LoadFileCompiled(particle);
+                    var particleResource = RendererContext.FileLoader.LoadFileCompiled(particle);
                     var particleSystem = (ParticleSystem?)particleResource?.DataBlock;
 
                     if (particleSystem != null)
@@ -800,7 +800,7 @@ namespace GUI.Types.Renderer
 
                     if (postProcessResourceFilename != null)
                     {
-                        var postProcessResource = guiContext.LoadFileCompiled(postProcessResourceFilename);
+                        var postProcessResource = RendererContext.FileLoader.LoadFileCompiled(postProcessResourceFilename);
 
                         if (postProcessResource != null)
                         {
@@ -814,7 +814,7 @@ namespace GUI.Types.Renderer
 
                     if (model != null)
                     {
-                        var postProcessModel = guiContext.LoadFileCompiled(model);
+                        var postProcessModel = RendererContext.FileLoader.LoadFileCompiled(model);
 
                         if (postProcessModel != null)
                         {
@@ -882,11 +882,11 @@ namespace GUI.Types.Renderer
                     return;
                 }
 
-                var newEntity = guiContext.LoadFileCompiled(model);
+                var newEntity = RendererContext.FileLoader.LoadFileCompiled(model);
 
                 if (newEntity == null)
                 {
-                    var errorModelResource = guiContext.LoadFile("models/dev/error.vmdl_c");
+                    var errorModelResource = RendererContext.FileLoader.LoadFile("models/dev/error.vmdl_c");
 
                     if (errorModelResource != null)
                     {
@@ -953,7 +953,7 @@ namespace GUI.Types.Renderer
                     var refPhysicsPaths = newModel.GetReferencedPhysNames().ToArray();
                     if (refPhysicsPaths.Length != 0)
                     {
-                        var newResource = guiContext.LoadFileCompiled(refPhysicsPaths.First());
+                        var newResource = RendererContext.FileLoader.LoadFileCompiled(refPhysicsPaths.First());
                         if (newResource != null)
                         {
                             phys = (PhysAggregateData?)newResource.DataBlock;
@@ -998,7 +998,7 @@ namespace GUI.Types.Renderer
         {
             var targetmapname = entity.GetProperty<string>("targetmapname");
 
-            if (targetmapname == null || guiContext.ParentGuiContext == null)
+            if (targetmapname == null)
             {
                 return;
             }
@@ -1011,14 +1011,14 @@ namespace GUI.Types.Renderer
 
             // Maps have to be packed in a vpk?
             var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
-            var vpkFound = guiContext.FindFile(vpkFile);
+            var vpkFound = RendererContext.FileLoader.FindFile(vpkFile);
             Package? package;
 
             // Load the skybox map vpk and make it searchable in the file loader
             if (vpkFound.PathOnDisk != null)
             {
                 // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
-                package = guiContext.AddPackageToSearch(vpkFound.PathOnDisk);
+                package = RendererContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
             }
             else if (vpkFound.PackageEntry != null)
             {
@@ -1039,7 +1039,7 @@ namespace GUI.Types.Renderer
                     package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
                     package.Read(stream);
 
-                    guiContext.AddPackageToSearch(package);
+                    RendererContext.FileLoader.AddPackageToSearch(package);
 
                     package = null;
                 }
@@ -1059,19 +1059,19 @@ namespace GUI.Types.Renderer
                 "world.vwrld_c"
             );
 
-            var skyboxWorld = guiContext.LoadFile(worldName);
+            var skyboxWorld = RendererContext.FileLoader.LoadFile(worldName);
             var skyboxWorldData = (World?)skyboxWorld?.DataBlock;
 
             if (skyboxWorldData == null)
             {
                 if (package != null)
                 {
-                    guiContext.RemovePackageFromSearch(package);
+                    RendererContext.FileLoader.RemovePackageFromSearch(package);
                 }
                 return;
             }
 
-            SkyboxScene = new Scene(guiContext);
+            SkyboxScene = new Scene(RendererContext);
             SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
 
             var skyboxResult = new WorldLoader(skyboxWorldData, SkyboxScene, null);
@@ -1106,7 +1106,7 @@ namespace GUI.Types.Renderer
 
             if (package != null)
             {
-                guiContext.RemovePackageFromSearch(package);
+                RendererContext.FileLoader.RemovePackageFromSearch(package);
             }
         }
 
@@ -1115,7 +1115,7 @@ namespace GUI.Types.Renderer
             var navFilePath = Path.ChangeExtension(MapName, ".nav");
             try
             {
-                using var navFileStream = guiContext.GetFileStream(navFilePath);
+                using var navFileStream = RendererContext.FileLoader.GetFileStream(navFilePath);
                 if (navFileStream != null)
                 {
                     NavMesh = new NavMeshFile();
@@ -1141,7 +1141,7 @@ namespace GUI.Types.Renderer
                 {
                     filename = file;
 
-                    resource = guiContext.LoadFileCompiled(file);
+                    resource = RendererContext.FileLoader.LoadFileCompiled(file);
 
                     if (resource != null)
                     {
@@ -1182,7 +1182,7 @@ namespace GUI.Types.Renderer
             }
             else if (resource.ResourceType == ResourceType.Material)
             {
-                var spriteNode = new SpriteSceneNode(scene, guiContext, resource, transformationMatrix.Translation)
+                var spriteNode = new SpriteSceneNode(scene, RendererContext, resource, transformationMatrix.Translation)
                 {
                     LayerName = layerName,
                     Name = filename,

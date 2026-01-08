@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -38,10 +37,10 @@ namespace GUI.Types.Renderer
             public Vector4 Ranges;
         }
 
-        public MorphComposite(VrfGuiContext vrfGuiContext, Morph morph)
+        public MorphComposite(RendererContext renderContext, Morph morph)
         {
-            morphAtlas = vrfGuiContext.MaterialLoader.LoadTexture(morph.TextureResource);
-            shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.morph_composite");
+            morphAtlas = renderContext.MaterialLoader.LoadTexture(morph.TextureResource);
+            shader = renderContext.ShaderLoader.LoadShader("vrf.morph_composite");
 
             var width = morph.Data.GetInt32Property("m_nWidth");
             var height = morph.Data.GetInt32Property("m_nHeight");
@@ -49,7 +48,7 @@ namespace GUI.Types.Renderer
 
             GL.CreateFramebuffers(1, out frameBuffer);
 
-            InitVertexBuffer(vrfGuiContext);
+            InitVertexBuffer(renderContext);
 
             FillVertices(morph);
 
@@ -113,14 +112,14 @@ namespace GUI.Types.Renderer
             GL.Enable(EnableCap.CullFace);
         }
 
-        private void InitVertexBuffer(VrfGuiContext guiContext)
+        private void InitVertexBuffer(RendererContext renderContext)
         {
             var stride = sizeof(float) * VertexSize;
 
             GL.CreateVertexArrays(1, out vao);
             GL.CreateBuffers(1, out bufferHandle);
             GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, guiContext.MeshBufferCache.QuadIndices.GLHandle);
+            GL.VertexArrayElementBuffer(vao, renderContext.MeshBufferCache.QuadIndices.GLHandle);
 
             var positionWeightsLocation = GL.GetAttribLocation(shader.Program, "vPositionWeights");
             var texCoordsLocation = GL.GetAttribLocation(shader.Program, "vTexCoords");

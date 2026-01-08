@@ -23,8 +23,8 @@ namespace GUI.Types.GLViewers
         private SKSurface surface;
         private SKSizeI lastSize;
 
-        public GLNodeGraphViewer(VrfGuiContext guiContext, NodeGraphControl graph)
-            : base(guiContext, (SKBitmap)null)
+        public GLNodeGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, NodeGraphControl graph)
+            : base(vrfGuiContext, rendererContext, (SKBitmap)null)
         {
             nodeGraph = graph;
             nodeGraph.GraphChanged += OnGraphChanged;

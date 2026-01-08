@@ -1,4 +1,3 @@
-using GUI.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
@@ -12,7 +11,7 @@ namespace GUI.Types.Renderer
         private readonly float[] controllerValues;
         public MorphComposite MorphComposite { get; }
 
-        public FlexStateManager(VrfGuiContext guiContext, Morph morph)
+        public FlexStateManager(RendererContext renderContext, Morph morph)
         {
             FlexRules = morph.FlexRules;
             FlexControllers = morph.FlexControllers;
@@ -25,7 +24,7 @@ namespace GUI.Types.Renderer
                 morphIdToRuleId[rule.FlexID] = i;
             }
 
-            MorphComposite = new MorphComposite(guiContext, morph);
+            MorphComposite = new MorphComposite(renderContext, morph);
         }
 
         public bool SetControllerValue(int id, float value)

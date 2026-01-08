@@ -1,4 +1,3 @@
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
 
@@ -30,12 +29,12 @@ namespace GUI.Types.Renderer
         public required string FileName { get; init; }
 #endif
 
-        public Shader(string name, VrfGuiContext guiContext)
+        public Shader(string name, RendererContext rendererContext)
         {
             Name = name;
             NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
             Default = new RenderMaterial(this);
-            MaterialLoader = guiContext.MaterialLoader;
+            MaterialLoader = rendererContext.MaterialLoader;
         }
 
         public bool EnsureLoaded()

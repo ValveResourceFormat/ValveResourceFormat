@@ -14,8 +14,8 @@ namespace GUI.Types.GLViewers
         private readonly NavMeshFile navMeshFile;
         private CheckedListBox worldLayersComboBox;
 
-        public GLNavMeshViewer(VrfGuiContext guiContext, NavMeshFile navMeshFile)
-            : base(guiContext)
+        public GLNavMeshViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, NavMeshFile navMeshFile)
+            : base(vrfGuiContext, rendererContext)
         {
             this.navMeshFile = navMeshFile;
         }

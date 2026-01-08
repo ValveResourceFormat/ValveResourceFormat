@@ -41,7 +41,7 @@ namespace GUI.Types.Renderer
 
         private static readonly ShaderParser Parser = new();
 
-        private readonly VrfGuiContext VrfGuiContext;
+        private readonly RendererContext RendererContext;
 
 #if DEBUG
         private HashSet<string> LastShaderVariantNames = [];
@@ -74,9 +74,9 @@ namespace GUI.Types.Renderer
             });
         }
 
-        public ShaderLoader(VrfGuiContext guiContext)
+        public ShaderLoader(RendererContext rendererContext)
         {
-            VrfGuiContext = guiContext;
+            RendererContext = rendererContext;
         }
 
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte>? arguments = null, bool blocking = true)
@@ -144,7 +144,7 @@ namespace GUI.Types.Renderer
                 GL.ObjectLabel(ObjectLabelIdentifier.Shader, fragmentShader, shaderFileName.Length, shaderFileName);
 #endif
 
-                var shader = new Shader(shaderName, VrfGuiContext)
+                var shader = new Shader(shaderName, RendererContext)
                 {
 #if DEBUG
                     FileName = shaderFileName,
@@ -461,7 +461,8 @@ namespace GUI.Types.Renderer
         public static void ValidateShadersCore(IProgress<string> progressReporter, string? filter = null)
         {
             using var context = new VrfGuiContext(string.Empty, null);
-            using var loader = new ShaderLoader(context);
+            var renderContext = new RendererContext(context);
+            using var loader = new ShaderLoader(renderContext);
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
             var shaders = Directory.GetFiles(folder, filter ?? $"*{ShaderFileExtension}");

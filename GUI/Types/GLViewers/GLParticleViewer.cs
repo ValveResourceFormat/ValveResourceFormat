@@ -19,7 +19,7 @@ namespace GUI.Types.GLViewers
 
         private bool ShowRenderBounds { get; set; }
 
-        public GLParticleViewer(VrfGuiContext guiContext, ParticleSystem particleSystem) : base(guiContext, Frustum.CreateEmpty())
+        public GLParticleViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, ParticleSystem particleSystem) : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
         {
             this.particleSystem = particleSystem;
         }

@@ -63,18 +63,18 @@ namespace GUI.Types.GLViewers
         public ShaderHotReload ShaderHotReload;
 #endif
 
-        public GLViewerControl(VrfGuiContext guiContext)
+        public GLViewerControl(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
         {
             lastUpdate = Stopwatch.GetTimestamp();
 
             Camera = new Camera();
             Input = new UserInput();
 
-            TextRenderer = new(guiContext, Camera);
-            postProcessRenderer = new(guiContext);
+            TextRenderer = new(rendererContext, Camera);
+            postProcessRenderer = new(rendererContext);
 
 #if DEBUG
-            ShaderHotReload = new ShaderHotReload(this, guiContext.ShaderLoader);
+            ShaderHotReload = new ShaderHotReload(this, rendererContext.ShaderLoader);
 #endif
         }
 

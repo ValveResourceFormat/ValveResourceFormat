@@ -22,7 +22,7 @@ namespace GUI.Types.Renderer
             this.animationController = animationController;
             this.skeleton = skeleton;
 
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
+            shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out vboHandle);

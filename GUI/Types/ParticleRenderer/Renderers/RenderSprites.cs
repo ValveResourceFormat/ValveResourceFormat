@@ -1,6 +1,5 @@
 using System.Buffers;
 using GUI.Types.Renderer;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.ParticleRenderer.Renderers
@@ -11,7 +10,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private const int VertexSize = 9;
 
         private readonly Shader shader;
-        private readonly VrfGuiContext guiContext;
+        private readonly RendererContext RendererContext;
         private readonly int vaoHandle;
         private readonly RenderTexture texture;
 
@@ -30,9 +29,9 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private int vertexBufferHandle;
 
 
-        public RenderSprites(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
+        public RenderSprites(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
-            guiContext = vrfGuiContext;
+            RendererContext = rendererContext;
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
@@ -46,7 +45,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
                 shaderParams["F_MOD2X"] = 1;
             }
 
-            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName, shaderParams);
+            shader = RendererContext.ShaderLoader.LoadShader(ShaderName, shaderParams);
 
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer();
@@ -69,11 +68,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (textureName == null)
             {
-                texture = vrfGuiContext.MaterialLoader.GetErrorTexture();
+                texture = rendererContext.MaterialLoader.GetErrorTexture();
             }
             else
             {
-                texture = vrfGuiContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
+                texture = rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
             }
 
 #if DEBUG
@@ -105,7 +104,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
             GL.CreateVertexArrays(1, out int vao);
             GL.CreateBuffers(1, out vertexBufferHandle);
             GL.VertexArrayVertexBuffer(vao, 0, vertexBufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, guiContext.MeshBufferCache.QuadIndices.GLHandle);
+            GL.VertexArrayElementBuffer(vao, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
             var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");

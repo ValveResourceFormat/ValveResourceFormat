@@ -145,7 +145,7 @@ namespace GUI.Types.Renderer
             });
 
 
-            var renderableMesh = RenderableMesh.CreateMesh("MaterialPreviewQuad", material, vbib, bounds, scene.GuiContext);
+            var renderableMesh = RenderableMesh.CreateMesh("MaterialPreviewQuad", material, vbib, bounds, scene.RendererContext);
             return new MeshSceneNode(scene, renderableMesh);
         }
     }

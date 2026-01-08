@@ -1,4 +1,3 @@
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
 #nullable disable
@@ -7,7 +6,7 @@ namespace GUI.Types.Renderer
 {
     public class PostProcessRenderer
     {
-        private readonly VrfGuiContext guiContext;
+        private readonly RendererContext RendererContext;
         private Shader shader;
 
         public RenderTexture BlueNoise { get; set; }
@@ -18,14 +17,14 @@ namespace GUI.Types.Renderer
         public float TonemapScalar { get; set; }
         public bool ColorCorrectionEnabled { get; set; } = true;
 
-        public PostProcessRenderer(VrfGuiContext guiContext)
+        public PostProcessRenderer(RendererContext rendererContext)
         {
-            this.guiContext = guiContext;
+            this.RendererContext = rendererContext;
         }
 
         public void Load()
         {
-            shader = guiContext.ShaderLoader.LoadShader("vrf.post_processing");
+            shader = RendererContext.ShaderLoader.LoadShader("vrf.post_processing");
         }
 
         private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
@@ -58,7 +57,7 @@ namespace GUI.Types.Renderer
 
             // Bind textures
             shader.SetTexture(0, "g_tColorBuffer", colorBuffer.Color);
-            shader.SetTexture(1, "g_tColorCorrection", State.ColorCorrectionLUT ?? guiContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
+            shader.SetTexture(1, "g_tColorCorrection", State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
             shader.SetTexture(2, "g_tBlueNoise", BlueNoise);
             shader.SetTexture(3, "g_tStencilBuffer", colorBuffer.Stencil);
 
@@ -74,7 +73,7 @@ namespace GUI.Types.Renderer
             shader.SetUniform2("g_vColorCorrectionColorRange", invRange);
             shader.SetUniform1("g_flColorCorrectionDefaultWeight", (State.NumLutsActive > 0 && ColorCorrectionEnabled) ? State.ColorCorrectionWeight : 0f);
 
-            GL.BindVertexArray(guiContext.MeshBufferCache.EmptyVAO);
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             GL.UseProgram(0);

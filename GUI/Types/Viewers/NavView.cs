@@ -3,13 +3,14 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.GLViewers;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
-    class NavView(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
+    class NavView(VrfGuiContext guiContext) : IViewer, IDisposable
     {
         private NavMeshFile navMeshFile = new();
         private GLNavMeshViewer? glViewer;
@@ -27,10 +28,10 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                navMeshFile.Read(vrfGuiContext.FileName);
+                navMeshFile.Read(guiContext.FileName);
             }
 
-            glViewer = new GLNavMeshViewer(vrfGuiContext, navMeshFile);
+            glViewer = new GLNavMeshViewer(guiContext, new RendererContext(guiContext), navMeshFile);
             glViewer.InitializeLoad();
         }
 

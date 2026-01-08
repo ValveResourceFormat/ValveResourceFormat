@@ -1,5 +1,4 @@
 using GUI.Types.Renderer;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 
@@ -10,7 +9,7 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private const string ShaderName = "vrf.particle_trail";
 
         private readonly Shader shader;
-        private readonly VrfGuiContext guiContext;
+        private readonly RendererContext RendererContext;
         private readonly int vaoHandle;
         private readonly RenderTexture texture;
 
@@ -28,10 +27,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private readonly float maxLength = 2000f;
         private readonly float lengthFadeInTime;
 
-        public RenderTrails(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
+        public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
-            guiContext = vrfGuiContext;
-            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
+            RendererContext = rendererContext;
+            shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
 
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer();
@@ -54,11 +53,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
             if (textureName == null)
             {
-                texture = vrfGuiContext.MaterialLoader.GetErrorTexture();
+                texture = RendererContext.MaterialLoader.GetErrorTexture();
             }
             else
             {
-                texture = vrfGuiContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
+                texture = RendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
             }
 
 #if DEBUG

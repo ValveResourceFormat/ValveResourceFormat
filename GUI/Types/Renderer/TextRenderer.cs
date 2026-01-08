@@ -35,7 +35,7 @@ namespace GUI.Types.Renderer
 
         private readonly List<TextRenderRequest> TextRenderRequests = new(10);
 
-        private readonly VrfGuiContext guiContext;
+        private readonly RendererContext RendererContext;
         private readonly Camera camera;
 
         private RenderTexture? fontTexture;
@@ -43,9 +43,9 @@ namespace GUI.Types.Renderer
         private int bufferHandle;
         private int vao;
 
-        public TextRenderer(VrfGuiContext guiContext, Camera camera)
+        public TextRenderer(RendererContext rendererContext, Camera camera)
         {
-            this.guiContext = guiContext;
+            this.RendererContext = rendererContext;
             this.camera = camera;
         }
 
@@ -54,7 +54,7 @@ namespace GUI.Types.Renderer
             using var fontStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.jetbrains_mono_msdf.png");
             using var bitmap = SKBitmap.Decode(fontStream);
 
-            shader = guiContext.ShaderLoader.LoadShader("vrf.font_msdf");
+            shader = RendererContext.ShaderLoader.LoadShader("vrf.font_msdf");
 
             fontTexture = new RenderTexture(TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1);
             fontTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
@@ -76,7 +76,7 @@ namespace GUI.Types.Renderer
             GL.CreateVertexArrays(1, out vao);
             GL.CreateBuffers(1, out bufferHandle);
             GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, guiContext.MeshBufferCache.QuadIndices.GLHandle);
+            GL.VertexArrayElementBuffer(vao, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             foreach (var (name, size, type, normalized) in attributes)
             {

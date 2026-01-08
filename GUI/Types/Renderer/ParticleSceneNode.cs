@@ -10,7 +10,7 @@ namespace GUI.Types.Renderer
         public ParticleSceneNode(Scene scene, ParticleSystem particleSystem)
             : base(scene)
         {
-            particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, Scene.GuiContext);
+            particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, Scene.RendererContext);
             LocalBoundingBox = particleRenderer.LocalBoundingBox;
         }
 

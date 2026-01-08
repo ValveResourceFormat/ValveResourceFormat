@@ -64,7 +64,7 @@ namespace GUI.Types.Renderer
         private int textureUnit;
 
         [SetsRequiredMembers]
-        public RenderMaterial(Material material, VrfGuiContext guiContext, Dictionary<string, byte>? shaderArguments)
+        public RenderMaterial(Material material, RendererContext rendererContext, Dictionary<string, byte>? shaderArguments)
             : this(material)
         {
             var materialArguments = material.GetShaderArguments();
@@ -84,7 +84,7 @@ namespace GUI.Types.Renderer
 
                 try
                 {
-                    shader = guiContext.LoadShader(material.ShaderName);
+                    shader = rendererContext.FileLoader.LoadShader(material.ShaderName);
                 }
                 catch (UnexpectedMagicException e)
                 {
@@ -116,7 +116,7 @@ namespace GUI.Types.Renderer
             }
 
             SetRenderState();
-            Shader = guiContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters, blocking: false);
+            Shader = rendererContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters, blocking: false);
             ResetRenderState();
 
             SortId = GetSortId();

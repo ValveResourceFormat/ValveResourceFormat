@@ -13,12 +13,12 @@ namespace GUI.Types.Renderer
         private bool built;
         private int vertexCount;
 
-        public OctreeDebugRenderer(Octree octree, VrfGuiContext guiContext, bool dynamic)
+        public OctreeDebugRenderer(Octree octree, RendererContext rendererContext, bool dynamic)
         {
             this.octree = octree;
             this.dynamic = dynamic;
 
-            shader = shader = guiContext.ShaderLoader.LoadShader("vrf.default");
+            shader = shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out vboHandle);

@@ -54,19 +54,19 @@ namespace GUI.Types.ParticleRenderer
         }
 
         private readonly List<ParticleRenderer> childParticleRenderers;
-        private readonly VrfGuiContext vrfGuiContext;
+        private readonly RendererContext RendererContext;
         private bool hasStarted;
 
         private readonly ParticleCollection particleCollection;
         private int particlesEmitted;
         private ParticleSystemRenderState systemRenderState;
 
-        public ParticleRenderer(ParticleSystem particleSystem, VrfGuiContext vrfGuiContext)
+        public ParticleRenderer(ParticleSystem particleSystem, RendererContext rendererContext)
         {
             emitParticleAction = EmitParticle;
 
             childParticleRenderers = [];
-            this.vrfGuiContext = vrfGuiContext;
+            this.RendererContext = rendererContext;
 
             var parse = new ParticleDefinitionParser(particleSystem.Data);
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
@@ -437,7 +437,7 @@ namespace GUI.Types.ParticleRenderer
                 }
 
                 var rendererClass = rendererInfo.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, vrfGuiContext, out var renderer))
+                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, RendererContext, out var renderer))
                 {
                     Renderers.Add(renderer);
                 }
@@ -472,7 +472,7 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var childName in childNames)
             {
-                var childResource = vrfGuiContext.LoadFileCompiled(childName);
+                var childResource = RendererContext.FileLoader.LoadFileCompiled(childName);
 
                 if (childResource == null)
                 {
@@ -482,7 +482,7 @@ namespace GUI.Types.ParticleRenderer
                 var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
                 Debug.Assert(childSystemDefinition != null);
 
-                var childSystem = new ParticleRenderer(childSystemDefinition, vrfGuiContext)
+                var childSystem = new ParticleRenderer(childSystemDefinition, RendererContext)
                 {
                     MainControlPoint = MainControlPoint
                 };

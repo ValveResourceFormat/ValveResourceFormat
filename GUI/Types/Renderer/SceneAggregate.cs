@@ -59,7 +59,7 @@ namespace GUI.Types.Renderer
                     throw new NotImplementedException("More than one referenced mesh");
                 }
 
-                var newResource = Scene.GuiContext.LoadFileCompiled(refMesh.MeshName);
+                var newResource = Scene.RendererContext.FileLoader.LoadFileCompiled(refMesh.MeshName);
 
                 if (newResource == null || newResource.DataBlock is not Mesh meshData)
                 {

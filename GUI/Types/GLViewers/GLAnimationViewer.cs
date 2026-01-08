@@ -16,7 +16,7 @@ namespace GUI.Types.GLViewers
         public KVObject SkeletonData { get; set; }
         public AnimationClip? clip { get; init; }
 
-        public GLAnimationViewer(VrfGuiContext guiContext, Resource resource) : base(guiContext)
+        public GLAnimationViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Resource resource) : base(vrfGuiContext, rendererContext)
         {
             if (resource.ResourceType is ResourceType.NmSkeleton)
             {
@@ -26,7 +26,7 @@ namespace GUI.Types.GLViewers
             {
                 clip = animationClip;
 
-                var skeletonResource = guiContext.LoadFileCompiled(animationClip.SkeletonName);
+                var skeletonResource = rendererContext.FileLoader.LoadFileCompiled(animationClip.SkeletonName);
                 Debug.Assert(skeletonResource != null);
                 SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
             }

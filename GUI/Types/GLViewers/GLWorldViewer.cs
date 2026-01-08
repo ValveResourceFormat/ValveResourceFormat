@@ -34,16 +34,16 @@ namespace GUI.Types.GLViewers
         private WorldNodeLoader LoadedWorldNode;
         public WorldLoader LoadedWorld;
 
-        public GLWorldViewer(VrfGuiContext guiContext, World world, ResourceExtRefList externalReferences = null)
-            : base(guiContext)
+        public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, World world, ResourceExtRefList externalReferences = null)
+            : base(vrfGuiContext, rendererContext)
         {
             this.world = world;
             mapExternalReferences = externalReferences;
             Scene.EnableOcclusionCulling = externalReferences != null;
         }
 
-        public GLWorldViewer(VrfGuiContext guiContext, WorldNode worldNode, ResourceExtRefList externalReferences = null)
-            : base(guiContext)
+        public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, WorldNode worldNode, ResourceExtRefList externalReferences = null)
+            : base(vrfGuiContext, rendererContext)
         {
             this.worldNode = worldNode;
             mapExternalReferences = externalReferences;
@@ -190,7 +190,7 @@ namespace GUI.Types.GLViewers
 
             if (worldNode != null)
             {
-                LoadedWorldNode = new WorldNodeLoader(GuiContext, worldNode, mapExternalReferences);
+                LoadedWorldNode = new WorldNodeLoader(Scene.RendererContext, worldNode, mapExternalReferences);
                 LoadedWorldNode.Load(Scene);
             }
         }

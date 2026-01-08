@@ -37,7 +37,7 @@ namespace GUI.Types.Renderer
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
 
-        public VrfGuiContext GuiContext { get; }
+        public RendererContext RendererContext { get; }
         public Octree StaticOctree { get; }
         public Octree DynamicOctree { get; }
 
@@ -52,9 +52,9 @@ namespace GUI.Types.Renderer
 
         private Shader? OutlineShader;
 
-        public Scene(VrfGuiContext context, float sizeHint = 32768)
+        public Scene(RendererContext context, float sizeHint = 32768)
         {
-            GuiContext = context;
+            RendererContext = context;
             StaticOctree = new(sizeHint);
             DynamicOctree = new(sizeHint);
 
@@ -70,7 +70,7 @@ namespace GUI.Types.Renderer
 
             UpdateBuffers();
 
-            OutlineShader = GuiContext.ShaderLoader.LoadShader("vrf.outline");
+            OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -515,7 +515,7 @@ namespace GUI.Types.Renderer
             GL.Disable(EnableCap.CullFace);
 
             depthOnlyShader.Use();
-            GL.BindVertexArray(GuiContext.MeshBufferCache.EmptyVAO);
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
 
             var maxTests = 1024;
             var startDepth = 3;

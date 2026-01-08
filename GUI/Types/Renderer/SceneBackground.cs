@@ -4,7 +4,7 @@ namespace GUI.Types.Renderer
     public class SceneBackground : SceneSkybox2D
     {
         public SceneBackground(Scene scene)
-            : base(new RenderMaterial(scene.GuiContext.ShaderLoader.LoadShader("vrf.background")))
+            : base(new RenderMaterial(scene.RendererContext.ShaderLoader.LoadShader("vrf.background")))
         {
         }
 

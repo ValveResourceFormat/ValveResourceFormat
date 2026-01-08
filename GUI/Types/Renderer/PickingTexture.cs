@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
@@ -43,16 +42,16 @@ public class PickingTexture : Framebuffer
     private PickingIntent Intent;
     private PickingResponse? Response;
 
-    private readonly VrfGuiContext guiContext;
+    private readonly RendererContext RendererContext;
 
     // could share depth buffer with main framebuffer, but msaa doesn't match
     // private readonly Framebuffer depthSource;
 
-    public PickingTexture(VrfGuiContext vrfGuiContext, EventHandler<PickingResponse> onPicked) : base(nameof(PickingTexture))
+    public PickingTexture(RendererContext rendererContext, EventHandler<PickingResponse> onPicked) : base(nameof(PickingTexture))
     {
-        guiContext = vrfGuiContext;
-        Shader = vrfGuiContext.ShaderLoader.LoadShader("vrf.picking");
-        DebugShader = guiContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, byte>
+        RendererContext = rendererContext;
+        Shader = rendererContext.ShaderLoader.LoadShader("vrf.picking");
+        DebugShader = rendererContext.ShaderLoader.LoadShader("vrf.picking", new Dictionary<string, byte>
         {
             { "F_DEBUG_PICKER", 1 },
         });

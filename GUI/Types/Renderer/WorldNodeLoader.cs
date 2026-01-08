@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
-using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
@@ -12,14 +11,14 @@ namespace GUI.Types.Renderer
     {
         private readonly WorldNode node;
         private readonly ResourceExtRefList? externalReferences;
-        private readonly VrfGuiContext guiContext;
+        private readonly RendererContext RendererContext;
         public string[] LayerNames { get; }
 
-        public WorldNodeLoader(VrfGuiContext vrfGuiContext, WorldNode node, ValveResourceFormat.Blocks.ResourceExtRefList? externalReferences = null)
+        public WorldNodeLoader(RendererContext rendererContext, WorldNode node, ValveResourceFormat.Blocks.ResourceExtRefList? externalReferences = null)
         {
             this.node = node;
             this.externalReferences = externalReferences;
-            guiContext = vrfGuiContext;
+            RendererContext = rendererContext;
 
             if (node.Data.ContainsKey("m_layerNames"))
             {
@@ -37,7 +36,7 @@ namespace GUI.Types.Renderer
             {
                 Parallel.ForEach(externalReferences.ResourceRefInfoList, resourceReference =>
                 {
-                    var resource = guiContext.LoadFileCompiled(resourceReference.Name);
+                    var resource = RendererContext.FileLoader.LoadFileCompiled(resourceReference.Name);
                     if (resource is { DataBlock: Model model })
                     {
                         foreach (var mesh in model.GetEmbeddedMeshes())
@@ -75,7 +74,7 @@ namespace GUI.Types.Renderer
 
                 if (renderableModel != null)
                 {
-                    var newResource = guiContext.LoadFileCompiled(renderableModel);
+                    var newResource = RendererContext.FileLoader.LoadFileCompiled(renderableModel);
 
                     if (newResource == null)
                     {
@@ -104,7 +103,7 @@ namespace GUI.Types.Renderer
 
                 if (!string.IsNullOrEmpty(renderable))
                 {
-                    var newResource = guiContext.LoadFileCompiled(renderable);
+                    var newResource = RendererContext.FileLoader.LoadFileCompiled(renderable);
 
                     if (newResource == null)
                     {
@@ -134,7 +133,7 @@ namespace GUI.Types.Renderer
 
                 if (renderableModel != null)
                 {
-                    var newResource = guiContext.LoadFileCompiled(renderableModel);
+                    var newResource = RendererContext.FileLoader.LoadFileCompiled(renderableModel);
                     if (newResource == null)
                     {
                         continue;

@@ -8,7 +8,7 @@ namespace GUI.Types.GLViewers
     {
         private readonly Mesh mesh;
 
-        public GLMeshViewer(VrfGuiContext guiContext, Mesh mesh) : base(guiContext)
+        public GLMeshViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Mesh mesh) : base(vrfGuiContext, rendererContext)
         {
             this.mesh = mesh;
         }

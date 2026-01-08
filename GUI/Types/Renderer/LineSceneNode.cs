@@ -16,7 +16,7 @@ namespace GUI.Types.Renderer
 
             SimpleVertex[] vertices = [new(start, startColor), new(end, endColor)];
 
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
+            shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);

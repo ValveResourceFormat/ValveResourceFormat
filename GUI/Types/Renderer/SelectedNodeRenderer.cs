@@ -20,9 +20,9 @@ namespace GUI.Types.Renderer
         private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
         public string ScreenDebugText { get; set; } = string.Empty;
 
-        public SelectedNodeRenderer(VrfGuiContext context)
+        public SelectedNodeRenderer(RendererContext rendererContext)
         {
-            shader = context.ShaderLoader.LoadShader("vrf.default");
+            shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out vboHandle);

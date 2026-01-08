@@ -33,17 +33,17 @@ namespace GUI.Types.GLViewers
         private HitboxSetSceneNode hitboxSetSceneNode;
         private CheckedListBox physicsGroupsComboBox;
 
-        public GLModelViewer(VrfGuiContext guiContext) : base(guiContext)
+        public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
             //
         }
 
-        public GLModelViewer(VrfGuiContext guiContext, Model model) : base(guiContext)
+        public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Model model) : base(vrfGuiContext, rendererContext)
         {
             this.model = model;
         }
 
-        public GLModelViewer(VrfGuiContext guiContext, PhysAggregateData phys) : base(guiContext)
+        public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, PhysAggregateData phys) : base(vrfGuiContext, rendererContext)
         {
             this.phys = phys;
         }
@@ -160,7 +160,7 @@ namespace GUI.Types.GLViewers
                                 " Please report this on https://github.com/ValveResourceFormat/ValveResourceFormat and provide the file that caused this.");
                         }
 
-                        var newResource = Scene.GuiContext.LoadFileCompiled(refPhysicsPaths.First());
+                        var newResource = Scene.RendererContext.FileLoader.LoadFileCompiled(refPhysicsPaths.First());
                         if (newResource != null)
                         {
                             phys = (PhysAggregateData)newResource.DataBlock;

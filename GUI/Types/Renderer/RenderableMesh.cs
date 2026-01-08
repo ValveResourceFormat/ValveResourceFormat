@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
 using GUI.Types.Renderer.Buffers;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -17,7 +16,7 @@ namespace GUI.Types.Renderer
         public Vector4 Tint { get; set; } = Vector4.One;
         public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
 
-        private readonly VrfGuiContext guiContext;
+        private readonly RendererContext renderContext;
         public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
@@ -36,7 +35,7 @@ namespace GUI.Types.Renderer
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model? model = null,
             Dictionary<string, string>? initialMaterialTable = null, Morph? morph = null, bool isAggregate = false)
         {
-            guiContext = scene.GuiContext;
+            renderContext = scene.RendererContext;
 
             Name = mesh.Name;
 
@@ -68,7 +67,7 @@ namespace GUI.Types.Renderer
 
             if (morph != null)
             {
-                FlexStateManager = new FlexStateManager(guiContext, morph);
+                FlexStateManager = new FlexStateManager(renderContext, morph);
             }
         }
 
@@ -108,7 +107,7 @@ namespace GUI.Types.Renderer
                     var staticParams = materialData.GetShaderArguments();
                     var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
-                    drawCall.SetNewMaterial(guiContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
+                    drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(replacementName, dynamicParams));
                 }
             }
         }
@@ -130,7 +129,7 @@ namespace GUI.Types.Renderer
                 var staticParams = materialData.GetShaderArguments();
                 var dynamicParams = new Dictionary<string, byte>(material.Shader.Parameters.Except(staticParams));
 
-                drawCall.SetNewMaterial(guiContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams));
+                drawCall.SetNewMaterial(renderContext.MaterialLoader.LoadMaterial(resourceMaterial, dynamicParams));
 
                 // Ignore overlays in material viewer, since there is nothing to overlay.
                 if (drawCall.Material.IsTranslucent)
@@ -151,7 +150,7 @@ namespace GUI.Types.Renderer
                 return;
             }
 
-            var gpuVbib = guiContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
+            var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
 
             var vertexOffset = 0;
             foreach (var sceneObject in sceneObjects)
@@ -222,7 +221,7 @@ namespace GUI.Types.Renderer
                         shaderArguments.Add("D_BAKED_LIGHTING_FROM_PROBE", 1);
                     }
 
-                    var material = guiContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
+                    var material = renderContext.MaterialLoader.GetMaterial(materialName, shaderArguments);
 
                     var drawCall = CreateDrawCall(objectDrawCall, material, vbib, gpuVbib);
                     if (i < objectDrawBounds.Length)
@@ -270,7 +269,7 @@ namespace GUI.Types.Renderer
             var drawCall = new DrawCall()
             {
                 Material = material,
-                MeshBuffers = guiContext.MeshBufferCache,
+                MeshBuffers = renderContext.MeshBufferCache,
                 MeshName = Name,
             };
 
@@ -410,23 +409,23 @@ namespace GUI.Types.Renderer
             return drawCall;
         }
 
-        private RenderableMesh(string name, AABB bounds, VrfGuiContext guiContext)
+        private RenderableMesh(string name, AABB bounds, RendererContext renderContext)
         {
             Name = name;
             BoundingBox = bounds;
-            this.guiContext = guiContext;
+            this.renderContext = renderContext;
         }
 
         /// <summary>
-        public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, VrfGuiContext guiContext)
+        public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, RendererContext renderContext)
         {
-            var mesh = new RenderableMesh(name, bounds, guiContext);
-            var gpuVbib = guiContext.MeshBufferCache.CreateVertexIndexBuffers(name, vertexIndexBuffers);
+            var mesh = new RenderableMesh(name, bounds, renderContext);
+            var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(name, vertexIndexBuffers);
 
             var drawCall = new DrawCall()
             {
                 Material = material,
-                MeshBuffers = guiContext.MeshBufferCache,
+                MeshBuffers = renderContext.MeshBufferCache,
                 MeshName = name,
                 PrimitiveType = PrimitiveType.Triangles,
             };

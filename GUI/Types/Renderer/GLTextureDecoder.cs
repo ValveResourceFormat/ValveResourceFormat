@@ -16,6 +16,21 @@ namespace GUI.Types.Renderer;
 
 public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 {
+    private readonly VrfGuiContext guiContext = new(null, null);
+    private readonly RendererContext RendererContext;
+    private readonly BlockingCollection<DecodeRequest> decodeQueue = [];
+    private readonly Lock threadStartupLock = new();
+
+    private Thread GLThread;
+
+    private NativeWindow GLWindowContext;
+    private Framebuffer Framebuffer;
+
+    public GLTextureDecoder()
+    {
+        RendererContext = new RendererContext(guiContext);
+    }
+
     private record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, CubemapFace Face, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
     {
         public ManualResetEvent DoneEvent { get; } = new(false);
@@ -47,15 +62,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             GC.SuppressFinalize(this);
         }
     }
-
-    private readonly VrfGuiContext guiContext = new(null, null);
-    private readonly BlockingCollection<DecodeRequest> decodeQueue = [];
-    private readonly Lock threadStartupLock = new();
-
-    private Thread GLThread;
-
-    private NativeWindow GLWindowContext;
-    private Framebuffer Framebuffer;
 
     public void StartThread()
     {
@@ -160,7 +166,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private bool DecodeTexture(DecodeRequest request)
     {
         var sw = Stopwatch.StartNew();
-        var inputTexture = guiContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
+        var inputTexture = RendererContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
 
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
@@ -207,7 +213,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.Disable(EnableCap.DepthTest);
 
         var textureType = GetTextureTypeDefine(inputTexture.Target);
-        var shader = guiContext.ShaderLoader.LoadShader("vrf.texture_decode", new Dictionary<string, byte>
+        var shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", new Dictionary<string, byte>
         {
             [textureType] = 1,
         });
@@ -226,7 +232,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         shader.SetUniform1("g_nDecodeFlags", (int)request.DecodeFlags);
 
         // full screen triangle
-        GL.BindVertexArray(guiContext.MeshBufferCache.EmptyVAO);
+        GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
         inputTexture.Delete();
@@ -289,6 +295,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             Exit();
             decodeQueue.Dispose();
             guiContext.Dispose();
+            RendererContext.Dispose();
             Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
         }
     }
