@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Renderer\Shaders\**" />
+    <EmbeddedResource Include="Shaders\**" />
     <EmbeddedResource Include="Resources\env_cubemap.vmdl_c" />
     <EmbeddedResource Include="Resources\jetbrains_mono_msdf.png" />
   </ItemGroup>

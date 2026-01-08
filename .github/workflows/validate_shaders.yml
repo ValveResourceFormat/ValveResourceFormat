@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - GUI/Types/Renderer/Shaders/**
-      - GUI/Types/Renderer/ShaderLoader.cs
-      - GUI/Types/Renderer/ShaderParser.cs
+      - Renderer/Shaders/**
+      - Renderer/Renderer/ShaderLoader.cs
+      - Renderer/Renderer/ShaderParser.cs
   pull_request:
     paths:
-      - GUI/Types/Renderer/Shaders/**
-      - GUI/Types/Renderer/ShaderLoader.cs
-      - GUI/Types/Renderer/ShaderParser.cs
+      - Renderer/Shaders/**
+      - Renderer/Renderer/ShaderLoader.cs
+      - Renderer/Renderer/ShaderParser.cs
 
 permissions:
   contents: write

@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
 {
     public partial class ShaderParser
     {
-        public const string ShaderDirectory = "Renderer.Renderer.Shaders.";
+        public const string ShaderDirectory = "Renderer.Shaders.";
         public const string ExpectedShaderVersion = "#version 460";
         private const string RenderModeDefinePrefix = "renderMode_";
 
