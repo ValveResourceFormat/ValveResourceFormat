@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
@@ -88,7 +89,7 @@ namespace GUI.Types.Renderer
                 }
                 catch (UnexpectedMagicException e)
                 {
-                    Log.Error(nameof(RenderMaterial), $"Failed to load the sky shader: {e.Message}");
+                    rendererContext.Logger.LogError(e, "Failed to load the sky shader");
                 }
 
                 if (shader?.Features != null)

@@ -540,7 +540,7 @@ namespace GUI.Types.GLViewers
             GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityHigh, 0, Array.Empty<int>(), true);
 #endif
 
-            GLEnvironment.Initialize();
+            GLEnvironment.Initialize(VrfGuiContext.Logger);
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
             GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;
 

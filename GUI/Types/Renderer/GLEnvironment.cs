@@ -1,4 +1,5 @@
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Common;
 
@@ -28,7 +29,7 @@ public static class GLEnvironment
     public static ParallelShaderCompileType ParallelShaderCompileSupport { get; private set; } = ParallelShaderCompileType.None;
     public static string? GpuRendererAndDriver { get; private set; }
 
-    public static void Initialize()
+    public static void Initialize(ILogger logger)
     {
         if (GpuRendererAndDriver != null)
         {
@@ -42,7 +43,7 @@ public static class GLEnvironment
 
         GpuRendererAndDriver = gpu;
 
-        Log.Debug("OpenGL", $"{gpu}, OS: {Environment.OSVersion}");
+        logger.LogDebug("{Gpu}, OS: {OS}", gpu, Environment.OSVersion);
 
         MaterialLoader.MaxTextureMaxAnisotropy = GL.GetFloat((GetPName)ExtTextureFilterAnisotropic.MaxTextureMaxAnisotropyExt);
 
@@ -69,7 +70,7 @@ public static class GLEnvironment
         }
         else
         {
-            Log.Warn("OpenGL", "Parallel shader compilation is not supported.");
+            logger.LogWarning("Parallel shader compilation is not supported");
         }
 
 #if DEBUG

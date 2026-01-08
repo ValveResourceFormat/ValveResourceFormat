@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
@@ -843,7 +844,7 @@ namespace GUI.Types.Renderer
             {
                 if (i >= EnvMapArray.MAX_ENVMAPS)
                 {
-                    Log.Error(nameof(WorldLoader), $"Envmap array index {i} is too large, skipping! Max: {EnvMapArray.MAX_ENVMAPS}");
+                    RendererContext.Logger.LogError("Envmap array index {Index} is too large, skipping! Max: {MaxEnvMaps}", i, EnvMapArray.MAX_ENVMAPS);
                     continue;
                 }
 
@@ -884,7 +885,7 @@ namespace GUI.Types.Renderer
                     else
                     {
 #if DEBUG
-                        Log.Debug(nameof(Scene), $"A envmap with handshake [{precomputedHandshake}] does not exist for node at {node.BoundingBox.Center}");
+                        RendererContext.Logger.LogDebug("A envmap with handshake [{Handshake}] does not exist for node at {Center}", precomputedHandshake, node.BoundingBox.Center);
 #endif
                     }
                 }
@@ -940,7 +941,7 @@ namespace GUI.Types.Renderer
                     var vrfComputed = node.EnvMaps.FirstOrDefault();
                     if (vrfComputed is null)
                     {
-                        Log.Debug(nameof(Scene), $"Could not find any envmaps for node {node.DebugName}. Valve precomputed envmap is at {preComputed.BoundingBox.Center} [{precomputedHandshake}]");
+                        RendererContext.Logger.LogDebug("Could not find any envmaps for node {DebugName}. Valve precomputed envmap is at {Center} [{Handshake}]", node.DebugName, preComputed.BoundingBox.Center, precomputedHandshake);
                         continue;
                     }
 
@@ -954,9 +955,9 @@ namespace GUI.Types.Renderer
 
                     var anyIndex = node.EnvMaps.FindIndex(x => x.HandShake == precomputedHandshake);
 
-                    Log.Debug(nameof(Scene), $"Topmost calculated envmap doesn't match with the precomputed one" +
-                        $" (dists: vrf={vrfDistance} s2={preComputedDistance}) for node at {node.BoundingBox.Center} [{precomputedHandshake}]" +
-                        (anyIndex > 0 ? $" (however it's still binned at a higher iterate index {anyIndex})" : string.Empty));
+                    RendererContext.Logger.LogDebug("Topmost calculated envmap doesn't match with the precomputed one (dists: vrf={VrfDistance} s2={PreComputedDistance}) for node at {Center} [{Handshake}]{IterateInfo}",
+                        vrfDistance, preComputedDistance, node.BoundingBox.Center, precomputedHandshake,
+                        anyIndex > 0 ? $" (however it's still binned at a higher iterate index {anyIndex})" : string.Empty);
                 }
 #endif
                 if (LightingInfo.CubemapType == CubemapType.CubemapArray)

@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
@@ -144,7 +145,7 @@ namespace GUI.Types.Renderer
             {
                 0 or 1 => scene.LightingInfo.StoreLightMappedLights_V1,
                 >= 2 => scene.LightingInfo.StoreLightMappedLights_V2,
-                _ => x => Log.Error(nameof(WorldLoader), $"Storing lights for lightmap version {scene.LightingInfo.LightmapGameVersionNumber} is not supported."),
+                _ => x => RendererContext.Logger.LogError("Storing lights for lightmap version {Version} is not supported", scene.LightingInfo.LightmapGameVersionNumber),
             };
 
             lightEntityStore.Invoke(
@@ -391,7 +392,7 @@ namespace GUI.Types.Renderer
                     }
                     else
                     {
-                        Log.Warn(nameof(WorldLoader), $"Failed to find child entity lump with name {entityLumpName}.");
+                        RendererContext.Logger.LogWarning("Failed to find child entity lump with name {EntityLumpName}", entityLumpName);
                     }
                 }
                 else if (classname == "env_sky" || classname == "env_global_light")
@@ -553,7 +554,7 @@ namespace GUI.Types.Renderer
                                 }
                                 else
                                 {
-                                    Log.Warn(nameof(WorldLoader), $"Disabling cubemap fog because failed to find env_sky of target name {skyEntTargetName}.");
+                                    RendererContext.Logger.LogWarning("Disabling cubemap fog because failed to find env_sky of target name {SkyEntTargetName}", skyEntTargetName);
                                     scene.FogInfo.CubeFogActive = false;
                                 }
                             }
@@ -767,7 +768,7 @@ namespace GUI.Types.Renderer
                         }
                         catch (Exception e)
                         {
-                            Log.Error(nameof(WorldLoader), $"Failed to setup particle '{particle}': {e}");
+                            RendererContext.Logger.LogError(e, "Failed to setup particle '{Particle}'", particle);
                         }
                     }
                 }
@@ -836,7 +837,7 @@ namespace GUI.Types.Renderer
                         }
                         else
                         {
-                            Log.Warn(nameof(WorldLoader), $"Post Process model failed to load file \"{model}\".");
+                            RendererContext.Logger.LogWarning("Post Process model failed to load file \"{Model}\"", model);
                         }
 
                     }
@@ -1005,7 +1006,7 @@ namespace GUI.Types.Renderer
 
             if (!targetmapname.EndsWith(".vmap", StringComparison.InvariantCulture))
             {
-                Log.Warn(nameof(WorldLoader), $"Not loading skybox '{targetmapname}' because it did not end with .vmap");
+                RendererContext.Logger.LogWarning("Not loading skybox '{Targetmapname}' because it did not end with .vmap", targetmapname);
                 return;
             }
 
@@ -1026,7 +1027,7 @@ namespace GUI.Types.Renderer
 
                 var innerVpkName = vpkFound.PackageEntry.GetFullPath();
 
-                Log.Info(nameof(WorldLoader), $"Preloading vpk \"{innerVpkName}\" from \"{vpkFound.Package.FileName}\"");
+                RendererContext.Logger.LogInformation("Preloading vpk \"{InnerVpkName}\" from \"{PackageFileName}\"", innerVpkName, vpkFound.Package.FileName);
 
                 // TODO: Should FileLoader have a method that opens stream for us?
                 var stream = GameFileLoader.GetPackageEntryStream(vpkFound.Package, vpkFound.PackageEntry);
@@ -1120,12 +1121,12 @@ namespace GUI.Types.Renderer
                 {
                     NavMesh = new NavMeshFile();
                     NavMesh.Read(navFileStream);
-                    Log.Info(nameof(WorldLoader), $"Navigation mesh loaded from '{navFilePath}'");
+                    RendererContext.Logger.LogInformation("Navigation mesh loaded from '{NavFilePath}'", navFilePath);
                 }
             }
             catch (Exception e)
             {
-                Log.Error(nameof(WorldLoader), $"Couldn't load navigation mesh from '{navFilePath}': {e}");
+                RendererContext.Logger.LogError(e, "Couldn't load navigation mesh from '{NavFilePath}'", navFilePath);
             }
         }
 
@@ -1255,7 +1256,7 @@ namespace GUI.Types.Renderer
 
                 if (targetType != EntityIOTargetType.EntityNameOrClassName)
                 {
-                    Log.Debug(nameof(WorldLoader), $"Skipping entity i/o type {targetType}");
+                    RendererContext.Logger.LogDebug("Skipping entity i/o type {TargetType}", targetType);
                     continue;
                 }
 
@@ -1264,7 +1265,7 @@ namespace GUI.Types.Renderer
 
                 if (endEntity == null)
                 {
-                    Log.Debug(nameof(WorldLoader), $"Did not find entity i/o output {targetName}");
+                    RendererContext.Logger.LogDebug("Did not find entity i/o output {TargetName}", targetName);
                     continue;
                 }
 

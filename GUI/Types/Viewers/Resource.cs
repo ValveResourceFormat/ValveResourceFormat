@@ -78,7 +78,7 @@ namespace GUI.Types.Viewers
 
         private void InitializeSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
         {
-            using var rendererContext = new Renderer.RendererContext(vrfGuiContext);
+            using var rendererContext = vrfGuiContext.CreateRendererContext();
 
             switch (resource.ResourceType)
             {

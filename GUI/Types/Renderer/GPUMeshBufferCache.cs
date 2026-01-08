@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -9,10 +10,16 @@ namespace GUI.Types.Renderer
 {
     public partial class GPUMeshBufferCache
     {
+        private readonly RendererContext RendererContext;
         private readonly Dictionary<string, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];
 
         private record struct VAOKey(string MeshName, int Shader, int VertexIndex, int IndexIndex);
+
+        public GPUMeshBufferCache(RendererContext rendererContext)
+        {
+            RendererContext = rendererContext;
+        }
 
         public GPUMeshBuffers CreateVertexIndexBuffers(string meshName, VBIB vbib)
         {
@@ -98,7 +105,7 @@ namespace GUI.Types.Renderer
                     if (attributeLocation == -1)
                     {
 #if DEBUG
-                        Utils.Log.Debug(nameof(GPUMeshBufferCache), $"Attribute {attribute.SemanticName} ({attribute.SemanticIndex}) could not be bound in shader {material.Shader.Name} (insg: {insgElemName})");
+                        RendererContext.Logger.LogDebug("Attribute {SemanticName} ({SemanticIndex}) could not be bound in shader {ShaderName} (insg: {InsgElemName})", attribute.SemanticName, attribute.SemanticIndex, material.Shader.Name, insgElemName);
 #endif
                         continue;
                     }

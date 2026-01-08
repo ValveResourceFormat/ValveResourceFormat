@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 
@@ -182,7 +183,7 @@ namespace GUI.Types.Renderer
 #endif
 
                 var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
-                Log.Info(nameof(ShaderLoader), $"Shader '{shaderName}' as '{shaderFileName}'{argsDescription} compiled {(blocking ? "and linked" : string.Empty)} successfully");
+                RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled {CompiledStatus} successfully", shaderName, shaderFileName, argsDescription, blocking ? "and linked" : string.Empty);
 
                 return shader;
             }
@@ -461,7 +462,7 @@ namespace GUI.Types.Renderer
         public static void ValidateShadersCore(IProgress<string> progressReporter, string? filter = null)
         {
             using var context = new VrfGuiContext(string.Empty, null);
-            var renderContext = new RendererContext(context);
+            var renderContext = context.CreateRendererContext();
             using var loader = new ShaderLoader(renderContext);
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
@@ -477,7 +478,7 @@ namespace GUI.Types.Renderer
 
             window.MakeCurrent();
 
-            GLEnvironment.Initialize();
+            GLEnvironment.Initialize(renderContext.Logger);
 
             foreach (var shader in shaders)
             {

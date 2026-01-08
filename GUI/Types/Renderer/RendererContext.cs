@@ -1,22 +1,24 @@
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 
 namespace GUI.Types.Renderer;
 
 public class RendererContext : IDisposable
 {
-    public GameFileLoader FileLoader { get; private set; }
-
+    public ILogger Logger { get; }
+    public GameFileLoader FileLoader { get; }
     public MaterialLoader MaterialLoader { get; }
     public ShaderLoader ShaderLoader { get; }
     public GPUMeshBufferCache MeshBufferCache { get; }
 
-    public RendererContext(GameFileLoader fileLoader)
+    public RendererContext(GameFileLoader fileLoader, ILogger logger)
     {
         FileLoader = fileLoader;
+        Logger = logger;
 
         MaterialLoader = new MaterialLoader(this);
         ShaderLoader = new ShaderLoader(this);
-        MeshBufferCache = new GPUMeshBufferCache();
+        MeshBufferCache = new GPUMeshBufferCache(this);
     }
 
     public void Dispose()

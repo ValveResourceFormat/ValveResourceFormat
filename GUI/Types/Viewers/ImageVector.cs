@@ -32,7 +32,7 @@ namespace GUI.Types.Viewers
 
             try
             {
-                textureControl = new GLTextureViewer(vrfGuiContext, new Renderer.RendererContext(vrfGuiContext), svg);
+                textureControl = new GLTextureViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), svg);
                 textureControl.InitializeLoad();
                 svg = null;
             }

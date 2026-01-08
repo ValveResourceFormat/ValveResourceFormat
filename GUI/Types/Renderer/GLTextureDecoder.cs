@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 using SkiaSharp;
@@ -28,7 +29,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     public GLTextureDecoder()
     {
-        RendererContext = new RendererContext(guiContext);
+        RendererContext = guiContext.CreateRendererContext();
     }
 
     private record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, CubemapFace Face, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
@@ -87,7 +88,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         if (!GLThread.IsAlive)
         {
-            Log.Warn(nameof(GLTextureDecoder), "Decoder thread is no longer available.");
+            RendererContext.Logger.LogWarning("Decoder thread is no longer available");
             return false;
         }
 
@@ -100,7 +101,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         request.ResponseTime = sw.Elapsed - request.DecodeTime;
 
         var status = request.Success ? "succeeded" : "failed";
-        Log.Debug(nameof(GLTextureDecoder), $"Decode {status} in {request.DecodeTime.Milliseconds}ms (response time: {request.ResponseTime.Milliseconds}ms)");
+        RendererContext.Logger.LogDebug("Decode {Status} in {DecodeTime}ms (response time: {ResponseTime}ms)", status, request.DecodeTime.Milliseconds, request.ResponseTime.Milliseconds);
 
         return request.Success;
     }
@@ -113,19 +114,19 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
         catch (Exception e)
         {
-            Log.Error(nameof(GLTextureDecoder), $"GL context failure: {e}");
+            RendererContext.Logger.LogError(e, "GL context failure");
         }
         finally
         {
             CleanupRequests();
             Dispose_ThreadResources();
-            Log.Warn(nameof(GLTextureDecoder), "Decoder thread has exited. It is no longer available.");
+            RendererContext.Logger.LogWarning("Decoder thread has exited. It is no longer available");
         }
     }
 
     private void Initialize()
     {
-        Log.Info(nameof(GLTextureDecoder), "Initializing GPU texture decoder...");
+        RendererContext.Logger.LogInformation("Initializing GPU texture decoder...");
 
         GLWindowContext = new NativeWindow(new()
         {
@@ -141,7 +142,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         GLWindowContext.MakeCurrent();
 
-        GLEnvironment.Initialize();
+        GLEnvironment.Initialize(RendererContext.Logger);
         Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
         Framebuffer.Initialize();
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
@@ -188,7 +189,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         if (framebufferFormat == null)
         {
-            Log.Warn(nameof(GLTextureDecoder), $"Unsupported bitmap output type: {request.Bitmap.ColorType}");
+            RendererContext.Logger.LogWarning("Unsupported bitmap output type: {ColorType}", request.Bitmap.ColorType);
             return false;
         }
 
@@ -243,7 +244,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         if (fbRegionLength > outputLength)
         {
-            Log.Warn(nameof(GLTextureDecoder), $"Bitmap is too small to copy framebuffer contents to.");
+            RendererContext.Logger.LogWarning("Bitmap is too small to copy framebuffer contents to");
             return false;
         }
 
@@ -296,7 +297,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             decodeQueue.Dispose();
             guiContext.Dispose();
             RendererContext.Dispose();
-            Log.Info(nameof(GLTextureDecoder), "Decoder has been disposed.");
+            RendererContext.Logger.LogInformation("Decoder has been disposed");
         }
     }
 

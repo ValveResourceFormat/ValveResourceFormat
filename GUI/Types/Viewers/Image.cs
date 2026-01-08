@@ -33,7 +33,7 @@ namespace GUI.Types.Viewers
 
             try
             {
-                glViewer = new GLTextureViewer(vrfGuiContext, new Renderer.RendererContext(vrfGuiContext), bitmap);
+                glViewer = new GLTextureViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), bitmap);
                 glViewer.InitializeLoad();
                 bitmap = null;
             }

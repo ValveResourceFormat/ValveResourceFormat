@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 
 namespace GUI.Types.Renderer;
@@ -96,7 +97,7 @@ public partial class Scene
                 var first = EnvMaps[0];
                 if (envmap.EnvMapTexture.Target != first.EnvMapTexture.Target)
                 {
-                    Log.Error(nameof(WorldLightingInfo), $"Envmap texture target mismatch {envmap.EnvMapTexture.Target} != {first.EnvMapTexture.Target}");
+                    scene.RendererContext.Logger.LogError("Envmap texture target mismatch {EnvMapTarget} != {FirstTarget}", envmap.EnvMapTexture.Target, first.EnvMapTexture.Target);
                 }
             }
 
@@ -202,7 +203,7 @@ public partial class Scene
             {
                 if (currentLightIndex >= LightingConstants.MAX_LIGHTS)
                 {
-                    Log.Warn("Lightbinner", "Too many lights in scene. Some lights were removed.");
+                    scene.RendererContext.Logger.LogWarning("Too many lights in scene. Some lights were removed");
                     break;
                 }
 
@@ -221,7 +222,7 @@ public partial class Scene
             {
                 if (totalCount >= LightingConstants.MAX_LIGHTS)
                 {
-                    Log.Warn("Lightbinner", "Too many lights in scene. Some lights were removed.");
+                    scene.RendererContext.Logger.LogWarning("Too many lights in scene. Some lights were removed");
                     break;
                 }
 

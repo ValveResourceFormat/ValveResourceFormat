@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using GUI.Types.GLViewers;
 using GUI.Types.Renderer;
+using Microsoft.Extensions.Logging;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
@@ -14,6 +15,8 @@ namespace GUI.Utils
 {
     public class VrfGuiContext : GameFileLoader
     {
+        public static ILogger Logger { get; } = MakeLogger();
+
         public string FileName { get; }
 
         public new Package? CurrentPackage
@@ -155,6 +158,11 @@ namespace GUI.Utils
             base.Dispose(disposing);
         }
 
+        public RendererContext CreateRendererContext()
+        {
+            return new RendererContext(this, Logger);
+        }
+
         public (VrfGuiContext? Context, PackageEntry? PackageEntry) FindFileWithContext(string file)
         {
             var foundFile = Path.IsPathRooted(file) switch
@@ -253,5 +261,25 @@ namespace GUI.Utils
         }
 
         public override Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
+
+        private static ILogger MakeLogger()
+        {
+            ILoggerFactory? loggerFactory = null;
+
+            try
+            {
+                loggerFactory = LoggerFactory.Create(static builder =>
+                {
+                    builder.AddProvider(new GuiLoggerProvider());
+                });
+                var logger = loggerFactory.CreateLogger(nameof(RendererContext));
+                loggerFactory = null;
+                return logger;
+            }
+            finally
+            {
+                loggerFactory?.Dispose();
+            }
+        }
     }
 }

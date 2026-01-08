@@ -304,7 +304,7 @@ namespace GUI.Types.Renderer
             }
             catch (IOException e)
             {
-                Log.Error(nameof(ShaderParser), e.Message);
+                Console.Error.WriteLine(e.Message);
 
                 // Sometimes hot reloading shaders throws "The process cannot access the file x because it is being used by another process."
                 // Just sleep for a second and try again

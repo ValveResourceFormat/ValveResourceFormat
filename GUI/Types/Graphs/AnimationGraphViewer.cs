@@ -174,7 +174,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             }
             catch (IndexOutOfRangeException)
             {
-                Console.WriteLine($"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
+                Log.Error(nameof(AnimationGraphViewer), $"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
             }
 
             childNode.UpdateTypeColorFromOutput();
@@ -450,7 +450,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 }
                 else
                 {
-                    Console.WriteLine($"Generic handled node: {node.NodeType} ({node.Name})");
+                    Log.Error(nameof(AnimationGraphViewer), $"Generic handled node: {node.NodeType} ({node.Name})");
                 }
             }
             else if (node.Data.ContainsKey("m_conditionNodeIndices")) // Conditional node
@@ -565,7 +565,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             }
             else
             {
-                Console.WriteLine($"Unhandled node type: {node.NodeType} ({node.Name})");
+                Log.Error(nameof(AnimationGraphViewer), $"Unhandled node type: {node.NodeType} ({node.Name})");
             }
 
             node.UpdateTypeColorFromOutput();

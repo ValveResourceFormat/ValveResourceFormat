@@ -1,5 +1,6 @@
 using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Renderer;
@@ -83,7 +84,7 @@ public class SceneLightProbe : SceneNode
 
         if (numVoxels > MaxVoxels)
         {
-            Log.Warn(nameof(CrateDebugGridSpheres), $"LightProbe {Id} has too many voxels ({numVoxels}) to visualize. Clamping to {MaxVoxels}.");
+            Scene.RendererContext.Logger.LogWarning("LightProbe {ProbeId} has too many voxels ({NumVoxels}) to visualize. Clamping to {MaxVoxels}", Id, numVoxels, MaxVoxels);
             numVoxels = MaxVoxels;
         }
 
