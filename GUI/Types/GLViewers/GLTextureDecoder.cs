@@ -5,14 +5,16 @@ using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 using SkiaSharp;
+using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
 #nullable disable
 
-namespace ValveResourceFormat.Renderer;
+namespace GUI.Types.GLViewers;
 
 public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 {
@@ -27,7 +29,8 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     public GLTextureDecoder(ILogger logger)
     {
-        RendererContext = new RendererContext(new GameFileLoader(null, null), logger);
+        using var loader = new GameFileLoader(null, null);
+        RendererContext = new RendererContext(loader, logger);
     }
 
     private record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, CubemapFace Face, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
@@ -129,7 +132,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GLWindowContext = new NativeWindow(new()
         {
             APIVersion = GLEnvironment.RequiredVersion,
-            Flags = GLEnvironment.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+            Flags = GLViewerControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
             StartVisible = false,
             StartFocused = false,
             ClientSize = new(4, 4),
@@ -298,18 +301,12 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
     }
 
-    public static (SizedInternalFormat SizedInternalFormat, PixelFormat PixelFormat, PixelType PixelType) GetImageExportFormat(bool hdr) => hdr switch
-    {
-        false => (SizedInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte),
-        true => (SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
-    };
-
     public Lazy<Framebuffer.AttachmentFormat> LDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: false));
     public Lazy<Framebuffer.AttachmentFormat> HDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: true));
 
     public static Framebuffer.AttachmentFormat GetPreferredFramebufferFormat(bool hdr)
     {
-        var (internalFormat, pixelFormat, pixelType) = GetImageExportFormat(hdr);
+        var (internalFormat, pixelFormat, pixelType) = MaterialLoader.GetImageExportFormat(hdr);
 
         GL.GetInternalformat(ImageTarget.Texture2D, internalFormat, InternalFormatParameter.InternalformatPreferred, 1, out int internalFormatPreferred);
         return new((PixelInternalFormat)internalFormatPreferred, pixelFormat, pixelType);

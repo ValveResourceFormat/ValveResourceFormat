@@ -380,12 +380,18 @@ namespace ValveResourceFormat.Renderer
         public RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
         public RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
 
+        public static (SizedInternalFormat SizedInternalFormat, PixelFormat PixelFormat, PixelType PixelType) GetImageExportFormat(bool hdr) => hdr switch
+        {
+            false => (SizedInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte),
+            true => (SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
+        };
+
         public static RenderTexture LoadBitmapTexture(SKBitmap bitmap)
         {
             var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
 
             var isHdr = bitmap.ColorType == Texture.HdrBitmapColorType;
-            var store = GLTextureDecoder.GetImageExportFormat(isHdr);
+            var store = GetImageExportFormat(isHdr);
 
             GL.TextureStorage2D(texture.Handle, 1, store.SizedInternalFormat, texture.Width, texture.Height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, store.PixelFormat, store.PixelType, bitmap.GetPixels());

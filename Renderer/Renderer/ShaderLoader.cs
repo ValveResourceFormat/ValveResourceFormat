@@ -9,7 +9,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using OpenTK.Windowing.Desktop;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -452,16 +451,6 @@ namespace ValveResourceFormat.Renderer
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
             var shaders = Directory.GetFiles(folder, filter ?? $"*{ShaderFileExtension}");
-
-            using var window = new NativeWindow(new()
-            {
-                APIVersion = GLEnvironment.RequiredVersion,
-                Flags = GLEnvironment.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
-                StartVisible = false,
-                Title = "Source 2 Viewer Shader Validator"
-            });
-
-            window.MakeCurrent();
 
             GLEnvironment.Initialize(renderContext.Logger);
 

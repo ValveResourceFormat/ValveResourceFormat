@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using SkiaSharp;
 using ValveResourceFormat.Renderer;
@@ -20,6 +21,11 @@ namespace GUI.Types.GLViewers
     {
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
+#if DEBUG
+        public static ContextFlags Flags => ContextFlags.ForwardCompatible | ContextFlags.Debug;
+#else
+        public static ContextFlags Flags => ContextFlags.ForwardCompatible;
+#endif
         protected RendererControl UiControl;
         private OpenTK.Windowing.Desktop.NativeWindow GLNativeWindow;
         public GLControl GLControl { get; private set; }
@@ -490,7 +496,7 @@ namespace GUI.Types.GLViewers
                 var settings = new NativeWindowSettings()
                 {
                     APIVersion = GLEnvironment.RequiredVersion,
-                    Flags = GLEnvironment.Flags,
+                    Flags = Flags,
                     RedBits = 8,
                     GreenBits = 8,
                     BlueBits = 8,

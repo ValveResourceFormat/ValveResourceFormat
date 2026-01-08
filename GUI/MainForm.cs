@@ -1235,6 +1235,16 @@ namespace GUI
             };
             progressDialog.OnProcess += (_, __) =>
             {
+                using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
+                {
+                    APIVersion = GLEnvironment.RequiredVersion,
+                    Flags = GLViewerControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                    StartVisible = false,
+                    Title = "Source 2 Viewer Shader Validator"
+                });
+
+                window.MakeCurrent();
+
                 ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
             };
             progressDialog.ShowDialog();

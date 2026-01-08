@@ -1,7 +1,7 @@
 using System.Threading;
 using OpenTK.Windowing.Desktop;
 
-namespace ValveResourceFormat.Renderer;
+namespace GUI.Types.GLViewers;
 
 public readonly ref struct GLLockScope
 {

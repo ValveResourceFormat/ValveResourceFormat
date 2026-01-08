@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using OpenTK.Windowing.Common;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -12,10 +11,7 @@ public static class GLEnvironment
     public static readonly Version RequiredVersion = new(VersionMajor, VersionMinor);
 
 #if DEBUG
-    public static ContextFlags Flags => ContextFlags.ForwardCompatible | ContextFlags.Debug;
     public static int MaxLabelLength { get; private set; }
-#else
-    public static ContextFlags Flags => ContextFlags.ForwardCompatible;
 #endif
 
     public enum ParallelShaderCompileType : byte

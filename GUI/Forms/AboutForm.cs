@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 using Svg.Skia;
 using ValveResourceFormat.Renderer;
