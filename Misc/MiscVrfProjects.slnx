@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="VrfFgdParser/VrfFgdParser.csproj" />
+  <Project Path="RenderTest/RenderTest.csproj" />
   <Project Path="ShaderValidator/ShaderValidator.csproj" />
   <Project Path="FontMsdfGen/FontMsdfGen.csproj" />
   <Project Path="MurmurHashMatcher/MurmurHashMatcher.csproj" />
