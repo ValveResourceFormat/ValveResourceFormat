@@ -1,4 +1,5 @@
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace GUI.Types.ParticleRenderer
 {
@@ -20,9 +21,11 @@ namespace GUI.Types.ParticleRenderer
         //float OpTimeScaleMax; // operator fade time scale max
 
         readonly bool StrengthFastPath;
+        protected readonly ILogger Logger;
 
         public ParticleFunction(ParticleDefinitionParser parse)
         {
+            Logger = parse.Logger;
             OpStartFadeInTime = parse.Float("m_flOpStartFadeInTime");
             OpEndFadeInTime = parse.Float("m_flOpEndFadeInTime");
             OpStartFadeOutTime = parse.Float("m_flOpStartFadeOutTime");

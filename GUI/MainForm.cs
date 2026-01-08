@@ -132,13 +132,13 @@ namespace GUI
 
             CheckForUpdatesIfNecessary();
 
-            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder();
+            HardwareAcceleratedTextureDecoder.Decoder = new GLTextureDecoder(VrfGuiContext.Logger);
             RenderLoopThread.Initialize(this);
 
 #if DEBUG
             if (args.Length > 0 && args[0] == "validate_shaders")
             {
-                GUI.Types.Renderer.ShaderLoader.ValidateShaders();
+                ValidateShaders();
                 Environment.Exit(0);
                 return;
             }
@@ -1224,6 +1224,19 @@ namespace GUI
                     mainFormBottomPanel.SetNewVersionAvailable();
                 }).ConfigureAwait(false);
             }
+        }
+
+        private static void ValidateShaders()
+        {
+            using var progressDialog = new GenericProgressForm
+            {
+                Text = "Compiling shaders…"
+            };
+            progressDialog.OnProcess += (_, __) =>
+            {
+                ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+            };
+            progressDialog.ShowDialog();
         }
 
         // Based on https://www.codeproject.com/articles/Adding-and-using-32-bit-alphablended-images-and-ic

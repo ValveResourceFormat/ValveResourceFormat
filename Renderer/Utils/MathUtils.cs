@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace GUI.Utils
 {
-    static class MathUtils
+    public static class MathUtils
     {
         /// <summary>
         /// Remap to 0-1

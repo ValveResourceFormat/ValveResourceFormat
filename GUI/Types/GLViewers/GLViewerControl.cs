@@ -67,8 +67,8 @@ namespace GUI.Types.GLViewers
         {
             lastUpdate = Stopwatch.GetTimestamp();
 
-            Camera = new Camera();
-            Input = new UserInput();
+            Camera = new Camera(rendererContext);
+            Input = new UserInput(rendererContext);
 
             TextRenderer = new(rendererContext, Camera);
             postProcessRenderer = new(rendererContext);

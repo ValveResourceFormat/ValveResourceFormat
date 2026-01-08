@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="ValveResourceFormat.Utils" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Renderer\Shaders\**" />
+    <EmbeddedResource Include="Resources\env_cubemap.vmdl_c" />
+    <EmbeddedResource Include="Resources\jetbrains_mono_msdf.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
+    <PackageReference Include="OpenTK" Version="4.9.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
+  </ItemGroup>
+
+</Project>

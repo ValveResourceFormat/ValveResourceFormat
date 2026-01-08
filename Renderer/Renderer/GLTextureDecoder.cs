@@ -8,6 +8,7 @@ using OpenTK.Windowing.Desktop;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
@@ -17,7 +18,6 @@ namespace GUI.Types.Renderer;
 
 public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 {
-    private readonly VrfGuiContext guiContext = new(null, null);
     private readonly RendererContext RendererContext;
     private readonly BlockingCollection<DecodeRequest> decodeQueue = [];
     private readonly Lock threadStartupLock = new();
@@ -27,9 +27,9 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private NativeWindow GLWindowContext;
     private Framebuffer Framebuffer;
 
-    public GLTextureDecoder()
+    public GLTextureDecoder(ILogger logger)
     {
-        RendererContext = guiContext.CreateRendererContext();
+        RendererContext = new RendererContext(new GameFileLoader(null, null), logger);
     }
 
     private record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, CubemapFace Face, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
@@ -295,7 +295,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         {
             Exit();
             decodeQueue.Dispose();
-            guiContext.Dispose();
             RendererContext.Dispose();
             RendererContext.Logger.LogInformation("Decoder has been disposed");
         }

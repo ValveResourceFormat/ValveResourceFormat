@@ -12,6 +12,7 @@ namespace GUI.Types.Renderer
         public Vector3 Right { get; private set; }
         public Vector3 Up { get; private set; }
 
+        private RendererContext RendererContext;
         private Matrix4x4 ProjectionMatrix;
         public Matrix4x4 CameraViewMatrix { get; private set; }
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
@@ -20,8 +21,9 @@ namespace GUI.Types.Renderer
         public Vector2 WindowSize { get; private set; }
         public float AspectRatio { get; private set; }
 
-        public Camera()
+        public Camera(RendererContext rendererContext)
         {
+            RendererContext = rendererContext;
             Location = Vector3.One;
             SetViewportSize(16, 9);
             LookAt(Vector3.Zero);
@@ -205,9 +207,9 @@ namespace GUI.Types.Renderer
             Pitch = Math.Clamp(Pitch, -PITCH_LIMIT, PITCH_LIMIT);
         }
 
-        private static float GetFOV()
+        private float GetFOV()
         {
-            return Settings.Config.FieldOfView * MathF.PI / 180f;
+            return RendererContext.FieldOfView * MathF.PI / 180f;
         }
     }
 }

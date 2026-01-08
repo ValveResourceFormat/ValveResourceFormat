@@ -227,7 +227,7 @@ namespace GUI.Types.Renderer
 
             if (!isViewerRequest && !is3d && data.NumMipLevels > 1)
             {
-                var maxUserTextureSize = Settings.Config.MaxTextureSize;
+                var maxUserTextureSize = RendererContext.MaxTextureSize;
 
                 while (minMipLevelAllowed + 1 < data.NumMipLevels && (texWidth > maxUserTextureSize || texHeight > maxUserTextureSize))
                 {

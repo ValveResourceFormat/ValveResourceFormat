@@ -160,7 +160,11 @@ namespace GUI.Utils
 
         public RendererContext CreateRendererContext()
         {
-            return new RendererContext(this, Logger);
+            return new RendererContext(this, Logger)
+            {
+                FieldOfView = Settings.Config.FieldOfView,
+                MaxTextureSize = Settings.Config.MaxTextureSize,
+            };
         }
 
         public (VrfGuiContext? Context, PackageEntry? PackageEntry) FindFileWithContext(string file)

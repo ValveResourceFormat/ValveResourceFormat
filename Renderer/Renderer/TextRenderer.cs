@@ -52,7 +52,7 @@ namespace GUI.Types.Renderer
 
         public void Load()
         {
-            using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("GUI.Utils.jetbrains_mono_msdf.png");
+            using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Renderer.Resources.jetbrains_mono_msdf.png");
             using var bitmap = SKBitmap.Decode(fontStream);
 
             shader = RendererContext.ShaderLoader.LoadShader("vrf.font_msdf");

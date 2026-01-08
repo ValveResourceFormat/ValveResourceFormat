@@ -503,7 +503,7 @@ namespace GUI
         private void OnValidateShadersToolStripMenuItem_Click(object sender, EventArgs e)
         {
 #if DEBUG
-            GUI.Types.Renderer.ShaderLoader.ValidateShaders();
+            ValidateShaders();
 #endif
         }
     }

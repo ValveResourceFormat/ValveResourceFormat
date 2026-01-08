@@ -11,6 +11,16 @@ public class RendererContext : IDisposable
     public ShaderLoader ShaderLoader { get; }
     public GPUMeshBufferCache MeshBufferCache { get; }
 
+    /// <summary>
+    /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.
+    /// </summary>
+    public int MaxTextureSize { get; set; } = 1024;
+
+    /// <summary>
+    /// Field of view in degrees for <see cref="Camera"/>
+    /// </summary>
+    public float FieldOfView { get; set; } = 60.0f;
+
     public RendererContext(GameFileLoader fileLoader, ILogger logger)
     {
         FileLoader = fileLoader;

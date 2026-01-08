@@ -23,7 +23,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
             MaxDistance = parse.Float("m_flMaxDistance", MaxDistance);
 
             // The functionality of this initializer relies on path params existing
-            parse = new ParticleDefinitionParser(parse.Data.GetSubCollection("m_PathParams"));
+            parse = new ParticleDefinitionParser(parse.Data.GetSubCollection("m_PathParams"), parse.Logger);
 
             StartControlPointNumber = parse.Int32("m_nStartControlPointNumber", StartControlPointNumber);
             EndControlPointNumber = parse.Int32("m_nEndControlPointNumber", EndControlPointNumber);

@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Linq;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.ParticleRenderer;
 
-record struct ParticleDefinitionParser(KVObject Data)
+record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
 {
     private readonly T GetValueOrDefault<T>(string key, Func<string, T> parsingMethod, T @default)
     {
@@ -25,7 +26,8 @@ record struct ParticleDefinitionParser(KVObject Data)
             return [];
         }
 
-        return [.. Data.GetArray(k).Select(static item => new ParticleDefinitionParser(item))];
+        var logger = Logger; // Copy to local variable to avoid capturing 'this' in lambda
+        return [.. Data.GetArray(k).Select(item => new ParticleDefinitionParser(item, logger))];
     }
 
     private readonly float Float(string k) => Data.GetFloatProperty(k);
@@ -69,7 +71,7 @@ record struct ParticleDefinitionParser(KVObject Data)
         if (property is KVObject pfParameters)
         {
             var type = pfParameters.GetProperty<string>("m_nType");
-            var parse = new ParticleDefinitionParser(pfParameters);
+            var parse = new ParticleDefinitionParser(pfParameters, Logger);
 
             switch (type)
             {
@@ -109,7 +111,7 @@ record struct ParticleDefinitionParser(KVObject Data)
                 default:
                     if (pfParameters.ContainsKey("m_flLiteralValue"))
                     {
-                        Log.Warn(nameof(ParticleDefinitionParser), $"Number provider of type {type} is not directly supported, but it has m_flLiteralValue.");
+                        Logger.LogWarning("Number provider of type {Type} is not directly supported, but it has m_flLiteralValue", type);
                         return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
                     }
 
@@ -130,7 +132,7 @@ record struct ParticleDefinitionParser(KVObject Data)
         if (property is KVObject pvecParameters && pvecParameters.ContainsKey("m_nType"))
         {
             var type = pvecParameters.GetProperty<string>("m_nType");
-            var parse = new ParticleDefinitionParser(pvecParameters);
+            var parse = new ParticleDefinitionParser(pvecParameters, Logger);
 
             switch (type)
             {
@@ -166,7 +168,7 @@ record struct ParticleDefinitionParser(KVObject Data)
                 default:
                     if (pvecParameters.ContainsKey("m_vLiteralValue"))
                     {
-                        Log.Warn(nameof(ParticleDefinitionParser), $"Vector provider of type {type} is not directly supported, but it has m_vLiteralValue.");
+                        Logger.LogWarning("Vector provider of type {Type} is not directly supported, but it has m_vLiteralValue", type);
                         return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
                     }
 
@@ -185,7 +187,7 @@ record struct ParticleDefinitionParser(KVObject Data)
         if (property is KVObject transformParameters)
         {
             var type = transformParameters.GetProperty<string>("m_nType");
-            var parse = new ParticleDefinitionParser(transformParameters);
+            var parse = new ParticleDefinitionParser(transformParameters, Logger);
 
             switch (type)
             {
@@ -197,7 +199,7 @@ record struct ParticleDefinitionParser(KVObject Data)
                     }
                 case "PT_TYPE_CONTROL_POINT_RANGE":
                     // TODO: Implement range support if needed
-                    Log.Warn(nameof(ParticleDefinitionParser), "PT_TYPE_CONTROL_POINT_RANGE not fully supported, using first CP only.");
+                    Logger.LogWarning("PT_TYPE_CONTROL_POINT_RANGE not fully supported, using first CP only");
                     {
                         var controlPoint = parse.Int32("m_nControlPoint");
                         var useOrientation = parse.Boolean("m_bUseOrientation", true);
@@ -206,7 +208,7 @@ record struct ParticleDefinitionParser(KVObject Data)
                 case "PT_TYPE_INVALID":
                 case "PT_TYPE_NAMED_VALUE":
                 default:
-                    Log.Warn(nameof(ParticleDefinitionParser), $"Transform type {type} not supported, using identity transform.");
+                    Logger.LogWarning("Transform type {Type} not supported, using identity transform", type);
                     return new IdentityTransformProvider();
             }
         }

@@ -1,4 +1,5 @@
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace GUI.Types.ParticleRenderer.Initializers
 {
@@ -139,7 +140,7 @@ namespace GUI.Types.ParticleRenderer.Initializers
 
             if (!found)
             {
-                Log.Warn(nameof(CreateOnGrid), "unable to find correct position on particle grid");
+                Logger.LogWarning("unable to find correct position on particle grid");
             }
 
             if (center)

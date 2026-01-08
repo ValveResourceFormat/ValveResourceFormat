@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.GLViewers;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -30,8 +31,20 @@ namespace GUI.Types.Viewers
                 navMeshFile.Read(guiContext.FileName);
             }
 
-            glViewer = new GLNavMeshViewer(guiContext, guiContext.CreateRendererContext(), navMeshFile);
-            glViewer.InitializeLoad();
+            RendererContext? rendererContext = null;
+
+            try
+            {
+                rendererContext = guiContext.CreateRendererContext();
+
+                glViewer = new GLNavMeshViewer(guiContext, rendererContext, navMeshFile);
+                glViewer.InitializeLoad();
+                rendererContext = null;
+            }
+            finally
+            {
+                rendererContext?.Dispose();
+            }
         }
 
         public void Create(TabPage tabOuterPage)

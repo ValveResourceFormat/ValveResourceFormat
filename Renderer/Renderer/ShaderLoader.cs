@@ -446,24 +446,10 @@ namespace GUI.Types.Renderer
             }
         }
 
-        public static void ValidateShaders()
+        public static void ValidateShaders(IProgress<string> progressReporter, ILogger logger, string? filter = null)
         {
-            using var progressDialog = new Forms.GenericProgressForm
-            {
-                Text = "Compiling shaders…"
-            };
-            progressDialog.OnProcess += (_, __) =>
-            {
-                ValidateShadersCore(new Progress<string>(progressDialog.SetProgress));
-            };
-            progressDialog.ShowDialog();
-        }
-
-        public static void ValidateShadersCore(IProgress<string> progressReporter, string? filter = null)
-        {
-            using var context = new VrfGuiContext(string.Empty, null);
-            var renderContext = context.CreateRendererContext();
-            using var loader = new ShaderLoader(renderContext);
+            using var renderContext = new RendererContext(new ValveResourceFormat.IO.GameFileLoader(null, null), logger);
+            var loader = renderContext.ShaderLoader;
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
             var shaders = Directory.GetFiles(folder, filter ?? $"*{ShaderFileExtension}");

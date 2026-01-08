@@ -7,6 +7,7 @@ using GUI.Types.ParticleRenderer.PreEmissionOperators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Types.Renderer;
 using GUI.Utils;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -68,7 +69,7 @@ namespace GUI.Types.ParticleRenderer
             childParticleRenderers = [];
             this.RendererContext = rendererContext;
 
-            var parse = new ParticleDefinitionParser(particleSystem.Data);
+            var parse = new ParticleDefinitionParser(particleSystem.Data, rendererContext.Logger);
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
             InitialParticles = parse.Int32("m_nInitialParticles", 0);
             MaxParticles = parse.Int32("m_nMaxParticles", 1000);
@@ -347,19 +348,19 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var emitterInfo in emitterData)
             {
-                if (IsOperatorDisabled(emitterInfo))
+                if (IsOperatorDisabled(emitterInfo, RendererContext.Logger))
                 {
                     continue;
                 }
 
                 var emitterClass = emitterInfo.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreateEmitter(emitterClass, emitterInfo, out var emitter))
+                if (ParticleControllerFactory.TryCreateEmitter(emitterClass, emitterInfo, RendererContext.Logger, out var emitter))
                 {
                     Emitters.Add(emitter);
                 }
                 else
                 {
-                    Log.Warn(nameof(ParticleRenderer), $"Unsupported emitter class '{emitterClass}'.");
+                    RendererContext.Logger.LogWarning("Unsupported emitter class '{EmitterClass}'", emitterClass);
                 }
             }
         }
@@ -368,19 +369,19 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var initializerInfo in initializerData)
             {
-                if (IsOperatorDisabled(initializerInfo))
+                if (IsOperatorDisabled(initializerInfo, RendererContext.Logger))
                 {
                     continue;
                 }
 
                 var initializerClass = initializerInfo.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreateInitializer(initializerClass, initializerInfo, out var initializer))
+                if (ParticleControllerFactory.TryCreateInitializer(initializerClass, initializerInfo, RendererContext.Logger, out var initializer))
                 {
                     Initializers.Add(initializer);
                 }
                 else
                 {
-                    Log.Warn(nameof(ParticleRenderer), $"Unsupported initializer class '{initializerClass}'.");
+                    RendererContext.Logger.LogWarning("Unsupported initializer class '{InitializerClass}'", initializerClass);
                 }
             }
         }
@@ -389,19 +390,19 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var operatorInfo in operatorData)
             {
-                if (IsOperatorDisabled(operatorInfo))
+                if (IsOperatorDisabled(operatorInfo, RendererContext.Logger))
                 {
                     continue;
                 }
 
                 var operatorClass = operatorInfo.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreateOperator(operatorClass, operatorInfo, out var @operator))
+                if (ParticleControllerFactory.TryCreateOperator(operatorClass, operatorInfo, RendererContext.Logger, out var @operator))
                 {
                     Operators.Add(@operator);
                 }
                 else
                 {
-                    Log.Warn(nameof(ParticleRenderer), $"Unsupported operator class '{operatorClass}'.");
+                    RendererContext.Logger.LogWarning("Unsupported operator class '{OperatorClass}'", operatorClass);
                 }
             }
         }
@@ -410,19 +411,19 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var forceGenerator in forceGeneratorData)
             {
-                if (IsOperatorDisabled(forceGenerator))
+                if (IsOperatorDisabled(forceGenerator, RendererContext.Logger))
                 {
                     continue;
                 }
 
                 var operatorClass = forceGenerator.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreateForceGenerator(operatorClass, forceGenerator, out var @operator))
+                if (ParticleControllerFactory.TryCreateForceGenerator(operatorClass, forceGenerator, RendererContext.Logger, out var @operator))
                 {
                     Operators.Add(@operator);
                 }
                 else
                 {
-                    Log.Warn(nameof(ParticleRenderer), $"Unsupported force generator class '{operatorClass}'.");
+                    RendererContext.Logger.LogWarning("Unsupported force generator class '{OperatorClass}'", operatorClass);
                 }
             }
         }
@@ -431,7 +432,7 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var rendererInfo in rendererData)
             {
-                if (IsOperatorDisabled(rendererInfo))
+                if (IsOperatorDisabled(rendererInfo, RendererContext.Logger))
                 {
                     continue;
                 }
@@ -443,7 +444,7 @@ namespace GUI.Types.ParticleRenderer
                 }
                 else
                 {
-                    Log.Warn(nameof(ParticleRenderer), $"Unsupported renderer class '{rendererClass}'.");
+                    RendererContext.Logger.LogWarning("Unsupported renderer class '{RendererClass}'", rendererClass);
                 }
             }
         }
@@ -451,19 +452,19 @@ namespace GUI.Types.ParticleRenderer
         {
             foreach (var preEmissionOperatorInfo in preEmissionOperatorData)
             {
-                if (IsOperatorDisabled(preEmissionOperatorInfo))
+                if (IsOperatorDisabled(preEmissionOperatorInfo, RendererContext.Logger))
                 {
                     continue;
                 }
 
                 var preEmissionOperatorClass = preEmissionOperatorInfo.GetProperty<string>("_class");
-                if (ParticleControllerFactory.TryCreatePreEmissionOperator(preEmissionOperatorClass, preEmissionOperatorInfo, out var preEmissionOperator))
+                if (ParticleControllerFactory.TryCreatePreEmissionOperator(preEmissionOperatorClass, preEmissionOperatorInfo, RendererContext.Logger, out var preEmissionOperator))
                 {
                     PreEmissionOperators.Add(preEmissionOperator);
                 }
                 else
                 {
-                    Log.Warn(nameof(ParticleRenderer), $"Unsupported pre-emission operator class '{preEmissionOperatorClass}'.");
+                    RendererContext.Logger.LogWarning("Unsupported pre-emission operator class '{PreEmissionOperatorClass}'", preEmissionOperatorClass);
                 }
             }
         }
@@ -491,9 +492,9 @@ namespace GUI.Types.ParticleRenderer
             }
         }
 
-        private static bool IsOperatorDisabled(KVObject op)
+        private static bool IsOperatorDisabled(KVObject op, ILogger logger)
         {
-            var parse = new ParticleDefinitionParser(op);
+            var parse = new ParticleDefinitionParser(op, logger);
 
             // Also skip ops that only run during endcap (currently unsupported)
             return parse.Boolean("m_bDisableOperator", default)

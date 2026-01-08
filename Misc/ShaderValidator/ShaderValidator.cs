@@ -1,19 +1,21 @@
+using Microsoft.Extensions.Logging;
+
 internal class ShaderValidator
 {
-    private class LogProgress() : IProgress<string>
+    private class LogProgress(ILogger logger) : IProgress<string>
     {
-        public void Report(string str) => GUI.Utils.Log.Info(nameof(ShaderValidator), str);
+        public void Report(string str) => logger.LogInformation("{Message}", str);
     }
 
     public static int Main(string[] args)
     {
-        var progressReporter = new LogProgress();
-
-        GUI.Utils.Settings.Load();
+        using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<ShaderValidator>();
+        var progressReporter = new LogProgress(logger);
 
         var shaderFilter = args.Length > 0 ? $"*{args[0]}*" : null;
 
-        GUI.Types.Renderer.ShaderLoader.ValidateShadersCore(progressReporter, shaderFilter);
+        GUI.Types.Renderer.ShaderLoader.ValidateShaders(progressReporter, logger, shaderFilter);
 
         return 0;
     }

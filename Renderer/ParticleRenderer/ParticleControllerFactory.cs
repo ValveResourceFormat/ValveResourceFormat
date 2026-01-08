@@ -6,6 +6,7 @@ using GUI.Types.ParticleRenderer.Operators;
 using GUI.Types.ParticleRenderer.PreEmissionOperators;
 using GUI.Types.ParticleRenderer.Renderers;
 using GUI.Types.Renderer;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.ParticleRenderer
@@ -139,11 +140,11 @@ namespace GUI.Types.ParticleRenderer
                 ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
             };
 
-        public static bool TryCreateEmitter(string name, KVObject emitterInfo, [MaybeNullWhen(false)] out ParticleFunctionEmitter emitter)
+        public static bool TryCreateEmitter(string name, KVObject emitterInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionEmitter emitter)
         {
             if (EmitterDictionary.TryGetValue(name, out var factory))
             {
-                emitter = factory(new ParticleDefinitionParser(emitterInfo));
+                emitter = factory(new ParticleDefinitionParser(emitterInfo, logger));
                 return true;
             }
 
@@ -151,11 +152,11 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateInitializer(string name, KVObject initializerInfo, [MaybeNullWhen(false)] out ParticleFunctionInitializer initializer)
+        public static bool TryCreateInitializer(string name, KVObject initializerInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionInitializer initializer)
         {
             if (InitializerDictionary.TryGetValue(name, out var factory))
             {
-                initializer = factory(new ParticleDefinitionParser(initializerInfo));
+                initializer = factory(new ParticleDefinitionParser(initializerInfo, logger));
                 return true;
             }
 
@@ -163,11 +164,11 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateOperator(string name, KVObject operatorInfo, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
+        public static bool TryCreateOperator(string name, KVObject operatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
         {
             if (OperatorDictionary.TryGetValue(name, out var factory))
             {
-                @operator = factory(new ParticleDefinitionParser(operatorInfo));
+                @operator = factory(new ParticleDefinitionParser(operatorInfo, logger));
                 return true;
             }
 
@@ -175,11 +176,11 @@ namespace GUI.Types.ParticleRenderer
             return false;
         }
 
-        public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
+        public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
         {
             if (ForceGeneratorDictionary.TryGetValue(name, out var factory))
             {
-                @operator = factory(new ParticleDefinitionParser(forceGeneratorInfo));
+                @operator = factory(new ParticleDefinitionParser(forceGeneratorInfo, logger));
                 return true;
             }
 
@@ -191,18 +192,18 @@ namespace GUI.Types.ParticleRenderer
         {
             if (RendererDictionary.TryGetValue(name, out var factory))
             {
-                renderer = factory(new ParticleDefinitionParser(rendererInfo), rendererContext);
+                renderer = factory(new ParticleDefinitionParser(rendererInfo, rendererContext.Logger), rendererContext);
                 return true;
             }
 
             renderer = default;
             return false;
         }
-        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
+        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
         {
             if (PreEmissionOperatorDictionary.TryGetValue(name, out var factory))
             {
-                preEmissionOperator = factory(new ParticleDefinitionParser(preEmissionOperatorInfo));
+                preEmissionOperator = factory(new ParticleDefinitionParser(preEmissionOperatorInfo, logger));
                 return true;
             }
 

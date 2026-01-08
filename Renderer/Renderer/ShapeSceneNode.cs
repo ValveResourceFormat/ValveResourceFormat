@@ -347,7 +347,7 @@ namespace GUI.Types.Renderer
 
         public static Lazy<ValveResourceFormat.Resource> CubemapResource { get; } = new(() =>
         {
-            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"Renderer.Resources.env_cubemap.vmdl_c");
             var resource = new ValveResourceFormat.Resource()
             {
                 FileName = "env_cubemap.vmdl_c"

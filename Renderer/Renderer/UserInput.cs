@@ -59,9 +59,9 @@ public class UserInput
     private Vector2 MouseDelta2D;
     private Vector2 MouseDeltaPitchYaw;
 
-    public UserInput()
+    public UserInput(RendererContext rendererContext)
     {
-        Camera = new Camera();
+        Camera = new Camera(rendererContext);
     }
 
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)

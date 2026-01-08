@@ -9,6 +9,7 @@ using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Types.GLViewers;
 using GUI.Types.Graphs;
+using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
@@ -27,6 +28,7 @@ namespace GUI.Types.Viewers
     class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer, IDisposable
     {
         private ValveResourceFormat.Resource? resource;
+        private RendererContext? rendererContext;
         private GLViewerControl? GLViewer;
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
@@ -78,7 +80,7 @@ namespace GUI.Types.Viewers
 
         private void InitializeSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
         {
-            using var rendererContext = vrfGuiContext.CreateRendererContext();
+            rendererContext = vrfGuiContext.CreateRendererContext();
 
             switch (resource.ResourceType)
             {
@@ -770,6 +772,7 @@ namespace GUI.Types.Viewers
         public void Dispose()
         {
             resource?.Dispose();
+            rendererContext?.Dispose();
             GLViewer?.Dispose();
             GLViewerError?.Dispose();
         }
