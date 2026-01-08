@@ -416,7 +416,6 @@ namespace GUI.Types.Renderer
             this.renderContext = renderContext;
         }
 
-        /// <summary>
         public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, RendererContext renderContext)
         {
             var mesh = new RenderableMesh(name, bounds, renderContext);

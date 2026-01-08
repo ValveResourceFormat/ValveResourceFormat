@@ -1,10 +1,22 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Description>OpenGL-based rendering engine for Source 2 game assets. Supports models, maps, materials, particles, and animations with PBR lighting.</Description>
+    <PackageId>ValveResourceFormat.Renderer</PackageId>
+    <PackageReleaseNotes>View release notes at https://github.com/ValveResourceFormat/ValveResourceFormat/releases</PackageReleaseNotes>
+    <PackageIcon>source2viewer.png</PackageIcon>
+    <PackageTags>source2 dota2 dota steam valve halflife artifact underlords</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\Misc\Icons\source2viewer.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />

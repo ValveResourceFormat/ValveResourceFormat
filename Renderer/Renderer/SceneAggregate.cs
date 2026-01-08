@@ -39,7 +39,7 @@ namespace GUI.Types.Renderer
         {
             var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
 
-            /// TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes">
+            // TODO: Perhaps use ModelSceneNode.LoadMeshes
             if (embeddedMeshes.Count != 0)
             {
                 RenderMesh = new RenderableMesh(embeddedMeshes.First().Mesh, 0, Scene, model, isAggregate: true);

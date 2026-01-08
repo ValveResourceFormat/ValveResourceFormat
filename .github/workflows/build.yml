@@ -59,6 +59,9 @@ jobs:
     - name: Pack nupkg
       run: dotnet pack --configuration Release ValveResourceFormat/ValveResourceFormat.csproj
 
+    - name: Pack renderer nupkg
+      run: dotnet pack --configuration Release Renderer/Renderer.csproj
+
     - name: Publish GUI
       if: matrix.os == 'windows-latest'
       run: dotnet publish --configuration Release --self-contained --runtime win-x64 GUI/GUI.csproj
@@ -108,6 +111,13 @@ jobs:
       with:
         name: nupkg
         path: 'ValveResourceFormat/bin/Release/*.nupkg'
+
+    - name: Upload renderer nupkg
+      uses: actions/upload-artifact@v6
+      if: matrix.os == 'windows-latest'
+      with:
+        name: renderer-nupkg
+        path: 'Renderer/bin/Release/*.nupkg'
 
     - name: Upload CLI (Windows x64)
       uses: actions/upload-artifact@v6
@@ -229,6 +239,7 @@ jobs:
        zip -9j release/cli-macos-arm64.zip artifacts/cli-macos-arm64/*
        mv signed/Source2Viewer/Source2Viewer.exe release/
        mv artifacts/nupkg/ValveResourceFormat.*.nupkg release/ValveResourceFormat.nupkg
+       mv artifacts/renderer-nupkg/ValveResourceFormat.Renderer.*.nupkg release/ValveResourceFormat.Renderer.nupkg
 
     - name: Display structure of archived files
       run: ls -Rl
@@ -250,3 +261,6 @@ jobs:
 
     - name: Publish to NuGet Gallery
       run: dotnet nuget push release/ValveResourceFormat.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"
+
+    - name: Publish renderer to NuGet Gallery
+      run: dotnet nuget push release/ValveResourceFormat.Renderer.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"
