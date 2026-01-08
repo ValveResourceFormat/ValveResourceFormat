@@ -6,3 +6,7 @@ a1ecfa1c39efd5ef3d6954bd448fb734f9d560bc
 
 # Move GLViewerControl as it is no longer a winforms control
 398c647cd782257033351667469c76239c9bd356
+
+# Moved renderer
+c29691f218011ab9109c4a14d5c39aee01cbfa5f
+8122910fad10118ba7d439027668ecdd8ff62915
