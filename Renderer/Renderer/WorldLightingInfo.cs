@@ -1,11 +1,10 @@
 using System.Diagnostics;
 using System.Linq;
-using GUI.Types.Renderer.Buffers;
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Buffers;
 
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 public partial class Scene
 {

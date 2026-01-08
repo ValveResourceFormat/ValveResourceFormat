@@ -1,4 +1,4 @@
-namespace GUI.Types.ParticleRenderer.Operators
+namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     // Cull when crossing sphere
     class DistanceCull : ParticleFunctionOperator

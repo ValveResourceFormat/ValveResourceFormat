@@ -5,12 +5,12 @@ using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 using SkiaSharp;
-using static GUI.Types.Renderer.PickingTexture;
+using ValveResourceFormat.Renderer;
+using static ValveResourceFormat.Renderer.PickingTexture;
 
 #nullable disable
 
@@ -32,7 +32,7 @@ namespace GUI.Types.GLViewers
         public float Uptime { get; private set; }
         public Camera Camera { get; protected set; }
         public UserInput Input { get; protected set; }
-        public Types.Renderer.TextRenderer TextRenderer { get; protected set; }
+        public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
 
         protected virtual void OnGLLoad() { }
 
@@ -741,7 +741,7 @@ namespace GUI.Types.GLViewers
                 if (isPaused)
                 {
                     wasPaused = true;
-                    TextRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
+                    TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                     {
                         X = 2f,
                         Y = MainFramebuffer.Height - 4f,
@@ -752,7 +752,7 @@ namespace GUI.Types.GLViewers
                 }
                 else if (Settings.Config.DisplayFps != 0)
                 {
-                    TextRenderer.AddText(new Types.Renderer.TextRenderer.TextRenderRequest
+                    TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                     {
                         X = 2f,
                         Y = MainFramebuffer.Height - 4f,

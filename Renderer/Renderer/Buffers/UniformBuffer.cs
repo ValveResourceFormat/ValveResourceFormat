@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.Renderer.Buffers
+namespace ValveResourceFormat.Renderer.Buffers
 {
     public class UniformBuffer<T> : Buffer, IDisposable
         where T : new()

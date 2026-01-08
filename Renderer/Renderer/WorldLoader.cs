@@ -2,11 +2,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
-using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
@@ -14,7 +12,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class WorldLoader
     {

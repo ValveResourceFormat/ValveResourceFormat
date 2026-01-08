@@ -1,16 +1,17 @@
+using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.ResourceTypes;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class ParticleSceneNode : SceneNode
     {
-        private readonly ParticleRenderer.ParticleRenderer particleRenderer;
+        private readonly ParticleRenderer particleRenderer;
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
         public ParticleSceneNode(Scene scene, ParticleSystem particleSystem)
             : base(scene)
         {
-            particleRenderer = new ParticleRenderer.ParticleRenderer(particleSystem, Scene.RendererContext);
+            particleRenderer = new ParticleRenderer(particleSystem, Scene.RendererContext);
             LocalBoundingBox = particleRenderer.LocalBoundingBox;
         }
 

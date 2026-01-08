@@ -1,6 +1,4 @@
-using ValveResourceFormat;
-
-namespace GUI.Types.ParticleRenderer.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     class RandomScalar : ParticleFunctionInitializer
     {

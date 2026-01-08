@@ -4,10 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using GUI.Utils;
-using static GUI.Types.Renderer.ShaderLoader;
+using static ValveResourceFormat.Renderer.ShaderLoader;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public partial class ShaderParser
     {

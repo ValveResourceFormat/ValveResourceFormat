@@ -1,6 +1,4 @@
-using GUI.Utils;
-
-namespace GUI.Types.ParticleRenderer.Utils
+namespace ValveResourceFormat.Renderer.Particles.Utils
 {
     static class Noise
     {

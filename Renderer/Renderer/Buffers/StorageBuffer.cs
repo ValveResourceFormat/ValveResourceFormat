@@ -1,8 +1,7 @@
 using System.Runtime.CompilerServices;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.Renderer.Buffers
+namespace ValveResourceFormat.Renderer.Buffers
 {
     public class StorageBuffer : Buffer
     {

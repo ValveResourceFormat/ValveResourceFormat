@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public static class RenderModes
     {

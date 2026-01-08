@@ -1,6 +1,6 @@
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.ParticleRenderer
+namespace ValveResourceFormat.Renderer.Particles
 {
     struct Particle
     {

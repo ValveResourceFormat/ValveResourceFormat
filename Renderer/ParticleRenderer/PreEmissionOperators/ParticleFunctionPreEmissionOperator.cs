@@ -1,4 +1,4 @@
-namespace GUI.Types.ParticleRenderer.PreEmissionOperators
+namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     abstract class ParticleFunctionPreEmissionOperator : ParticleFunction
     {

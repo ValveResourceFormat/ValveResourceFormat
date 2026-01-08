@@ -1,6 +1,6 @@
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     /// <summary>
     /// Represents the fog data for the current scene.

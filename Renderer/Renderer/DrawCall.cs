@@ -4,7 +4,7 @@ using ValveResourceFormat.Blocks;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class DrawCall
     {

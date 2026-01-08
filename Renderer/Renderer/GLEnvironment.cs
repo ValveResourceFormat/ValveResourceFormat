@@ -1,9 +1,8 @@
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Common;
 
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 public static class GLEnvironment
 {

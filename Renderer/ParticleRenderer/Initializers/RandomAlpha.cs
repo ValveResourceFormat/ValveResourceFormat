@@ -1,6 +1,4 @@
-using GUI.Utils;
-
-namespace GUI.Types.ParticleRenderer.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     class RandomAlpha : ParticleFunctionInitializer
     {

@@ -1,15 +1,14 @@
 using System.Diagnostics.CodeAnalysis;
-using GUI.Types.ParticleRenderer.Emitters;
-using GUI.Types.ParticleRenderer.ForceGenerators;
-using GUI.Types.ParticleRenderer.Initializers;
-using GUI.Types.ParticleRenderer.Operators;
-using GUI.Types.ParticleRenderer.PreEmissionOperators;
-using GUI.Types.ParticleRenderer.Renderers;
-using GUI.Types.Renderer;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Renderer.Particles.Emitters;
+using ValveResourceFormat.Renderer.Particles.ForceGenerators;
+using ValveResourceFormat.Renderer.Particles.Initializers;
+using ValveResourceFormat.Renderer.Particles.Operators;
+using ValveResourceFormat.Renderer.Particles.PreEmissionOperators;
+using ValveResourceFormat.Renderer.Particles.Renderers;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.ParticleRenderer
+namespace ValveResourceFormat.Renderer.Particles
 {
     static class ParticleControllerFactory
     {

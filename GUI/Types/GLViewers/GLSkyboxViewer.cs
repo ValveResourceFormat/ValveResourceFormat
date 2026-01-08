@@ -1,6 +1,6 @@
-using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;
+using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.GLViewers
 {

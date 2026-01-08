@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace GUI.Utils
+namespace ValveResourceFormat.Renderer
 {
     public static class MathUtils
     {

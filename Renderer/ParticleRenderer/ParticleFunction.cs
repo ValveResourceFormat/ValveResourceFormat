@@ -1,7 +1,6 @@
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
 
-namespace GUI.Types.ParticleRenderer
+namespace ValveResourceFormat.Renderer.Particles
 {
     abstract class ParticleFunction
     {

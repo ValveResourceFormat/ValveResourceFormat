@@ -4,8 +4,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
-using GUI.Types.Renderer;
 using GUI.Utils;
+using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.GLViewers;
 

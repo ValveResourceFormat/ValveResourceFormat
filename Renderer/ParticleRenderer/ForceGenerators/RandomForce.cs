@@ -1,6 +1,6 @@
-using GUI.Types.ParticleRenderer.Operators;
+using ValveResourceFormat.Renderer.Particles.Operators;
 
-namespace GUI.Types.ParticleRenderer.ForceGenerators;
+namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
 class RandomForce : ParticleFunctionOperator
 {

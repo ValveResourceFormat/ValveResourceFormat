@@ -1,4 +1,4 @@
-namespace GUI.Types.ParticleRenderer.Emitters
+namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
     class ContinuousEmitter : ParticleFunctionEmitter
     {

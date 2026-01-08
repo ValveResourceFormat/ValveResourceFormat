@@ -1,4 +1,4 @@
-namespace GUI.Types.Renderer.Buffers;
+namespace ValveResourceFormat.Renderer.Buffers;
 
 public enum ReservedBufferSlots
 {

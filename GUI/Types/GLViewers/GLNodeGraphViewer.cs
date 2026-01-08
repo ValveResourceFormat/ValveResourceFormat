@@ -1,10 +1,10 @@
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Graphs;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
+using ValveResourceFormat.Renderer;
 
 #nullable disable
 

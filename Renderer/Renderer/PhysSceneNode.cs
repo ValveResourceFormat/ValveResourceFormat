@@ -1,11 +1,10 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
-using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class PhysSceneNode : ShapeSceneNode
     {

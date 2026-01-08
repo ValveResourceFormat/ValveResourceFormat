@@ -1,7 +1,7 @@
 #if false // TODO: Requires a rewrite
-using GUI.Utils;
+using ValveResourceFormat.Renderer;
 
-namespace GUI.Types.ParticleRenderer.Operators
+namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// This module is mostly used to stick effects onto moving components.

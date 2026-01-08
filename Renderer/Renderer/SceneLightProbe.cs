@@ -1,9 +1,8 @@
-using GUI.Types.Renderer.Buffers;
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 #nullable disable
 

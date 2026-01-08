@@ -5,8 +5,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using GUI.Types.Renderer;
 using GUI.Utils;
+using ValveResourceFormat.Renderer;
 
 namespace GUI
 {
@@ -54,7 +54,7 @@ namespace GUI
         {
             Log.Error(nameof(Program), exception.ToString());
 
-            if (exception is GUI.Types.Renderer.ShaderLoader.ShaderCompilerException)
+            if (exception is ValveResourceFormat.Renderer.ShaderLoader.ShaderCompilerException)
             {
                 MessageBox.Show(exception.Message, "Failed to compile shader", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;

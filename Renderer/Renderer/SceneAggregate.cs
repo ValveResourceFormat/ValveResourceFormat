@@ -1,11 +1,10 @@
 using System.IO;
 using System.Linq;
-using GUI.Types.Renderer.Buffers;
-using ValveResourceFormat;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class SceneAggregate : SceneNode
     {

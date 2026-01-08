@@ -1,8 +1,6 @@
-using GUI.Types.ParticleRenderer.Utils;
-using GUI.Utils;
-using ValveResourceFormat;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
-namespace GUI.Types.ParticleRenderer.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     class RemapParticleCountToScalar : ParticleFunctionInitializer
     {

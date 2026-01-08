@@ -1,6 +1,6 @@
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.Renderer.Buffers
+namespace ValveResourceFormat.Renderer.Buffers
 {
     public abstract class Buffer
     {

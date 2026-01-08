@@ -1,7 +1,7 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class Shader
     {

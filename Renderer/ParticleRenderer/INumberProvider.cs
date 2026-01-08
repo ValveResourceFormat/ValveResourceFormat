@@ -1,7 +1,6 @@
-using GUI.Types.ParticleRenderer.Utils;
-using ValveResourceFormat;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
-namespace GUI.Types.ParticleRenderer
+namespace ValveResourceFormat.Renderer.Particles
 {
     interface INumberProvider
     {

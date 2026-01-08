@@ -2,7 +2,7 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class GPUMeshBuffers
     {

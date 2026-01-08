@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using GUI.Types.Renderer;
 using GUI.Utils;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 

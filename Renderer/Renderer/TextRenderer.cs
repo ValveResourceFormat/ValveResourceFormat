@@ -2,11 +2,10 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class TextRenderer
     {

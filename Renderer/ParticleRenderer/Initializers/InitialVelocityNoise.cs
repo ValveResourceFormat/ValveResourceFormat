@@ -1,6 +1,6 @@
-using GUI.Types.ParticleRenderer.Utils;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
-namespace GUI.Types.ParticleRenderer.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     class InitialVelocityNoise : ParticleFunctionInitializer
     {

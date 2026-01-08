@@ -1,8 +1,7 @@
 using System.Runtime.InteropServices;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     [StructLayout(LayoutKind.Sequential)]
     public record struct SimpleVertex(Vector3 Position, Color32 Color)

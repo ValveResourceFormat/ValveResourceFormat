@@ -1,4 +1,4 @@
-namespace GUI.Types.ParticleRenderer.Utils
+namespace ValveResourceFormat.Renderer.Particles.Utils
 {
     // template for shared remapping functionality
     static class NumericBias

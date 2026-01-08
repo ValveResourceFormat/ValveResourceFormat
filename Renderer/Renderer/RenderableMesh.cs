@@ -1,13 +1,12 @@
 using System.Diagnostics;
 using System.Linq;
-using GUI.Types.Renderer.Buffers;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     [DebuggerDisplay("{Name}")]
     public class RenderableMesh

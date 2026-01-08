@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using SkiaSharp;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -467,7 +468,7 @@ namespace GUI.Types.Viewers
 
         private void EntityViewerGrid_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
         {
-            TextRenderer.DrawText(e.Graphics, e.Header?.Text ?? "", e.Font,
+            System.Windows.Forms.TextRenderer.DrawText(e.Graphics, e.Header?.Text ?? "", e.Font,
                 e.Bounds, ForeColor,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
         }

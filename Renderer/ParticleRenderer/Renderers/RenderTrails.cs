@@ -1,8 +1,6 @@
-using GUI.Types.Renderer;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat;
 
-namespace GUI.Types.ParticleRenderer.Renderers
+namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     internal class RenderTrails : ParticleFunctionRenderer
     {

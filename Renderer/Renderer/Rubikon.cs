@@ -5,7 +5,7 @@ using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 public class Rubikon
 {

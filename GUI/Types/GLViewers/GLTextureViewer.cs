@@ -5,16 +5,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using Svg.Skia;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
-using static GUI.Types.Renderer.Scene;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
 #nullable disable

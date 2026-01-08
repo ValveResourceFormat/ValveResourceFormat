@@ -1,10 +1,8 @@
 using System.Runtime.InteropServices;
-using GUI.Utils;
-using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class MeshSceneNode : MeshCollectionNode
     {

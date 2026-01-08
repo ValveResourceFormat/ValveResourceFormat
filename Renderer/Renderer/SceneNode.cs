@@ -1,8 +1,7 @@
 using System.Diagnostics;
-using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     [DebuggerDisplay("{DebugName,nq}")]
     public abstract class SceneNode

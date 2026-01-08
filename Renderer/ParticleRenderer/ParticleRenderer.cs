@@ -1,17 +1,15 @@
 using System.Diagnostics;
 using System.Linq;
-using GUI.Types.ParticleRenderer.Emitters;
-using GUI.Types.ParticleRenderer.Initializers;
-using GUI.Types.ParticleRenderer.Operators;
-using GUI.Types.ParticleRenderer.PreEmissionOperators;
-using GUI.Types.ParticleRenderer.Renderers;
-using GUI.Types.Renderer;
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Renderer.Particles.Emitters;
+using ValveResourceFormat.Renderer.Particles.Initializers;
+using ValveResourceFormat.Renderer.Particles.Operators;
+using ValveResourceFormat.Renderer.Particles.PreEmissionOperators;
+using ValveResourceFormat.Renderer.Particles.Renderers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.ParticleRenderer
+namespace ValveResourceFormat.Renderer.Particles
 {
     internal class ParticleRenderer
     {

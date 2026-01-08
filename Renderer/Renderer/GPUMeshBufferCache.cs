@@ -2,11 +2,10 @@ using System.Diagnostics;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public partial class GPUMeshBufferCache
     {

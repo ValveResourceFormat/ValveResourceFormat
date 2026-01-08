@@ -1,6 +1,4 @@
-using GUI.Utils;
-
-namespace GUI.Types.ParticleRenderer.PreEmissionOperators
+namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     class DistanceBetweenCPsToCP : ParticleFunctionPreEmissionOperator
     {

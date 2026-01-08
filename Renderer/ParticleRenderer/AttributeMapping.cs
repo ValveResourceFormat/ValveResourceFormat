@@ -1,8 +1,7 @@
-using GUI.Types.ParticleRenderer.Utils;
-using GUI.Utils;
+using ValveResourceFormat.Renderer.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.ParticleRenderer
+namespace ValveResourceFormat.Renderer.Particles
 {
     /// <summary>
     /// Particle attribute remapping handler.

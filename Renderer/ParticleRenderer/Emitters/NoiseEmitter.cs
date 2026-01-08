@@ -1,6 +1,6 @@
-using GUI.Types.ParticleRenderer.Utils;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
-namespace GUI.Types.ParticleRenderer.Emitters
+namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
     class NoiseEmitter : ParticleFunctionEmitter
     {

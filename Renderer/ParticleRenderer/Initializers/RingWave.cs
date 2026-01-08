@@ -1,4 +1,4 @@
-namespace GUI.Types.ParticleRenderer.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     class RingWave : ParticleFunctionInitializer
     {

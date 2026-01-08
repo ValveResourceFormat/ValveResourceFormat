@@ -1,8 +1,6 @@
-using GUI.Utils;
-using ValveResourceFormat;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.ParticleRenderer.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     class CreateAlongPath : ParticleFunctionInitializer
     {

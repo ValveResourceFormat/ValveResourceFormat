@@ -1,9 +1,8 @@
 using System.Globalization;
 using System.Linq;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class SelectedNodeRenderer
     {
@@ -219,7 +218,7 @@ namespace GUI.Types.Renderer
                         }
 
                         var fractionToTen = Math.Min((float)i / 10, 1.0f);
-                        var color = new Utils.Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
+                        var color = new Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
                         ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
                         i++;
                     }

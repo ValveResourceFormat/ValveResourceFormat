@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 public class SceneEnvMap : SceneNode
 {

@@ -4,11 +4,11 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
-using GUI.Types.Renderer;
 using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using Resource = ValveResourceFormat.Resource;
 #nullable disable

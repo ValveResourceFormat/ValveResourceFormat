@@ -5,7 +5,7 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public readonly struct TonemapSettings
     {

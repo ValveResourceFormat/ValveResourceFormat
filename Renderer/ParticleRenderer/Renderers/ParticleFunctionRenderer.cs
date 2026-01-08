@@ -1,4 +1,4 @@
-namespace GUI.Types.ParticleRenderer.Renderers
+namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     abstract class ParticleFunctionRenderer : ParticleFunction
     {

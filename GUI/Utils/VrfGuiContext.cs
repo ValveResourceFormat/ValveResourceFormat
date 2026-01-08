@@ -3,12 +3,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using GUI.Types.GLViewers;
-using GUI.Types.Renderer;
 using Microsoft.Extensions.Logging;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ToolsAssetInfo;
 
 namespace GUI.Utils

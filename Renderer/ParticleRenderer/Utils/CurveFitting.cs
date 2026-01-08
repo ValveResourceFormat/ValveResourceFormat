@@ -1,7 +1,6 @@
-using GUI.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.ParticleRenderer.Utils
+namespace ValveResourceFormat.Renderer.Particles.Utils
 {
     class SplineCurve
     {

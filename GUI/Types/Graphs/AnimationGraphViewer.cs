@@ -3,10 +3,10 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using SkiaSharp;
 using Svg.Skia;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Graphs;

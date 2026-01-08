@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace GUI.Types.Renderer.Buffers
+namespace ValveResourceFormat.Renderer.Buffers
 {
     [StructLayout(LayoutKind.Sequential)]
     public class LightingConstants

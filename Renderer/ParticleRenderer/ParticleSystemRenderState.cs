@@ -1,4 +1,4 @@
-namespace GUI.Types.ParticleRenderer
+namespace ValveResourceFormat.Renderer.Particles
 {
     /// <summary>
     /// Represents an entire particle system.

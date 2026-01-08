@@ -7,12 +7,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     enum ShaderProgramType
     {

@@ -1,12 +1,10 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 using SkiaSharp;
-using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.TextureDecoders;
@@ -14,7 +12,7 @@ using static ValveResourceFormat.ResourceTypes.Texture;
 
 #nullable disable
 
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 {

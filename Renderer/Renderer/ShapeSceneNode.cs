@@ -1,9 +1,8 @@
 using System.Diagnostics;
 using System.Reflection;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public abstract class ShapeSceneNode : SceneNode
     {

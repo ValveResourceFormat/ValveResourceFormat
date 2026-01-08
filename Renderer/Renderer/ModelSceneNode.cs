@@ -1,14 +1,14 @@
 using System.Buffers;
 using System.Linq;
 using System.Runtime.InteropServices;
-using GUI.Types.Renderer.Buffers;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class ModelSceneNode : MeshCollectionNode
     {

@@ -3,9 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 

@@ -1,4 +1,4 @@
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 [Flags]
 #pragma warning disable CA2217 // Do not mark enums with FlagsAttribute

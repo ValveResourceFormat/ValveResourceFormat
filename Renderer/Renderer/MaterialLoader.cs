@@ -3,14 +3,12 @@ using System.Diagnostics;
 using System.IO.Hashing;
 using System.Linq;
 using System.Runtime.InteropServices;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
-using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class MaterialLoader
     {

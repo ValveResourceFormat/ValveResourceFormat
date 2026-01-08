@@ -1,11 +1,10 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
-using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class WorldNodeLoader
     {

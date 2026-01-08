@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 public class RendererContext : IDisposable
 {

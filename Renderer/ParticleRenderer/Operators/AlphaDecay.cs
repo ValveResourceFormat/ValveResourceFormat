@@ -1,4 +1,4 @@
-namespace GUI.Types.ParticleRenderer.Operators
+namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// Cull particle when its alpha is below a certain threshold.

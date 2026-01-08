@@ -1,8 +1,7 @@
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.NavMesh;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class NavMeshSceneNode : ShapeSceneNode
     {

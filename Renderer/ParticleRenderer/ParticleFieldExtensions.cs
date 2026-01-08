@@ -1,6 +1,4 @@
-using ValveResourceFormat;
-
-namespace GUI.Types.ParticleRenderer
+namespace ValveResourceFormat.Renderer.Particles
 {
     static class ParticleFieldExtensions
     {

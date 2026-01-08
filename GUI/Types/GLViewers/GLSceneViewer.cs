@@ -3,11 +3,11 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.Renderer;
-using GUI.Types.Renderer.Buffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
+using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Buffers;
 
 #nullable disable
 

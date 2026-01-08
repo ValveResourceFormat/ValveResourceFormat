@@ -1,9 +1,8 @@
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     class SpriteSceneNode : SceneNode
     {

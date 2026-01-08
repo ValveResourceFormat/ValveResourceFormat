@@ -2,7 +2,7 @@ using OpenTK.Graphics.OpenGL;
 
 #nullable disable
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class PostProcessRenderer
     {

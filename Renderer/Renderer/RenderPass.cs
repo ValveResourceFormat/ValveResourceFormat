@@ -1,4 +1,4 @@
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public enum RenderPass
     {

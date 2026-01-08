@@ -1,7 +1,6 @@
-using GUI.Utils;
 using Microsoft.Extensions.Logging;
 
-namespace GUI.Types.ParticleRenderer.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     // this single initializer delayed this release by months
     class CreateOnGrid : ParticleFunctionInitializer

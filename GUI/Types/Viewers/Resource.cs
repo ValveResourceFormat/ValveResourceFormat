@@ -9,11 +9,11 @@ using GUI.Controls;
 using GUI.Types.Audio;
 using GUI.Types.GLViewers;
 using GUI.Types.Graphs;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers

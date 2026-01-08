@@ -1,8 +1,8 @@
-using GUI.Types.Renderer;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat;
+using ValveResourceFormat.Renderer;
 
 #nullable disable
 

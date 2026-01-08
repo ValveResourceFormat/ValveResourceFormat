@@ -1,5 +1,5 @@
-using GUI.Types.Renderer;
 using GUI.Utils;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.GLViewers

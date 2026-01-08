@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.GLViewers;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.NavMesh;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers

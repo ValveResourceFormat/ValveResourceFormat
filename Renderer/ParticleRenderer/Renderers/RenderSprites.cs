@@ -1,8 +1,7 @@
 using System.Buffers;
-using GUI.Types.Renderer;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.ParticleRenderer.Renderers
+namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     internal class RenderSprites : ParticleFunctionRenderer
     {

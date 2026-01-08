@@ -1,7 +1,6 @@
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     public class OctreeDebugRenderer
     {

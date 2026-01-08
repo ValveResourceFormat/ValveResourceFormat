@@ -1,7 +1,6 @@
-using GUI.Utils;
 using ValveResourceFormat.ResourceTypes.ModelData;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     internal class HitboxSceneNode : ShapeSceneNode
     {

@@ -1,6 +1,6 @@
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
-namespace GUI.Types.Renderer;
+namespace ValveResourceFormat.Renderer;
 
 public class SceneLight(Scene scene) : SceneNode(scene)
 {

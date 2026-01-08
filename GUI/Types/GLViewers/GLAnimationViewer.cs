@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;

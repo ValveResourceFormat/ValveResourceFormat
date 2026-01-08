@@ -1,9 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
-namespace GUI.Types.Renderer
+namespace ValveResourceFormat.Renderer
 {
     static class MeshBatchRenderer
     {

@@ -1,6 +1,4 @@
-using ValveResourceFormat;
-
-namespace GUI.Types.ParticleRenderer.Operators
+namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     class Noise : ParticleFunctionOperator
     {

@@ -3,14 +3,14 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static GUI.Controls.SavedCameraPositionsControl;
-using static GUI.Types.Renderer.PickingTexture;
+using static ValveResourceFormat.Renderer.PickingTexture;
 
 #nullable disable
 

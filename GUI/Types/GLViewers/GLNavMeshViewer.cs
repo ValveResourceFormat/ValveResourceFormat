@@ -1,9 +1,9 @@
 using System.Linq;
 using System.Windows.Forms;
-using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat.NavMesh;
-using static GUI.Types.Renderer.PickingTexture;
+using ValveResourceFormat.Renderer;
+using static ValveResourceFormat.Renderer.PickingTexture;
 
 #nullable disable
 

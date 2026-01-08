@@ -1,6 +1,6 @@
 using GUI.Controls;
-using GUI.Types.Renderer;
 using GUI.Utils;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 
 #nullable disable
