@@ -801,10 +801,8 @@ namespace ValveResourceFormat.Renderer
                     {
                         var postProcessResource = RendererContext.FileLoader.LoadFileCompiled(postProcessResourceFilename);
 
-                        if (postProcessResource != null)
+                        if (postProcessResource?.DataBlock is PostProcessing postProcessAsset)
                         {
-                            var postProcessAsset = (PostProcessing?)postProcessResource.DataBlock;
-
                             postProcess.LoadPostProcessResource(postProcessAsset);
                         }
                     }
@@ -815,10 +813,8 @@ namespace ValveResourceFormat.Renderer
                     {
                         var postProcessModel = RendererContext.FileLoader.LoadFileCompiled(model);
 
-                        if (postProcessModel != null)
+                        if (postProcessModel?.DataBlock is Model ppModelResource)
                         {
-                            var ppModelResource = (Model?)postProcessModel.DataBlock;
-
                             postProcess.ModelVolume = ppModelResource;
 
                             var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin)

@@ -1,5 +1,3 @@
-#nullable disable
-
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
@@ -16,9 +14,8 @@ namespace ValveResourceFormat.Renderer
         //public bool VolumetricFogActive { get; set; }
 
         // For now we're only using one gradient fog
-        public SceneGradientFog GradientFog { get; set; }
-        public SceneCubemapFog CubemapFog { get; set; }
-        public RenderTexture DefaultFogTexture { get; set; }
+        public SceneGradientFog? GradientFog { get; set; }
+        public SceneCubemapFog? CubemapFog { get; set; }
 
         /*
         // VOLUMETRIC FOG
@@ -76,7 +73,7 @@ namespace ValveResourceFormat.Renderer
             viewConstants.GradientFogActive = viewerFogEnabled && GradientFogActive;
             viewConstants.CubeFogActive = viewerFogEnabled && CubeFogActive;
 
-            if (GradientFogActive)
+            if (GradientFogActive && GradientFog != null)
             {
                 viewConstants.GradientFogBiasAndScale = GradientFog.GetBiasAndScale();
                 viewConstants.GradientFogColor_Opacity = GradientFog.Color_Opacity;
@@ -84,7 +81,7 @@ namespace ValveResourceFormat.Renderer
                 viewConstants.GradientFogCullingParams = GradientFog.CullingParams;
             }
 
-            if (CubeFogActive)
+            if (CubeFogActive && CubemapFog != null)
             {
                 viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent();
                 viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip();

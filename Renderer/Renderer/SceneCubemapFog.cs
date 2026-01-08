@@ -1,6 +1,6 @@
-namespace ValveResourceFormat.Renderer;
+using System.Diagnostics;
 
-#nullable disable
+namespace ValveResourceFormat.Renderer;
 
 public class SceneCubemapFog(Scene scene) : SceneNode(scene)
 {
@@ -13,7 +13,7 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
     public float LodBias { get; set; }
     public float Opacity { get; set; }
     public bool UseHeightFog { get; set; }
-    public RenderTexture CubemapFogTexture { get; set; }
+    public RenderTexture? CubemapFogTexture { get; set; }
     public float ExposureBias { get; set; }
 
     public Vector4 OffsetScaleBiasExponent()
@@ -28,6 +28,8 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
     // Height width ADDS to heightStart
     public Vector4 Height_OffsetScaleExponentLog2Mip()
     {
+        Debug.Assert(CubemapFogTexture != null);
+
         var offset = 1f;
         var scale = 0.000001f;
         var exponent = 0f;

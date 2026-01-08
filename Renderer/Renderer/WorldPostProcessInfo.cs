@@ -1,7 +1,5 @@
 namespace ValveResourceFormat.Renderer;
 
-#nullable disable
-
 public partial class Scene
 {
     public class WorldPostProcessInfo()
@@ -15,14 +13,14 @@ public partial class Scene
         // So, currently, this list won't be used.
         //public List<ScenePostProcessVolume> PostProcessVolumes { get; set; } = [];
 
-        public ScenePostProcessVolume MasterPostProcessVolume { get; set; }
+        public ScenePostProcessVolume? MasterPostProcessVolume { get; set; }
         /// <summary>
         /// env_tonemap_controller is a legacy entity (S1) that still has functionality, so we want to account for it.
         /// The way this works is a little unclear, even after quite a bit of testing, but I think an env_tonemap_controller
         /// existing in the level overrides the post process volume regardless of if it's set as master.
         /// TODO: Test if this applies to post process volumes
         /// </summary>
-        public SceneTonemapController MasterTonemapController { get; set; }
+        public SceneTonemapController? MasterTonemapController { get; set; }
 
         // Current post processing state
         public PostProcessState CurrentState { get; private set; } = new();

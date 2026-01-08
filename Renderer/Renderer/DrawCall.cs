@@ -2,8 +2,6 @@ using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 
-#nullable disable
-
 namespace ValveResourceFormat.Renderer
 {
     public class DrawCall
@@ -22,13 +20,13 @@ namespace ValveResourceFormat.Renderer
         public int MeshId { get; set; }
         public int FirstMeshlet { get; set; }
         public int NumMeshlets { get; set; }
-        public RenderMaterial Material { get; set; }
+        public required RenderMaterial Material { get; set; }
 
-        public GPUMeshBufferCache MeshBuffers { get; set; }
+        public required GPUMeshBufferCache MeshBuffers { get; init; }
         public string MeshName { get; set; } = string.Empty;
         public int VertexArrayObject { get; set; } = -1;
 
-        public VertexDrawBuffer[] VertexBuffers { get; set; }
+        public required VertexDrawBuffer[] VertexBuffers { get; init; }
         public DrawElementsType IndexType { get; set; }
         public IndexDrawBuffer IndexBuffer { get; set; }
         public int VertexIdOffset { get; set; }

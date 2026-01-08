@@ -265,11 +265,14 @@ namespace ValveResourceFormat.Renderer
 
         private DrawCall CreateDrawCall(KVObject objectDrawCall, RenderMaterial material, VBIB vbib, GPUMeshBuffers gpuVbib)
         {
-            var drawCall = new DrawCall()
+            var vertexBuffers = objectDrawCall.GetArray("m_vertexBuffers");
+
+            var drawCall = new DrawCall
             {
                 Material = material,
                 MeshBuffers = renderContext.MeshBufferCache,
                 MeshName = Name,
+                VertexBuffers = new VertexDrawBuffer[vertexBuffers.Length]
             };
 
             var primitiveType = objectDrawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");
@@ -306,8 +309,6 @@ namespace ValveResourceFormat.Renderer
             // Vertex buffer
             {
                 var bindingIndex = 0;
-                var vertexBuffers = objectDrawCall.GetArray("m_vertexBuffers");
-                drawCall.VertexBuffers = new VertexDrawBuffer[vertexBuffers.Length];
 
                 foreach (var vertexBufferObject in vertexBuffers)
                 {
@@ -420,35 +421,34 @@ namespace ValveResourceFormat.Renderer
             var mesh = new RenderableMesh(name, bounds, renderContext);
             var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(name, vertexIndexBuffers);
 
-            var drawCall = new DrawCall()
+            var vb = vertexIndexBuffers.VertexBuffers[0];
+            var ib = vertexIndexBuffers.IndexBuffers[0];
+
+            var drawCall = new DrawCall
             {
                 Material = material,
                 MeshBuffers = renderContext.MeshBufferCache,
                 MeshName = name,
                 PrimitiveType = PrimitiveType.Triangles,
-            };
+                VertexCount = vb.ElementCount,
+                StartIndex = 0,
+                IndexCount = (int)ib.ElementCount,
+                IndexType = DrawElementsType.UnsignedInt,
 
-            var vb = vertexIndexBuffers.VertexBuffers[0];
-            var ib = vertexIndexBuffers.IndexBuffers[0];
+                VertexBuffers =
+                [
+                    new VertexDrawBuffer()
+                    {
+                        Handle = gpuVbib.VertexBuffers[0],
+                        ElementSizeInBytes = vb.ElementSizeInBytes,
+                        InputLayoutFields = vb.InputLayoutFields,
+                    }
+                ],
 
-            drawCall.VertexCount = vb.ElementCount;
-            drawCall.StartIndex = 0;
-            drawCall.IndexCount = (int)ib.ElementCount;
-            drawCall.IndexType = DrawElementsType.UnsignedInt;
-
-            drawCall.VertexBuffers =
-            [
-                new VertexDrawBuffer()
+                IndexBuffer = new IndexDrawBuffer()
                 {
-                    Handle = gpuVbib.VertexBuffers[0],
-                    ElementSizeInBytes = vb.ElementSizeInBytes,
-                    InputLayoutFields = vb.InputLayoutFields,
+                    Handle = gpuVbib.IndexBuffers[0],
                 }
-            ];
-
-            drawCall.IndexBuffer = new IndexDrawBuffer()
-            {
-                Handle = gpuVbib.IndexBuffers[0],
             };
 
             mesh.DrawCallsOpaque.Add(drawCall);

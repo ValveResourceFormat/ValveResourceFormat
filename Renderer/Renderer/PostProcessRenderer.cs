@@ -1,15 +1,14 @@
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
-
-#nullable disable
 
 namespace ValveResourceFormat.Renderer
 {
     public class PostProcessRenderer
     {
         private readonly RendererContext RendererContext;
-        private Shader shader;
+        private Shader? shader;
 
-        public RenderTexture BlueNoise { get; set; }
+        public RenderTexture? BlueNoise { get; set; }
         private readonly Random random = new();
 
         public PostProcessState State { get; set; }
@@ -50,16 +49,19 @@ namespace ValveResourceFormat.Renderer
         // we should have a shared FullscreenQuadRenderer class
         public void Render(Framebuffer colorBuffer, bool flipY)
         {
+            Debug.Assert(shader != null);
+            Debug.Assert(BlueNoise != null);
+
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
 
             shader.Use();
 
             // Bind textures
-            shader.SetTexture(0, "g_tColorBuffer", colorBuffer.Color);
+            shader.SetTexture(0, "g_tColorBuffer", colorBuffer.Color!);
             shader.SetTexture(1, "g_tColorCorrection", State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
             shader.SetTexture(2, "g_tBlueNoise", BlueNoise);
-            shader.SetTexture(3, "g_tStencilBuffer", colorBuffer.Stencil);
+            shader.SetTexture(3, "g_tStencilBuffer", colorBuffer.Stencil!);
 
             shader.SetUniform1("g_nNumSamplesMSAA", colorBuffer.NumSamples);
             shader.SetUniform1("g_bFlipY", flipY);

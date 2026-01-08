@@ -3,8 +3,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
-#nullable disable
-
 namespace ValveResourceFormat.Renderer
 {
     public readonly struct TonemapSettings
@@ -143,7 +141,7 @@ namespace ValveResourceFormat.Renderer
         public ExposureSettings ExposureSettings { get; set; } = new();
 
         // for blending colorcorrectionluts this would be a List with weights, right?
-        public RenderTexture ColorCorrectionLUT { get; set; }
+        public RenderTexture? ColorCorrectionLUT { get; set; }
         public float ColorCorrectionWeight { get; set; } = 1.0f;
         public int ColorCorrectionLutDimensions { get; set; } = 32;
         public int NumLutsActive { get; set; }
@@ -163,8 +161,8 @@ namespace ValveResourceFormat.Renderer
         public bool IsMaster { get; init; }
 
         // Don't skip if no postprocess resource. Could still affect exposure
-        public PostProcessing PostProcessingResource { get; set; }
-        public Model ModelVolume { get; set; } // dumb
+        public PostProcessing? PostProcessingResource { get; set; }
+        public Model? ModelVolume { get; set; } // dumb
 
         public bool IsPostHLA { get; set; }
 
@@ -172,7 +170,7 @@ namespace ValveResourceFormat.Renderer
         public TonemapSettings PostProcessTonemapSettings { get; set; } = new();
         public ExposureSettings ExposureSettings { get; set; } = new();
 
-        public RenderTexture ColorCorrectionLUT { get; set; }
+        public RenderTexture? ColorCorrectionLUT { get; set; }
         public int ColorCorrectionLutDimensions { get; set; }
 
         // Bloom isn't implemented yet.
