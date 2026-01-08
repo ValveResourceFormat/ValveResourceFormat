@@ -3,7 +3,7 @@ using OpenTK.Windowing.Desktop;
 
 namespace GUI.Types.Renderer;
 
-readonly ref struct GLLockScope
+public readonly ref struct GLLockScope
 {
 #pragma warning disable CA2213 // Disposable fields should be disposed
     private readonly Lock.Scope lockScope;

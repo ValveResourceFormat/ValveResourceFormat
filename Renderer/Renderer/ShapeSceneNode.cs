@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 
@@ -346,7 +347,7 @@ namespace GUI.Types.Renderer
 
         public static Lazy<ValveResourceFormat.Resource> CubemapResource { get; } = new(() =>
         {
-            using var stream = Program.Assembly.GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"GUI.Utils.env_cubemap.vmdl_c");
             var resource = new ValveResourceFormat.Resource()
             {
                 FileName = "env_cubemap.vmdl_c"

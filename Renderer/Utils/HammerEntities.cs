@@ -3,7 +3,7 @@
 
 namespace GUI.Utils;
 
-static class HammerEntities
+public static class HammerEntities
 {
     public class HammerEntity
     {

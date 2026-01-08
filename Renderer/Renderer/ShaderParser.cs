@@ -9,7 +9,7 @@ using static GUI.Types.Renderer.ShaderLoader;
 
 namespace GUI.Types.Renderer
 {
-    partial class ShaderParser
+    internal partial class ShaderParser
     {
         public const string ShaderDirectory = "GUI.Types.Renderer.Shaders.";
         public const string ExpectedShaderVersion = "#version 460";
