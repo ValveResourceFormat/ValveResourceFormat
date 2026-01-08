@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Renderer;
 
 internal class ShaderValidator
 {
@@ -15,7 +16,7 @@ internal class ShaderValidator
 
         var shaderFilter = args.Length > 0 ? $"*{args[0]}*" : null;
 
-        GUI.Types.Renderer.ShaderLoader.ValidateShaders(progressReporter, logger, shaderFilter);
+        ShaderLoader.ValidateShaders(progressReporter, logger, shaderFilter);
 
         return 0;
     }
