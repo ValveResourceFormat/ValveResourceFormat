@@ -270,7 +270,7 @@ namespace GUI.Types.Renderer
                 yield return ShaderNameFromPath(file.FullName);
             }
 #else
-            var resources = Program.Assembly.GetManifestResourceNames()
+            var resources = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceNames()
                 .Where(static r => r.StartsWith(ShaderDirectory, StringComparison.Ordinal))
                 .Where(static r => r.EndsWith(ShaderFileExtension, StringComparison.Ordinal));
             foreach (var resource in resources)
@@ -285,7 +285,7 @@ namespace GUI.Types.Renderer
         private static Stream GetShaderStream(string name)
         {
             var resourceName = $"{ShaderDirectory}{name.Replace('/', '.')}";
-            var stream = Program.Assembly.GetManifestResourceStream(resourceName);
+            var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
             ArgumentNullException.ThrowIfNull(stream);
             return stream;
         }

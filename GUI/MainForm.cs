@@ -1226,6 +1226,7 @@ namespace GUI
             }
         }
 
+#if DEBUG
         private static void ValidateShaders()
         {
             using var progressDialog = new GenericProgressForm
@@ -1238,6 +1239,7 @@ namespace GUI
             };
             progressDialog.ShowDialog();
         }
+#endif
 
         // Based on https://www.codeproject.com/articles/Adding-and-using-32-bit-alphablended-images-and-ic
         // Fixes adding images with proper transparency without incorrect anti aliasing
