@@ -700,8 +700,8 @@ namespace ValveResourceFormat.Renderer
 
                         scene.LightingInfo.LightProbeType = entity.ContainsKey("light_probe_atlas_x") switch
                         {
-                            false => Scene.LightProbeType.IndividualProbes,
-                            true => Scene.LightProbeType.ProbeAtlas,
+                            false => LightProbeType.IndividualProbes,
+                            true => LightProbeType.ProbeAtlas,
                         };
 
                         if (dlsdName != null)

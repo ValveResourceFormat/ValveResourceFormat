@@ -197,7 +197,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     var tiedEnvmaps = renderContext.Scene.LightingInfo.CubemapType switch
                     {
-                        Scene.CubemapType.CubemapArray => node.ShaderEnvMapVisibility
+                        CubemapType.CubemapArray => node.ShaderEnvMapVisibility
                             .GetVisibleShaderIndices()
                             .Select(shaderId => renderContext.Scene.LightingInfo.EnvMaps.FirstOrDefault(env => env.ShaderIndex == shaderId))
                             .OfType<SceneEnvMap>(),
@@ -210,7 +210,7 @@ namespace ValveResourceFormat.Renderer
                     {
                         AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
 
-                        if (renderContext.Scene.LightingInfo.CubemapType is Scene.CubemapType.IndividualCubemaps && i == 0)
+                        if (renderContext.Scene.LightingInfo.CubemapType is CubemapType.IndividualCubemaps && i == 0)
                         {
                             ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
                             i++;

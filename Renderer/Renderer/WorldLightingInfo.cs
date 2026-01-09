@@ -4,9 +4,7 @@ using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 
-namespace ValveResourceFormat.Renderer;
-
-public partial class Scene
+namespace ValveResourceFormat.Renderer
 {
     public enum CubemapType : byte
     {

@@ -7,7 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
-    public partial class Scene : IDisposable
+    public class Scene : IDisposable
     {
         public readonly struct UpdateContext
         {

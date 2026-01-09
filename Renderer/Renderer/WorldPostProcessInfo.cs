@@ -1,6 +1,4 @@
-namespace ValveResourceFormat.Renderer;
-
-public partial class Scene
+namespace ValveResourceFormat.Renderer
 {
     public class WorldPostProcessInfo()
     {

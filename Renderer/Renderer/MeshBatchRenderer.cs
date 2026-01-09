@@ -92,7 +92,7 @@ namespace ValveResourceFormat.Renderer
         {
             public bool NeedsCubemapBinding;
             public int LightmapGameVersionNumber;
-            public Scene.LightProbeType LightProbeType;
+            public LightProbeType LightProbeType;
         }
 
         private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
@@ -120,7 +120,7 @@ namespace ValveResourceFormat.Renderer
             Uniforms uniforms = new();
             Config config = new()
             {
-                NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == Scene.CubemapType.IndividualCubemaps,
+                NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps,
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
             };
@@ -260,7 +260,7 @@ namespace ValveResourceFormat.Renderer
 
             if (uniforms.VisibleLightProbeVolume != -1 && request.Node.LightProbeBinding is { } lightProbe)
             {
-                if (config.LightProbeType == Scene.LightProbeType.IndividualProbes)
+                if (config.LightProbeType == LightProbeType.IndividualProbes)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.Probe1, uniforms.LPVIrradianceTexture, lightProbe.Irradiance);
 
