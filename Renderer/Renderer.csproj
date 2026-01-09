@@ -24,11 +24,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Shaders\**" />
-    <EmbeddedResource Include="Resources\env_cubemap.vmdl_c" />
-    <EmbeddedResource Include="Resources\jetbrains_mono_msdf.png" />
-    <EmbeddedResource Include="Utils\blue_noise_256.vtex_c" />
-    <EmbeddedResource Include="Utils\ggx_integrate_brdf_lut_schlick.vtex_c" />
-    <EmbeddedResource Include="Utils\sky_furnace.vtex_c" />
+    <EmbeddedResource Include="Resources\**" />
   </ItemGroup>
 
   <ItemGroup>

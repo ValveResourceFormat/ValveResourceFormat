@@ -142,7 +142,7 @@ namespace GUI.Types.GLViewers
 
                 if (brdfLutResource == null)
                 {
-                    brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Utils." + vtexFileName);
+                    brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName);
 
                     brdfLutResource = new Resource() { FileName = vtexFileName };
                     brdfLutResource.Read(brdfStream);
@@ -158,7 +158,7 @@ namespace GUI.Types.GLViewers
             }
 
             // Load default cube fog texture.
-            using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Utils.sky_furnace.vtex_c");
+            using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources.sky_furnace.vtex_c");
             using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
             cubeFogResource.Read(cubeFogStream);
 
@@ -175,7 +175,7 @@ namespace GUI.Types.GLViewers
 
                 if (blueNoiseResource == null)
                 {
-                    blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Utils." + blueNoiseName);
+                    blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + blueNoiseName);
 
                     blueNoiseResource = new Resource() { FileName = blueNoiseName };
                     blueNoiseResource.Read(blueNoiseStream);
