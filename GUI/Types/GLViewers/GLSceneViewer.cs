@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -172,7 +173,7 @@ namespace GUI.Types.GLViewers
 
                 if (blueNoiseResource == null)
                 {
-                    blueNoiseStream = Program.Assembly.GetManifestResourceStream("GUI.Utils." + blueNoiseName);
+                    blueNoiseStream = Assembly.GetAssembly(typeof(RendererContext)).GetManifestResourceStream("Renderer.Utils." + blueNoiseName);
 
                     blueNoiseResource = new Resource() { FileName = blueNoiseName };
                     blueNoiseResource.Read(blueNoiseStream);

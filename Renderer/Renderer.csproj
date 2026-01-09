@@ -26,6 +26,7 @@
     <EmbeddedResource Include="Shaders\**" />
     <EmbeddedResource Include="Resources\env_cubemap.vmdl_c" />
     <EmbeddedResource Include="Resources\jetbrains_mono_msdf.png" />
+    <EmbeddedResource Include="Utils\blue_noise_256.vtex_c" />
   </ItemGroup>
 
   <ItemGroup>
