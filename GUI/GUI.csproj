@@ -38,8 +38,6 @@
     <EmbeddedResource Include="Icons\**" />
     <EmbeddedResource Include="..\Misc\Icons\vpk.ico" Link="Utils\vpk.ico" />
     <EmbeddedResource Include="Utils\industrial_sunset_puresky.vtex_c" />
-    <EmbeddedResource Include="Utils\ggx_integrate_brdf_lut_schlick.vtex_c" />
-    <EmbeddedResource Include="Utils\sky_furnace.vtex_c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Renderer\Renderer.csproj" />

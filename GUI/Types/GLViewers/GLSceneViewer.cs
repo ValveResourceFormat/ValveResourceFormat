@@ -129,6 +129,8 @@ namespace GUI.Types.GLViewers
 
         public virtual void PreSceneLoad()
         {
+            var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext));
+
             const string vtexFileName = "ggx_integrate_brdf_lut_schlick.vtex_c";
 
             // Load brdf lut, preferably from game.
@@ -140,7 +142,7 @@ namespace GUI.Types.GLViewers
 
                 if (brdfLutResource == null)
                 {
-                    brdfStream = Program.Assembly.GetManifestResourceStream("GUI.Utils." + vtexFileName);
+                    brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Utils." + vtexFileName);
 
                     brdfLutResource = new Resource() { FileName = vtexFileName };
                     brdfLutResource.Read(brdfStream);
@@ -156,7 +158,7 @@ namespace GUI.Types.GLViewers
             }
 
             // Load default cube fog texture.
-            using var cubeFogStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.sky_furnace.vtex_c");
+            using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Utils.sky_furnace.vtex_c");
             using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
             cubeFogResource.Read(cubeFogStream);
 
@@ -173,7 +175,7 @@ namespace GUI.Types.GLViewers
 
                 if (blueNoiseResource == null)
                 {
-                    blueNoiseStream = Assembly.GetAssembly(typeof(RendererContext)).GetManifestResourceStream("Renderer.Utils." + blueNoiseName);
+                    blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Utils." + blueNoiseName);
 
                     blueNoiseResource = new Resource() { FileName = blueNoiseName };
                     blueNoiseResource.Read(blueNoiseStream);
