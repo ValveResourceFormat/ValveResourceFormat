@@ -110,9 +110,8 @@ namespace ValveResourceFormat.Renderer.Particles
                         PfInputMode.Looped => value % (input1 - input0),
                         _ => value
                     };
-                    var remappedTo0_1Range = MathUtils.Remap(valueIn, input0, input1);
 
-                    return float.Lerp(output0, output1, remappedTo0_1Range);
+                    return MathUtils.RemapRange(valueIn, input0, input1, output0, output1);
 
                 case PfMapType.RemapBiased:
                     var remappedTo0_1RangeBiased = MathUtils.Remap(value, input0, input1);

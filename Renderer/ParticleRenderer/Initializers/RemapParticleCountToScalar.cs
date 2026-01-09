@@ -55,7 +55,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             remappedRange = wrap
                 ? MathUtils.Wrap(remappedRange, 0f, 1f)
-                : Math.Clamp(remappedRange, 0f, 1f);
+                : MathUtils.Saturate(remappedRange);
 
             var output = float.Lerp(outputMin, outputMax, remappedRange);
 

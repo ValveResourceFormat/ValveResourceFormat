@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using GUI.Utils;
+using ValveResourceFormat.Renderer;
 
 namespace GUI.Controls;
 
@@ -12,7 +13,7 @@ internal class Slider : UserControl
     public int SliderHeight { get; set => field = this.AdjustForDPI(value); } = 6;
     public int KnobSize { get; set => field = this.AdjustForDPI(value); } = 14;
 
-    public float Value { get; set { field = Math.Clamp(value, 0, 1); Invalidate(); } }
+    public float Value { get; set { field = MathUtils.Saturate(value); Invalidate(); } }
 
     public Action<float>? ValueChanged;
 
@@ -99,7 +100,7 @@ internal class Slider : UserControl
         var halfPenWidth = (int)Math.Ceiling(penWidth / 2f);
         var effectiveWidth = Width - knobSize - halfPenWidth * 2;
 
-        Value = Math.Clamp((mousePos.X - knobRadius - halfPenWidth) / (float)effectiveWidth, 0, 1);
+        Value = MathUtils.Saturate((mousePos.X - knobRadius - halfPenWidth) / (float)effectiveWidth);
 
         ValueChanged?.Invoke(Value);
     }

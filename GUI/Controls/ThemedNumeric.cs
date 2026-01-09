@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
+using ValveResourceFormat.Renderer;
 
 namespace GUI.Controls
 {
@@ -77,12 +78,6 @@ namespace GUI.Controls
 
     public abstract class ThemedAbstractDragableNumeric<T> : ThemedAbstractNumeric<T>
     {
-        internal static float Remap(float value, float fromMin, float fromMax, float toMin, float toMax)
-        {
-            return (value - fromMin) / (fromMax - fromMin) * (toMax - toMin) + toMin;
-
-        }
-
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         // makes it so dragging is the same distance no matter the values within the range
         // disable this if you want to have a range like min/max float
@@ -204,7 +199,7 @@ namespace GUI.Controls
         {
             if (DragWithinRange)
             {
-                var deltaValue = Remap(delta, 0, DragDistance, 0, MaxValue - MinValue);
+                var deltaValue = MathUtils.RemapRange(delta, 0, DragDistance, 0, MaxValue - MinValue);
                 var newValue = value + deltaValue;
 
                 var steps = (int)Math.Round((newValue - MinValue) / Increment);
@@ -251,7 +246,7 @@ namespace GUI.Controls
         {
             if (DragWithinRange)
             {
-                return value + Remap(delta, 0, DragDistance, MinValue, MaxValue - MinValue);
+                return value + MathUtils.RemapRange(delta, 0, DragDistance, MinValue, MaxValue - MinValue);
             }
             else
             {

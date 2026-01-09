@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows.Forms;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer;
 
 #nullable disable
 
@@ -180,7 +181,7 @@ namespace GUI.Utils
             }
 
             Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
-            Config.Volume = Math.Clamp(Config.Volume, 0f, 1f);
+            Config.Volume = MathUtils.Saturate(Config.Volume);
             Config.TextViewerFontSize = Math.Clamp(Config.TextViewerFontSize, 8, 24);
 
             if (currentVersion < 2) // version 2: added anti aliasing samples

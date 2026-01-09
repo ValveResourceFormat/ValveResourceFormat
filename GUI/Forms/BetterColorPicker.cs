@@ -297,11 +297,6 @@ namespace GUI.Forms
             picker.Close();
         }
 
-        internal static float Remap(float source, float sourceFrom, float sourceTo, float targetFrom, float targetTo)
-        {
-            return targetFrom + (source - sourceFrom) * (targetTo - targetFrom) / (sourceTo - sourceFrom);
-        }
-
         internal static void ColorToHSV(Color color, out double hue, out double saturation, out double value)
         {
             int max = Math.Max(color.R, Math.Max(color.G, color.B));

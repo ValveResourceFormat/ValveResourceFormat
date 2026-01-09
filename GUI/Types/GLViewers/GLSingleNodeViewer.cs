@@ -91,8 +91,8 @@ namespace GUI.Types.GLViewers
 
         protected void UpdateSunAngles()
         {
-            Scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(sunAngles.X * MathF.PI / 180f)
-                                                             * Matrix4x4.CreateRotationZ(sunAngles.Y * MathF.PI / 180f);
+            Scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(MathUtils.ToRadians(sunAngles.X))
+                                                             * Matrix4x4.CreateRotationZ(MathUtils.ToRadians(sunAngles.Y));
         }
 
         protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)

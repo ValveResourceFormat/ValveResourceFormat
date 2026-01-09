@@ -27,8 +27,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             if (OutputField.IsAngleField())
             {
-                min *= (float)(Math.PI / 180.0);
-                max *= (float)(Math.PI / 180.0);
+                min = MathUtils.ToRadians(min);
+                max = MathUtils.ToRadians(max);
             }
 
             // Calculate coefficients for noise scaling (noise returns -1..1)

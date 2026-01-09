@@ -207,7 +207,7 @@ namespace ValveResourceFormat.Renderer
 
         private float GetFOV()
         {
-            return RendererContext.FieldOfView * MathF.PI / 180f;
+            return MathUtils.ToRadians(RendererContext.FieldOfView);
         }
     }
 }

@@ -1209,7 +1209,7 @@ namespace ValveResourceFormat.Renderer
                     var end = transformationMatrix.Translation;
                     var start = EntityTransformHelper.CalculateTransformationMatrix(startEntity).Translation;
 
-                    if (line.EndKey != null)
+                    if (line.EndKey != null && line.EndValueKey != null)
                     {
                         if (!entity.Properties.Properties.TryGetValue(line.EndValueKey, out value))
                         {

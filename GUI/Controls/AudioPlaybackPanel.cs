@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using GUI.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
+using ValveResourceFormat.Renderer;
 
 // Based on https://github.com/naudio/NAudio.WaveFormRenderer (MIT License - Copyright (c) 2021 NAudio)
 
@@ -167,7 +168,7 @@ namespace GUI.Controls
 
         private void UpdatePlaybackProgression(float progression)
         {
-            progression = Math.Clamp(progression, 0, 1);
+            progression = MathUtils.Saturate(progression);
 
             WaveStream.CurrentTime = TimeSpan.FromSeconds(WaveStream.TotalTime.TotalSeconds * progression);
 
@@ -273,7 +274,7 @@ namespace GUI.Controls
                     {
                         for (var y = topY; y < midPoint; y++)
                         {
-                            var t = (float)(y - topY) / (midPoint - topY);
+                            var t = MathUtils.Remap(y, topY, midPoint);
                             var rgb = isBeforeProgression
                                 ? InterpolateColor(peakColorRgb, midColorRgb, t)
                                 : InterpolateColor(midColorRgb, backMidColorRgb, t);
@@ -286,7 +287,7 @@ namespace GUI.Controls
                     {
                         for (var y = midPoint; y < bottomY; y++)
                         {
-                            var t = (float)(y - midPoint) / (bottomY - midPoint);
+                            var t = MathUtils.Remap(y, midPoint, bottomY);
                             var rgb = isBeforeProgression
                                 ? InterpolateColor(midColorRgb, peakColorRgb, t)
                                 : InterpolateColor(backMidColorRgb, midColorRgb, t);

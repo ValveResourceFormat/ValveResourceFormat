@@ -117,8 +117,8 @@ namespace ValveResourceFormat.Renderer
 
         public void AddTextRelative(TextRenderRequest textRenderRequest)
         {
-            textRenderRequest.X = camera.WindowSize.X * Math.Clamp(textRenderRequest.X, 0, 1);
-            textRenderRequest.Y = camera.WindowSize.Y * Math.Clamp(textRenderRequest.Y, 0, 1);
+            textRenderRequest.X = camera.WindowSize.X * MathUtils.Saturate(textRenderRequest.X);
+            textRenderRequest.Y = camera.WindowSize.Y * MathUtils.Saturate(textRenderRequest.Y);
             TextRenderRequests.Add(textRenderRequest);
         }
 
