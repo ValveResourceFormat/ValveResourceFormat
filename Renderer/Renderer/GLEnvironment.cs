@@ -73,6 +73,30 @@ public static class GLEnvironment
 #endif
     }
 
+    public static void SetDefaultRenderState()
+    {
+        // Application semantics / default state
+        GL.Enable(EnableCap.TextureCubeMapSeamless);
+        GL.Enable(EnableCap.CullFace);
+        GL.CullFace(TriangleFace.Back);
+        GL.Enable(EnableCap.DepthTest);
+
+        // reverse z
+        GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
+        GL.DepthFunc(DepthFunction.Greater);
+        GL.ClearDepth(0.0f);
+
+        // Parallel shader compilation, 0xFFFFFFFF requests an implementation-specific maximum
+        if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Khr)
+        {
+            GL.Khr.MaxShaderCompilerThreads(uint.MaxValue);
+        }
+        else if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Arb)
+        {
+            GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
+        }
+    }
+
     public static OpenTK.Mathematics.Matrix4 ToOpenTK(this Matrix4x4 m)
     {
         return new OpenTK.Mathematics.Matrix4(m.M11, m.M12, m.M13, m.M14, m.M21, m.M22, m.M23, m.M24, m.M31, m.M32, m.M33, m.M34, m.M41, m.M42, m.M43, m.M44);

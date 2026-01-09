@@ -80,19 +80,15 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
         vpk.Read(mapVpk);
 
         using var fileLoader = new GameFileLoader(vpk, mapVpk);
-        rendererContext = new RendererContext(fileLoader, logger);
+        rendererContext = new RendererContext(fileLoader, logger)
+        {
+            FieldOfView = 75
+        };
 
         GLEnvironment.Initialize(rendererContext.Logger);
+        GLEnvironment.SetDefaultRenderState();
 
-        // Set up reverse-Z depth buffer (required by the renderer)
-        GL.Enable(EnableCap.DepthTest);
-        GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
-        GL.DepthFunc(DepthFunction.Greater);
-        GL.ClearDepth(0.0f);
-
-        // Enable face culling
-        GL.Enable(EnableCap.CullFace);
-        GL.CullFace(TriangleFace.Back);
+        GL.Enable(EnableCap.FramebufferSrgb);
 
         logger.LogInformation("Loading scene...");
 
@@ -303,18 +299,13 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
 
-        // Blit to screen
-
-        // No post processing for now, use this so the image is more visually pleasing
-        GL.Enable(EnableCap.FramebufferSrgb);
-
-        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, framebuffer.FboHandle);
-        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
-        GL.BlitFramebuffer(0, 0, framebuffer.Width, framebuffer.Height,
+        GL.BlitNamedFramebuffer(
+            framebuffer.FboHandle, 0,
             0, 0, framebuffer.Width, framebuffer.Height,
-            ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
-
-        GL.Disable(EnableCap.FramebufferSrgb);
+            0, 0, framebuffer.Width, framebuffer.Height,
+            ClearBufferMask.ColorBufferBit,
+            BlitFramebufferFilter.Nearest
+        );
 
         // Reset framebuffer state for next frame
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);

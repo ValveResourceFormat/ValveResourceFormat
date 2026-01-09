@@ -547,6 +547,8 @@ namespace GUI.Types.GLViewers
 #endif
 
             GLEnvironment.Initialize(VrfGuiContext.Logger);
+            GLEnvironment.SetDefaultRenderState();
+
             MaxSamples = GL.GetInteger(GetPName.MaxSamples);
             GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;
 
@@ -556,27 +558,6 @@ namespace GUI.Types.GLViewers
             // Needed to fix crash on certain drivers
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
             GL.EndQuery(QueryTarget.TimeElapsed);
-
-            // Application semantics / default state
-            GL.Enable(EnableCap.TextureCubeMapSeamless);
-            GL.Enable(EnableCap.CullFace);
-            GL.CullFace(TriangleFace.Back);
-            GL.Enable(EnableCap.DepthTest);
-
-            // reverse z
-            GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne);
-            GL.DepthFunc(DepthFunction.Greater);
-            GL.ClearDepth(0.0f);
-
-            // Parallel shader compilation, 0xFFFFFFFF requests an implementation-specific maximum
-            if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Khr)
-            {
-                GL.Khr.MaxShaderCompilerThreads(uint.MaxValue);
-            }
-            else if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Arb)
-            {
-                GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
-            }
 
             TextRenderer.Load();
             postProcessRenderer.Load();
