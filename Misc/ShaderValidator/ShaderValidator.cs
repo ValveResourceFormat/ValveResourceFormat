@@ -16,6 +16,16 @@ internal class ShaderValidator
 
         var shaderFilter = args.Length > 0 ? $"*{args[0]}*" : null;
 
+        using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
+        {
+            APIVersion = GLEnvironment.RequiredVersion,
+            Flags = OpenTK.Windowing.Common.ContextFlags.ForwardCompatible | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+            StartVisible = false,
+            Title = "Source 2 Viewer Shader Validator"
+        });
+
+        window.MakeCurrent();
+
         ShaderLoader.ValidateShaders(progressReporter, logger, shaderFilter);
 
         return 0;
