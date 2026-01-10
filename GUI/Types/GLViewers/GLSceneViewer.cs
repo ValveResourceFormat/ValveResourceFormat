@@ -106,7 +106,7 @@ namespace GUI.Types.GLViewers
 
         public virtual void PreSceneLoad()
         {
-            SceneRenderer.LoadFallbackTextures();
+            SceneRenderer.LoadRendererResources();
         }
 
         public virtual void PostSceneLoad()
