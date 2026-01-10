@@ -157,6 +157,21 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            // Stabilize shadow map by snapping eye position to texel-sized increments in world space
+            var texelWorldSize = (4.0f * bbox) / shadowMapSize;
+            var right = Vector3.Normalize(Vector3.Cross(sunDir, Vector3.UnitZ));
+            var up = Vector3.Cross(right, sunDir);
+
+            // Project eye onto shadow camera's right/up axes and snap
+            var eyeOffsetX = Vector3.Dot(eye, right);
+            var eyeOffsetY = Vector3.Dot(eye, up);
+            var eyeOffsetZ = Vector3.Dot(eye, sunDir);
+
+            eyeOffsetX = MathF.Round(eyeOffsetX / texelWorldSize) * texelWorldSize;
+            eyeOffsetY = MathF.Round(eyeOffsetY / texelWorldSize) * texelWorldSize;
+
+            eye = right * eyeOffsetX + up * eyeOffsetY + sunDir * eyeOffsetZ;
+
             var sunCameraView = Matrix4x4.CreateLookAt(eye, eye + sunDir, Vector3.UnitZ);
             var sunCameraProjection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, farPlane, -nearPlaneExtend);
 
