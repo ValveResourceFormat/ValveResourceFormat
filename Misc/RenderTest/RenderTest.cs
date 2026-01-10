@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
@@ -14,6 +13,18 @@ using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
+
+internal class RendererImplementation : Renderer
+{
+    public RendererImplementation(RendererContext rendererContext) : base(rendererContext)
+    {
+    }
+
+    public void UpdateUptime(float deltaTime)
+    {
+        Uptime += deltaTime;
+    }
+}
 
 internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings)
     : GameWindow(gameWindowSettings, nativeWindowSettings)
@@ -26,7 +37,7 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
     private TextRenderer? textRenderer;
     private RendererContext? rendererContext;
     private SceneSkybox2D? skybox2D;
-    private UserInput? userInput;
+    private RendererImplementation renderer;
 
     private Vector2 lastMousePosition;
     private bool firstMouseMove = true;
@@ -103,7 +114,7 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
     {
         base.OnUpdateFrame(args);
 
-        if (userInput == null || camera == null)
+        if (renderer == null || camera == null)
         {
             return;
         }
@@ -137,14 +148,15 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
         firstMouseMove = false;
 
         // Update input system
-        userInput.Tick(deltaTime, trackedKeys, mouseDelta, camera);
+        renderer.UpdateUptime(deltaTime);
+        renderer.Input.Tick(deltaTime, trackedKeys, mouseDelta, camera);
     }
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
 
-        userInput?.OnMouseWheel(e.OffsetY);
+        renderer?.Input.OnMouseWheel(e.OffsetY);
     }
 
     protected override void OnResize(ResizeEventArgs e)
@@ -186,14 +198,11 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
             throw new InvalidOperationException("Resource is not a World type.");
         }
 
-        // Create Scene and Camera
-        scene = new Scene(rendererContext);
-        camera = new Camera(rendererContext);
+        renderer = new RendererImplementation(rendererContext);
+        camera = renderer.Camera;
         camera.SetViewportSize(width, height);
 
-        // Create UserInput for camera controls
-        userInput = new UserInput(rendererContext);
-        userInput.Camera.SetViewportSize(width, height);
+        scene = new Scene(rendererContext);
 
         // Create ViewConstants buffer (required for shaders)
         viewBuffer = new UniformBuffer<ViewConstants>(ReservedBufferSlots.View);
@@ -228,8 +237,8 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
             var center = bbox.Center;
             var size = bbox.Size;
             var offset = Math.Max(size.X, Math.Max(size.Y, size.Z)) * 0.5f;
-            userInput.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));
-            userInput.Camera.LookAt(center);
+            renderer.Input.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));
+            renderer.Input.Camera.LookAt(center);
         }
     }
 

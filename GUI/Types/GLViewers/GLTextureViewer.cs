@@ -42,7 +42,6 @@ namespace GUI.Types.GLViewers
             Linear,
         }
 
-        protected RendererContext RendererContext;
         protected VrfGuiContext VrfGuiContext;
         private Resource Resource;
         private SKBitmap Bitmap;
@@ -131,7 +130,6 @@ namespace GUI.Types.GLViewers
 
         private GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
-            RendererContext = rendererContext;
             VrfGuiContext = vrfGuiContext;
 
 #if DEBUG

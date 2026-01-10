@@ -17,7 +17,7 @@ using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
-    internal partial class GLViewerControl : IDisposable
+    internal partial class GLViewerControl : ValveResourceFormat.Renderer.Renderer, IDisposable
     {
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
@@ -35,9 +35,6 @@ namespace GUI.Types.GLViewers
             public float FrameTime { get; set; }
         }
 
-        public float Uptime { get; private set; }
-        public Camera Camera { get; protected set; }
-        public UserInput Input { get; protected set; }
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
 
         protected virtual void OnGLLoad() { }
@@ -70,11 +67,9 @@ namespace GUI.Types.GLViewers
 #endif
 
         public GLViewerControl(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
+            : base(rendererContext)
         {
             lastUpdate = Stopwatch.GetTimestamp();
-
-            Camera = new Camera(rendererContext);
-            Input = new UserInput(rendererContext);
 
             TextRenderer = new(rendererContext, Camera);
             postProcessRenderer = new(rendererContext);

@@ -44,7 +44,6 @@ namespace GUI.Types.GLViewers
         private TableLayoutPanel ParamsTable;
         private RenderMaterial renderMat;
         private ComboBox previewObjectComboBox;
-        private RendererContext RendererContext;
 
         private enum PreviewObjectType
         {
@@ -61,7 +60,6 @@ namespace GUI.Types.GLViewers
         public GLMaterialViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Resource resource) : base(vrfGuiContext, rendererContext)
         {
             Resource = resource;
-            RendererContext = rendererContext;
         }
 
         public void SetTabControl(TabControl tabs)

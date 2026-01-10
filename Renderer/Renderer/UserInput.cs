@@ -23,7 +23,7 @@ public class UserInput
 
     public record struct CameraLite(Vector3 Location, float Pitch, float Yaw);
 
-    private float Uptime;
+    private readonly Renderer Renderer;
     private float TransitionDuration = 1.5f;
     private float TransitionEndTime = -1f;
     private CameraLite StartingCamera;
@@ -54,19 +54,19 @@ public class UserInput
     /// <summary>
     /// Force an input update on the next tick.
     /// </summary>
-    public bool ForceUpdate { get => field || TransitionEndTime > Uptime; set; } = true;
+    public bool ForceUpdate { get => field || TransitionEndTime > Renderer.Uptime; set; } = true;
     public bool EnableMouseLook { get; set; } = true;
     private Vector2 MouseDelta2D;
     private Vector2 MouseDeltaPitchYaw;
 
-    public UserInput(RendererContext rendererContext)
+    public UserInput(Renderer renderer)
     {
-        Camera = new Camera(rendererContext);
+        Renderer = renderer;
+        Camera = new Camera(renderer.RendererContext);
     }
 
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)
     {
-        Uptime += deltaTime;
         ForceUpdate = false;
 
         if (!EnableMouseLook)
@@ -130,17 +130,17 @@ public class UserInput
     {
         StartingCamera = GetInterpolatedCamera();
         TransitionDuration = transitionDuration;
-        TransitionEndTime = Uptime + transitionDuration;
+        TransitionEndTime = Renderer.Uptime + transitionDuration;
     }
 
     private CameraLite GetInterpolatedCamera()
     {
-        if (TransitionEndTime < Uptime)
+        if (TransitionEndTime < Renderer.Uptime)
         {
             return CameraPositionAngles;
         }
 
-        var time = 1f - MathF.Pow((TransitionEndTime - Uptime) / TransitionDuration, 5f); // easeOutQuint
+        var time = 1f - MathF.Pow((TransitionEndTime - Renderer.Uptime) / TransitionDuration, 5f); // easeOutQuint
 
         var location = Vector3.Lerp(StartingCamera.Location, Camera.Location, time);
         var pitch = float.Lerp(StartingCamera.Pitch, Camera.Pitch, time);
