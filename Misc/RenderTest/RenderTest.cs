@@ -18,7 +18,7 @@ internal class RenderTestWindow : GameWindow
     private Renderer? SceneRenderer;
     private Framebuffer? framebuffer;
     private TextRenderer? textRenderer;
-    private UserInput Input;
+    private UserInput? Input;
     private readonly RendererContext rendererContext;
 
     private Vector2 lastMousePosition;
@@ -180,6 +180,11 @@ internal class RenderTestWindow : GameWindow
         if (input.IsKeyDown(Keys.LeftAlt) || input.IsKeyDown(Keys.RightAlt)) trackedKeys |= TrackedKeys.Alt;
         if (input.IsKeyDown(Keys.LeftControl) || input.IsKeyDown(Keys.RightControl)) trackedKeys |= TrackedKeys.Control;
 
+        if (Loaded == false)
+        {
+            return;
+        }
+
         // Get mouse delta
         var mousePos = new Vector2(MouseState.Position.X, MouseState.Position.Y);
         var mouseDelta = Vector2.Zero;
@@ -192,12 +197,7 @@ internal class RenderTestWindow : GameWindow
         lastMousePosition = mousePos;
         firstMouseMove = false;
 
-        if (Loaded == false)
-        {
-            return;
-        }
-
-        Input.Tick(deltaTime, trackedKeys, mouseDelta, SceneRenderer.Camera);
+        Input!.Tick(deltaTime, trackedKeys, mouseDelta, SceneRenderer!.Camera);
 
         // Update scene
         var updateContext = new Scene.UpdateContext
@@ -214,7 +214,7 @@ internal class RenderTestWindow : GameWindow
     {
         base.OnMouseWheel(e);
 
-        Input.OnMouseWheel(e.OffsetY);
+        Input?.OnMouseWheel(e.OffsetY);
     }
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
@@ -299,10 +299,12 @@ internal class RenderTestWindow : GameWindow
         var worldResource = rendererContext.FileLoader.LoadFile(worldPath)!;
 
         var worldLoader = new WorldLoader((World)worldResource.DataBlock!, scene, mapResource.ExternalReferences);
+        SceneRenderer.SkyboxScene = worldLoader.SkyboxScene;
         SceneRenderer.Skybox2D = worldLoader.Skybox2D;
 
         // Initialize scene (creates lighting buffers, octrees, etc.)
-        scene.Initialize();
+        SceneRenderer.Scene.Initialize();
+        SceneRenderer.SkyboxScene?.Initialize();
 
         // Set initial camera position
         if (scene.AllNodes.Any())
@@ -316,7 +318,7 @@ internal class RenderTestWindow : GameWindow
             var size = bbox.Size;
             var offset = Math.Max(size.X, Math.Max(size.Y, size.Z)) * 0.5f;
 
-            Input.SaveCameraForTransition(3f);
+            Input!.SaveCameraForTransition(3f);
             Input.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));
             Input.Camera.LookAt(center);
         }
