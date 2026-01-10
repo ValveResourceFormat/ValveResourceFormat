@@ -106,67 +106,7 @@ namespace GUI.Types.GLViewers
 
         public virtual void PreSceneLoad()
         {
-            var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext));
-
-            const string vtexFileName = "ggx_integrate_brdf_lut_schlick.vtex_c";
-
-            // Load brdf lut, preferably from game.
-            var brdfLutResource = GuiContext.LoadFile("textures/dev/" + vtexFileName);
-
-            try
-            {
-                Stream brdfStream; // Will be used by LoadTexture, and disposed by resource
-
-                if (brdfLutResource == null)
-                {
-                    brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName);
-
-                    brdfLutResource = new Resource() { FileName = vtexFileName };
-                    brdfLutResource.Read(brdfStream);
-                }
-
-                var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
-                brdfLutTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
-                SceneRenderer.Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
-            }
-            finally
-            {
-                brdfLutResource?.Dispose();
-            }
-
-            // Load default cube fog texture.
-            using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources.sky_furnace.vtex_c");
-            using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
-            cubeFogResource.Read(cubeFogStream);
-
-            var defaultCubeTexture = Scene.RendererContext.MaterialLoader.LoadTexture(cubeFogResource);
-            SceneRenderer.Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
-
-
-            const string blueNoiseName = "blue_noise_256.vtex_c";
-            var blueNoiseResource = GuiContext.LoadFile("textures/dev/" + blueNoiseName);
-
-            try
-            {
-                Stream blueNoiseStream; // Same method as brdf
-
-                if (blueNoiseResource == null)
-                {
-                    blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + blueNoiseName);
-
-                    blueNoiseResource = new Resource() { FileName = blueNoiseName };
-                    blueNoiseResource.Read(blueNoiseStream);
-                }
-
-                var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
-                postProcessRenderer.BlueNoise = blueNoise;
-                SceneRenderer.Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
-            }
-            finally
-            {
-                blueNoiseResource?.Dispose();
-            }
-
+            SceneRenderer.LoadFallbackTextures();
         }
 
         public virtual void PostSceneLoad()

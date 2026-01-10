@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.Reflection;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 
@@ -82,6 +84,73 @@ public class SceneRenderer : IRenderer
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
         // Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
+    }
+
+    public void LoadFallbackTextures()
+    {
+        var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext));
+
+        const string vtexFileName = "ggx_integrate_brdf_lut_schlick.vtex_c";
+
+        // Load brdf lut, preferably from game.
+        var brdfLutResource = RendererContext.FileLoader.LoadFile("textures/dev/" + vtexFileName);
+
+        try
+        {
+            Stream brdfStream; // Will be used by LoadTexture, and disposed by resource
+
+            if (brdfLutResource == null)
+            {
+                brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName);
+
+                brdfLutResource = new Resource() { FileName = vtexFileName };
+                brdfLutResource.Read(brdfStream);
+            }
+
+            var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
+            brdfLutTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
+        }
+        finally
+        {
+            brdfLutResource?.Dispose();
+        }
+
+        // Load default cube fog texture.
+        using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources.sky_furnace.vtex_c");
+        using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
+        cubeFogResource.Read(cubeFogStream);
+
+        var defaultCubeTexture = Scene.RendererContext.MaterialLoader.LoadTexture(cubeFogResource);
+        Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
+
+
+        const string blueNoiseName = "blue_noise_256.vtex_c";
+        var blueNoiseResource = RendererContext.FileLoader.LoadFile("textures/dev/" + blueNoiseName);
+
+        if (Postprocess != null)
+        {
+            try
+            {
+                Stream blueNoiseStream; // Same method as brdf
+
+                if (blueNoiseResource == null)
+                {
+                    blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + blueNoiseName);
+
+                    blueNoiseResource = new Resource() { FileName = blueNoiseName };
+                    blueNoiseResource.Read(blueNoiseStream);
+                }
+
+                var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
+                Postprocess.BlueNoise = blueNoise;
+                Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
+            }
+            finally
+            {
+                blueNoiseResource?.Dispose();
+            }
+        }
     }
 
     void UpdatePerViewGpuBuffers(Scene scene, Camera camera)

@@ -210,6 +210,8 @@ internal class RenderTestWindow : GameWindow
         SceneRenderer.Initialize();
         SceneRenderer.MainFramebuffer = framebuffer;
 
+        SceneRenderer.LoadFallbackTextures();
+
         var worldLoader = new WorldLoader(worldData, scene, mapResource.ExternalReferences);
         SceneRenderer.Skybox2D = worldLoader.Skybox2D;
 
