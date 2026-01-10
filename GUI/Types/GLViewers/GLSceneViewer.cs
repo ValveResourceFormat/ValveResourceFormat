@@ -303,7 +303,34 @@ namespace GUI.Types.GLViewers
             GuiContext.GLPostLoadAction = null;
         }
 
-        protected override void OnPaint(RenderEventArgs e)
+        protected override void OnUpdate(float frameTime)
+        {
+            base.OnUpdate(frameTime);
+
+            if (MouseOverRenderArea || Input.ForceUpdate)
+            {
+                var pressedKeys = CurrentlyPressedKeys;
+                var modifierKeys = Control.ModifierKeys;
+
+                if ((modifierKeys & Keys.Shift) > 0)
+                {
+                    pressedKeys |= TrackedKeys.Shift;
+                }
+
+                if ((modifierKeys & Keys.Alt) > 0)
+                {
+                    pressedKeys |= TrackedKeys.Alt;
+                }
+
+                Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Camera);
+                LastMouseDelta = MouseDelta;
+                MouseDelta = System.Drawing.Point.Empty;
+            }
+
+            Camera.RecalculateMatrices();
+        }
+
+        protected override void OnPaint(float frameTime)
         {
             viewBuffer.Data.Time = Uptime;
 
@@ -320,7 +347,7 @@ namespace GUI.Types.GLViewers
                 var updateContext = new Scene.UpdateContext
                 {
                     TextRenderer = TextRenderer,
-                    Timestep = e.FrameTime,
+                    Timestep = frameTime,
                     Camera = Camera,
                 };
 
@@ -376,6 +403,15 @@ namespace GUI.Types.GLViewers
                 {
                     baseGrid.Render();
                 }
+            }
+
+            if (Paused)
+            {
+                DrawLowerCornerText("Paused", new(255, 100, 0));
+            }
+            else if (Settings.Config.DisplayFps != 0)
+            {
+                DrawLowerCornerText(FpsText, Color32.White);
             }
         }
 

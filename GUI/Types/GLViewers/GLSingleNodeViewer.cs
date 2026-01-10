@@ -72,7 +72,7 @@ namespace GUI.Types.GLViewers
 
         protected Vector2 sunAngles;
 
-        protected override void OnPaint(RenderEventArgs e)
+        protected override void OnPaint(float frameTime)
         {
             Input.EnableMouseLook = true;
             if ((CurrentlyPressedKeys & TrackedKeys.Control) != 0)
@@ -86,7 +86,7 @@ namespace GUI.Types.GLViewers
                 Input.EnableMouseLook = false;
             }
 
-            base.OnPaint(e);
+            base.OnPaint(frameTime);
         }
 
         protected void UpdateSunAngles()

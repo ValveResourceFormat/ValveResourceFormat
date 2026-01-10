@@ -30,11 +30,6 @@ namespace GUI.Types.GLViewers
         private OpenTK.Windowing.Desktop.NativeWindow GLNativeWindow;
         public GLControl GLControl { get; private set; }
 
-        public struct RenderEventArgs
-        {
-            public float FrameTime { get; set; }
-        }
-
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
 
         protected virtual void OnGLLoad() { }
@@ -45,18 +40,18 @@ namespace GUI.Types.GLViewers
         public bool IsFullScreen => FullScreenForm != null;
         protected PickingTexture Picker { get; set; }
 
-        bool MouseOverRenderArea;
-        Point MouseDelta;
+        public bool MouseOverRenderArea;
+        public Point MouseDelta;
         Point MousePreviousPosition;
         Point InitialMousePosition;
         protected TrackedKeys CurrentlyPressedKeys;
-        protected Point LastMouseDelta { get; private set; }
+        public Point LastMouseDelta { get; protected set; }
 
         private readonly Lock glLock = new();
-        private bool wasPaused;
+        public bool Paused;
         private long lastUpdate;
         private long lastFpsUpdate;
-        private string lastFps;
+        public string FpsText = string.Empty;
         private readonly float[] frameTimes = new float[30];
         private int frameTimeNextId;
         private int frametimeQuery1;
@@ -611,7 +606,12 @@ namespace GUI.Types.GLViewers
             Log.Debug(nameof(GLViewerControl), $"First Paint: {elapsed}");
         }
 
-        protected virtual void OnPaint(RenderEventArgs e)
+        protected virtual void OnUpdate(float frameTime)
+        {
+            //
+        }
+
+        protected virtual void OnPaint(float frameTime)
         {
             //
         }
@@ -652,6 +652,9 @@ namespace GUI.Types.GLViewers
                 FirstPaint = false;
             }
 
+            var wasPaused = Paused;
+            Paused = isPaused;
+
             var elapsed = wasPaused && !isPaused
                 ? TimeSpan.Zero
                 : Stopwatch.GetElapsedTime(lastUpdate, currentTime);
@@ -660,34 +663,10 @@ namespace GUI.Types.GLViewers
             // Clamp frametime so it does not cause issues in things like particle rendering
             var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
             Uptime += frameTime;
-
-            var isTextureViewer = this is GLTextureViewer;
-            if ((MouseOverRenderArea || Input.ForceUpdate) && !isTextureViewer)
-            {
-                var pressedKeys = CurrentlyPressedKeys;
-                var modifierKeys = Control.ModifierKeys;
-
-                if ((modifierKeys & Keys.Shift) > 0)
-                {
-                    pressedKeys |= TrackedKeys.Shift;
-                }
-
-                if ((modifierKeys & Keys.Alt) > 0)
-                {
-                    pressedKeys |= TrackedKeys.Alt;
-                }
-
-                Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Camera);
-                LastMouseDelta = MouseDelta;
-                MouseDelta = Point.Empty;
-            }
-
-            Camera.RecalculateMatrices();
+            OnUpdate(frameTime);
 
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
-
-            OnPaint(new RenderEventArgs { FrameTime = frameTime });
-
+            OnPaint(frameTime);
             GL.EndQuery(QueryTarget.TimeElapsed);
 
             if (Settings.Config.DisplayFps != 0)
@@ -711,38 +690,11 @@ namespace GUI.Types.GLViewers
                     var cpuFrameTime = Stopwatch.GetElapsedTime(lastUpdate, currentTime).TotalMilliseconds;
 
                     lastFpsUpdate = currentTime;
-                    lastFps = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
+                    FpsText = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
                 }
             }
 
             BlitFramebufferToScreen();
-
-            if (!isTextureViewer)
-            {
-                wasPaused = false;
-                if (isPaused)
-                {
-                    wasPaused = true;
-                    TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-                    {
-                        X = 2f,
-                        Y = MainFramebuffer.Height - 4f,
-                        Scale = 14f,
-                        Color = new(255, 100, 0),
-                        Text = "Paused"
-                    });
-                }
-                else if (Settings.Config.DisplayFps != 0)
-                {
-                    TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-                    {
-                        X = 2f,
-                        Y = MainFramebuffer.Height - 4f,
-                        Scale = 14f,
-                        Text = lastFps
-                    });
-                }
-            }
 
             TextRenderer.Render();
 
@@ -750,6 +702,18 @@ namespace GUI.Types.GLViewers
             Picker?.TriggerEventIfAny();
 
             GLNativeWindow.Context.MakeNoneCurrent();
+        }
+
+        protected void DrawLowerCornerText(string text, Color32 color)
+        {
+            TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+            {
+                X = 2f,
+                Y = MainFramebuffer.Height - 4f,
+                Scale = 14f,
+                Color = color,
+                Text = text
+            });
         }
 
         private void BlitFramebufferToScreen()

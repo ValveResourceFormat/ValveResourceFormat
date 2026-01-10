@@ -1229,10 +1229,14 @@ namespace GUI.Types.GLViewers
             ClampPosition();
         }
 
-        protected override void OnPaint(RenderEventArgs e)
+        protected override void OnUpdate(float deltaTime)
         {
-            HandleArrowKeyMovement(e.FrameTime);
+            HandleArrowKeyMovement(deltaTime);
+            TextureScaleChangeTime += deltaTime;
+        }
 
+        protected override void OnPaint(float frameTime)
+        {
             if (NextBitmapToSet != null)
             {
                 texture?.Delete();
@@ -1244,8 +1248,6 @@ namespace GUI.Types.GLViewers
 
                 NextBitmapToSet = null;
             }
-
-            TextureScaleChangeTime += e.FrameTime;
 
             var renderHash = HashCode.Combine(
                 HashCode.Combine(
