@@ -89,9 +89,9 @@ namespace GUI.Types.GLViewers
 
             if (!isSetRequest)
             {
-                var loc = Camera.Location;
-                pitch = -1.0f * MathUtils.ToDegrees(Camera.Pitch);
-                yaw = MathUtils.ToDegrees(Camera.Yaw);
+                var loc = Renderer.Camera.Location;
+                pitch = -1.0f * MathUtils.ToDegrees(Renderer.Camera.Pitch);
+                yaw = MathUtils.ToDegrees(Renderer.Camera.Yaw);
 
                 Clipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
 
@@ -139,7 +139,7 @@ namespace GUI.Types.GLViewers
 
         private void OnSaveCameraRequest(object sender, EventArgs e)
         {
-            var cam = Camera;
+            var cam = Renderer.Camera;
             var saveName = $"Camera at {cam.Location.X:F0} {cam.Location.Y:F0} {cam.Location.Z:F0}";
             var originalName = saveName;
             var duplicateCameraIndex = 1;
@@ -163,12 +163,12 @@ namespace GUI.Types.GLViewers
 
                 if (LoadedWorld.SkyboxScene != null)
                 {
-                    SceneRenderer.SkyboxScene = LoadedWorld.SkyboxScene;
+                    Renderer.SkyboxScene = LoadedWorld.SkyboxScene;
                 }
 
                 if (LoadedWorld.Skybox2D != null)
                 {
-                    SceneRenderer.Skybox2D = LoadedWorld.Skybox2D;
+                    Renderer.Skybox2D = LoadedWorld.Skybox2D;
                 }
 
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
@@ -299,8 +299,8 @@ namespace GUI.Types.GLViewers
                 }
 
                 UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
-                UiControl.AddCheckBox("Color Correction", postProcessRenderer.ColorCorrectionEnabled, v => postProcessRenderer.ColorCorrectionEnabled = v);
-                UiControl.AddCheckBox("Experimental Lights", false, v => SceneRenderer.ViewBuffer.Data.ExperimentalLightsEnabled = v);
+                UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
+                UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer.Data.ExperimentalLightsEnabled = v);
                 UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
 
                 AddSceneExposureSlider();
@@ -580,7 +580,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (!Matrix4x4.Invert(sceneNode.Transform * Camera.CameraViewMatrix, out var transform))
+            if (!Matrix4x4.Invert(sceneNode.Transform * Renderer.Camera.CameraViewMatrix, out var transform))
             {
                 throw new InvalidOperationException("Matrix invert failed");
             }
@@ -594,7 +594,7 @@ namespace GUI.Types.GLViewers
                 var unscaledZ = transform.M33 / scaleZ;
                 var pitch = MathF.Asin(-unscaledZ);
 
-                viewerControl.Input.Camera.CopyFrom(Camera);
+                viewerControl.Input.Camera.CopyFrom(Renderer.Camera);
                 viewerControl.Input.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
 
                 if (viewerControl is not GLModelViewer glModelViewer || sceneNode is not ModelSceneNode worldModel)

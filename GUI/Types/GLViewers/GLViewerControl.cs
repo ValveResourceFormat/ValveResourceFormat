@@ -17,8 +17,11 @@ using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
-    internal partial class GLViewerControl : ValveResourceFormat.Renderer.Renderer, IDisposable
+    internal partial class GLViewerControl : IDisposable
     {
+        public Renderer Renderer { get; internal set; }
+        public UserInput Input { get; set; }
+
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
 #if DEBUG
@@ -33,8 +36,6 @@ namespace GUI.Types.GLViewers
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
 
         protected virtual void OnGLLoad() { }
-
-        protected readonly PostProcessRenderer postProcessRenderer;
 
         protected Form FullScreenForm { get; private set; }
         public bool IsFullScreen => FullScreenForm != null;
@@ -62,12 +63,12 @@ namespace GUI.Types.GLViewers
 #endif
 
         public GLViewerControl(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
-            : base(rendererContext)
         {
             lastUpdate = Stopwatch.GetTimestamp();
 
-            TextRenderer = new(rendererContext, Camera);
-            postProcessRenderer = new(rendererContext);
+            Renderer = new Renderer(rendererContext);
+            Input = new UserInput(Renderer);
+            TextRenderer = new(rendererContext, Renderer.Camera);
 
 #if DEBUG
             ShaderHotReload = new ShaderHotReload(this, rendererContext.ShaderLoader);
@@ -550,7 +551,7 @@ namespace GUI.Types.GLViewers
             GL.EndQuery(QueryTarget.TimeElapsed);
 
             TextRenderer.Load();
-            postProcessRenderer.Load();
+            Renderer.Postprocess.Load();
 
             // Framebuffer used to draw geometry
             MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
@@ -662,7 +663,7 @@ namespace GUI.Types.GLViewers
 
             // Clamp frametime so it does not cause issues in things like particle rendering
             var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
-            Uptime += frameTime;
+            Renderer.Uptime += frameTime;
             OnUpdate(frameTime);
 
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
@@ -696,7 +697,7 @@ namespace GUI.Types.GLViewers
 
             BlitFramebufferToScreen();
 
-            TextRenderer.Render(Camera);
+            TextRenderer.Render(Renderer.Camera);
 
             GLNativeWindow.Context.SwapBuffers();
             Picker?.TriggerEventIfAny();
@@ -739,7 +740,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(inputFramebuffer.NumSamples > 0);
             Debug.Assert(outputFramebuffer.NumSamples == 0);
 
-            postProcessRenderer.Render(colorBuffer: inputFramebuffer, flipY);
+            Renderer.Postprocess.Render(colorBuffer: inputFramebuffer, flipY);
         }
 
         protected virtual void OnResize()
@@ -758,7 +759,7 @@ namespace GUI.Types.GLViewers
                 MainFramebuffer.Resize(w, h, NumSamples);
             }
 
-            Camera.SetViewportSize(w, h);
+            Renderer.Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
         }
 

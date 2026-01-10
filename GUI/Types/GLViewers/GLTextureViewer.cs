@@ -567,8 +567,6 @@ namespace GUI.Types.GLViewers
 
             decodeFlagsListBox?.Dispose();
             decodeFlagsListBox = null;
-
-            RendererContext.Dispose();
         }
 
         private void OnSaveButtonClick(object sender, EventArgs e)
@@ -1073,7 +1071,7 @@ namespace GUI.Types.GLViewers
                 [textureType] = 1,
             };
 
-            shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
+            shader = Renderer.RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
         }
 
         private void UploadTexture(bool forceSoftwareDecode)
@@ -1142,7 +1140,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            texture = RendererContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
+            texture = Renderer.RendererContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
             InvalidateRender();
         }
 
@@ -1324,7 +1322,7 @@ namespace GUI.Types.GLViewers
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
-            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+            GL.BindVertexArray(Renderer.RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
 

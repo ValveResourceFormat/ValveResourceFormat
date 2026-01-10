@@ -23,7 +23,7 @@ public class UserInput
 
     public record struct CameraLite(Vector3 Location, float Pitch, float Yaw);
 
-    private readonly IRenderer Renderer;
+    private readonly Renderer Renderer;
     private float TransitionDuration = 1.5f;
     private float TransitionEndTime = -1f;
     private CameraLite StartingCamera;
@@ -59,7 +59,7 @@ public class UserInput
     private Vector2 MouseDelta2D;
     private Vector2 MouseDeltaPitchYaw;
 
-    public UserInput(IRenderer renderer)
+    public UserInput(Renderer renderer)
     {
         Renderer = renderer;
         Camera = new Camera(renderer.RendererContext);

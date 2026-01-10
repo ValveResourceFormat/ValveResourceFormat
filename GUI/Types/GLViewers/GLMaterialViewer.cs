@@ -73,7 +73,6 @@ namespace GUI.Types.GLViewers
             openShaderButton?.Dispose();
             previewObjectComboBox?.Dispose();
             vcsShader?.Dispose();
-            RendererContext.Dispose();
 
             base.Dispose();
         }
@@ -83,7 +82,7 @@ namespace GUI.Types.GLViewers
             base.LoadScene();
 
             Scene.ShowToolsMaterials = true;
-            renderMat = RendererContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
+            renderMat = Renderer.RendererContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
             renderMat.Shader.EnsureLoaded();
 
             {

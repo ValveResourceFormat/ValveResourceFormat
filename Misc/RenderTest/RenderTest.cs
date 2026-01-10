@@ -15,9 +15,10 @@ using Vector3 = System.Numerics.Vector3;
 
 internal class RenderTestWindow : GameWindow
 {
-    private SceneRenderer? SceneRenderer;
+    private Renderer? SceneRenderer;
     private Framebuffer? framebuffer;
     private TextRenderer? textRenderer;
+    private UserInput Input;
     private readonly RendererContext rendererContext;
 
     private Vector2 lastMousePosition;
@@ -94,9 +95,9 @@ internal class RenderTestWindow : GameWindow
 
         GLEnvironment.Initialize(rendererContext.Logger);
         GLEnvironment.SetDefaultRenderState();
-        GL.Enable(EnableCap.FramebufferSrgb);
 
-        SceneRenderer = new SceneRenderer(rendererContext);
+        SceneRenderer = new Renderer(rendererContext);
+        Input = new UserInput(SceneRenderer);
 
         rendererContext.Logger.LogInformation("Loading scene...");
         LoadScene(rendererContext.FileLoader.CurrentPackage!, rendererContext);
@@ -196,7 +197,7 @@ internal class RenderTestWindow : GameWindow
             return;
         }
 
-        SceneRenderer!.Input.Tick(deltaTime, trackedKeys, mouseDelta, SceneRenderer.Camera);
+        Input.Tick(deltaTime, trackedKeys, mouseDelta, SceneRenderer.Camera);
 
         // Update scene
         var updateContext = new Scene.UpdateContext
@@ -213,7 +214,7 @@ internal class RenderTestWindow : GameWindow
     {
         base.OnMouseWheel(e);
 
-        SceneRenderer?.Input.OnMouseWheel(e.OffsetY);
+        Input.OnMouseWheel(e.OffsetY);
     }
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
@@ -272,6 +273,8 @@ internal class RenderTestWindow : GameWindow
         textRenderer = new TextRenderer(rendererContext, SceneRenderer.Camera);
         textRenderer.Load();
 
+        SceneRenderer.Postprocess.Load();
+
         // Create framebuffer for rendering
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
@@ -313,9 +316,9 @@ internal class RenderTestWindow : GameWindow
             var size = bbox.Size;
             var offset = Math.Max(size.X, Math.Max(size.Y, size.Z)) * 0.5f;
 
-            SceneRenderer.Input.SaveCameraForTransition(3f);
-            SceneRenderer.Input.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));
-            SceneRenderer.Input.Camera.LookAt(center);
+            Input.SaveCameraForTransition(3f);
+            Input.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));
+            Input.Camera.LookAt(center);
         }
     }
 
@@ -347,14 +350,10 @@ internal class RenderTestWindow : GameWindow
         });
         textRenderer.Render(SceneRenderer.Camera);
 
-        // Blit to default framebuffer
-        GL.BlitNamedFramebuffer(
-            framebuffer.FboHandle, 0,
-            0, 0, framebuffer.Width, framebuffer.Height,
-            0, 0, framebuffer.Width, framebuffer.Height,
-            ClearBufferMask.ColorBufferBit,
-            BlitFramebufferFilter.Nearest
-        );
+        // Render to default frame buffer using post process renderer
+        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, framebuffer.FboHandle);
+        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
+        SceneRenderer.Postprocess.Render(colorBuffer: framebuffer, false);
 
         // Reset framebuffer state for next frame
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);

@@ -15,11 +15,9 @@ namespace GUI.Types.GLViewers
 {
     internal abstract class GLSceneViewer : GLViewerControl, IDisposable
     {
-        protected SceneRenderer SceneRenderer;
-
         public Scene Scene { get; }
-        public Scene SkyboxScene => SceneRenderer.SkyboxScene;
-        public SceneSkybox2D Skybox2D => SceneRenderer.Skybox2D;
+        public Scene SkyboxScene => Renderer.SkyboxScene;
+        public SceneSkybox2D Skybox2D => Renderer.Skybox2D;
         public VrfGuiContext GuiContext;
 
         private bool ShowBaseGrid;
@@ -41,16 +39,15 @@ namespace GUI.Types.GLViewers
 
         protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Frustum cullFrustum) : this(vrfGuiContext, rendererContext)
         {
-            SceneRenderer.LockedCullFrustum = cullFrustum;
+            Renderer.LockedCullFrustum = cullFrustum;
         }
 
         protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
             GuiContext = vrfGuiContext;
 
-            SceneRenderer = new SceneRenderer(rendererContext);
-            Camera = SceneRenderer.Camera;
-            Scene = SceneRenderer.Scene;
+            Renderer.Camera = Renderer.Camera;
+            Scene = Renderer.Scene;
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -61,7 +58,7 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
-            SceneRenderer?.Dispose();
+            Renderer?.Dispose();
 
             if (renderModeComboBox != null)
             {
@@ -78,7 +75,7 @@ namespace GUI.Types.GLViewers
         {
             UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
-                SceneRenderer.LockedCullFrustum = v ? Camera.ViewFrustum.Clone() : null;
+                Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
             });
             UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
@@ -106,7 +103,7 @@ namespace GUI.Types.GLViewers
 
         public virtual void PreSceneLoad()
         {
-            SceneRenderer.LoadRendererResources();
+            Renderer.LoadRendererResources();
         }
 
         public virtual void PostSceneLoad()
@@ -121,8 +118,8 @@ namespace GUI.Types.GLViewers
 
             if (Scene.FogInfo.CubeFogActive)
             {
-                SceneRenderer.Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
-                SceneRenderer.Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", Scene.FogInfo.CubemapFog.CubemapFogTexture));
+                Renderer.Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
+                Renderer.Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", Scene.FogInfo.CubemapFog.CubemapFogTexture));
             }
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
@@ -170,11 +167,10 @@ namespace GUI.Types.GLViewers
             SelectedNodeRenderer = new(Scene.RendererContext);
             Picker = new(Scene.RendererContext, OnPicked);
 
-            SceneRenderer.ShadowTextureSize = Settings.Config.ShadowResolution;
-            SceneRenderer.Initialize();
+            Renderer.ShadowTextureSize = Settings.Config.ShadowResolution;
+            Renderer.Initialize();
 
-            SceneRenderer.MainFramebuffer = MainFramebuffer;
-            SceneRenderer.Postprocess = postProcessRenderer;
+            Renderer.MainFramebuffer = MainFramebuffer;
 
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
@@ -210,7 +206,7 @@ namespace GUI.Types.GLViewers
                     pressedKeys |= TrackedKeys.Alt;
                 }
 
-                Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Camera);
+                Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = MouseDelta;
                 MouseDelta = System.Drawing.Point.Empty;
             }
@@ -220,9 +216,9 @@ namespace GUI.Types.GLViewers
         {
             var renderContext = new Scene.RenderContext
             {
-                Camera = Camera,
+                Camera = Renderer.Camera,
                 Framebuffer = MainFramebuffer,
-                Textures = SceneRenderer.Textures,
+                Textures = Renderer.Textures,
                 Scene = Scene,
             };
 
@@ -232,10 +228,10 @@ namespace GUI.Types.GLViewers
                 {
                     TextRenderer = TextRenderer,
                     Timestep = frameTime,
-                    Camera = Camera,
+                    Camera = Renderer.Camera,
                 };
 
-                SceneRenderer.Update(updateContext);
+                Renderer.Update(updateContext);
 
                 SelectedNodeRenderer.Update(renderContext, updateContext);
             }
@@ -248,7 +244,7 @@ namespace GUI.Types.GLViewers
                     renderContext.ReplacementShader = Picker.Shader;
                     renderContext.Framebuffer = Picker;
 
-                    SceneRenderer.RenderScenesWithView(renderContext);
+                    Renderer.RenderScenesWithView(renderContext);
                     Picker.Finish();
                 }
                 else if (Picker.IsDebugActive)
@@ -256,7 +252,7 @@ namespace GUI.Types.GLViewers
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }
 
-                SceneRenderer.Render(renderContext);
+                Renderer.Render(renderContext);
             }
 
             using (new GLDebugGroup("Lines Render"))
@@ -295,7 +291,7 @@ namespace GUI.Types.GLViewers
             var lightBackgroundCheckbox = UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
-                SceneRenderer.BaseBackground.SetLightBackground(ShowLightBackground);
+                Renderer.BaseBackground.SetLightBackground(ShowLightBackground);
             });
 
             lightBackgroundCheckbox.Checked = Themer.CurrentTheme == Themer.AppTheme.Light;
@@ -303,7 +299,7 @@ namespace GUI.Types.GLViewers
             UiControl.AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
             {
                 ShowSolidBackground = v;
-                SceneRenderer.BaseBackground.SetSolidBackground(ShowSolidBackground);
+                Renderer.BaseBackground.SetSolidBackground(ShowSolidBackground);
             });
             UiControl.AddDivider();
 
@@ -430,9 +426,9 @@ namespace GUI.Types.GLViewers
 
         private void SetRenderMode(string renderMode)
         {
-            SceneRenderer.ViewBuffer.Data.RenderMode = RenderModes.GetShaderId(renderMode);
+            Renderer.ViewBuffer.Data.RenderMode = RenderModes.GetShaderId(renderMode);
 
-            SceneRenderer.Postprocess.Enabled = SceneRenderer.ViewBuffer.Data.RenderMode == 0;
+            Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
 
             Picker.SetRenderMode(renderMode);
             SelectedNodeRenderer.SetRenderMode(renderMode);

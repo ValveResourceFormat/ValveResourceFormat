@@ -111,7 +111,7 @@ namespace GUI.Types.GLViewers
             GL.ClearColor(new OpenTK.Mathematics.Color4(0, 0, 0, 0));
             GL.Clear(MainFramebuffer.ClearMask);
 
-            SceneRenderer.DrawMainScene();
+            Renderer.DrawMainScene();
 
             if (SaveAsFbo == null)
             {

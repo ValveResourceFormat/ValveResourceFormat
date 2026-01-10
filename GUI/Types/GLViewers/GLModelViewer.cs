@@ -486,7 +486,7 @@ namespace GUI.Types.GLViewers
                     {
                         foundFile.Context.GLPostLoadAction = (viewerControl) =>
                         {
-                            viewerControl.Input.Camera.CopyFrom(Camera);
+                            viewerControl.Input.Camera.CopyFrom(Renderer.Camera);
                         };
 
                         Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
