@@ -163,12 +163,12 @@ namespace GUI.Types.GLViewers
 
                 if (LoadedWorld.SkyboxScene != null)
                 {
-                    SkyboxScene = LoadedWorld.SkyboxScene;
+                    SceneRenderer.SkyboxScene = LoadedWorld.SkyboxScene;
                 }
 
                 if (LoadedWorld.Skybox2D != null)
                 {
-                    Skybox2D = LoadedWorld.Skybox2D;
+                    SceneRenderer.Skybox2D = LoadedWorld.Skybox2D;
                 }
 
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
@@ -300,7 +300,7 @@ namespace GUI.Types.GLViewers
 
                 UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                 UiControl.AddCheckBox("Color Correction", postProcessRenderer.ColorCorrectionEnabled, v => postProcessRenderer.ColorCorrectionEnabled = v);
-                UiControl.AddCheckBox("Experimental Lights", false, v => viewBuffer.Data.ExperimentalLightsEnabled = v);
+                UiControl.AddCheckBox("Experimental Lights", false, v => SceneRenderer.ViewBuffer.Data.ExperimentalLightsEnabled = v);
                 UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
 
                 AddSceneExposureSlider();

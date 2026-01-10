@@ -8,7 +8,6 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.Renderer.Buffers;
 
 #nullable disable
 
@@ -16,9 +15,11 @@ namespace GUI.Types.GLViewers
 {
     internal abstract class GLSceneViewer : GLViewerControl, IDisposable
     {
+        protected SceneRenderer SceneRenderer;
+
         public Scene Scene { get; }
-        public Scene SkyboxScene { get; protected set; }
-        public SceneSkybox2D Skybox2D { get; protected set; }
+        public Scene SkyboxScene => SceneRenderer.SkyboxScene;
+        public SceneSkybox2D Skybox2D => SceneRenderer.Skybox2D;
         public VrfGuiContext GuiContext;
 
         private bool ShowBaseGrid;
@@ -29,32 +30,27 @@ namespace GUI.Types.GLViewers
 
         private bool showStaticOctree;
         private bool showDynamicOctree;
-        private Frustum lockedCullFrustum;
-
-        protected UniformBuffer<ViewConstants> viewBuffer;
-        public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
-        private SceneBackground baseBackground;
         private OctreeDebugRenderer staticOctreeRenderer;
         private OctreeDebugRenderer dynamicOctreeRenderer;
         protected SelectedNodeRenderer SelectedNodeRenderer;
-        private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
-        public Framebuffer ShadowDepthBuffer { get; private set; }
-        public Framebuffer FramebufferCopy { get; private set; }
 
         protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Frustum cullFrustum) : this(vrfGuiContext, rendererContext)
         {
-            lockedCullFrustum = cullFrustum;
+            SceneRenderer.LockedCullFrustum = cullFrustum;
         }
 
         protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
             GuiContext = vrfGuiContext;
-            Scene = new Scene(rendererContext);
+
+            SceneRenderer = new SceneRenderer(rendererContext);
+            Camera = SceneRenderer.Camera;
+            Scene = SceneRenderer.Scene;
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -65,9 +61,7 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
-            viewBuffer?.Dispose();
-            Scene?.Dispose();
-            SkyboxScene?.Dispose();
+            SceneRenderer?.Dispose();
 
             if (renderModeComboBox != null)
             {
@@ -84,7 +78,7 @@ namespace GUI.Types.GLViewers
         {
             UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
-                lockedCullFrustum = v ? Camera.ViewFrustum.Clone() : null;
+                SceneRenderer.LockedCullFrustum = v ? Camera.ViewFrustum.Clone() : null;
             });
             UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
@@ -110,23 +104,6 @@ namespace GUI.Types.GLViewers
             base.AddUiControls();
         }
 
-        private void CreateBuffers()
-        {
-            viewBuffer = new(ReservedBufferSlots.View);
-        }
-
-        void UpdatePerViewGpuBuffers(Scene scene, Camera camera)
-        {
-            camera.SetViewConstants(viewBuffer.Data);
-            scene.SetFogConstants(viewBuffer.Data);
-
-            viewBuffer.BindBufferBase();
-            viewBuffer.Update();
-
-            postProcessRenderer.State = scene.PostProcessInfo.CurrentState;
-            postProcessRenderer.TonemapScalar = scene.PostProcessInfo.CalculateTonemapScalar();
-        }
-
         public virtual void PreSceneLoad()
         {
             var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext));
@@ -150,7 +127,7 @@ namespace GUI.Types.GLViewers
 
                 var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
                 brdfLutTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
-                Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
+                SceneRenderer.Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
             }
             finally
             {
@@ -163,7 +140,7 @@ namespace GUI.Types.GLViewers
             cubeFogResource.Read(cubeFogStream);
 
             var defaultCubeTexture = Scene.RendererContext.MaterialLoader.LoadTexture(cubeFogResource);
-            Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
+            SceneRenderer.Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
 
 
             const string blueNoiseName = "blue_noise_256.vtex_c";
@@ -183,7 +160,7 @@ namespace GUI.Types.GLViewers
 
                 var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
                 postProcessRenderer.BlueNoise = blueNoise;
-                Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
+                SceneRenderer.Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
             }
             finally
             {
@@ -204,8 +181,8 @@ namespace GUI.Types.GLViewers
 
             if (Scene.FogInfo.CubeFogActive)
             {
-                Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
-                Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", Scene.FogInfo.CubemapFog.CubemapFogTexture));
+                SceneRenderer.Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
+                SceneRenderer.Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", Scene.FogInfo.CubemapFog.CubemapFogTexture));
             }
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
@@ -250,45 +227,16 @@ namespace GUI.Types.GLViewers
         protected override void OnGLLoad()
         {
             baseGrid = new InfiniteGrid(Scene);
-            Skybox2D = baseBackground = new SceneBackground(Scene);
             SelectedNodeRenderer = new(Scene.RendererContext);
             Picker = new(Scene.RendererContext, OnPicked);
 
-            var shadowQuality = Settings.Config.ShadowResolution;
+            SceneRenderer.ShadowTextureSize = Settings.Config.ShadowResolution;
+            SceneRenderer.Initialize();
 
-            ShadowDepthBuffer = Framebuffer.Prepare(nameof(ShadowDepthBuffer), shadowQuality, shadowQuality, 0, null, Framebuffer.DepthAttachmentFormat.Depth32F);
-            ShadowDepthBuffer.Initialize();
-            ShadowDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
-            GL.DrawBuffer(DrawBufferMode.None);
-            GL.ReadBuffer(ReadBufferMode.None);
-            Textures.Add(new(ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth));
-
-            GL.TextureParameter(ShadowDepthBuffer.Depth.Handle, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-            ShadowDepthBuffer.Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-            ShadowDepthBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-            ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
-
-            depthOnlyShaders[(int)DepthOnlyProgram.Static] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only");
-            //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
-            depthOnlyShaders[(int)DepthOnlyProgram.Animated] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
-            depthOnlyShaders[(int)DepthOnlyProgram.AnimatedEightBones] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 }, { "D_EIGHT_BONE_BLENDING", 1 } });
-
-            depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
-
-            FramebufferCopy = Framebuffer.Prepare(nameof(FramebufferCopy), 4, 4, 0,
-                new Framebuffer.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
-                new Framebuffer.DepthAttachmentFormat(PixelInternalFormat.DepthComponent32f, PixelType.Float)
-            );
-
-            FramebufferCopy.Initialize();
-            FramebufferCopy.ClearColor = new(0, 0, 0, 255);
-
-            Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
-            Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
-            Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
+            SceneRenderer.MainFramebuffer = MainFramebuffer;
+            SceneRenderer.Postprocess = postProcessRenderer;
 
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
-            CreateBuffers();
 
             var timer = Stopwatch.StartNew();
             PreSceneLoad();
@@ -326,19 +274,15 @@ namespace GUI.Types.GLViewers
                 LastMouseDelta = MouseDelta;
                 MouseDelta = System.Drawing.Point.Empty;
             }
-
-            Camera.RecalculateMatrices();
         }
 
         protected override void OnPaint(float frameTime)
         {
-            viewBuffer.Data.Time = Uptime;
-
             var renderContext = new Scene.RenderContext
             {
                 Camera = Camera,
                 Framebuffer = MainFramebuffer,
-                Textures = Textures,
+                Textures = SceneRenderer.Textures,
                 Scene = Scene,
             };
 
@@ -351,18 +295,9 @@ namespace GUI.Types.GLViewers
                     Camera = Camera,
                 };
 
-                Scene.Update(updateContext);
-                SkyboxScene?.Update(updateContext);
-
-                Scene.PostProcessInfo.UpdatePostProcessing(Camera);
+                SceneRenderer.Update(updateContext);
 
                 SelectedNodeRenderer.Update(renderContext, updateContext);
-
-                Scene.SetupSceneShadows(Camera, ShadowDepthBuffer.Width);
-                Scene.GetOcclusionTestResults();
-
-                Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
-                SkyboxScene?.CollectSceneDrawCalls(Camera, lockedCullFrustum);
             }
 
             using (new GLDebugGroup("Scenes Render"))
@@ -373,7 +308,7 @@ namespace GUI.Types.GLViewers
                     renderContext.ReplacementShader = Picker.Shader;
                     renderContext.Framebuffer = Picker;
 
-                    RenderScenesWithView(renderContext);
+                    SceneRenderer.RenderScenesWithView(renderContext);
                     Picker.Finish();
                 }
                 else if (Picker.IsDebugActive)
@@ -381,8 +316,7 @@ namespace GUI.Types.GLViewers
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }
 
-                RenderSceneShadows(renderContext);
-                RenderScenesWithView(renderContext);
+                SceneRenderer.Render(renderContext);
             }
 
             using (new GLDebugGroup("Lines Render"))
@@ -415,210 +349,13 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected void DrawMainScene()
-        {
-            var renderContext = new Scene.RenderContext
-            {
-                Camera = Camera,
-                Framebuffer = MainFramebuffer,
-                Scene = Scene,
-                Textures = Textures,
-            };
-
-            UpdatePerViewGpuBuffers(Scene, Camera);
-            Scene.SetSceneBuffers();
-
-            Scene.RenderOpaqueLayer(renderContext);
-            RenderTranslucentLayer(Scene, renderContext);
-        }
-
-        private void RenderSceneShadows(Scene.RenderContext renderContext)
-        {
-            GL.Viewport(0, 0, ShadowDepthBuffer.Width, ShadowDepthBuffer.Height);
-            ShadowDepthBuffer.Bind(FramebufferTarget.Framebuffer);
-            GL.DepthRange(0, 1);
-            GL.Clear(ClearBufferMask.DepthBufferBit);
-
-            renderContext.Framebuffer = ShadowDepthBuffer;
-            renderContext.Scene = Scene;
-
-            viewBuffer.Data.WorldToProjection = Scene.LightingInfo.SunViewProjection;
-            var worldToShadow = Scene.LightingInfo.SunViewProjection;
-            viewBuffer.Data.WorldToShadow = worldToShadow;
-            viewBuffer.Data.SunLightShadowBias = Scene.LightingInfo.SunLightShadowBias;
-            viewBuffer.Update();
-
-            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
-        }
-
-        private void RenderScenesWithView(Scene.RenderContext renderContext)
-        {
-            var (w, h) = (renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
-
-            GL.Viewport(0, 0, w, h);
-            viewBuffer.Data.InvViewportSize = Vector4.One / new Vector4(w, h, 1, 1);
-
-            renderContext.Framebuffer.BindAndClear();
-
-            var isWireframe = IsWireframe; // To avoid toggling it mid frame
-
-            // TODO: check if renderpass allows wireframe mode
-            // TODO+: replace wireframe shaders with solid color
-            if (isWireframe)
-            {
-                GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
-            }
-
-            GL.DepthRange(0.05, 1);
-
-            UpdatePerViewGpuBuffers(Scene, Camera);
-            Scene.SetSceneBuffers();
-
-            using (new GLDebugGroup("Main Scene Opaque Render"))
-            {
-                renderContext.Scene = Scene;
-                Scene.RenderOpaqueLayer(renderContext);
-            }
-
-            using (new GLDebugGroup("Occlusion Tests"))
-            {
-                Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
-            }
-
-            using (new GLDebugGroup("Sky Render"))
-            {
-                GL.DepthRange(0, 0.05);
-
-                renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
-                var render3DSkybox = ShowSkybox && SkyboxScene != null;
-                var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
-
-                if (render3DSkybox)
-                {
-                    SkyboxScene.SetSceneBuffers();
-                    renderContext.Scene = SkyboxScene;
-
-                    copyColor |= SkyboxScene.WantsSceneColor;
-                    copyDepth |= SkyboxScene.WantsSceneDepth;
-
-                    using var _ = new GLDebugGroup("3D Sky Scene");
-                    SkyboxScene.RenderOpaqueLayer(renderContext);
-                }
-
-                if (!isWireframe)
-                {
-                    using (new GLDebugGroup("2D Sky Render"))
-                    {
-                        Skybox2D.Render();
-                    }
-                }
-
-                if (renderContext.Framebuffer == MainFramebuffer)
-                {
-                    GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
-                }
-
-                if (render3DSkybox)
-                {
-                    using (new GLDebugGroup("3D Sky Scene Translucent Render"))
-                    {
-                        RenderTranslucentLayer(SkyboxScene, renderContext);
-                    }
-
-                    // Back to main scene.
-                    Scene.SetSceneBuffers();
-                    renderContext.Scene = Scene;
-                }
-
-                renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
-                GL.DepthRange(0.05, 1);
-            }
-
-            using (new GLDebugGroup("Main Scene Translucent Render"))
-            {
-                RenderTranslucentLayer(Scene, renderContext);
-            }
-
-            if (isWireframe)
-            {
-                GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
-            }
-
-            if (renderContext.ReplacementShader is null)
-            {
-                using (new GLDebugGroup("Outline Render"))
-                {
-                    RenderOutlineLayer(renderContext);
-                }
-            }
-        }
-
-        private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
-        {
-            scene.RenderWaterLayer(renderContext);
-
-            GL.DepthMask(false);
-            GL.Enable(EnableCap.Blend);
-
-            scene.RenderTranslucentLayer(renderContext);
-
-            GL.Disable(EnableCap.Blend);
-            GL.DepthMask(true);
-        }
-
-        private void RenderOutlineLayer(Scene.RenderContext renderContext)
-        {
-            GL.DepthMask(false);
-            GL.Disable(EnableCap.DepthTest);
-            GL.Disable(EnableCap.CullFace);
-
-            GL.Enable(EnableCap.StencilTest);
-            GL.StencilOp(StencilOp.Keep, StencilOp.Keep, StencilOp.Replace);
-            GL.StencilFunc(StencilFunction.Always, 1, 0xFF);
-            GL.StencilMask(0xFF);
-
-            SkyboxScene?.RenderOutlineLayer(renderContext);
-            Scene.RenderOutlineLayer(renderContext);
-
-            GL.Disable(EnableCap.StencilTest);
-            GL.Enable(EnableCap.CullFace);
-            GL.Enable(EnableCap.DepthTest);
-            GL.DepthMask(true);
-        }
-
-        private void GrabFramebufferCopy(Framebuffer framebuffer, bool copyColor, bool copyDepth)
-        {
-            if (!copyColor && !copyDepth)
-            {
-                return;
-            }
-
-            if (FramebufferCopy.Width != framebuffer.Width ||
-                FramebufferCopy.Height != framebuffer.Height)
-            {
-                FramebufferCopy.Resize(framebuffer.Width, framebuffer.Height);
-            }
-
-            FramebufferCopy.BindAndClear(FramebufferTarget.DrawFramebuffer);
-
-            var flags = ClearBufferMask.None;
-            flags |= copyColor ? ClearBufferMask.ColorBufferBit : 0;
-            flags |= copyDepth ? ClearBufferMask.DepthBufferBit : 0;
-
-            GL.BlitNamedFramebuffer(framebuffer.FboHandle, FramebufferCopy.FboHandle,
-                0, 0, framebuffer.Width, framebuffer.Height,
-                0, 0, FramebufferCopy.Width, FramebufferCopy.Height, flags, BlitFramebufferFilter.Nearest);
-
-            framebuffer.Bind(FramebufferTarget.Framebuffer);
-        }
-
         protected void AddBaseGridControl()
         {
             UiControl.AddDivider();
             var lightBackgroundCheckbox = UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
-                baseBackground.SetLightBackground(ShowLightBackground);
+                SceneRenderer.BaseBackground.SetLightBackground(ShowLightBackground);
             });
 
             lightBackgroundCheckbox.Checked = Themer.CurrentTheme == Themer.AppTheme.Light;
@@ -626,7 +363,7 @@ namespace GUI.Types.GLViewers
             UiControl.AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
             {
                 ShowSolidBackground = v;
-                baseBackground.SetSolidBackground(ShowSolidBackground);
+                SceneRenderer.BaseBackground.SetSolidBackground(ShowSolidBackground);
             });
             UiControl.AddDivider();
 
@@ -753,9 +490,9 @@ namespace GUI.Types.GLViewers
 
         private void SetRenderMode(string renderMode)
         {
-            viewBuffer.Data.RenderMode = RenderModes.GetShaderId(renderMode);
+            SceneRenderer.ViewBuffer.Data.RenderMode = RenderModes.GetShaderId(renderMode);
 
-            postProcessRenderer.Enabled = viewBuffer.Data.RenderMode == 0;
+            SceneRenderer.Postprocess.Enabled = SceneRenderer.ViewBuffer.Data.RenderMode == 0;
 
             Picker.SetRenderMode(renderMode);
             SelectedNodeRenderer.SetRenderMode(renderMode);

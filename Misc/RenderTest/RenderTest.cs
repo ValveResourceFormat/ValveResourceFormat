@@ -9,38 +9,21 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
-internal class RendererImplementation : Renderer
-{
-    public RendererImplementation(RendererContext rendererContext) : base(rendererContext)
-    {
-    }
-
-    public void UpdateUptime(float deltaTime)
-    {
-        Uptime += deltaTime;
-    }
-}
-
 internal class RenderTestWindow : GameWindow
 {
-    private Scene? scene;
-    private readonly Camera camera;
-    private WorldLoader? worldLoader;
+    private SceneRenderer? SceneRenderer;
     private Framebuffer? framebuffer;
-    private UniformBuffer<ViewConstants>? viewBuffer;
     private TextRenderer? textRenderer;
-    private SceneSkybox2D? skybox2D;
-    private readonly RendererImplementation renderer;
     private readonly RendererContext rendererContext;
-
 
     private Vector2 lastMousePosition;
     private bool firstMouseMove = true;
+
+    public bool Loaded { get; private set; }
 
     public RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings)
         : base(gameWindowSettings, nativeWindowSettings)
@@ -95,9 +78,6 @@ internal class RenderTestWindow : GameWindow
         {
             FieldOfView = 75
         };
-
-        renderer = new RendererImplementation(rendererContext);
-        camera = renderer.Camera;
     }
 
     protected override void OnLoad()
@@ -106,11 +86,13 @@ internal class RenderTestWindow : GameWindow
 
         GLEnvironment.Initialize(rendererContext.Logger);
         GLEnvironment.SetDefaultRenderState();
-
         GL.Enable(EnableCap.FramebufferSrgb);
+
+        SceneRenderer = new SceneRenderer(rendererContext);
 
         rendererContext.Logger.LogInformation("Loading scene...");
         LoadScene(rendererContext.FileLoader.CurrentPackage!, rendererContext);
+        Loaded = true;
 
         // Lock cursor for mouse look
         CursorState = CursorState.Grabbed;
@@ -119,11 +101,6 @@ internal class RenderTestWindow : GameWindow
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
         base.OnUpdateFrame(args);
-
-        if (renderer == null || camera == null)
-        {
-            return;
-        }
 
         var input = KeyboardState;
         var deltaTime = (float)args.Time;
@@ -153,16 +130,29 @@ internal class RenderTestWindow : GameWindow
         lastMousePosition = mousePos;
         firstMouseMove = false;
 
-        // Update input system
-        renderer.UpdateUptime(deltaTime);
-        renderer.Input.Tick(deltaTime, trackedKeys, mouseDelta, camera);
+        if (Loaded == false)
+        {
+            return;
+        }
+
+        SceneRenderer!.Input.Tick(deltaTime, trackedKeys, mouseDelta, SceneRenderer.Camera);
+
+        // Update scene
+        var updateContext = new Scene.UpdateContext
+        {
+            Camera = SceneRenderer.Camera,
+            TextRenderer = textRenderer!,
+            Timestep = deltaTime,
+        };
+
+        SceneRenderer.Update(updateContext);
     }
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
 
-        renderer?.Input.OnMouseWheel(e.OffsetY);
+        SceneRenderer?.Input.OnMouseWheel(e.OffsetY);
     }
 
     protected override void OnResize(ResizeEventArgs e)
@@ -170,7 +160,7 @@ internal class RenderTestWindow : GameWindow
         base.OnResize(e);
 
         GL.Viewport(0, 0, e.Width, e.Height);
-        camera?.SetViewportSize(e.Width, e.Height);
+        SceneRenderer?.Camera.SetViewportSize(e.Width, e.Height);
         framebuffer?.Resize(e.Width, e.Height);
     }
 
@@ -204,13 +194,11 @@ internal class RenderTestWindow : GameWindow
             throw new InvalidOperationException("Resource is not a World type.");
         }
 
-        scene = new Scene(rendererContext);
-
-        // Create ViewConstants buffer (required for shaders)
-        viewBuffer = new UniformBuffer<ViewConstants>(ReservedBufferSlots.View);
+        Debug.Assert(SceneRenderer != null);
+        var scene = SceneRenderer.Scene;
 
         // Create TextRenderer (needed for Scene.Update)
-        textRenderer = new TextRenderer(rendererContext, camera);
+        textRenderer = new TextRenderer(rendererContext, SceneRenderer.Camera);
         textRenderer.Load();
 
         // Create framebuffer for rendering
@@ -219,11 +207,11 @@ internal class RenderTestWindow : GameWindow
             Framebuffer.DepthAttachmentFormat.Depth32FStencil8);
         framebuffer.Initialize();
 
-        // Create WorldLoader and load
-        worldLoader = new WorldLoader(worldData, scene, mapResource.ExternalReferences);
+        SceneRenderer.Initialize();
+        SceneRenderer.MainFramebuffer = framebuffer;
 
-        // Initialise 2d skybox
-        skybox2D = worldLoader.Skybox2D;
+        var worldLoader = new WorldLoader(worldData, scene, mapResource.ExternalReferences);
+        SceneRenderer.Skybox2D = worldLoader.Skybox2D;
 
         // Initialize scene (creates lighting buffers, octrees, etc.)
         scene.Initialize();
@@ -239,77 +227,32 @@ internal class RenderTestWindow : GameWindow
             var center = bbox.Center;
             var size = bbox.Size;
             var offset = Math.Max(size.X, Math.Max(size.Y, size.Z)) * 0.5f;
-            renderer.Input.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));
-            renderer.Input.Camera.LookAt(center);
+
+            SceneRenderer.Input.SaveCameraForTransition(3f);
+            SceneRenderer.Input.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));
+            SceneRenderer.Input.Camera.LookAt(center);
         }
     }
 
     private void RenderScene(float deltaTime)
     {
-        Debug.Assert(scene != null, "Scene is not loaded.");
-        Debug.Assert(camera != null, "Camera is not loaded.");
-        Debug.Assert(viewBuffer != null, "ViewBuffer is not created.");
+        Debug.Assert(SceneRenderer != null, "SceneRenderer is not loaded.");
         Debug.Assert(framebuffer is not null, "Framebuffer is not created.");
-        Debug.Assert(rendererContext != null, "RendererContext is not created.");
         Debug.Assert(textRenderer != null, "TextRenderer is not created.");
-
-        // Update camera matrices
-        camera.RecalculateMatrices();
-
-        // Update scene (clears previous frame's draw calls and updates internal state)
-        var updateContext = new Scene.UpdateContext
-        {
-            Camera = camera,
-            TextRenderer = textRenderer,
-            Timestep = deltaTime,
-        };
-        scene.Update(updateContext);
-
-        // Setup scene lighting and shadows (required even without shadow rendering)
-        scene.SetupSceneShadows(camera, 1024);
-
-        // Collect visible draw calls (culling)
-        scene.CollectSceneDrawCalls(camera, null);
-
-        // Update view constants (camera matrices and fog)
-        camera.SetViewConstants(viewBuffer.Data);
-        scene.SetFogConstants(viewBuffer.Data);
-        viewBuffer.BindBufferBase();
-        viewBuffer.Update();
 
         // Setup render context
         var renderContext = new Scene.RenderContext
         {
-            Camera = camera,
+            Camera = SceneRenderer.Camera,
             Framebuffer = framebuffer,
-            Scene = scene,
-            Textures = [],
+            Scene = SceneRenderer.Scene,
+            Textures = SceneRenderer.Textures,
         };
 
-        // Bind scene lighting buffers
-        scene.SetSceneBuffers();
+        // Render using SceneRenderer
+        SceneRenderer.Render(renderContext);
 
-        // Clear and render opaque layer only
-        framebuffer.BindAndClear();
-        scene.RenderOpaqueLayer(renderContext);
-
-        // Render 2d skybox if present
-        if (skybox2D != null)
-        {
-            skybox2D.Render();
-        }
-
-        // Render translucent layer including water
-        scene.RenderWaterLayer(renderContext);
-
-        GL.DepthMask(false);
-        GL.Enable(EnableCap.Blend);
-
-        scene.RenderTranslucentLayer(renderContext);
-
-        GL.Disable(EnableCap.Blend);
-        GL.DepthMask(true);
-
+        // Blit to default framebuffer
         GL.BlitNamedFramebuffer(
             framebuffer.FboHandle, 0,
             0, 0, framebuffer.Width, framebuffer.Height,
@@ -326,8 +269,7 @@ internal class RenderTestWindow : GameWindow
     {
         if (disposing)
         {
-            scene?.Dispose();
-            viewBuffer?.Dispose();
+            SceneRenderer?.Dispose();
             rendererContext?.Dispose();
         }
 
