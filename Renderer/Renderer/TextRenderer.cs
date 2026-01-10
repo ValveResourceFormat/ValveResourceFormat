@@ -36,7 +36,6 @@ namespace ValveResourceFormat.Renderer
         private readonly List<TextRenderRequest> TextRenderRequests = new(10);
 
         private readonly RendererContext RendererContext;
-        private readonly Camera camera;
 
         private RenderTexture? fontTexture;
         private Shader? shader;
@@ -46,7 +45,6 @@ namespace ValveResourceFormat.Renderer
         public TextRenderer(RendererContext rendererContext, Camera camera)
         {
             this.RendererContext = rendererContext;
-            this.camera = camera;
         }
 
         public void Load()
@@ -94,7 +92,7 @@ namespace ValveResourceFormat.Renderer
 #endif
         }
 
-        public void AddTextBillboard(Vector3 position, TextRenderRequest textRenderRequest, bool fixedScale = true)
+        public void AddTextBillboard(Vector3 position, TextRenderRequest textRenderRequest, Camera camera, bool fixedScale = true)
         {
             var screenPosition = Vector4.Transform(new Vector4(position, 1.0f), camera.ViewProjectionMatrix);
             screenPosition /= screenPosition.W;
@@ -115,7 +113,7 @@ namespace ValveResourceFormat.Renderer
             AddText(textRenderRequest);
         }
 
-        public void AddTextRelative(TextRenderRequest textRenderRequest)
+        public void AddTextRelative(TextRenderRequest textRenderRequest, Camera camera)
         {
             textRenderRequest.X = camera.WindowSize.X * MathUtils.Saturate(textRenderRequest.X);
             textRenderRequest.Y = camera.WindowSize.Y * MathUtils.Saturate(textRenderRequest.Y);
@@ -127,7 +125,7 @@ namespace ValveResourceFormat.Renderer
             TextRenderRequests.Add(textRenderRequest);
         }
 
-        public void Render()
+        public void Render(Camera camera)
         {
             var letters = 0;
             var verticesSize = 0;

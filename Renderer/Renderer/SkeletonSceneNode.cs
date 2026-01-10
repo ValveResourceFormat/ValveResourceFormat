@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var root in skeleton.Roots)
             {
-                DrawSkeletonRecursive(root, vertices, context.TextRenderer, animationController);
+                DrawSkeletonRecursive(root, vertices, context.Camera, context.TextRenderer, animationController);
             }
 
             AABB bounds = default;
@@ -71,7 +71,7 @@ namespace ValveResourceFormat.Renderer
             GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
         }
 
-        private static void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, TextRenderer textRenderer, AnimationController animation)
+        private static void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer, AnimationController animation)
         {
             var boneMatrix = animation.Pose[bone.Index];
 
@@ -86,7 +86,7 @@ namespace ValveResourceFormat.Renderer
                     _ => Color32.White,
                 },
                 CenterVertical = false
-            });
+            }, camera);
 
             if (bone.Parent != null)
             {
@@ -98,7 +98,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var child in bone.Children)
             {
-                DrawSkeletonRecursive(child, vertices, textRenderer, animation);
+                DrawSkeletonRecursive(child, vertices, camera, textRenderer, animation);
             }
         }
 

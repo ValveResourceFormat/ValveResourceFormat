@@ -696,7 +696,7 @@ namespace GUI.Types.GLViewers
 
             BlitFramebufferToScreen();
 
-            TextRenderer.Render();
+            TextRenderer.Render(Camera);
 
             GLNativeWindow.Context.SwapBuffers();
             Picker?.TriggerEventIfAny();

@@ -163,7 +163,7 @@ namespace ValveResourceFormat.Renderer
                         Text = length.ToString("0.##", CultureInfo.InvariantCulture),
                         CenterVertical = true,
                         CenterHorizontal = true,
-                    });
+                    }, camera);
 
                     ShapeSceneNode.AddLine(vertices, c[line.Start], c[line.End], axisColor);
                     continue;
@@ -287,7 +287,7 @@ namespace ValveResourceFormat.Renderer
                     Text = nodeName,
                     CenterVertical = true,
                     TextOffset = SelectedNodeNameOffset
-                }, fixedScale: false);
+                }, renderContext.Camera, fixedScale: false);
             }
 
             if (ScreenDebugText.Length > 0)
@@ -298,7 +298,7 @@ namespace ValveResourceFormat.Renderer
                     Y = 0.03f,
                     Scale = 14f,
                     Text = ScreenDebugText,
-                });
+                }, renderContext.Camera);
             }
 
             vertexCount = vertices.Count;
