@@ -724,23 +724,7 @@ namespace GUI.Types.GLViewers
                 return; // not required
             }
 
-            MainFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
-            GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
-
-            FramebufferBlit(MainFramebuffer, GLDefaultFramebuffer);
-        }
-
-        /// <summary>
-        /// Multisampling resolve, postprocess the image & convert to gamma.
-        /// </summary>
-        protected void FramebufferBlit(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer, bool flipY = false)
-        {
-            using var _ = new GLDebugGroup("Post Processing");
-
-            Debug.Assert(inputFramebuffer.NumSamples > 0);
-            Debug.Assert(outputFramebuffer.NumSamples == 0);
-
-            Renderer.Postprocess.Render(colorBuffer: inputFramebuffer, flipY);
+            Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
         }
 
         protected virtual void OnResize()

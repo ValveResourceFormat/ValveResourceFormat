@@ -330,17 +330,8 @@ internal class RenderTestWindow : GameWindow
         Debug.Assert(framebuffer is not null, "Framebuffer is not created.");
         Debug.Assert(textRenderer != null, "TextRenderer is not created.");
 
-        // Setup render context
-        var renderContext = new Scene.RenderContext
-        {
-            Camera = SceneRenderer.Camera,
-            Framebuffer = framebuffer,
-            Scene = SceneRenderer.Scene,
-            Textures = SceneRenderer.Textures,
-        };
-
-        // Render using SceneRenderer
-        SceneRenderer.Render(renderContext);
+        SceneRenderer.Render(framebuffer);
+        SceneRenderer.PostprocessRender(framebuffer, Framebuffer.GLDefaultFramebuffer, flipY: false);
 
         textRenderer.AddText(new TextRenderer.TextRenderRequest
         {
@@ -350,15 +341,8 @@ internal class RenderTestWindow : GameWindow
             Color = new Color32(0, 255, 0),
             Text = $"FPS: {currentFps:0}"
         });
+
         textRenderer.Render(SceneRenderer.Camera);
-
-        // Render to default frame buffer using post process renderer
-        GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, framebuffer.FboHandle);
-        GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
-        SceneRenderer.Postprocess.Render(colorBuffer: framebuffer, false);
-
-        // Reset framebuffer state for next frame
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
     }
 
     protected override void Dispose(bool disposing)

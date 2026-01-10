@@ -199,6 +199,24 @@ public class Renderer
         RenderTranslucentLayer(Scene, renderContext);
     }
 
+    /// <summary>
+    /// Renders the scene to the specified framebuffer. The result will be in linear space.
+    /// </summary>
+    /// <param name="framebuffer">Framebuffer with hdr color support.</param>
+    public void Render(Framebuffer framebuffer)
+    {
+        var renderContext = new Scene.RenderContext
+        {
+            Camera = Camera,
+            Framebuffer = framebuffer,
+            Scene = Scene,
+            Textures = Textures,
+        };
+
+        RenderSceneShadows(renderContext);
+        RenderScenesWithView(renderContext);
+    }
+
 
     public void Render(Scene.RenderContext renderContext)
     {
@@ -371,6 +389,22 @@ public class Renderer
             0, 0, FramebufferCopy.Width, FramebufferCopy.Height, flags, BlitFramebufferFilter.Nearest);
 
         framebuffer.Bind(FramebufferTarget.Framebuffer);
+    }
+
+    /// <summary>
+    /// Multisampling resolve, postprocess the image & convert to gamma.
+    /// </summary>
+    public void PostprocessRender(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer, bool flipY = false)
+    {
+        using var _ = new GLDebugGroup("Post Processing");
+
+        inputFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+        outputFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
+
+        Debug.Assert(inputFramebuffer.NumSamples > 0);
+        Debug.Assert(outputFramebuffer.NumSamples == 0);
+
+        Postprocess.Render(colorBuffer: inputFramebuffer, flipY);
     }
 
     public void Dispose()

@@ -125,7 +125,7 @@ namespace GUI.Types.GLViewers
             }
 
             SaveAsFbo.BindAndClear();
-            FramebufferBlit(MainFramebuffer, SaveAsFbo, flipY: true);
+            Renderer.PostprocessRender(MainFramebuffer, SaveAsFbo, flipY: true);
 
             GL.Flush();
             GL.Finish();
