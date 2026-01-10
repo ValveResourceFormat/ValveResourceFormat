@@ -31,15 +31,18 @@ namespace GUI.Types.Viewers
                 bitmap = SKBitmap.Decode(vrfGuiContext.FileName);
             }
 
+            var renderContext = vrfGuiContext.CreateRendererContext();
             try
             {
-                glViewer = new GLTextureViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), bitmap);
+                glViewer = new GLTextureViewer(vrfGuiContext, renderContext, bitmap);
                 glViewer.InitializeLoad();
                 bitmap = null;
+                renderContext = null;
             }
             finally
             {
                 bitmap?.Dispose();
+                renderContext?.Dispose();
             }
         }
 

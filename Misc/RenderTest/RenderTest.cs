@@ -26,26 +26,25 @@ internal class RendererImplementation : Renderer
     }
 }
 
-internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings)
-    : GameWindow(gameWindowSettings, nativeWindowSettings)
+internal class RenderTestWindow : GameWindow
 {
     private Scene? scene;
-    private Camera? camera;
+    private readonly Camera camera;
     private WorldLoader? worldLoader;
     private Framebuffer? framebuffer;
     private UniformBuffer<ViewConstants>? viewBuffer;
     private TextRenderer? textRenderer;
-    private RendererContext? rendererContext;
     private SceneSkybox2D? skybox2D;
-    private RendererImplementation renderer;
+    private readonly RendererImplementation renderer;
+    private readonly RendererContext rendererContext;
+
 
     private Vector2 lastMousePosition;
     private bool firstMouseMove = true;
 
-    protected override void OnLoad()
+    public RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings)
+        : base(gameWindowSettings, nativeWindowSettings)
     {
-        base.OnLoad();
-
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
             builder.AddConsole();
@@ -86,25 +85,32 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
             throw new DirectoryNotFoundException($"Failed to find any supported Source 2 game. Tried AppIDs: {string.Join(", ", gamesAndMaps.Keys)}");
         }
 
-        using var vpk = new Package();
-        vpk.OptimizeEntriesForBinarySearch();
+#pragma warning disable CA2000 // Dispose objects before losing scope
+        var vpk = new Package();
         vpk.Read(mapVpk);
+        var fileLoader = new GameFileLoader(vpk, mapVpk);
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
-        using var fileLoader = new GameFileLoader(vpk, mapVpk);
         rendererContext = new RendererContext(fileLoader, logger)
         {
             FieldOfView = 75
         };
+
+        renderer = new RendererImplementation(rendererContext);
+        camera = renderer.Camera;
+    }
+
+    protected override void OnLoad()
+    {
+        base.OnLoad();
 
         GLEnvironment.Initialize(rendererContext.Logger);
         GLEnvironment.SetDefaultRenderState();
 
         GL.Enable(EnableCap.FramebufferSrgb);
 
-        logger.LogInformation("Loading scene...");
-
-        // Load scene resources
-        LoadScene(vpk, rendererContext, ClientSize.X, ClientSize.Y);
+        rendererContext.Logger.LogInformation("Loading scene...");
+        LoadScene(rendererContext.FileLoader.CurrentPackage!, rendererContext);
 
         // Lock cursor for mouse look
         CursorState = CursorState.Grabbed;
@@ -180,7 +186,7 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
         SwapBuffers();
     }
 
-    private void LoadScene(Package vpk, RendererContext rendererContext, int width, int height)
+    private void LoadScene(Package vpk, RendererContext rendererContext)
     {
         // Load the map world file
         Debug.Assert(vpk.Entries != null);
@@ -198,10 +204,6 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
             throw new InvalidOperationException("Resource is not a World type.");
         }
 
-        renderer = new RendererImplementation(rendererContext);
-        camera = renderer.Camera;
-        camera.SetViewportSize(width, height);
-
         scene = new Scene(rendererContext);
 
         // Create ViewConstants buffer (required for shaders)
@@ -212,7 +214,7 @@ internal class RenderTestWindow(GameWindowSettings gameWindowSettings, NativeWin
         textRenderer.Load();
 
         // Create framebuffer for rendering
-        framebuffer = Framebuffer.Prepare("MainFramebuffer", width, height, 4,
+        framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             new(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.UnsignedInt),
             Framebuffer.DepthAttachmentFormat.Depth32FStencil8);
         framebuffer.Initialize();

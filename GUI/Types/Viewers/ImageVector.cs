@@ -30,15 +30,18 @@ namespace GUI.Types.Viewers
                 svg.Load(vrfGuiContext.FileName!);
             }
 
+            var renderContext = vrfGuiContext.CreateRendererContext();
             try
             {
-                textureControl = new GLTextureViewer(vrfGuiContext, vrfGuiContext.CreateRendererContext(), svg);
+                textureControl = new GLTextureViewer(vrfGuiContext, renderContext, svg);
                 textureControl.InitializeLoad();
                 svg = null;
+                renderContext = null;
             }
             finally
             {
                 svg?.Dispose();
+                renderContext?.Dispose();
             }
         }
 
