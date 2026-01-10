@@ -1305,5 +1305,10 @@ namespace ValveResourceFormat.Renderer
 
             return null;
         }
+
+        public static string GetWorldPathFromMap(string mapPath)
+        {
+            return $"{mapPath[..^7]}/world.vwrld_c";
+        }
     }
 }

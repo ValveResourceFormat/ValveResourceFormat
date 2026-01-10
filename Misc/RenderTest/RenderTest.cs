@@ -22,6 +22,14 @@ internal class RenderTestWindow : GameWindow
 
     private Vector2 lastMousePosition;
     private bool firstMouseMove = true;
+    private bool isFullscreen;
+    private bool isCursorLocked = true;
+    private OpenTK.Mathematics.Vector2i windowedSize;
+    private OpenTK.Mathematics.Vector2i windowedPosition;
+
+    private double fpsUpdateTimer;
+    private int frameCount;
+    private double currentFps;
 
     public bool Loaded { get; private set; }
 
@@ -96,6 +104,34 @@ internal class RenderTestWindow : GameWindow
 
         // Lock cursor for mouse look
         CursorState = CursorState.Grabbed;
+        isCursorLocked = true;
+    }
+
+    private void SetFullscreen(bool fullscreen)
+    {
+        if (fullscreen)
+        {
+            // Save current window state
+            windowedSize = ClientSize;
+            windowedPosition = Location;
+
+            // Enter fullscreen - cover entire monitor
+            var monitor = Monitors.GetMonitorFromWindow(this);
+            WindowBorder = WindowBorder.Hidden;
+            WindowState = WindowState.Normal;
+            Location = new OpenTK.Mathematics.Vector2i(monitor.ClientArea.Min.X, monitor.ClientArea.Min.Y);
+            ClientSize = new OpenTK.Mathematics.Vector2i(monitor.ClientArea.Size.X, monitor.ClientArea.Size.Y);
+        }
+        else
+        {
+            // Restore windowed mode
+            WindowBorder = WindowBorder.Resizable;
+            WindowState = WindowState.Normal;
+            ClientSize = windowedSize;
+            Location = windowedPosition;
+        }
+
+        isFullscreen = fullscreen;
     }
 
     protected override void OnUpdateFrame(FrameEventArgs args)
@@ -105,11 +141,30 @@ internal class RenderTestWindow : GameWindow
         var input = KeyboardState;
         var deltaTime = (float)args.Time;
 
-        // ESC to close
-        if (input.IsKeyDown(Keys.Escape))
+        if (input.IsKeyPressed(Keys.Escape))
         {
-            Close();
+            if (isFullscreen)
+            {
+                // Exit fullscreen first
+                SetFullscreen(false);
+            }
+            else if (isCursorLocked)
+            {
+                // Unlock cursor first
+                CursorState = CursorState.Normal;
+                isCursorLocked = false;
+            }
+            else
+            {
+                Close();
+            }
             return;
+        }
+
+        // F11 to toggle fullscreen
+        if (input.IsKeyPressed(Keys.F11))
+        {
+            SetFullscreen(!isFullscreen);
         }
 
         // Map OpenTK keys to TrackedKeys
@@ -126,7 +181,13 @@ internal class RenderTestWindow : GameWindow
 
         // Get mouse delta
         var mousePos = new Vector2(MouseState.Position.X, MouseState.Position.Y);
-        var mouseDelta = firstMouseMove ? Vector2.Zero : mousePos - lastMousePosition;
+        var mouseDelta = Vector2.Zero;
+
+        if (isCursorLocked || firstMouseMove)
+        {
+            mouseDelta = mousePos - lastMousePosition;
+        }
+
         lastMousePosition = mousePos;
         firstMouseMove = false;
 
@@ -155,6 +216,19 @@ internal class RenderTestWindow : GameWindow
         SceneRenderer?.Input.OnMouseWheel(e.OffsetY);
     }
 
+    protected override void OnMouseDown(MouseButtonEventArgs e)
+    {
+        base.OnMouseDown(e);
+
+        // Re-lock cursor when clicking in the window
+        if (!isCursorLocked)
+        {
+            CursorState = CursorState.Grabbed;
+            isCursorLocked = true;
+            firstMouseMove = true; // Reset to prevent camera jump
+        }
+    }
+
     protected override void OnResize(ResizeEventArgs e)
     {
         base.OnResize(e);
@@ -168,6 +242,17 @@ internal class RenderTestWindow : GameWindow
     {
         base.OnRenderFrame(args);
 
+        // Update FPS calculation
+        frameCount++;
+        fpsUpdateTimer += args.Time;
+
+        if (fpsUpdateTimer >= 0.1) // Update FPS every 100ms
+        {
+            currentFps = frameCount / fpsUpdateTimer;
+            frameCount = 0;
+            fpsUpdateTimer = 0;
+        }
+
         // Clear the screen
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
@@ -178,21 +263,7 @@ internal class RenderTestWindow : GameWindow
 
     private void LoadScene(Package vpk, RendererContext rendererContext)
     {
-        // Load the map world file
         Debug.Assert(vpk.Entries != null);
-
-        if (!vpk.Entries.TryGetValue("vwrld_c", out var worlds))
-        {
-            throw new InvalidOperationException("This vpk has no vwwrld_c files");
-        }
-
-        var mapResource = rendererContext.FileLoader.LoadFile(worlds[0].GetFullPath()) ?? throw new FileNotFoundException("World not found");
-
-        // Extract World data
-        if (mapResource.DataBlock is not World worldData)
-        {
-            throw new InvalidOperationException("Resource is not a World type.");
-        }
 
         Debug.Assert(SceneRenderer != null);
         var scene = SceneRenderer.Scene;
@@ -203,7 +274,7 @@ internal class RenderTestWindow : GameWindow
 
         // Create framebuffer for rendering
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
-            new(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.UnsignedInt),
+            new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
             Framebuffer.DepthAttachmentFormat.Depth32FStencil8);
         framebuffer.Initialize();
 
@@ -212,7 +283,19 @@ internal class RenderTestWindow : GameWindow
 
         SceneRenderer.LoadRendererResources();
 
-        var worldLoader = new WorldLoader(worldData, scene, mapResource.ExternalReferences);
+        if (!vpk.Entries.TryGetValue("vmap_c", out var vmaps))
+        {
+            throw new InvalidOperationException("This vpk has no vmap_c file");
+        }
+
+        var mapPath = vmaps[0].GetFullPath();
+        var mapResource = rendererContext.FileLoader.LoadFile(mapPath)!;
+
+        // todo: make it so worldloader can work with vmap resource
+        var worldPath = WorldLoader.GetWorldPathFromMap(mapPath);
+        var worldResource = rendererContext.FileLoader.LoadFile(worldPath)!;
+
+        var worldLoader = new WorldLoader((World)worldResource.DataBlock!, scene, mapResource.ExternalReferences);
         SceneRenderer.Skybox2D = worldLoader.Skybox2D;
 
         // Initialize scene (creates lighting buffers, octrees, etc.)
@@ -254,6 +337,16 @@ internal class RenderTestWindow : GameWindow
         // Render using SceneRenderer
         SceneRenderer.Render(renderContext);
 
+        textRenderer.AddText(new TextRenderer.TextRenderRequest
+        {
+            X = framebuffer.Width * 0.95f,
+            Y = framebuffer.Height * 0.03f,
+            Scale = 12f,
+            Color = new Color32(0, 255, 0),
+            Text = $"FPS: {currentFps:0}"
+        });
+        textRenderer.Render(SceneRenderer.Camera);
+
         // Blit to default framebuffer
         GL.BlitNamedFramebuffer(
             framebuffer.FboHandle, 0,
@@ -285,12 +378,13 @@ internal class Program
     {
         var gameWindowSettings = new GameWindowSettings()
         {
-            UpdateFrequency = 60.0,
+            UpdateFrequency = 0,
         };
 
         var nativeWindowSettings = new NativeWindowSettings()
         {
             APIVersion = GLEnvironment.RequiredVersion,
+            Vsync = VSyncMode.Adaptive,
             ClientSize = new(1280, 720),
             WindowBorder = WindowBorder.Resizable,
             WindowState = WindowState.Normal,

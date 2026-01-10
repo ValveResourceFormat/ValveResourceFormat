@@ -100,7 +100,7 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Map:
                     {
-                        var mapResource = vrfGuiContext.LoadFile($"{resource.FileName![..^7]}/world.vwrld_c");
+                        var mapResource = vrfGuiContext.LoadFile(WorldLoader.GetWorldPathFromMap(resource.FileName!));
                         var mapExternalReferences = resource.ExternalReferences;
 
                         if (mapResource != null && mapResource.DataBlock is World mapWorldData)
