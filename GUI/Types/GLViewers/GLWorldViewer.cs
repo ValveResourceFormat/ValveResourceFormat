@@ -733,5 +733,48 @@ namespace GUI.Types.GLViewers
             Scene.UpdateOctrees();
             SkyboxScene?.UpdateOctrees();
         }
+
+        protected override void OnMouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                // Try to start gizmo drag before normal picking
+                if (SelectedNodeRenderer?.TryStartGizmoDrag(Renderer.Camera, e.X, e.Y, Renderer.Camera.WindowSize) == true)
+                {
+                    return; // Gizmo captured the click, don't do normal picking
+                }
+            }
+
+            base.OnMouseDown(sender, e);
+        }
+
+        protected override void OnMouseMove(object sender, MouseEventArgs e)
+        {
+            // Update gizmo hover state
+            if ((CurrentlyPressedKeys & TrackedKeys.MouseLeft) == 0)
+            {
+                SelectedNodeRenderer?.UpdateGizmoHover(Renderer.Camera, e.X, e.Y, Renderer.Camera.WindowSize);
+            }
+
+            // Update gizmo drag
+            if (SelectedNodeRenderer?.IsGizmoActive == true)
+            {
+                SelectedNodeRenderer.UpdateGizmoDrag(Renderer.Camera, e.X, e.Y, Renderer.Camera.WindowSize);
+                return; // Don't do normal camera movement while dragging gizmo
+            }
+
+            base.OnMouseMove(sender, e);
+        }
+
+        protected override void OnMouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left && SelectedNodeRenderer?.IsGizmoActive == true)
+            {
+                SelectedNodeRenderer.EndGizmoDrag();
+                return; // Don't do normal picking if we were dragging gizmo
+            }
+
+            base.OnMouseUp(sender, e);
+        }
     }
 }

@@ -19,6 +19,8 @@ namespace ValveResourceFormat.Renderer
         private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
         public string ScreenDebugText { get; set; } = string.Empty;
 
+        private readonly TransformGizmo transformGizmo;
+
         public SelectedNodeRenderer(RendererContext rendererContext)
         {
             shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
@@ -27,6 +29,8 @@ namespace ValveResourceFormat.Renderer
             GL.CreateBuffers(1, out vboHandle);
             GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
             SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
+
+            transformGizmo = new TransformGizmo(rendererContext);
 
 #if DEBUG
             var vaoLabel = nameof(SelectedNodeRenderer);
@@ -181,8 +185,11 @@ namespace ValveResourceFormat.Renderer
             {
                 // We don't need to reupload an empty array
                 vertexCount = 0;
+                transformGizmo.Update(renderContext.Camera, selectedNodes);
                 return;
             }
+
+            transformGizmo.Update(renderContext.Camera, selectedNodes);
 
             foreach (var node in selectedNodes)
             {
@@ -343,6 +350,8 @@ namespace ValveResourceFormat.Renderer
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.DepthTest);
+
+            transformGizmo.Render();
         }
 
         public void SetRenderMode(string mode)
@@ -355,5 +364,64 @@ namespace ValveResourceFormat.Renderer
                 RemoveAllLightProbeDebugGrid();
             }
         }
+
+        public void UpdateGizmoHover(Camera camera, int mouseX, int mouseY, Vector2 screenSize)
+        {
+            if (selectedNodes.Count == 0)
+            {
+                return;
+            }
+
+            transformGizmo.UpdateHover(camera, mouseX, mouseY, screenSize);
+
+            // Debug output
+            var hoveredAxis = transformGizmo.HoveredAxis;
+            if (hoveredAxis != TransformGizmo.GizmoAxis.None)
+            {
+                ScreenDebugText = $"Hovering: {hoveredAxis} axis";
+            }
+            else
+            {
+                ScreenDebugText = string.Empty;
+            }
+        }
+
+        public bool TryStartGizmoDrag(Camera camera, int mouseX, int mouseY, Vector2 screenSize)
+        {
+            if (selectedNodes.Count == 0)
+            {
+                return false;
+            }
+
+            return transformGizmo.StartDrag(camera, mouseX, mouseY, screenSize);
+        }
+
+        public void UpdateGizmoDrag(Camera camera, int mouseX, int mouseY, Vector2 screenSize)
+        {
+            if (!transformGizmo.IsActive)
+            {
+                return;
+            }
+
+            var delta = transformGizmo.UpdateDrag(camera, mouseX, mouseY, screenSize);
+
+            if (delta.LengthSquared() > 0)
+            {
+                // Apply transformation to all selected nodes
+                foreach (var node in selectedNodes)
+                {
+                    var newTransform = node.Transform;
+                    newTransform.Translation += delta;
+                    node.Transform = newTransform;
+                }
+            }
+        }
+
+        public void EndGizmoDrag()
+        {
+            transformGizmo.EndDrag();
+        }
+
+        public bool IsGizmoActive => transformGizmo.IsActive;
     }
 }
