@@ -86,7 +86,7 @@ public class SceneRenderer : IRenderer
         // Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
     }
 
-    public void LoadFallbackTextures()
+    public void LoadRendererResources()
     {
         var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext));
 
