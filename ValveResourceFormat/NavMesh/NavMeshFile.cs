@@ -5,8 +5,6 @@ using System.Text;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.NavMesh
 {
     /// <summary>
@@ -32,13 +30,13 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets the navigation mesh areas indexed by area ID.
         /// </summary>
-        public Dictionary<uint, NavMeshArea> Areas { get; private set; }
+        public Dictionary<uint, NavMeshArea> Areas { get; private set; } = [];
         private readonly Dictionary<byte, List<NavMeshArea>> HullAreas = [];
 
         /// <summary>
         /// Gets the ladders in the navigation mesh.
         /// </summary>
-        public NavMeshLadder[] Ladders { get; private set; }
+        public NavMeshLadder[] Ladders { get; private set; } = [];
 
         /// <summary>
         /// Gets whether the navigation mesh has been analyzed.
@@ -48,22 +46,22 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets the generation parameters.
         /// </summary>
-        public NavMeshGenerationParams GenerationParams { get; private set; }
+        public NavMeshGenerationParams? GenerationParams { get; private set; }
 
         /// <summary>
         /// Gets or sets custom data associated with the navigation mesh.
         /// </summary>
-        public KVObject CustomData { get; set; }
+        public KVObject? CustomData { get; set; }
 
         /// <summary>
         /// Unknown KV3 data stored in v36 .nav files.
         /// </summary>
-        public KVObject KV3Unknown1 { get; set; }
+        public KVObject? KV3Unknown1 { get; set; }
 
         /// <summary>
         /// Unknown KV3 data stored in v36 .nav files.
         /// </summary>
-        public KVObject KV3Unknown2 { get; set; }
+        public KVObject? KV3Unknown2 { get; set; }
 
         /// <summary>
         /// Reads the navigation mesh from a file.
@@ -114,7 +112,7 @@ namespace ValveResourceFormat.NavMesh
                 KV3Unknown1 = ReadKV3(binaryReader); //TODO: What's stored here? dl_hideout contains an empty kv3 here
             }
 
-            Vector3[][] polygons = null;
+            Vector3[][]? polygons = null;
             if (Version >= 31)
             {
                 polygons = ReadPolygons(binaryReader);
@@ -160,7 +158,7 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
         }
 
-        private static KVObject ReadKV3(BinaryReader binaryReader)
+        private static KVObject? ReadKV3(BinaryReader binaryReader)
         {
             while (binaryReader.ReadByte() == 0)
             {
@@ -173,7 +171,7 @@ namespace ValveResourceFormat.NavMesh
                 Offset = (uint)binaryReader.BaseStream.Position
             };
             kv3.Read(binaryReader);
-            return kv3?.Data;
+            return kv3.Data;
         }
 
         private void ReadCustomData(BinaryReader binaryReader)
@@ -197,7 +195,7 @@ namespace ValveResourceFormat.NavMesh
             }
         }
 
-        private void ReadAreas(BinaryReader binaryReader, Vector3[][] polygons)
+        private void ReadAreas(BinaryReader binaryReader, Vector3[][]? polygons)
         {
             var areaCount = binaryReader.ReadUInt32();
             for (var i = 0; i < areaCount; i++)
@@ -261,7 +259,7 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets all navigation mesh areas for the specified hull index.
         /// </summary>
-        public List<NavMeshArea> GetHullAreas(byte hullIndex)
+        public List<NavMeshArea>? GetHullAreas(byte hullIndex)
         {
             return HullAreas.GetValueOrDefault(hullIndex);
         }
@@ -269,7 +267,7 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets a navigation mesh area by its identifier.
         /// </summary>
-        public NavMeshArea GetArea(uint areaId)
+        public NavMeshArea? GetArea(uint areaId)
         {
             return Areas.GetValueOrDefault(areaId);
         }

@@ -11,8 +11,6 @@ using GUI.Types.PackageViewer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 
-#nullable disable
-
 namespace GUI
 {
     partial class MainForm
@@ -45,11 +43,19 @@ namespace GUI
 
         private static TabPage FetchToolstripTabContext(object sender)
         {
-            var contextMenu = ((ToolStripMenuItem)sender).Owner;
-            var tabControl = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl as ThemedTabControl;
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: ThemedTabControl tabControl } contextMenu })
+            {
+                throw new InvalidDataException("Invalid context menu structure");
+            }
+
             var tabs = tabControl.TabPages;
 
-            return tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains((Point)contextMenu.Tag)).First();
+            if (contextMenu.Tag is not Point location)
+            {
+                throw new InvalidDataException("Context menu tag is not a Point");
+            }
+
+            return tabs.Cast<TabPage>().Where((t, i) => tabControl.GetTabRect(i).Contains(location)).First();
         }
 
         private void CloseToolStripMenuItem_Click(object sender, EventArgs e)
@@ -84,34 +90,48 @@ namespace GUI
 
         private static void CopyFileName(object sender, bool wantsFullPath)
         {
-            var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-            VrfGuiContext context;
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var control } })
+            {
+                return;
+            }
+
+            VrfGuiContext? context;
             List<IBetterBaseItem> selectedNodes;
 
             if (control is BetterTreeView treeView)
             {
                 context = treeView.VrfGuiContext;
 
-                selectedNodes =
-                [
-                    (IBetterBaseItem)treeView.SelectedNode,
-                ];
+                if (treeView.SelectedNode is not IBetterBaseItem selectedNode)
+                {
+                    return;
+                }
+
+                selectedNodes = [selectedNode];
             }
             else if (control is BetterListView listView)
             {
                 context = listView.VrfGuiContext;
 #pragma warning disable IDE0028 // Simplify collection initialization - it doesn't work
-                selectedNodes = new List<IBetterBaseItem>(listView.SelectedItems.Count);
+                selectedNodes = [];
 
-                foreach (IBetterBaseItem selectedNode in listView.SelectedItems)
+                foreach (var item in listView.SelectedItems)
                 {
-                    selectedNodes.Add(selectedNode);
+                    if (item is IBetterBaseItem selectedNode)
+                    {
+                        selectedNodes.Add(selectedNode);
+                    }
                 }
 #pragma warning restore IDE0028
             }
             else
             {
                 throw new InvalidDataException("Unknown state");
+            }
+
+            if (context == null)
+            {
+                return;
             }
 
             var sb = new StringBuilder();
@@ -132,12 +152,20 @@ namespace GUI
                     }
 
                     var packageEntry = selectedNode.PackageEntry;
-                    sb.Append(packageEntry.GetFullPath());
+                    if (packageEntry != null)
+                    {
+                        sb.Append(packageEntry.GetFullPath());
+                    }
                 }
                 else
                 {
                     var stack = new Stack<string>();
                     var node = selectedNode.PkgNode;
+
+                    if (node == null)
+                    {
+                        continue;
+                    }
 
                     if (wantsFullPath && node.Parent != null)
                     {
@@ -170,25 +198,40 @@ namespace GUI
         private void OpenWithoutViewerToolStripMenuItem_Click(object sender, EventArgs e)
         {
             var (guiContext, selectedNode) = GetSingleSelectedNode(sender);
-            if (selectedNode.PackageEntry != null)
+            if (guiContext == null || selectedNode?.PackageEntry == null)
             {
-                var newContext = new VrfGuiContext(selectedNode.PackageEntry.GetFullPath(), guiContext);
-                OpenFile(newContext, selectedNode.PackageEntry, null, withoutViewer: true);
+                return;
             }
+
+            var newContext = new VrfGuiContext(selectedNode.PackageEntry.GetFullPath(), guiContext);
+            OpenFile(newContext, selectedNode.PackageEntry, null, withoutViewer: true);
         }
 
         private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-            VrfGuiContext context;
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var control } })
+            {
+                return;
+            }
+
+            VrfGuiContext? context;
             List<PackageEntry> selectedFiles;
 
             if (control is BetterTreeView treeView)
             {
                 context = treeView.VrfGuiContext;
-                var treeNode = (IBetterBaseItem)treeView.SelectedNode;
+
+                if (treeView.SelectedNode is not IBetterBaseItem treeNode)
+                {
+                    return;
+                }
 
                 if (treeNode.IsFolder)
+                {
+                    return;
+                }
+
+                if (treeNode.PackageEntry == null)
                 {
                     return;
                 }
@@ -198,21 +241,34 @@ namespace GUI
             else if (control is BetterListView listView)
             {
                 context = listView.VrfGuiContext;
-                selectedFiles = new List<PackageEntry>(listView.SelectedItems.Count);
+                selectedFiles = [];
 
-                foreach (IBetterBaseItem selectedNode in listView.SelectedItems)
+                foreach (var item in listView.SelectedItems)
                 {
+                    if (item is not IBetterBaseItem selectedNode)
+                    {
+                        continue;
+                    }
+
                     if (selectedNode.IsFolder)
                     {
                         return;
                     }
 
-                    selectedFiles.Add(selectedNode.PackageEntry);
+                    if (selectedNode.PackageEntry != null)
+                    {
+                        selectedFiles.Add(selectedNode.PackageEntry);
+                    }
                 }
             }
             else
             {
                 throw new InvalidDataException("Unknown state");
+            }
+
+            if (context == null)
+            {
+                return;
             }
 
             if (selectedFiles.Count > 5 && MessageBox.Show(
@@ -227,6 +283,11 @@ namespace GUI
 
             foreach (var file in selectedFiles)
             {
+                if (context.CurrentPackage == null)
+                {
+                    continue;
+                }
+
                 context.CurrentPackage.ReadEntry(file, out var output, validateCrc: file.CRC32 > 0);
 
                 var tempPath = $"{Path.GetTempPath()}Source 2 Viewer - {Path.GetFileName(context.CurrentPackage.FileName)} - {file.GetFileName()}";
@@ -237,7 +298,7 @@ namespace GUI
 
                 try
                 {
-                    Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true }).Start();
+                    Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true });
                 }
                 catch (Exception ex)
                 {
@@ -249,7 +310,7 @@ namespace GUI
         private void OnViewAssetInfoToolStripMenuItemClick(object sender, EventArgs e)
         {
             var (guiContext, selectedNode) = GetSingleSelectedNode(sender);
-            if (selectedNode.IsFolder)
+            if (guiContext == null || selectedNode == null || selectedNode.IsFolder || selectedNode.PackageEntry == null)
             {
                 return;
             }
@@ -264,22 +325,25 @@ namespace GUI
             }
         }
 
-        private static (VrfGuiContext, IBetterBaseItem) GetSingleSelectedNode(object sender)
+        private static (VrfGuiContext?, IBetterBaseItem?) GetSingleSelectedNode(object sender)
         {
-            var control = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var control } })
+            {
+                throw new InvalidDataException("Invalid context menu structure");
+            }
 
-            VrfGuiContext guiContext;
-            IBetterBaseItem selectedNode;
+            VrfGuiContext? guiContext;
+            IBetterBaseItem? selectedNode;
 
             if (control is BetterTreeView treeView)
             {
                 guiContext = treeView.VrfGuiContext;
-                selectedNode = (IBetterBaseItem)treeView.SelectedNode;
+                selectedNode = treeView.SelectedNode as IBetterBaseItem;
             }
             else if (control is BetterListView listView)
             {
                 guiContext = listView.VrfGuiContext;
-                selectedNode = (IBetterBaseItem)listView.SelectedItems[0];
+                selectedNode = listView.SelectedItems.Count > 0 ? listView.SelectedItems[0] as IBetterBaseItem : null;
             }
             else
             {
@@ -301,16 +365,27 @@ namespace GUI
 
         private static void ExtractFiles(object sender, bool decompile)
         {
-            var owner = ((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var owner } })
+            {
+                throw new InvalidDataException("Invalid context menu structure");
+            }
 
             // Clicking context menu item in left side of the package view
             if (owner is BetterTreeView tree)
             {
-                ExportFile.ExtractFilesFromTreeNode((IBetterBaseItem)tree.SelectedNode, tree.VrfGuiContext, decompile);
+                if (tree.SelectedNode is IBetterBaseItem treeNode && tree.VrfGuiContext != null)
+                {
+                    ExportFile.ExtractFilesFromTreeNode(treeNode, tree.VrfGuiContext, decompile);
+                }
             }
             // Clicking context menu item in right side of the package view
             else if (owner is BetterListView listView)
             {
+                if (listView.VrfGuiContext == null)
+                {
+                    return;
+                }
+
                 if (listView.SelectedItems.Count > 1)
                 {
                     // We're selecting multiple files
@@ -360,14 +435,18 @@ namespace GUI
         {
             recoverDeletedToolStripMenuItem.Enabled = false;
 
-            var treeView = mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults;
-            treeView.RecoverDeletedFiles();
+            if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeView)
+            {
+                treeView.RecoverDeletedFiles();
+            }
         }
 
         private void VerifyPackageContentsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var treeView = mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults;
-            treeView.VerifyPackageContents();
+            if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeView)
+            {
+                treeView.VerifyPackageContents();
+            }
         }
 
         private void CreateVpkFromFolderToolStripMenuItem_Click(object sender, EventArgs e)
@@ -417,8 +496,10 @@ namespace GUI
                 return;
             }
 
-            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
-            packageViewer.AddFolder(directory);
+            if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
+            {
+                treeViewWithSearchResults.Viewer.AddFolder(directory);
+            }
         }
 
         private void OnVpkAddNewFolderToolStripMenuItem_Click(object sender, EventArgs e)
@@ -439,8 +520,10 @@ namespace GUI
             var inputDirectory = openDialog.SelectedPath;
             Settings.Config.OpenDirectory = inputDirectory;
 
-            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
-            packageViewer.AddFilesFromFolder(inputDirectory);
+            if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
+            {
+                treeViewWithSearchResults.Viewer.AddFilesFromFolder(inputDirectory);
+            }
         }
 
         private void OnVpkAddNewFileToolStripMenuItem_Click(object sender, EventArgs e)
@@ -461,14 +544,18 @@ namespace GUI
             var inputDirectory = openDialog.FileNames;
             Settings.Config.OpenDirectory = Path.GetDirectoryName(openDialog.FileName);
 
-            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
-            packageViewer.AddFiles(openDialog.FileNames);
+            if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
+            {
+                treeViewWithSearchResults.Viewer.AddFiles(openDialog.FileNames);
+            }
         }
 
         private void OnVpkEditingRemoveThisToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
-            packageViewer.RemoveCurrentFiles();
+            if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
+            {
+                treeViewWithSearchResults.Viewer.RemoveCurrentFiles();
+            }
         }
 
         private void OnSaveVPKToDiskToolStripMenuItem_Click(object sender, EventArgs e)
@@ -491,8 +578,10 @@ namespace GUI
 
             Log.Info(nameof(MainForm), $"Packing to '{saveDialog.FileName}'...");
 
-            var packageViewer = (mainTabs.SelectedTab.Controls[nameof(TreeViewWithSearchResults)] as TreeViewWithSearchResults).Viewer;
-            packageViewer.SaveToFile(saveDialog.FileName);
+            if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
+            {
+                treeViewWithSearchResults.Viewer.SaveToFile(saveDialog.FileName);
+            }
         }
 
         private void OnOpenWelcomeScreenToolStripMenuItem_Click(object sender, EventArgs e)

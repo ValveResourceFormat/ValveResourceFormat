@@ -1237,6 +1237,11 @@ public sealed class MapExtract
         {
             var className = compiledEntity.GetProperty<string>("classname");
 
+            if (className == null)
+            {
+                continue;
+            }
+
             if (className == "worldspawn")
             {
                 AddProperties(className, compiledEntity, MapDocument.World);

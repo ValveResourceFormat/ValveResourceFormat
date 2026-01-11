@@ -4,8 +4,6 @@ using System.IO.Hashing;
 using System.Text;
 using ValveKeyValue;
 
-#nullable disable
-
 namespace ValveResourceFormat.ClosedCaptions
 {
     /// <summary>
@@ -21,9 +19,9 @@ namespace ValveResourceFormat.ClosedCaptions
         /// <summary>
         /// Gets the list of captions.
         /// </summary>
-        public List<ClosedCaption> Captions { get; private set; }
+        public List<ClosedCaption> Captions { get; private set; } = [];
 
-        private string FileName;
+        private string? FileName;
 
         /// <summary>
         /// Returns an enumerator that iterates through the captions.
@@ -37,7 +35,7 @@ namespace ValveResourceFormat.ClosedCaptions
         /// Gets a caption by its key.
         /// </summary>
         /// <param name="key">The caption key.</param>
-        public ClosedCaption this[string key]
+        public ClosedCaption? this[string key]
         {
             get
             {
@@ -134,7 +132,10 @@ namespace ValveResourceFormat.ClosedCaptions
 
             foreach (var caption in Captions)
             {
-                captionsToExport.Add(caption.Hash, caption.Text);
+                if (caption.Text != null)
+                {
+                    captionsToExport.Add(caption.Hash, caption.Text);
+                }
             }
 
             using var ms = new MemoryStream();

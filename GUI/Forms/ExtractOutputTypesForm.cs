@@ -1,13 +1,11 @@
 using System.Windows.Forms;
 using GUI.Controls;
 
-#nullable disable
-
 namespace GUI.Forms
 {
     public partial class ExtractOutputTypesForm : ThemedForm
     {
-        public event EventHandler ChangeTypeEvent;
+        public event EventHandler? ChangeTypeEvent;
 
         public ExtractOutputTypesForm()
         {

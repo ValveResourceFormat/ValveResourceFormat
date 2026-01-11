@@ -12,7 +12,7 @@ namespace GUI.Types.Viewers
 {
     class NavView(VrfGuiContext guiContext) : IViewer, IDisposable
     {
-        private NavMeshFile navMeshFile = new();
+        private readonly NavMeshFile navMeshFile = new();
         private GLNavMeshViewer? glViewer;
 
         public static bool IsAccepted(uint magic)
@@ -20,7 +20,7 @@ namespace GUI.Types.Viewers
             return magic == NavMeshFile.MAGIC;
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             if (stream != null)
             {

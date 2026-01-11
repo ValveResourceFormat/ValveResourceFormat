@@ -18,7 +18,7 @@ namespace GUI.Types.Viewers
             return magic == ValveResourceFormat.ClosedCaptions.ClosedCaptions.MAGIC;
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             captions = new ValveResourceFormat.ClosedCaptions.ClosedCaptions();
 

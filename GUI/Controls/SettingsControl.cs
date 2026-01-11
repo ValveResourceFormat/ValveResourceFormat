@@ -1,9 +1,8 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Utils;
 using Microsoft.Win32;
-
-#nullable disable
 
 namespace GUI.Forms
 {
@@ -60,12 +59,12 @@ namespace GUI.Forms
 
         private void GamePathRemoveClick(object sender, EventArgs e)
         {
-            if (gamePaths.SelectedIndex < 0)
+            if (gamePaths.SelectedIndex < 0 || gamePaths.SelectedItem is not string gameSearchPath)
             {
                 return;
             }
 
-            Settings.Config.GameSearchPaths.Remove((string)gamePaths.SelectedItem);
+            Settings.Config.GameSearchPaths.Remove(gameSearchPath);
 
             gamePaths.Items.RemoveAt(gamePaths.SelectedIndex);
         }
@@ -252,6 +251,7 @@ namespace GUI.Forms
             if (!File.Exists(vpkIconPath))
             {
                 using var iconStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.vpk.ico");
+                Debug.Assert(iconStream != null);
                 using var iconDiskStream = File.OpenWrite(vpkIconPath);
                 iconStream.CopyTo(iconDiskStream);
             }

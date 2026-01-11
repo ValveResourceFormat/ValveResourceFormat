@@ -19,7 +19,7 @@ namespace GUI.Types.Viewers
                                       fileName.EndsWith(".vmap", StringComparison.OrdinalIgnoreCase));
         }
 
-        public async Task LoadAsync(Stream input)
+        public async Task LoadAsync(Stream? input)
         {
             Stream stream;
             Datamodel.Datamodel dm;

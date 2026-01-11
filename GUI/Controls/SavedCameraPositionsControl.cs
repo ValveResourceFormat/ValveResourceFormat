@@ -1,20 +1,18 @@
 using System.Windows.Forms;
 using GUI.Utils;
 
-#nullable disable
-
 namespace GUI.Controls
 {
     partial class SavedCameraPositionsControl : UserControl
     {
         public class RestoreCameraRequestEvent : EventArgs
         {
-            public string Camera { get; init; }
+            public required string Camera { get; init; }
         }
 
-        public event EventHandler SaveCameraRequest;
-        public event EventHandler<RestoreCameraRequestEvent> RestoreCameraRequest;
-        public event EventHandler<bool> GetOrSetPositionFromClipboardRequest;
+        public event EventHandler? SaveCameraRequest;
+        public event EventHandler<RestoreCameraRequestEvent>? RestoreCameraRequest;
+        public event EventHandler<bool>? GetOrSetPositionFromClipboardRequest;
 
         protected override void OnCreateControl()
         {
@@ -37,21 +35,35 @@ namespace GUI.Controls
 
         private void BtnRestore_Click(object sender, EventArgs e)
         {
+            var camera = cmbPositions.SelectedItem?.ToString();
+
+            if (camera is null)
+            {
+                return;
+            }
+
             var ev = new RestoreCameraRequestEvent
             {
-                Camera = cmbPositions.SelectedItem.ToString(),
+                Camera = camera,
             };
 
             RestoreCameraRequest?.Invoke(this, ev);
         }
 
-        private void BtnDelete_Click(object sender, EventArgs e)
+        private void BtnDelete_Click(object? sender, EventArgs e)
         {
-            Settings.Config.SavedCameras.Remove(cmbPositions.SelectedItem.ToString());
+            var camera = cmbPositions.SelectedItem?.ToString();
+
+            if (camera is null)
+            {
+                return;
+            }
+
+            Settings.Config.SavedCameras.Remove(camera);
             Settings.InvokeRefreshCamerasOnSave();
         }
 
-        private void RefreshSavedPositions(object sender, EventArgs e) => RefreshSavedPositions();
+        private void RefreshSavedPositions(object? sender, EventArgs e) => RefreshSavedPositions();
 
         public void RefreshSavedPositions()
         {

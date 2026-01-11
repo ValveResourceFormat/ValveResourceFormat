@@ -13,7 +13,7 @@ namespace GUI.Types.Viewers
 
         public static bool IsAccepted() => true;
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             if (stream == null)
             {

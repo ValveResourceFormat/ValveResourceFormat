@@ -607,7 +607,11 @@ namespace ValveResourceFormat.CompiledShader
         /// <returns>The configuration state array.</returns>
         public int[] GetDBlockConfig(long blockId)
         {
-            Debug.Assert(dBlockConfigGen != null);
+            if (dBlockConfigGen == null)
+            {
+                throw new InvalidOperationException("DBlock configuration generator is not initialized.");
+            }
+
             return dBlockConfigGen.GetConfigState(blockId);
         }
 

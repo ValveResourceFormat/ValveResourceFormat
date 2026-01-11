@@ -10,8 +10,6 @@ using SpirvResourceType = Vortice.SpirvCross.ResourceType;
 
 namespace ValveResourceFormat.CompiledShader;
 
-#nullable disable
-
 /// <summary>
 /// Provides SPIR-V reflection and decompilation utilities for shaders.
 /// </summary>
@@ -94,7 +92,7 @@ public static partial class ShaderSpirvReflection
 
             result = SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
 
-            if (vulkanSource.ParentCombo.ParentProgramData.VcsProgramType is not VcsProgramType.RaytracingShader)
+            if (vulkanSource.ParentCombo?.ParentProgramData?.VcsProgramType is not VcsProgramType.RaytracingShader)
             {
                 result = SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources);
 
@@ -108,21 +106,23 @@ public static partial class ShaderSpirvReflection
                 RenameResource(compiler, resources, SpirvResourceType.StageOutput, vulkanSource);
             }
 
-            result = SpirvCrossApi.spvc_compiler_compile(compiler, out code);
+            result = SpirvCrossApi.spvc_compiler_compile(compiler, out var compiledCode);
 
             if (result != Result.Success)
             {
                 return Error(out code, context);
             }
 
+            code = compiledCode ?? string.Empty;
+
             if (backend == Backend.HLSL)
             {
-                if (vulkanSource.ParentCombo.ParentProgramData.VcsProgramType is VcsProgramType.VertexShader)
+                if (vulkanSource.ParentCombo?.ParentProgramData?.VcsProgramType is VcsProgramType.VertexShader)
                 {
                     code = code.Replace("SPIRV_Cross_Input", "VS_INPUT", StringComparison.Ordinal);
                     code = code.Replace("SPIRV_Cross_Output", "PS_INPUT", StringComparison.Ordinal);
                 }
-                else if (vulkanSource.ParentCombo.ParentProgramData.VcsProgramType is VcsProgramType.PixelShader)
+                else if (vulkanSource.ParentCombo?.ParentProgramData?.VcsProgramType is VcsProgramType.PixelShader)
                 {
                     code = code.Replace("SPIRV_Cross_Input", "PS_INPUT", StringComparison.Ordinal);
                     code = code.Replace("SPIRV_Cross_Output", "PS_OUTPUT", StringComparison.Ordinal);
@@ -151,11 +151,17 @@ public static partial class ShaderSpirvReflection
         VfxShaderFile shaderFile)
     {
         var staticComboData = shaderFile.ParentCombo;
-        var program = staticComboData.ParentProgramData;
+        var program = staticComboData?.ParentProgramData;
+
+        if (program is null || staticComboData is null)
+        {
+            return;
+        }
+
         // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
         var dynamicBlockIndex =
-            Array.Find(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId).DynamicComboId;
+            Array.Find(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId)?.DynamicComboId ?? 0;
         var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
         var bindingConfig = GetBindingConfiguration(program.VcsVersion);
@@ -164,7 +170,7 @@ public static partial class ShaderSpirvReflection
 
         var (currentStageInputIndex, currentStageOutputIndex) = (0, 0);
         var isVertexShader = program.VcsProgramType is VcsProgramType.VertexShader;
-        Material.InputSignatureElement[] vsInputElements = null;
+        Material.InputSignatureElement[]? vsInputElements = null;
 
         if (isVertexShader)
         {
@@ -532,7 +538,7 @@ public static partial class ShaderSpirvReflection
     /// <param name="attributeIndex">The attribute index.</param>
     /// <param name="input">True if this is an input attribute, false for output.</param>
     /// <returns>The attribute name from the signature, or a generated name if not found.</returns>
-    public static string GetStageAttributeName(Material.InputSignatureElement[] vsInputElements, int attributeIndex,
+    public static string GetStageAttributeName(Material.InputSignatureElement[]? vsInputElements, int attributeIndex,
         bool input)
     {
         if (attributeIndex < vsInputElements?.Length)

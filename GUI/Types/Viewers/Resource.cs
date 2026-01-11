@@ -38,7 +38,7 @@ namespace GUI.Types.Viewers
             return magic == ValveResourceFormat.Resource.KnownHeaderVersion;
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             var resourceTemp = new ValveResourceFormat.Resource
             {
@@ -529,6 +529,7 @@ namespace GUI.Types.Viewers
 
             if (foundFile.Context != null)
             {
+                Debug.Assert(foundFile.PackageEntry != null);
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
                 return true;
             }

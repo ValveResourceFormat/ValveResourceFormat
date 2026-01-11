@@ -16,7 +16,7 @@ namespace GUI.Types.Viewers
             return magic == ValveResourceFormat.FlexSceneFile.FlexSceneFile.MAGIC;
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             var vfe = new ValveResourceFormat.FlexSceneFile.FlexSceneFile();
 

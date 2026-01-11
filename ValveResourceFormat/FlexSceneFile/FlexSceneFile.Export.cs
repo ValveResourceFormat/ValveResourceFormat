@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.FlexSceneFile
 {
     partial class FlexSceneFile
@@ -77,7 +75,7 @@ namespace ValveResourceFormat.FlexSceneFile
             sb.AppendLine();
         }
 
-        private static string PhonemeToDescription(int phoneme)
+        private static string? PhonemeToDescription(int phoneme)
         {
             return phoneme switch
             {

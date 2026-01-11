@@ -1,7 +1,5 @@
 using System.IO;
 
-#nullable disable
-
 namespace ValveResourceFormat.NavMesh
 {
     /// <summary>
@@ -42,37 +40,37 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets or sets the top forward area.
         /// </summary>
-        public NavMeshArea TopForwardArea { get; set; }
+        public NavMeshArea? TopForwardArea { get; set; }
 
         /// <summary>
         /// Gets or sets the top left area.
         /// </summary>
-        public NavMeshArea TopLeftArea { get; set; }
+        public NavMeshArea? TopLeftArea { get; set; }
 
         /// <summary>
         /// Gets or sets the top right area.
         /// </summary>
-        public NavMeshArea TopRightArea { get; set; }
+        public NavMeshArea? TopRightArea { get; set; }
 
         /// <summary>
         /// Gets or sets the top behind area.
         /// </summary>
-        public NavMeshArea TopBehindArea { get; set; }
+        public NavMeshArea? TopBehindArea { get; set; }
 
         /// <summary>
         /// Gets or sets the bottom area.
         /// </summary>
-        public NavMeshArea BottomArea { get; set; }
+        public NavMeshArea? BottomArea { get; set; }
 
         /// <summary>
         /// Gets or sets the bottom left area.
         /// </summary>
-        public NavMeshArea BottomLeftArea { get; set; }
+        public NavMeshArea? BottomLeftArea { get; set; }
 
         /// <summary>
         /// Gets or sets the bottom right area.
         /// </summary>
-        public NavMeshArea BottomRightArea { get; set; }
+        public NavMeshArea? BottomRightArea { get; set; }
 
         /// <summary>
         /// Reads the ladder from a binary reader.

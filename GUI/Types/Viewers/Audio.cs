@@ -19,7 +19,7 @@ namespace GUI.Types.Viewers
                     fileName.EndsWith(".mp3", StringComparison.InvariantCultureIgnoreCase);
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             if (stream == null)
             {

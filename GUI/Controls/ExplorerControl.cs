@@ -11,8 +11,6 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 
-#nullable disable
-
 namespace GUI.Controls
 {
     partial class ExplorerControl : UserControl
@@ -169,7 +167,7 @@ namespace GUI.Controls
 
             var libraryCachePath = Path.Join(GameFolderLocator.SteamPath, "appcache", "librarycache");
             var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
-            KVDocument libraryAssetsKv = null;
+            KVDocument? libraryAssetsKv = null;
 
             try
             {
@@ -393,7 +391,7 @@ namespace GUI.Controls
 
                     if (filterTextBox.Text.Length > 0)
                     {
-                        OnFilterTextBoxTextChanged(null, null); // Hack: re-filter
+                        OnFilterTextBoxTextChanged(null, EventArgs.Empty); // Hack: re-filter
                     }
                 });
             }
@@ -429,7 +427,7 @@ namespace GUI.Controls
                 node = treeView.SelectedNode;
             }
 
-            if (node.Tag is not string path)
+            if (node?.Tag is not string path)
             {
                 return;
             }
@@ -449,8 +447,10 @@ namespace GUI.Controls
 
         private void OnTreeViewNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
         {
-            if (e.Node.Tag is string path && e.Button == MouseButtons.Right)
+            if (e.Node?.Tag is string path && e.Button == MouseButtons.Right)
             {
+                Debug.Assert(e.Node.TreeView is not null);
+
                 e.Node.TreeView.SelectedNode = e.Node;
 
                 var isBookmarked = Settings.Config.BookmarkedFiles.Contains(path);
@@ -473,7 +473,7 @@ namespace GUI.Controls
             }
         }
 
-        private void OnFilterTextBoxTextChanged(object sender, EventArgs e)
+        private void OnFilterTextBoxTextChanged(object? sender, EventArgs e)
         {
             treeView.BeginUpdate();
             treeView.Nodes.Clear();
@@ -542,6 +542,7 @@ namespace GUI.Controls
         {
             treeView.BeginUpdate();
             var node = TreeData.Find(node => node.AppID == appid);
+            Debug.Assert(node != null);
             node.ParentNode.Nodes.Clear();
             node.ParentNode.Nodes.AddRange(list);
             node.ParentNode.Expand();
@@ -550,7 +551,7 @@ namespace GUI.Controls
 
             if (filterTextBox.Text.Length > 0)
             {
-                OnFilterTextBoxTextChanged(null, null); // Hack: re-filter files
+                OnFilterTextBoxTextChanged(null, EventArgs.Empty); // Hack: re-filter files
             }
         }
 
@@ -634,15 +635,14 @@ namespace GUI.Controls
             Settings.ClearRecentFiles();
 
             var recentFilesNode = TreeData.Find(node => node.AppID == APPID_RECENT_FILES);
+            Debug.Assert(recentFilesNode != null);
             recentFilesNode.ParentNode.Nodes.Clear();
             recentFilesNode.Children = [];
         }
 
         private void OnRevealInFileExplorerClick(object sender, EventArgs e)
         {
-            var control = (TreeView)((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-
-            if (control.SelectedNode.Tag is not string path)
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: TreeView { SelectedNode.Tag: string path } } })
             {
                 return;
             }
@@ -668,9 +668,7 @@ namespace GUI.Controls
 
         private void OnAddToBookmarksClick(object sender, EventArgs e)
         {
-            var control = (TreeView)((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-
-            if (control.SelectedNode.Tag is not string path)
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: TreeView { SelectedNode.Tag: string path } } })
             {
                 return;
             }
@@ -687,9 +685,7 @@ namespace GUI.Controls
 
         private void OnRemoveFromBookmarksClick(object sender, EventArgs e)
         {
-            var control = (TreeView)((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-
-            if (control.SelectedNode.Tag is not string path)
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: TreeView { SelectedNode.Tag: string path } } })
             {
                 return;
             }
@@ -701,9 +697,7 @@ namespace GUI.Controls
 
         private void OnRemoveFromRecentClick(object sender, EventArgs e)
         {
-            var control = (TreeView)((ContextMenuStrip)((ToolStripMenuItem)sender).Owner).SourceControl;
-
-            if (control.SelectedNode.Tag is not string path)
+            if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: TreeView { SelectedNode.Tag: string path } } })
             {
                 return;
             }
@@ -723,7 +717,7 @@ namespace GUI.Controls
             filterTextBox.Focus();
         }
 
-        private int GetOrLoadAppImage(int appID, KVObject libraryAssetsKv, string libraryCachePath)
+        private int GetOrLoadAppImage(int appID, KVObject? libraryAssetsKv, string libraryCachePath)
         {
             if (MainForm.GameIcons.TryGetValue(appID, out var treeNodeImage))
             {
@@ -734,7 +728,7 @@ namespace GUI.Controls
 
             try
             {
-                string appIconPath = null;
+                string? appIconPath = null;
 
                 if (libraryAssetsKv != null)
                 {
@@ -794,6 +788,7 @@ namespace GUI.Controls
 #if DEBUG
         private void DebugAddEmbeddedResourcesToTree()
         {
+            // TODO: Look for resources in Renderer assembly
             var embeddedResources = Program.Assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
 
             var imageIndex = MainForm.Icons["Folder"];
@@ -870,6 +865,7 @@ namespace GUI.Controls
             var name = path["vrf_embedded:".Length..];
 
             using var stream = Program.Assembly.GetManifestResourceStream(name);
+            Debug.Assert(stream != null);
             using var ms = new MemoryStream((int)stream.Length);
 
             using var package = new SteamDatabase.ValvePak.Package();

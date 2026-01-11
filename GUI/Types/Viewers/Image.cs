@@ -20,7 +20,7 @@ namespace GUI.Types.Viewers
                    magic << 8 == 0x46494700; /* gif */
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             if (stream != null)
             {

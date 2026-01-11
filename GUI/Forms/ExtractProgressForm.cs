@@ -11,8 +11,6 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 
-#nullable disable
-
 namespace GUI.Forms
 {
     partial class ExtractProgressForm : ThemedForm
@@ -24,21 +22,21 @@ namespace GUI.Forms
 
         private class FileTypeToExtract
         {
-            public string OutputFormat;
+            public string? OutputFormat;
             public int Count = 1;
         }
 
         private readonly bool decompile;
-        private string path;
+        private string? path;
         private readonly ExportData exportData;
         private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted = [];
         private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = [];
         private readonly Queue<PackageEntry> filesToExtract = new();
         private readonly HashSet<string> extractedFiles = [];
         private CancellationTokenSource cancellationTokenSource = new();
-        private readonly GltfModelExporter gltfExporter;
+        private readonly GltfModelExporter? gltfExporter;
         private readonly IProgress<string> progressReporter;
-        private Stopwatch exportStopwatch;
+        private readonly Stopwatch exportStopwatch = new();
         private int filesFailedToExport;
 
         private static readonly List<ResourceType> ExtractOrder =
@@ -57,9 +55,9 @@ namespace GUI.Forms
             ResourceType.Texture,
         ];
 
-        public Action<ExtractProgressForm, CancellationToken> ShownCallback { get; init; }
+        public Action<ExtractProgressForm, CancellationToken>? ShownCallback { get; init; }
 
-        public ExtractProgressForm(ExportData exportData, string path, bool decompile)
+        public ExtractProgressForm(ExportData exportData, string? path, bool decompile)
         {
             InitializeComponent();
 
@@ -169,10 +167,17 @@ namespace GUI.Forms
             return result;
         }
 
-        private void OnTypesDialogSelectedValueChanged(object sender, EventArgs e)
+        private void OnTypesDialogSelectedValueChanged(object? sender, EventArgs e)
         {
-            var control = (ComboBox)sender;
-            var type = (string)control.Tag!;
+            if (sender is not ComboBox control)
+            {
+                return;
+            }
+
+            if (control.Tag is not string type)
+            {
+                return;
+            }
 
             // TODO: Remember last selected value in settings?
             if (control.SelectedIndex == 0)
@@ -181,12 +186,12 @@ namespace GUI.Forms
                 return;
             }
 
-            fileTypesToExtract[type].OutputFormat = (string)control.SelectedItem;
+            fileTypesToExtract[type].OutputFormat = control.SelectedItem as string;
         }
 
         protected override void OnShown(EventArgs e)
         {
-            exportStopwatch = Stopwatch.StartNew();
+            exportStopwatch.Restart();
 
             if (ShownCallback != null)
             {
@@ -264,11 +269,17 @@ namespace GUI.Forms
         {
             if (root.IsFolder)
             {
-                QueueFiles(root.PkgNode);
+                if (root.PkgNode != null)
+                {
+                    QueueFiles(root.PkgNode);
+                }
             }
             else
             {
-                QueueFiles(root.PackageEntry);
+                if (root.PackageEntry != null)
+                {
+                    QueueFiles(root.PackageEntry);
+                }
             }
         }
 
@@ -307,6 +318,11 @@ namespace GUI.Forms
 
         private async Task ExtractFilesAsync(Queue<PackageEntry> filesToExtract)
         {
+            if (path == null)
+            {
+                throw new InvalidOperationException("Path must be set before extracting files");
+            }
+
             var initialCount = filesToExtract.Count;
             while (filesToExtract.Count > 0)
             {
@@ -325,7 +341,14 @@ namespace GUI.Forms
                     extractProgressBar.Value = 100 - (int)(filesToExtract.Count / (float)initialCount * 100.0f);
                 }).ConfigureAwait(false);
 
-                var stream = GameFileLoader.GetPackageEntryStream(exportData.VrfGuiContext.CurrentPackage, packageFile);
+                var currentPackage = exportData.VrfGuiContext.CurrentPackage;
+                if (currentPackage == null)
+                {
+                    Log.Error(nameof(ExtractProgressForm), "CurrentPackage is null, cannot extract file");
+                    continue;
+                }
+
+                var stream = GameFileLoader.GetPackageEntryStream(currentPackage, packageFile);
                 var outFilePath = Path.Combine(path, fileFullName);
                 var outFolder = Path.GetDirectoryName(outFilePath);
 
@@ -342,7 +365,10 @@ namespace GUI.Forms
 
                 SetProgress($"Extracting {fileFullName}");
 
-                Directory.CreateDirectory(outFolder);
+                if (outFolder != null)
+                {
+                    Directory.CreateDirectory(outFolder);
+                }
 
                 if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                 {
@@ -379,10 +405,21 @@ namespace GUI.Forms
 
         public async Task ExtractFile(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles = false)
         {
+            if (path == null)
+            {
+                throw new InvalidOperationException("Path must be set before extracting files");
+            }
+
             var outExtension = Path.GetExtension(outFilePath);
 
             if (GltfModelExporter.CanExport(resource) && outExtension is ".glb" or ".gltf")
             {
+                if (gltfExporter == null)
+                {
+                    Log.Error(nameof(ExtractProgressForm), "gltfExporter is null, cannot export to glTF format");
+                    return;
+                }
+
                 try
                 {
                     gltfExporter.Export(resource, outFilePath, cancellationTokenSource.Token);
@@ -417,7 +454,7 @@ namespace GUI.Forms
                 flatSubfiles = false;
             }
 
-            ContentFile contentFile = null;
+            ContentFile? contentFile = null;
 
             try
             {
@@ -429,7 +466,6 @@ namespace GUI.Forms
                     await File.WriteAllBytesAsync(outFilePath, contentFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                 }
 
-                string contentRelativeFolder;
                 foreach (var additionalFile in contentFile.AdditionalFiles)
                 {
                     extractedFiles.Add(additionalFile.FileName + GameFileLoader.CompiledFileSuffix);
@@ -443,21 +479,25 @@ namespace GUI.Forms
                         }
 
                         var outPath = CombineAssetFolder(path, fileNameOut);
-                        Directory.CreateDirectory(Path.GetDirectoryName(outPath.Full));
+                        var outPathDirectory = Path.GetDirectoryName(outPath.Full);
+                        if (outPathDirectory != null)
+                        {
+                            Directory.CreateDirectory(outPathDirectory);
+                        }
                         SetProgress($" + {outPath.Partial}");
                         await File.WriteAllBytesAsync(outPath.Full, additionalFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
 
-                    contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(fileNameOut);
+                    var contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(fileNameOut) ?? string.Empty;
 
                     await ExtractSubfiles(contentRelativeFolder, additionalFile).ConfigureAwait(false);
                 }
 
                 extractedFiles.Add(inFilePath);
 
-                contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(inFilePath);
+                var inFileContentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(inFilePath) ?? string.Empty;
 
-                await ExtractSubfiles(contentRelativeFolder, contentFile).ConfigureAwait(false);
+                await ExtractSubfiles(inFileContentRelativeFolder, contentFile).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -474,6 +514,11 @@ namespace GUI.Forms
 
         private async Task ExtractSubfiles(string contentRelativeFolder, ContentFile contentFile)
         {
+            if (path == null)
+            {
+                throw new InvalidOperationException("Path must be set before extracting files");
+            }
+
             foreach (var contentSubFile in contentFile.SubFiles)
             {
                 cancellationTokenSource.Token.ThrowIfCancellationRequested();
@@ -486,7 +531,17 @@ namespace GUI.Forms
                     continue;
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(outPath.Full));
+                var outPathDirectory = Path.GetDirectoryName(outPath.Full);
+                if (outPathDirectory != null)
+                {
+                    Directory.CreateDirectory(outPathDirectory);
+                }
+
+                if (contentSubFile.Extract == null)
+                {
+                    Log.Error(nameof(ExtractProgressForm), $"Extract function is null for subfile '{contentSubFile.FileName}'");
+                    continue;
+                }
 
                 byte[] subFileData;
                 try

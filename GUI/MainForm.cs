@@ -25,8 +25,6 @@ using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.WindowsAndMessaging;
 using ResourceViewMode = GUI.Types.Viewers.ResourceViewMode;
 
-#nullable disable
-
 namespace GUI
 {
     partial class MainForm : Form
@@ -35,7 +33,10 @@ namespace GUI
         // for some reason disposing it makes closing GUI very slow
         //
         // Never lookup icons from this list, use Icons and ExtensionIcons properties.
-        public static ImageList ImageList { get; private set; }
+        public static ImageList ImageList { get; private set; } = new ImageList
+        {
+            ColorDepth = ColorDepth.Depth32Bit,
+        };
 
         /// <summary>
         /// Lookup an UI icon from GUI/Icons/ folder.
@@ -147,16 +148,12 @@ namespace GUI
 #endif
 
             // Force refresh title due to OpenFile calls above, SelectedIndexChanged is not called in the same tick
-            OnMainSelectedTabChanged(null, null);
+            OnMainSelectedTabChanged(null, EventArgs.Empty);
         }
 
         private void LoadIcons()
         {
-            ImageList = new ImageList
-            {
-                ColorDepth = ColorDepth.Depth32Bit,
-                ImageSize = new Size(this.AdjustForDPI(24), this.AdjustForDPI(24)),
-            };
+            ImageList.ImageSize = new Size(this.AdjustForDPI(24), this.AdjustForDPI(24));
 
             var resources = Program.Assembly.GetManifestResourceNames().Where(static r => r.StartsWith("GUI.Icons.", StringComparison.Ordinal));
 
@@ -238,9 +235,10 @@ namespace GUI
 
             {
                 using var stream = Program.Assembly.GetManifestResourceStream(AssetTypesAliasesFile);
+                Debug.Assert(stream != null);
                 using var reader = new StreamReader(stream);
 
-                string line;
+                string? line;
                 while ((line = reader.ReadLine()) != null)
                 {
                     var space = line.IndexOf(' ', StringComparison.Ordinal);
@@ -348,7 +346,7 @@ namespace GUI
                 OpenFile(file);
             }
 
-            OnMainSelectedTabChanged(null, null);
+            OnMainSelectedTabChanged(null, EventArgs.Empty);
         }
 
         protected override void OnLoad(EventArgs e)
@@ -453,7 +451,7 @@ namespace GUI
             }
 
             //if the user presses CTRL + E, close all tabs to the right of the active tab
-            if (keyData == (Keys.Control | Keys.E))
+            if (keyData == (Keys.Control | Keys.E) && mainTabs.SelectedTab != null)
             {
                 CloseTabsToRight(mainTabs.SelectedTab);
             }
@@ -467,7 +465,7 @@ namespace GUI
         }
 
 
-        private void OnMainSelectedTabChanged(object sender, EventArgs e)
+        private void OnMainSelectedTabChanged(object? sender, EventArgs e)
         {
 #if !SCREENSHOT_MODE
             if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
@@ -489,11 +487,14 @@ namespace GUI
                 var (newFileContext, packageEntry) = exportData.VrfGuiContext.FindFileWithContext(
                     exportData.PackageEntry?.GetFullPath() ?? exportData.VrfGuiContext.FileName
                 );
-                OpenFile(newFileContext, packageEntry);
-                mainTabs.CloseTab(tab);
+
+                if (newFileContext != null)
+                {
+                    OpenFile(newFileContext, packageEntry);
+                    mainTabs.CloseTab(tab);
+                }
             }
         }
-
 
         private void CloseAllTabs()
         {
@@ -534,11 +535,15 @@ namespace GUI
         private void OnTabClick(object sender, MouseEventArgs e)
         {
             //Work out what tab we're interacting with
-            var tabControl = sender as TabControl;
+            if (sender is not TabControl tabControl)
+            {
+                return;
+            }
+
             var tabs = tabControl.TabPages;
 
             var tabIndex = 0;
-            TabPage thisTab = null;
+            TabPage? thisTab = null;
 
             for (; tabIndex < tabs.Count; tabIndex++)
             {
@@ -669,7 +674,7 @@ namespace GUI
             Settings.TrackRecentFile(fileName);
         }
 
-        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry file, TreeViewWithSearchResults packageTreeView = null, bool withoutViewer = false)
+        public void OpenFile(VrfGuiContext vrfGuiContext, PackageEntry? file, TreeViewWithSearchResults? packageTreeView = null, bool withoutViewer = false)
         {
             var isPreview = packageTreeView != null;
 
@@ -692,7 +697,7 @@ namespace GUI
             var tab = tabTemp;
             tab.Disposed += OnTabDisposed;
 
-            void OnTabDisposed(object sender, EventArgs e)
+            void OnTabDisposed(object? sender, EventArgs e)
             {
                 tab.Disposed -= OnTabDisposed;
 
@@ -758,7 +763,7 @@ namespace GUI
                 tabTemp?.Dispose();
             }
 
-            Control loadingFile = null;
+            Control? loadingFile = null;
 
             if (!isPreview)
             {
@@ -867,22 +872,29 @@ namespace GUI
 
                     if (isPreview)
                     {
+                        Debug.Assert(packageTreeView != null);
                         packageTreeView.ReplaceListViewWithControl(tab);
                     }
                 });
             });
         }
 
-        private static async Task<Types.Viewers.IViewer> ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry entry, ResourceViewMode viewMode)
+        private static async Task<Types.Viewers.IViewer> ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry? entry, ResourceViewMode viewMode)
         {
             await Task.Yield();
 
-            Stream stream = null;
+            Stream? stream = null;
             Span<byte> magicData = stackalloc byte[6];
 
             if (entry != null)
             {
-                stream = GameFileLoader.GetPackageEntryStream(vrfGuiContext.ParentGuiContext.CurrentPackage, entry);
+                var parentContext = vrfGuiContext.ParentGuiContext;
+                if (parentContext?.CurrentPackage == null)
+                {
+                    throw new InvalidDataException("Parent context or package is null");
+                }
+
+                stream = GameFileLoader.GetPackageEntryStream(parentContext.CurrentPackage, entry);
 
                 if (stream.Length >= magicData.Length)
                 {
@@ -999,14 +1011,14 @@ namespace GUI
         private void MainForm_DragDrop(object sender, DragEventArgs e)
         {
             // Despite us setting drag effect only on FileDrop this can still be null on drop
-            if (e.Data.GetData(DataFormats.FileDrop) is string[] files)
+            if (e.Data?.GetData(DataFormats.FileDrop) is string[] files)
             {
                 foreach (var fileName in files)
                 {
                     OpenFile(fileName);
                 }
             }
-            else if (e.Data.GetData(DataFormats.UnicodeText) is string text) // Dropping files from web based apps such as VS code
+            else if (e.Data?.GetData(DataFormats.UnicodeText) is string text) // Dropping files from web based apps such as VS code
             {
                 foreach (var line in text.AsSpan().EnumerateLines())
                 {
@@ -1022,7 +1034,7 @@ namespace GUI
 
         private void MainForm_DragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            if (e.Data?.GetDataPresent(DataFormats.FileDrop) == true)
             {
                 e.Effect = DragDropEffects.Move;
             }
@@ -1065,7 +1077,7 @@ namespace GUI
             mainTabs.SelectedTab.Controls.OfType<ExplorerControl>().FirstOrDefault()?.FocusFilter();
         }
 
-        private static CodeTextBox FindCodeTextBoxInControl(Control container)
+        private static CodeTextBox? FindCodeTextBoxInControl(Control container)
         {
             if (container is CodeTextBox codeTextBox)
             {

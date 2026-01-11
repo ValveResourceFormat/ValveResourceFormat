@@ -8,7 +8,7 @@ namespace GUI.Types.Viewers
 {
     interface IViewer : IDisposable
     {
-        public Task LoadAsync(Stream stream);
+        public Task LoadAsync(Stream? stream);
         public void Create(TabPage containerTabPage);
 
         public static TabPage AddContentTab<T>(ThemedTabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)

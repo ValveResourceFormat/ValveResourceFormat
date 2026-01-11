@@ -2,8 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.NavMesh
 {
     /// <summary>
@@ -79,12 +77,12 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets or sets the hull preset name.
         /// </summary>
-        public string HullPresetName { get; set; }
+        public string? HullPresetName { get; set; }
 
         /// <summary>
         /// Gets or sets the hull definitions file path.
         /// </summary>
-        public string HullDefinitionsFile { get; set; }
+        public string? HullDefinitionsFile { get; set; }
 
         /// <summary>
         /// Gets or sets the hull count.
@@ -94,7 +92,7 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets or sets the hull parameters.
         /// </summary>
-        public NavMeshGenerationHullParams[] HullParams { get; set; }
+        public NavMeshGenerationHullParams[] HullParams { get; set; } = [];
 
         /// <summary>
         /// Reads generation parameters from a binary reader.

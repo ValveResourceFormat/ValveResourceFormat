@@ -1,5 +1,3 @@
-#nullable disable
-
 using GUI.Utils;
 
 namespace GUI.Forms
@@ -18,7 +16,7 @@ namespace GUI.Forms
         /// <summary>
         /// Gets whatever options was selected by the user in the search type combobox.
         /// </summary>
-        public SearchType SelectedSearchType => ((SearchTypeItem)searchTypeComboBox.SelectedItem).Type;
+        public SearchType SelectedSearchType => searchTypeComboBox.SelectedItem is SearchTypeItem item ? item.Type : SearchType.FileNamePartialMatch;
 
         public SearchForm()
         {

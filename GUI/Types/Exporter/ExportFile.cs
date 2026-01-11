@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,15 +10,20 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 using Resource = ValveResourceFormat.Resource;
 
-#nullable disable
-
 namespace GUI.Types.Exporter
 {
     static class ExportFile
     {
         public static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            var stream = GameFileLoader.GetPackageEntryStream(vrfGuiContext.CurrentPackage, file);
+            var currentPackage = vrfGuiContext.CurrentPackage;
+            if (currentPackage == null)
+            {
+                Log.Error(nameof(ExportFile), "CurrentPackage is null, cannot extract file");
+                return;
+            }
+
+            var stream = GameFileLoader.GetPackageEntryStream(currentPackage, file);
 
             ExtractFileFromStream(file.GetFullPath(), stream, vrfGuiContext, decompile);
         }
@@ -28,7 +34,7 @@ namespace GUI.Types.Exporter
             {
                 var exportData = new ExportData
                 {
-                    VrfGuiContext = new VrfGuiContext(null, vrfGuiContext),
+                    VrfGuiContext = new VrfGuiContext(fileName, vrfGuiContext),
                 };
 
                 var resourceTemp = new Resource
@@ -96,9 +102,12 @@ namespace GUI.Types.Exporter
                 }
 
                 var directory = Path.GetDirectoryName(filaNameToSave);
-                Settings.Config.SaveDirectory = directory;
+                if (directory != null)
+                {
+                    Settings.Config.SaveDirectory = directory;
+                }
 
-                var extractDialog = new ExtractProgressForm(exportData, directory, true)
+                var extractDialog = new ExtractProgressForm(exportData, directory ?? string.Empty, true)
                 {
                     ShownCallback = (form, cancellationToken) =>
                     {
@@ -132,6 +141,15 @@ namespace GUI.Types.Exporter
             {
                 if (decompile && FileExtract.TryExtractNonResource(stream, fileName, out var content))
                 {
+                    if (content.Data == null)
+                    {
+                        // Content has no data to extract, only potentially subfiles
+                        content.Dispose();
+                        stream.Dispose();
+                        Log.Info(nameof(ExportFile), $"File \"{fileName}\" has no extractable data");
+                        return;
+                    }
+
                     var extension = Path.GetExtension(content.FileName);
                     fileName = Path.ChangeExtension(fileName, extension);
                     stream.Dispose();
@@ -169,6 +187,7 @@ namespace GUI.Types.Exporter
             if (!selectedNode.IsFolder)
             {
                 var file = selectedNode.PackageEntry;
+                Debug.Assert(file != null);
                 // We are a file
                 ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
             }

@@ -1,8 +1,6 @@
 using System.IO;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.FlexSceneFile
 {
     /// <summary>
@@ -37,7 +35,7 @@ namespace ValveResourceFormat.FlexSceneFile
         public class FlexSetting
         {
             /// <summary>Gets the name of the flex setting.</summary>
-            public string Name { get; init; }
+            public string Name { get; init; } = string.Empty;
 
             /// <summary>Gets the phoneme code.</summary>
             public int Phoneme { get; init; }
@@ -87,19 +85,19 @@ namespace ValveResourceFormat.FlexSceneFile
         public int Version { get; private set; }
 
         /// <summary>Gets the name of the flex scene.</summary>
-        public string Name { get; private set; }
+        public string Name { get; private set; } = string.Empty;
 
         /// <summary>Gets the names of all flex controller keys.</summary>
-        public string[] KeyNames { get; private set; }
+        public string[] KeyNames { get; private set; } = [];
 
         /// <summary>Gets all flex settings.</summary>
-        public FlexSetting[] FlexSettings { get; private set; }
+        public FlexSetting[] FlexSettings { get; private set; } = [];
         private readonly Dictionary<int, int> phonemeToFlexSetting = [];
 
         /// <summary>
         /// Returns the flex settings for the specified phoneme code, or null if no data is stored for the specified phoneme.
         /// </summary>
-        public FlexSetting GetSettingForPhonemeCode(int phoneme)
+        public FlexSetting? GetSettingForPhonemeCode(int phoneme)
         {
             if (phonemeToFlexSetting.TryGetValue(phoneme, out var i))
             {

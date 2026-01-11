@@ -14,7 +14,7 @@ namespace GUI.Types.Viewers
 
         public static bool IsAccepted(uint magic) => BinaryKV3.IsBinaryKV3(magic);
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             var kv3 = new BinaryKV3(ValveResourceFormat.BlockType.Undefined);
             Stream kv3stream;

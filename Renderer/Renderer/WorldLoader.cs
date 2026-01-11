@@ -87,10 +87,13 @@ namespace ValveResourceFormat.Renderer
                         foreach (var entity in entityLump.GetEntities())
                         {
                             var className = entity.GetProperty<string>("classname");
-                            var hammerEntity = HammerEntities.Get(className);
-                            if (hammerEntity?.Icons.Length > 0)
+                            if (className != null)
                             {
-                                toolIcons.UnionWith(hammerEntity.Icons);
+                                var hammerEntity = HammerEntities.Get(className);
+                                if (hammerEntity?.Icons.Length > 0)
+                                {
+                                    toolIcons.UnionWith(hammerEntity.Icons);
+                                }
                             }
                         }
 
@@ -338,8 +341,10 @@ namespace ValveResourceFormat.Renderer
 
             var entities = entityLump.GetEntities().ToList();
             var entitiesReordered = entities
-                .Select(e => (e, e.GetProperty<string>("classname")))
-                .OrderByDescending(x => IsCubemapOrProbe(x.Item2) || IsFog(x.Item2));
+                .Select(e => (Entity: e, Classname: e.GetProperty<string>("classname")))
+                .Where(x => x.Classname != null)
+                .Select(x => (x.Entity, Classname: x.Classname!))
+                .OrderByDescending(x => IsCubemapOrProbe(x.Classname) || IsFog(x.Classname));
 
             Entities.AddRange(entities);
 
@@ -364,7 +369,7 @@ namespace ValveResourceFormat.Renderer
                     var layername = entity.GetProperty<string>("layername");
 
                     // Visible on spawn flag
-                    if ((spawnflags & 1) == 1)
+                    if ((spawnflags & 1) == 1 && layername != null)
                     {
                         DefaultEnabledLayers.Add(layername);
                     }
@@ -408,7 +413,7 @@ namespace ValveResourceFormat.Renderer
                         tintColor = entity.GetColor32Property("tint_color");
                     }
 
-                    if (!disabled)
+                    if (!disabled && skyname != null)
                     {
                         var rotation = transformationMatrix with
                         {
@@ -533,7 +538,10 @@ namespace ValveResourceFormat.Renderer
                         if (fogSource == 0) // Cubemap From Texture, Disabled in CS2
                         {
                             var textureName = entity.GetProperty<string>("cubemapfogtexture");
-                            fogTexture = RendererContext.MaterialLoader.GetTexture(textureName);
+                            if (textureName != null)
+                            {
+                                fogTexture = RendererContext.MaterialLoader.GetTexture(textureName);
+                            }
                         }
                         else
                         {
@@ -542,18 +550,21 @@ namespace ValveResourceFormat.Renderer
                             if (fogSource == 1) // Cubemap From Env_Sky
                             {
                                 var skyEntTargetName = entity.GetProperty<string>("cubemapfogskyentity");
-                                var skyEntity = FindEntityByKeyValue("targetname", skyEntTargetName);
+                                if (skyEntTargetName != null)
+                                {
+                                    var skyEntity = FindEntityByKeyValue("targetname", skyEntTargetName);
 
-                                // env_sky target //  && (scene.Sky.TargetName == skyEntTargetName)
-                                if (skyEntity != null)
-                                {
-                                    material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
-                                    transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(skyEntity); // steal rotation from env_sky
-                                }
-                                else
-                                {
-                                    RendererContext.Logger.LogWarning("Disabling cubemap fog because failed to find env_sky of target name {SkyEntTargetName}", skyEntTargetName);
-                                    scene.FogInfo.CubeFogActive = false;
+                                    // env_sky target //  && (scene.Sky.TargetName == skyEntTargetName)
+                                    if (skyEntity != null)
+                                    {
+                                        material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
+                                        transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(skyEntity); // steal rotation from env_sky
+                                    }
+                                    else
+                                    {
+                                        RendererContext.Logger.LogWarning("Disabling cubemap fog because failed to find env_sky of target name {SkyEntTargetName}", skyEntTargetName);
+                                        scene.FogInfo.CubeFogActive = false;
+                                    }
                                 }
                             }
                             else if (fogSource == 2) // Cubemap From Material
@@ -638,38 +649,42 @@ namespace ValveResourceFormat.Renderer
 
                     if (classname != "env_light_probe_volume")
                     {
-                        var envMapTexture = RendererContext.MaterialLoader.GetTexture(
-                            entity.GetProperty<string>("cubemaptexture")
-                        );
+                        var cubemapTextureName = entity.GetProperty<string>("cubemaptexture");
+                        var envMapTexture = cubemapTextureName != null
+                            ? RendererContext.MaterialLoader.GetTexture(cubemapTextureName)
+                            : null;
 
-                        var arrayIndex = entity.GetPropertyUnchecked("array_index", 0);
-                        var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
-                        var isCustomTexture = entity.GetProperty<string>("customcubemaptexture") != null;
-
-                        var envMap = new SceneEnvMap(scene, bounds)
+                        if (envMapTexture != null)
                         {
-                            LayerName = layerName,
-                            Transform = transformationMatrix,
-                            HandShake = handShake,
-                            ArrayIndex = arrayIndex,
-                            IndoorOutdoorLevel = indoorOutdoorLevel,
-                            EdgeFadeDists = edgeFadeDists,
-                            ProjectionMode = classname == "env_cubemap" ? 0 : 1,
-                            EnvMapTexture = envMapTexture,
-                        };
+                            var arrayIndex = entity.GetPropertyUnchecked("array_index", 0);
+                            var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
+                            var isCustomTexture = entity.GetProperty<string>("customcubemaptexture") != null;
 
-                        if (!isCustomTexture)
-                        {
-                            scene.LightingInfo.AddEnvironmentMap(envMap);
+                            var envMap = new SceneEnvMap(scene, bounds)
+                            {
+                                LayerName = layerName,
+                                Transform = transformationMatrix,
+                                HandShake = handShake,
+                                ArrayIndex = arrayIndex,
+                                IndoorOutdoorLevel = indoorOutdoorLevel,
+                                EdgeFadeDists = edgeFadeDists,
+                                ProjectionMode = classname == "env_cubemap" ? 0 : 1,
+                                EnvMapTexture = envMapTexture,
+                            };
+
+                            if (!isCustomTexture)
+                            {
+                                scene.LightingInfo.AddEnvironmentMap(envMap);
+                            }
                         }
                     }
 
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
                     {
-                        var irradianceTexture = RendererContext.MaterialLoader.GetTexture(
-                            entity.GetProperty<string>("lightprobetexture"),
-                            srgbRead: true
-                        );
+                        var lightProbeTextureName = entity.GetProperty<string>("lightprobetexture");
+                        var irradianceTexture = lightProbeTextureName != null
+                            ? RendererContext.MaterialLoader.GetTexture(lightProbeTextureName, srgbRead: true)
+                            : null;
 
                         var lightProbe = new SceneLightProbe(scene, bounds)
                         {
@@ -925,13 +940,16 @@ namespace ValveResourceFormat.Renderer
                 if (modelNode.HasMeshes)
                 {
                     // Animation
-                    var isAnimated = modelNode.SetAnimationForWorldPreview(animation);
-                    if (isAnimated)
+                    if (animation != null)
                     {
-                        var holdAnimationOn = entity.GetPropertyUnchecked<bool>("holdanimation");
-                        if (holdAnimationOn)
+                        var isAnimated = modelNode.SetAnimationForWorldPreview(animation);
+                        if (isAnimated)
                         {
-                            modelNode.AnimationController.PauseLastFrame();
+                            var holdAnimationOn = entity.GetPropertyUnchecked<bool>("holdanimation");
+                            if (holdAnimationOn)
+                            {
+                                modelNode.AnimationController.PauseLastFrame();
+                            }
                         }
                     }
 
@@ -1245,6 +1263,11 @@ namespace ValveResourceFormat.Renderer
 
         private void CreateEntityConnectionLines(Entity entity, Vector3 start)
         {
+            if (entity.Connections == null)
+            {
+                return;
+            }
+
             var alreadySeen = new HashSet<Entity>(entity.Connections.Count);
 
             foreach (var connectionData in entity.Connections)

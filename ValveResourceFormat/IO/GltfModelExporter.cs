@@ -77,7 +77,7 @@ namespace ValveResourceFormat.IO
         private string DstDir = string.Empty;
         private CancellationToken CancellationToken;
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
-        private readonly List<(PhysAggregateData Phys, string Classname, Matrix4x4 Transform)> PhysicsToExport = [];
+        private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
 
         /// <summary>
@@ -423,7 +423,6 @@ namespace ValveResourceFormat.IO
                     PhysicsToExport.Add((phys, className, transform));
                 }
             }
-
         }
 
         private static string? GetSkinPathFromModel(VModel model, string skinName)
@@ -607,10 +606,13 @@ namespace ValveResourceFormat.IO
                 if (entity != null)
                 {
                     var entityAnimation = entity.GetProperty<string>("defaultanim") ?? entity.GetProperty<string>("idleanim");
-                    animationFilter = [
-                        entityAnimation,
-                        $"@{entityAnimation}"
-                    ];
+                    if (entityAnimation != null)
+                    {
+                        animationFilter = [
+                            entityAnimation,
+                            $"@{entityAnimation}"
+                        ];
+                    }
                 }
 
                 foreach (var animation in animations)

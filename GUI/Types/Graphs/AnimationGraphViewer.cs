@@ -47,6 +47,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             var foundFile = VrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
             if (foundFile.Context != null)
             {
+                Debug.Assert(foundFile.PackageEntry != null);
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
             }
         }

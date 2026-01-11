@@ -235,7 +235,10 @@ namespace ValveResourceFormat.Renderer
                 if (node.EntityData != null)
                 {
                     var classname = node.EntityData.GetProperty<string>("classname");
-                    nodeName = classname;
+                    if (classname != null)
+                    {
+                        nodeName = classname;
+                    }
 
                     if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_volumetric_fog_volume" or "env_wind_volume" or "steampal_kill_volume" or "env_cubemap_box" or "env_cubemap")
                     {
@@ -260,18 +263,26 @@ namespace ValveResourceFormat.Renderer
                     }
                     else if (classname is "light_barn" or "light_omni2")
                     {
-                        var bounds = new AABB(
-                            EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedboundsmins")),
-                            EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedboundsmaxs"))
-                        );
+                        var boundsMins = node.EntityData.GetProperty<string>("precomputedboundsmins");
+                        var boundsMaxs = node.EntityData.GetProperty<string>("precomputedboundsmaxs");
+                        var obbExtent = node.EntityData.GetProperty<string>("precomputedobbextent");
+                        var obbOrigin = node.EntityData.GetProperty<string>("precomputedobborigin");
 
-                        var origin = EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedobbextent"));
-                        var extent = EntityTransformHelper.ParseVector(node.EntityData.GetProperty<string>("precomputedobborigin"));
+                        if (boundsMins != null && boundsMaxs != null && obbExtent != null && obbOrigin != null)
+                        {
+                            var bounds = new AABB(
+                                EntityTransformHelper.ParseVector(boundsMins),
+                                EntityTransformHelper.ParseVector(boundsMaxs)
+                            );
 
-                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+                            var origin = EntityTransformHelper.ParseVector(obbExtent);
+                            var extent = EntityTransformHelper.ParseVector(obbOrigin);
 
-                        ShapeSceneNode.AddLine(vertices, node.Transform.Translation, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
-                        ShapeSceneNode.AddLine(vertices, node.Transform.Translation, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
+                            AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+
+                            ShapeSceneNode.AddLine(vertices, node.Transform.Translation, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
+                            ShapeSceneNode.AddLine(vertices, node.Transform.Translation, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
+                        }
 
                         disableDepth = true;
                     }

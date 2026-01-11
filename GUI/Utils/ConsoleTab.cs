@@ -6,8 +6,6 @@ using System.Windows.Forms;
 using FastColoredTextBoxNS;
 using GUI.Controls;
 
-#nullable disable
-
 namespace GUI.Utils
 {
     internal class ConsoleTab : IDisposable
@@ -21,9 +19,15 @@ namespace GUI.Utils
                 this.action = action;
             }
 
-            public override Encoding Encoding => null;
+            public override Encoding Encoding => Encoding.UTF8;
 
-            public override void WriteLine(string value) => action(value);
+            public override void WriteLine(string? value)
+            {
+                if (value != null)
+                {
+                    action(value);
+                }
+            }
         }
 
         private struct LogLine
@@ -31,7 +35,7 @@ namespace GUI.Utils
             public DateTime Time;
             public string Component;
             public string Message;
-            public TextStyle Style;
+            public TextStyle? Style;
         }
 
         private static readonly TextStyle TextStyleTime = new(Brushes.DarkGray, null, FontStyle.Regular);
@@ -39,9 +43,9 @@ namespace GUI.Utils
         private static readonly TextStyle TextStyleWarn = new(Brushes.Orange, null, FontStyle.Regular);
         private static readonly TextStyle TextStyleDebug = new(Themer.CurrentThemeColors.ColorMode == SystemColorMode.Dark ? Brushes.LightGreen : Brushes.ForestGreen, null, FontStyle.Regular);
 
-        private CodeTextBox control;
-        private MyLogger loggerOut;
-        private MyLogger loggerError;
+        private CodeTextBox? control;
+        private MyLogger? loggerOut;
+        private MyLogger? loggerError;
         private readonly Queue<LogLine> LogQueue = new(16);
 
         public void Dispose()
@@ -67,7 +71,7 @@ namespace GUI.Utils
 
         public void WriteLine(Log.Category category, string component, string message)
         {
-            if (control.IsDisposed)
+            if (control == null || control.IsDisposed)
             {
                 return;
             }
@@ -100,7 +104,7 @@ namespace GUI.Utils
 
         private void DrainQueue()
         {
-            if (LogQueue.Count == 0)
+            if (control == null || LogQueue.Count == 0)
             {
                 return;
             }
@@ -149,6 +153,11 @@ namespace GUI.Utils
 
         private void ScrollToBottom()
         {
+            if (control == null)
+            {
+                return;
+            }
+
             var selection = control.Selection;
 
             if (selection.Start != selection.End)
@@ -162,7 +171,7 @@ namespace GUI.Utils
         public TabPage CreateTab()
         {
             var bgColor = Color.FromArgb(37, 37, 37);
-            control = new CodeTextBox(null, CodeTextBox.HighlightLanguage.None)
+            control = new CodeTextBox(string.Empty, CodeTextBox.HighlightLanguage.None)
             {
                 BackColor = bgColor,
                 ForeColor = Color.FromArgb(240, 240, 240),
@@ -192,10 +201,10 @@ namespace GUI.Utils
 
         public void InitializeFont()
         {
-            control.Font = CodeTextBox.GetMonospaceFont();
+            control?.Font = CodeTextBox.GetMonospaceFont();
         }
 
-        private void VisibleChanged(object sender, EventArgs e)
+        private void VisibleChanged(object? sender, EventArgs e)
         {
             DrainQueue();
         }
@@ -203,7 +212,7 @@ namespace GUI.Utils
         internal void ClearBuffer()
         {
             LogQueue.Clear();
-            control.Clear();
+            control?.Clear();
         }
     }
 }

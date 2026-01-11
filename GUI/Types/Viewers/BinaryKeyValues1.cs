@@ -18,7 +18,7 @@ namespace GUI.Types.Viewers
             return magic == BinaryKV1.MAGIC;
         }
 
-        public async Task LoadAsync(Stream input)
+        public async Task LoadAsync(Stream? input)
         {
             Stream stream;
             KVObject kv;

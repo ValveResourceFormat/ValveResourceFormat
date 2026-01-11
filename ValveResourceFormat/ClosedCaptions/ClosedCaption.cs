@@ -1,5 +1,3 @@
-#nullable disable
-
 namespace ValveResourceFormat.ClosedCaptions
 {
     /// <summary>
@@ -35,6 +33,6 @@ namespace ValveResourceFormat.ClosedCaptions
         /// <summary>
         /// Gets or sets the caption text.
         /// </summary>
-        public string Text { get; set; }
+        public string? Text { get; set; }
     }
 }

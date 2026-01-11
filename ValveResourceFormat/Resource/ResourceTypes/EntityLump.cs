@@ -1,11 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVValueType = ValveKeyValue.KVValueType;
-
-#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -27,11 +26,11 @@ namespace ValveResourceFormat.ResourceTypes
             /// <summary>
             /// Gets or sets the entity connections (inputs/outputs).
             /// </summary>
-            public List<KVObject> Connections { get; internal set; }
+            public List<KVObject>? Connections { get; internal set; }
             /// <summary>
             /// Gets or initializes the parent entity lump that contains this entity.
             /// </summary>
-            public EntityLump ParentLump { get; init; }
+            public required EntityLump ParentLump { get; init; }
 
             /// <summary>
             /// Gets a strongly-typed property value by name, returning a default value if not found or on error.
@@ -41,7 +40,8 @@ namespace ValveResourceFormat.ResourceTypes
             /// <param name="defaultValue">The default value to return if the property is not found or conversion fails.</param>
             /// <returns>The property value or the default value.</returns>
             /// <exception cref="InvalidOperationException">Thrown when attempting to use Vector3 type (use GetVector3Property instead).</exception>
-            public T GetProperty<T>(string name, T defaultValue = default)
+            [return: NotNullIfNotNull(nameof(defaultValue))]
+            public T? GetProperty<T>(string name, T? defaultValue = default)
             {
                 if (typeof(T) == typeof(Vector3))
                 {
@@ -141,10 +141,10 @@ namespace ValveResourceFormat.ResourceTypes
         public List<Entity> GetEntities()
             => Data.GetArray("m_entityKeyValues")
                 .Select(ParseEntityProperties)
-                .Where(entity => entity != null)
+                .OfType<Entity>()
                 .ToList();
 
-        private Entity ParseEntityProperties(KVObject entityKv)
+        private Entity? ParseEntityProperties(KVObject entityKv)
         {
             var connections = entityKv.GetArray("m_connections");
             Entity entity;
@@ -201,7 +201,12 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
             }
 
-            var properties = ((KVObject)values.Value).Properties;
+            if (values.Value is not KVObject kvObject)
+            {
+                throw new InvalidDataException("Expected KVObject for entity values");
+            }
+
+            var properties = kvObject.Properties;
             entity.Properties.Properties.EnsureCapacity(entity.Properties.Count + properties.Count);
 
             foreach (var value in properties)
@@ -230,7 +235,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var entity = new Entity { ParentLump = this };
 
-            void ReadTypedValue(uint keyHash, string keyName)
+            void ReadTypedValue(uint keyHash, string? keyName)
             {
                 var type = (EntityFieldType)dataReader.ReadUInt32();
 
@@ -342,7 +347,7 @@ namespace ValveResourceFormat.ResourceTypes
                                 builder.Append("OnlyOnce ");
                                 break;
                             case >= 2:
-                                builder.Append($"Only{timesToFire}Times ");
+                                builder.Append(CultureInfo.InvariantCulture, $"Only{timesToFire}Times ");
                                 break;
                         }
 
@@ -392,7 +397,11 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var entity in GetEntities())
             {
-                var classname = entity.GetProperty<string>("classname").ToLowerInvariant();
+                var classname = entity.GetProperty<string>("classname")?.ToLowerInvariant();
+                if (classname == null)
+                {
+                    continue;
+                }
 
                 if (!uniqueEntityProperties.TryGetValue(classname, out var entityProperties))
                 {

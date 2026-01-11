@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 
-#nullable disable
-
 namespace ValveResourceFormat.NavMesh
 {
     /// <summary>
@@ -28,22 +26,22 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets or sets the corner vertices.
         /// </summary>
-        public Vector3[] Corners { get; set; }
+        public Vector3[] Corners { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the connections to other areas.
         /// </summary>
-        public NavMeshConnection[][] Connections { get; set; }
+        public NavMeshConnection[][] Connections { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the ladders above this area.
         /// </summary>
-        public uint[] LaddersAbove { get; set; }
+        public uint[] LaddersAbove { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the ladders below this area.
         /// </summary>
-        public uint[] LaddersBelow { get; set; }
+        public uint[] LaddersBelow { get; set; } = [];
 
         private static NavMeshConnection[] ReadConnections(BinaryReader binaryReader)
         {
@@ -63,7 +61,7 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Reads the navigation mesh area from a binary reader.
         /// </summary>
-        public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile, Vector3[][] polygons = null)
+        public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile, Vector3[][]? polygons = null)
         {
             AreaId = binaryReader.ReadUInt32();
             DynamicAttributeFlags = (DynamicAttributeFlags)binaryReader.ReadInt64();
@@ -71,6 +69,11 @@ namespace ValveResourceFormat.NavMesh
 
             if (navMeshFile.Version >= 31)
             {
+                if (polygons == null)
+                {
+                    throw new InvalidOperationException("Polygons array is required for version 31 or higher");
+                }
+
                 var polygonIndex = binaryReader.ReadUInt32();
                 Corners = polygons[polygonIndex];
             }

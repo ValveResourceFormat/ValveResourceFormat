@@ -17,7 +17,7 @@ namespace GUI.Types.Viewers
                    magic == ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.MAGIC2;
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             var toolsAssetInfo = new ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo();
 

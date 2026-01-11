@@ -16,7 +16,7 @@ namespace GUI.Types.Viewers
             return magic == ValveResourceFormat.MapFormats.GridNavFile.MAGIC;
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             var navMeshFile = new ValveResourceFormat.MapFormats.GridNavFile();
 

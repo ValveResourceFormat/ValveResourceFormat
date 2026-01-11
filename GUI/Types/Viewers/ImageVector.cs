@@ -17,7 +17,7 @@ namespace GUI.Types.Viewers
             return fileName.EndsWith(".svg", StringComparison.InvariantCultureIgnoreCase);
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             svg = new SKSvg();
 

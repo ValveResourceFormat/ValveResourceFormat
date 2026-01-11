@@ -2,14 +2,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-#nullable disable
-
 namespace GUI.Forms
 {
     partial class GenericProgressForm : ThemedForm
     {
         private CancellationTokenSource cancellationTokenSource;
-        public event EventHandler<CancellationToken> OnProcess;
+        public event EventHandler<CancellationToken>? OnProcess;
 
         public GenericProgressForm()
         {
@@ -72,7 +70,7 @@ namespace GUI.Forms
                     {
                         var exceptions = t.Exception.Flatten().InnerExceptions;
 
-                        SetProgress($"An exception occurred, view console tab for more information. ({(exceptions.Count > 0 ? exceptions[0].Message : t.Exception.InnerException.Message)})");
+                        SetProgress($"An exception occurred, view console tab for more information. ({(exceptions.Count > 0 ? exceptions[0].Message : t.Exception.InnerException?.Message)})");
 
                         foreach (var exception in exceptions)
                         {
