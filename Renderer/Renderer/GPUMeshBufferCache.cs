@@ -31,6 +31,15 @@ namespace ValveResourceFormat.Renderer
             return gpuVbib;
         }
 
+        public void DeleteVertexIndexBuffers(string meshName)
+        {
+            if (gpuBuffers.TryGetValue(meshName, out var gpuVbib))
+            {
+                gpuVbib.Delete();
+                gpuBuffers.Remove(meshName);
+            }
+        }
+
         public int GetVertexArrayObject(string meshName, VertexDrawBuffer[] vertexBuffers, RenderMaterial material, int idxIndex)
         {
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);

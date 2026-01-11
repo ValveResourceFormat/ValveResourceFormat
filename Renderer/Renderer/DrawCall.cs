@@ -58,6 +58,11 @@ namespace ValveResourceFormat.Renderer
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, VertexArrayObject, Math.Min(GLEnvironment.MaxLabelLength, vaoName.Length), vaoName);
 #endif
         }
+
+        public void DeleteVertexArrayObject()
+        {
+            GL.DeleteVertexArray(VertexArrayObject);
+        }
     }
 
     public readonly struct IndexDrawBuffer

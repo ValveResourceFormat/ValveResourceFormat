@@ -27,5 +27,11 @@ namespace ValveResourceFormat.Renderer
                 GL.NamedBufferData(IndexBuffers[i], (IntPtr)(vbib.IndexBuffers[i].ElementCount * vbib.IndexBuffers[i].ElementSizeInBytes), vbib.IndexBuffers[i].Data, BufferUsageHint.StaticDraw);
             }
         }
+
+        public void Delete()
+        {
+            GL.DeleteBuffers(VertexBuffers.Length, VertexBuffers);
+            GL.DeleteBuffers(IndexBuffers.Length, IndexBuffers);
+        }
     }
 }

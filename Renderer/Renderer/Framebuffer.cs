@@ -182,8 +182,7 @@ public class Framebuffer
                 GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthStencilAttachment, Depth.Handle, 0);
 
                 // Create stencil view
-                Stencil = new RenderTexture(GL.GenTexture(), Depth.Target);
-                GL.TextureView(Stencil.Handle, Depth.Target, Depth.Handle, DepthFormat.InternalFormat, 0, 1, 0, 1);
+                Stencil = Depth.CreateView(DepthFormat.InternalFormat);
 
                 Stencil.SetLabel("FramebufferStencil");
                 Stencil.SetBaseMaxLevel(0, 0);

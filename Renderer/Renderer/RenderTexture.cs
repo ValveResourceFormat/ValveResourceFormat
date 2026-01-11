@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    [DebuggerDisplay("{Name} {Width}x{Height}x{Depth} mip:{NumMipLevels} srgb:{Srgb}")]
     public class RenderTexture
     {
         public TextureTarget Target { get; }
@@ -45,6 +47,24 @@ namespace ValveResourceFormat.Renderer
         {
             Handle = handle;
             Target = target;
+        }
+
+        public static RenderTexture Create(int width, int height, SizedInternalFormat format = SizedInternalFormat.Rgba8, bool mips = false)
+        {
+            var mipCount = mips
+                ? (int)MathF.Log(MathF.Max(width, height), 2) - 2
+                : 1;
+
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount);
+            GL.TextureStorage2D(texture.Handle, mipCount, format, width, height);
+            return texture;
+        }
+
+        public RenderTexture CreateView(PixelInternalFormat internalFormat, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
+        {
+            var view = new RenderTexture(GL.GenTexture(), Target);
+            GL.TextureView(view.Handle, Target, Handle, internalFormat, minLevel, numLevels, minLayer, numLayers);
+            return view;
         }
 
         public void SetWrapMode(TextureWrapMode wrap)

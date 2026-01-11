@@ -85,6 +85,16 @@ namespace ValveResourceFormat.Renderer
             octree.Insert(node);
         }
 
+        public void Remove(SceneNode node, bool dynamic)
+        {
+            var (nodeList, octree) = dynamic
+                ? (dynamicNodes, DynamicOctree)
+                : (staticNodes, StaticOctree);
+
+            nodeList.Remove(node);
+            octree.Remove(node); // octree removal can be unreliable
+        }
+
         public SceneNode? Find(uint id)
         {
             if (id == 0)

@@ -459,5 +459,10 @@ namespace ValveResourceFormat.Renderer
             }
         }
 #endif
+
+        public override void Delete()
+        {
+            boneMatricesGpu?.Delete();
+        }
     }
 }

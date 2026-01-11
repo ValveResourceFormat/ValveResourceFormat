@@ -82,5 +82,9 @@ namespace ValveResourceFormat.Renderer
         {
         }
 #endif
+
+        public virtual void Delete()
+        {
+        }
     }
 }

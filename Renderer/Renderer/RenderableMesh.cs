@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer
         public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
-        private IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
+        public IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
         public StorageBuffer? BoneMatricesGpu { get; private set; }
         public int MeshBoneOffset { get; private set; }
@@ -465,5 +465,16 @@ namespace ValveResourceFormat.Renderer
         }
 
         public List<RenderableMesh> RenderableMeshes { get; protected init; } = [];
+
+        public override void Delete()
+        {
+            foreach (var mesh in RenderableMeshes)
+            {
+                foreach (var drawCall in mesh.DrawCalls)
+                {
+                    drawCall.DeleteVertexArrayObject();
+                }
+            }
+        }
     }
 }
