@@ -1,20 +1,25 @@
 using System.Diagnostics;
-using System.IO;
+using System.Drawing;
 using System.Linq;
-using System.Reflection;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
+using static ValveResourceFormat.Renderer.PickingTexture;
 
 #nullable disable
 
 namespace GUI.Types.GLViewers
 {
-    internal abstract class GLSceneViewer : GLViewerControl, IDisposable
+    internal abstract class GLSceneViewer : GLBaseControl
     {
+        public Renderer Renderer { get; internal set; }
+
+        public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
+
+        protected PickingTexture Picker { get; set; }
+
         public Scene Scene { get; }
         public Scene SkyboxScene => Renderer.SkyboxScene;
         public SceneSkybox2D Skybox2D => Renderer.Skybox2D;
@@ -42,11 +47,13 @@ namespace GUI.Types.GLViewers
             Renderer.LockedCullFrustum = cullFrustum;
         }
 
-        protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
+        protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(rendererContext)
         {
             GuiContext = vrfGuiContext;
 
-            Renderer.Camera = Renderer.Camera;
+            Renderer = new(rendererContext);
+            Input = new UserInput(Renderer);
+            TextRenderer = new(rendererContext, Renderer.Camera);
             Scene = Renderer.Scene;
 
 #if DEBUG
@@ -161,8 +168,65 @@ namespace GUI.Types.GLViewers
 
         protected abstract void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo);
 
+        protected override void OnResize()
+        {
+            base.OnResize();
+
+            var (w, h) = (GLControl.Width, GLControl.Height);
+
+            Renderer.Camera.SetViewportSize(w, h);
+            Picker?.Resize(w, h);
+        }
+
+        protected override void OnMouseWheel(object sender, MouseEventArgs e)
+        {
+            base.OnMouseWheel(sender, e);
+
+            var modifier = Input.OnMouseWheel(e.Delta);
+
+            if (Input.OrbitMode)
+            {
+                SetMoveSpeedOrZoomLabel($"Orbit distance: {modifier:0.0} (scroll to change)");
+            }
+            else
+            {
+                SetMoveSpeedOrZoomLabel($"Move speed: {modifier:0.0}x (scroll to change)");
+            }
+        }
+
+        protected override void OnMouseUp(object sender, MouseEventArgs e)
+        {
+            base.OnMouseUp(sender, e);
+
+            if (InitialMousePosition == new Point(e.X, e.Y))
+            {
+                Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Select);
+            }
+        }
+
+        protected override void OnMouseDown(object sender, MouseEventArgs e)
+        {
+            base.OnMouseDown(sender, e);
+
+            if (e.Button == MouseButtons.Left)
+            {
+                if (e.Clicks == 2)
+                {
+                    var intent = Control.ModifierKeys.HasFlag(Keys.Control)
+                        ? PickingIntent.Open
+                        : PickingIntent.Details;
+                    Picker?.RequestNextFrame(e.X, e.Y, intent);
+                }
+            }
+        }
+
         protected override void OnGLLoad()
         {
+            base.OnGLLoad();
+
+            TextRenderer.Load();
+            Renderer.Postprocess.Load();
+
             baseGrid = new InfiniteGrid(Scene);
             SelectedNodeRenderer = new(Scene.RendererContext);
             Picker = new(Scene.RendererContext, OnPicked);
@@ -210,6 +274,28 @@ namespace GUI.Types.GLViewers
                 LastMouseDelta = MouseDelta;
                 MouseDelta = System.Drawing.Point.Empty;
             }
+        }
+
+        protected void DrawLowerCornerText(string text, Color32 color)
+        {
+            TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+            {
+                X = 2f,
+                Y = MainFramebuffer.Height - 4f,
+                Scale = 14f,
+                Color = color,
+                Text = text
+            });
+        }
+
+        protected override void BlitFramebufferToScreen()
+        {
+            if (MainFramebuffer == GLDefaultFramebuffer)
+            {
+                return; // not required
+            }
+
+            Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
         }
 
         protected override void OnPaint(float frameTime)
@@ -283,6 +369,11 @@ namespace GUI.Types.GLViewers
             {
                 DrawLowerCornerText(FpsText, Color32.White);
             }
+
+            BlitFramebufferToScreen();
+
+            TextRenderer.Render(Renderer.Camera);
+            Picker?.TriggerEventIfAny();
         }
 
         protected void AddBaseGridControl()

@@ -36,7 +36,7 @@ namespace GUI.Utils
         public ToolsAssetInfo? ToolsAssetInfo { get; set; }
 
         // This is a hack to set camera and properties when clicking a mesh from a model or map
-        internal Action<GLViewerControl>? GLPostLoadAction { get; set; }
+        internal Action<GLBaseControl>? GLPostLoadAction { get; set; }
 
         private int Children;
         private bool WantsToBeDisposed;

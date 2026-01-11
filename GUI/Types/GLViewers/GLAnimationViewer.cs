@@ -85,6 +85,11 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
+            if (UiControl == null)
+            {
+                return;
+            }
+
             if (clip != null)
             {
                 AddAnimationControls();

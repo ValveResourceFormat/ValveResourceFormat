@@ -1250,7 +1250,7 @@ namespace GUI
                 using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
                 {
                     APIVersion = GLEnvironment.RequiredVersion,
-                    Flags = GLViewerControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                    Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
                     StartVisible = false,
                     Title = "Source 2 Viewer Shader Validator"
                 });

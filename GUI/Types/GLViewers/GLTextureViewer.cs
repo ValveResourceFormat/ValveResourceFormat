@@ -20,7 +20,7 @@ using static ValveResourceFormat.ResourceTypes.Texture;
 
 namespace GUI.Types.GLViewers
 {
-    class GLTextureViewer : GLViewerControl
+    class GLTextureViewer : GLBaseControl, IDisposable
     {
         enum CubemapProjection
         {
@@ -128,9 +128,10 @@ namespace GUI.Types.GLViewers
             (ChannelMapping.RGBA, ChannelSplitting.FourChannels, "R | G | B | A (Separate channels)"),
         ];
 
-        private GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
+        private GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(rendererContext)
         {
             VrfGuiContext = vrfGuiContext;
+            RendererContext = new(vrfGuiContext, VrfGuiContext.Logger);
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -1071,7 +1072,7 @@ namespace GUI.Types.GLViewers
                 [textureType] = 1,
             };
 
-            shader = Renderer.RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
+            shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
         }
 
         private void UploadTexture(bool forceSoftwareDecode)
@@ -1140,7 +1141,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            texture = Renderer.RendererContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
+            texture = RendererContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
             InvalidateRender();
         }
 
@@ -1235,6 +1236,8 @@ namespace GUI.Types.GLViewers
 
         protected override void OnPaint(float frameTime)
         {
+            base.OnPaint(frameTime);
+
             if (NextBitmapToSet != null)
             {
                 texture?.Delete();
@@ -1287,7 +1290,7 @@ namespace GUI.Types.GLViewers
             GLControl?.Invalidate();
         }
 
-        protected virtual void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
+        protected void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
         {
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
@@ -1322,7 +1325,7 @@ namespace GUI.Types.GLViewers
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
             shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
 
-            GL.BindVertexArray(Renderer.RendererContext.MeshBufferCache.EmptyVAO);
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
 

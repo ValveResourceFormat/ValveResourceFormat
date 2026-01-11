@@ -132,7 +132,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GLWindowContext = new NativeWindow(new()
         {
             APIVersion = GLEnvironment.RequiredVersion,
-            Flags = GLViewerControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+            Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
             StartVisible = false,
             StartFocused = false,
             ClientSize = new(4, 4),

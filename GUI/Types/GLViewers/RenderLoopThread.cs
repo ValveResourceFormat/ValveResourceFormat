@@ -13,7 +13,7 @@ namespace GUI.Types.GLViewers
         private static int threadHash;
         private static int instances;
         private static Thread? loopThread;
-        private static GLViewerControl? currentGLControl;
+        private static GLBaseControl? currentGLControl;
         private static readonly ManualResetEventSlim renderSignal = new(initialState: true);
 
         public static void Initialize(Form form)
@@ -59,7 +59,7 @@ namespace GUI.Types.GLViewers
 #endif
         }
 
-        public static void SetCurrentGLControl(GLViewerControl glControl)
+        public static void SetCurrentGLControl(GLBaseControl glControl)
         {
             var originalGlControl = Interlocked.Exchange(ref currentGLControl, glControl);
 
@@ -77,7 +77,7 @@ namespace GUI.Types.GLViewers
             renderSignal.Set();
         }
 
-        public static void UnsetCurrentGLControl(GLViewerControl glControl)
+        public static void UnsetCurrentGLControl(GLBaseControl glControl)
         {
             Interlocked.CompareExchange(ref currentGLControl, null, glControl);
 
@@ -116,6 +116,24 @@ namespace GUI.Types.GLViewers
             loopThread.Start();
         }
 
+        private static float GetRendererFrameTime(long currentTime, bool isPaused)
+        {
+            if (currentGLControl == null)
+            {
+                return 0f;
+            }
+
+            var wasPaused = currentGLControl.Paused;
+            currentGLControl.Paused = isPaused;
+
+            var elapsed = wasPaused && !isPaused
+                ? TimeSpan.Zero
+                : Stopwatch.GetElapsedTime(currentGLControl.LastUpdate, currentTime);
+
+            // Clamp frametime so it does not cause issues in things like particle rendering
+            return MathF.Min(1f, (float)elapsed.TotalSeconds);
+        }
+
         private static void RenderLoop()
         {
             var localHash = threadHash;
@@ -151,13 +169,13 @@ namespace GUI.Types.GLViewers
                     renderSignal.Reset();
                 }
 
-                control.Draw(currentTime, isPaused);
+                control.Draw(currentTime, GetRendererFrameTime(currentTime, isPaused));
 
                 if (!renderSignal.IsSet)
                 {
                     if (!isPaused)
                     {
-                        control.Draw(currentTime, isPaused: true);
+                        control.Draw(currentTime, GetRendererFrameTime(currentTime, true));
                     }
 
                     if (threadHash != localHash)

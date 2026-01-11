@@ -34,12 +34,12 @@ internal class ShaderHotReload : IDisposable
     private DateTime lastChanged;
     private DateTime lastReload;
 
-    private readonly GLViewerControl ViewerControl;
+    private readonly GLBaseControl ViewerControl;
     private readonly ShaderLoader ShaderLoader;
 
     public event EventHandler<string?>? ShadersReloaded;
 
-    public ShaderHotReload(GLViewerControl viewerControl, ShaderLoader shaderLoader)
+    public ShaderHotReload(GLBaseControl viewerControl, ShaderLoader shaderLoader)
     {
         ViewerControl = viewerControl;
         ShaderLoader = shaderLoader;

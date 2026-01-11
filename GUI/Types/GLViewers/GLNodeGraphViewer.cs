@@ -71,7 +71,7 @@ namespace GUI.Types.GLViewers
             // Initial fit is handled in Draw()
         }
 
-        protected override void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
+        protected override void OnPaint(float frameTime)
         {
             var bgColor = nodeGraph.CanvasBackgroundColor;
             GL.ClearColor(bgColor.Red / 255f, bgColor.Green / 255f, bgColor.Blue / 255f, bgColor.Alpha / 255f);
@@ -83,7 +83,7 @@ namespace GUI.Types.GLViewers
                 grContext = GRContext.CreateGl(glInterface);
             }
 
-            var newSize = new SKSizeI(fbo.Width, fbo.Height);
+            var newSize = new SKSizeI(MainFramebuffer.Width, MainFramebuffer.Height);
 
             if (renderTarget == null || lastSize != newSize || !renderTarget.IsValid)
             {

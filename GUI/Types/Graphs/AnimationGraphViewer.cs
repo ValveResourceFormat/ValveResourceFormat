@@ -33,7 +33,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
     {
         base.AddUiControls();
 
-        GLControl.MouseDoubleClick += OnMouseDoubleClick;
+        GLControl?.MouseDoubleClick += OnMouseDoubleClick;
     }
 
     private void OnMouseDoubleClick(object? sender, MouseEventArgs e)
