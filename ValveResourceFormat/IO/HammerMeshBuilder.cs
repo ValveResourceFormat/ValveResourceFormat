@@ -1496,7 +1496,16 @@ namespace ValveResourceFormat.IO
         {
             if (Element.ContainsKey(elementName))
             {
-                return Element.GetArray<T>(elementName);
+                Element.TryGetValue(elementName, out var arrayElement);
+                if (arrayElement == null)
+                {
+                    return null;
+                }
+
+                if (arrayElement is IList<T> typedArrayElement)
+                {
+                    return typedArrayElement;
+                }
             }
 
             return null;
