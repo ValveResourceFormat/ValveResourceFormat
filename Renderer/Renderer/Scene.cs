@@ -814,6 +814,11 @@ namespace ValveResourceFormat.Renderer
 
                 nodes.Clear();
                 i++;
+
+                if (i == LightProbeVolumeArray.MAX_PROBES)
+                {
+                    break;
+                }
             }
 
             // Assign random probe to any node that does not have any light probes to fix the flickering,
