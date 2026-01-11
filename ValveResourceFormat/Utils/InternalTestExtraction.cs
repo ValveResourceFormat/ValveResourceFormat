@@ -112,7 +112,7 @@ namespace ValveResourceFormat.Utils
 
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {
-                    contentSubFile.Extract();
+                    contentSubFile.Extract?.Invoke();
                 }
             }
             catch (FileNotFoundException)

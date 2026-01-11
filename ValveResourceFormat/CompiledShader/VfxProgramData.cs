@@ -150,9 +150,17 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Gets the static combo cache for efficiently retrieving parsed static combos.
         /// </summary>
-        public StaticCache? StaticComboCache { get; private set; }
+        public StaticCache StaticComboCache { get; private set; }
 
         private ConfigMappingParams? dBlockConfigGen;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VfxProgramData"/> class.
+        /// </summary>
+        public VfxProgramData()
+        {
+            StaticComboCache = new StaticCache(this);
+        }
 
         /// <summary>
         /// Releases streams, readers, and any cached combo data.
@@ -180,7 +188,7 @@ namespace ValveResourceFormat.CompiledShader
                 Resource?.Dispose();
                 Resource = null;
 
-                StaticComboCache?.Dispose();
+                StaticComboCache.Dispose();
             }
         }
 
@@ -232,8 +240,6 @@ namespace ValveResourceFormat.CompiledShader
 
                 VfxCreateFromResource(resource);
             }
-
-            StaticComboCache = new StaticCache(this);
         }
 
         /// <summary>

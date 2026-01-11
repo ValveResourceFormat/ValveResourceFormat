@@ -86,7 +86,7 @@ namespace Tests
 
             foreach (var item in contentFile.SubFiles)
             {
-                Assert.That(item.Extract(), Has.Length.GreaterThan(1));
+                Assert.That(item.Extract?.Invoke(), Has.Length.GreaterThan(1));
             }
             Assert.That(contentFile.Data, Has.Length.GreaterThan(1));
 

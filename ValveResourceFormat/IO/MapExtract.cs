@@ -166,9 +166,7 @@ public sealed class MapExtract
             LumpFolder = lumpFolder;
         }
 
-        var world = (World?)vworld.DataBlock;
-
-        if (world is null)
+        if (vworld.DataBlock is not World world)
         {
             throw new InvalidOperationException("Failed to get vworld");
         }
@@ -611,7 +609,7 @@ public sealed class MapExtract
 
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
-            using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName), dmxOptions);
+            using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName ?? "mesh"), dmxOptions);
 
             var mesh = (DmeModel)dmxMesh.Root!["model"]!;
 
@@ -1391,6 +1389,7 @@ public sealed class MapExtract
         }
 
         var toolTexture = GetToolTextureForEntity(associatedEntityClass);
+        Debug.Assert(toolTexture is not null);
         var modelExtract = new ModelExtract(model, FileLoader)
         {
             Type = isJustPhysics

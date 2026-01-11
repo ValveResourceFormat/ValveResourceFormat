@@ -5,8 +5,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO
 {
     /// <summary>
@@ -18,9 +16,9 @@ namespace ValveResourceFormat.IO
         /// Data can be null if the file is not meant to be written out.
         /// However it can still contain subfiles.
         /// </summary>
-        public byte[] Data { get; set; }
+        public byte[]? Data { get; set; }
 
-        private string outFileName;
+        private string outFileName = string.Empty;
 
         /// <summary>
         /// Suggested output file name. Based on the resource name.
@@ -103,12 +101,12 @@ namespace ValveResourceFormat.IO
         /// <remarks>
         /// This is relative to the content file.
         /// </remarks>
-        public string FileName { get; set; }
+        public string FileName { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the extraction function that returns the file data.
         /// </summary>
-        public virtual Func<byte[]> Extract { get; set; }
+        public virtual Func<byte[]>? Extract { get; set; }
     }
 
     /// <summary>
@@ -123,7 +121,7 @@ namespace ValveResourceFormat.IO
         private readonly IFileLoader fileLoader;
 
         /// <inheritdoc/>
-        public Resource LoadFile(string file)
+        public Resource? LoadFile(string file)
         {
             var resource = fileLoader.LoadFile(file);
             if (resource is not null)
@@ -138,10 +136,10 @@ namespace ValveResourceFormat.IO
         }
 
         /// <inheritdoc/>
-        public Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, GameFileLoader.CompiledFileSuffix));
+        public Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, GameFileLoader.CompiledFileSuffix));
 
         /// <inheritdoc/>
-        public ShaderCollection LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
+        public ShaderCollection? LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TrackingFileLoader"/> class.
@@ -163,7 +161,7 @@ namespace ValveResourceFormat.IO
         /// <param name="resource">The resource to be extracted or decompiled.</param>
         /// <param name="fileLoader">The file loader for resolving dependencies.</param>
         /// <param name="progress">Optional progress reporter.</param>
-        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string> progress = null)
+        public static ContentFile Extract(Resource resource, IFileLoader fileLoader, IProgress<string>? progress = null)
         {
             var contentFile = new ContentFile();
 
@@ -229,7 +227,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Particle:
-                    contentFile.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock).ToString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(((ParticleSystem)resource.DataBlock!).ToString()!);
                     break;
 
                 case ResourceType.ParticleSnapshot:
@@ -245,19 +243,19 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.EntityLump:
-                    contentFile.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock).ToEntityDumpString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(((EntityLump)resource.DataBlock!).ToEntityDumpString());
                     break;
 
                 case ResourceType.PostProcessing:
                     {
-                        var lutFileName = Path.ChangeExtension(resource.FileName, "raw");
+                        var lutFileName = Path.ChangeExtension(resource.FileName, "raw")!;
                         contentFile.Data = Encoding.UTF8.GetBytes(
-                            ((PostProcessing)resource.DataBlock).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
+                            ((PostProcessing)resource.DataBlock!).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
                         );
 
                         contentFile.AddSubFile(
-                            fileName: Path.GetFileName(lutFileName),
-                            extractMethod: () => ((PostProcessing)resource.DataBlock).GetRAWData()
+                            fileName: Path.GetFileName(lutFileName)!,
+                            extractMethod: () => ((PostProcessing)resource.DataBlock!).GetRAWData()
                         );
 
                         break;
@@ -276,7 +274,7 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaLayout:
                 case ResourceType.SoundEventScript:
                 case ResourceType.SoundStackScript:
-                    contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                    contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock!.ToString()!);
                     break;
 
                 case ResourceType.ChoreoSceneFileData:
@@ -289,7 +287,7 @@ namespace ValveResourceFormat.IO
 
                         if (dataBlock != null)
                         {
-                            contentFile.Data = Encoding.UTF8.GetBytes(resource.DataBlock.ToString());
+                            contentFile.Data = Encoding.UTF8.GetBytes(dataBlock.ToString()!);
                         }
 
                         break;
@@ -304,7 +302,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="stream">Stream to be extracted or decompiled.</param>
         /// <param name="fileName">The file name for context.</param>
-        public static ContentFile ExtractNonResource(Stream stream, string fileName)
+        public static ContentFile? ExtractNonResource(Stream stream, string fileName)
         {
             Span<byte> buffer = stackalloc byte[4];
             var read = stream.Read(buffer);
@@ -327,7 +325,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Attempts to extract content from a non-resource stream.
         /// </summary>
-        public static bool TryExtractNonResource(Stream stream, string fileName, out ContentFile contentFile)
+        public static bool TryExtractNonResource(Stream stream, string fileName, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ContentFile? contentFile)
         {
             contentFile = ExtractNonResource(stream, fileName);
             return contentFile != null;
@@ -337,7 +335,7 @@ namespace ValveResourceFormat.IO
         /// Determines whether the resource is a child resource.
         /// </summary>
         public static bool IsChildResource(Resource resource)
-            => resource.EditInfo.SearchableUserData.GetProperty<long>("IsChildResource") == 1;
+            => resource.EditInfo?.SearchableUserData?.GetProperty<long>("IsChildResource") == 1;
 
         /// <summary>
         /// Gets the appropriate file extension for the extracted resource.
@@ -357,7 +355,7 @@ namespace ValveResourceFormat.IO
                     {
                         if (IsChildResource(resource))
                         {
-                            var texture = (Texture)resource.DataBlock;
+                            var texture = (Texture)resource.DataBlock!;
                             return TextureExtract.GetImageOutputExtension(texture);
                         }
 
@@ -381,7 +379,7 @@ namespace ValveResourceFormat.IO
                     break;
             }
 
-            return resource.ResourceType.GetExtension();
+            return resource.ResourceType.GetExtension() ?? "dat";
         }
 
         internal static void EnsurePopulatedStringToken(IFileLoader fileLoader)

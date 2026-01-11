@@ -11,8 +11,6 @@ using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
@@ -40,12 +38,12 @@ partial class ModelExtract
     /// <summary>
     /// Gets the physics surface property names discovered in the aggregate data.
     /// </summary>
-    public string[] PhysicsSurfaceNames { get; private set; }
+    public string[] PhysicsSurfaceNames { get; private set; } = [];
 
     /// <summary>
     /// Gets the physics collision tag sets associated with the current aggregate data.
     /// </summary>
-    public HashSet<string>[] PhysicsCollisionTags { get; private set; }
+    public HashSet<string>[] PhysicsCollisionTags { get; private set; } = [];
 
     /// <summary>
     /// Gets the set of surface tag combinations.
@@ -55,7 +53,7 @@ partial class ModelExtract
     /// <summary>
     /// Gets or initializes the function to provide render material names for physics surface tags.
     /// </summary>
-    public Func<SurfaceTagCombo, string> PhysicsToRenderMaterialNameProvider { get; init; }
+    public Func<SurfaceTagCombo, string>? PhysicsToRenderMaterialNameProvider { get; init; }
 
     /// <summary>
     /// Gets or sets the translation offset for the model.
@@ -80,7 +78,7 @@ partial class ModelExtract
         /// <summary>
         /// Remap table for the mesh bone indices.
         /// </summary>
-        public int[] BoneRemapTable { get; init; }
+        public int[]? BoneRemapTable { get; init; }
     }
 
     /// <summary>
@@ -91,7 +89,7 @@ partial class ModelExtract
         string Name,
         int Index,
         string FileName,
-        int[] BoneRemapTable = null,
+        int[]? BoneRemapTable = null,
         ImportFilter ImportFilter = default
     );
 
@@ -121,7 +119,7 @@ partial class ModelExtract
         /// <summary>
         /// Determines whether the specified <see cref="SurfaceTagCombo"/> is equal to the current instance.
         /// </summary>
-        public bool Equals(SurfaceTagCombo other) => GetHashCode() == other.GetHashCode();
+        public bool Equals(SurfaceTagCombo? other) => other is not null && GetHashCode() == other.GetHashCode();
     }
 
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
@@ -142,7 +140,10 @@ partial class ModelExtract
 
     private void EnqueueMeshes()
     {
-        FileExtract.EnsurePopulatedStringToken(fileLoader);
+        if (fileLoader is not null) // May be null for mesh-only constructor
+        {
+            FileExtract.EnsurePopulatedStringToken(fileLoader);
+        }
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
     }
@@ -165,6 +166,8 @@ partial class ModelExtract
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
         {
+            Debug.Assert(fileLoader is not null, "fileLoader should not be null when loading reference meshes");
+
             using var resource = fileLoader.LoadFileCompiled(reference.MeshName);
 
             if (resource is null)
@@ -174,7 +177,11 @@ partial class ModelExtract
 
             GrabMaterialInputSignatures(resource);
 
-            var mesh = (Mesh)resource.DataBlock;
+            if (resource.DataBlock is not Mesh mesh)
+            {
+                continue;
+            }
+
             model.SetExternalMeshData(mesh);
 
             var remapTable = model.GetRemapTable(reference.MeshIndex);
@@ -184,8 +191,10 @@ partial class ModelExtract
         }
     }
 
-    internal void GrabMaterialInputSignatures(Resource resource)
+    internal void GrabMaterialInputSignatures(Resource? resource)
     {
+        Debug.Assert(fileLoader is not null, "fileLoader should not be null when grabbing material signatures");
+
         var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
         foreach (var material in materialReferences ?? [])
         {
@@ -323,7 +332,7 @@ partial class ModelExtract
     }
 
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature,
-        int boneWeightCount, int[] boneRemapTable)
+        int boneWeightCount, int[]? boneRemapTable)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 
@@ -419,10 +428,12 @@ partial class ModelExtract
 
         if (vertexData.VertexFormat.Contains("blendindices$0") && !vertexData.VertexFormat.Contains("blendweights$0"))
         {
-            var blendIndicesLength = vertexData.TryGetValue("blendindices$0", out var blendIndices)
-                ? ((ICollection<int>)blendIndices).Count
-                : throw new InvalidOperationException("blendindices$0 stream not found");
-            vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, blendIndicesLength).ToArray());
+            if (!vertexData.TryGetValue("blendindices$0", out var blendIndices) || blendIndices is not ICollection<int> collection)
+            {
+                throw new InvalidOperationException("blendindices$0 stream not found");
+            }
+
+            vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, collection.Count).ToArray());
         }
     }
 
@@ -489,6 +500,8 @@ partial class ModelExtract
                     material = "materials/tools/toolsoccluder.vmat";
                 }
 
+                material ??= "materials/default.vmat";
+
                 var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
@@ -545,7 +558,7 @@ partial class ModelExtract
         var uniformCollisionTags = PhysicsCollisionTags[hull.CollisionAttributeIndex];
         // https://github.com/ValveResourceFormat/ValveResourceFormat/issues/660#issuecomment-1795499191
         var fixRenderMeshCompileCrash = Type == ModelExtractType.Map_PhysicsToRenderMesh;
-        return ToDmxMesh(hull.Shape, hull.UserFriendlyName, uniformSurface, uniformCollisionTags, fixRenderMeshCompileCrash);
+        return ToDmxMesh(hull.Shape, hull.UserFriendlyName ?? "hull", uniformSurface, uniformCollisionTags, fixRenderMeshCompileCrash);
     }
 
     /// <summary>
@@ -556,7 +569,7 @@ partial class ModelExtract
         var uniformSurface = PhysicsSurfaceNames[mesh.SurfacePropertyIndex];
         var uniformCollisionTags = PhysicsCollisionTags[mesh.CollisionAttributeIndex];
         var fixRenderMeshCompileCrash = Type == ModelExtractType.Map_PhysicsToRenderMesh;
-        return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName, uniformSurface, uniformCollisionTags, PhysicsSurfaceNames, fixRenderMeshCompileCrash);
+        return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName ?? "mesh", uniformSurface, uniformCollisionTags, PhysicsSurfaceNames, fixRenderMeshCompileCrash);
     }
 
     /// <summary>

@@ -3,14 +3,12 @@ using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.DmxModel;
 
-#nullable disable
-
 #pragma warning disable CA2227 // Collection properties should be read only
 [CamelCaseProperties]
 internal class DmeModel : DMElement
 {
     public DmeTransform Transform { get; set; } = [];
-    public DMElement Shape { get; set; }
+    public DMElement? Shape { get; set; }
     public bool Visible { get; set; } = true;
     public Datamodel.ElementArray Children { get; } = [];
     public Datamodel.ElementArray JointList { get; set; } = [];
@@ -126,12 +124,12 @@ public class DmeMesh : DmeShape
     /// <summary>
     /// Gets or sets the bind state of the mesh.
     /// </summary>
-    public DMElement BindState { get; set; }
+    public DMElement? BindState { get; set; }
 
     /// <summary>
     /// Gets or sets the current state of the mesh.
     /// </summary>
-    public DMElement CurrentState { get; set; }
+    public DMElement? CurrentState { get; set; }
 
     /// <summary>
     /// Gets the base states of the mesh.
@@ -324,7 +322,7 @@ public class DmeChannel : DMElement
     /// <summary>
     /// Gets or sets the source element.
     /// </summary>
-    public DMElement FromElement { get; set; }
+    public DMElement? FromElement { get; set; }
 
     /// <summary>
     /// Gets or sets the source attribute name.
@@ -339,7 +337,7 @@ public class DmeChannel : DMElement
     /// <summary>
     /// Gets or sets the target element.
     /// </summary>
-    public DMElement ToElement { get; set; }
+    public DMElement? ToElement { get; set; }
 
     /// <summary>
     /// Gets or sets the target attribute name.
@@ -356,12 +354,12 @@ public class DmeChannel : DMElement
     /// </summary>
     public int Mode { get; set; }
 
-    private DMElement _log;
+    private DMElement? _log;
 
     /// <summary>
     /// Gets or sets the animation log data.
     /// </summary>
-    public DMElement Log
+    public DMElement? Log
     {
         get
         {
@@ -369,6 +367,12 @@ public class DmeChannel : DMElement
         }
         set
         {
+            if (value is null)
+            {
+                _log = null;
+                return;
+            }
+
             var logType = value.GetType();
             if (logType.GetGenericTypeDefinition() != typeof(DmeLog<>))
             {
@@ -431,7 +435,7 @@ public class DmeLog<T> : DmeTypedLog<T>
     /// Gets or sets the curve interpolation information.
     /// </summary>
     [DMProperty("curveinfo")]
-    public DMElement CurveInfo { get; set; }
+    public DMElement? CurveInfo { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether to use the default value.
@@ -443,7 +447,7 @@ public class DmeLog<T> : DmeTypedLog<T>
     /// Gets or sets the default value.
     /// </summary>
     [DMProperty("defaultvalue")]
-    public T DefaultValue { get; set; }
+    public T? DefaultValue { get; set; }
 
     /// <summary>
     /// Gets the X-axis bookmarks.
@@ -508,7 +512,7 @@ public class DmeLogLayer<T> : DmeTypedLog<T>
     /// Gets or sets the keyframe values.
     /// </summary>
     [DMProperty("values")]
-    public T[] LayerValues { get; set; }
+    public T[] LayerValues { get; set; } = [];
 
 
     /// <summary>
@@ -516,7 +520,12 @@ public class DmeLogLayer<T> : DmeTypedLog<T>
     /// </summary>
     public bool IsLayerZero()
     {
-        object defaultValue;
+        if (LayerValues.Length == 0)
+        {
+            return true;
+        }
+
+        object? defaultValue;
 
         //quaternions initialize to all 0s
         if (typeof(T) == typeof(Quaternion))
@@ -530,11 +539,16 @@ public class DmeLogLayer<T> : DmeTypedLog<T>
 
         foreach (var item in LayerValues)
         {
-            if (!item.Equals(defaultValue))
+            if (item is null && defaultValue is null)
+            {
+                continue;
+            }
+            if (item is null || !item.Equals(defaultValue))
             {
                 return false;
             }
         }
+
         return true;
     }
 }

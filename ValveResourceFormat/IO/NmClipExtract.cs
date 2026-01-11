@@ -59,7 +59,7 @@ public class NmClipExtract
             }
             kv.AddProperty("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
-            contentFile.AddSubFile(sourceFileName, () =>
+            contentFile.AddSubFile(sourceFileName ?? "animation.dmx", () =>
             {
                 return ModelExtract.ToDmxAnim(skeleton, [], animation);
             });

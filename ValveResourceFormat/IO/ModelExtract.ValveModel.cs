@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -8,14 +9,12 @@ using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
 {
     #region Bone Constraints
-    static string RemapBoneConstraintClassname(string className)
+    static string? RemapBoneConstraintClassname(string className)
     {
         return className switch
         {
@@ -58,7 +57,7 @@ partial class ModelExtract
         }
     }
 
-    static KVObject ProcessBoneConstraintTarget(KVObject target)
+    static KVObject? ProcessBoneConstraintTarget(KVObject target)
     {
         var isAttachment = target.GetProperty<bool>("m_bIsAttachment");
         var targetHash = target.GetUInt32Property("m_nBoneHash");
@@ -86,7 +85,7 @@ partial class ModelExtract
         return node;
     }
 
-    static KVObject ProcessBoneConstraintSlave(KVObject slave)
+    static KVObject? ProcessBoneConstraintSlave(KVObject slave)
     {
         var boneHash = slave.GetUInt32Property("m_nBoneHash");
         if (!StringToken.InvertedTable.TryGetValue(boneHash, out var boneName))
@@ -108,7 +107,7 @@ partial class ModelExtract
     {
         var targets = boneConstraint.GetArray("m_targets")
                                     .Select(p => ProcessBoneConstraintTarget(p))
-                                    .Where(p => p != null);
+                                    .OfType<KVObject>();
 
         IEnumerable<KVObject> children;
         if (node.GetStringProperty("_class") == "AnimConstraintParent")
@@ -131,7 +130,7 @@ partial class ModelExtract
         {
             var slaves = boneConstraint.GetArray("m_slaves")
                                         .Select(p => ProcessBoneConstraintSlave(p))
-                                        .Where(p => p != null);
+                                        .OfType<KVObject>();
 
             children = slaves.Concat(targets);
         }
@@ -144,7 +143,7 @@ partial class ModelExtract
         node.AddProperty("children", childrenKV);
     }
 
-    static KVObject ProcessBoneConstraint(KVObject boneConstraint)
+    static KVObject? ProcessBoneConstraint(KVObject? boneConstraint)
     {
         if (boneConstraint == null) //ModelDoc will compile constraints as null if it considers them invalid
         {
@@ -192,6 +191,8 @@ partial class ModelExtract
 
     KVObject ExtractBoneConstraints(KVObject[] boneConstraintsList)
     {
+        Debug.Assert(model is not null);
+
         var stringTokenKeys = model.Skeleton.Bones.Select(b => b.Name);
         if (RenderMeshesToExtract.Count > 0)
         {
@@ -276,6 +277,8 @@ partial class ModelExtract
     /// </summary>
     public string ToValveModel()
     {
+        Debug.Assert(model is not null, "model should not be null when converting to ValveModel");
+
         var kv = new KVObject(null);
 
         var root = MakeListNode("RootNode");
@@ -450,14 +453,14 @@ partial class ModelExtract
             }
         }
 
-        var modelSequenceData = model?.Resource.GetBlockByType(BlockType.ASEQ) as KeyValuesOrNTRO;
+        var modelSequenceData = model?.Resource?.GetBlockByType(BlockType.ASEQ) as KeyValuesOrNTRO;
         var additionalSequenceData = new Dictionary<string, KVObject>();
 
-        if (modelSequenceData != null)
+        if (modelSequenceData?.Data is KVObject sequenceData)
         {
             ExtractSequenceData(modelSequenceData);
 
-            foreach (var data in modelSequenceData.Data.GetArray("m_localS1SeqDescArray"))
+            foreach (var data in sequenceData.GetArray("m_localS1SeqDescArray"))
             {
                 additionalSequenceData.Add(data.GetStringProperty("m_sName"), data);
             }
@@ -538,9 +541,9 @@ partial class ModelExtract
                     childrenKV.AddItem(animEventNode);
                 }
 
-                if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var sequenceData))
+                if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var animSequenceData))
                 {
-                    var sequenceKeys = sequenceData.GetSubCollection("m_SequenceKeys");
+                    var sequenceKeys = animSequenceData.GetSubCollection("m_SequenceKeys");
                     if (sequenceKeys != null)
                     {
                         // other keys seen:
@@ -567,14 +570,18 @@ partial class ModelExtract
         {
             if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
             {
-                var globalReplace = PhysicsToRenderMaterialNameProvider == null;
-                var remapTable = globalReplace ? null
-                    : SurfaceTagCombos.ToDictionary(
+                if (PhysicsToRenderMaterialNameProvider is null)
+                {
+                    RemapMaterials(null, globalReplace: true);
+                }
+                else
+                {
+                    var remapTable = SurfaceTagCombos.ToDictionary(
                         combo => combo.StringMaterial,
                         combo => PhysicsToRenderMaterialNameProvider(combo)
                     );
-
-                RemapMaterials(remapTable, globalReplace);
+                    RemapMaterials(remapTable, globalReplace: false);
+                }
             }
 
             foreach (var (physHull, fileName) in PhysHullsToExtract)
@@ -685,7 +692,7 @@ partial class ModelExtract
         }
 
         void RemapMaterials(
-            IReadOnlyDictionary<string, string> remapTable = null,
+            IReadOnlyDictionary<string, string>? remapTable = null,
             bool globalReplace = false,
             string globalDefault = "materials/tools/toolsnodraw.vmat")
         {
@@ -815,7 +822,7 @@ partial class ModelExtract
             var breakPieceList = MakeLazyList("BreakPieceList");
             var gameDataList = MakeLazyList("GameDataList");
 
-            KVObject keyvalues = model.KeyValues;
+            var keyvalues = model.KeyValues;
 
             if (keyvalues.Count == 0)
             {
@@ -929,8 +936,10 @@ partial class ModelExtract
                 var lookAtList = keyvalues.GetSubCollection("LookAtList");
                 foreach (var item in lookAtList)
                 {
-                    var lookAtChain = item.Value as KVObject;
-                    AddGenericGameData(gameDataList.Value, "LookAtChain", lookAtChain, "lookat_chain");
+                    if (item.Value is KVObject lookAtChain)
+                    {
+                        AddGenericGameData(gameDataList.Value, "LookAtChain", lookAtChain, "lookat_chain");
+                    }
                 }
             }
 
@@ -959,7 +968,7 @@ partial class ModelExtract
                 }
             }
 
-            static KVObject ConvertFeetSettings(KVObject feetSettings)
+            static KVObject? ConvertFeetSettings(KVObject feetSettings)
             {
                 var children = new KVObject(null, isArray: true);
 
@@ -1028,8 +1037,13 @@ partial class ModelExtract
                 return feetNode;
             }
 
-            static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject genericData, string dataKey = null)
+            static void AddGenericGameData(KVObject gameDataList, string genericDataClass, KVObject? genericData, string? dataKey = null)
             {
+                if (genericData is null)
+                {
+                    return;
+                }
+
                 // Remove quotes from keys
                 genericData.Properties.Keys.ToList().ForEach(k =>
                 {

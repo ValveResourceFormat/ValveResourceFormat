@@ -3,8 +3,6 @@ using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveTexture;
 
-#nullable disable
-
 [HungarianProperties]
 internal class CDmeVtex : DMElement
 {
@@ -105,12 +103,12 @@ public class CDmeInputTexture : DMElement
     /// <summary>
     /// Gets or sets the name of the input texture.
     /// </summary>
-    public new string Name { get; set; }
+    public required new string Name { get; init; }
 
     /// <summary>
     /// Gets or sets the file name of the input texture.
     /// </summary>
-    public string FileName { get; set; }
+    public required string FileName { get; init; }
 
     /// <summary>
     /// Gets or sets the color space of the input texture.

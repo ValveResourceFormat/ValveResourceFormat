@@ -6,8 +6,6 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 /// <summary>
@@ -84,39 +82,39 @@ public sealed class ShaderExtract
     public ShaderCollection Shaders { get; init; }
 
     /// <summary>Gets the features program data.</summary>
-    public VfxProgramData Features => Shaders.Features;
+    public VfxProgramData? Features => Shaders.Features;
     /// <summary>Gets the mesh shader program data.</summary>
-    public VfxProgramData Mesh => Shaders.Mesh;
+    public VfxProgramData? Mesh => Shaders.Mesh;
     /// <summary>Gets the geometry shader program data.</summary>
-    public VfxProgramData Geometry => Shaders.Geometry;
+    public VfxProgramData? Geometry => Shaders.Geometry;
     /// <summary>Gets the vertex shader program data.</summary>
-    public VfxProgramData Vertex => Shaders.Vertex;
+    public VfxProgramData? Vertex => Shaders.Vertex;
     /// <summary>Gets the domain shader program data.</summary>
-    public VfxProgramData Domain => Shaders.Domain;
+    public VfxProgramData? Domain => Shaders.Domain;
     /// <summary>Gets the hull shader program data.</summary>
-    public VfxProgramData Hull => Shaders.Hull;
+    public VfxProgramData? Hull => Shaders.Hull;
     /// <summary>Gets the pixel shader program data.</summary>
-    public VfxProgramData Pixel => Shaders.Pixel;
+    public VfxProgramData? Pixel => Shaders.Pixel;
     /// <summary>Gets the compute shader program data.</summary>
-    public VfxProgramData Compute => Shaders.Compute;
+    public VfxProgramData? Compute => Shaders.Compute;
     /// <summary>Gets the pixel shader render state data.</summary>
-    public VfxProgramData PixelShaderRenderState => Shaders.PixelShaderRenderState;
+    public VfxProgramData? PixelShaderRenderState => Shaders.PixelShaderRenderState;
     /// <summary>Gets the raytracing shader program data.</summary>
-    public VfxProgramData Raytracing => Shaders.Raytracing;
+    public VfxProgramData? Raytracing => Shaders.Raytracing;
 
     private readonly string[] FeatureNames;
     private readonly string[] Globals;
-    private HashSet<string> VariantParameterNames;
-    private HashSet<int> VariantParameterIndices;
+    private HashSet<string> VariantParameterNames = [];
+    private HashSet<int> VariantParameterIndices = [];
 
     private ShaderExtractParams Options;
-    private Dictionary<string, IndentedTextWriter> IncludeWriters;
+    private Dictionary<string, IndentedTextWriter> IncludeWriters = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ShaderExtract"/> class.
     /// </summary>
     public ShaderExtract(Resource resource)
-        : this((SboxShader)resource.GetBlockByType(BlockType.SPRV))
+        : this((SboxShader)resource.GetBlockByType(BlockType.SPRV)!)
     { }
 
     /// <inheritdoc cref="ShaderExtract(Resource)"/>
@@ -162,7 +160,7 @@ public sealed class ShaderExtract
     /// Gets the VFX file name for this shader.
     /// </summary>
     public string GetVfxFileName()
-        => GetVfxNameFromShaderFile(Features);
+        => GetVfxNameFromShaderFile(Features!);
 
     private static string GetVfxNameFromShaderFile(VfxProgramData program)
     {
@@ -224,7 +222,7 @@ public sealed class ShaderExtract
 
         public class BufferBlockComparer : IEqualityComparer<ConstantBufferDescription>
         {
-            public bool Equals(ConstantBufferDescription x, ConstantBufferDescription y) => x.Name == y.Name;
+            public bool Equals(ConstantBufferDescription? x, ConstantBufferDescription? y) => x?.Name == y?.Name;
             public int GetHashCode(ConstantBufferDescription obj) => (int)obj.BlockCrc;
         }
     }
@@ -270,7 +268,7 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        writer.WriteLine($"Description = \"{Features.FeaturesHeader.FileDescription}\";");
+        writer.WriteLine($"Description = \"{Features!.FeaturesHeader!.FileDescription}\";");
         writer.WriteLine($"DevShader = {(Features.FeaturesHeader.DevShader ? "true" : "false")};");
         writer.WriteLine($"Version = {Features.FeaturesHeader.Version};");
 
@@ -293,7 +291,7 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        foreach (var mode in Features.FeaturesHeader.Modes)
+        foreach (var mode in Features!.FeaturesHeader!.Modes)
         {
             if (string.IsNullOrEmpty(mode.Shader))
             {
@@ -316,7 +314,7 @@ public sealed class ShaderExtract
         writer.WriteLine("{");
         writer.Indent++;
 
-        HandleFeatures(Features.StaticComboArray, Features.StaticComboRules, writer);
+        HandleFeatures(Features!.StaticComboArray, Features.StaticComboRules, writer);
 
         writer.Indent--;
         writer.WriteLine("}");
@@ -589,7 +587,7 @@ public sealed class ShaderExtract
     private void RTX(IndentedTextWriter writer)
         => HandleStageShared(writer, Raytracing, nameof(RTX));
 
-    private void HandleStageShared(IndentedTextWriter writer, VfxProgramData program, string stageName)
+    private void HandleStageShared(IndentedTextWriter writer, VfxProgramData? program, string stageName)
     {
         if (program is null)
         {
@@ -628,7 +626,7 @@ public sealed class ShaderExtract
     public class ConfigKeyComparer : IEqualityComparer<int[]>
     {
         /// <inheritdoc/>
-        public bool Equals(int[] x, int[] y)
+        public bool Equals(int[]? x, int[]? y)
         {
             return x == null || y == null
                 ? x == null && y == null
@@ -943,7 +941,7 @@ public sealed class ShaderExtract
         foreach (var attribute in zFrameFile.Attributes)
         {
             var type = ShaderUtilHelpers.GetVfxVariableTypeString(attribute.VfxType);
-            string value = null;
+            string? value = null;
 
             if (attribute.ConstValue is not null)
             {
@@ -964,9 +962,9 @@ public sealed class ShaderExtract
             {
                 value = paramBlocks[attribute.LinkedParameterIndex].Name;
             }
-            else if (attribute.DynExpression.Length > 0)
+            else if (attribute.DynExpression!.Length > 0)
             {
-                value = new VfxEval(attribute.DynExpression, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult;
+                value = new VfxEval(attribute.DynExpression, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult!;
             }
             else
             {
@@ -1410,7 +1408,7 @@ public sealed class ShaderExtract
 
         if (param.ImageFormat != ImageFormat.UNKNOWN)
         {
-            var format = Features.VcsVersion switch
+            var format = Features!.VcsVersion switch
             {
                 >= 66 => param.ImageFormat.ToString(),
                 >= 64 => ((LegacyImageFormat)param.ImageFormat).ToString(),

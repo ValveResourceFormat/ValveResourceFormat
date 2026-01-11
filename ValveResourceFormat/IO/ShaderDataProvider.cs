@@ -5,8 +5,6 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO
 {
     /// <summary>
@@ -28,7 +26,7 @@ namespace ValveResourceFormat.IO
         /// <param name="inputName">The name of the input texture.</param>
         /// <param name="material">The material containing the texture.</param>
         /// <returns>The suffix string for the input texture, or null if not found.</returns>
-        public string GetSuffixForInputTexture(string inputName, Material material);
+        public string? GetSuffixForInputTexture(string inputName, Material material);
     }
 
     /// <summary>
@@ -38,7 +36,7 @@ namespace ValveResourceFormat.IO
     {
 #pragma warning disable CA1859 // Use concrete types when possible for improved performance
         private readonly IFileLoader fileLoader;
-        private readonly IShaderDataProvider basicProvider;
+        private readonly IShaderDataProvider? basicProvider;
 #pragma warning restore CA1859
 
         /// <summary>
@@ -58,14 +56,14 @@ namespace ValveResourceFormat.IO
         /// </remarks>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
-            return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material);
+            return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material) ?? [];
         }
 
         /// <inheritdoc/>
         /// <remarks>
         /// Returns the filename suffix for the input texture, falling back to basic provider if available.
         /// </remarks>
-        public string GetSuffixForInputTexture(string inputName, Material material)
+        public string? GetSuffixForInputTexture(string inputName, Material material)
         {
             return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
         }
@@ -93,7 +91,7 @@ namespace ValveResourceFormat.IO
             VfxProgramData features,
             VfxProgramData program,
             IDictionary<string, byte> featureParams,
-            IDictionary<string, byte> staticParams = null)
+            IDictionary<string, byte>? staticParams = null)
         {
             ArgumentNullException.ThrowIfNull(features, nameof(features));
             ArgumentNullException.ThrowIfNull(program, nameof(program));
@@ -201,7 +199,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Get precise texture inputs by querying the shader files.
         /// </summary>
-        private List<(Channel Channel, string Name)> GetInputsForTexture_Internal(string textureType, Material material)
+        private List<(Channel Channel, string Name)>? GetInputsForTexture_Internal(string textureType, Material material)
         {
             var shader = fileLoader.LoadShader(material.ShaderName);
             if (shader?.Features == null)
@@ -266,7 +264,7 @@ namespace ValveResourceFormat.IO
                         staticState.Add(forcedStatic.Key, forcedStatic.Value);
                     }
 
-                    var staticConfig = GetStaticConfiguration_ForFeatureState(shader.Features, shaderFile, featureState, staticState).StaticConfig;
+                    var staticConfig = GetStaticConfiguration_ForFeatureState(shader.Features!, shaderFile, featureState, staticState).StaticConfig;
 
                     var configGen = new ConfigMappingParams(shaderFile);
                     var staticComboId = configGen.CalcStaticComboIdFromValues(staticConfig);
@@ -315,7 +313,7 @@ namespace ValveResourceFormat.IO
 
                 // TODO: Ignore possibly unused texture for export? (Issue #652)
                 throw new InvalidDataException(
-                    $"Varying parameter '{paramName}' in '{shader.Features.ShaderName}' could not be resolved. "
+                    $"Varying parameter '{paramName}' in '{shader.Features!.ShaderName}' could not be resolved. "
                     + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
             }
 
@@ -363,7 +361,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Gets the file suffix for an input texture by querying the shader file.
         /// </summary>
-        private string GetSuffixForInputTexture_Internal(string inputName, Material material)
+        private string? GetSuffixForInputTexture_Internal(string inputName, Material material)
         {
             var shader = fileLoader.LoadShader(material.ShaderName);
             if (shader?.Features != null)
@@ -569,6 +567,11 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
+                if (newTextureType == null)
+                {
+                    continue;
+                }
+
                 yield return (channel, newTextureType);
             }
         }
@@ -587,7 +590,7 @@ namespace ValveResourceFormat.IO
         /// <remarks>
         /// Provides a filename suffix based on common texture type conventions.
         /// </remarks>
-        public string GetSuffixForInputTexture(string inputName, Material material)
+        public string? GetSuffixForInputTexture(string inputName, Material material)
         {
             foreach (var (commonType, commonSuffix) in CommonTextureSuffixes)
             {
@@ -609,7 +612,7 @@ namespace ValveResourceFormat.IO
         /// <param name="intParams">The material's integer parameters.</param>
         /// <param name="newTextureType">The resolved texture type name.</param>
         /// <returns>True if the texture type was resolved, false otherwise.</returns>
-        private static bool TryFigureOutNonStaticMap(string shader, string textureType, Dictionary<string, long> intParams, out string newTextureType)
+        private static bool TryFigureOutNonStaticMap(string shader, string textureType, Dictionary<string, long> intParams, out string? newTextureType)
         {
             if (shader == "vr_simple" && textureType == "g_tColor")
             {

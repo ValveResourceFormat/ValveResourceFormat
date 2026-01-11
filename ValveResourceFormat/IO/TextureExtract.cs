@@ -8,8 +8,6 @@ using ValveResourceFormat.IO.ContentFormats.ValveTexture;
 using ValveResourceFormat.ResourceTypes;
 using ChannelMapping = ValveResourceFormat.CompiledShader.ChannelMapping;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 /// <summary>
@@ -20,7 +18,7 @@ public class TextureContentFile : ContentFile
     /// <summary>
     /// Gets or initializes the bitmap data.
     /// </summary>
-    public SKBitmap Bitmap { get; init; }
+    public required SKBitmap Bitmap { get; init; }
 
     /// <summary>
     /// Adds an image sub-file with a custom extraction function.
@@ -57,12 +55,12 @@ public sealed class ImageSubFile : SubFile
     /// <summary>
     /// Gets or initializes the bitmap data.
     /// </summary>
-    public SKBitmap Bitmap { get; init; }
+    public required SKBitmap Bitmap { get; init; }
 
     /// <summary>
     /// Gets or initializes the image extraction function.
     /// </summary>
-    public Func<SKBitmap, byte[]> ImageExtract { get; init; }
+    public required Func<SKBitmap, byte[]> ImageExtract { get; init; }
 
     /// <inheritdoc/>
     public override Func<byte[]> Extract => () => ImageExtract(Bitmap);
@@ -115,10 +113,10 @@ public sealed class TextureExtract
     /// </summary>
     public TextureExtract(Resource resource)
     {
-        texture = (Texture)resource.DataBlock;
-        fileName = resource.FileName;
+        texture = (Texture)resource.DataBlock!;
+        fileName = resource.FileName!;
         IgnoreVtexFile = FileExtract.IsChildResource(resource);
-        isSpriteSheet = texture.ExtraData.ContainsKey(VTexExtraData.SHEET);
+        isSpriteSheet = texture.ExtraData?.ContainsKey(VTexExtraData.SHEET) ?? false;
         isCubeMap = texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE);
         isArray = texture.Depth > 1;
     }
@@ -189,22 +187,22 @@ public sealed class TextureExtract
         {
             Data = IgnoreVtexFile ? null : Encoding.UTF8.GetBytes(ToValveTexture()),
             Bitmap = bitmap,
-            FileName = fileName,
+            FileName = fileName!,
         };
 
         if (TryGetMksData(out var sprites, out var mks))
         {
-            vtex.AddSubFile(Path.GetFileName(GetMksFileName()), () => Encoding.UTF8.GetBytes(mks));
+            vtex.AddSubFile(Path.GetFileName(GetMksFileName())!, () => Encoding.UTF8.GetBytes(mks));
 
             foreach (var (spriteRect, spriteFileName) in sprites)
             {
-                vtex.AddImageSubFile(Path.GetFileName(spriteFileName), (bitmap) => SubsetToPngImage(bitmap, spriteRect));
+                vtex.AddImageSubFile(Path.GetFileName(spriteFileName)!, (bitmap) => SubsetToPngImage(bitmap, spriteRect));
             }
 
             return vtex;
         }
 
-        vtex.AddImageSubFile(Path.GetFileName(GetImageFileName()), ImageEncode);
+        vtex.AddImageSubFile(Path.GetFileName(GetImageFileName())!, ImageEncode);
         return vtex;
     }
 
@@ -226,12 +224,12 @@ public sealed class TextureExtract
         var vtex = new TextureContentFile()
         {
             Bitmap = bitmap,
-            FileName = fileName,
+            FileName = fileName!,
         };
 
         foreach (var unpackInfo in mapsToUnpack)
         {
-            vtex.AddImageSubFile(Path.GetFileName(unpackInfo.FileName), (bitmap) => ToPngImageChannels(bitmap, unpackInfo.Channel));
+            vtex.AddImageSubFile(Path.GetFileName(unpackInfo.FileName)!, (bitmap) => ToPngImageChannels(bitmap, unpackInfo.Channel));
         }
 
         return vtex;
@@ -432,7 +430,7 @@ public sealed class TextureExtract
         /// <summary>
         /// Gets the packed bitmap.
         /// </summary>
-        public SKBitmap Bitmap { get; private set; }
+        public SKBitmap? Bitmap { get; private set; }
         private readonly HashSet<ChannelMapping> Packed = [];
 
         /// <summary>
@@ -520,6 +518,12 @@ public sealed class TextureExtract
         var options = new SKPngEncoderOptions(SKPngEncoderFilterFlags.AllFilters, zLibLevel: 4);
 
         using var png = pixels.Encode(options);
+
+        if (png is null)
+        {
+            return [];
+        }
+
         return png.ToArray();
     }
 

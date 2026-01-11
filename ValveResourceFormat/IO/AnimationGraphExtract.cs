@@ -5,8 +5,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 /// <summary>
@@ -16,7 +14,7 @@ public class AnimationGraphExtract
 {
     private readonly BinaryKV3 resourceData;
     private KVObject graph => resourceData.Data;
-    private readonly string outputFileName;
+    private readonly string? outputFileName;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -24,14 +22,18 @@ public class AnimationGraphExtract
     /// <param name="resource">The resource to extract from.</param>
     public AnimationGraphExtract(Resource resource)
     {
-        resourceData = (BinaryKV3)resource.DataBlock;
+        if (resource.DataBlock is not BinaryKV3 kv3)
+        {
+            throw new InvalidDataException($"Resource data block is not a BinaryKV3");
+        }
+
+        resourceData = kv3;
 
         if (resource.FileName != null)
         {
-            outputFileName = resource.FileName;
-            outputFileName = outputFileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
-                ? outputFileName[..^2]
-                : outputFileName;
+            outputFileName = resource.FileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
+                ? resource.FileName[..^2]
+                : resource.FileName;
         }
     }
 
@@ -50,7 +52,7 @@ public class AnimationGraphExtract
                 ? resourceData.GetKV3File().ToString()
                 : ToEditableAnimGraphVersion19()
             ),
-            FileName = outputFileName,
+            FileName = outputFileName ?? "animgraph",
         };
 
         return contentFile;
@@ -59,12 +61,12 @@ public class AnimationGraphExtract
     /// <summary>
     /// Gets or sets the animation tags.
     /// </summary>
-    public KVObject[] Tags { get; set; }
+    public KVObject[] Tags { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the animation parameters.
     /// </summary>
-    public KVObject[] Parameters { get; set; }
+    public KVObject[] Parameters { get; set; } = [];
 
     /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
@@ -178,7 +180,7 @@ public class AnimationGraphExtract
             }
 
             var newKey = key;
-            var subCollection = new Lazy<KVObject>(() => (KVObject)value.Value);
+            var subCollection = new Lazy<KVObject>(() => (KVObject)value.Value!);
 
             // common remapped key
             if (key is "m_name" && className is "CSequence" or "CChoice" or "CSelector"
@@ -253,26 +255,32 @@ public class AnimationGraphExtract
                     var weights = compiledNode.GetFloatArray("m_weights");
                     var blendTimes = compiledNode.GetFloatArray("m_blendTimes");
 
-                    var newInputs = weights.Zip(blendTimes, inputNodeIds).Select((choice) =>
+                    if (inputNodeIds is not null)
                     {
-                        var (weight, blendTime, nodeId) = choice;
+                        var newInputs = weights.Zip(blendTimes, inputNodeIds).Select((choice) =>
+                        {
+                            var (weight, blendTime, nodeId) = choice;
 
-                        var choiceNode = new KVObject(null, 3);
-                        AddInputConnection(choiceNode, nodeId);
-                        choiceNode.AddProperty("m_weight", weight);
-                        choiceNode.AddProperty("m_blendTime", blendTime);
+                            var choiceNode = new KVObject(null, 3);
+                            AddInputConnection(choiceNode, nodeId);
+                            choiceNode.AddProperty("m_weight", weight);
+                            choiceNode.AddProperty("m_blendTime", blendTime);
 
-                        return choiceNode;
-                    });
+                            return choiceNode;
+                        });
 
-                    node.AddProperty("m_children", KVValue.MakeArray(newInputs));
+                        node.AddProperty("m_children", KVValue.MakeArray(newInputs));
+                    }
                     continue;
                 }
             }
 
             if (key is "m_children")
             {
-                node.AddProperty(key, KVValue.MakeArray(inputNodeIds.Select(MakeInputConnection)));
+                if (inputNodeIds is not null)
+                {
+                    node.AddProperty(key, KVValue.MakeArray(inputNodeIds.Select(MakeInputConnection)));
+                }
                 continue;
             }
 

@@ -2,8 +2,6 @@ using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 /// <summary>
@@ -23,7 +21,7 @@ public sealed class SnapshotExtract
 
     /// <inheritdoc cref="SnapshotExtract(ParticleSnapshot)"/>
     public SnapshotExtract(Resource resource)
-        : this((ParticleSnapshot)resource.GetBlockByType(BlockType.SNAP))
+        : this((ParticleSnapshot)resource.GetBlockByType(BlockType.SNAP)!)
     {
     }
 

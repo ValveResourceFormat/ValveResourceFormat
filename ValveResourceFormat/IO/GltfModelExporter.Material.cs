@@ -368,6 +368,11 @@ public partial class GltfModelExporter
                 }
             }
 
+            if (occlusionRoughnessMetal.Bitmap == null)
+            {
+                throw new InvalidOperationException("Failed to create ORM texture bitmap");
+            }
+
             var pngBytes = TextureExtract.ToPngImage(occlusionRoughnessMetal.Bitmap);
 
             await LinkAndSaveImage(image, pngBytes).ConfigureAwait(false);

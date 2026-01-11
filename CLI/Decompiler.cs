@@ -603,11 +603,14 @@ namespace CLI
                 }
                 else
                 {
-                    var output = Encoding.UTF8.GetString(content.Data);
-
-                    if (!CollectStats)
+                    if (content.Data != null)
                     {
-                        Console.WriteLine(output);
+                        var output = Encoding.UTF8.GetString(content.Data);
+
+                        if (!CollectStats)
+                        {
+                            Console.WriteLine(output);
+                        }
                     }
                 }
                 content.Dispose();
@@ -1373,7 +1376,10 @@ namespace CLI
 
             foreach (var (entry, filePath) in FilteredEntries(entries))
             {
-                if (entry.TypeName != "vcs") continue;
+                if (entry.TypeName != "vcs")
+                {
+                    continue;
+                }
 
                 var (shaderName, programType, _, shaderModel) = ShaderUtilHelpers.ComputeVCSFileName(filePath);
                 if (programType != VcsProgramType.Features)
@@ -1406,7 +1412,11 @@ namespace CLI
             {
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {
-                    DumpFile(Path.Combine(Path.GetDirectoryName(path)!, contentSubFile.FileName), contentSubFile.Extract.Invoke());
+                    var data = contentSubFile.Extract?.Invoke();
+                    if (data != null)
+                    {
+                        DumpFile(Path.Combine(Path.GetDirectoryName(path)!, contentSubFile.FileName), data);
+                    }
                 }
             }
         }

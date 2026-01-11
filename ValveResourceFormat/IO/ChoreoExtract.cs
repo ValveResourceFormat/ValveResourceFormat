@@ -39,7 +39,7 @@ public class ChoreoExtract
         var vcdlist = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(indentedTextWriter.ToString()),
-            FileName = Path.GetFileName(vcdlistResource.FileName),
+            FileName = Path.GetFileName(vcdlistResource.FileName) ?? "scene.vcdlist",
         };
 
         foreach (var scene in choreoDataList.Scenes)

@@ -1,9 +1,8 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
-
-#nullable disable
 
 namespace ValveResourceFormat.IO;
 
@@ -12,10 +11,10 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 public partial class ModelExtract
 {
-    private readonly Resource modelResource;
-    private readonly Model model;
-    private readonly PhysAggregateData physAggregateData;
-    private readonly IFileLoader fileLoader;
+    private readonly Resource? modelResource;
+    private readonly Model? model;
+    private readonly PhysAggregateData? physAggregateData;
+    private readonly IFileLoader? fileLoader;
     private readonly string fileName;
 
     /// <summary>
@@ -46,19 +45,25 @@ public partial class ModelExtract
     public ModelExtract(Resource modelResource, IFileLoader fileLoader)
     {
         ArgumentNullException.ThrowIfNull(fileLoader);
+        ArgumentNullException.ThrowIfNull(modelResource);
+
+        if (modelResource.DataBlock is not Model modelData)
+        {
+            throw new InvalidDataException("Resource data block is not a Model");
+        }
 
         this.fileLoader = fileLoader;
         this.modelResource = modelResource;
-        model = (Model)modelResource.DataBlock;
+        model = modelData;
 
-        var refPhysics = model.GetReferencedPhysNames().FirstOrDefault();
+        var refPhysics = model.GetReferencedPhysNames()?.FirstOrDefault();
         if (refPhysics != null)
         {
             using var physResource = fileLoader.LoadFileCompiled(refPhysics);
 
-            if (physResource != null)
+            if (physResource?.DataBlock is PhysAggregateData physData)
             {
-                physAggregateData = (PhysAggregateData)physResource.DataBlock;
+                physAggregateData = physData;
             }
         }
         else
@@ -66,6 +71,7 @@ public partial class ModelExtract
             physAggregateData = model.GetEmbeddedPhys();
         }
 
+        fileName = Path.ChangeExtension(modelResource.FileName ?? "model", ".vmdl");
         EnqueueMeshes();
         EnqueueAnimations();
     }
@@ -75,18 +81,24 @@ public partial class ModelExtract
     /// Extract a single mesh to vmdl+dmx.
     /// </summary>
     /// <param name="mesh">Mesh data</param>
-    /// <param name="fileName">File name of the mesh e.g "models/my_mesh.vmesh"</param>
-    public ModelExtract(Mesh mesh, string fileName)
+    /// <param name="meshFileName">File name of the mesh e.g "models/my_mesh.vmesh"</param>
+    public ModelExtract(Mesh mesh, string meshFileName)
     {
-        RenderMeshesToExtract.Add(new(mesh, "unnamed", 0, GetDmxFileName_ForReferenceMesh(fileName)));
-        this.fileName = Path.ChangeExtension(fileName, ".vmdl");
+        ArgumentNullException.ThrowIfNull(mesh);
+        ArgumentNullException.ThrowIfNull(meshFileName);
+
+        RenderMeshesToExtract.Add(new(mesh, "unnamed", 0, GetDmxFileName_ForReferenceMesh(meshFileName)));
+        fileName = Path.ChangeExtension(meshFileName, ".vmdl");
     }
 
     /// <inheritdoc cref="ModelExtract(Resource, IFileLoader)"/>
-    public ModelExtract(PhysAggregateData physAggregateData, string fileName)
+    public ModelExtract(PhysAggregateData physAggregateData, string physFileName)
     {
+        ArgumentNullException.ThrowIfNull(physAggregateData);
+        ArgumentNullException.ThrowIfNull(physFileName);
+
         this.physAggregateData = physAggregateData;
-        this.fileName = fileName;
+        fileName = physFileName;
         EnqueueMeshes();
     }
 
@@ -135,7 +147,11 @@ public partial class ModelExtract
         {
             vmdl.AddSubFile(
                 Path.GetFileName(anim.FileName),
-                () => ToDmxAnim(model, anim.Anim)
+                () =>
+                {
+                    Debug.Assert(model is not null, "model should not be null when AnimationsToExtract has items");
+                    return ToDmxAnim(model, anim.Anim);
+                }
             );
         }
 

@@ -7,8 +7,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
-#nullable disable
-
 namespace ValveResourceFormat.IO;
 
 /// <summary>
@@ -33,15 +31,15 @@ public sealed class MaterialExtract
         => textureFileName.StartsWith("materials/default/", StringComparison.OrdinalIgnoreCase);
 
     private readonly Material material;
-    private readonly ResourceEditInfo editInfo;
-    private readonly IFileLoader fileLoader;
+    private readonly ResourceEditInfo? editInfo;
+    private readonly IFileLoader? fileLoader;
     private readonly IShaderDataProvider shaderDataProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MaterialExtract"/> class.
     /// </summary>
-    public MaterialExtract(Material material, ResourceEditInfo editInfo, IFileLoader fileLoader,
-        IShaderDataProvider shaderDataProvider = null)
+    public MaterialExtract(Material material, ResourceEditInfo? editInfo, IFileLoader? fileLoader,
+        IShaderDataProvider? shaderDataProvider = null)
     {
         ArgumentNullException.ThrowIfNull(material);
         this.material = material;
@@ -51,8 +49,8 @@ public sealed class MaterialExtract
     }
 
     /// <inheritdoc cref="MaterialExtract(Material, ResourceEditInfo, IFileLoader, IShaderDataProvider)"/>
-    public MaterialExtract(Resource resource, IFileLoader fileLoader = null)
-        : this((Material)resource.DataBlock, resource.EditInfo, fileLoader)
+    public MaterialExtract(Resource resource, IFileLoader? fileLoader = null)
+        : this((Material)resource.DataBlock!, resource.EditInfo, fileLoader)
     {
         if (fileLoader is not null)
         {
@@ -87,7 +85,7 @@ public sealed class MaterialExtract
                 continue;
             }
 
-            var images = GetTextureUnpackInfos(type, filePath, (Texture)texture.DataBlock, omitDefaults: true, omitUniforms: true);
+            var images = GetTextureUnpackInfos(type, filePath, (Texture)texture.DataBlock!, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
 
             if (vtex.SubFiles.Count > 0)
@@ -106,7 +104,7 @@ public sealed class MaterialExtract
     /// <summary>
     /// Generates the output texture file name from a compiled texture path.
     /// </summary>
-    public static string OutTextureName(string texturePath, bool keepOriginalExtension, bool hdr, string desiredSuffix = null)
+    public static string OutTextureName(string texturePath, bool keepOriginalExtension, bool hdr, string? desiredSuffix = null)
     {
         if (!texturePath.EndsWith(".vtex", StringComparison.OrdinalIgnoreCase))
         {
@@ -119,7 +117,7 @@ public sealed class MaterialExtract
             texturePath = Path.ChangeExtension(texturePath, null);
         }
 
-        var textureParts = Path.GetFileName(texturePath).Split('_');
+        var textureParts = Path.GetFileName(texturePath)!.Split('_');
         if (textureParts.Length > 2)
         {
             // texture_suffix_ext_hash
@@ -127,7 +125,7 @@ public sealed class MaterialExtract
             && textureParts[^2].Length >= 3 && textureParts[^2].Length <= 4 // This is the original extension
             && !string.IsNullOrEmpty(string.Join("_", textureParts[..^2])))   // Name of the Input[0] image
             {
-                texturePath = Path.Combine(Path.GetDirectoryName(texturePath), string.Join("_", textureParts[..^2]));
+                texturePath = Path.Combine(Path.GetDirectoryName(texturePath)!, string.Join("_", textureParts[..^2]));
                 texturePath = texturePath.Replace(Path.DirectorySeparatorChar, '/');
             }
             // Also seen "{MAT}_vmat_{G_TPARAM}_{HASH}.vtex"
@@ -158,7 +156,7 @@ public sealed class MaterialExtract
     /// <summary>
     /// Gets the texture unpacking information for a material texture parameter.
     /// </summary>
-    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Texture texture, bool omitDefaults, bool omitUniforms)
+    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Texture? texture, bool omitDefaults, bool omitUniforms)
     {
         var isInput0 = true;
         var shaderProvidedInputs = shaderDataProvider.GetInputsForTexture(textureType, material).ToList();
@@ -169,7 +167,7 @@ public sealed class MaterialExtract
                 continue;
             }
 
-            string desiredSuffix = null;
+            string? desiredSuffix = null;
             if (!isInput0)
             {
                 desiredSuffix = shaderDataProvider.GetSuffixForInputTexture(newTextureType, material) ?? "-" + channel;
@@ -306,7 +304,7 @@ public sealed class MaterialExtract
             }
         }
 
-        var subrectDefinition = editInfo.SearchableUserData
+        var subrectDefinition = editInfo?.SearchableUserData
             .Where(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault().Value;
 
         if (subrectDefinition is string def)
@@ -343,8 +341,13 @@ public sealed class MaterialExtract
             _unlayeredTextures = unlayeredTextures;
         }
 
-        public bool Equals(string layered, string unlayered)
+        public bool Equals(string? layered, string? unlayered)
         {
+            if (layered is null || unlayered is null)
+            {
+                return layered == unlayered;
+            }
+
             if (layered.Equals(unlayered, StringComparison.Ordinal))
             {
                 return true;
