@@ -378,8 +378,13 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public bool SetTexture(int slot, string name, RenderTexture texture)
+        public bool SetTexture(int slot, string name, RenderTexture? texture)
         {
+            if (texture == null)
+            {
+                return false;
+            }
+
             var uniformLocation = GetUniformLocation(name);
             if (uniformLocation < 0)
             {
@@ -390,8 +395,12 @@ namespace ValveResourceFormat.Renderer
             return true;
         }
 
-        public void SetTexture(int slot, int uniformLocation, RenderTexture texture)
+        public void SetTexture(int slot, int uniformLocation, RenderTexture? texture)
         {
+            if (texture == null)
+            {
+                return;
+            }
             GL.BindTextureUnit(slot, texture.Handle);
             GL.ProgramUniform1(Program, uniformLocation, slot);
         }

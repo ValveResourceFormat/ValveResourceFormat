@@ -883,9 +883,9 @@ namespace ValveResourceFormat.Renderer
                 {
                     var errorModelResource = RendererContext.FileLoader.LoadFile("models/dev/error.vmdl_c");
 
-                    if (errorModelResource != null)
+                    if (errorModelResource?.DataBlock is Model errorModelData)
                     {
-                        var errorModel = new ModelSceneNode(scene, (Model?)errorModelResource.DataBlock, skin)
+                        var errorModel = new ModelSceneNode(scene, errorModelData, skin)
                         {
                             Name = "error",
                             Transform = transformationMatrix,
@@ -908,7 +908,10 @@ namespace ValveResourceFormat.Renderer
                     renderamt /= 255f;
                 }
 
-                var newModel = (Model?)newEntity.DataBlock;
+                if (newEntity.DataBlock is not Model newModel)
+                {
+                    return;
+                }
 
                 var modelNode = new ModelSceneNode(scene, newModel, skin)
                 {
@@ -1161,11 +1164,11 @@ namespace ValveResourceFormat.Renderer
                 };
                 scene.Add(boxNode, true);
             }
-            else if (resource.ResourceType == ResourceType.Model)
+            else if (resource.ResourceType == ResourceType.Model && resource.DataBlock is Model modelData)
             {
                 var modelNode = IsCamera(classname)
-                    ? new CameraSceneNode(scene, (Model)resource.DataBlock!)
-                    : new ModelSceneNode(scene, (Model?)resource.DataBlock, null, isWorldPreview: true) { Name = filename };
+                    ? new CameraSceneNode(scene, modelData)
+                    : new ModelSceneNode(scene, modelData, null, isWorldPreview: true) { Name = filename };
 
                 modelNode.Transform = transformationMatrix;
                 modelNode.LayerName = layerName;

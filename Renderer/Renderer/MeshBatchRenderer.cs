@@ -262,16 +262,28 @@ namespace ValveResourceFormat.Renderer
             {
                 if (config.LightProbeType == LightProbeType.IndividualProbes)
                 {
-                    SetInstanceTexture(shader, ReservedTextureSlots.Probe1, uniforms.LPVIrradianceTexture, lightProbe.Irradiance);
+                    if (lightProbe.Irradiance != null)
+                    {
+                        SetInstanceTexture(shader, ReservedTextureSlots.Probe1, uniforms.LPVIrradianceTexture, lightProbe.Irradiance);
+                    }
 
                     if (config.LightmapGameVersionNumber == 1)
                     {
-                        SetInstanceTexture(shader, ReservedTextureSlots.Probe2, uniforms.LPVIndicesTexture, lightProbe.DirectLightIndices);
-                        SetInstanceTexture(shader, ReservedTextureSlots.Probe3, uniforms.LPVScalarsTexture, lightProbe.DirectLightScalars);
+                        if (lightProbe.DirectLightIndices != null)
+                        {
+                            SetInstanceTexture(shader, ReservedTextureSlots.Probe2, uniforms.LPVIndicesTexture, lightProbe.DirectLightIndices);
+                        }
+                        if (lightProbe.DirectLightScalars != null)
+                        {
+                            SetInstanceTexture(shader, ReservedTextureSlots.Probe3, uniforms.LPVScalarsTexture, lightProbe.DirectLightScalars);
+                        }
                     }
                     else if (request.Node.Scene.LightingInfo.LightmapGameVersionNumber == 2)
                     {
-                        SetInstanceTexture(shader, ReservedTextureSlots.Probe2, uniforms.LPVShadowsTexture, lightProbe.DirectLightShadows);
+                        if (lightProbe.DirectLightShadows != null)
+                        {
+                            SetInstanceTexture(shader, ReservedTextureSlots.Probe2, uniforms.LPVShadowsTexture, lightProbe.DirectLightShadows);
+                        }
                     }
                 }
 

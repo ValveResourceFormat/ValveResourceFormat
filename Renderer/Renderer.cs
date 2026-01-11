@@ -15,17 +15,17 @@ public class Renderer
     public Scene Scene { get; set; }
     public Scene? SkyboxScene { get; set; }
     public SceneSkybox2D? Skybox2D { get; set; }
-    public SceneBackground BaseBackground { get; protected set; }
+    public SceneBackground? BaseBackground { get; protected set; }
 
     public UniformBuffer<ViewConstants>? ViewBuffer { get; set; }
     public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
     private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
-    public Framebuffer ShadowDepthBuffer { get; private set; }
-    public Framebuffer FramebufferCopy { get; private set; }
+    public Framebuffer? ShadowDepthBuffer { get; private set; }
+    public Framebuffer? FramebufferCopy { get; private set; }
 
     // Injected
-    public Framebuffer MainFramebuffer { get; set; }
+    public Framebuffer? MainFramebuffer { get; set; }
     public PostProcessRenderer Postprocess { get; set; }
     public Frustum? LockedCullFrustum { get; set; }
 
@@ -34,8 +34,6 @@ public class Renderer
     public int ShadowTextureSize { get; set; } = 1024;
     public bool IsWireframe { get; set; }
     public bool ShowSkybox { get; set; } = true;
-
-#nullable disable
 
     public Renderer(RendererContext rendererContext)
     {
@@ -87,8 +85,7 @@ public class Renderer
 
     public void LoadRendererResources()
     {
-        var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext));
-
+        var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext)) ?? throw new InvalidOperationException("Failed to get renderer assembly");
         const string vtexFileName = "ggx_integrate_brdf_lut_schlick.vtex_c";
 
         // Load brdf lut, preferably from game.
@@ -96,11 +93,16 @@ public class Renderer
 
         try
         {
-            Stream brdfStream; // Will be used by LoadTexture, and disposed by resource
+            Stream? brdfStream; // Will be used by LoadTexture, and disposed by resource
 
             if (brdfLutResource == null)
             {
                 brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName);
+
+                if (brdfStream == null)
+                {
+                    throw new InvalidOperationException($"Failed to load embedded resource: {vtexFileName}");
+                }
 
                 brdfLutResource = new Resource() { FileName = vtexFileName };
                 brdfLutResource.Read(brdfStream);
@@ -116,7 +118,7 @@ public class Renderer
         }
 
         // Load default cube fog texture.
-        using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources.sky_furnace.vtex_c");
+        using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources.sky_furnace.vtex_c") ?? throw new InvalidOperationException("Failed to load embedded cube fog texture.");
         using var cubeFogResource = new Resource() { FileName = "default_cube.vtex_c" };
         cubeFogResource.Read(cubeFogStream);
 
@@ -127,28 +129,30 @@ public class Renderer
         const string blueNoiseName = "blue_noise_256.vtex_c";
         var blueNoiseResource = RendererContext.FileLoader.LoadFile("textures/dev/" + blueNoiseName);
 
-        if (Postprocess != null)
+        try
         {
-            try
+            Stream? blueNoiseStream; // Same method as brdf
+
+            if (blueNoiseResource == null)
             {
-                Stream blueNoiseStream; // Same method as brdf
+                blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + blueNoiseName);
 
-                if (blueNoiseResource == null)
+                if (blueNoiseStream == null)
                 {
-                    blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + blueNoiseName);
-
-                    blueNoiseResource = new Resource() { FileName = blueNoiseName };
-                    blueNoiseResource.Read(blueNoiseStream);
+                    throw new InvalidOperationException($"Failed to load embedded resource: {blueNoiseName}");
                 }
 
-                var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
-                Postprocess.BlueNoise = blueNoise;
-                Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
+                blueNoiseResource = new Resource() { FileName = blueNoiseName };
+                blueNoiseResource.Read(blueNoiseStream);
             }
-            finally
-            {
-                blueNoiseResource?.Dispose();
-            }
+
+            var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
+            Postprocess.BlueNoise = blueNoise;
+            Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
+        }
+        finally
+        {
+            blueNoiseResource?.Dispose();
         }
     }
 
@@ -184,6 +188,11 @@ public class Renderer
 
     public void DrawMainScene()
     {
+        if (MainFramebuffer is null)
+        {
+            throw new InvalidOperationException("MainFramebuffer must be set before rendering");
+        }
+
         var renderContext = new Scene.RenderContext
         {
             Camera = Camera,
@@ -226,10 +235,15 @@ public class Renderer
 
     public void RenderScenesWithView(Scene.RenderContext renderContext)
     {
+        if (ViewBuffer == null)
+        {
+            throw new InvalidOperationException("Initialize() must be called before rendering");
+        }
+
         var (w, h) = (renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
 
         GL.Viewport(0, 0, w, h);
-        ViewBuffer!.Data.InvViewportSize = Vector4.One / new Vector4(w, h, 1, 1);
+        ViewBuffer.Data.InvViewportSize = Vector4.One / new Vector4(w, h, 1, 1);
 
         renderContext.Framebuffer.BindAndClear();
 
@@ -263,39 +277,44 @@ public class Renderer
             GL.DepthRange(0, 0.05);
 
             renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
-            var render3DSkybox = ShowSkybox && SkyboxScene != null;
+            var skyboxScene = SkyboxScene;
+            var render3DSkybox = ShowSkybox && skyboxScene != null;
             var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
 
             if (render3DSkybox)
             {
-                SkyboxScene!.SetSceneBuffers();
-                renderContext.Scene = SkyboxScene;
+                Debug.Assert(skyboxScene is not null); // analyzer is failing here
 
-                copyColor |= SkyboxScene.WantsSceneColor;
-                copyDepth |= SkyboxScene.WantsSceneDepth;
+                skyboxScene.SetSceneBuffers();
+                renderContext.Scene = skyboxScene;
+
+                copyColor |= skyboxScene.WantsSceneColor;
+                copyDepth |= skyboxScene.WantsSceneDepth;
 
                 using var _ = new GLDebugGroup("3D Sky Scene");
-                SkyboxScene.RenderOpaqueLayer(renderContext);
+                skyboxScene.RenderOpaqueLayer(renderContext);
             }
 
             if (!isWireframe)
             {
                 using (new GLDebugGroup("2D Sky Render"))
                 {
-                    Skybox2D.Render();
+                    Skybox2D?.Render();
                 }
             }
 
-            if (renderContext.Framebuffer == MainFramebuffer)
+            if (ReferenceEquals(renderContext.Framebuffer, MainFramebuffer))
             {
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
             }
 
             if (render3DSkybox)
             {
+                Debug.Assert(skyboxScene is not null); // analyzer is failing here
+
                 using (new GLDebugGroup("3D Sky Scene Translucent Render"))
                 {
-                    RenderTranslucentLayer(SkyboxScene, renderContext);
+                    RenderTranslucentLayer(skyboxScene, renderContext);
                 }
 
                 // Back to main scene.
@@ -328,6 +347,11 @@ public class Renderer
 
     public void RenderSceneShadows(Scene.RenderContext renderContext)
     {
+        if (ShadowDepthBuffer is null || ViewBuffer is null)
+        {
+            throw new InvalidOperationException("Initialize() must be called before rendering");
+        }
+
         GL.Viewport(0, 0, ShadowDepthBuffer.Width, ShadowDepthBuffer.Height);
         ShadowDepthBuffer.Bind(FramebufferTarget.Framebuffer);
         GL.DepthRange(0, 1);
@@ -370,6 +394,11 @@ public class Renderer
         if (!copyColor && !copyDepth)
         {
             return;
+        }
+
+        if (FramebufferCopy is null)
+        {
+            throw new InvalidOperationException("Initialize() must be called before rendering");
         }
 
         if (FramebufferCopy.Width != framebuffer.Width ||
@@ -416,6 +445,11 @@ public class Renderer
 
     public void Update(Scene.UpdateContext updateContext)
     {
+        if (ViewBuffer is null || ShadowDepthBuffer is null)
+        {
+            throw new InvalidOperationException("Initialize() must be called before updating");
+        }
+
         Uptime += updateContext.Timestep;
         ViewBuffer.Data.Time = Uptime;
 

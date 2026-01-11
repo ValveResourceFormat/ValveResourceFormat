@@ -1,12 +1,11 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
-
-#nullable disable
 
 namespace ValveResourceFormat.Renderer
 {
@@ -40,20 +39,20 @@ namespace ValveResourceFormat.Renderer
         private readonly List<Animation> animations = [];
 
         public bool IsAnimated => boneMatricesGpu != null;
-        private StorageBuffer boneMatricesGpu;
+        private StorageBuffer? boneMatricesGpu;
         private readonly int boneCount;
         private readonly int[] remappingTable;
 
         private HashSet<string> activeMeshGroups = [];
         private (string Name, string[] Materials) activeMaterialGroup;
-        private Dictionary<string, string> materialTable;
+        private Dictionary<string, string>? materialTable;
 
         private readonly (string Name, string[] Materials)[] materialGroups;
         private readonly string[] meshGroups;
-        private readonly ulong[] meshGroupMasks;
+        private readonly ulong[]? meshGroupMasks;
         private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesForLod1;
 
-        public ModelSceneNode(Scene scene, Model model, string skin = null, bool isWorldPreview = false)
+        public ModelSceneNode(Scene scene, Model model, string? skin = null, bool isWorldPreview = false)
             : base(scene)
         {
             materialGroups = model.GetMaterialGroups().ToArray();
@@ -170,6 +169,8 @@ namespace ValveResourceFormat.Renderer
 
             if (IsAnimated)
             {
+                Debug.Assert(boneMatricesGpu != null, "boneMatricesGpu should not be null when IsAnimated is true");
+
                 // Update animation matrices
                 var meshBoneCount = remappingTable.Length;
 
@@ -307,12 +308,11 @@ namespace ValveResourceFormat.Renderer
             foreach (var refMesh in GetLod1RefMeshes())
             {
                 var newResource = Scene.RendererContext.FileLoader.LoadFileCompiled(refMesh.MeshName);
-                if (newResource == null)
+                if (newResource?.DataBlock is not Mesh mesh)
                 {
                     continue;
                 }
 
-                var mesh = (Mesh)newResource.DataBlock;
                 mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMeshData(mesh);
 
@@ -344,7 +344,7 @@ namespace ValveResourceFormat.Renderer
 
         public bool SetAnimationForWorldPreview(string animationName)
         {
-            Animation activeAnimation = null;
+            Animation? activeAnimation = null;
 
             if (animationName != null)
             {
@@ -363,7 +363,7 @@ namespace ValveResourceFormat.Renderer
             return false;
         }
 
-        public void SetAnimation(Animation activeAnimation)
+        public void SetAnimation(Animation? activeAnimation)
         {
             AnimationController.SetAnimation(activeAnimation);
             UpdateBoundingBox();
@@ -397,6 +397,11 @@ namespace ValveResourceFormat.Renderer
 
         private IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
         {
+            if (meshGroupMasks == null)
+            {
+                return [];
+            }
+
             var groupIndex = Array.IndexOf(meshGroups, groupName);
             if (groupIndex >= 0)
             {

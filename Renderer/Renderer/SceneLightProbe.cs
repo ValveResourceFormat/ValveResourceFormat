@@ -4,8 +4,6 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer;
 
-#nullable disable
-
 public class SceneLightProbe : SceneNode
 {
     public int HandShake { get; set; }
@@ -13,22 +11,22 @@ public class SceneLightProbe : SceneNode
     /// <remarks>
     /// Used in lighting version 6 and 8.x
     /// </remarks>
-    public RenderTexture Irradiance { get; set; }
+    public RenderTexture? Irradiance { get; set; }
 
     /// <remarks>
     /// Used in lighting version 8.1
     /// </remarks>
-    public RenderTexture DirectLightIndices { get; set; }
+    public RenderTexture? DirectLightIndices { get; set; }
 
     /// <remarks>
     /// Used in lighting version 8.1
     /// </remarks>
-    public RenderTexture DirectLightScalars { get; set; }
+    public RenderTexture? DirectLightScalars { get; set; }
 
     /// <remarks>
     /// Used in lighting version 8.2
     /// </remarks>
-    public RenderTexture DirectLightShadows { get; set; }
+    public RenderTexture? DirectLightShadows { get; set; }
 
     /// <remarks>
     /// Used in lighting version 8.2
@@ -55,7 +53,7 @@ public class SceneLightProbe : SceneNode
         LocalBoundingBox = bounds;
     }
 
-    public SceneAggregate DebugGridSpheres { get; private set; }
+    public SceneAggregate? DebugGridSpheres { get; private set; }
 
     public void CrateDebugGridSpheres()
     {
@@ -65,7 +63,13 @@ public class SceneLightProbe : SceneNode
             return;
         }
 
-        DebugGridSpheres = new SceneAggregate(Scene, (Model)ShapeSceneNode.CubemapResource.Value.DataBlock)
+        var cubemapModel = ShapeSceneNode.CubemapResource.Value.DataBlock as Model;
+        if (cubemapModel == null)
+        {
+            throw new InvalidOperationException("CubemapResource DataBlock is not a Model");
+        }
+
+        DebugGridSpheres = new SceneAggregate(Scene, cubemapModel)
         {
             LightProbeVolumePrecomputedHandshake = LightProbeVolumePrecomputedHandshake,
             LightProbeBinding = this,
@@ -134,6 +138,11 @@ public class SceneLightProbe : SceneNode
 
         if (isProbeAtlas)
         {
+            if (DirectLightShadows == null)
+            {
+                throw new InvalidOperationException("DirectLightShadows is null but probe atlas is expected");
+            }
+
             var half = Vector3.One * 0.5f;
             var depthDivide = Vector3.One with { Z = 1f / 6 };
 

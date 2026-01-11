@@ -85,7 +85,7 @@ namespace ValveResourceFormat.Renderer
         }
 #endif
 
-        public void SetBoneMatricesBuffer(StorageBuffer buffer)
+        public void SetBoneMatricesBuffer(StorageBuffer? buffer)
         {
             BoneMatricesGpu = buffer;
 
