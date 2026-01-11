@@ -2,6 +2,7 @@
 
 using System.Collections;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -104,6 +105,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
             }
             else
             {
+                ArgumentNullException.ThrowIfNull(name);
+
 #if DEBUG
                 if (!Properties.TryAdd(name, value))
                 {
@@ -298,6 +301,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <param name="name">The property name.</param>
         /// <param name="defaultValue">The default value if the property doesn't exist.</param>
         /// <returns>The property value or default value.</returns>
+        [return: NotNullIfNotNull(nameof(defaultValue))]
         public T GetProperty<T>(string name, T defaultValue = default)
         {
             if (Properties.TryGetValue(name, out var value))
