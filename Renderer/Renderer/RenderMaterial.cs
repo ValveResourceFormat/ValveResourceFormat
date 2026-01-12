@@ -44,8 +44,6 @@ namespace ValveResourceFormat.Renderer
     [DebuggerDisplay("{Material.Name} ({Shader.Name})")]
     public class RenderMaterial
     {
-        private const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
-
         public int SortId { get; }
         public required Shader Shader { get; init; }
         public Material Material { get; }
@@ -61,7 +59,6 @@ namespace ValveResourceFormat.Renderer
         private BlendMode blendMode;
         private bool isRenderBackfaces;
         private bool hasDepthBias;
-        private int textureUnit;
 
         [SetsRequiredMembers]
         public RenderMaterial(Material material, RendererContext rendererContext, Dictionary<string, byte>? shaderArguments)
@@ -225,8 +222,6 @@ namespace ValveResourceFormat.Renderer
 
         public void Render(Shader? shader = default)
         {
-            textureUnit = TextureUnitStart;
-
             shader ??= Shader;
 
             if (shader.Name is "vrf.picking" or "vrf.outline")
@@ -239,10 +234,7 @@ namespace ValveResourceFormat.Renderer
             {
                 var texture = Textures.GetValueOrDefault(name, defaultTexture);
 
-                if (shader.SetTexture(textureUnit, name, texture))
-                {
-                    textureUnit++;
-                }
+                shader.SetTexture(name, texture);
             }
 
             foreach (var param in shader.Default.Material.IntParams)
@@ -269,11 +261,6 @@ namespace ValveResourceFormat.Renderer
         public void PostRender()
         {
             ResetRenderState();
-
-            for (var i = TextureUnitStart; i <= textureUnit; i++)
-            {
-                GL.BindTextureUnit(i, 0);
-            }
         }
 
         private void SetRenderState()

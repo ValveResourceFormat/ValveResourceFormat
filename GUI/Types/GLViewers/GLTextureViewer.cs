@@ -1358,7 +1358,7 @@ namespace GUI.Types.GLViewers
             shader.SetUniform2("g_vViewportPosition", position);
             shader.SetUniform1("g_flScale", scale);
 
-            shader.SetTexture(0, "g_tInputTexture", texture);
+            shader.SetTexture("g_tInputTexture", texture);
             shader.SetUniform4("g_vInputTextureSize", new Vector4(OriginalWidth, OriginalHeight, texture.Depth, texture.NumMipLevels));
             shader.SetUniform1("g_nSelectedMip", SelectedMip);
             shader.SetUniform1("g_nSelectedDepth", SelectedDepth);

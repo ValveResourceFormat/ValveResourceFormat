@@ -378,7 +378,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public bool SetTexture(int slot, string name, RenderTexture? texture)
+        public bool SetTexture(string name, RenderTexture? texture)
         {
             if (texture == null)
             {
@@ -391,18 +391,25 @@ namespace ValveResourceFormat.Renderer
                 return false;
             }
 
-            SetTexture(slot, uniformLocation, texture);
+            SetTexture(uniformLocation, texture);
             return true;
         }
 
-        public void SetTexture(int slot, int uniformLocation, RenderTexture? texture)
+        public void SetTexture(int uniformLocation, RenderTexture? texture)
         {
             if (texture == null)
             {
                 return;
             }
-            GL.BindTextureUnit(slot, texture.Handle);
-            GL.ProgramUniform1(Program, uniformLocation, slot);
+
+            var handle = GL.Arb.GetTextureHandle(texture.Handle);
+
+            if (!GL.Arb.IsTextureHandleResident(handle))
+            {
+                GL.Arb.MakeTextureHandleResident(handle);
+            }
+
+            GL.Arb.ProgramUniformHandle(Program, uniformLocation, handle);
         }
 
 #if DEBUG

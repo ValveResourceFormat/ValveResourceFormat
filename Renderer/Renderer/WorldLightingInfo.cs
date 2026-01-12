@@ -56,20 +56,15 @@ namespace ValveResourceFormat.Renderer
 
         public void SetLightmapTextures(Shader shader)
         {
-            var i = 0;
             foreach (var (Name, Texture) in Lightmaps)
             {
-                var slot = (int)ReservedTextureSlots.Lightmap1 + i;
-                Debug.Assert(slot <= (int)ReservedTextureSlots.EnvironmentMap, "Too many lightmap textures. Reserve more slots!");
-                i++;
-
-                shader.SetTexture(slot, Name, Texture);
+                shader.SetTexture(Name, Texture);
             }
 
             if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Count > 0)
             {
-                shader.SetTexture((int)ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", LightProbes[0].Irradiance);
-                shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
+                shader.SetTexture("g_tLPV_Irradiance", LightProbes[0].Irradiance);
+                shader.SetTexture("g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
             }
         }
 

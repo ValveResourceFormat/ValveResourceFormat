@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Renderer
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             shader.Use();
-            shader.SetTexture(0, "morphAtlas", morphAtlas);
+            shader.SetTexture("morphAtlas", morphAtlas);
 
             GL.Viewport(0, 0, 2048, 2048);
             GL.ClearColor(0, 0, 0, 0);

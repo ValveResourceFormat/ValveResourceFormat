@@ -257,7 +257,7 @@ namespace ValveResourceFormat.Renderer
 
             shader.Use();
             shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, camera.WindowSize.X, camera.WindowSize.Y, 0f, -100f, 100f));
-            shader.SetTexture(0, "msdf", fontTexture);
+            shader.SetTexture("msdf", fontTexture);
             shader.SetUniform1("g_fRange", TextureRange);
 
             GL.BindVertexArray(vao);

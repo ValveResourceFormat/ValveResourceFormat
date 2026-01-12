@@ -120,8 +120,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             GL.BindVertexArray(vaoHandle);
 
-            // set texture unit 0 as uTexture uniform
-            shader.SetTexture(0, "uTexture", texture);
+            shader.SetTexture("uTexture", texture);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             // also todo: pass all of these as vertex parameters (probably just color/alpha combined)
