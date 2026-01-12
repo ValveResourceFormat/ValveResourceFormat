@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
@@ -12,8 +13,6 @@ using ValveResourceFormat.Serialization.KeyValues;
 using static GUI.Controls.SavedCameraPositionsControl;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
-#nullable disable
-
 namespace GUI.Types.GLViewers
 {
     /// <summary>
@@ -21,20 +20,20 @@ namespace GUI.Types.GLViewers
     /// </summary>
     class GLWorldViewer : GLSceneViewer
     {
-        private readonly World world;
-        private readonly WorldNode worldNode;
-        private readonly ResourceExtRefList mapExternalReferences;
-        private CheckedListBox worldLayersComboBox;
-        private CheckedListBox physicsGroupsComboBox;
-        private ComboBox cameraComboBox;
-        private SavedCameraPositionsControl savedCameraPositionsControl;
-        private EntityInfoForm entityInfoForm;
+        private readonly World? world;
+        private readonly WorldNode? worldNode;
+        private readonly ResourceExtRefList? mapExternalReferences;
+        private CheckedListBox? worldLayersComboBox;
+        private CheckedListBox? physicsGroupsComboBox;
+        private ComboBox? cameraComboBox;
+        private SavedCameraPositionsControl? savedCameraPositionsControl;
+        private EntityInfoForm? entityInfoForm;
         private bool ignoreLayersChangeEvents = true;
-        private List<Matrix4x4> CameraMatrices;
-        private WorldNodeLoader LoadedWorldNode;
-        public WorldLoader LoadedWorld;
+        private List<Matrix4x4> CameraMatrices = [];
+        private WorldNodeLoader? LoadedWorldNode;
+        public WorldLoader? LoadedWorld;
 
-        public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, World world, ResourceExtRefList externalReferences = null)
+        public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, World world, ResourceExtRefList? externalReferences = null)
             : base(vrfGuiContext, rendererContext)
         {
             this.world = world;
@@ -42,7 +41,7 @@ namespace GUI.Types.GLViewers
             Scene.EnableOcclusionCulling = externalReferences != null;
         }
 
-        public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, WorldNode worldNode, ResourceExtRefList externalReferences = null)
+        public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, WorldNode worldNode, ResourceExtRefList? externalReferences = null)
             : base(vrfGuiContext, rendererContext)
         {
             this.worldNode = worldNode;
@@ -62,6 +61,8 @@ namespace GUI.Types.GLViewers
 
         private void AddSceneExposureSlider()
         {
+            Debug.Assert(UiControl != null);
+
             var exposureLabel = new Label();
             void UpdateExposureText(float exposure)
             {
@@ -82,7 +83,7 @@ namespace GUI.Types.GLViewers
             UpdateExposureText(sceneExposure);
         }
 
-        private void OnGetOrSetPositionFromClipboardRequest(object sender, bool isSetRequest)
+        private void OnGetOrSetPositionFromClipboardRequest(object? sender, bool isSetRequest)
         {
             var pitch = 0.0f;
             var yaw = 0.0f;
@@ -122,7 +123,7 @@ namespace GUI.Types.GLViewers
             Input.Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
         }
 
-        private void OnRestoreCameraRequest(object sender, RestoreCameraRequestEvent e)
+        private void OnRestoreCameraRequest(object? sender, RestoreCameraRequestEvent e)
         {
             if (Settings.Config.SavedCameras.TryGetValue(e.Camera, out var savedFloats))
             {
@@ -137,7 +138,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private void OnSaveCameraRequest(object sender, EventArgs e)
+        private void OnSaveCameraRequest(object? sender, EventArgs e)
         {
             var cam = Renderer.Camera;
             var saveName = $"Camera at {cam.Location.X:F0} {cam.Location.Y:F0} {cam.Location.Z:F0}";
@@ -205,6 +206,8 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
+            Debug.Assert(UiControl != null);
+
             AddRenderModeSelectionControl();
 
             worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
@@ -258,12 +261,15 @@ namespace GUI.Types.GLViewers
 
                 foreach (var node in Scene.AllNodes)
                 {
-                    if (node.LayerName.StartsWith("LightProbeGrid", StringComparison.Ordinal))
+                    if (node.LayerName?.StartsWith("LightProbeGrid", StringComparison.Ordinal) == true)
                     {
                         continue;
                     }
 
-                    uniqueWorldLayers.Add(node.LayerName);
+                    if (node.LayerName != null)
+                    {
+                        uniqueWorldLayers.Add(node.LayerName);
+                    }
 
                     if (node is PhysSceneNode physSceneNode)
                     {
@@ -271,8 +277,10 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                if (uniqueWorldLayers.Count > 0)
+                if (uniqueWorldLayers.Count > 0 && LoadedWorld != null)
                 {
+                    Debug.Assert(worldLayersComboBox != null);
+
                     worldLayersComboBox.BeginUpdate();
 
                     SetAvailableLayers(uniqueWorldLayers);
@@ -300,16 +308,17 @@ namespace GUI.Types.GLViewers
 
                 UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                 UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
-                UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer.Data.ExperimentalLightsEnabled = v);
+                UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
                 UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
 
                 AddSceneExposureSlider();
             }
 
-            if (worldNode != null)
+            if (worldNode != null && worldLayersComboBox != null)
             {
                 var worldLayers = Scene.AllNodes
-                    .Select(r => r.LayerName)
+                    .Select(static r => r.LayerName)
+                    .OfType<string>()
                     .Distinct()
                     .ToList();
                 SetAvailableLayers(worldLayers);
@@ -329,7 +338,7 @@ namespace GUI.Types.GLViewers
 
         public void SelectAndFocusEntity(EntityLump.Entity entity)
         {
-            if (UiControl.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
+            if (UiControl != null && UiControl.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
             {
                 tabControl.SelectTab(tabPage);
             }
@@ -341,12 +350,19 @@ namespace GUI.Types.GLViewers
                 node = SkyboxScene.Find(entity);
             }
 
+            if (node == null)
+            {
+                return;
+            }
+
             SelectAndFocusNode(node);
         }
 
         private void SelectAndFocusNode(SceneNode node)
         {
             ArgumentNullException.ThrowIfNull(node);
+
+            Debug.Assert(SelectedNodeRenderer != null);
 
             SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
 
@@ -362,7 +378,7 @@ namespace GUI.Types.GLViewers
             Input.Camera.LookAt(bbox.Center);
 
             // Ensure the node is visible
-            if (!node.LayerEnabled)
+            if (!node.LayerEnabled && worldLayersComboBox != null && node.LayerName != null)
             {
                 var layerId = worldLayersComboBox.Items.IndexOf(node.LayerName);
 
@@ -372,7 +388,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            if (node is PhysSceneNode physNode && !physNode.Enabled)
+            if (node is PhysSceneNode physNode && !physNode.Enabled && physicsGroupsComboBox != null && physNode.PhysGroupName != null)
             {
                 var physId = physicsGroupsComboBox.Items.IndexOf(physNode.PhysGroupName);
 
@@ -393,6 +409,9 @@ namespace GUI.Types.GLViewers
                 entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick += OnEntityInfoOutputsCellDoubleClick;
                 entityInfoForm.EntityInfoControl.Disposed += OnEntityInfoFormDisposed;
             }
+
+            Debug.Assert(entityInfoForm != null);
+
             entityInfoForm.EntityInfoControl.Clear();
 
             if (isEntity)
@@ -463,7 +482,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 entityInfoForm.EntityInfoControl.AddProperty("Flags", sceneNode.Flags.ToString());
-                entityInfoForm.EntityInfoControl.AddProperty("Layer", sceneNode.LayerName);
+                entityInfoForm.EntityInfoControl.AddProperty("Layer", sceneNode.LayerName ?? string.Empty);
             }
 
             if (SkyboxScene != null && sceneNode.Scene == SkyboxScene)
@@ -475,8 +494,13 @@ namespace GUI.Types.GLViewers
             entityInfoForm.EntityInfoControl.Show();
         }
 
-        private void OnEntityInfoOutputsCellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        private void OnEntityInfoOutputsCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
+            if (entityInfoForm == null)
+            {
+                return;
+            }
+
             if (e.ColumnIndex != 1)
             {
                 return;
@@ -496,19 +520,31 @@ namespace GUI.Types.GLViewers
                 node = SkyboxScene.FindNodeByKeyValue("targetname", entityName);
             }
 
+            if (node == null)
+            {
+                return;
+            }
+
             SelectAndFocusNode(node);
             ShowSceneNodeDetails(node);
         }
 
-        private void OnEntityInfoFormDisposed(object sender, EventArgs e)
+        private void OnEntityInfoFormDisposed(object? sender, EventArgs e)
         {
+            if (entityInfoForm == null)
+            {
+                return;
+            }
+
             entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick -= OnEntityInfoOutputsCellDoubleClick;
             entityInfoForm.EntityInfoControl.Disposed -= OnEntityInfoFormDisposed;
             entityInfoForm = null;
         }
 
-        protected override void OnPicked(object sender, PickingResponse pickingResponse)
+        protected override void OnPicked(object? sender, PickingResponse pickingResponse)
         {
+            Debug.Assert(SelectedNodeRenderer != null);
+
             var pixelInfo = pickingResponse.PixelInfo;
 
             // Void
@@ -519,7 +555,7 @@ namespace GUI.Types.GLViewers
             }
 
             var isInSkybox = pixelInfo.IsSkybox > 0;
-            var sceneNode = isInSkybox ? SkyboxScene.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
+            var sceneNode = isInSkybox ? SkyboxScene?.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
 
             if (sceneNode == null)
             {
@@ -553,7 +589,7 @@ namespace GUI.Types.GLViewers
                 Program.MainForm.Invoke(() =>
                 {
                     ShowSceneNodeDetails(sceneNode);
-                    entityInfoForm.EntityInfoControl.Focus();
+                    entityInfoForm?.EntityInfoControl.Focus();
                 });
                 return;
             }
@@ -594,8 +630,11 @@ namespace GUI.Types.GLViewers
                 var unscaledZ = transform.M33 / scaleZ;
                 var pitch = MathF.Asin(-unscaledZ);
 
-                viewerControl.Input.Camera.CopyFrom(Renderer.Camera);
-                viewerControl.Input.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+                if (viewerControl is GLSceneViewer sceneViewer)
+                {
+                    sceneViewer.Input.Camera.CopyFrom(Renderer.Camera);
+                    sceneViewer.Input.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+                }
 
                 if (viewerControl is not GLModelViewer glModelViewer || sceneNode is not ModelSceneNode worldModel)
                 {
@@ -652,13 +691,16 @@ namespace GUI.Types.GLViewers
 
         private void ShowEntityProperties(SceneNode sceneNode)
         {
+            Debug.Assert(entityInfoForm != null);
+            Debug.Assert(sceneNode.EntityData != null);
+
             foreach (var (key, value) in sceneNode.EntityData.Properties)
             {
                 entityInfoForm.EntityInfoControl.AddProperty(key, value switch
                 {
                     null => string.Empty,
-                    KVObject { IsArray: true } kvArray => string.Join(' ', kvArray.Select(p => p.Value.ToString())),
-                    _ => value.ToString(),
+                    KVObject { IsArray: true } kvArray => string.Join(' ', kvArray.Select(p => p.Value?.ToString() ?? string.Empty)),
+                    _ => value.ToString() ?? string.Empty,
                 });
             }
 
@@ -676,6 +718,8 @@ namespace GUI.Types.GLViewers
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)
         {
+            Debug.Assert(worldLayersComboBox != null);
+
             worldLayersComboBox.Items.Clear();
 
             var worldLayersArray = worldLayers.ToArray();
@@ -695,6 +739,8 @@ namespace GUI.Types.GLViewers
 
         private void SetAvailablePhysicsGroups(IEnumerable<string> physicsGroups)
         {
+            Debug.Assert(physicsGroupsComboBox != null);
+
             physicsGroupsComboBox.Items.Clear();
 
             var physicsGroupsArray = physicsGroups

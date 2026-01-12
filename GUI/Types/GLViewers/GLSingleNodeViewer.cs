@@ -1,10 +1,9 @@
+using System.Diagnostics;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
-
-#nullable disable
 
 namespace GUI.Types.GLViewers
 {
@@ -13,7 +12,7 @@ namespace GUI.Types.GLViewers
     /// </summary>
     class GLSingleNodeViewer : GLSceneViewer, IDisposable
     {
-        private Framebuffer SaveAsFbo;
+        private Framebuffer? SaveAsFbo;
 
         public GLSingleNodeViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
             : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
@@ -42,6 +41,7 @@ namespace GUI.Types.GLViewers
         private void LoadDefaultEnvironmentMap()
         {
             using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
+            Debug.Assert(stream != null);
 
             using var resource = new Resource()
             {
@@ -95,14 +95,19 @@ namespace GUI.Types.GLViewers
                                                              * Matrix4x4.CreateRotationZ(MathUtils.ToRadians(sunAngles.Y));
         }
 
-        protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)
+        protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)
         {
             //
         }
 
         // Render only the main scene nodes into a transparent framebuffer
-        protected override SKBitmap ReadPixelsToBitmap()
+        protected override SKBitmap? ReadPixelsToBitmap()
         {
+            if (MainFramebuffer is null)
+            {
+                return null;
+            }
+
             using var lockedGl = MakeCurrent();
 
             var (w, h) = (MainFramebuffer.Width, MainFramebuffer.Height);
@@ -113,7 +118,7 @@ namespace GUI.Types.GLViewers
 
             Renderer.DrawMainScene();
 
-            if (SaveAsFbo == null)
+            if (SaveAsFbo is null)
             {
                 SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), w, h, 0, new(PixelInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte), null);
                 SaveAsFbo.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 0, 0);

@@ -2,8 +2,6 @@ using System.Linq;
 using System.Windows.Forms;
 using SkiaSharp;
 
-#nullable disable
-
 namespace GUI.Types.Graphs
 {
     /*
@@ -52,7 +50,7 @@ namespace GUI.Types.Graphs
             GC.SuppressFinalize(this);
         }
 
-        public event EventHandler GraphChanged;
+        public event EventHandler? GraphChanged;
 
         private void OnGraphChanged()
         {
@@ -164,8 +162,8 @@ namespace GUI.Types.Graphs
         private readonly List<AbstractNode> _graphNodes = [];
         private readonly List<Wire> _connections = [];
 
-        private NodeUIElement lastHoveredNode;
-        private AbstractNode primarySelectedNode;
+        private NodeUIElement? lastHoveredNode;
+        private AbstractNode? primarySelectedNode;
         private readonly HashSet<AbstractNode> connectedNodes = [];
 
         public bool IsMoving { get; private set; }
@@ -423,7 +421,7 @@ namespace GUI.Types.Graphs
         }
 
         // Find element at graph-space point
-        public NodeUIElement FindElementAt(SKPoint point)
+        public NodeUIElement? FindElementAt(SKPoint point)
         {
             // Iterate in reverse order to find topmost (frontmost) nodes first
             for (var i = _graphNodes.Count - 1; i >= 0; i--)

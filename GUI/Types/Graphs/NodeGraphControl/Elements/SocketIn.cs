@@ -1,7 +1,5 @@
 using System.Linq;
 
-#nullable disable
-
 namespace GUI.Types.Graphs
 {
     public class SocketIn : AbstractSocket
@@ -10,7 +8,7 @@ namespace GUI.Types.Graphs
 
         public bool Hub { get; init; }
 
-        public SocketIn(Type valueType, string name, AbstractNode owner, bool hub) : base(valueType, name, owner)
+        public SocketIn(Type valueType, string? name, AbstractNode owner, bool hub) : base(valueType, name, owner)
         {
             Hub = hub;
         }

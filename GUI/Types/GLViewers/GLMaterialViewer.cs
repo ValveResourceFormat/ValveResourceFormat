@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -11,7 +12,6 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using Resource = ValveResourceFormat.Resource;
-#nullable disable
 
 namespace GUI.Types.GLViewers
 {
@@ -39,11 +39,11 @@ namespace GUI.Types.GLViewers
 
 
         private readonly Resource Resource;
-        private TabControl Tabs;
-        private Button openShaderButton;
-        private TableLayoutPanel ParamsTable;
-        private RenderMaterial renderMat;
-        private ComboBox previewObjectComboBox;
+        private TabControl? Tabs;
+        private Button? openShaderButton;
+        private TableLayoutPanel? ParamsTable;
+        private RenderMaterial? renderMat;
+        private ComboBox? previewObjectComboBox;
 
         private enum PreviewObjectType
         {
@@ -55,7 +55,7 @@ namespace GUI.Types.GLViewers
         private PreviewObjectType currentPreviewObject = PreviewObjectType.Quad;
         private readonly Dictionary<PreviewObjectType, MeshCollectionNode> previewObjects = [];
         private MeshCollectionNode previewNode => previewObjects[currentPreviewObject];
-        private ShaderCollection vcsShader;
+        private ShaderCollection? vcsShader;
 
         public GLMaterialViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Resource resource) : base(vrfGuiContext, rendererContext)
         {
@@ -110,14 +110,13 @@ namespace GUI.Types.GLViewers
                 previewObjects[PreviewObjectType.Sphere] = sphereMesh;
             }
 
-            var material = (Material)Resource.DataBlock;
-            if (material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
+            if (Resource.DataBlock is Material material && material.StringAttributes.TryGetValue("PreviewModel", out var previewModel))
             {
                 var previewModelResource = GuiContext.LoadFileCompiled(previewModel);
 
-                if (previewModelResource != null)
+                if (previewModelResource != null && previewModelResource.DataBlock is Model modelData)
                 {
-                    var customModel = new ModelSceneNode(Scene, (Model)previewModelResource.DataBlock);
+                    var customModel = new ModelSceneNode(Scene, modelData);
 
                     foreach (var renderable in customModel.RenderableMeshes)
                     {
@@ -134,11 +133,14 @@ namespace GUI.Types.GLViewers
 
         private void CreateMaterialEditControls()
         {
+            Debug.Assert(ParamsTable != null);
+            Debug.Assert(UiControl != null);
+
             var mesh = previewNode.RenderableMeshes[0];
             var drawCall = mesh.DrawCallsOpaque.Concat(mesh.DrawCallsBlended).First();
 
             // Collect all parameters with their types and sort them together
-            var allParams = new List<(string name, object value, ParamType type, VfxVariableDescription vfx)>();
+            var allParams = new List<(string name, object value, ParamType type, VfxVariableDescription? vfx)>();
 
             var materialParams = drawCall.Material.Material;
             var shaderParams = drawCall.Material.Shader.Default.Material;
@@ -151,7 +153,7 @@ namespace GUI.Types.GLViewers
             allParameterNames.UnionWith(shaderParams.VectorParams.Keys);
 
             var vcsDescriptionByName = new Dictionary<string, VfxVariableDescription>();
-            if (vcsShader.Features != null)
+            if (vcsShader?.Features != null)
             {
                 foreach (var varDesc in vcsShader.Features.VariableDescriptions)
                 {
@@ -334,6 +336,8 @@ namespace GUI.Types.GLViewers
 
         private void AddBooleanParameter(string paramName, bool initialValue, Action<bool> onValueChanged, bool isEnabled = true)
         {
+            Debug.Assert(ParamsTable != null);
+
             var row = ParamsTable.RowCount;
             ParamsTable.RowCount = row + 1;
             ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
@@ -370,6 +374,8 @@ namespace GUI.Types.GLViewers
 
         private void AddVectorParameter(string paramName, int componentCount, Vector4 value, Action<Vector4> onValueChanged, bool isEnabled = true)
         {
+            Debug.Assert(ParamsTable != null);
+
             var row = ParamsTable.RowCount;
             ParamsTable.RowCount = row + 1;
             ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
@@ -494,6 +500,8 @@ namespace GUI.Types.GLViewers
 
         private void AddColorParameter(string paramName, Color initialColor, Action<Color> onValueChanged, bool isEnabled = true)
         {
+            Debug.Assert(ParamsTable != null);
+
             var row = ParamsTable.RowCount;
             ParamsTable.RowCount = row + 1;
             ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
@@ -538,6 +546,8 @@ namespace GUI.Types.GLViewers
 
         private void AddNumericParameter(string paramName, float initialValue, ParamType paramType, Action<float> onValueChanged, bool isEnabled = true)
         {
+            Debug.Assert(ParamsTable != null);
+
             var row = ParamsTable.RowCount;
             ParamsTable.RowCount = row + 1;
             ParamsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
@@ -657,7 +667,7 @@ namespace GUI.Types.GLViewers
         protected override void OnFirstPaint()
         {
             Input.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
-            if (renderMat.IsCs2Water)
+            if (renderMat != null && renderMat.IsCs2Water)
             {
                 Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, MathUtils.ToRadians(-90f));
             }
@@ -672,16 +682,25 @@ namespace GUI.Types.GLViewers
 
         public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
         {
-            var node = new ModelSceneNode(scene, (Model)ShapeSceneNode.CubemapResource.Value.DataBlock);
+            if (ShapeSceneNode.CubemapResource.Value.DataBlock is not Model model)
+            {
+                throw new InvalidDataException("Cubemap resource is not a Model.");
+            }
+
+            var node = new ModelSceneNode(scene, model);
             return node;
         }
 
-        private void OnShadersButtonClick(object s, EventArgs e)
+        private void OnShadersButtonClick(object? s, EventArgs e)
         {
-            var material = (Material)Resource.DataBlock;
+            if (Resource.DataBlock is not Material material)
+            {
+                return;
+            }
+
             var featureState = ShaderDataProvider.GetMaterialFeatureState(material);
 
-            if (Tabs == null)
+            if (Tabs == null || vcsShader == null)
             {
                 // todo: open in new tab when we're in preivew
                 return;
@@ -721,6 +740,8 @@ namespace GUI.Types.GLViewers
 
         private void AddShaderButton()
         {
+            Debug.Assert(UiControl != null);
+
             openShaderButton = new ThemedButton
             {
                 Text = $"Open Shader",
@@ -741,8 +762,10 @@ namespace GUI.Types.GLViewers
                 (int)(v.Z * 255));
         }
 
-        private void RenderMeshPreview_SelectionChanged(object sender, EventArgs e)
+        private void RenderMeshPreview_SelectionChanged(object? sender, EventArgs e)
         {
+            Debug.Assert(previewObjectComboBox != null);
+
             foreach (var node in previewObjects.Values)
             {
                 node.LayerEnabled = false;
@@ -750,7 +773,7 @@ namespace GUI.Types.GLViewers
 
             if (Scene != null && previewObjectComboBox.SelectedIndex >= 0)
             {
-                currentPreviewObject = Enum.Parse<PreviewObjectType>(previewObjectComboBox.SelectedItem.ToString());
+                currentPreviewObject = Enum.Parse<PreviewObjectType>(previewObjectComboBox.SelectedItem?.ToString() ?? string.Empty);
                 previewNode.LayerEnabled = true;
                 OnFirstPaint();
             }
@@ -763,6 +786,8 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
+            Debug.Assert(UiControl != null);
+
             // Make controls panel wider for material parameters
             UiControl.UseWideSplitter();
 
@@ -859,8 +884,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 var selectedIndex = (int)PreviewObjectType.Quad;
-                var material = (Material)Resource.DataBlock;
-                if (material.StringAttributes.ContainsKey("PreviewModel") && previewObjects.ContainsKey(PreviewObjectType.CustomModel))
+                if (Resource.DataBlock is Material material && material.StringAttributes.ContainsKey("PreviewModel") && previewObjects.ContainsKey(PreviewObjectType.CustomModel))
                 {
                     selectedIndex = (int)PreviewObjectType.CustomModel;
                 }

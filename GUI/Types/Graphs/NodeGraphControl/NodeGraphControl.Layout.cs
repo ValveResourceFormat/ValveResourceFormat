@@ -1,8 +1,6 @@
 using System.Linq;
 using SkiaSharp;
 
-#nullable disable
-
 namespace GUI.Types.Graphs
 {
     public partial class NodeGraphControl
@@ -269,7 +267,7 @@ namespace GUI.Types.Graphs
         private static List<List<AbstractNode>> ReduceCrossings(List<List<AbstractNode>> nodeLayers, Dictionary<AbstractNode, int> nodeToLayer, int maxIterations = 24)
         {
             var bestCrossings = int.MaxValue;
-            List<List<AbstractNode>> bestConfiguration = null;
+            List<List<AbstractNode>>? bestConfiguration = null;
 
             for (var iteration = 0; iteration < maxIterations; iteration++)
             {

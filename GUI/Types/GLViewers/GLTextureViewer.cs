@@ -16,8 +16,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
-#nullable disable
-
 namespace GUI.Types.GLViewers
 {
     class GLTextureViewer : GLBaseControl, IDisposable
@@ -43,13 +41,13 @@ namespace GUI.Types.GLViewers
         }
 
         protected VrfGuiContext VrfGuiContext;
-        private Resource Resource;
-        private SKBitmap Bitmap;
-        private SKSvg Svg;
-        private RenderTexture texture;
-        private Shader shader;
+        private Resource? Resource;
+        private SKBitmap? Bitmap;
+        private SKSvg? Svg;
+        private RenderTexture? texture;
+        private Shader? shader;
 
-        private SKBitmap NextBitmapToSet;
+        private SKBitmap? NextBitmapToSet;
         private int NextBitmapVersion;
 
         protected Vector2? ClickPosition;
@@ -71,9 +69,9 @@ namespace GUI.Types.GLViewers
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
         private const TextureCodec softwareDecodeOnlyOptions = TextureCodec.ForceLDR;
-        private Framebuffer SaveAsFbo;
+        private Framebuffer? SaveAsFbo;
 
-        private CheckedListBox decodeFlagsListBox;
+        private CheckedListBox? decodeFlagsListBox;
         private bool ShowLightBackground;
         private bool WasMovingLastFrame;
 
@@ -140,7 +138,9 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
-            GLControl.PreviewKeyDown += OnPreviewKeyDown;
+            Debug.Assert(UiControl != null);
+
+            GLControl?.PreviewKeyDown += OnPreviewKeyDown;
 
             ShowLightBackground = !Application.IsDarkModeEnabled;
 
@@ -176,6 +176,9 @@ namespace GUI.Types.GLViewers
 
         private void InitializeUIControlsForResource()
         {
+            Debug.Assert(Resource != null);
+            Debug.Assert(UiControl != null);
+
             var saveButton = new ThemedButton
             {
                 Text = "Save to disk…",
@@ -210,9 +213,8 @@ namespace GUI.Types.GLViewers
                 AddChannelsComboBox();
                 return;
             }
-            else if (Resource.ResourceType == ResourceType.PostProcessing)
+            else if (Resource.ResourceType == ResourceType.PostProcessing && Resource.DataBlock is PostProcessing postProcessingData)
             {
-                var postProcessingData = (PostProcessing)Resource.DataBlock;
                 var resolution = postProcessingData.GetColorCorrectionLUTDimension();
 
                 UiControl.AddControl(new Label
@@ -238,7 +240,10 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var textureData = (Texture)Resource.DataBlock;
+            if (Resource.DataBlock is not Texture textureData)
+            {
+                return;
+            }
 
             UiControl.AddControl(new Label
             {
@@ -251,9 +256,9 @@ namespace GUI.Types.GLViewers
                 Width = 200,
             });
 
-            ComboBox cubemapProjectionComboBox = null;
-            CheckBox softwareDecodeCheckBox = null;
-            ComboBox depthComboBox = null;
+            ComboBox? cubemapProjectionComboBox = null;
+            CheckBox? softwareDecodeCheckBox = null;
+            ComboBox? depthComboBox = null;
 
             if (textureData.NumMipLevels > 1)
             {
@@ -317,11 +322,11 @@ namespace GUI.Types.GLViewers
 
             if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
-                ComboBox cubeFaceComboBox = null;
+                ComboBox? cubeFaceComboBox = null;
 
                 cubemapProjectionComboBox = UiControl.AddSelection("Projection type", (name, index) =>
                 {
-                    cubeFaceComboBox.Enabled = index == 0;
+                    cubeFaceComboBox!.Enabled = index == 0;
 
                     if (softwareDecodeCheckBox == null)
                     {
@@ -377,7 +382,7 @@ namespace GUI.Types.GLViewers
             var forceSoftwareDecode = textureData.IsRawAnyImage;
             softwareDecodeCheckBox = UiControl.AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
             {
-                if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
+                if (cubemapProjectionComboBox != null)
                 {
                     if (state)
                     {
@@ -411,7 +416,7 @@ namespace GUI.Types.GLViewers
             return;
         }
 
-        public GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SKBitmap bitmap) : this(vrfGuiContext, rendererContext)
+        public GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SKBitmap? bitmap) : this(vrfGuiContext, rendererContext)
         {
             Bitmap = bitmap;
         }
@@ -425,9 +430,9 @@ namespace GUI.Types.GLViewers
         {
             Resource = resource;
 
-            if (resource.ResourceType == ResourceType.PanoramaVectorGraphic)
+            if (resource.ResourceType == ResourceType.PanoramaVectorGraphic && resource.DataBlock is Panorama panoramaData)
             {
-                using var ms = new MemoryStream(((Panorama)resource.DataBlock).Data);
+                using var ms = new MemoryStream(panoramaData.Data);
                 var svg = new SKSvg();
                 svg.Load(ms);
 
@@ -437,6 +442,8 @@ namespace GUI.Types.GLViewers
 
         private void SetSvg(SKSvg svg)
         {
+            ArgumentNullException.ThrowIfNull(svg.Picture);
+
             Svg = svg;
             OriginalWidth = Svg.Picture.CullRect.Width;
             OriginalHeight = Svg.Picture.CullRect.Height;
@@ -444,6 +451,8 @@ namespace GUI.Types.GLViewers
 
         private void AddChannelsComboBox()
         {
+            Debug.Assert(UiControl != null);
+
             var channelsComboBox = UiControl.AddSelection("Channels", (name, index) =>
             {
                 SelectedChannels = ChannelsComboBoxOrder[index].Channels;
@@ -527,8 +536,8 @@ namespace GUI.Types.GLViewers
             var i = 0;
             for (var flag = 0; flag < values.Length; flag++)
             {
-                var value = (TextureCodec)values.GetValue(flag);
-                var name = Enum.GetName(value);
+                var value = (TextureCodec)values.GetValue(flag)!;
+                var name = Enum.GetName(value)!;
 
                 var isCombinedFlag = (value & value - 1) != 0;
                 var skipFlags = TextureCodec.None | TextureCodec.Auto;
@@ -570,7 +579,7 @@ namespace GUI.Types.GLViewers
             decodeFlagsListBox = null;
         }
 
-        private void OnSaveButtonClick(object sender, EventArgs e)
+        private void OnSaveButtonClick(object? sender, EventArgs e)
         {
             if (Resource == null)
             {
@@ -580,7 +589,7 @@ namespace GUI.Types.GLViewers
             var filter = "PNG Image|*.png|JPG Image|*.jpg";
             var alternativeImageFormatIndex = 2;
 
-            var isHdrTexture = Resource?.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
+            var isHdrTexture = Resource.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
 
             if (Svg != null)
             {
@@ -607,13 +616,17 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            Settings.Config.SaveDirectory = Path.GetDirectoryName(saveFileDialog.FileName);
+            var directory = saveFileDialog.FileName;
+            if (directory != null)
+            {
+                Settings.Config.SaveDirectory = directory;
+            }
 
             using var fs = saveFileDialog.OpenFile();
 
-            if (Svg != null && saveFileDialog.FilterIndex == 1)
+            if (Svg != null && saveFileDialog.FilterIndex == 1 && Resource.DataBlock is Panorama panoramaData)
             {
-                fs.Write(((Panorama)Resource.DataBlock).Data);
+                fs.Write(panoramaData.Data);
                 return;
             }
 
@@ -669,7 +682,7 @@ namespace GUI.Types.GLViewers
 
                 var fboFormat = GLTextureDecoder.GetPreferredFramebufferFormat(hdr);
 
-                if (SaveAsFbo != null)
+                if (SaveAsFbo is not null)
                 {
                     if (SaveAsFbo.ColorFormat != fboFormat)
                     {
@@ -682,7 +695,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                if (SaveAsFbo == null)
+                if (SaveAsFbo is null)
                 {
                     SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), bitmap.Width, bitmap.Height, 0, fboFormat, null);
                     SaveAsFbo.Initialize();
@@ -697,8 +710,9 @@ namespace GUI.Types.GLViewers
 
                 SaveAsFbo.Bind(FramebufferTarget.ReadFramebuffer);
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, SaveAsFbo.ColorFormat.PixelFormat, SaveAsFbo.ColorFormat.PixelType, pixels);
+                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, SaveAsFbo.ColorFormat!.PixelFormat, SaveAsFbo.ColorFormat.PixelType, pixels);
 
+                Debug.Assert(MainFramebuffer is not null);
                 MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
                 var bitmapToReturn = bitmap;
@@ -733,7 +747,7 @@ namespace GUI.Types.GLViewers
 
         private void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
-        private void OnPreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        private void OnPreviewKeyDown(object? sender, PreviewKeyDownEventArgs e)
         {
             if (e.KeyCode is Keys.Up or Keys.Down or Keys.Left or Keys.Right)
             {
@@ -741,7 +755,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnKeyDown(object sender, KeyEventArgs e)
+        protected override void OnKeyDown(object? sender, KeyEventArgs e)
         {
             base.OnKeyDown(sender, e);
 
@@ -749,7 +763,7 @@ namespace GUI.Types.GLViewers
 
             if (e.KeyData == (Keys.Control | Keys.S))
             {
-                OnSaveButtonClick(null, null);
+                OnSaveButtonClick(null, EventArgs.Empty);
                 return;
             }
 
@@ -758,6 +772,8 @@ namespace GUI.Types.GLViewers
                 ResetZoom();
                 return;
             }
+
+            Debug.Assert(GLControl != null);
 
             if (e.KeyData == (Keys.Control | Keys.Add) || e.KeyData == (Keys.Control | Keys.Oemplus))
             {
@@ -842,8 +858,10 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnMouseMove(object sender, MouseEventArgs e)
+        protected override void OnMouseMove(object? sender, MouseEventArgs e)
         {
+            Debug.Assert(GLControl != null);
+
             GLControl.Focus();
 
             if (ClickPosition == null)
@@ -868,17 +886,17 @@ namespace GUI.Types.GLViewers
             InvalidateRender();
         }
 
-        protected override void OnMouseDown(object sender, MouseEventArgs e)
+        protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             ClickPosition = Position + new Vector2(e.Location.X, e.Location.Y);
         }
 
-        protected override void OnMouseUp(object sender, MouseEventArgs mouseEventArgs)
+        protected override void OnMouseUp(object? sender, MouseEventArgs mouseEventArgs)
         {
             ClickPosition = null;
         }
 
-        protected override void OnMouseWheel(object sender, MouseEventArgs e)
+        protected override void OnMouseWheel(object? sender, MouseEventArgs e)
         {
             var isShiftPressed = (CurrentlyPressedKeys & TrackedKeys.Shift) > 0;
             var isCtrlPressed = (CurrentlyPressedKeys & TrackedKeys.Control) > 0;
@@ -960,6 +978,8 @@ namespace GUI.Types.GLViewers
 
         private void ClampPosition()
         {
+            Debug.Assert(GLControl != null);
+
             var width = ActualTextureSizeScaled.X;
             var height = ActualTextureSizeScaled.Y;
 
@@ -1008,6 +1028,8 @@ namespace GUI.Types.GLViewers
 
         private void CenterPosition()
         {
+            Debug.Assert(GLControl != null);
+
             Position = -new Vector2(
                 GLControl.Width / 2f - ActualTextureSizeScaled.X / 2f,
                 GLControl.Height / 2f - ActualTextureSizeScaled.Y / 2f
@@ -1052,9 +1074,8 @@ namespace GUI.Types.GLViewers
                 OriginalHeight = texture.Height;
 
                 // Render software mips at full size
-                if (forceSoftwareDecode && SelectedMip > 0)
+                if (forceSoftwareDecode && SelectedMip > 0 && Resource?.DataBlock is Texture textureData)
                 {
-                    var textureData = (Texture)Resource.DataBlock;
                     OriginalWidth = textureData.Width;
                     OriginalHeight = textureData.Height;
                 }
@@ -1088,19 +1109,26 @@ namespace GUI.Types.GLViewers
             {
                 GenerateNewSvgBitmap();
 
-                using (NextBitmapToSet)
+                if (NextBitmapToSet != null)
                 {
-                    UploadBitmap(NextBitmapToSet);
-                }
+                    using (NextBitmapToSet)
+                    {
+                        UploadBitmap(NextBitmapToSet);
+                    }
 
-                NextBitmapToSet = null;
+                    NextBitmapToSet = null;
+                }
 
                 return;
             }
 
-            if (Resource.ResourceType == ResourceType.PostProcessing)
+            if (Resource == null)
             {
-                var postProcessingData = (PostProcessing)Resource.DataBlock;
+                return;
+            }
+
+            if (Resource.ResourceType == ResourceType.PostProcessing && Resource.DataBlock is PostProcessing postProcessingData)
+            {
                 var resolution = postProcessingData.GetColorCorrectionLUTDimension();
                 var data = postProcessingData.GetColorCorrectionLUT();
 
@@ -1112,7 +1140,11 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var textureData = (Texture)Resource.DataBlock;
+            if (Resource.DataBlock is not Texture textureData)
+            {
+                return;
+            }
+
             var isCpuDecodedFormat = textureData.IsRawAnyImage;
             var swDecodeFlags = decodeFlags & softwareDecodeOnlyOptions;
 
@@ -1154,6 +1186,8 @@ namespace GUI.Types.GLViewers
 
         private void GenerateNewSvgBitmap()
         {
+            Debug.Assert(Svg?.Picture != null);
+
             var version = NextBitmapVersion;
 
             var width = Svg.Picture.CullRect.Width * TextureScale;
@@ -1190,16 +1224,20 @@ namespace GUI.Types.GLViewers
             // Use non-msaa framebuffer for texture viewer
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
-                MainFramebuffer.Delete();
+                MainFramebuffer?.Delete();
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 
+            Debug.Assert(MainFramebuffer != null);
             MainFramebuffer.ClearColor = OpenTK.Mathematics.Color4.White;
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
         }
 
         protected override void OnFirstPaint()
         {
+            Debug.Assert(GLControl != null);
+            Debug.Assert(UiControl != null);
+
             if (GLControl.Width < ActualTextureSize.X || GLControl.Height < ActualTextureSize.Y || Svg != null)
             {
                 // Initially scale image to fit if it's bigger than the viewport
@@ -1236,6 +1274,9 @@ namespace GUI.Types.GLViewers
 
         protected override void OnPaint(float frameTime)
         {
+            Debug.Assert(MainFramebuffer is not null);
+            Debug.Assert(GLControl is not null);
+
             base.OnPaint(frameTime);
 
             if (NextBitmapToSet != null)
@@ -1295,6 +1336,9 @@ namespace GUI.Types.GLViewers
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
 
+            Debug.Assert(shader != null);
+            Debug.Assert(texture != null);
+
             shader.Use();
 
             shader.SetUniform1("g_bTextureViewer", true);
@@ -1341,7 +1385,7 @@ namespace GUI.Types.GLViewers
         }
 
 #if DEBUG
-        private void OnHotReload(object sender, string e)
+        private void OnHotReload(object? sender, string? e)
         {
             InvalidateRender();
         }

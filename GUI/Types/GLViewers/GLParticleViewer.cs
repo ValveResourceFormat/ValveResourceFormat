@@ -1,9 +1,8 @@
+using System.Diagnostics;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
-
-#nullable disable
 
 namespace GUI.Types.GLViewers
 {
@@ -14,8 +13,8 @@ namespace GUI.Types.GLViewers
     class GLParticleViewer : GLSceneViewer
     {
         private readonly ParticleSystem particleSystem;
-        private ParticleSceneNode particleSceneNode;
-        private GLViewerSliderControl slowmodeTrackBar;
+        private ParticleSceneNode? particleSceneNode;
+        private GLViewerSliderControl? slowmodeTrackBar;
 
         private bool ShowRenderBounds { get; set; }
 
@@ -50,12 +49,15 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
+            Debug.Assert(UiControl != null);
+            Debug.Assert(SelectedNodeRenderer != null);
+
             AddRenderModeSelectionControl();
             AddBaseGridControl();
 
             slowmodeTrackBar = UiControl.AddTrackBar(value =>
             {
-                particleSceneNode.FrametimeMultiplier = value;
+                particleSceneNode?.FrametimeMultiplier = value;
             });
 
             UiControl.AddCheckBox("Show render bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
@@ -63,7 +65,7 @@ namespace GUI.Types.GLViewers
             base.AddUiControls();
         }
 
-        protected override void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo)
+        protected override void OnPicked(object? sender, PickingTexture.PickingResponse pixelInfo)
         {
             //
         }

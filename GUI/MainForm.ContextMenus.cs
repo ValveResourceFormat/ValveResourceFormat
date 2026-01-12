@@ -542,7 +542,11 @@ namespace GUI
             }
 
             var inputDirectory = openDialog.FileNames;
-            Settings.Config.OpenDirectory = Path.GetDirectoryName(openDialog.FileName);
+            var directory = Path.GetDirectoryName(openDialog.FileName);
+            if (directory != null)
+            {
+                Settings.Config.OpenDirectory = directory;
+            }
 
             if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
             {
@@ -574,7 +578,11 @@ namespace GUI
                 return;
             }
 
-            Settings.Config.SaveDirectory = Path.GetDirectoryName(saveDialog.FileName);
+            var directory = Path.GetDirectoryName(saveDialog.FileName);
+            if (directory != null)
+            {
+                Settings.Config.SaveDirectory = directory;
+            }
 
             Log.Info(nameof(MainForm), $"Packing to '{saveDialog.FileName}'...");
 

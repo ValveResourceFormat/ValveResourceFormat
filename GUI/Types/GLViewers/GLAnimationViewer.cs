@@ -62,6 +62,8 @@ namespace GUI.Types.GLViewers
 
         private void LoadClipScene(AnimationClip clipToLoad, bool firstTime)
         {
+            Debug.Assert(animationController != null);
+
             var skeletonResource = GuiContext.LoadFileCompiled(clipToLoad.SkeletonName);
             Debug.Assert(skeletonResource != null);
             SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
@@ -85,10 +87,7 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
-            if (UiControl == null)
-            {
-                return;
-            }
+            Debug.Assert(UiControl != null);
 
             if (clip != null)
             {
@@ -96,6 +95,8 @@ namespace GUI.Types.GLViewers
 
                 void BindAnimationUi()
                 {
+                    Debug.Assert(animationController != null);
+
                     // Register update handler
                     SetAnimationControllerUpdateHandler();
 
@@ -140,6 +141,8 @@ namespace GUI.Types.GLViewers
 
         protected override void OnPaint(float frameTime)
         {
+            Debug.Assert(animationController != null);
+
             animationController.Update(frameTime);
             base.OnPaint(frameTime);
         }

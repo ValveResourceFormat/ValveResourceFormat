@@ -5,8 +5,6 @@ using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 
-#nullable disable
-
 namespace GUI.Utils
 {
     static class Settings
@@ -25,18 +23,18 @@ namespace GUI.Utils
         {
             public bool CheckAutomatically { get; set; }
             public bool UpdateAvailable { get; set; }
-            public string LastCheck { get; set; }
-            public string Version { get; set; }
+            public string LastCheck { get; set; } = string.Empty;
+            public string Version { get; set; } = string.Empty;
         }
 
         public class AppConfig
         {
-            public List<string> GameSearchPaths { get; set; }
+            public List<string> GameSearchPaths { get; set; } = [];
             public string OpenDirectory { get; set; } = string.Empty;
             public string SaveDirectory { get; set; } = string.Empty;
-            public List<string> BookmarkedFiles { get; set; }
-            public List<string> RecentFiles { get; set; }
-            public Dictionary<string, float[]> SavedCameras { get; set; }
+            public List<string> BookmarkedFiles { get; set; } = [];
+            public List<string> RecentFiles { get; set; } = [];
+            public Dictionary<string, float[]> SavedCameras { get; set; } = [];
             public int Theme { get; set; }
             public int MaxTextureSize { get; set; }
             public int ShadowResolution { get; set; }
@@ -54,17 +52,17 @@ namespace GUI.Utils
             public int OpenExplorerOnStart { get; set; }
             public int TextViewerFontSize { get; set; }
             public int _VERSION_DO_NOT_MODIFY { get; set; }
-            public AppUpdateState Update { get; set; }
+            public AppUpdateState Update { get; set; } = new();
         }
 
         public static bool IsFirstStartup { get; private set; }
-        public static string SettingsFolder { get; private set; }
-        private static string SettingsFilePath;
+        public static string SettingsFolder { get; private set; } = string.Empty;
+        private static string SettingsFilePath = string.Empty;
 
         public static AppConfig Config { get; set; } = new AppConfig();
 
-        public static event EventHandler RefreshCamerasOnSave;
-        public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave.Invoke(null, null);
+        public static event EventHandler? RefreshCamerasOnSave;
+        public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave?.Invoke(null, EventArgs.Empty);
 
         public static void Load()
         {

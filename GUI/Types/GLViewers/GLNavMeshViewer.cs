@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -5,14 +6,12 @@ using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Renderer;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
-#nullable disable
-
 namespace GUI.Types.GLViewers
 {
     class GLNavMeshViewer : GLSceneViewer
     {
         private readonly NavMeshFile navMeshFile;
-        private CheckedListBox worldLayersComboBox;
+        private CheckedListBox? worldLayersComboBox;
 
         public GLNavMeshViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, NavMeshFile navMeshFile)
             : base(vrfGuiContext, rendererContext)
@@ -34,15 +33,17 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
+            Debug.Assert(UiControl != null);
+
             AddRenderModeSelectionControl();
 
             worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
             {
-                SetEnabledLayers(new HashSet<string>(worldLayers));
+                SetEnabledLayers([.. worldLayers]);
             });
 
             worldLayersComboBox.BeginUpdate();
-            var layerNames = Scene.AllNodes.Select(x => x.LayerName);
+            var layerNames = Scene.AllNodes.Select(static x => x.LayerName).OfType<string>();
             foreach (var layerName in layerNames)
             {
                 worldLayersComboBox.Items.Add(layerName, true);
@@ -52,7 +53,7 @@ namespace GUI.Types.GLViewers
             base.AddUiControls();
         }
 
-        protected override void OnPicked(object sender, PickingResponse pixelInfo)
+        protected override void OnPicked(object? sender, PickingResponse pixelInfo)
         {
         }
     }

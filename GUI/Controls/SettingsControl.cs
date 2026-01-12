@@ -93,7 +93,12 @@ namespace GUI.Forms
                 return;
             }
 
-            Settings.Config.OpenDirectory = Path.GetDirectoryName(fileName);
+            var directory = Path.GetDirectoryName(fileName);
+            if (directory != null)
+            {
+                Settings.Config.OpenDirectory = directory;
+            }
+            
             Settings.Config.GameSearchPaths.Add(fileName);
 
             gamePaths.Items.Add(fileName);

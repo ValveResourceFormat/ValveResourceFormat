@@ -79,7 +79,7 @@ partial class RendererControl : UserControl
         return selectionControl.ComboBox;
     }
 
-    public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox> initializeCallback, Action<IEnumerable<string>> changeCallback)
+    public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback)
     {
         var selectionControl = new GLViewerMultiSelectionControl(name);
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -9,29 +10,27 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
-#nullable disable
-
 namespace GUI.Types.GLViewers
 {
     class GLModelViewer : GLSingleNodeViewer
     {
-        protected Model model { get; init; }
-        private PhysAggregateData phys;
-        public ComboBox animationComboBox { get; protected set; }
-        protected CheckBox animationPlayPause;
-        private CheckBox rootMotionCheckBox;
-        private CheckBox showSkeletonCheckbox;
-        private ComboBox hitboxComboBox;
-        private Label animationTimeLabel;
-        private GLViewerSliderControl animationTrackBar;
-        private GLViewerSliderControl slowmodeTrackBar;
-        public CheckedListBox meshGroupListBox { get; private set; }
-        public ComboBox materialGroupListBox { get; private set; }
-        private ModelSceneNode modelSceneNode;
-        protected AnimationController animationController;
-        protected SkeletonSceneNode skeletonSceneNode;
-        private HitboxSetSceneNode hitboxSetSceneNode;
-        private CheckedListBox physicsGroupsComboBox;
+        protected Model? model { get; init; }
+        private PhysAggregateData? phys;
+        public ComboBox? animationComboBox { get; protected set; }
+        protected CheckBox? animationPlayPause;
+        private CheckBox? rootMotionCheckBox;
+        private CheckBox? showSkeletonCheckbox;
+        private ComboBox? hitboxComboBox;
+        private Label? animationTimeLabel;
+        private GLViewerSliderControl? animationTrackBar;
+        private GLViewerSliderControl? slowmodeTrackBar;
+        public CheckedListBox? meshGroupListBox { get; private set; }
+        public ComboBox? materialGroupListBox { get; private set; }
+        private ModelSceneNode? modelSceneNode;
+        protected AnimationController? animationController;
+        protected SkeletonSceneNode? skeletonSceneNode;
+        private HitboxSetSceneNode? hitboxSetSceneNode;
+        private CheckedListBox? physicsGroupsComboBox;
 
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
@@ -67,15 +66,16 @@ namespace GUI.Types.GLViewers
 
         protected void AddAnimationControls()
         {
-            if (modelSceneNode != null)
+            Debug.Assert(UiControl != null);
+            Debug.Assert(animationController != null);
+            Debug.Assert(modelSceneNode != null);
+
+            animationComboBox = UiControl.AddSelection("Animation", (animation, _) =>
             {
-                animationComboBox = UiControl.AddSelection("Animation", (animation, _) =>
-                {
-                    modelSceneNode.SetAnimation(animation);
-                    rootMotionCheckBox.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
-                    enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
-                });
-            }
+                modelSceneNode.SetAnimation(animation);
+                rootMotionCheckBox!.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
+                enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
+            });
 
             animationTimeLabel = new Label()
             {
@@ -92,7 +92,7 @@ namespace GUI.Types.GLViewers
             });
             animationTrackBar = UiControl.AddTrackBar(frame =>
             {
-                if (animationController != null)
+                if (animationController != null && animationController.ActiveAnimation != null)
                 {
                     animationController.Frame = (int)(frame * animationController.ActiveAnimation.FrameCount);
                 }
@@ -161,16 +161,16 @@ namespace GUI.Types.GLViewers
                         }
 
                         var newResource = Scene.RendererContext.FileLoader.LoadFileCompiled(refPhysicsPaths.First());
-                        if (newResource != null)
+                        if (newResource != null && newResource.DataBlock is PhysAggregateData newPhys)
                         {
-                            phys = (PhysAggregateData)newResource.DataBlock;
+                            phys = newPhys;
                         }
                     }
                 }
             }
             else
             {
-                Picker.OnPicked -= OnPicked;
+                Picker?.OnPicked -= OnPicked;
             }
 
             if (phys != null)
@@ -191,8 +191,12 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
+            Debug.Assert(UiControl != null);
+
             if (model != null)
             {
+                Debug.Assert(modelSceneNode != null);
+
                 var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
 
                 if (animations.Length > 0)
@@ -215,6 +219,8 @@ namespace GUI.Types.GLViewers
 
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
+                    Debug.Assert(hitboxSetSceneNode != null);
+
                     var hitboxSets = model.HitboxSets;
                     hitboxComboBox = UiControl.AddSelection("Hitbox Set", (hitboxSet, i) =>
                     {
@@ -305,7 +311,13 @@ namespace GUI.Types.GLViewers
 
         protected void SetAnimationControllerUpdateHandler()
         {
-            void UiAnimationHandler(Animation animation, int frame)
+            Debug.Assert(animationController != null);
+            Debug.Assert(animationTrackBar != null);
+            Debug.Assert(animationPlayPause != null);
+            Debug.Assert(slowmodeTrackBar != null);
+            Debug.Assert(animationTimeLabel != null);
+
+            void UiAnimationHandler(Animation? animation, int frame)
             {
                 if (frame == -1)
                 {
@@ -344,7 +356,7 @@ namespace GUI.Types.GLViewers
                     $"FPS: {fps:F2}\n";
             }
 
-            void UpdateUiAnimationState(Animation animation, int frame)
+            void UpdateUiAnimationState(Animation? animation, int frame)
             {
                 if (animationTrackBar.InvokeRequired)
                 {
@@ -355,11 +367,13 @@ namespace GUI.Types.GLViewers
                     UiAnimationHandler(animation, frame);
                 }
             }
-            animationController?.RegisterUpdateHandler(UpdateUiAnimationState);
+            animationController.RegisterUpdateHandler(UpdateUiAnimationState);
         }
 
         private string GetModelStatsText()
         {
+            Debug.Assert(modelSceneNode != null);
+
             var sb = new System.Text.StringBuilder();
 
             sb.AppendLine(CultureInfo.InvariantCulture, $"Mesh Count: {modelSceneNode.RenderableMeshes.Count}");
@@ -437,7 +451,7 @@ namespace GUI.Types.GLViewers
 
         protected override void OnPaint(float frameTime)
         {
-            if (enableRootMotion && animationController.AnimationFrame is Frame animationFrame)
+            if (enableRootMotion && animationController != null && animationController.AnimationFrame is Frame animationFrame && modelSceneNode != null)
             {
                 var rootMotionDelta = animationFrame.Movement.Position - LastRootMotionPosition;
 
@@ -453,12 +467,14 @@ namespace GUI.Types.GLViewers
             base.OnPaint(frameTime);
         }
 
-        protected override void OnPicked(object sender, PickingTexture.PickingResponse pickingResponse)
+        protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)
         {
             if (modelSceneNode == null)
             {
                 return;
             }
+
+            Debug.Assert(SelectedNodeRenderer != null);
 
             // Void
             if (pickingResponse.PixelInfo.ObjectId == 0)
@@ -486,7 +502,10 @@ namespace GUI.Types.GLViewers
                     {
                         foundFile.Context.GLPostLoadAction = (viewerControl) =>
                         {
-                            viewerControl.Input.Camera.CopyFrom(Renderer.Camera);
+                            if (viewerControl is GLSceneViewer sceneViewer)
+                            {
+                                sceneViewer.Input.Camera.CopyFrom(Renderer.Camera);
+                            }
                         };
 
                         Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
@@ -497,6 +516,8 @@ namespace GUI.Types.GLViewers
 
         private void SetAvailableAnimations(string[] animations)
         {
+            Debug.Assert(animationComboBox != null);
+
             animationComboBox.BeginUpdate();
             animationComboBox.Items.Clear();
 

@@ -1,8 +1,7 @@
+using System.IO;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
-
-#nullable disable
 
 namespace GUI.Types.GLViewers
 {
@@ -12,7 +11,11 @@ namespace GUI.Types.GLViewers
         {
             var animGraphAssociatedModel = animGraph.Data.GetProperty<string>("m_modelName");
             var modelResource = rendererContext.FileLoader.LoadFileCompiled(animGraphAssociatedModel) ?? rendererContext.FileLoader.LoadFileCompiled("models/dev/error.vmdl");
-            model = (Model)modelResource?.DataBlock;
+
+            if (modelResource?.DataBlock is not Model model)
+            {
+                throw new InvalidDataException($"AnimGraph associated model is not a valid model.");
+            }
         }
     }
 }

@@ -11,8 +11,6 @@ using GUI.Forms;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 
-#nullable disable
-
 namespace GUI.Types.PackageViewer
 {
     /// <summary>
@@ -20,11 +18,11 @@ namespace GUI.Types.PackageViewer
     /// </summary>
     partial class BetterTreeView : TreeViewDoubleBuffered
     {
-        public VirtualPackageNode Root;
-        public Dictionary<string, int> ExtensionIconList;
+        public VirtualPackageNode? Root;
+        public Dictionary<string, int> ExtensionIconList = [];
         public int FolderImage;
 
-        public VrfGuiContext VrfGuiContext { get; set; }
+        public VrfGuiContext? VrfGuiContext { get; set; }
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -40,6 +38,11 @@ namespace GUI.Types.PackageViewer
         public List<PackageEntry> Search(string value, SearchType searchType)
         {
             var results = new List<PackageEntry>();
+
+            if (Root == null)
+            {
+                return results;
+            }
 
             if (searchType == SearchType.FileNamePartialMatch || searchType == SearchType.FullPath)
             {
@@ -122,9 +125,19 @@ namespace GUI.Types.PackageViewer
                 throw new ArgumentException("Search input is too short.", nameof(pattern));
             }
 
+            if (VrfGuiContext == null)
+            {
+                return;
+            }
+
             if (VrfGuiContext.ParentGuiContext != null)
             {
                 throw new InvalidOperationException("Inner paks are not supported.");
+            }
+
+            if (VrfGuiContext.CurrentPackage?.Entries == null)
+            {
+                return;
             }
 
             using var progressDialog = new GenericProgressForm
@@ -246,7 +259,7 @@ namespace GUI.Types.PackageViewer
                 offset += match;
                 data = data[match..];
 
-                PackageEntry packageEntry = null;
+                PackageEntry? packageEntry = null;
 
                 for (var entryId = lastEntryId; entryId < archiveEntries.Count; entryId++)
                 {
@@ -274,8 +287,6 @@ namespace GUI.Types.PackageViewer
         public void GenerateIconList(IEnumerable<string> extensions)
         {
             var defaultImage = MainForm.Icons["File"];
-
-            ExtensionIconList = [];
 
             foreach (var originalExtension in extensions)
             {

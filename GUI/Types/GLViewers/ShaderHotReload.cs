@@ -77,7 +77,7 @@ internal class ShaderHotReload : IDisposable
         using var lockedGl = ViewerControl.MakeCurrent();
         ShaderLoader.ReloadAllShaders(name);
         ShadersReloaded?.Invoke(this, name);
-        ViewerControl.GLControl.Invalidate();
+        ViewerControl.GLControl?.Invalidate();
     }
 
     private void Hotload(object sender, FileSystemEventArgs e)

@@ -170,7 +170,11 @@ namespace GUI.Types.Exporter
 
                 if (userOK == DialogResult.OK)
                 {
-                    Settings.Config.SaveDirectory = Path.GetDirectoryName(dialog.FileName);
+                    var directory = Path.GetDirectoryName(dialog.FileName);
+                    if (directory != null)
+                    {
+                        Settings.Config.SaveDirectory = directory;
+                    }
 
                     Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(dialog.FileName)}\"");
 

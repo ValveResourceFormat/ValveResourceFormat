@@ -1,12 +1,10 @@
 using SkiaSharp;
 
-#nullable disable
-
 namespace GUI.Types.Graphs
 {
     public abstract class AbstractSocket : NodeUIElement
     {
-        public string SocketName { get; protected set; }
+        public string? SocketName { get; protected set; }
 
         public Type ValueType { get; private set; }
 
@@ -24,7 +22,7 @@ namespace GUI.Types.Graphs
 
         public SKPoint Pivot { get; set; }
 
-        protected AbstractSocket(Type valueType, string socketName, AbstractNode owner)
+        protected AbstractSocket(Type valueType, string? socketName, AbstractNode owner)
         {
             ValueType = valueType;
             SocketName = socketName;

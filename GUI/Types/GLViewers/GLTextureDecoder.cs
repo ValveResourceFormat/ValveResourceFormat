@@ -12,8 +12,6 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
-#nullable disable
-
 namespace GUI.Types.GLViewers;
 
 public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
@@ -21,16 +19,22 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private readonly RendererContext RendererContext;
     private readonly BlockingCollection<DecodeRequest> decodeQueue = [];
     private readonly Lock threadStartupLock = new();
+    private readonly Thread GLThread;
 
-    private Thread GLThread;
-
-    private NativeWindow GLWindowContext;
-    private Framebuffer Framebuffer;
+    private NativeWindow? GLWindowContext;
+    private Framebuffer? Framebuffer;
 
     public GLTextureDecoder(ILogger logger)
     {
         using var loader = new GameFileLoader(null, null);
         RendererContext = new RendererContext(loader, logger);
+
+        GLThread = new Thread(Initialize_NoExcept)
+        {
+            IsBackground = true,
+            Name = nameof(GLTextureDecoder),
+            Priority = ThreadPriority.AboveNormal,
+        };
     }
 
     private record DecodeRequest(SKBitmap Bitmap, Resource Resource, int Mip, int Depth, CubemapFace Face, ChannelMapping Channels, TextureCodec DecodeFlags) : IDisposable
@@ -69,17 +73,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         lock (threadStartupLock)
         {
-            if (GLThread == null)
-            {
-                // create a thread context for OpenGL
-                GLThread = new Thread(Initialize_NoExcept)
-                {
-                    IsBackground = true,
-                    Name = nameof(GLTextureDecoder),
-                    Priority = ThreadPriority.AboveNormal,
-                };
-                GLThread.Start();
-            }
+            GLThread.Start();
         }
     }
 
@@ -194,10 +188,14 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             return false;
         }
 
+        Debug.Assert(Framebuffer != null);
+
         if (Framebuffer.ColorFormat != framebufferFormat)
         {
             Framebuffer.ChangeFormat(framebufferFormat, null);
         }
+
+        Debug.Assert(Framebuffer.ColorFormat != null);
 
         // Render the texture at requested mip level size,
         // reading pixels back to the bitmap below will crop it
@@ -270,7 +268,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Exit()
     {
-        GLWindowContext.Close();  // signal the thread that it should exit
+        GLWindowContext?.Close();  // signal the thread that it should exit
         decodeQueue.CompleteAdding(); // mark the thread as done
         GLThread.Join(); // wait for the thread to exit
     }

@@ -4,7 +4,7 @@ using SteamDatabase.ValvePak;
 namespace GUI.Types.PackageViewer
 {
     [DebuggerDisplay("{Name,nq} (created={CreatedNode is not null})")]
-    public class VirtualPackageNode(string name, uint size, VirtualPackageNode parent)
+    public class VirtualPackageNode(string name, uint size, VirtualPackageNode? parent)
     {
         /// <summary>
         /// Virtual node was converted to real nodes.
@@ -24,7 +24,7 @@ namespace GUI.Types.PackageViewer
         /// <summary>
         /// Parent folder.
         /// </summary>
-        public VirtualPackageNode Parent { get; } = parent;
+        public VirtualPackageNode? Parent { get; } = parent;
 
         /// <summary>
         /// Folders in this folder.

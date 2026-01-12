@@ -1,7 +1,5 @@
 using System.Linq;
 
-#nullable disable
-
 namespace GUI.Types.Graphs
 {
     public class SocketOut : AbstractSocket

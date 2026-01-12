@@ -644,7 +644,11 @@ namespace GUI
 
             if (openDialog.FileNames.Length > 0)
             {
-                Settings.Config.OpenDirectory = Path.GetDirectoryName(openDialog.FileNames[0]);
+                var directory = Path.GetDirectoryName(openDialog.FileNames[0]);
+                if (directory != null)
+                {
+                    Settings.Config.OpenDirectory = directory;
+                }
             }
 
             foreach (var file in openDialog.FileNames)

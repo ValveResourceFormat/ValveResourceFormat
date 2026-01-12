@@ -16,7 +16,6 @@ namespace GUI.Types.GLViewers;
 internal abstract class GLBaseControl : IDisposable
 {
     protected RendererControl? UiControl;
-    public UserInput? Input { get; protected set; }
 
     protected OpenTK.Windowing.Desktop.NativeWindow? GLNativeWindow;
     public GLControl? GLControl { get; private set; }

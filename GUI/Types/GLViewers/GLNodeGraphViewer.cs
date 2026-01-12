@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Graphs;
@@ -5,8 +6,6 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat.Renderer;
-
-#nullable disable
 
 namespace GUI.Types.GLViewers
 {
@@ -17,27 +16,29 @@ namespace GUI.Types.GLViewers
         private bool needsFit = true;
 
         // Skia/OpenGL context
-        private GRGlInterface glInterface;
-        private GRContext grContext;
-        private GRBackendRenderTarget renderTarget;
-        private SKSurface surface;
+        private GRGlInterface? glInterface;
+        private GRContext? grContext;
+        private GRBackendRenderTarget? renderTarget;
+        private SKSurface? surface;
         private SKSizeI lastSize;
 
         public GLNodeGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, NodeGraphControl graph)
-            : base(vrfGuiContext, rendererContext, (SKBitmap)null)
+            : base(vrfGuiContext, rendererContext, (SKBitmap?)null)
         {
             nodeGraph = graph;
             nodeGraph.GraphChanged += OnGraphChanged;
             graphBounds = nodeGraph.GetGraphBounds();
         }
 
-        private void OnGraphChanged(object sender, System.EventArgs e)
+        private void OnGraphChanged(object? sender, System.EventArgs e)
         {
             InvalidateRender();
         }
 
         protected override void AddUiControls()
         {
+            Debug.Assert(UiControl != null);
+
             base.AddUiControls();
 
             UiControl.HideSidebar();
@@ -47,9 +48,11 @@ namespace GUI.Types.GLViewers
         {
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
-                MainFramebuffer.Delete();
+                MainFramebuffer?.Delete();
                 MainFramebuffer = GLDefaultFramebuffer;
             }
+
+            Debug.Assert(MainFramebuffer != null);
 
             var bgColor = nodeGraph.CanvasBackgroundColor;
             MainFramebuffer.ClearColor = new OpenTK.Mathematics.Color4(
@@ -73,6 +76,8 @@ namespace GUI.Types.GLViewers
 
         protected override void OnPaint(float frameTime)
         {
+            Debug.Assert(MainFramebuffer != null);
+
             var bgColor = nodeGraph.CanvasBackgroundColor;
             GL.ClearColor(bgColor.Red / 255f, bgColor.Green / 255f, bgColor.Blue / 255f, bgColor.Alpha / 255f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -186,7 +191,7 @@ namespace GUI.Types.GLViewers
             TextureScaleChangeTime = 10f; // Skip animation
         }
 
-        protected override void OnMouseDown(object sender, MouseEventArgs e)
+        protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             // Middle mouse = pan (let GLTextureViewer handle it)
             if (e.Button == MouseButtons.Middle)
@@ -211,7 +216,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnMouseMove(object sender, MouseEventArgs e)
+        protected override void OnMouseMove(object? sender, MouseEventArgs e)
         {
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
@@ -225,7 +230,7 @@ namespace GUI.Types.GLViewers
             nodeGraph.HandleMouseMove(graphPoint, Control.ModifierKeys);
         }
 
-        protected override void OnMouseUp(object sender, MouseEventArgs e)
+        protected override void OnMouseUp(object? sender, MouseEventArgs e)
         {
             // Always call base first to clear ClickPosition for panning
             base.OnMouseUp(sender, e);

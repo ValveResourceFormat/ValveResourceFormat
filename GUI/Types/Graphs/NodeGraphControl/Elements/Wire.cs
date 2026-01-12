@@ -1,11 +1,10 @@
 using SkiaSharp;
 
-#nullable disable
 namespace GUI.Types.Graphs
 {
     public class Wire : NodeUIElement
     {
-        public SKPath HitTestPath { get; set; }
+        public SKPath? HitTestPath { get; set; }
 
         public SocketOut From { get; private set; }
 

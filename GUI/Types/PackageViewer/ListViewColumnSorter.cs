@@ -4,8 +4,6 @@ using System.Windows.Forms;
 
 namespace GUI.Types.PackageViewer;
 
-#nullable disable
-
 public class ListViewColumnSorter : IComparer
 {
     /// <summary>
@@ -18,11 +16,11 @@ public class ListViewColumnSorter : IComparer
     /// </summary>
     public SortOrder Order { set; get; } = SortOrder.Ascending;
 
-    public int Compare(object x, object y)
+    public int Compare(object? x, object? y)
     {
         var compareResult = 0;
-        var tX = Unsafe.As<BetterListViewItem>(x);
-        var tY = Unsafe.As<BetterListViewItem>(y);
+        var tX = Unsafe.As<BetterListViewItem>(x)!;
+        var tY = Unsafe.As<BetterListViewItem>(y)!;
 
         // Parent navigation item always stays at the top
         if (tX.Tag is BetterListViewItem.ParentNavigationTag)
@@ -49,8 +47,8 @@ public class ListViewColumnSorter : IComparer
                 break;
             case 1:
                 {
-                    var sizeX = tX.IsFolder ? tX.PkgNode.TotalSize : tX.PackageEntry.TotalLength;
-                    var sizeY = tY.IsFolder ? tY.PkgNode.TotalSize : tY.PackageEntry.TotalLength;
+                    var sizeX = tX.IsFolder ? tX.PkgNode!.TotalSize : tX.PackageEntry!.TotalLength;
+                    var sizeY = tY.IsFolder ? tY.PkgNode!.TotalSize : tY.PackageEntry!.TotalLength;
 
                     if (sizeX != sizeY)
                     {

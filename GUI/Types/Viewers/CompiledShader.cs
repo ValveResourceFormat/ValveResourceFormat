@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,8 +9,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
-
-#nullable disable
 
 namespace GUI.Types.Viewers
 {
@@ -43,7 +42,7 @@ namespace GUI.Types.Viewers
             control.AddControl(fileListView);
         }
 
-        public async Task LoadAsync(Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
             // Creating shader collection doesn't actually use the provided stream which is kind of a waste
             if (stream is not null)
@@ -63,7 +62,7 @@ namespace GUI.Types.Viewers
             Create(tab, shaderCollection, vcsCollectionName, leadProgramType);
         }
 
-        public void Create(TabPage tab, ShaderCollection shaderCollection, ReadOnlySpan<char> vcsCollectionName, VcsProgramType leadProgramType, IDictionary<string, byte> leadFeatureParams = null)
+        public void Create(TabPage tab, ShaderCollection shaderCollection, ReadOnlySpan<char> vcsCollectionName, VcsProgramType leadProgramType, IDictionary<string, byte>? leadFeatureParams = null)
         {
             tab.Controls.Add(control);
 
@@ -81,6 +80,8 @@ namespace GUI.Types.Viewers
 
             List<string> sfNamesAbbrev = [];
             List<string> sfNames = [];
+
+            Debug.Assert(shaderCollection.Features != null);
 
             foreach (var program in shaderCollection.OrderBy(static x => x.VcsProgramType))
             {
@@ -209,22 +210,18 @@ namespace GUI.Types.Viewers
         {
             if (disposing)
             {
-                if (fileListView != null)
-                {
-                    fileListView.Dispose();
-                    fileListView = null;
-                }
-
-                if (control != null)
-                {
-                    control.Dispose();
-                    control = null;
-                }
+                fileListView?.Dispose();
+                control?.Dispose();
             }
         }
 
-        private void OnNodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        private void OnNodeMouseClick(object? sender, TreeNodeMouseClickEventArgs e)
         {
+            if (e.Node == null)
+            {
+                return;
+            }
+
             if (e.Node.Tag is ShaderExtract shaderExtract)
             {
                 DisplayExtractedVfx(shaderExtract);
@@ -305,6 +302,8 @@ namespace GUI.Types.Viewers
             {
                 sourceIdToRenderStateInfo.TryAdd(renderStateInfo.ShaderFileId, renderStateInfo);
             }
+
+            Debug.Assert(combo.ParentProgramData != null);
 
             foreach (var source in combo.ShaderFiles)
             {

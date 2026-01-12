@@ -8,21 +8,20 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
-#nullable disable
-
 namespace GUI.Types.GLViewers
 {
     internal abstract class GLSceneViewer : GLBaseControl
     {
         public Renderer Renderer { get; internal set; }
+        public UserInput Input { get; protected set; }
 
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
 
-        protected PickingTexture Picker { get; set; }
+        protected PickingTexture? Picker { get; set; }
 
         public Scene Scene { get; }
-        public Scene SkyboxScene => Renderer.SkyboxScene;
-        public SceneSkybox2D Skybox2D => Renderer.Skybox2D;
+        public Scene? SkyboxScene => Renderer.SkyboxScene;
+        public SceneSkybox2D? Skybox2D => Renderer.Skybox2D;
         public VrfGuiContext GuiContext;
 
         private bool ShowBaseGrid;
@@ -36,11 +35,11 @@ namespace GUI.Types.GLViewers
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
-        private ComboBox renderModeComboBox;
-        private InfiniteGrid baseGrid;
-        private OctreeDebugRenderer staticOctreeRenderer;
-        private OctreeDebugRenderer dynamicOctreeRenderer;
-        protected SelectedNodeRenderer SelectedNodeRenderer;
+        private ComboBox? renderModeComboBox;
+        private InfiniteGrid? baseGrid;
+        private OctreeDebugRenderer? staticOctreeRenderer;
+        private OctreeDebugRenderer? dynamicOctreeRenderer;
+        protected SelectedNodeRenderer? SelectedNodeRenderer;
 
         protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Frustum cullFrustum) : this(vrfGuiContext, rendererContext)
         {
@@ -80,6 +79,8 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
+            Debug.Assert(UiControl != null);
+
             UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
             {
                 Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
@@ -88,7 +89,7 @@ namespace GUI.Types.GLViewers
             {
                 showStaticOctree = v;
 
-                if (showStaticOctree)
+                if (showStaticOctree && staticOctreeRenderer != null)
                 {
                     using var lockedGl = MakeCurrent();
 
@@ -125,8 +126,12 @@ namespace GUI.Types.GLViewers
 
             if (Scene.FogInfo.CubeFogActive)
             {
-                Renderer.Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
-                Renderer.Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", Scene.FogInfo.CubemapFog.CubemapFogTexture));
+                var cubemapTexture = Scene.FogInfo.CubemapFog?.CubemapFogTexture;
+                if (cubemapTexture != null)
+                {
+                    Renderer.Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
+                    Renderer.Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", cubemapTexture));
+                }
             }
 
             if (Scene.AllNodes.Any() && this is not GLWorldViewer)
@@ -166,19 +171,19 @@ namespace GUI.Types.GLViewers
 
         protected abstract void LoadScene();
 
-        protected abstract void OnPicked(object sender, PickingTexture.PickingResponse pixelInfo);
+        protected abstract void OnPicked(object? sender, PickingTexture.PickingResponse pixelInfo);
 
         protected override void OnResize()
         {
             base.OnResize();
 
-            var (w, h) = (GLControl.Width, GLControl.Height);
+            var (w, h) = (GLControl!.Width, GLControl.Height);
 
             Renderer.Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
         }
 
-        protected override void OnMouseWheel(object sender, MouseEventArgs e)
+        protected override void OnMouseWheel(object? sender, MouseEventArgs e)
         {
             base.OnMouseWheel(sender, e);
 
@@ -194,7 +199,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnMouseUp(object sender, MouseEventArgs e)
+        protected override void OnMouseUp(object? sender, MouseEventArgs e)
         {
             base.OnMouseUp(sender, e);
 
@@ -204,7 +209,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnMouseDown(object sender, MouseEventArgs e)
+        protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             base.OnMouseDown(sender, e);
 
@@ -236,7 +241,7 @@ namespace GUI.Types.GLViewers
 
             Renderer.MainFramebuffer = MainFramebuffer;
 
-            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            MainFramebuffer!.Bind(FramebufferTarget.Framebuffer);
 
             var timer = Stopwatch.StartNew();
             PreSceneLoad();
@@ -278,6 +283,8 @@ namespace GUI.Types.GLViewers
 
         protected void DrawLowerCornerText(string text, Color32 color)
         {
+            Debug.Assert(MainFramebuffer != null);
+
             TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
             {
                 X = 2f,
@@ -295,11 +302,18 @@ namespace GUI.Types.GLViewers
                 return; // not required
             }
 
+            Debug.Assert(MainFramebuffer != null);
+            Debug.Assert(GLDefaultFramebuffer != null);
+
             Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
         }
 
         protected override void OnPaint(float frameTime)
         {
+            Debug.Assert(MainFramebuffer != null);
+            Debug.Assert(Picker != null);
+            Debug.Assert(SelectedNodeRenderer != null);
+
             var renderContext = new Scene.RenderContext
             {
                 Camera = Renderer.Camera,
@@ -345,17 +359,17 @@ namespace GUI.Types.GLViewers
             {
                 SelectedNodeRenderer.Render();
 
-                if (showStaticOctree)
+                if (showStaticOctree && staticOctreeRenderer != null)
                 {
                     staticOctreeRenderer.Render();
                 }
 
-                if (showDynamicOctree)
+                if (showDynamicOctree && dynamicOctreeRenderer != null)
                 {
                     dynamicOctreeRenderer.Render();
                 }
 
-                if (ShowBaseGrid)
+                if (ShowBaseGrid && baseGrid != null)
                 {
                     baseGrid.Render();
                 }
@@ -378,11 +392,13 @@ namespace GUI.Types.GLViewers
 
         protected void AddBaseGridControl()
         {
+            Debug.Assert(UiControl != null);
+
             UiControl.AddDivider();
             var lightBackgroundCheckbox = UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
-                Renderer.BaseBackground.SetLightBackground(ShowLightBackground);
+                Renderer.BaseBackground!.SetLightBackground(ShowLightBackground);
             });
 
             lightBackgroundCheckbox.Checked = Themer.CurrentTheme == Themer.AppTheme.Light;
@@ -390,7 +406,7 @@ namespace GUI.Types.GLViewers
             UiControl.AddCheckBox("Solid Background", ShowSolidBackground, (v) =>
             {
                 ShowSolidBackground = v;
-                Renderer.BaseBackground.SetSolidBackground(ShowSolidBackground);
+                Renderer.BaseBackground!.SetSolidBackground(ShowSolidBackground);
             });
             UiControl.AddDivider();
 
@@ -408,6 +424,8 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
+            Debug.Assert(UiControl != null);
+
             UiControl.AddCheckBox("Show Wireframe", false, (v) => IsWireframe = v);
         }
 
@@ -417,6 +435,8 @@ namespace GUI.Types.GLViewers
             {
                 return;
             }
+
+            Debug.Assert(UiControl != null);
 
             renderModeComboBox = UiControl.AddSelection("Render Mode", (_, i) =>
             {
@@ -435,7 +455,7 @@ namespace GUI.Types.GLViewers
 
                 if (renderMode.IsHeader)
                 {
-                    renderModeComboBox.SelectedIndex = renderModeCurrentIndex > i ? i - 1 : i + 1;
+                    renderModeComboBox!.SelectedIndex = renderModeCurrentIndex > i ? i - 1 : i + 1;
                     return;
                 }
 
@@ -448,10 +468,10 @@ namespace GUI.Types.GLViewers
 
         private void SetAvailableRenderModes(bool keepCurrentSelection = false)
         {
-            if (renderModeComboBox != null)
+            if (renderModeComboBox != null && Picker != null)
             {
                 var selectedIndex = 0;
-                var currentlySelected = keepCurrentSelection ? renderModeComboBox.SelectedItem.ToString() : null;
+                var currentlySelected = keepCurrentSelection ? renderModeComboBox.SelectedItem?.ToString() : null;
                 var supportedRenderModes = new HashSet<string>(Picker.Shader.RenderModes);
                 foreach (var node in Scene.AllNodes)
                 {
@@ -507,7 +527,7 @@ namespace GUI.Types.GLViewers
             Scene.SetEnabledLayers(layers);
             SkyboxScene?.SetEnabledLayers(layers);
 
-            if (showStaticOctree)
+            if (showStaticOctree && staticOctreeRenderer != null)
             {
                 using var lockedGl = MakeCurrent();
 
@@ -517,7 +537,10 @@ namespace GUI.Types.GLViewers
 
         private void SetRenderMode(string renderMode)
         {
-            Renderer.ViewBuffer.Data.RenderMode = RenderModes.GetShaderId(renderMode);
+            Debug.Assert(Picker != null);
+            Debug.Assert(SelectedNodeRenderer != null);
+
+            Renderer.ViewBuffer!.Data!.RenderMode = RenderModes.GetShaderId(renderMode);
 
             Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
 
@@ -538,8 +561,10 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnKeyDown(object sender, KeyEventArgs e)
+        protected override void OnKeyDown(object? sender, KeyEventArgs e)
         {
+            Debug.Assert(SelectedNodeRenderer != null);
+
             if (e.KeyData == Keys.Delete)
             {
                 SelectedNodeRenderer.DisableSelectedNodes();
@@ -555,7 +580,7 @@ namespace GUI.Types.GLViewers
         }
 
 #if DEBUG
-        private void OnHotReload(object sender, string e)
+        private void OnHotReload(object? sender, string? e)
         {
             using var lockedGl = MakeCurrent();
 
@@ -577,7 +602,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            GLControl.Invalidate();
+            GLControl?.Invalidate();
         }
 #endif
     }

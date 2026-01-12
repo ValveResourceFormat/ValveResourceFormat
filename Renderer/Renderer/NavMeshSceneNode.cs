@@ -111,7 +111,7 @@ namespace ValveResourceFormat.Renderer
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
 
-        public static void AddNavNodesToScene(NavMeshFile navMeshFile, Scene scene)
+        public static void AddNavNodesToScene(NavMeshFile? navMeshFile, Scene scene)
         {
             if (navMeshFile == null || scene == null)
             {

@@ -1,7 +1,5 @@
 using SkiaSharp;
 
-#nullable disable
-
 namespace GUI.Types.Graphs
 {
     public abstract class AbstractNode : NodeUIElement, IDisposable
@@ -50,13 +48,13 @@ namespace GUI.Types.Graphs
         public SKPoint Pivot { get; private set; }
 
         private bool remeasureWidth;
-        public string Name
+        public string? Name
         {
             get;
             set { field = value; remeasureWidth = true; }
         }
 
-        public string NodeType { get; set; }
+        public required string NodeType { get; init; }
 
         public SKColor HeaderColor { get; set; }
         protected SKColor BaseColor { get; set; }

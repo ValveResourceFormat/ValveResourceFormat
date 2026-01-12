@@ -59,7 +59,7 @@ public class Framebuffer
     public override bool Equals(object? obj) => obj is Framebuffer other && other.FboHandle == FboHandle;
     public override int GetHashCode() => FboHandle.GetHashCode();
 
-    public static bool operator ==(Framebuffer left, Framebuffer right)
+    public static bool operator ==(Framebuffer? left, Framebuffer? right)
     {
         if (left is null)
         {
@@ -69,7 +69,7 @@ public class Framebuffer
         return left.Equals(right);
     }
 
-    public static bool operator !=(Framebuffer left, Framebuffer right) => !(left == right);
+    public static bool operator !=(Framebuffer? left, Framebuffer? right) => !(left == right);
 
     #endregion
 
