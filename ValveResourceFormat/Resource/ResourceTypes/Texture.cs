@@ -259,10 +259,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public ushort NonPow2Height { get; private set; }
 
-        private int[] CompressedMips = [];
+        private int[]? CompressedMips;
         private bool IsActuallyCompressedMips;
 
-        private float[] RadianceCoefficients = [];
+        private float[]? RadianceCoefficients;
 
         /// <summary>
         /// Gets the actual width of the texture, using NonPow2Width if available and valid, otherwise Width.

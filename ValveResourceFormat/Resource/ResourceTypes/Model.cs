@@ -62,7 +62,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private List<Animation> CachedAnimations = [];
+        private List<Animation>? CachedAnimations;
         private KVObject? cachedKeyValues;
         private Skeleton? cachedSkeleton;
         private FlexController[]? cachedFlexControllers;
