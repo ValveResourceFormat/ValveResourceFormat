@@ -869,7 +869,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Debug.Assert(Reader is not null);
 
-            if (!IsActuallyCompressedMips)
+            if (!IsActuallyCompressedMips || CompressedMips == null)
             {
                 Reader.Read(output);
                 return;
@@ -1172,11 +1172,17 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (b.Key == VTexExtraData.COMPRESSED_MIP_SIZE)
                 {
-                    writer.WriteLine("{0,-16}   [ {1} mips, sized: {2} ]", string.Empty, CompressedMips.Length, string.Join(", ", CompressedMips));
+                    if (CompressedMips != null)
+                    {
+                        writer.WriteLine("{0,-16}   [ {1} mips, sized: {2} ]", string.Empty, CompressedMips.Length, string.Join(", ", CompressedMips));
+                    }
                 }
                 else if (b.Key == VTexExtraData.CUBEMAP_RADIANCE_SH)
                 {
-                    writer.WriteLine("{0,-16}   [ {1} coefficients: {2} ]", string.Empty, RadianceCoefficients.Length, string.Join(", ", RadianceCoefficients));
+                    if (RadianceCoefficients != null)
+                    {
+                        writer.WriteLine("{0,-16}   [ {1} coefficients: {2} ]", string.Empty, RadianceCoefficients.Length, string.Join(", ", RadianceCoefficients));
+                    }
                 }
                 else if (b.Key == VTexExtraData.SHEET)
                 {
