@@ -14,6 +14,7 @@ namespace Tests
         {
             var mockMaterial = new Material()
             {
+                Resource = null!,
                 ShaderName = "vr_complex.vfx",
             };
 

@@ -45,8 +45,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         /// </summary>
         public SpecialDependency(KVObject data)
         {
-            String = data.GetProperty<string>("m_String");
-            CompilerIdentifier = data.GetProperty<string>("m_CompilerIdentifier");
+            String = data.GetProperty("m_String", string.Empty);
+            CompilerIdentifier = data.GetProperty("m_CompilerIdentifier", string.Empty);
             Fingerprint = data.GetUInt32Property("m_nFingerprint");
             UserData = data.GetUInt32Property("m_nUserData");
         }

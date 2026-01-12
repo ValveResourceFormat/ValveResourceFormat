@@ -1,5 +1,3 @@
-#nullable disable
-
 using System.Diagnostics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
@@ -23,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Gets the parent bone, or null if this is a root bone.
         /// </summary>
-        public Bone Parent { get; private set; }
+        public Bone? Parent { get; private set; }
 
         /// <summary>
         /// Gets the list of child bones.

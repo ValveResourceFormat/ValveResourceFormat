@@ -5,8 +5,6 @@ using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 {
     /// <summary>
@@ -37,12 +35,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>
         /// Gets the name of the animation clip.
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; private set; } = string.Empty;
 
         /// <summary>
         /// Gets the name of the skeleton this animation is for.
         /// </summary>
-        public string SkeletonName { get; private set; }
+        public string SkeletonName { get; private set; } = string.Empty;
 
         /// <summary>
         /// Gets the number of frames in the animation.
@@ -57,17 +55,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>
         /// Gets the compressed pose data.
         /// </summary>
-        public byte[] CompressedPoseData { get; private set; }
+        public byte[] CompressedPoseData { get; private set; } = [];
 
         /// <summary>
         /// Gets the compression settings for each animation track.
         /// </summary>
-        public TrackCompressionSetting[] TrackCompressionSettings { get; private set; }
+        public TrackCompressionSetting[] TrackCompressionSettings { get; private set; } = [];
 
         /// <summary>
         /// Gets the byte offsets for each compressed pose frame.
         /// </summary>
-        public long[] CompressedPoseOffsets { get; private set; }
+        public long[] CompressedPoseOffsets { get; private set; } = [];
 
         /// <summary>
         /// Gets the secondary animations associated with this clip.
@@ -79,7 +77,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         {
             base.Read(reader);
 
-            Name = Resource.FileName;
+            Name = Resource.FileName ?? string.Empty;
 
             ReadClip(Data);
         }
@@ -124,7 +122,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             SecondaryAnimations = new AnimationClip[secondaryAnims.Length];
             for (var j = 0; j < secondaryAnims.Length; j++)
             {
-                var secondaryAnim = new AnimationClip();
+                var secondaryAnim = new AnimationClip()
+                {
+                    Resource = Resource,
+                };
                 secondaryAnim.ReadClip(secondaryAnims[j]);
                 SecondaryAnimations[j] = secondaryAnim;
             }

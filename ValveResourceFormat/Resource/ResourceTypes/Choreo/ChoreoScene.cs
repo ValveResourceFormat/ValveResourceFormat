@@ -1,7 +1,5 @@
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     /// <summary>
@@ -12,7 +10,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets or sets the name of the scene. This comes from outside of the BVCD data.
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Gets or sets the duration of the scene. This comes from outside of the BVCD data.
@@ -101,17 +99,20 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 kv.AddProperty("actors", actors);
             }
 
-            if (Ramp?.LeftEdge != null)
+            if (Ramp != null)
             {
-                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
-            }
-            if (Ramp?.RightEdge != null)
-            {
-                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
-            }
-            if (Ramp.Samples.Length > 0)
-            {
-                kv.AddProperty("scene_ramp", Ramp.ToKeyValues());
+                if (Ramp.LeftEdge != null)
+                {
+                    kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
+                }
+                if (Ramp.RightEdge != null)
+                {
+                    kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
+                }
+                if (Ramp.Samples.Length > 0)
+                {
+                    kv.AddProperty("scene_ramp", Ramp.ToKeyValues());
+                }
             }
 
             kv.AddProperty("ignorePhonemes", IgnorePhonemes);

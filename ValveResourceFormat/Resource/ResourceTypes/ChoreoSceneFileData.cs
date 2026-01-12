@@ -4,8 +4,6 @@ using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Parser;
 using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -26,7 +24,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the choreography scenes in this file.
         /// </summary>
-        public ChoreoScene[] Scenes { get; private set; }
+        public ChoreoScene[] Scenes { get; private set; } = [];
 
         /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;

@@ -48,7 +48,7 @@ public class VfxCombo : ShaderDataBlock
         RangeMax = data.GetInt32Property("m_nMax");
         ComboSourceType = data.GetInt32Property("m_shaderComboSourceType");
         FeatureIndex = data.GetInt32Property("m_iFeatureIndex");
-        Strings = data.GetArray<string>("m_stringArray");
+        Strings = data.GetArray<string>("m_stringArray")!;
 
         CalculatedComboId = data.GetIntegerProperty("m_nComboIndexValue");
 

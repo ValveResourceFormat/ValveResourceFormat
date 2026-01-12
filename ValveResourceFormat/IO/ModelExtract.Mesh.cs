@@ -213,7 +213,7 @@ partial class ModelExtract
         PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
         PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
-            (attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings")).ToHashSet()
+            (attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings"))!.ToHashSet()
         ).ToArray();
 
         // Fix index error on some old vphys files

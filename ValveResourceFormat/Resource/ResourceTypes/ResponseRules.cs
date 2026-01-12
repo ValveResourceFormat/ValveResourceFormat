@@ -1,8 +1,6 @@
 using System.IO;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -51,11 +49,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the included response rules.
         /// </summary>
-        public ResponseRuleInclude[] Includes { get; private set; }
+        public ResponseRuleInclude[] Includes { get; private set; } = [];
         /// <summary>
         /// Gets the response rules file content.
         /// </summary>
-        public string File { get; private set; }
+        public string? File { get; private set; }
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)

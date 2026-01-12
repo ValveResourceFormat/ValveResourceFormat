@@ -25,7 +25,10 @@ namespace ValveResourceFormat
         /// <summary>
         /// Gets the resource this block belongs to.
         /// </summary>
-        public Resource? Resource { get; set; }
+        /// <remarks>
+        /// Can technically be <c>null</c> if constructed outside of a <see cref="Resource"/>.
+        /// </remarks>
+        public required Resource Resource { get; set; }
 
         /// <summary>
         /// Reads the block data from a binary reader.

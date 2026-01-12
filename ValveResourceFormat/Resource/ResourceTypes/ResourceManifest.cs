@@ -1,8 +1,7 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Serialization.KeyValues;
-
-#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -24,6 +23,8 @@ namespace ValveResourceFormat.ResourceTypes
         {
             reader.BaseStream.Position = Offset;
 
+            Debug.Assert(Resource != null);
+
             if (Resource.ContainsBlockType(BlockType.NTRO))
             {
                 var ntro = new NTRO
@@ -37,7 +38,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 Resources =
                 [
-                    new(ntro.Output.GetArray<string>("m_ResourceFileNameList")),
+                    new(ntro.Output.GetArray<string>("m_ResourceFileNameList")!),
                 ];
 
                 return;

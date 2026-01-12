@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -9,8 +10,6 @@ using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization.KeyValues;
-
-#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -63,21 +62,21 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private List<Animation> CachedAnimations;
-        private KVObject cachedKeyValues;
-        private Skeleton cachedSkeleton;
-        private FlexController[] cachedFlexControllers;
-        private List<(Mesh Mesh, int MeshIndex, string Name)> cachedEmbeddedMeshes;
+        private List<Animation> CachedAnimations = [];
+        private KVObject? cachedKeyValues;
+        private Skeleton? cachedSkeleton;
+        private FlexController[]? cachedFlexControllers;
+        private List<(Mesh Mesh, int MeshIndex, string Name)>? cachedEmbeddedMeshes;
 
         /// <summary>
         /// Gets the hitbox sets for this model.
         /// </summary>
-        public Dictionary<string, Hitbox[]> HitboxSets { get; private set; }
+        public Dictionary<string, Hitbox[]> HitboxSets { get; private set; } = [];
 
         /// <summary>
         /// Gets the attachments for this model.
         /// </summary>
-        public Dictionary<string, Attachment> Attachments { get; private set; }
+        public Dictionary<string, Attachment> Attachments { get; private set; } = [];
 
         private FlexController[] GetFlexControllers()
         {
@@ -115,7 +114,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Populates cached flex controller data from an externally loaded morph resource.
         /// </summary>
         /// <param name="morph">The morph data whose flex controllers should be reused.</param>
-        public void SetExternalMorphData(Morph morph)
+        public void SetExternalMorphData(Morph? morph)
         {
             cachedFlexControllers ??= morph?.FlexControllers;
         }
@@ -136,7 +135,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Get the bone remap table of a specific mesh.
         /// This is used to remap bone indices in the mesh VBIB to bone indices of the model skeleton.
         /// </summary>
-        public int[] GetRemapTable(int meshIndex)
+        public int[]? GetRemapTable(int meshIndex)
         {
             var remappingTableStarts = Data.GetIntegerArray("m_remappingTableStarts");
 
@@ -231,7 +230,10 @@ namespace ValveResourceFormat.ResourceTypes
                 var vbibBlockIndex = (int)embeddedMesh.GetIntegerProperty("vbib_block");
 
                 var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
-                mesh.VBIB = Resource.GetBlockByIndex(vbibBlockIndex) as VBIB;
+                Debug.Assert(mesh is not null);
+                var vbib = Resource.GetBlockByIndex(vbibBlockIndex) as VBIB;
+                Debug.Assert(vbib is not null);
+                mesh.VBIB = vbib;
                 mesh.Name = $"{Resource.FileName}:{name}";
 
                 var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("morph_block");
@@ -254,7 +256,11 @@ namespace ValveResourceFormat.ResourceTypes
             var dataBlockIndex = (int)embeddedMesh.GetIntegerProperty("m_nDataBlock");
 
             var mesh = Resource.GetBlockByIndex(dataBlockIndex) as Mesh;
-            mesh.VBIB = new VBIB(Resource, embeddedMesh);
+            Debug.Assert(mesh is not null);
+            mesh.VBIB = new VBIB(Resource, embeddedMesh)
+            {
+                Resource = Resource
+            };
             mesh.Name = $"{Resource.FileName}:{name}";
 
             var morphBlockIndex = (int)embeddedMesh.GetIntegerProperty("m_nMorphBlock");
@@ -270,7 +276,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets embedded physics data from the model.
         /// </summary>
         /// <returns>The physics aggregate data, or null if not present.</returns>
-        public PhysAggregateData GetEmbeddedPhys()
+        public PhysAggregateData? GetEmbeddedPhys()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
             var embeddedPhys = ctrl?.Data.GetSubCollection("embedded_physics");
@@ -316,9 +322,11 @@ namespace ValveResourceFormat.ResourceTypes
             var animDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("anim_data_block");
 
             var animationGroup = Resource.GetBlockByIndex(groupDataBlockIndex) as KeyValuesOrNTRO;
+            Debug.Assert(animationGroup is not null);
             var decodeKey = animationGroup.Data.GetSubCollection("m_decodeKey");
 
             var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as KeyValuesOrNTRO;
+            Debug.Assert(animationDataBlock is not null);
 
             return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
@@ -345,12 +353,11 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 using var resource = fileLoader.LoadFileCompiled(modelName);
-                if (resource == null)
+                if (resource?.DataBlock is not Model model)
                 {
                     continue;
                 }
 
-                var model = (Model)resource.DataBlock;
                 model.cachedSkeleton = Skeleton;
                 var anims = model.GetAllAnimations(fileLoader);
                 allAnims.AddRange(anims);
@@ -418,7 +425,7 @@ namespace ValveResourceFormat.ResourceTypes
             return GetMeshGroups().Where((group, index) => ((ulong)(1 << index) & defaultGroupMask) != 0);
         }
 
-        KVObject ParseKeyValuesText()
+        KVObject? ParseKeyValuesText()
         {
             var keyvaluesString = Data.GetSubCollection("m_modelInfo").GetProperty<string>("m_keyValueText");
 

@@ -100,7 +100,7 @@ public partial class GltfModelExporter
                     node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
 
                     var interactAsStrings = collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings");
-                    var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. interactAsStrings]);
+                    var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. interactAsStrings!]);
 
                     node.Extras = new System.Text.Json.Nodes.JsonObject
                     {
@@ -214,7 +214,7 @@ public partial class GltfModelExporter
         {
             meshName = $"physics_{group}";
         }
-        if (tags.Length > 0)
+        if (tags!.Length > 0)
         {
             meshName = $"physics_{string.Join("_", tags)}";
         }
@@ -443,7 +443,7 @@ public partial class GltfModelExporter
 
             // Try to load and use tool material first
             var tags = collisionAttributes.GetArray<string>("m_InteractAsStrings") ?? collisionAttributes.GetArray<string>("m_PhysicsTagStrings");
-            var toolTextureName = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
+            var toolTextureName = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags!]);
             var usedToolMaterial = false;
 
             if (classname != null)

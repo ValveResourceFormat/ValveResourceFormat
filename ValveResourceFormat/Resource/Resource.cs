@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using ValveResourceFormat.Blocks;
@@ -236,21 +237,21 @@ namespace ValveResourceFormat
 
                     if (BinaryKV3.IsBinaryKV3(magic))
                     {
-                        block = new BinaryKV3();
+                        block = new BinaryKV3() { Resource = this };
                     }
                     else if (magic == BinaryKV1.MAGIC)
                     {
-                        block = new BinaryKV1();
+                        block = new BinaryKV1() { Resource = this };
                     }
 
                     Reader.BaseStream.Position = position;
                 }
 
                 block ??= ConstructFromType(blockType);
+                Debug.Assert(block.Resource == this);
 
                 block.Offset = offset;
                 block.Size = size;
-                block.Resource = this;
 
                 Blocks.Add(block);
 
@@ -501,32 +502,32 @@ namespace ValveResourceFormat
             return blockType switch
             {
                 BlockType.DATA => ConstructResourceType(),
-                BlockType.REDI => new ResourceEditInfo(),
-                BlockType.RED2 => new ResourceEditInfo2(),
-                BlockType.RERL => new ResourceExtRefList(),
-                BlockType.NTRO => new ResourceIntrospectionManifest(),
-                BlockType.VBIB => new VBIB(),
-                BlockType.VXVS => new VoxelVisibility(),
-                BlockType.SNAP => new ParticleSnapshot(),
-                BlockType.MBUF => new MBUF(),
-                BlockType.TBUF => new TBUF(),
-                BlockType.MVTX => new MeshVertexBuffer(),
-                BlockType.MIDX => new MeshIndexBuffer(),
-                BlockType.MADJ => new MeshAdjacencyBuffer(),
-                BlockType.CTRL => new BinaryKV3(BlockType.CTRL),
-                BlockType.MDAT => new Mesh(BlockType.MDAT),
-                BlockType.INSG => new BinaryKV3(BlockType.INSG),
-                BlockType.SrMa => new BinaryKV3(BlockType.SrMa), // SourceMap
-                BlockType.LaCo => new BinaryKV3(BlockType.LaCo), // vxml ast
-                BlockType.STAT => new BinaryKV3(BlockType.STAT),
-                BlockType.FLCI => new BinaryKV3(BlockType.FLCI),
-                BlockType.DSTF => new BinaryKV3(BlockType.DSTF),
-                BlockType.MRPH => new Morph(BlockType.MRPH),
-                BlockType.ANIM => new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t"),
-                BlockType.ASEQ => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t"),
-                BlockType.AGRP => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t"),
-                BlockType.PHYS => new PhysAggregateData(BlockType.PHYS),
-                BlockType.SPRV => new SboxShader(BlockType.SPRV),
+                BlockType.REDI => new ResourceEditInfo() { Resource = this },
+                BlockType.RED2 => new ResourceEditInfo2() { Resource = this },
+                BlockType.RERL => new ResourceExtRefList() { Resource = this },
+                BlockType.NTRO => new ResourceIntrospectionManifest() { Resource = this },
+                BlockType.VBIB => new VBIB() { Resource = this },
+                BlockType.VXVS => new VoxelVisibility() { Resource = this },
+                BlockType.SNAP => new ParticleSnapshot() { Resource = this },
+                BlockType.MBUF => new MBUF() { Resource = this },
+                BlockType.TBUF => new TBUF() { Resource = this },
+                BlockType.MVTX => new MeshVertexBuffer() { Resource = this },
+                BlockType.MIDX => new MeshIndexBuffer() { Resource = this },
+                BlockType.MADJ => new MeshAdjacencyBuffer() { Resource = this },
+                BlockType.CTRL => new BinaryKV3(BlockType.CTRL) { Resource = this },
+                BlockType.MDAT => new Mesh(BlockType.MDAT) { Resource = this },
+                BlockType.INSG => new BinaryKV3(BlockType.INSG) { Resource = this },
+                BlockType.SrMa => new BinaryKV3(BlockType.SrMa) { Resource = this }, // SourceMap
+                BlockType.LaCo => new BinaryKV3(BlockType.LaCo) { Resource = this }, // vxml ast
+                BlockType.STAT => new BinaryKV3(BlockType.STAT) { Resource = this },
+                BlockType.FLCI => new BinaryKV3(BlockType.FLCI) { Resource = this },
+                BlockType.DSTF => new BinaryKV3(BlockType.DSTF) { Resource = this },
+                BlockType.MRPH => new Morph(BlockType.MRPH) { Resource = this },
+                BlockType.ANIM => new KeyValuesOrNTRO(BlockType.ANIM, "AnimationResourceData_t") { Resource = this },
+                BlockType.ASEQ => new KeyValuesOrNTRO(BlockType.ASEQ, "SequenceGroupResourceData_t") { Resource = this },
+                BlockType.AGRP => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t") { Resource = this },
+                BlockType.PHYS => new PhysAggregateData(BlockType.PHYS) { Resource = this },
+                BlockType.SPRV => new SboxShader(BlockType.SPRV) { Resource = this },
                 _ => throw new ArgumentException($"Unrecognized block type '{Encoding.ASCII.GetString(BitConverter.GetBytes((uint)blockType))}'"),
             };
         }
@@ -535,33 +536,33 @@ namespace ValveResourceFormat
         {
             return ResourceType switch
             {
-                ResourceType.AnimationGraph => new AnimGraph(),
-                ResourceType.NmClip => new ResourceTypes.ModelAnimation2.AnimationClip(),
-                ResourceType.ChoreoSceneFileData => new ChoreoSceneFileData(),
-                ResourceType.EntityLump => new EntityLump(),
-                ResourceType.Map => new Map(),
-                ResourceType.Material => new Material(),
-                ResourceType.Mesh => new Mesh(BlockType.DATA),
-                ResourceType.Model => new Model(),
-                ResourceType.Morph => new Morph(BlockType.DATA),
-                ResourceType.Panorama or ResourceType.PanoramaScript or ResourceType.PanoramaTypescript or ResourceType.PanoramaVectorGraphic => new Panorama(),
-                ResourceType.PanoramaDynamicImages => new PanoramaDynamicImages(),
-                ResourceType.PanoramaLayout => new PanoramaLayout(),
-                ResourceType.PanoramaStyle => new PanoramaStyle(),
-                ResourceType.Particle => new ParticleSystem(),
-                ResourceType.PhysicsCollisionMesh => new PhysAggregateData(),
-                ResourceType.PostProcessing => new PostProcessing(),
-                ResourceType.ResourceManifest => new ResourceManifest(),
-                ResourceType.ResponseRules => new ResponseRules(),
-                ResourceType.SboxManagedResource or ResourceType.ArtifactItem or ResourceType.DotaHeroList => new Plaintext(),
-                ResourceType.SboxShader => new SboxShader(),
-                ResourceType.SmartProp => new SmartProp(),
-                ResourceType.Sound => new Sound(),
-                ResourceType.SoundStackScript => new SoundStackScript(),
-                ResourceType.Texture => new Texture(),
-                ResourceType.World => new World(),
-                ResourceType.WorldNode => new WorldNode(),
-                _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() : new UnknownDataBlock(ResourceType),
+                ResourceType.AnimationGraph => new AnimGraph() { Resource = this },
+                ResourceType.NmClip => new ResourceTypes.ModelAnimation2.AnimationClip() { Resource = this },
+                ResourceType.ChoreoSceneFileData => new ChoreoSceneFileData() { Resource = this },
+                ResourceType.EntityLump => new EntityLump() { Resource = this },
+                ResourceType.Map => new Map() { Resource = this },
+                ResourceType.Material => new Material() { Resource = this },
+                ResourceType.Mesh => new Mesh(BlockType.DATA) { Resource = this },
+                ResourceType.Model => new Model() { Resource = this },
+                ResourceType.Morph => new Morph(BlockType.DATA) { Resource = this },
+                ResourceType.Panorama or ResourceType.PanoramaScript or ResourceType.PanoramaTypescript or ResourceType.PanoramaVectorGraphic => new Panorama() { Resource = this },
+                ResourceType.PanoramaDynamicImages => new PanoramaDynamicImages() { Resource = this },
+                ResourceType.PanoramaLayout => new PanoramaLayout() { Resource = this },
+                ResourceType.PanoramaStyle => new PanoramaStyle() { Resource = this },
+                ResourceType.Particle => new ParticleSystem() { Resource = this },
+                ResourceType.PhysicsCollisionMesh => new PhysAggregateData() { Resource = this },
+                ResourceType.PostProcessing => new PostProcessing() { Resource = this },
+                ResourceType.ResourceManifest => new ResourceManifest() { Resource = this },
+                ResourceType.ResponseRules => new ResponseRules() { Resource = this },
+                ResourceType.SboxManagedResource or ResourceType.ArtifactItem or ResourceType.DotaHeroList => new Plaintext() { Resource = this },
+                ResourceType.SboxShader => new SboxShader() { Resource = this },
+                ResourceType.SmartProp => new SmartProp() { Resource = this },
+                ResourceType.Sound => new Sound() { Resource = this },
+                ResourceType.SoundStackScript => new SoundStackScript() { Resource = this },
+                ResourceType.Texture => new Texture() { Resource = this },
+                ResourceType.World => new World() { Resource = this },
+                ResourceType.WorldNode => new WorldNode() { Resource = this },
+                _ => ContainsBlockType(BlockType.NTRO) ? new NTRO() { Resource = this } : new UnknownDataBlock(ResourceType) { Resource = this },
             };
         }
 

@@ -1,8 +1,7 @@
+using System.Diagnostics;
 using System.IO;
 using System.IO.Hashing;
 using System.Text;
-
-#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -19,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <summary>
             /// Gets or sets the name.
             /// </summary>
-            public string Name { get; set; }
+            public required string Name { get; set; }
             /// <summary>
             /// Gets or sets the first unknown value.
             /// </summary>
@@ -38,7 +37,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the raw data.
         /// </summary>
-        public byte[] Data { get; private set; }
+        public byte[] Data { get; private set; } = [];
         /// <summary>
         /// Gets the CRC32 checksum.
         /// </summary>
@@ -51,6 +50,8 @@ namespace ValveResourceFormat.ResourceTypes
         public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
+
+            Debug.Assert(Resource != null);
 
             if (IsPlaintext())
             {
@@ -110,6 +111,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private bool IsPlaintext()
         {
+            Debug.Assert(Resource != null);
+
             if (Resource.ResourceType == ResourceType.PanoramaScript && Resource.Version >= 4)
             {
                 return true;

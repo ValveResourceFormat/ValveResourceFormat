@@ -42,10 +42,10 @@ public class VfxRule : ShaderDataBlock
         Values = new int[MaxArgs];
         ExtraRuleData = new int[MaxArgs];
 
-        var argTypesArray = data.GetArray<string>("m_argTypeArray");
-        var argIndexArray = data.GetArray<int>("m_argIndexArray");
-        var argValueArray = data.GetArray<int>("m_argValueArray");
-        var extraRuleData = data.GetArray<int>("m_nExtraRuleData");
+        var argTypesArray = data.GetArray<string>("m_argTypeArray")!;
+        var argIndexArray = data.GetArray<int>("m_argIndexArray")!;
+        var argValueArray = data.GetArray<int>("m_argValueArray")!;
+        var extraRuleData = data.GetArray<int>("m_nExtraRuleData")!;
 
         Debug.Assert(argTypesArray.Length == MaxArgs);
         Debug.Assert(argIndexArray.Length == MaxArgs);

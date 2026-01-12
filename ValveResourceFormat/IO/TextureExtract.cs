@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -566,6 +567,11 @@ public sealed class TextureExtract
         }
 
         var spriteSheetData = texture.GetSpriteSheetData();
+
+        if (spriteSheetData == null)
+        {
+            return false;
+        }
 
         var mksBuilder = new StringBuilder();
         var textureName = Path.GetFileNameWithoutExtension(fileName);

@@ -1,8 +1,6 @@
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     /// <summary>
@@ -38,7 +36,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets the combo ramp curve data.
         /// </summary>
-        public ChoreoCurveData ComboRamp { get; private set; }
+        public ChoreoCurveData? ComboRamp { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ChoreoFlexAnimationTrack"/> class.
@@ -49,7 +47,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <param name="maxRange">The maximum range value.</param>
         /// <param name="samples">The ramp curve data.</param>
         /// <param name="comboSamples">The combo ramp curve data.</param>
-        public ChoreoFlexAnimationTrack(string name, ChoreoTrackFlags trackFlags, float minRange, float maxRange, ChoreoCurveData samples, ChoreoCurveData comboSamples)
+        public ChoreoFlexAnimationTrack(string name, ChoreoTrackFlags trackFlags, float minRange, float maxRange, ChoreoCurveData samples, ChoreoCurveData? comboSamples)
         {
             Name = name;
             TrackFlags = trackFlags;

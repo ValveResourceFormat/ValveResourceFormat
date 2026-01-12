@@ -4,8 +4,6 @@ using System.IO;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     public partial class BinaryKV3 : Block
@@ -25,7 +23,7 @@ namespace ValveResourceFormat.ResourceTypes
             // and then it proceeds to call LoadKV3BinaryUncompressed, which should be the same routine for KV3_ENCODING_BINARY_UNCOMPRESSED
             // Old binary with debug symbols for ref: https://users.alliedmods.net/~asherkin/public/bins/dota_symbols/bin/osx64/libmeshsystem.dylib
 
-            byte[] outputBuf = null;
+            byte[]? outputBuf = null;
 
             try
             {
@@ -54,7 +52,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    throw new UnexpectedMagicException("Unrecognised KV3 Encoding", Encoding.ToString(), nameof(Encoding));
+                    throw new UnexpectedMagicException("Unrecognised KV3 Encoding", Encoding?.ToString() ?? "null", nameof(Encoding));
                 }
 
                 using var outStream = new MemoryStream(outputBuf, 0, outBufferLength);
@@ -68,7 +66,7 @@ namespace ValveResourceFormat.ResourceTypes
                     context.Strings[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
                 }
 
-                Data = LegacyParseBinaryKV3(context, outRead, null, true);
+                Data = LegacyParseBinaryKV3(context, outRead, null!, true);
 
                 var trailer = outRead.ReadUInt32();
                 if (trailer != 0xFFFFFFFF)
@@ -121,7 +119,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static KVObject LegacyParseBinaryKV3(Context context, BinaryReader reader, KVObject parent, bool inArray = false)
         {
-            string name = null;
+            string? name = null;
             if (!inArray)
             {
                 var stringID = reader.ReadInt32();
@@ -133,7 +131,7 @@ namespace ValveResourceFormat.ResourceTypes
             return LegacyReadBinaryValue(context, name, datatype, flagInfo, reader, parent);
         }
 
-        private static KVObject LegacyReadBinaryValue(Context context, string name, KV3BinaryNodeType datatype, KVFlag flagInfo, BinaryReader reader, KVObject parent)
+        private static KVObject LegacyReadBinaryValue(Context context, string? name, KV3BinaryNodeType datatype, KVFlag flagInfo, BinaryReader reader, KVObject parent)
         {
             var currentOffset = reader.BaseStream.Position;
 

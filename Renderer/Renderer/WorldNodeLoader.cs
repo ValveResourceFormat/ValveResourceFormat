@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer
 
             if (node.Data.ContainsKey("m_layerNames"))
             {
-                LayerNames = node.Data.GetArray<string>("m_layerNames");
+                LayerNames = node.Data.GetArray<string>("m_layerNames") ?? [];
             }
             else
             {

@@ -342,7 +342,10 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                 if (BinaryKV3.IsBinaryKV3(kv3magic))
                 {
-                    var kv3 = new BinaryKV3(BlockType.Undefined);
+                    var kv3 = new BinaryKV3(BlockType.Undefined)
+                    {
+                        Resource = null!
+                    };
                     kv3.Read(reader);
 
                     KV3Segment = kv3.Data;

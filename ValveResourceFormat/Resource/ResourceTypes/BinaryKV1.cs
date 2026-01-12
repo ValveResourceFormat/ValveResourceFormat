@@ -1,8 +1,6 @@
 using System.IO;
 using ValveKeyValue;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -21,7 +19,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the deserialized KeyValues data.
         /// </summary>
-        public KVObject KeyValues { get; private set; }
+        public KVObject? KeyValues { get; private set; }
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)

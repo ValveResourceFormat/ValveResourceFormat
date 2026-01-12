@@ -85,7 +85,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public Triangle(KVObject data)
             {
-                var indices = data.GetArray<object>("m_nIndex").Select(Convert.ToInt32).ToArray();
+                var indices = data.GetArray<object>("m_nIndex")!.Select(Convert.ToInt32).ToArray();
 
                 if (indices.Length != 3)
                 {
@@ -130,7 +130,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             Data = data;
             Min = data.GetSubCollection("m_vMin").ToVector3();
             Max = data.GetSubCollection("m_vMax").ToVector3();
-            Materials = data.GetArray<object>("m_Materials").Select(Convert.ToInt32).ToArray();
+            Materials = data.GetArray<object>("m_Materials")!.Select(Convert.ToInt32).ToArray();
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
         }
 

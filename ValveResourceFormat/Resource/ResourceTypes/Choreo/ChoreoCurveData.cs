@@ -1,7 +1,5 @@
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     /// <summary>
@@ -17,12 +15,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets the left edge of the curve.
         /// </summary>
-        public ChoreoEdge LeftEdge { get; private set; }
+        public ChoreoEdge? LeftEdge { get; private set; }
 
         /// <summary>
         /// Gets the right edge of the curve.
         /// </summary>
-        public ChoreoEdge RightEdge { get; private set; }
+        public ChoreoEdge? RightEdge { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ChoreoCurveData"/> class.
@@ -30,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <param name="samples">The samples in this curve.</param>
         /// <param name="leftEdge">The left edge of the curve.</param>
         /// <param name="rightEdge">The right edge of the curve.</param>
-        public ChoreoCurveData(ChoreoSample[] samples, ChoreoEdge leftEdge, ChoreoEdge rightEdge)
+        public ChoreoCurveData(ChoreoSample[] samples, ChoreoEdge? leftEdge, ChoreoEdge? rightEdge)
         {
             Samples = samples;
             LeftEdge = leftEdge;

@@ -1,6 +1,5 @@
+using System.Diagnostics;
 using ValveResourceFormat.Serialization.KeyValues;
-
-#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -18,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the tonemap parameters.
         /// </summary>
-        public KVObject GetTonemapParams()
+        public KVObject? GetTonemapParams()
         {
             if (Data.GetProperty<bool>("m_bHasTonemapParams"))
             {
@@ -31,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the bloom parameters.
         /// </summary>
-        public KVObject GetBloomParams()
+        public KVObject? GetBloomParams()
         {
             if (Data.GetProperty<bool>("m_bHasBloomParams"))
             {
@@ -44,7 +43,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the vignette parameters.
         /// </summary>
-        public KVObject GetVignetteParams()
+        public KVObject? GetVignetteParams()
         {
             if (Data.GetProperty<bool>("m_bHasVignetteParams"))
             {
@@ -57,7 +56,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the local contrast parameters.
         /// </summary>
-        public KVObject GetLocalContrastParams()
+        public KVObject? GetLocalContrastParams()
         {
             if (Data.GetProperty<bool>("m_bHasLocalContrastParams"))
             {
@@ -72,9 +71,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public bool HasColorCorrection()
         {
-            if (Data.Properties.TryGetValue("m_bHasColorCorrection", out var value))
+            if (Data.Properties.TryGetValue("m_bHasColorCorrection", out var value) && value.Value is bool returnValue)
             {
-                return (bool)value.Value;
+                return returnValue;
             }
 
             return true; // Assumed true pre Aperture Desk Job
@@ -98,6 +97,7 @@ namespace ValveResourceFormat.ResourceTypes
         public byte[] GetRAWData()
         {
             var lut = GetColorCorrectionLUT().Clone() as byte[];
+            Debug.Assert(lut != null);
 
             var j = 0;
             for (var i = 0; i < lut.Length; i++)

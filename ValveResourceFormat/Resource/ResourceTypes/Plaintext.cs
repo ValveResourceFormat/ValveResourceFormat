@@ -1,8 +1,6 @@
 using System.IO;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -14,7 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
         public override BlockType Type => BlockType.DATA;
 
         /// <summary>Gets the text data.</summary>
-        public string Data { get; private set; }
+        public string Data { get; private set; } = string.Empty;
 
         /// <summary>
         /// Initializes a new instance.

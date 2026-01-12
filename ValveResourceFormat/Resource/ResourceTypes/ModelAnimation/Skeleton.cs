@@ -1,8 +1,6 @@
 using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
@@ -13,17 +11,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Gets the root bones of the skeleton.
         /// </summary>
-        public Bone[] Roots { get; private set; }
+        public Bone[] Roots { get; private set; } = [];
 
         /// <summary>
         /// Gets all bones in the skeleton.
         /// </summary>
-        public Bone[] Bones { get; private set; }
+        public Bone[] Bones { get; private set; } = [];
 
         /// <summary>
         /// Gets the root bone for cloth simulation, if present.
         /// </summary>
-        public Bone ClothSimulationRoot { get; private set; }
+        public Bone? ClothSimulationRoot { get; private set; }
 
         /// <summary>
         /// Creates a skeleton from model data.

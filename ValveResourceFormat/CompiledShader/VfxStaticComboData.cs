@@ -99,13 +99,13 @@ namespace ValveResourceFormat.CompiledShader
                 Debug.Assert(programData.DataReader.BaseStream.Position == finalOffset + blockSize);
 
                 var hashes = byteCodeData.GetArray("m_hash");
-                var offsets = byteCodeData.GetArray<uint>("m_offs");
+                var offsets = byteCodeData.GetArray<uint>("m_offs")!;
                 Debug.Assert(offsets.Length == hashes.Length + 1);
 
                 ShaderFiles = new VfxShaderFile[hashes.Length];
                 foreach (var i in byteCodeIndex)
                 {
-                    var hash = new Guid(hashes[i].GetArray<byte>("m_nHashChar"));
+                    var hash = new Guid(hashes[i].GetArray<byte>("m_nHashChar")!);
                     var byteCodeOffset = offsets[i];
                     var byteCodeSize = offsets[i + 1];
 
@@ -144,7 +144,7 @@ namespace ValveResourceFormat.CompiledShader
                 );
             }
 
-            var constantBufferBindingArray = data.GetArray<int>("m_constantBufferBindingArray");
+            var constantBufferBindingArray = data.GetArray<int>("m_constantBufferBindingArray")!;
             ConstantBufferBindInfoSlots = [.. constantBufferBindingArray.Select(i => (byte)(i >> 0))];
             ConstantBufferBindInfoFlags = [.. constantBufferBindingArray.Select(i => (byte)(i >> 8))];
 

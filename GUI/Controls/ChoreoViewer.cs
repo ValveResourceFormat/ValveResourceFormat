@@ -39,7 +39,7 @@ namespace GUI.Controls
             for (var i = 0; i < choreoDataList.Scenes.Length; i++)
             {
                 var scene = choreoDataList.Scenes[i];
-                AddListItem(i, scene.Name, scene.Version);
+                AddListItem(i, scene.Name ?? string.Empty, scene.Version);
             }
 
             AddControl(fileListView);

@@ -2,8 +2,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
     /// <summary>
@@ -99,7 +97,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// <summary>
             /// Gets the region nodes.
             /// </summary>
-            public object[] Nodes { get; }
+            public object[]? Nodes { get; }
             /// <summary>
             /// Gets the region data.
             /// </summary>
@@ -142,7 +140,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Gets the region SVM data.
         /// </summary>
-        public Region RegionSVM { get; }
+        public Region? RegionSVM { get; }
 
         /// <summary>
         /// Fraction 0..1 of coverage along YZ,ZX,XY sides of AABB

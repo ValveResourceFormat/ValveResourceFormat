@@ -50,12 +50,12 @@ public class NmClipExtract
             var bonesToSampleInModelSpace = new KVObject("m_bonesToSampleInModelSpace", true, modelSpaceBoneSamplingIndices.Length);
             foreach (var chainIdx in modelSpaceBoneSamplingIndices)
             {
-                if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain.Length)
-                {
-                    throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain.Length - 1}).");
-                }
-                var boneIdx = modelSpaceSamplingChain[chainIdx].GetInt32Property("m_nBoneIdx");
-                bonesToSampleInModelSpace.AddItem(skeleton.Bones[boneIdx].Name);
+            if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain!.Length)
+            {
+                throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain!.Length - 1}).");
+            }
+            var boneIdx = modelSpaceSamplingChain[chainIdx]!.GetInt32Property("m_nBoneIdx");
+            bonesToSampleInModelSpace.AddItem(skeleton.Bones[boneIdx].Name);
             }
             kv.AddProperty("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
@@ -64,14 +64,14 @@ public class NmClipExtract
                 return ModelExtract.ToDmxAnim(skeleton, [], animation);
             });
         }
-        var events = clip.Data.GetArray<KVObject>("m_events");
+        var events = clip.Data.GetArray<KVObject>("m_events")!;
         var docEventTracks = new KVObject("m_eventTracks", true, events.Length);
-        foreach (var ev in events)
+        foreach (var ev in events!)
         {
             var docEventTrack = BuildDocEventBasedOnEventClass(ev, ev.GetStringProperty("_class"));
             var startTimeSeconds = ev.GetFloatProperty("m_flStartTimeSeconds");
             var durationSeconds = ev.GetFloatProperty("m_flDurationSeconds");
-            var eventList = docEventTrack.GetArray<KVObject>("m_events").First();
+            var eventList = docEventTrack!.GetArray<KVObject>("m_events")!.First();
             // Doc file event time stamps are given in frames they can be technically floats, but based on recompilation tests
             // these seem inconsistent, unless they're floored to int, then it matches up.
             eventList.AddProperty("m_flStartTime", Math.Floor(startTimeSeconds * animation.Fps));

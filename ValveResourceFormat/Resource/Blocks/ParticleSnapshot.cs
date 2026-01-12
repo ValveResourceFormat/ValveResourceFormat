@@ -5,8 +5,6 @@ using System.Linq;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
@@ -25,7 +23,7 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Gets the particle attribute data by name and type.
         /// </summary>
-        public IReadOnlyDictionary<(string Name, string Type), IEnumerable> AttributeData { get; private set; }
+        public IReadOnlyDictionary<(string Name, string Type), IEnumerable> AttributeData { get; private set; } = new Dictionary<(string Name, string Type), IEnumerable>();
 
         /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
@@ -62,7 +60,7 @@ namespace ValveResourceFormat.Blocks
                 using var innerReader = new BinaryReader(decompressedStream);
 
                 // Get DATA block to know how to read SNAP data
-                var data = Resource.DataBlock.AsKeyValueCollection();
+                var data = Resource.DataBlock!.AsKeyValueCollection();
 
                 var numParticles = data.GetIntegerProperty("num_particles");
                 var attributes = data.GetArray("attributes");
@@ -77,9 +75,9 @@ namespace ValveResourceFormat.Blocks
 
                     var attributeArray = attributeType switch
                     {
-                        "skinning" => ReadSkinningData(innerReader, numParticles, stringList),
-                        "string" => ReadStringArray(innerReader, numParticles, stringList),
-                        "bone" => ReadStringArray(innerReader, numParticles, stringList),
+                        "skinning" => ReadSkinningData(innerReader, numParticles, stringList!),
+                        "string" => ReadStringArray(innerReader, numParticles, stringList!),
+                        "bone" => ReadStringArray(innerReader, numParticles, stringList!),
                         _ => ReadArrayOfType(innerReader, numParticles, attributeType),
                     };
 
@@ -156,12 +154,12 @@ namespace ValveResourceFormat.Blocks
             /// <summary>
             /// Gets or sets the joint names.
             /// </summary>
-            public string[] JointNames { get; set; }
+            public required string[] JointNames { get; set; }
 
             /// <summary>
             /// Gets or sets the joint weights.
             /// </summary>
-            public float[] Weights { get; set; }
+            public required float[] Weights { get; set; }
 
             /// <inheritdoc/>
             /// <remarks>

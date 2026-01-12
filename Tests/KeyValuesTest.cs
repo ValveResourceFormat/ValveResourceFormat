@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
@@ -5,8 +6,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using KVValueType = ValveKeyValue.KVValueType;
-
-#nullable disable
 
 namespace Tests
 {
@@ -41,7 +40,10 @@ namespace Tests
         {
             var originalFile = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
 
-            var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"));
+            var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"))
+            {
+                Resource = null!
+            };
 
             using var stream = new MemoryStream();
             binaryKV3.Serialize(stream);
@@ -50,7 +52,8 @@ namespace Tests
             var deserializedBinaryKV3 = new BinaryKV3(BlockType.DATA)
             {
                 Size = (uint)stream.Length,
-                Offset = 0
+                Offset = 0,
+                Resource = null!
             };
 
             using var reader = new BinaryReader(stream);
@@ -93,6 +96,7 @@ namespace Tests
 
                 Assert.That(properties["arrayValue"].Type, Is.EqualTo(KVValueType.Array));
                 var arrayValue = properties["arrayValue"].Value as KVObject;
+                Debug.Assert(arrayValue != null);
                 Assert.That(arrayValue.Properties["0"].Value, Is.EqualTo((long)1));
                 Assert.That(arrayValue.Properties["1"].Value, Is.EqualTo((long)2));
                 Assert.That(arrayValue.Properties["2"].Value, Is.EqualTo("characters/models/shared/animsets/animset_ct.vmdl"));
@@ -106,10 +110,12 @@ namespace Tests
 
                 Assert.That(properties["objectValue"].Type, Is.EqualTo(KVValueType.Collection));
                 var objectValue = properties["objectValue"].Value as KVObject;
+                Debug.Assert(objectValue != null);
                 Assert.That(objectValue.Properties["n"].Value, Is.EqualTo((long)5));
                 Assert.That(objectValue.Properties["s"].Value, Is.EqualTo("foo"));
 
                 var binaryBlobValue = properties["binaryBlobValue"].Value as byte[];
+                Debug.Assert(binaryBlobValue != null);
                 Assert.That(binaryBlobValue, Has.Length.EqualTo(40));
                 Assert.That(Encoding.UTF8.GetString(binaryBlobValue), Is.EqualTo("Hello, this is a test binary blob value!"));
 

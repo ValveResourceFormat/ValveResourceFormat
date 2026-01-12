@@ -4,8 +4,6 @@ using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
@@ -16,7 +14,7 @@ namespace ValveResourceFormat.Blocks
         /// <inheritdoc/>
         public override BlockType Type => BlockType.RED2;
 
-        private BinaryKV3 BackingData;
+        private BinaryKV3? BackingData;
 
         /// <summary>
         /// Gets the list of weak references.
@@ -26,12 +24,12 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Gets the subasset references.
         /// </summary>
-        public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; private set; }
+        public Dictionary<string, Dictionary<string, int>>? SubassetReferences { get; private set; }
 
         /// <summary>
         /// Gets the subasset definitions.
         /// </summary>
-        public Dictionary<string, string[]> SubassetDefinitions { get; private set; }
+        public Dictionary<string, string[]>? SubassetDefinitions { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ResourceEditInfo2"/> class.
@@ -64,9 +62,11 @@ namespace ValveResourceFormat.Blocks
 
                 foreach (var item in container)
                 {
-                    var kvObject = item.Value as KVObject;
-                    var newItem = constructor.Invoke(kvObject);
-                    list.Add(newItem);
+                    if (item.Value is KVObject kvObject)
+                    {
+                        var newItem = constructor.Invoke(kvObject);
+                        list.Add(newItem);
+                    }
                 }
             }
 
@@ -77,7 +77,10 @@ namespace ValveResourceFormat.Blocks
             ReadItems(kv3, AdditionalRelatedFiles, "m_AdditionalRelatedFiles", static (KVObject data) => new AdditionalRelatedFile(data));
 
             var childResources = kv3.Data.GetArray<string>("m_ChildResourceList");
-            ChildResourceList.AddRange(childResources);
+            if (childResources != null)
+            {
+                ChildResourceList.AddRange(childResources);
+            }
 
             var weakReferences = kv3.Data.GetArray<string>("m_WeakReferenceList");
             if (weakReferences is not null)
@@ -103,17 +106,18 @@ namespace ValveResourceFormat.Blocks
 
                 foreach (var property in subassetReferences)
                 {
-                    var subassetType = property.Key;
-                    var perTypeReferencesKv = property.Value as KVObject;
-
-                    var perTypeReferences = new Dictionary<string, int>(capacity: perTypeReferencesKv.Count);
-
-                    foreach (var (refName, refCount) in perTypeReferencesKv)
+                    if (property.Value is KVObject perTypeReferencesKv)
                     {
-                        perTypeReferences.Add(refName, Convert.ToInt32(refCount, CultureInfo.InvariantCulture));
-                    }
+                        var perTypeReferences = new Dictionary<string, int>(capacity: perTypeReferencesKv.Count);
 
-                    SubassetReferences.Add(subassetType, perTypeReferences);
+                        foreach (var (refName, refCount) in perTypeReferencesKv)
+                        {
+                            perTypeReferences.Add(refName, Convert.ToInt32(refCount, CultureInfo.InvariantCulture));
+                        }
+
+                        var subassetType = property.Key;
+                        SubassetReferences.Add(subassetType, perTypeReferences);
+                    }
                 }
             }
 
@@ -127,7 +131,10 @@ namespace ValveResourceFormat.Blocks
                     var subassetType = property.Key;
                     var definitions = subassetDefinitions.GetArray<string>(subassetType);
 
-                    SubassetDefinitions.Add(subassetType, definitions);
+                    if (definitions != null)
+                    {
+                        SubassetDefinitions.Add(subassetType, definitions);
+                    }
                 }
             }
         }
@@ -135,13 +142,13 @@ namespace ValveResourceFormat.Blocks
         /// <inheritdoc/>
         public override void Serialize(Stream stream)
         {
-            BackingData.Serialize(stream);
+            BackingData?.Serialize(stream);
         }
 
         /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
-            BackingData.WriteText(writer);
+            BackingData?.WriteText(writer);
         }
     }
 }

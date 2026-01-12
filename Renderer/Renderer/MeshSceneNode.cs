@@ -55,7 +55,7 @@ namespace ValveResourceFormat.Renderer
 
         public static MeshSceneNode CreateMaterialPreviewQuad(Scene scene, RenderMaterial material, Vector2 size)
         {
-            var vbib = new VBIB();
+            var vbib = new VBIB() { Resource = null! };
             var half = size / 2.0f;
 
             Span<Vertex> vertices =

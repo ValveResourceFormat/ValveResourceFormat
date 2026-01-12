@@ -5,8 +5,6 @@ using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -22,7 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
             get
             {
                 //new format has VBIB block, for old format we can get it from NTRO DATA block
-                cachedVBIB ??= (VBIB)Resource.GetBlockByType(BlockType.VBIB) ?? new VBIB(Resource, Data);
+                cachedVBIB ??= (VBIB?)Resource.GetBlockByType(BlockType.VBIB) ?? new VBIB(Resource, Data) { Resource = Resource };
                 return cachedVBIB;
             }
             set
@@ -34,7 +32,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets or sets the mesh name.
         /// </summary>
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets the minimum bounds of the mesh.
@@ -49,9 +47,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets or sets the morph data for this mesh.
         /// </summary>
-        public Morph MorphData { get; set; }
+        public Morph? MorphData { get; set; }
 
-        private VBIB cachedVBIB { get; set; }
+        private VBIB? cachedVBIB { get; set; }
 
         /// <summary>
         /// Gets the attachments associated with this mesh.
@@ -76,7 +74,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             base.Read(reader);
 
-            Name = Resource.FileName;
+            Name = Resource.FileName ?? string.Empty;
 
             if (Data.ContainsKey("m_attachments"))
             {

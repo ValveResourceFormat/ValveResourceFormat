@@ -88,10 +88,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             {
                 influences[i] = new Influence
                 {
-                    Name = influenceNames[i],
-                    Rotation = influenceRotations[i],
-                    Offset = influenceOffsets[i],
-                    Weight = (float)influenceWeights[i]
+                    Name = influenceNames![i],
+                    Rotation = influenceRotations![i],
+                    Offset = influenceOffsets![i],
+                    Weight = (float)influenceWeights![i]
                 };
             }
         }

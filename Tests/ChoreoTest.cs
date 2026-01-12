@@ -201,6 +201,10 @@ namespace Tests
 
             //flex animation event
             var flexEvent = GetEvent(actor2Channel2, "flex animation event", ChoreoEventType.FlexAnimation);
+
+            Debug.Assert(flexEvent.Ramp.LeftEdge != null);
+            Debug.Assert(flexEvent.Ramp.RightEdge != null);
+
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(flexEvent.Ramp.Samples, Has.Length.EqualTo(4));
@@ -230,7 +234,15 @@ namespace Tests
                 Assert.That(flexEvent.ShiftedTimeTags[0].Name, Is.EqualTo("shifted tag"));
                 Assert.That(flexEvent.ShiftedTimeTags[0].Fraction, Is.EqualTo(2.5f).Within(0.01f));
             }
+
             var flexTrack = flexEvent.EventFlex.Tracks.First();
+
+            Debug.Assert(flexTrack.Ramp.LeftEdge != null);
+            Debug.Assert(flexTrack.Ramp.RightEdge != null);
+            Debug.Assert(flexTrack.ComboRamp != null);
+            Debug.Assert(flexTrack.ComboRamp.LeftEdge != null);
+            Debug.Assert(flexTrack.ComboRamp.RightEdge != null);
+
             var leftCurve = flexTrack.Ramp.LeftEdge.CurveType;
             var rightCurve = flexTrack.Ramp.RightEdge.CurveType;
             using (Assert.EnterMultipleScope())
@@ -247,6 +259,8 @@ namespace Tests
 
             //scene ramp
             var sceneRamp = vcd.Ramp;
+            Debug.Assert(sceneRamp.LeftEdge != null);
+            Debug.Assert(sceneRamp.RightEdge != null);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(sceneRamp.Samples, Has.Length.EqualTo(4));

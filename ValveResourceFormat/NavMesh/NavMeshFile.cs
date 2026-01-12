@@ -168,7 +168,8 @@ namespace ValveResourceFormat.NavMesh
 
             var kv3 = new BinaryKV3
             {
-                Offset = (uint)binaryReader.BaseStream.Position
+                Offset = (uint)binaryReader.BaseStream.Position,
+                Resource = null!
             };
             kv3.Read(binaryReader);
             return kv3.Data;

@@ -346,7 +346,7 @@ partial class ModelExtract
 
                 var groupedChoices = new Dictionary<string, List<(int ChoiceIndex, string FullName, string ChoiceName)>>();
 
-                for (var i = 0; i < meshGroups.Length; i++)
+                for (var i = 0; i < meshGroups!.Length; i++)
                 {
                     var fullName = meshGroups[i];
                     var split = fullName.Split("_@");
@@ -482,7 +482,7 @@ partial class ModelExtract
                         folderNode.AddProperty("name", folderName);
                         animationList.Value.AddItem(folderNode);
 
-                        foreach (var animationName in animationNames)
+                        foreach (var animationName in animationNames!)
                         {
                             animationToFolder.Add(animationName, children);
                         }
@@ -776,7 +776,7 @@ partial class ModelExtract
             var boneMasks = sequenceData.Data.GetArray<KVObject>("m_localBoneMaskArray");
             var boneNames = sequenceData.Data.GetArray<string>("m_localBoneNameArray");
 
-            foreach (var boneMask in boneMasks)
+            foreach (var boneMask in boneMasks!)
             {
                 var name = boneMask.GetProperty<string>("m_sName");
                 var boneArray = boneMask.GetIntegerArray("m_nLocalBoneArray");
@@ -798,7 +798,7 @@ partial class ModelExtract
                 foreach (var (boneIndex, boneWeight) in boneArray.Zip(boneWeights))
                 {
                     var weightDefinition = new KVObject(null, 2);
-                    var boneName = boneNames[boneIndex];
+                    var boneName = boneNames![boneIndex];
 
                     weightDefinition.AddProperty("bone", boneName);
                     weightDefinition.AddProperty("weight", boneWeight);
@@ -813,7 +813,7 @@ partial class ModelExtract
         {
             if (model.Data.ContainsKey("m_refAnimIncludeModels"))
             {
-                foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels"))
+                foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels")!)
                 {
                     animationList.Value.AddItem(MakeNode("AnimIncludeModel", ("model", animIncludeModel)));
                 }
@@ -924,7 +924,7 @@ partial class ModelExtract
                 if (keyvalues.ContainsKey(dataKey))
                 {
                     var genericDataList = keyvalues.GetArray<KVObject>(dataKey);
-                    foreach (var genericData in genericDataList)
+                    foreach (var genericData in genericDataList!)
                     {
                         AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData);
                     }
@@ -952,7 +952,7 @@ partial class ModelExtract
             if (keyvalues.ContainsKey("FeetSettings"))
             {
                 var feetSettings = keyvalues.GetProperty<KVObject>("FeetSettings");
-                var feetNode = ConvertFeetSettings(feetSettings);
+                var feetNode = ConvertFeetSettings(feetSettings!);
                 if (feetNode != null)
                 {
                     gameDataList.Value.AddItem(feetNode);
@@ -961,7 +961,7 @@ partial class ModelExtract
 
             if (keyvalues.ContainsKey("break_list"))
             {
-                foreach (var breakPiece in keyvalues.GetArray<KVObject>("break_list"))
+                foreach (var breakPiece in keyvalues.GetArray<KVObject>("break_list")!)
                 {
                     var breakPieceFile = MakeNode("BreakPieceExternal", breakPiece);
                     breakPieceList.Value.AddItem(breakPieceFile);

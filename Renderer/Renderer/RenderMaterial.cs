@@ -123,7 +123,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         [SetsRequiredMembers]
-        public RenderMaterial(Shader shader) : this(new Material { ShaderName = shader.Name })
+        public RenderMaterial(Shader shader) : this(new Material { Resource = null!, ShaderName = shader.Name })
         {
             Shader = shader;
             SortId = GetSortId();

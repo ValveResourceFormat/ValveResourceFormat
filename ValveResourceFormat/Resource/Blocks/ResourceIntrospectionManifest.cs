@@ -1,8 +1,6 @@
 using System.IO;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
@@ -27,7 +25,7 @@ namespace ValveResourceFormat.Blocks
                 /// <summary>
                 /// Gets or sets the field name.
                 /// </summary>
-                public string FieldName { get; set; }
+                public required string FieldName { get; set; }
 
                 /// <summary>
                 /// Gets or sets the number of elements in the field.
@@ -106,7 +104,7 @@ namespace ValveResourceFormat.Blocks
             /// <summary>
             /// Gets or sets the structure name.
             /// </summary>
-            public string Name { get; set; }
+            public required string Name { get; set; }
 
             /// <summary>
             /// Gets or sets the CRC checksum of the structure on disk.
@@ -198,7 +196,7 @@ namespace ValveResourceFormat.Blocks
                 /// <summary>
                 /// Gets or sets the enum value name.
                 /// </summary>
-                public string EnumValueName { get; set; }
+                public required string EnumValueName { get; set; }
 
                 /// <summary>
                 /// Gets or sets the numeric enum value.
@@ -233,7 +231,7 @@ namespace ValveResourceFormat.Blocks
             /// <summary>
             /// Gets or sets the enum name.
             /// </summary>
-            public string Name { get; set; }
+            public required string Name { get; set; }
 
             /// <summary>
             /// Gets or sets the CRC checksum of the enum on disk.

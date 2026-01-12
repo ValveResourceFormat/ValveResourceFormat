@@ -2,8 +2,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
@@ -27,7 +25,7 @@ namespace ValveResourceFormat.Blocks
             /// <summary>
             /// Gets or sets the resource name.
             /// </summary>
-            public string Name { get; set; }
+            public required string Name { get; set; }
 
             /// <summary>
             /// Writes the resource reference info as text.
@@ -52,7 +50,7 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Gets the resource name mapped to the specified identifier, or <c>null</c> if missing.
         /// </summary>
-        public string this[ulong id]
+        public string? this[ulong id]
         {
             get
             {
@@ -89,8 +87,7 @@ namespace ValveResourceFormat.Blocks
 
             for (var i = 0; i < size; i++)
             {
-                var resInfo = new ResourceReferenceInfo { Id = reader.ReadUInt64() };
-
+                var id = reader.ReadUInt64();
                 var previousPosition = reader.BaseStream.Position;
 
                 // jump to string
@@ -98,11 +95,15 @@ namespace ValveResourceFormat.Blocks
                 // so we will need to add 8 to position later
                 reader.BaseStream.Position += reader.ReadInt64();
 
-                resInfo.Name = reader.ReadNullTermString(Encoding.UTF8);
-
-                ResourceRefInfoList.Add(resInfo);
+                var name = reader.ReadNullTermString(Encoding.UTF8);
 
                 reader.BaseStream.Position = previousPosition + 8; // 8 is to account for string offset
+
+                ResourceRefInfoList.Add(new ResourceReferenceInfo
+                {
+                    Id = id,
+                    Name = name,
+                });
             }
         }
 

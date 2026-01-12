@@ -16,7 +16,7 @@ namespace GUI.Types.Viewers
 
         public async Task LoadAsync(Stream? stream)
         {
-            var kv3 = new BinaryKV3(ValveResourceFormat.BlockType.Undefined);
+            var kv3 = new BinaryKV3(ValveResourceFormat.BlockType.Undefined) { Resource = null! };
             Stream kv3stream;
 
             if (stream != null)

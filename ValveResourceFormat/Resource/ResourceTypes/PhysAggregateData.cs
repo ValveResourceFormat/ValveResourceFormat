@@ -3,8 +3,6 @@ using System.Linq;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -46,7 +44,7 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyList<KVObject> CollisionAttributes
             => Data.GetArray("m_collisionAttributes");
 
-        private Part[] parts;
+        private Part[]? parts;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysAggregateData"/> class.

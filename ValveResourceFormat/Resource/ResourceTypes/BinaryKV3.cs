@@ -1156,7 +1156,10 @@ namespace ValveResourceFormat.ResourceTypes
                 var data = new byte[dataLength];
                 Marshal.Copy(dataPtr, data, 0, dataLength);
 
-                var kv3 = new BinaryKV3(BlockType.Undefined);
+                var kv3 = new BinaryKV3(BlockType.Undefined)
+                {
+                    Resource = null!
+                };
                 using var stream = new MemoryStream(data);
                 using var reader = new BinaryReader(stream);
                 kv3.Read(reader);

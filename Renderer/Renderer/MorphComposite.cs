@@ -39,6 +39,7 @@ namespace ValveResourceFormat.Renderer
 
         public MorphComposite(RendererContext renderContext, Morph morph)
         {
+            ArgumentNullException.ThrowIfNull(morph.TextureResource);
             morphAtlas = renderContext.MaterialLoader.LoadTexture(morph.TextureResource);
             shader = renderContext.ShaderLoader.LoadShader("vrf.morph_composite");
 
@@ -146,6 +147,14 @@ namespace ValveResourceFormat.Renderer
         private void FillVertices(Morph morph)
         {
             var morphDatas = morph.GetMorphDatas();
+
+            if (morphDatas == null)
+            {
+                allVertices = [];
+                morphRects = [];
+                return;
+            }
+
             var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount((KVObject)morphData.Value));
 
             allVertices = new float[bundleCount * 4 * VertexSize];

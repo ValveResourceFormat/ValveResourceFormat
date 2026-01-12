@@ -29,9 +29,9 @@ public class VfxTextureChannelProcessor : ShaderDataBlock
     {
         BlockIndex = blockIndex;
 
-        var channelDesc = data.GetArray<byte>("m_nChannelDesc");
+        var channelDesc = data.GetArray<byte>("m_nChannelDesc")!;
         Channel = ChannelMapping.FromChannels(channelDesc[0], channelDesc[1], channelDesc[2], channelDesc[3]);
-        InputTextureIndices = data.GetArray<int>("m_nInputTextures");
+        InputTextureIndices = data.GetArray<int>("m_nInputTextures")!;
         ColorMode = data.GetInt32Property("m_outputColorSpace");
         TexProcessorName = data.GetProperty<string>("m_mipProcessingCommand");
     }

@@ -147,7 +147,7 @@ public class VfxVariableDescription : ShaderDataBlock
             DynExp = compiledExpression;
         }
 
-        UiVisibilityExp = data.GetProperty<byte[]>("m_pCompiledUIVisibilityExpression");
+        UiVisibilityExp = data.GetProperty<byte[]>("m_pCompiledUIVisibilityExpression") ?? [];
 
         SourceIndex = data.GetInt32Property("m_sourceIndex");
         VfxType = (VfxVariableType)data.GetInt32Property("m_type");
@@ -196,7 +196,7 @@ public class VfxVariableDescription : ShaderDataBlock
             DefaultInputTexture = data.GetProperty<string>("m_defaultInputTexture");
             ImageFormat = (ImageFormat)data.GetUInt32Property("m_outputTextureFormat");
             ChannelCount = data.GetInt32Property("m_nChannelCount");
-            ChannelIndices = data.GetArray<int>("m_nChannelInfoIndex");
+            ChannelIndices = data.GetArray<int>("m_nChannelInfoIndex")!;
             ColorMode = data.GetInt32Property("m_inputColorSpace");
             MinPrecisionBits = data.GetInt32Property("m_nMinPrecisionBits");
 

@@ -917,7 +917,10 @@ namespace CLI
 
         private void ParseKV3(string path, Stream stream)
         {
-            var kv3 = new BinaryKV3();
+            var kv3 = new BinaryKV3()
+            {
+                Resource = null!
+            };
 
             try
             {

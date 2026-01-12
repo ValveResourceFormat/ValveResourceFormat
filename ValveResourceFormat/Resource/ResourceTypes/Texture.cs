@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -6,8 +7,6 @@ using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
 using ValveResourceFormat.TextureDecoders;
-
-#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -111,7 +110,7 @@ namespace ValveResourceFormat.ResourceTypes
                     /// <summary>
                     /// Gets or sets the array of images contained in this frame.
                     /// </summary>
-                    public Image[] Images { get; set; }
+                    public Image[] Images { get; set; } = [];
 
                     /// <summary>
                     /// Gets or sets the display time for this frame in seconds.
@@ -122,7 +121,7 @@ namespace ValveResourceFormat.ResourceTypes
                 /// <summary>
                 /// Gets or sets the array of frames in this sequence.
                 /// </summary>
-                public Frame[] Frames { get; set; }
+                public Frame[] Frames { get; set; } = [];
 
                 /// <summary>
                 /// Gets or sets the playback rate of this sequence in frames per second.
@@ -132,7 +131,7 @@ namespace ValveResourceFormat.ResourceTypes
                 /// <summary>
                 /// Gets or sets the name of this sequence.
                 /// </summary>
-                public string Name { get; set; }
+                public string Name { get; set; } = string.Empty;
 
                 /// <summary>
                 /// Gets or sets a value indicating whether this sequence should clamp at the end.
@@ -163,7 +162,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <summary>
             /// Gets or sets the array of animation sequences in this sprite sheet.
             /// </summary>
-            public Sequence[] Sequences { get; set; }
+            public Sequence[] Sequences { get; set; } = [];
         }
 
         /// <summary>
@@ -197,7 +196,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
-        private BinaryReader Reader => Resource.Reader;
+        private BinaryReader? Reader => Resource.Reader;
         private long DataOffset => Offset + Size;
 
         /// <summary>
@@ -223,7 +222,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the reflectivity values as a 4-component vector (RGBA).
         /// </summary>
-        public float[] Reflectivity { get; private set; }
+        public float[] Reflectivity { get; private set; } = [];
 
         /// <summary>
         /// Gets the texture flags that define various properties and behaviors.
@@ -260,10 +259,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public ushort NonPow2Height { get; private set; }
 
-        private int[] CompressedMips;
+        private int[] CompressedMips = [];
         private bool IsActuallyCompressedMips;
 
-        private float[] RadianceCoefficients;
+        private float[] RadianceCoefficients = [];
 
         /// <summary>
         /// Gets the actual width of the texture, using NonPow2Width if available and valid, otherwise Width.
@@ -403,7 +402,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Retrieves sprite sheet data if available in the texture's extra data.
         /// </summary>
         /// <returns>The sprite sheet data, or null if not available.</returns>
-        public SpritesheetData GetSpriteSheetData()
+        public SpritesheetData? GetSpriteSheetData()
         {
             if (ExtraData.TryGetValue(VTexExtraData.SHEET, out var bytes))
             {
@@ -552,10 +551,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// Reads the raw image data for PNG, JPEG, or WebP textures.
         /// </summary>
         /// <returns>The raw image data as a byte array, or null if not a raw image format.</returns>
-        internal byte[] ReadRawImageData()
+        internal byte[]? ReadRawImageData()
         {
             if (IsRawAnyImage)
             {
+                Debug.Assert(Reader is not null);
                 Reader.BaseStream.Position = DataOffset;
                 SkipMipmaps(0);
                 return Reader.ReadBytes(CalculateTextureDataSize());
@@ -584,6 +584,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Skia bitmap.</returns>
         public SKBitmap GenerateBitmap(uint depth = 0, CubemapFace face = 0, uint mipLevel = 0, TextureCodec decodeFlags = TextureCodec.Auto)
         {
+            Debug.Assert(Reader is not null);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
 
             var depthMip = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MipLevelSize(Depth, mipLevel);
@@ -839,6 +840,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void SkipMipmaps(uint desiredMipLevel)
         {
+            Debug.Assert(Reader is not null);
+
             if (NumMipLevels < 2)
             {
                 return;
@@ -864,6 +867,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void ReadTexture(uint mipLevel, Span<byte> output)
         {
+            Debug.Assert(Reader is not null);
+
             if (!IsActuallyCompressedMips)
             {
                 Reader.Read(output);
@@ -911,6 +916,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="minMipLevelAllowed">The minimum mip level for which to read texture data.</param>
         public IEnumerable<(uint Level, int Width, int Height, int Depth, int BufferSize)> GetEveryMipLevelTexture(byte[] buffer, int minMipLevelAllowed = 0)
         {
+            Debug.Assert(Reader is not null);
             Reader.BaseStream.Position = DataOffset;
 
             for (var i = NumMipLevels - 1; i >= 0; i--)
@@ -939,6 +945,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="mipLevel">Mip level for which to read texture data.</param>
         public void ReadTextureMipLevel(Span<byte> output, uint mipLevel)
         {
+            Debug.Assert(Reader is not null);
+
             var bufferSize = CalculateBufferSizeForMipLevel(mipLevel);
 
             if (bufferSize > output.Length)
@@ -955,11 +963,14 @@ namespace ValveResourceFormat.ResourceTypes
 
         private int CalculateJpegSize()
         {
+            Debug.Assert(Reader is not null);
             return (int)(Reader.BaseStream.Length - DataOffset);
         }
 
         private int CalculatePngSize()
         {
+            Debug.Assert(Reader is not null);
+
             var size = 8; // PNG header
             var originalPosition = Reader.BaseStream.Position;
 
@@ -1007,6 +1018,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private int CalculateWebpSize()
         {
+            Debug.Assert(Reader is not null);
+
             var originalPosition = Reader.BaseStream.Position;
 
             Reader.BaseStream.Position = DataOffset;
@@ -1168,6 +1181,7 @@ namespace ValveResourceFormat.ResourceTypes
                 else if (b.Key == VTexExtraData.SHEET)
                 {
                     var data = GetSpriteSheetData();
+                    Debug.Assert(data != null);
 
                     writer.WriteLine("{0,-16} {1} Sheet Sequences:", string.Empty, data.Sequences.Length);
 

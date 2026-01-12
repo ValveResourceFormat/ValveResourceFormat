@@ -1,8 +1,6 @@
 using System.IO;
 using System.Text;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -16,7 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the sound stack script values.
         /// </summary>
-        public Dictionary<string, string> SoundStackScriptValue { get; private set; } // TODO: be Dictionary<string, SomeKVObject>
+        public Dictionary<string, string> SoundStackScriptValue { get; private set; } = []; // TODO: be Dictionary<string, SomeKVObject>
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -29,8 +27,6 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 throw new UnexpectedMagicException("Unknown version", version, nameof(version));
             }
-
-            SoundStackScriptValue = [];
 
             var count = reader.ReadInt32();
             var offset = reader.BaseStream.Position;

@@ -255,7 +255,9 @@ namespace ValveResourceFormat.Renderer
                 result.LightingData.LightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2();
             }
 
-            foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
+            var lightmaps = worldLightingInfo.GetArray<string>("m_lightMaps") ?? [];
+
+            foreach (var lightmap in lightmaps)
             {
                 var name = Path.GetFileNameWithoutExtension(lightmap);
                 if (LightmapNameToUniformName.TryGetValue(name, out var uniformName))

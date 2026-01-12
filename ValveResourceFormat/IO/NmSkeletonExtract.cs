@@ -39,7 +39,7 @@ public class NmSkeletonExtract
         kv.AddProperty("m_bIsAttachableProp", kvSkeleton.GetProperty<bool>("m_bIsPropSkeleton"));
         kv.AddProperty("m_secondarySkeletons", kvSkeleton.GetProperty<object>("m_secondarySkeletons"));
         var numLowLODBones = kvSkeleton.GetInt32Property("m_numBonesToSampleAtLowLOD");
-        var boneIDs = kvSkeleton.GetArray<string>("m_boneIDs")[numLowLODBones..];
+        var boneIDs = kvSkeleton.GetArray<string>("m_boneIDs")![numLowLODBones..];
         var highLODBones = new KVObject("m_highLODBones", true, boneIDs.Length);
         foreach (var boneID in boneIDs)
         {
@@ -56,7 +56,7 @@ public class NmSkeletonExtract
         contentFile.AddSubFile(dmxFile ?? "skeleton.dmx", () =>
         {
             // Empty animation data
-            var anim = new Animation(new AnimationClip());
+            var anim = new Animation(new AnimationClip() { Resource = null! });
             return ModelExtract.ToDmxAnim(skel, [], anim);
         });
         return contentFile;

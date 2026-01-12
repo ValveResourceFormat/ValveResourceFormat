@@ -1,9 +1,8 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security;
 using ValveResourceFormat.Serialization.KeyValues;
-
-#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -12,12 +11,14 @@ namespace ValveResourceFormat.ResourceTypes
     /// </summary>
     public class PanoramaLayout : Panorama
     {
-        private BinaryKV3 _layoutContent;
+        private BinaryKV3? _layoutContent;
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
+
+            Debug.Assert(Resource != null);
 
             _layoutContent = Resource.GetBlockByType(BlockType.LaCo) as BinaryKV3;
         }

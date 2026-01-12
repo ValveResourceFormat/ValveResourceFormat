@@ -3,8 +3,6 @@ using System.IO;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 {
     /// <summary>
@@ -180,7 +178,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
         /// Reads a curve edge from the stream.
         /// </summary>
         /// <returns>The parsed edge, or null if no edge exists.</returns>
-        protected virtual ChoreoEdge ReadEdge()
+        protected virtual ChoreoEdge? ReadEdge()
         {
             var hasEdge = reader.ReadBoolean();
             if (!hasEdge)
@@ -274,7 +272,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var eventType = RemapEventType(reader.ReadByte());
             var name = ReadString();
 
-            string preferredName = null;
+            string? preferredName = null;
             if (version >= 19)
             {
                 preferredName = ReadString();
@@ -335,7 +333,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
 
             var usingRelativeTag = reader.ReadBoolean();
-            ChoreoEventRelativeTag relativeTag = null;
+            ChoreoEventRelativeTag? relativeTag = null;
             if (usingRelativeTag)
             {
                 relativeTag = ReadRelativeTag();
@@ -347,7 +345,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var soundStartDelay = 0f;
 
             var ccType = ChoreoClosedCaptionsType.None;
-            string ccToken = null;
+            string? ccToken = null;
             var speakFlags = ChoreoSpeakFlags.None;
             if (eventType == ChoreoEventType.Loop)
             {
@@ -363,6 +361,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 speakFlags = (ChoreoSpeakFlags)reader.ReadByte();
                 soundStartDelay = reader.ReadSingle();
             }
+
+            Debug.Assert(relativeTag is not null || !usingRelativeTag);
 
             var constrainedEventId = reader.ReadInt32();
             var eventId = reader.ReadInt32();
@@ -407,7 +407,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var samples = new ChoreoSample[sampleCount];
 
             var samplesRead = 0;
-            ChoreoSample lastSample = null;
+            ChoreoSample? lastSample = null;
             var type = 0;
             while (type != 0 || samplesRead < sampleCount)
             {
@@ -424,7 +424,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                     var inType = reader.ReadByte();
                     var nullTermination = reader.ReadByte();
                     Debug.Assert(nullTermination == 0);
-
+                    Debug.Assert(lastSample is not null);
                     lastSample.SetCurveType(inType, outType);
                 }
                 else
@@ -435,8 +435,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 type = reader.ReadByte();
             }
 
-            ChoreoEdge leftEdge = null;
-            ChoreoEdge rightEdge = null;
+            ChoreoEdge? leftEdge = null;
+            ChoreoEdge? rightEdge = null;
             if (version >= 16)
             {
                 leftEdge = ReadEdge();
@@ -499,7 +499,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var maxRange = reader.ReadSingle();
 
             var samplesCurve = ReadCurveData();
-            ChoreoCurveData comboSamplesCurve = null;
+            ChoreoCurveData? comboSamplesCurve = null;
             if (flags.HasFlag(ChoreoTrackFlags.Combo))
             {
                 comboSamplesCurve = ReadCurveData();

@@ -8,8 +8,6 @@ using System.Text;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
@@ -251,7 +249,7 @@ namespace ValveResourceFormat.Blocks
 
         private static byte[] DecompressData(OnDiskBufferData buffer, Span<byte> span, int decompressedSize, bool isVertex, bool isZstdCompressed)
         {
-            byte[] tempZstd = null;
+            byte[]? tempZstd = null;
 
             try
             {
@@ -346,6 +344,7 @@ namespace ValveResourceFormat.Blocks
 
                 try
                 {
+                    Debug.Assert(Resource.Reader != null);
                     var span = temp.AsSpan(0, totalSize);
                     Resource.Reader.BaseStream.Position = dataBlock.Offset;
                     Resource.Reader.Read(span);
@@ -601,7 +600,7 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Extracts blend indices from a vertex buffer, optionally remapping them using the provided table.
         /// </summary>
-        public static ushort[] GetBlendIndicesArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute, int[] remapTable = null)
+        public static ushort[] GetBlendIndicesArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute, int[]? remapTable = null)
         {
             var numJoints = attribute.Format is DXGI_FORMAT.R32G32B32A32_SINT or DXGI_FORMAT.R16G16B16A16_UINT ? 8 : 4;
             var indices = new ushort[vertexBuffer.ElementCount * numJoints];

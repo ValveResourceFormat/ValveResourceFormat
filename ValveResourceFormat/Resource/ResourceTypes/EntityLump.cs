@@ -131,7 +131,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>An array of child entity lump names.</returns>
         public string[] GetChildEntityNames()
         {
-            return Data.GetArray<string>("m_childLumps");
+            return Data.GetArray<string>("m_childLumps")!;
         }
 
         /// <summary>
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                entity = ParseEntityProperties(entityKv.GetArray<byte>("m_keyValuesData"));
+                entity = ParseEntityProperties(entityKv.GetArray<byte>("m_keyValuesData")!);
             }
 
             // are there any kinds of valid entities which don't contain a classname?

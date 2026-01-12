@@ -468,7 +468,7 @@ namespace ValveResourceFormat.CompiledShader
             if (VcsProgramType is VcsProgramType.Features)
             {
                 FeaturesHeader = new FeaturesHeaderBlock(data);
-                var programData = data.GetProperty<KVObject>("m_programData");
+                var programData = data.GetProperty<KVObject>("m_programData")!;
                 UnserializeKV3ProgramData(programData);
                 return;
             }
@@ -481,12 +481,12 @@ namespace ValveResourceFormat.CompiledShader
             var programHashes = data.GetArray("m_programHashes");
             foreach (var hashObject in programHashes)
             {
-                var hashBytes = hashObject.GetProperty<byte[]>("m_nHashChar");
+                var hashBytes = hashObject.GetProperty<byte[]>("m_nHashChar")!;
                 Debug.Assert(hashBytes.Length == 16);
                 HashesMD5.Add(new Guid(hashBytes));
             }
 
-            FileHash = new Guid(data.GetProperty<KVObject>("m_variableDescriptionVersionHash").GetProperty<byte[]>("m_nHashChar"));
+            FileHash = new Guid(data.GetProperty<KVObject>("m_variableDescriptionVersionHash")!.GetProperty<byte[]>("m_nHashChar")!);
             VariableSourceMax = data.GetInt32Property("m_nVariableSourceMax");
 
             var staticCombos = data.GetArray("m_staticComboArray");

@@ -1,7 +1,6 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
-
-#nullable disable
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -10,12 +9,14 @@ namespace ValveResourceFormat.ResourceTypes
     /// </summary>
     public class PanoramaStyle : Panorama
     {
-        private BinaryKV3 SourceMap;
+        private BinaryKV3? SourceMap;
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
             base.Read(reader);
+
+            Debug.Assert(Resource != null);
 
             SourceMap = Resource.GetBlockByType(BlockType.SrMa) as BinaryKV3;
         }

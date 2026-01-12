@@ -3,8 +3,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
 
@@ -50,20 +48,24 @@ namespace ValveResourceFormat.ResourceTypes
     /// </summary>
     public class Sentence
     {
+        /*
         /// <summary>
         /// Gets a value indicating whether voice ducking should be applied.
         /// </summary>
         public bool ShouldVoiceDuck { get; init; }
+        */
 
         /// <summary>
         /// Gets the phoneme tags for lip-sync.
         /// </summary>
-        public PhonemeTag[] RunTimePhonemes { get; init; }
+        public required PhonemeTag[] RunTimePhonemes { get; init; }
 
+        /*
         /// <summary>
         /// Gets the emphasis samples for voice modulation.
         /// </summary>
         public EmphasisSample[] EmphasisSamples { get; init; }
+        */
     }
 
     /// <summary>
@@ -169,7 +171,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the sentence data containing phoneme and emphasis information.
         /// </summary>
-        public Sentence Sentence { get; private set; }
+        public Sentence? Sentence { get; private set; }
 
         /// <summary>
         /// Gets the WAVE format header data for ADPCM audio.
@@ -181,7 +183,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public uint StreamingDataSize { get; private set; }
 
-        private BinaryReader Reader => Resource.Reader;
+        private BinaryReader? Reader => Resource.Reader;
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -270,7 +272,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 Debug.Assert(AudioFormat == WaveAudioFormat.ADPCM);
 
-                Header = Reader.ReadBytes(headerSize);
+                Header = reader.ReadBytes(headerSize);
             }
 
             ReadPhonemeStream(reader, sentenceOffset);
@@ -283,7 +285,11 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Offset = Resource.FileSize;
 
-            var obj = (BinaryKV3)Resource.GetBlockByType(BlockType.CTRL);
+            if (Resource.GetBlockByType(BlockType.CTRL) is not BinaryKV3 obj)
+            {
+                return false;
+            }
+
             var soundClass = obj.Data.GetStringProperty("_class");
 
             if (soundClass is not "CVoiceContainerDefault" and not "CVoiceContainerEnvelope")
@@ -471,6 +477,7 @@ namespace ValveResourceFormat.ResourceTypes
                 Debug.Assert(stream.Length == waveHeaderSize);
             }
 
+            Debug.Assert(Reader != null);
             Reader.BaseStream.Position = Offset + Size;
             Reader.BaseStream.CopyTo(stream);
             Debug.Assert(stream.Length == totalSize);

@@ -5,8 +5,6 @@ using System.Text;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization.VfxEval;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -181,16 +179,18 @@ namespace ValveResourceFormat.ResourceTypes
             return arguments;
         }
 
-        private KVObject GetInputSignatureObject()
+        private KVObject? GetInputSignatureObject()
         {
             if (Resource is null)
             {
                 return null;
             }
 
-            if (Resource.ContainsBlockType(BlockType.INSG))
+            var insg = Resource.GetBlockByType(BlockType.INSG);
+
+            if (insg is BinaryKV3 binaryKV3)
             {
-                return ((BinaryKV3)Resource.GetBlockByType(BlockType.INSG)).Data;
+                return binaryKV3.Data;
             }
 
             // Material might not have REDI, or it might have RED2 without INSG
@@ -199,7 +199,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            if (Resource.EditInfo.SearchableUserData.FirstOrDefault(x => x.Key == "VSInputSignature").Value is not string inputSignatureString)
+            if (Resource.EditInfo?.SearchableUserData.FirstOrDefault(x => x.Key == "VSInputSignature").Value is not string inputSignatureString)
             {
                 return null;
             }

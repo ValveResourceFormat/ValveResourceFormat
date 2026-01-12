@@ -1,7 +1,5 @@
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -20,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// For <see cref="AggregateSceneObjects"/> use the dedicated 'm_nLayer' member.
         /// Value may be null if the node has no layer system.
         /// </summary>
-        public IReadOnlyList<long> SceneObjectLayerIndices
+        public IReadOnlyList<long>? SceneObjectLayerIndices
             => Data.ContainsKey("m_sceneObjectLayerIndices")
                 ? Data.GetIntegerArray("m_sceneObjectLayerIndices")
                 : null;

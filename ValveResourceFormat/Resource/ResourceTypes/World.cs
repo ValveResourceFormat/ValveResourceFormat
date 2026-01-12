@@ -12,7 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the entity lump names.
         /// </summary>
         public IReadOnlyCollection<string> GetEntityLumpNames()
-            => Data.GetArray<string>("m_entityLumps");
+            => Data.GetArray<string>("m_entityLumps")!;
 
         /// <summary>
         /// Gets the world lighting information.
