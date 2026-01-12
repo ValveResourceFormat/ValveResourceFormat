@@ -73,16 +73,6 @@ namespace GUI.Utils
 
             Directory.CreateDirectory(SettingsFolder);
 
-            // Before 2023-09-08, settings were saved next to the executable
-            var legacySettings = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "settings.txt");
-
-            if (File.Exists(legacySettings) && !File.Exists(SettingsFilePath))
-            {
-                Log.Info(nameof(Settings), $"Moving '{legacySettings}' to '{SettingsFilePath}'.");
-
-                File.Move(legacySettings, SettingsFilePath);
-            }
-
             try
             {
                 if (File.Exists(SettingsFilePath))
