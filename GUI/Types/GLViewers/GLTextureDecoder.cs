@@ -73,7 +73,10 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         lock (threadStartupLock)
         {
-            GLThread.Start();
+            if (!GLThread.IsAlive)
+            {
+                GLThread.Start();
+            }
         }
     }
 
