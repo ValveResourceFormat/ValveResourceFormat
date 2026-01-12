@@ -454,7 +454,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                     Log.Error(nameof(AnimationGraphViewer), $"Generic handled node: {node.NodeType} ({node.Name})");
                 }
             }
-            else if (node.Data.ContainsKey("m_conditionNodeIndices")) // Conditional node
+            else if (node.Data?.ContainsKey("m_conditionNodeIndices") ?? false) // Conditional node
             {
                 var conditions = data.GetArray<int>("m_conditionNodeIndices");
                 foreach (var condition in conditions)
@@ -462,7 +462,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                     CreateInputAndChild<Value>(node, conditions.Length + 1, condition);
                 }
             }
-            else if (node.Data.ContainsKey("m_nChildNodeIdx"))
+            else if (node.Data?.ContainsKey("m_nChildNodeIdx") ?? false)
             {
                 var childCount = 1;
                 if (node.NodeType == "Scale")
@@ -573,7 +573,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             node.Calculate();
         }
 
-        var finalPose = new Node(null!)
+        var finalPose = new Node(null)
         {
             Name = "Result",
             NodeType = "FinalPose",
@@ -618,11 +618,11 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
     class Node : AbstractNode
     {
-        public KVObject Data { get; set; }
+        public KVObject? Data { get; set; }
 
         public string? ExternalResourceName { get; set; }
 
-        public Node(KVObject data)
+        public Node(KVObject? data)
         {
             Data = data;
             BaseColor = NodeColor;

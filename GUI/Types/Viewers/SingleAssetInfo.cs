@@ -164,7 +164,7 @@ namespace GUI.Types.Viewers
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                DataSource = new BindingSource(new BindingList<FileReference>(referencedBy), null!),
+                DataSource = new BindingSource(new BindingList<FileReference>(referencedBy), string.Empty),
             };
 
             tab.Controls.Add(referencedContorl);
