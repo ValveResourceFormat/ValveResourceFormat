@@ -2,7 +2,8 @@
 
 <p align="center">
     <a href="https://github.com/ValveResourceFormat/ValveResourceFormat/actions"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/ValveResourceFormat/ValveResourceFormat/build.yml?logo=github&style=for-the-badge&branch=master"></a>
-    <a href="https://www.nuget.org/packages/ValveResourceFormat/"><img src="https://img.shields.io/nuget/v/ValveResourceFormat.svg?logo=nuget&style=for-the-badge"></a>
+    <a href="https://www.nuget.org/packages/ValveResourceFormat/"><img src="https://img.shields.io/nuget/dt/ValveResourceFormat.svg?logo=nuget&style=for-the-badge&label=Library"></a>
+    <a href="https://www.nuget.org/packages/ValveResourceFormat.Renderer/"><img src="https://img.shields.io/nuget/dt/ValveResourceFormat.Renderer.svg?logo=nuget&style=for-the-badge&label=Renderer"></a>
     <a href="https://app.codecov.io/gh/ValveResourceFormat/ValveResourceFormat"><img src="https://img.shields.io/codecov/c/github/ValveResourceFormat/ValveResourceFormat/master?logo=codecov&logoColor=ffffff&style=for-the-badge"></a>
 </p>
 
@@ -11,9 +12,10 @@
 Valve's Source 2 resource file format parser, decompiler, and exporter.
 Source 2 files usually end with `_c`, for example `.vmdl_c`.
 
-This repository is split into three components:
-- **CLI Decompiler** - File data viewer, decompiler and a playground for testing new formats and features.
+This repository is split into four components:
+- **Command-line utility** - File data viewer, decompiler and a playground for testing new formats and features.
 - **GUI Viewer** - A vpk archive viewer and extractor. Also supports viewing resources such as sounds, textures, models, maps, and much more.
+- **Renderer** - OpenGL-based rendering engine for Source 2 game assets.
 - **Library** - Provides public API to parse resource files and some helpers.
 
 ⚒ [View the official website for downloads](https://valveresourceformat.github.io/).
