@@ -405,6 +405,18 @@ namespace ValveResourceFormat.Renderer
             GL.ProgramUniform1(Program, uniformLocation, slot);
         }
 
+        public bool SetSampler(string name, int sampler)
+        {
+            var uniformLocation = GetUniformLocation(name);
+            if (uniformLocation < 0)
+            {
+                return false;
+            }
+
+            GL.BindSampler(uniformLocation, sampler);
+            return true;
+        }
+
 #if DEBUG
         public void ReplaceWith(Shader shader)
         {
