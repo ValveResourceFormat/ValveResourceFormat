@@ -41,6 +41,14 @@ namespace GUI.Types.GLViewers
         private OctreeDebugRenderer? dynamicOctreeRenderer;
         protected SelectedNodeRenderer? SelectedNodeRenderer;
 
+        static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
+
+        private readonly float[] frameTimes = new float[30];
+        private int frameTimeNextId;
+        private string fpsText = string.Empty;
+        private int frametimeQuery1;
+        private int frametimeQuery2;
+
         protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Frustum cullFrustum) : this(vrfGuiContext, rendererContext)
         {
             Renderer.LockedCullFrustum = cullFrustum;
@@ -229,6 +237,13 @@ namespace GUI.Types.GLViewers
         {
             base.OnGLLoad();
 
+            GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery1);
+            GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery2);
+
+            // Needed to fix crash on certain drivers
+            GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
+            GL.EndQuery(QueryTarget.TimeElapsed);
+
             TextRenderer.Load();
             Renderer.Postprocess.Load();
 
@@ -314,6 +329,8 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
+            GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
+
             var renderContext = new Scene.RenderContext
             {
                 Camera = Renderer.Camera,
@@ -375,13 +392,37 @@ namespace GUI.Types.GLViewers
                 }
             }
 
+            GL.EndQuery(QueryTarget.TimeElapsed);
+
             if (Paused)
             {
                 DrawLowerCornerText("Paused", new(255, 100, 0));
             }
             else if (Settings.Config.DisplayFps != 0)
             {
-                DrawLowerCornerText(FpsText, Color32.White);
+                var currentTime = Stopwatch.GetTimestamp();
+                var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
+
+                frameTimes[frameTimeNextId++] = frameTime;
+                frameTimeNextId %= frameTimes.Length;
+
+                if (fpsElapsed >= FpsUpdateTimeSpan)
+                {
+                    var frametimeQuery = frametimeQuery2;
+                    frametimeQuery2 = frametimeQuery1;
+                    frametimeQuery1 = frametimeQuery;
+
+                    GL.GetQueryObject(frametimeQuery, GetQueryObjectParam.QueryResultNoWait, out long gpuTime);
+                    var gpuFrameTime = gpuTime / 1_000_000f;
+
+                    var fps = 1f / (frameTimes.Sum() / frameTimes.Length);
+                    var cpuFrameTime = Stopwatch.GetElapsedTime(LastUpdate, currentTime).TotalMilliseconds;
+
+                    lastFpsUpdate = currentTime;
+                    fpsText = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
+                }
+
+                DrawLowerCornerText(fpsText, Color32.White);
             }
 
             BlitFramebufferToScreen();

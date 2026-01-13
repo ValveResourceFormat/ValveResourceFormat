@@ -22,7 +22,6 @@ internal abstract class GLBaseControl : IDisposable
 
     protected Form? FullScreenForm { get; private set; }
     public bool IsFullScreen => FullScreenForm != null;
-    static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
     public bool MouseOverRenderArea;
     public Point MouseDelta;
@@ -47,11 +46,6 @@ internal abstract class GLBaseControl : IDisposable
     public long LastUpdate { get; protected set; }
     public bool Paused;
     protected long lastFpsUpdate;
-    public string FpsText = string.Empty;
-    protected readonly float[] frameTimes = new float[30];
-    protected int frameTimeNextId;
-    protected int frametimeQuery1;
-    protected int frametimeQuery2;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "RendererContext is disposed in Dispose method")]
     protected RendererContext RendererContext;
@@ -547,13 +541,6 @@ internal abstract class GLBaseControl : IDisposable
         MaxSamples = GL.GetInteger(GetPName.MaxSamples);
         GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;
 
-        GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery1);
-        GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery2);
-
-        // Needed to fix crash on certain drivers
-        GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
-        GL.EndQuery(QueryTarget.TimeElapsed);
-
         // Framebuffer used to draw geometry
         MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
             4, 4,
@@ -648,34 +635,7 @@ internal abstract class GLBaseControl : IDisposable
         LastUpdate = currentTime;
         OnUpdate(frameTime);
 
-        if (Settings.Config.DisplayFps != 0)
-        {
-            currentTime = Stopwatch.GetTimestamp();
-            var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
-
-            frameTimes[frameTimeNextId++] = frameTime;
-            frameTimeNextId %= frameTimes.Length;
-
-            if (fpsElapsed >= FpsUpdateTimeSpan)
-            {
-                var frametimeQuery = frametimeQuery2;
-                frametimeQuery2 = frametimeQuery1;
-                frametimeQuery1 = frametimeQuery;
-
-                GL.GetQueryObject(frametimeQuery, GetQueryObjectParam.QueryResultNoWait, out long gpuTime);
-                var gpuFrameTime = gpuTime / 1_000_000f;
-
-                var fps = 1f / (frameTimes.Sum() / frameTimes.Length);
-                var cpuFrameTime = Stopwatch.GetElapsedTime(LastUpdate, currentTime).TotalMilliseconds;
-
-                lastFpsUpdate = currentTime;
-                FpsText = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
-            }
-        }
-
-        GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
         OnPaint(frameTime);
-        GL.EndQuery(QueryTarget.TimeElapsed);
 
         GLNativeWindow.Context.SwapBuffers();
 
