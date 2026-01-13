@@ -144,6 +144,7 @@ namespace GUI.Types.GLViewers
             rootMotionCheckBox = UiControl.AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
             {
                 enableRootMotion = isChecked;
+                Debug.Assert(modelSceneNode != null);
                 LastRootMotionPosition = modelSceneNode.Transform.Translation;
             });
 
