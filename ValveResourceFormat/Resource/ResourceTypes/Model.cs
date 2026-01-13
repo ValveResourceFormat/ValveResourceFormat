@@ -375,6 +375,21 @@ namespace ValveResourceFormat.ResourceTypes
             var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as KeyValuesOrNTRO;
             Debug.Assert(animationDataBlock is not null);
 
+            var seqGroupDataBlockIndex = embeddedAnimation.GetIntegerProperty("seqgroup_data_block");
+            if (seqGroupDataBlockIndex > 0)
+            {
+                var sequenceDataBlock = Resource.GetBlockByIndex((int)seqGroupDataBlockIndex) as KeyValuesOrNTRO;
+                if (sequenceDataBlock?.Data != null)
+                {
+                    return Animation.FromSequenceData(
+                        sequenceDataBlock.Data,
+                        animationDataBlock.Data,
+                        decodeKey,
+                        Skeleton,
+                        FlexControllers);
+                }
+            }
+
             return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
 

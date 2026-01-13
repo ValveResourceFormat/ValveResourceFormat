@@ -115,18 +115,65 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// Creates animation instances from the provided animation data and decode key.
+        /// Constructor for creating animation from sequence descriptor (ASEQ) and animation data (ANIM).
         /// </summary>
-        public static IEnumerable<Animation> FromData(KVObject animationData, KVObject decodeKey,
-            Skeleton skeleton, FlexController[] flexControllers)
+        private Animation(KVObject seqDesc, KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
-            var animArray = animationData.GetArray<KVObject>("m_animArray");
+            // Name and metadata from sequence descriptor
+            Name = seqDesc.GetProperty<string>("m_sName");
 
-            if (animArray.Length == 0)
+            var seqFlags = seqDesc.GetSubCollection("m_flags");
+            IsLooping = seqFlags.GetProperty<bool>("m_bLooping");
+            Hidden = seqFlags.GetProperty<bool>("m_bHidden");
+            Delta = seqFlags.GetProperty<bool>("m_bLegacyDelta");
+            Worldspace = seqFlags.GetProperty<bool>("m_bLegacyWorldspace");
+
+            // Activities from sequence descriptor
+            Activities = seqDesc.GetArray("m_activityArray")
+                .Select(x => new AnimationActivity(x))
+                .ToArray();
+
+            // Transition params from sequence descriptor
+            var transition = seqDesc.GetSubCollection("m_transition");
+            SequenceParams = new AnimationSequenceParams(transition);
+
+            // Animation data from ANIM block
+            Fps = animDesc.GetFloatProperty("fps");
+            SegmentArray = segmentArray;
+
+            var pDataObject = animDesc.GetProperty<object>("m_pData");
+            var pData = pDataObject as KVObject;
+            FrameCount = pData.GetInt32Property("m_nFrames");
+
+            var frameBlockArray = pData.GetArray("m_frameblockArray");
+            FrameBlocks = new AnimationFrameBlock[frameBlockArray.Length];
+            for (var i = 0; i < frameBlockArray.Length; i++)
             {
-                return [];
+                FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
             }
 
+            var movementArray = animDesc.GetArray("m_movementArray");
+            Movements = new AnimationMovement[movementArray.Length];
+            for (var i = 0; i < movementArray.Length; i++)
+            {
+                Movements[i] = new AnimationMovement(movementArray[i]);
+            }
+
+            // Events from animation data
+            Events = animDesc.GetArray("m_eventArray")
+                .Select(x => new AnimationEvent(x))
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Builds animation segment decoders from animation data and decode key.
+        /// </summary>
+        private static AnimationSegmentDecoder[] BuildSegmentArray(
+            KVObject animationData,
+            KVObject decodeKey,
+            Skeleton skeleton,
+            FlexController[] flexControllers)
+        {
             var decoderArrayKV = animationData.GetArray("m_decoderArray");
             var decoderArray = new string[decoderArrayKV.Length];
             for (var i = 0; i < decoderArrayKV.Length; i++)
@@ -210,9 +257,108 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 #endif
             }
 
+            return segmentArray;
+        }
+
+        /// <summary>
+        /// Creates animation instances from the provided animation data and decode key.
+        /// </summary>
+        public static IEnumerable<Animation> FromData(KVObject animationData, KVObject decodeKey,
+            Skeleton skeleton, FlexController[] flexControllers)
+        {
+            var animArray = animationData.GetArray<KVObject>("m_animArray");
+
+            if (animArray.Length == 0)
+            {
+                return [];
+            }
+
+            var segmentArray = BuildSegmentArray(animationData, decodeKey, skeleton, flexControllers);
+
             return animArray
                 .Select(anim => new Animation(anim, segmentArray))
                 .ToArray();
+        }
+
+        /// <summary>
+        /// Creates animation instances from sequence data (ASEQ) and animation data (ANIM).
+        /// This method uses sequence descriptors from ASEQ for names and metadata, while getting
+        /// frame data from animations in ANIM that the sequences reference.
+        /// </summary>
+        public static IEnumerable<Animation> FromSequenceData(
+            KVObject sequenceData,
+            KVObject animationData,
+            KVObject decodeKey,
+            Skeleton skeleton,
+            FlexController[] flexControllers)
+        {
+            var animArray = animationData.GetArray<KVObject>("m_animArray");
+
+            if (animArray.Length == 0)
+            {
+                return [];
+            }
+
+            // Build segment array from animation data
+            var segmentArray = BuildSegmentArray(animationData, decodeKey, skeleton, flexControllers);
+            var sequenceNameArray = sequenceData.GetArray<string>("m_localSequenceNameArray");
+
+            var animLookup = new Dictionary<string, KVObject>();
+            foreach (var anim in animArray)
+            {
+                var name = anim.GetProperty<string>("m_name");
+                animLookup[name] = anim;
+            }
+
+            var processedAnimNames = new HashSet<string>();
+            var seqDescArray = sequenceData.GetArray<KVObject>("m_localS1SeqDescArray");
+            var animations = new List<Animation>();
+
+            foreach (var seqDesc in seqDescArray)
+            {
+                var fetch = seqDesc.GetSubCollection("m_fetch");
+
+                var localRefArray = fetch.GetIntegerArray("m_localReferenceArray");
+                if (localRefArray.Length == 0)
+                {
+                    continue;
+                }
+
+                // TODO: Handle multiple references for blend sequences - for now just use first
+                var refIndex = (int)localRefArray[0];
+
+                if (refIndex < 0 || refIndex >= sequenceNameArray.Length)
+                {
+                    continue;
+                }
+
+                var refAnimName = sequenceNameArray[refIndex];
+
+                if (!animLookup.TryGetValue(refAnimName, out var animDesc))
+                {
+                    continue;
+                }
+
+                var seqName = seqDesc.GetProperty<string>("m_sName");
+                processedAnimNames.Add(seqName);
+
+                animations.Add(new Animation(seqDesc, animDesc, segmentArray));
+            }
+
+            // Add remaining animations not already output as sequences
+            foreach (var anim in animArray)
+            {
+                var animName = anim.GetProperty<string>("m_name");
+
+                if (processedAnimNames.Contains(animName))
+                {
+                    continue;
+                }
+
+                animations.Add(new Animation(anim, segmentArray));
+            }
+
+            return animations;
         }
 
         /// <summary>
