@@ -499,7 +499,7 @@ public class Renderer
         Debug.Assert(inputFramebuffer.NumSamples > 0);
         Debug.Assert(outputFramebuffer.NumSamples == 0);
 
-        Postprocess.Render(colorBuffer: inputFramebuffer, flipY);
+        Postprocess.Render(inputFramebuffer, outputFramebuffer, flipY);
     }
 
     public void Dispose()

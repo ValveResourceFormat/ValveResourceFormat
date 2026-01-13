@@ -61,6 +61,7 @@ public class PickingTexture : Framebuffer
 
         Width = 4;
         Height = 4;
+
         Initialize();
     }
 

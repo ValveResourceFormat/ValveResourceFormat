@@ -5,7 +5,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
-    [DebuggerDisplay("{Name} {Width}x{Height}x{Depth} mip:{NumMipLevels} srgb:{Srgb}")]
+    [DebuggerDisplay("{Width}x{Height}x{Depth} mip:{NumMipLevels} srgb:{Srgb}")]
     public class RenderTexture
     {
         public TextureTarget Target { get; }
@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Renderer
         public static RenderTexture Create(int width, int height, SizedInternalFormat format = SizedInternalFormat.Rgba8, bool mips = false)
         {
             var mipCount = mips
-                ? (int)MathF.Log(MathF.Max(width, height), 2) - 2
+                ? MaxMipCount(width, height)
                 : 1;
 
             var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount);
@@ -106,6 +106,21 @@ namespace ValveResourceFormat.Renderer
         public void Delete()
         {
             GL.DeleteTexture(Handle);
+        }
+
+        public static int MaxMipCount(int width, int height)
+        {
+            return Math.Max((int)MathF.Log(MathF.Max(width, height), 2) - 2, 1);
+        }
+
+        public void AttachToFramebuffer(Framebuffer framebuffer, FramebufferAttachment attachment, int mipLevel)
+        {
+            if (mipLevel < 0 || mipLevel >= NumMipLevels)
+            {
+                throw new ArgumentOutOfRangeException(nameof(mipLevel), $"Mip level {mipLevel} is out of range for attachment with {NumMipLevels} mips.");
+            }
+
+            GL.NamedFramebufferTexture(framebuffer.FboHandle, attachment, Handle, mipLevel);
         }
     }
 }

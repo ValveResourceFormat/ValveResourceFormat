@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 
@@ -11,8 +12,10 @@ public class Framebuffer
     public int Height { get; protected set; }
     public bool HasValidDimensions() => Width > 0 && Height > 0;
 
-    public TextureTarget Target { get; protected set; }
+    public int NumMips { get; set; } = 1;
     public int NumSamples { get; set; }
+
+    public TextureTarget Target { get; protected set; }
     public RenderTexture? Color { get; protected set; }
     public RenderTexture? Depth { get; protected set; }
     public RenderTexture? Stencil { get; protected set; }
@@ -166,20 +169,20 @@ public class Framebuffer
 
         if (ColorFormat != null)
         {
-            Color = CreateAttachment(ColorFormat, width, height);
+            Color = CreateAttachment(ColorFormat, width, height, NumMips);
             Color.SetLabel("FramebufferColor");
-            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.ColorAttachment0, Color.Handle, 0);
+            Color.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0, 0);
         }
 
         if (DepthFormat != null)
         {
             Depth = CreateAttachment(DepthFormat, width, height);
             Depth.SetLabel("FramebufferDepth");
-            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, Depth.Handle, 0);
+            Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthAttachment, 0);
 
             if (DepthFormat == DepthAttachmentFormat.Depth32FStencil8)
             {
-                GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthStencilAttachment, Depth.Handle, 0);
+                Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthStencilAttachment, 0);
 
                 // Create stencil view
                 Stencil = Depth.CreateView(DepthFormat.InternalFormat);
@@ -191,24 +194,30 @@ public class Framebuffer
         }
     }
 
-    private RenderTexture CreateAttachment(AttachmentFormat format, int width, int height)
+    private RenderTexture CreateAttachment(AttachmentFormat format, int width, int height, int numMips = 1)
     {
-        var attachment = new RenderTexture(Target, width, height, 1, 1);
+        var attachment = new RenderTexture(Target, width, height, 1, numMips);
+        var mipCount = Math.Min(RenderTexture.MaxMipCount(width, height), attachment.NumMipLevels);
 
         if (Target == TextureTarget.Texture2DMultisample)
         {
+            if (mipCount > 1)
+            {
+                throw new InvalidOperationException("Multisample textures do not support mipmaps");
+            }
+
             GL.TextureStorage2DMultisample(attachment.Handle, NumSamples, (SizedInternalFormat)format.InternalFormat, width, height, fixedsamplelocations: false);
         }
         else
         {
-            GL.TextureStorage2D(attachment.Handle, attachment.NumMipLevels, (SizedInternalFormat)format.InternalFormat, width, height);
+            GL.TextureStorage2D(attachment.Handle, mipCount, (SizedInternalFormat)format.InternalFormat, width, height);
         }
 
-        attachment.SetBaseMaxLevel(0, 0);
+        attachment.SetBaseMaxLevel(0, mipCount - 1);
         return attachment;
     }
 
-    public void ChangeFormat(AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
+    public void ChangeFormat(AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat, FramebufferAttachment? framebufferAttachment = null)
     {
         ColorFormat = colorFormat;
         DepthFormat = depthFormat;
@@ -222,6 +231,21 @@ public class Framebuffer
         {
             throw new InvalidOperationException($"Fbo '{name} failed to initialize with error: {InitialStatus}");
         }
+    }
+
+    public void AttachColorMipLevel(int mipLevel)
+    {
+        Debug.Assert(Color != null, "Color attachment is null");
+
+        Color.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0, mipLevel);
+    }
+
+    public Vector2i GetMipSize(int level)
+    {
+        var mipWidth = Math.Max(1, Width >> level);
+        var mipHeight = Math.Max(1, Height >> level);
+
+        return new(mipWidth, mipHeight);
     }
 
     public void Delete()
