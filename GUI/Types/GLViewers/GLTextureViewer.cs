@@ -140,7 +140,11 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            GLControl?.PreviewKeyDown += OnPreviewKeyDown;
+            if (GLControl != null)
+            {
+                GLControl.PreviewKeyDown += OnPreviewKeyDown;
+                GLControl.VisibleChanged += OnVisibleChanged;
+            }
 
             ShowLightBackground = !Application.IsDarkModeEnabled;
 
@@ -528,6 +532,14 @@ namespace GUI.Types.GLViewers
             ClampPosition();
         }
 
+        private void OnVisibleChanged(object? sender, EventArgs e)
+        {
+            if (GLControl?.Visible == true)
+            {
+                InvalidateRender();
+            }
+        }
+
         private void SetInitialDecodeFlagsState(CheckedListBox listBox)
         {
             listBox.Items.Clear();
@@ -558,7 +570,11 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
-            GLControl?.PreviewKeyDown -= OnPreviewKeyDown;
+            if (GLControl != null)
+            {
+                GLControl.PreviewKeyDown -= OnPreviewKeyDown;
+                GLControl.VisibleChanged -= OnVisibleChanged;
+            }
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded -= OnHotReload;
