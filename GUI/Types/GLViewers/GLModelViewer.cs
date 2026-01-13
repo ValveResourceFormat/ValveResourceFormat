@@ -69,7 +69,6 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
             Debug.Assert(animationController != null);
-            Debug.Assert(modelSceneNode != null);
 
             animationComboBox = UiControl.AddSelection("Animation", (animation, i) =>
             {
@@ -94,6 +93,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 animationComboBoxCurrentIndex = i;
+                Debug.Assert(modelSceneNode != null);
                 modelSceneNode.SetAnimation(animation);
                 rootMotionCheckBox!.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
                 enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;

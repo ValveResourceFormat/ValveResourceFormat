@@ -62,12 +62,11 @@ namespace GUI.Types.GLViewers
 
         private void LoadClipScene(AnimationClip clipToLoad, bool firstTime)
         {
-            Debug.Assert(animationController != null);
-
             var skeletonResource = GuiContext.LoadFileCompiled(clipToLoad.SkeletonName);
             Debug.Assert(skeletonResource != null);
             SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
             LoadSkeleton(firstTime);
+            Debug.Assert(animationController != null);
             animationController.SetAnimation(new Animation(clipToLoad));
         }
 
