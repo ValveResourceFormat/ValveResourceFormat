@@ -305,6 +305,53 @@ namespace ValveResourceFormat.ResourceTypes
             => Data.GetArray<string>("m_refAnimGroups");
 
         /// <summary>
+        /// Gets the faceposer folders mapping animation names to folder names.
+        /// </summary>
+        /// <returns>Dictionary mapping animation names to their folder names, or empty dictionary if no folders exist.</returns>
+        public Dictionary<string, string> GetFaceposerFolders()
+        {
+            var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
+            var embeddedAnimation = ctrl?.Data.GetSubCollection("embedded_animation");
+
+            if (embeddedAnimation == null)
+            {
+                return [];
+            }
+
+            var seqGroupDataBlockIndex = embeddedAnimation.GetIntegerProperty("seqgroup_data_block");
+            if (seqGroupDataBlockIndex <= 0)
+            {
+                return [];
+            }
+
+            var sequenceDataBlock = Resource.GetBlockByIndex((int)seqGroupDataBlockIndex) as KeyValuesOrNTRO;
+            var sequenceKeyValues = sequenceDataBlock?.Data.GetSubCollection("m_keyValues");
+            var faceposerFolders = sequenceKeyValues?.GetSubCollection("faceposer_folders");
+
+            if (faceposerFolders == null)
+            {
+                return [];
+            }
+
+            var animationToFolder = new Dictionary<string, string>();
+            foreach (var folder in faceposerFolders)
+            {
+                var folderName = folder.Key;
+                var animationNames = faceposerFolders.GetArray<string>(folderName);
+
+                if (animationNames != null)
+                {
+                    foreach (var animationName in animationNames)
+                    {
+                        animationToFolder[animationName] = folderName;
+                    }
+                }
+            }
+
+            return animationToFolder;
+        }
+
+        /// <summary>
         /// Gets embedded animations from the model.
         /// </summary>
         /// <returns>Enumerable of animations.</returns>
