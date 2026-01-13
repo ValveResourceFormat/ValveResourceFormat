@@ -19,6 +19,7 @@ namespace GUI.Utils
         ModelViewer,
         WorldViewer,
         ParticleViewer,
+        MaterialViewer,
         AudioPlayer,
         //PackageViewer,
     }
@@ -82,6 +83,15 @@ namespace GUI.Utils
                 new("Ctrl+C", "Screenshot"),
             ],
 
+            [ViewerType.MaterialViewer] =
+            [
+                new("Mouse", "Orbit"),
+                new("Scroll", "Zoom"),
+                new("Ctrl+Drag", "Adjust sun"),
+                new("F11", "Fullscreen"),
+                new("Ctrl+C", "Screenshot"),
+            ],
+
             [ViewerType.AudioPlayer] =
             [
                 new("Space", "Play/Pause"),
@@ -127,9 +137,10 @@ namespace GUI.Utils
                     return glViewer switch
                     {
                         GLTextureViewer => ViewerType.TextureViewer,
-                        GLModelViewer or GLAnimationViewer or GLMeshViewer or GLMaterialViewer => ViewerType.ModelViewer,
+                        GLMaterialViewer => ViewerType.MaterialViewer,
                         GLWorldViewer => ViewerType.WorldViewer,
                         GLParticleViewer => ViewerType.ParticleViewer,
+                        GLSceneViewer => ViewerType.ModelViewer,
                         _ => ViewerType.Default,
                     };
                 }
