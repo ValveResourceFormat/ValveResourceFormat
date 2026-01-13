@@ -31,7 +31,6 @@ partial class RendererControl
         glControlContainer = new System.Windows.Forms.Panel();
         controlsPanel = new System.Windows.Forms.Panel();
         bottomPanel = new System.Windows.Forms.Panel();
-        copyLabel = new System.Windows.Forms.Label();
         moveSpeed = new System.Windows.Forms.Label();
         splitContainer = new System.Windows.Forms.SplitContainer();
         controlsPanel.SuspendLayout();
@@ -67,7 +66,6 @@ partial class RendererControl
         // 
         // bottomPanel
         // 
-        bottomPanel.Controls.Add(copyLabel);
         bottomPanel.Controls.Add(moveSpeed);
         bottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
         bottomPanel.Location = new System.Drawing.Point(5, 676);
@@ -76,15 +74,6 @@ partial class RendererControl
         bottomPanel.Padding = new System.Windows.Forms.Padding(5);
         bottomPanel.Size = new System.Drawing.Size(210, 40);
         bottomPanel.TabIndex = 7;
-        // 
-        // copyLabel
-        // 
-        copyLabel.Dock = System.Windows.Forms.DockStyle.Bottom;
-        copyLabel.Location = new System.Drawing.Point(5, 5);
-        copyLabel.Name = "copyLabel";
-        copyLabel.Size = new System.Drawing.Size(200, 15);
-        copyLabel.TabIndex = 6;
-        copyLabel.Text = "Press Ctrl+C to screenshot";
         // 
         // moveSpeed
         // 
@@ -136,7 +125,6 @@ partial class RendererControl
     private System.Windows.Forms.Panel glControlContainer;
     private System.Windows.Forms.Panel controlsPanel;
     private System.Windows.Forms.Panel bottomPanel;
-    private System.Windows.Forms.Label copyLabel;
     private System.Windows.Forms.Label moveSpeed;
     private System.Windows.Forms.SplitContainer splitContainer;
 }

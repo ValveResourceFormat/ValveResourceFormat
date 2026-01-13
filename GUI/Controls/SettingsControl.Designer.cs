@@ -1,6 +1,6 @@
 using GUI.Controls;
 
-namespace GUI.Forms
+namespace GUI.Controls
 {
     partial class SettingsControl
     {

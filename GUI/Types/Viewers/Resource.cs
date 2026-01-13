@@ -29,7 +29,7 @@ namespace GUI.Types.Viewers
     {
         private ValveResourceFormat.Resource? resource;
         private RendererContext? rendererContext;
-        private GLBaseControl? GLViewer;
+        public GLBaseControl? GLViewer { get; private set; }
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
 

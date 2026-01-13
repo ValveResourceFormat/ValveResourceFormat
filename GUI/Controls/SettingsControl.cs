@@ -4,7 +4,7 @@ using System.Windows.Forms;
 using GUI.Utils;
 using Microsoft.Win32;
 
-namespace GUI.Forms
+namespace GUI.Controls
 {
     partial class SettingsControl : UserControl
     {

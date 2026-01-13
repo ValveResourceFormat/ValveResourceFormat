@@ -476,7 +476,16 @@ namespace GUI
             {
                 Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
             }
+
+            UpdateBottomPanelKeybindings();
 #endif
+        }
+
+        private void UpdateBottomPanelKeybindings()
+        {
+            var viewerType = KeybindingRegistry.GetViewerTypeFromTab(mainTabs.SelectedTab);
+            var keybindings = KeybindingRegistry.GetKeybindingsForViewer(viewerType);
+            mainFormBottomPanel.UpdateKeybindings(keybindings);
         }
 
         private void CloseAndReOpenActiveTab()
@@ -721,7 +730,7 @@ namespace GUI
 
                 while (parentContext != null)
                 {
-                    tab.ToolTipText = $"{parentContext.FileName} > {tab.ToolTipText}";
+                    tab.ToolTipText = $"{tab.ToolTipText} ← {parentContext.FileName}";
 
                     parentContext = parentContext.ParentGuiContext;
                 }
@@ -830,6 +839,11 @@ namespace GUI
                         }
 
                         viewer.Create(tab);
+
+                        if (mainTabs.SelectedTab == tab)
+                        {
+                            UpdateBottomPanelKeybindings();
+                        }
                     }
                     finally
                     {

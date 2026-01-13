@@ -1,5 +1,6 @@
 using System.Windows.Forms;
 using GUI.Forms;
+using GUI.Utils;
 
 namespace GUI.Controls;
 
@@ -24,6 +25,10 @@ public partial class MainFormBottomPanel : UserControl
         var textBounds = ClientRectangle;
 
         textBounds.Width -= menuStrip1.Width;
+        if (keybindingsPanel?.Visible == true)
+        {
+            textBounds.Width -= keybindingsPanel.Width;
+        }
 
         TextRenderer.DrawText(e.Graphics, Text, Font, textBounds, ForeColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
@@ -54,5 +59,20 @@ public partial class MainFormBottomPanel : UserControl
     {
         using var form = new AboutForm();
         form.ShowDialog(this);
+    }
+
+    public void UpdateKeybindings(List<KeybindingInfo> keybindings)
+    {
+        if (keybindings.Count == 0)
+        {
+            keybindingsPanel.Visible = false;
+        }
+        else
+        {
+            keybindingsPanel.SetKeybindings(keybindings);
+            keybindingsPanel.Visible = true;
+        }
+
+        Invalidate();
     }
 }
