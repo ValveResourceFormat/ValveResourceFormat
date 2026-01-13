@@ -31,6 +31,7 @@ namespace GUI.Types.GLViewers
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
         private CheckedListBox? physicsGroupsComboBox;
+        private int animationComboBoxCurrentIndex = -1;
 
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(vrfGuiContext, rendererContext)
         {
@@ -70,8 +71,29 @@ namespace GUI.Types.GLViewers
             Debug.Assert(animationController != null);
             Debug.Assert(modelSceneNode != null);
 
-            animationComboBox = UiControl.AddSelection("Animation", (animation, _) =>
+            animationComboBox = UiControl.AddSelection("Animation", (animation, i) =>
             {
+                // Initialize on first call
+                if (animationComboBoxCurrentIndex < -1)
+                {
+                    animationComboBoxCurrentIndex = i;
+                    return;
+                }
+
+                if (i < 0)
+                {
+                    return;
+                }
+
+                // Check if this is a header item (ThemedComboBoxItem with IsHeader = true)
+                if (animationComboBox!.Items[i] is ThemedComboBoxItem item && item.IsHeader)
+                {
+                    // Skip header selection and jump to adjacent non-header item
+                    animationComboBox.SelectedIndex = animationComboBoxCurrentIndex > i ? i - 1 : i + 1;
+                    return;
+                }
+
+                animationComboBoxCurrentIndex = i;
                 modelSceneNode.SetAnimation(animation);
                 rootMotionCheckBox!.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
                 enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
@@ -106,6 +128,7 @@ namespace GUI.Types.GLViewers
             animationPlayPause.Enabled = false;
             animationTrackBar.Enabled = false;
             slowmodeTrackBar.Enabled = false;
+            slowmodeTrackBar.Slider.Value = animationController.FrametimeMultiplier;
 
             var previousPaused = false;
             animationTrackBar.Slider.MouseDown += (_, __) =>
@@ -525,7 +548,67 @@ namespace GUI.Types.GLViewers
             {
                 animationComboBox.Enabled = true;
                 animationComboBox.Items.Add($"({animations.Length} animations available)");
-                animationComboBox.Items.AddRange(animations);
+
+                var animationToFolder = model?.GetFaceposerFolders() ?? [];
+
+                if (animationToFolder.Count > 0)
+                {
+                    var folderGroups = animations
+                        .GroupBy(anim => animationToFolder.GetValueOrDefault(anim, string.Empty))
+                        .ToList();
+
+                    var groupedFolders = folderGroups
+                        .Where(g => !string.IsNullOrEmpty(g.Key))
+                        .OrderBy(g => g.Key);
+
+                    var ungroupedAnimations = folderGroups
+                        .Where(g => string.IsNullOrEmpty(g.Key))
+                        .SelectMany(g => g)
+                        .OrderBy(a => a)
+                        .ToList();
+
+                    foreach (var folderGroup in groupedFolders)
+                    {
+                        animationComboBox.Items.Add(new ThemedComboBoxItem
+                        {
+                            Text = folderGroup.Key,
+                            IsHeader = true
+                        });
+
+                        foreach (var anim in folderGroup.OrderBy(a => a))
+                        {
+                            animationComboBox.Items.Add(new ThemedComboBoxItem
+                            {
+                                Text = anim,
+                                IsHeader = false
+                            });
+                        }
+                    }
+
+                    if (ungroupedAnimations.Count > 0)
+                    {
+                        animationComboBox.Items.Add(new ThemedComboBoxItem
+                        {
+                            Text = "Ungrouped",
+                            IsHeader = true
+                        });
+
+                        foreach (var anim in ungroupedAnimations)
+                        {
+                            animationComboBox.Items.Add(new ThemedComboBoxItem
+                            {
+                                Text = anim,
+                                IsHeader = false
+                            });
+                        }
+                    }
+                }
+                else
+                {
+                    animationComboBox.Items.AddRange(animations);
+                }
+
+                animationComboBoxCurrentIndex = -10;
                 animationComboBox.SelectedIndex = 0;
             }
             else
