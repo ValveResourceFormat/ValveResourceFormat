@@ -13,19 +13,24 @@ namespace ValveResourceFormat.Renderer
 
         public Texture.SpritesheetData? SpriteSheetData { get; }
 
+        public AttachmentFormat? ColorFormat { get; set; }
+
         public int Width { get; }
         public int Height { get; }
         public int Depth { get; }
         public int NumMipLevels { get; }
 
-        RenderTexture(TextureTarget target)
+        public record class AttachmentFormat(PixelInternalFormat InternalFormat, PixelFormat PixelFormat, PixelType PixelType);
+
+        RenderTexture(TextureTarget target, AttachmentFormat? attachmentFormat = null)
         {
+            ColorFormat = attachmentFormat;
             Target = target;
             GL.CreateTextures(target, 1, out int handle);
             Handle = handle;
         }
 
-        public RenderTexture(TextureTarget target, Texture data) : this(target)
+        public RenderTexture(TextureTarget target, Texture data, AttachmentFormat? AttachmentFormat = null) : this(target, AttachmentFormat)
         {
             Width = data.Width;
             Height = data.Height;
@@ -34,8 +39,8 @@ namespace ValveResourceFormat.Renderer
             SpriteSheetData = data.GetSpriteSheetData();
         }
 
-        public RenderTexture(TextureTarget target, int width, int height, int depth, int mipcount)
-            : this(target)
+        public RenderTexture(TextureTarget target, int width, int height, int depth, int mipcount, AttachmentFormat? AttachmentFormat = null)
+            : this(target, AttachmentFormat)
         {
             Width = width;
             Height = height;

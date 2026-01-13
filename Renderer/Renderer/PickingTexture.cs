@@ -37,6 +37,7 @@ public class PickingTexture : Framebuffer
     public bool IsDebugActive { get; private set; }
     public bool ActiveNextFrame { get; private set; }
 
+    private RenderTexture.AttachmentFormat ColorFormat;
     private int CursorPositionX;
     private int CursorPositionY;
     private PickingIntent Intent;
@@ -64,6 +65,8 @@ public class PickingTexture : Framebuffer
 
         Width = 4;
         Height = 4;
+
+        CreateColorAttachment(ColorFormat, Width, Height, FramebufferAttachment.ColorAttachment0);
         Initialize();
     }
 

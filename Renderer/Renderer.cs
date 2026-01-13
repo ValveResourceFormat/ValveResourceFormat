@@ -70,15 +70,15 @@ public class Renderer
         depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
 
         FramebufferCopy = Framebuffer.Prepare(nameof(FramebufferCopy), 4, 4, 0,
-            new Framebuffer.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
+            new RenderTexture.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
             new Framebuffer.DepthAttachmentFormat(PixelInternalFormat.DepthComponent32f, PixelType.Float)
         );
 
         FramebufferCopy.Initialize();
         FramebufferCopy.ClearColor = new(0, 0, 0, 255);
-        Debug.Assert(FramebufferCopy.Color != null && FramebufferCopy.Depth != null);
+        Debug.Assert(FramebufferCopy.GetColorRenderTexture() != null && FramebufferCopy.Depth != null);
 
-        Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
+        Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.GetColorRenderTexture()!));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
         // Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
     }

@@ -13,12 +13,11 @@ public class Framebuffer
 
     public TextureTarget Target { get; protected set; }
     public int NumSamples { get; set; }
-    public RenderTexture? Color { get; protected set; }
+    public RenderTexture[] ColorRenderTextures { get; protected set; } = new RenderTexture[MAX_FBO_COLOR_ATTACHMENT];
     public RenderTexture? Depth { get; protected set; }
     public RenderTexture? Stencil { get; protected set; }
 
     // Maybe these can be in texture
-    public AttachmentFormat? ColorFormat { get; protected set; }
     public DepthAttachmentFormat? DepthFormat { get; protected set; }
 
     public FramebufferErrorCode InitialStatus { get; private set; } = FramebufferErrorCode.FramebufferUndefined;
@@ -29,6 +28,8 @@ public class Framebuffer
         TargetState = targetState;
         GL.BindFramebuffer(targetState, FboHandle);
     }
+
+    private const int MAX_FBO_COLOR_ATTACHMENT = 32;
 
     #region Render state
     public Color4 ClearColor { get; set; } = Color4.Black; // https://gpuopen.com/learn/rdna-performance-guide/#clears
@@ -73,33 +74,60 @@ public class Framebuffer
 
     #endregion
 
-    public record class AttachmentFormat(PixelInternalFormat InternalFormat, PixelFormat PixelFormat, PixelType PixelType);
     public record class DepthAttachmentFormat(PixelInternalFormat InternalFormat, PixelType PixelType)
     {
         public static readonly DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);
         public static readonly DepthAttachmentFormat Depth32FStencil8 = new(PixelInternalFormat.Depth32fStencil8, PixelType.Float32UnsignedInt248Rev);
 
-        public static implicit operator AttachmentFormat(DepthAttachmentFormat depthFormat) => depthFormat.ToAttachmentFormat();
+        public static implicit operator RenderTexture.AttachmentFormat(DepthAttachmentFormat depthFormat) => depthFormat.ToAttachmentFormat();
 
-        public AttachmentFormat ToAttachmentFormat()
+        public RenderTexture.AttachmentFormat ToAttachmentFormat()
         {
             return new(InternalFormat, PixelFormat.DepthComponent, PixelType);
         }
     }
 
-    public static Framebuffer Prepare(string name, int width, int height, int msaa, AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
+    public static Framebuffer Prepare(string name, int width, int height, int msaa, RenderTexture.AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
     {
         var fbo = new Framebuffer(name)
         {
             NumSamples = msaa,
             Target = msaa > 0 ? TextureTarget.Texture2DMultisample : TextureTarget.Texture2D,
-            ColorFormat = colorFormat,
             DepthFormat = depthFormat,
             Width = width,
             Height = height,
         };
 
+        if (colorFormat != null)
+        {
+            fbo.ColorRenderTextures[0] = fbo.CreateAttachment(colorFormat, width, height);
+        }
+
         return fbo;
+    }
+
+    public RenderTexture? GetColorRenderTexture(FramebufferAttachment? framebufferAttachment = null)
+    {
+        if (ColorRenderTextures.Length == 0)
+        {
+            return null;
+        }
+
+        if (framebufferAttachment == null)
+        {
+            return ColorRenderTextures[0];
+        }
+        else
+        {
+            var textureId = (int)(framebufferAttachment - FramebufferAttachment.ColorAttachment0);
+
+            if (textureId >= ColorRenderTextures.Length)
+            {
+                return null;
+            }
+
+            return ColorRenderTextures[textureId];
+        }
     }
 
     public FramebufferErrorCode Initialize()
@@ -109,7 +137,7 @@ public class Framebuffer
             throw new InvalidOperationException("Framebuffer target is not set");
         }
 
-        if (ColorFormat == null && DepthFormat == null)
+        if (ColorRenderTextures.Length == 0 && DepthFormat == null)
         {
             throw new InvalidOperationException("Framebuffer has no attachments");
         }
@@ -156,19 +184,41 @@ public class Framebuffer
         CreateAttachments();
     }
 
+    public void CreateColorAttachment(RenderTexture.AttachmentFormat format, int width, int height, FramebufferAttachment framebufferAttachment)
+    {
+        int attachmentID = framebufferAttachment - FramebufferAttachment.ColorAttachment0;
+
+        var oldRenderTexture = ColorRenderTextures[attachmentID];
+
+        if (oldRenderTexture != null)
+        {
+            oldRenderTexture.Delete();
+        }
+
+        var renderTexture = CreateAttachment(format, width, height);
+        renderTexture.SetLabel($"FramebufferColor_{attachmentID}");
+        ColorRenderTextures[attachmentID] = renderTexture;
+
+        GL.NamedFramebufferTexture(FboHandle, framebufferAttachment, renderTexture.Handle, 0);
+    }
+
     private void CreateAttachments()
     {
-        Color?.Delete();
         Depth?.Delete();
         Stencil?.Delete();
 
         var (width, height) = (Width, Height);
 
-        if (ColorFormat != null)
+        for (var i = 0; i < ColorRenderTextures.Length; i++)
         {
-            Color = CreateAttachment(ColorFormat, width, height);
-            Color.SetLabel("FramebufferColor");
-            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.ColorAttachment0, Color.Handle, 0);
+            var oldRenderTexture = ColorRenderTextures[i];
+
+            if (oldRenderTexture == null)
+            {
+                continue;
+            }
+
+            CreateColorAttachment(oldRenderTexture.ColorFormat!, width, height, FramebufferAttachment.ColorAttachment0 + i);
         }
 
         if (DepthFormat != null)
@@ -191,9 +241,9 @@ public class Framebuffer
         }
     }
 
-    private RenderTexture CreateAttachment(AttachmentFormat format, int width, int height)
+    private RenderTexture CreateAttachment(RenderTexture.AttachmentFormat format, int width, int height)
     {
-        var attachment = new RenderTexture(Target, width, height, 1, 1);
+        var attachment = new RenderTexture(Target, width, height, 1, 1, format);
 
         if (Target == TextureTarget.Texture2DMultisample)
         {
@@ -208,9 +258,17 @@ public class Framebuffer
         return attachment;
     }
 
-    public void ChangeFormat(AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
+    public void ChangeFormat(RenderTexture.AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat, FramebufferAttachment? framebufferAttachment = null)
     {
-        ColorFormat = colorFormat;
+        if (framebufferAttachment != null)
+        {
+            ColorRenderTextures[(int)(framebufferAttachment - FramebufferAttachment.ColorAttachment0)].ColorFormat = colorFormat;
+        }
+        else
+        {
+            ColorRenderTextures[0].ColorFormat = colorFormat;
+        }
+
         DepthFormat = depthFormat;
 
         Resize(Width, Height);
@@ -228,9 +286,14 @@ public class Framebuffer
     {
         GL.DeleteFramebuffer(FboHandle);
 
-        if (Color != null)
+        foreach (var colorRenderTexture in ColorRenderTextures)
         {
-            GL.DeleteTexture(Color.Handle);
+            if (colorRenderTexture == null)
+            {
+                continue;
+            }
+
+            GL.DeleteTexture(colorRenderTexture.Handle);
         }
 
         if (Depth != null)

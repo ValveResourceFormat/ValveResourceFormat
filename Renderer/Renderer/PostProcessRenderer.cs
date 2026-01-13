@@ -58,7 +58,7 @@ namespace ValveResourceFormat.Renderer
             shader.Use();
 
             // Bind textures
-            shader.SetTexture(0, "g_tColorBuffer", colorBuffer.Color!);
+            shader.SetTexture(0, "g_tColorBuffer", colorBuffer.GetColorRenderTexture()!);
             shader.SetTexture(1, "g_tColorCorrection", State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
             shader.SetTexture(2, "g_tBlueNoise", BlueNoise);
             shader.SetTexture(3, "g_tStencilBuffer", colorBuffer.Stencil!);

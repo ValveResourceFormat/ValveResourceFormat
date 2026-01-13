@@ -191,14 +191,12 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             return false;
         }
 
-        Debug.Assert(Framebuffer != null);
-
-        if (Framebuffer.ColorFormat != framebufferFormat)
+        if (Framebuffer.GetColorRenderTexture().ColorFormat != framebufferFormat)
         {
             Framebuffer.ChangeFormat(framebufferFormat, null);
         }
 
-        Debug.Assert(Framebuffer.ColorFormat != null);
+        Debug.Assert(Framebuffer.GetColorRenderTexture() != null);
 
         // Render the texture at requested mip level size,
         // reading pixels back to the bitmap below will crop it
@@ -241,7 +239,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         inputTexture.Delete();
 
         var pixels = request.Bitmap.GetPixels(out var outputLength);
-        var fbBytesPerPixel = Framebuffer.ColorFormat.PixelType == PixelType.Float ? 16 : 4;
+        var fbBytesPerPixel = Framebuffer.GetColorRenderTexture().ColorFormat.PixelType == PixelType.Float ? 16 : 4;
         var fbRegionLength = request.Bitmap.Width * request.Bitmap.Height * fbBytesPerPixel;
 
         if (fbRegionLength > outputLength)
@@ -256,7 +254,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.ReadnPixels(
             0, 0,
             request.Bitmap.Width, request.Bitmap.Height,
-            Framebuffer.ColorFormat.PixelFormat, Framebuffer.ColorFormat.PixelType,
+            Framebuffer.GetColorRenderTexture().ColorFormat.PixelFormat, Framebuffer.GetColorRenderTexture().ColorFormat.PixelType,
             (int)outputLength, pixels
         );
 
@@ -302,10 +300,10 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
     }
 
-    public Lazy<Framebuffer.AttachmentFormat> LDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: false));
-    public Lazy<Framebuffer.AttachmentFormat> HDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: true));
+    public Lazy<RenderTexture.AttachmentFormat> LDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: false));
+    public Lazy<RenderTexture.AttachmentFormat> HDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: true));
 
-    public static Framebuffer.AttachmentFormat GetPreferredFramebufferFormat(bool hdr)
+    public static RenderTexture.AttachmentFormat GetPreferredFramebufferFormat(bool hdr)
     {
         var (internalFormat, pixelFormat, pixelType) = MaterialLoader.GetImageExportFormat(hdr);
 

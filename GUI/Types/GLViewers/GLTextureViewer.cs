@@ -684,7 +684,7 @@ namespace GUI.Types.GLViewers
 
                 if (SaveAsFbo is not null)
                 {
-                    if (SaveAsFbo.ColorFormat != fboFormat)
+                    if (SaveAsFbo.GetColorRenderTexture().ColorFormat != fboFormat)
                     {
                         SaveAsFbo.Delete();
                         SaveAsFbo = null;
@@ -710,7 +710,7 @@ namespace GUI.Types.GLViewers
 
                 SaveAsFbo.Bind(FramebufferTarget.ReadFramebuffer);
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, SaveAsFbo.ColorFormat!.PixelFormat, SaveAsFbo.ColorFormat.PixelType, pixels);
+                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, SaveAsFbo.GetColorRenderTexture().ColorFormat!.PixelFormat, SaveAsFbo.GetColorRenderTexture().ColorFormat.PixelType, pixels);
 
                 Debug.Assert(MainFramebuffer is not null);
                 MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
