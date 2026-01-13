@@ -29,10 +29,10 @@ uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
 
 uniform vec4 g_vBlueNoiseDitherParams;
 
-layout (location = 0) uniform sampler2DMS g_tColorBuffer;
-layout (location = 1) uniform sampler3D g_tColorCorrection;
-layout (location = 2) uniform sampler2D g_tBlueNoise;
-layout (location = 3) uniform usampler2DMS g_tStencilBuffer;
+uniform sampler2DMS g_tColorBuffer;
+uniform sampler3D g_tColorCorrection;
+uniform sampler2D g_tBlueNoise;
+layout(bindless_sampler) uniform usampler2DMS g_tStencilBuffer;
 
 layout (location = 0) out vec4 outputColor;
 

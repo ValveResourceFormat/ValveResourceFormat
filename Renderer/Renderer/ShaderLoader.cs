@@ -205,6 +205,8 @@ namespace ValveResourceFormat.Renderer
             var header = new StringBuilder();
             header.Append(ShaderParser.ExpectedShaderVersion);
             header.Append('\n');
+            header.Append("#extension GL_ARB_bindless_texture : require\n");
+
 
             // Append original shader name as a define
             header.Append("#define ");

@@ -224,6 +224,11 @@ namespace ValveResourceFormat.Renderer
                             var uniformType = match.Groups["Type"].Value;
                             var uniformName = match.Groups["Name"].Value;
 
+                            if (uniformType.Contains("sampler"))
+                            {
+                                line = $"layout(bindless_sampler) {line}";
+                            }
+
                             parsedData.Uniforms.Add(uniformName);
                             if (match.Groups["SrgbRead"].Success)
                             {

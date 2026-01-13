@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
 
@@ -403,6 +404,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             var handle = GL.Arb.GetTextureHandle(texture.Handle);
+            Debug.Assert(handle != 0);
 
             if (!GL.Arb.IsTextureHandleResident(handle))
             {
