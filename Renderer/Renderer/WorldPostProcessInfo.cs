@@ -54,12 +54,14 @@ namespace ValveResourceFormat.Renderer
             {
                 newState.ExposureSettings = MasterPostProcessVolume.ExposureSettings;
                 newState.TonemapSettings = MasterPostProcessVolume.PostProcessTonemapSettings;
+                newState.BloomSettings = MasterPostProcessVolume.BloomSettings;
 
                 if (MasterPostProcessVolume.ColorCorrectionLUT != null)
                 {
                     newState.NumLutsActive += 1;
                     newState.ColorCorrectionLUT = MasterPostProcessVolume.ColorCorrectionLUT;
                     newState.ColorCorrectionLutDimensions = MasterPostProcessVolume.ColorCorrectionLutDimensions;
+                    newState.HasBloom = MasterPostProcessVolume.HasBloom;
                 }
             }
 

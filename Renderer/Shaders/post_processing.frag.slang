@@ -2,12 +2,6 @@
 
 #include "common/utils.slang"
 
-// Bloom might eventually be supported
-//uniform sampler2D g_tBloom; // t13
-//uniform vec4 g_vBloomUvScaleClamp;
-//uniform vec3 g_vNormalizedBloomStrengths;
-//uniform vec3 g_vUnNormalizedBloomStrengths;
-
 uniform int g_nNumSamplesMSAA = 1;
 uniform bool g_bFlipY = false;
 uniform bool g_bPostProcessEnabled = true;
@@ -22,24 +16,35 @@ uniform float g_flLinearAngle;
 uniform float g_flToeStrength;
 uniform float g_flToeNum;
 uniform float g_flToeDenom;
+uniform float g_flWhitePoint;
 uniform float g_flWhitePointScale;
 
 uniform float g_flColorCorrectionDefaultWeight = 1.0;
 uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
-
 uniform vec4 g_vBlueNoiseDitherParams;
+uniform vec2 g_vInvTexDim;
 
-layout (location = 0) uniform sampler2DMS g_tColorBuffer;
-layout (location = 1) uniform sampler3D g_tColorCorrection;
-layout (location = 2) uniform sampler2D g_tBlueNoise;
-layout (location = 3) uniform usampler2DMS g_tStencilBuffer;
+layout (binding = 0) uniform sampler2D g_tColorBuffer;
+layout (binding = 1) uniform sampler3D g_tColorCorrectionLUT;
+layout (binding = 2) uniform sampler2D g_tBlueNoise;
+layout (binding = 3) uniform usampler2DMS g_tStencilBuffer;
+
+#define D_BLOOM 0
+
+#if (D_BLOOM == 1)
+    uniform vec4 g_vBloomUvScaleClamp = vec4(1.0);
+    uniform vec3 g_vUnNormalizedBloomStrengths;
+    uniform vec3 g_vNormalizedBloomStrengths;
+    uniform float g_flBloomLensDirtIntensity = 1;
+
+    layout(binding = 4) uniform sampler2D g_tBloom;
+    //layout(binding = 5) uniform sampler2D g_tDirt;
+#endif
 
 layout (location = 0) out vec4 outputColor;
 
 vec3 TonemapColor(vec3 vColor)
 {
-    vColor *= (g_flToneMapScalarLinear * g_flExposureBiasScaleFactor);
-
     // Uncharted tonemapper
     vec3 tonemapNumerator = vColor * (g_flShoulderStrength * vColor + g_flLinearStrength * g_flLinearAngle) + g_flToeNum * g_flToeStrength;
     vec3 tonemapDenominator = vColor * (g_flShoulderStrength * vColor + g_flLinearStrength) + g_flToeDenom * g_flToeStrength;
@@ -55,7 +60,7 @@ vec3 TonemapColor(vec3 vColor)
 vec3 ApplyColorCorrection(vec3 vColor)
 {
     vec3 scaledColor = saturate(vColor) * g_vColorCorrectionColorRange.x + g_vColorCorrectionColorRange.y;
-    vec3 ColorCorrectedColor = textureLod(g_tColorCorrection, scaledColor, 0.0).rgb;
+    vec3 ColorCorrectedColor = textureLod(g_tColorCorrectionLUT, scaledColor, 0.0).rgb;
     return mix(vColor, ColorCorrectedColor, g_flColorCorrectionDefaultWeight); // Probably for blending
 }
 
@@ -139,32 +144,47 @@ vec3 DrawOutline(vec3 vColor)
     return mix(vColor.rgb, vOutlineColor, outlineAlpha);
 }
 
-vec4 SampleColorBuffer(vec2 coords)
-{
-    vec4 vColorMSAA = vec4(0.0);
-
-    ivec2 pixelCoords = ivec2(coords.xy);
-    pixelCoords.y = g_bFlipY ? textureSize(g_tColorBuffer).y - pixelCoords.y - 1 : pixelCoords.y;
-
-    for (int i = 0; i < g_nNumSamplesMSAA; i++)
-    {
-        vec4 sampleColor = texelFetch(g_tColorBuffer, pixelCoords, i);
-        sampleColor = clamp(sampleColor, vec4(0), vec4(65504));
-
-        vColorMSAA += sampleColor.rgba * InvNumSamples;
-    }
-
-    return vColorMSAA;
-}
 
 void main()
 {
-    vec4 vColor = SampleColorBuffer(gl_FragCoord.xy);
+    vec2 fragCoord = gl_FragCoord.xy / textureSize(g_tColorBuffer, 0);
+    vec4 vColor = textureLod(g_tColorBuffer, fragCoord, 0.0);
 
     if (g_bPostProcessEnabled)
     {
+        vColor *= (g_flToneMapScalarLinear * g_flExposureBiasScaleFactor);
+        vec3 vRawColor = vColor.rgb;
+
+        #if (D_BLOOM == 1)
+            vec3 bloomSample = textureLod(g_tBloom, (min(fragCoord, g_vBloomUvScaleClamp.zw) * g_vBloomUvScaleClamp.xy).xy, 0.0).xyz;
+
+            // lens dirt
+            // bloomSample += ((bloomSample * textureLod(g_tDirt, fragCoord.xy, 0.0).xyz) * g_flBloomLensDirtIntensity);
+
+            // BLUR bloom
+            // this looks just wrong and im not sure why
+            // very few maps use this anyways, it looks weird to begin with
+            vColor.rgb *= 1.0 - g_vUnNormalizedBloomStrengths.z;
+            vColor.rgb += bloomSample.xyz * g_vNormalizedBloomStrengths.z * vRawColor.rgb;
+
+            // ADD bloom
+            vColor.rgb += (bloomSample.rgb * g_vNormalizedBloomStrengths.x);
+
+            //outputColor.rgb = SrgbLinearToGamma(bloomSample);
+            //return;
+        #endif
+
         vColor.rgb = TonemapColor(vColor.rgb);
         vColor.rgb = SrgbLinearToGamma(vColor.rgb);
+        
+        #if (D_BLOOM == 1)
+            // SCREEN bloom
+            vec3 screenBloomSample = bloomSample.rgb * vRawColor.rgb;
+            vec3 screenBlend = saturate((screenBloomSample / (screenBloomSample + 0.187)) * 1.034);
+            screenBlend *= g_vNormalizedBloomStrengths.y;
+
+            vColor.rgb = (vColor.rgb + screenBlend) - (vColor.rgb * screenBlend);
+        #endif
 
         if (g_flColorCorrectionDefaultWeight > 0.0)
         {

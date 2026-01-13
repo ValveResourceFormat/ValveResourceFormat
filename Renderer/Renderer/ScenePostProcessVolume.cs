@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -25,7 +26,7 @@ namespace ValveResourceFormat.Renderer
         float MaxHighlightLum; // CS2
         */
 
-        // Default settings
+        // Default settings (filmic)
         public TonemapSettings()
         {
             ExposureBias = 0.0f;
@@ -37,6 +38,7 @@ namespace ValveResourceFormat.Renderer
             ToeDenom = 0.3f;
             WhitePoint = 4.0f;
         }
+
         public static TonemapSettings Linear()
         {
             return new TonemapSettings()
@@ -144,10 +146,77 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    public enum BloomBlendType
+    {
+        BLOOM_BLEND_ADD,
+        BLOOM_BLEND_SCREEN,
+        BLOOM_BLEND_BLUR
+    }
+
+    public readonly struct BloomSettings()
+    {
+        public BloomBlendType BlendMode { get; init; } = BloomBlendType.BLOOM_BLEND_ADD;
+        public float AddBloomStrength { get; init; } = 1;
+        public float ScreenBloomStrength { get; init; } = 0;
+        public float BlurBloomStrength { get; init; } = 0;
+        public float BloomThreshold { get; init; } = 1.05f;
+        public float BloomThresholdWidth { get; init; } = 1.661f;
+        public float SkyboxBloomStrength { get; init; } = 1;
+        public float BloomStartValue { get; init; } = 1;
+        public float[] BlurWeight { get; init; } = [0.2f, 0.2f, 0.2f, 0.2f, 0.2f];
+        public Vector3[] BlurTint { get; init; } = [Vector3.One, Vector3.One, Vector3.One, Vector3.One, Vector3.One];
+
+        public float BloomStrength =>
+            BlendMode switch
+            {
+                BloomBlendType.BLOOM_BLEND_ADD => AddBloomStrength,
+                BloomBlendType.BLOOM_BLEND_SCREEN => ScreenBloomStrength,
+                BloomBlendType.BLOOM_BLEND_BLUR => BlurBloomStrength,
+                _ => throw new InvalidOperationException("Invalid bloom blend type")
+            };
+
+
+        public static BloomSettings ParseFromKVObject(KVObject data)
+        {
+            var settings = new BloomSettings();
+
+            const int NumBlurBuffers = 5;
+            var blurWeight = data.GetFloatArray("m_flBlurWeight");
+            var blurTint = data.GetArray("m_vBlurTint", v => v.ToVector3());
+
+            Debug.Assert(blurWeight.Length == NumBlurBuffers);
+            Debug.Assert(blurTint.Length == NumBlurBuffers);
+
+            for (var i = 0; i < NumBlurBuffers; i++)
+            {
+                settings.BlurWeight[i] = blurWeight[i];
+                settings.BlurTint[i] = blurTint[i];
+            }
+
+            settings = settings with
+            {
+                BlendMode = data.GetEnumValue<BloomBlendType>("m_blendMode"),
+                AddBloomStrength = data.GetFloatProperty("m_flBloomStrength"),
+                ScreenBloomStrength = data.GetFloatProperty("m_flScreenBloomStrength"),
+                BlurBloomStrength = data.GetFloatProperty("m_flBlurBloomStrength"),
+                BloomThreshold = data.GetFloatProperty("m_flBloomThreshold"),
+                BloomThresholdWidth = data.GetFloatProperty("m_flBloomThresholdWidth"),
+                SkyboxBloomStrength = data.GetFloatProperty("m_flSkyboxBloomStrength"),
+                BloomStartValue = data.GetFloatProperty("m_flBloomStartValue"),
+                BlurWeight = data.GetFloatArray("m_flBlurWeight"),
+            };
+
+            return settings;
+        }
+    }
+
     public struct PostProcessState()
     {
         public TonemapSettings TonemapSettings { get; set; } = new();
+        public BloomSettings BloomSettings { get; set; } = new();
         public ExposureSettings ExposureSettings { get; set; } = new();
+
+        public bool HasBloom { get; set; } = false;
 
         // for blending colorcorrectionluts this would be a List with weights, right?
         public RenderTexture? ColorCorrectionLUT { get; set; }
@@ -175,8 +244,9 @@ namespace ValveResourceFormat.Renderer
 
         public bool IsPostHLA { get; set; }
 
-        public bool HasTonemap { get; set; }
+        public bool HasBloom { get; set; }
         public TonemapSettings PostProcessTonemapSettings { get; set; } = new();
+        public BloomSettings BloomSettings { get; set; } = new();
         public ExposureSettings ExposureSettings { get; set; } = new();
 
         public RenderTexture? ColorCorrectionLUT { get; set; }
@@ -207,8 +277,15 @@ namespace ValveResourceFormat.Renderer
 
             if (tonemapParams != null)
             {
-                HasTonemap = true;
                 PostProcessTonemapSettings = new TonemapSettings(tonemapParams);
+            }
+
+            var bloomParams = PostProcessingResource.GetBloomParams();
+
+            if (bloomParams != null)
+            {
+                HasBloom = true;
+                BloomSettings = BloomSettings.ParseFromKVObject(bloomParams);
             }
 
             // HLA has slightly different behavior. TODO
