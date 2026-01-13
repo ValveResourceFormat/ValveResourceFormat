@@ -191,12 +191,14 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             return false;
         }
 
-        if (Framebuffer.GetColorRenderTexture().ColorFormat != framebufferFormat)
+        Debug.Assert(Framebuffer != null);
+        var framebufferColorRenderTexture = Framebuffer.GetColorRenderTexture();
+        Debug.Assert(framebufferColorRenderTexture?.ColorFormat != null);
+
+        if (framebufferColorRenderTexture.ColorFormat != framebufferFormat)
         {
             Framebuffer.ChangeFormat(framebufferFormat, null);
         }
-
-        Debug.Assert(Framebuffer.GetColorRenderTexture() != null);
 
         // Render the texture at requested mip level size,
         // reading pixels back to the bitmap below will crop it
@@ -239,7 +241,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         inputTexture.Delete();
 
         var pixels = request.Bitmap.GetPixels(out var outputLength);
-        var fbBytesPerPixel = Framebuffer.GetColorRenderTexture().ColorFormat.PixelType == PixelType.Float ? 16 : 4;
+        var fbBytesPerPixel = framebufferColorRenderTexture.ColorFormat.PixelType == PixelType.Float ? 16 : 4;
         var fbRegionLength = request.Bitmap.Width * request.Bitmap.Height * fbBytesPerPixel;
 
         if (fbRegionLength > outputLength)
@@ -254,7 +256,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.ReadnPixels(
             0, 0,
             request.Bitmap.Width, request.Bitmap.Height,
-            Framebuffer.GetColorRenderTexture().ColorFormat.PixelFormat, Framebuffer.GetColorRenderTexture().ColorFormat.PixelType,
+            framebufferColorRenderTexture.ColorFormat.PixelFormat, framebufferColorRenderTexture.ColorFormat.PixelType,
             (int)outputLength, pixels
         );
 
