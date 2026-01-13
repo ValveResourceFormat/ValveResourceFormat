@@ -793,13 +793,13 @@ namespace GUI.Types.GLViewers
 
             if (e.KeyData == (Keys.Control | Keys.Add) || e.KeyData == (Keys.Control | Keys.Oemplus))
             {
-                OnMouseWheel(null, new MouseEventArgs(MouseButtons.None, 0, GLControl.Width / 2, GLControl.Height / 2, 1));
+                HandleMouseWheel(1, new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2), isShiftPressed: false, isCtrlPressed: false);
                 return;
             }
 
             if (e.KeyData == (Keys.Control | Keys.Subtract) || e.KeyData == (Keys.Control | Keys.OemMinus))
             {
-                OnMouseWheel(null, new MouseEventArgs(MouseButtons.None, 0, GLControl.Width / 2, GLControl.Height / 2, -1));
+                HandleMouseWheel(-1, new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2), isShiftPressed: false, isCtrlPressed: false);
                 return;
             }
         }
@@ -917,6 +917,11 @@ namespace GUI.Types.GLViewers
             var isShiftPressed = (CurrentlyPressedKeys & TrackedKeys.Shift) > 0;
             var isCtrlPressed = (CurrentlyPressedKeys & TrackedKeys.Control) > 0;
 
+            HandleMouseWheel(e.Delta, e.Location, isShiftPressed, isCtrlPressed);
+        }
+
+        private void HandleMouseWheel(int delta, System.Drawing.Point location, bool isShiftPressed, bool isCtrlPressed)
+        {
             if (isShiftPressed || isCtrlPressed)
             {
                 (TextureScaleOld, PositionOld) = GetCurrentPositionAndScale();
@@ -929,15 +934,15 @@ namespace GUI.Types.GLViewers
                     panSpeed *= 2f;
                 }
 
-                var delta = Vector2.Zero;
+                var panDelta = Vector2.Zero;
 
                 if (isShiftPressed)
                 {
-                    delta.Y = e.Delta > 0 ? -panSpeed : panSpeed;
+                    panDelta.Y = delta > 0 ? -panSpeed : panSpeed;
                 }
                 else if (isCtrlPressed)
                 {
-                    delta.X = e.Delta > 0 ? -panSpeed : panSpeed;
+                    panDelta.X = delta > 0 ? -panSpeed : panSpeed;
                 }
 
                 if (!IsZoomedIn)
@@ -945,7 +950,7 @@ namespace GUI.Types.GLViewers
                     MovedFromOrigin_Unzoomed = true;
                 }
 
-                Position += delta;
+                Position += panDelta;
                 ClampPosition();
                 InvalidateRender();
                 return;
@@ -955,7 +960,7 @@ namespace GUI.Types.GLViewers
             TextureScaleChangeTime = 0f;
             ClickPosition = null;
 
-            if (e.Delta < 0)
+            if (delta < 0)
             {
                 TextureScale /= 1.25f;
             }
@@ -974,7 +979,7 @@ namespace GUI.Types.GLViewers
 
             TextureScale = Math.Clamp(TextureScale, scaleMinMax.X, scaleMinMax.Y);
 
-            var pos = new Vector2(e.Location.X, e.Location.Y);
+            var pos = new Vector2(location.X, location.Y);
             var posPrev = (pos + PositionOld) / TextureScaleOld;
             var posNewScale = posPrev * TextureScale;
             Position = posNewScale - pos;
