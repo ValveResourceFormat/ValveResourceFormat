@@ -185,6 +185,7 @@ public class PlayerMovement
 
         // Check for jump (auto bunny hop if enabled and holding jump)
         var wantsToJump = AutoBunnyHop ? input.Holding(TrackedKeys.Space) : input.Pressed(TrackedKeys.Space);
+        wantsToJump = wantsToJump || input.Holding(TrackedKeys.MouseWheelDown) || input.Holding(TrackedKeys.MouseWheelUp);
 
         // For auto bhop, also jump immediately when landing while holding jump
         if (wantsToJump && (OnGround || (AutoBunnyHop && justLanded)))
@@ -771,14 +772,8 @@ public class PlayerMovement
             );
         }
 
-        if (float.IsNaN(position.X) || float.IsNaN(position.Y) || float.IsNaN(position.Z))
-        {
-            position = new Vector3(
-                float.IsNaN(position.X) ? 0 : position.X,
-                float.IsNaN(position.Y) ? 0 : position.Y,
-                float.IsNaN(position.Z) ? 0 : position.Z
-            );
-        }
+        var movementBounds = new AABB(Vector3.Zero, 16_000f);
+        position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
 
         // Clamp to max velocity
         Velocity = new Vector3(

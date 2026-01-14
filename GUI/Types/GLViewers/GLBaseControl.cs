@@ -437,6 +437,15 @@ internal abstract class GLBaseControl : IDisposable
 
     protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
     {
+        // Track mouse wheel state
+        if (e.Delta > 0)
+        {
+            CurrentlyPressedKeys |= TrackedKeys.MouseWheelUp;
+        }
+        else if (e.Delta < 0)
+        {
+            CurrentlyPressedKeys |= TrackedKeys.MouseWheelDown;
+        }
     }
 
     private void OnGlControlPaint(object? sender, EventArgs e)
