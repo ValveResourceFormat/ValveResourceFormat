@@ -65,6 +65,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
                 PackedTypeChildOffset = data.GetUInt32Property("m_nChildren");
                 TriangleOffset = data.GetUInt32Property("m_nTriangleOffset");
             }
+
+            /// <summary>
+            /// Creates a custom BVH node.
+            /// </summary>
+            public Node(Vector3 min, Vector3 max, NodeType type, uint childOffset, uint triangleOffset)
+            {
+                Min = min;
+                Max = max;
+                PackedTypeChildOffset = ((uint)type << 30) | childOffset;
+                TriangleOffset = triangleOffset;
+            }
         }
 
         /// <summary>
