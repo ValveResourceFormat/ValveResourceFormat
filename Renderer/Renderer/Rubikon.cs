@@ -194,6 +194,15 @@ public class Rubikon
         //     Debuger.Break();
         // }
 
+        foreach (var hull in Hulls)
+        {
+            var hit = AABBTraceHull(trace, hull);
+            if (hit.Hit && hit.Distance < closestHit.Distance)
+            {
+                closestHit = hit;
+            }
+        }
+
         return closestHit;
     }
 
@@ -222,9 +231,11 @@ public class Rubikon
 
         foreach (var firstEdgeCcw in hull.FaceEdgeIndices)
         {
-            var firstEdge = hull.HalfEdges[firstEdgeCcw];
-            var edgeIndex = firstEdge.Next;
-            var v0 = hull.VertexPositions[firstEdge.Origin];
+            var edge0 = hull.HalfEdges[firstEdgeCcw];
+            Hull.HalfEdge edge3 = default;
+
+            var edgeIndex = edge0.Next;
+            var v0 = hull.VertexPositions[edge0.Origin];
 
             do
             {
@@ -245,7 +256,54 @@ public class Rubikon
                 }
 
                 edgeIndex = edge1.Next;
-            } while (edgeIndex != firstEdgeCcw);
+                edge3 = hull.HalfEdges[edge2.Next];
+            } while (edge3.Origin != edge0.Origin);
+        }
+
+        return closestHit;
+    }
+
+    private static TraceResult AABBTraceHull(AABBTraceContext trace, PhysicsHullData hull)
+    {
+        var closestHit = new TraceResult();
+        var ray = new RayTraceContext(trace.Origin, trace.End);
+
+        // Expand hull AABB by trace half extents for conservative culling
+        if (!RayIntersectsAABB(ray, hull.Min - trace.HalfExtents, hull.Max + trace.HalfExtents))
+        {
+            return closestHit;
+        }
+
+        foreach (var firstEdgeCcw in hull.FaceEdgeIndices)
+        {
+            var edge0 = hull.HalfEdges[firstEdgeCcw];
+            Hull.HalfEdge edge3 = default;
+
+            var edgeIndex = edge0.Next;
+            var v0 = hull.VertexPositions[edge0.Origin];
+
+            do
+            {
+                var edge1 = hull.HalfEdges[edgeIndex];
+                var edge2 = hull.HalfEdges[edge1.Next];
+
+                // Just do triangle intersection?
+                var v1 = hull.VertexPositions[edge1.Origin];
+                var v2 = hull.VertexPositions[edge2.Origin];
+
+                var hit = AABBTraceTriangle(trace, v0, v1, v2);
+
+                if (hit.Hit)
+                {
+                    if (hit.Distance < closestHit.Distance)
+                    {
+                        closestHit = hit;
+                    }
+                }
+
+                edgeIndex = edge1.Next;
+                edge3 = hull.HalfEdges[edge2.Next];
+            } while (edge3.Origin != edge0.Origin);
         }
 
         return closestHit;
@@ -422,31 +480,24 @@ public class Rubikon
                 var v1 = mesh.VertexPositions[triangle.Y];
                 var v2 = mesh.VertexPositions[triangle.Z];
 
-                var hitPoint = new Vector3(0);
-                var hitNormal = new Vector3(0);
-                var hitDistance = trace.Length;
+                var hit = AABBTraceTriangle(trace, v0, v1, v2);
 
-                var hasHit = false;
-                hasHit = CornerAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
-                hasHit = hasHit || EdgeAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
-                hasHit = hasHit || AabbAgainstVert(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
-
-                if (!hasHit)
+                if (!hit.Hit)
                 {
                     continue;
                 }
 
                 // Skip if we're already past a closer hit
-                if (hitDistance >= closestHit.Distance)
+                if (hit.Distance >= closestHit.Distance)
                 {
                     continue;
                 }
 
                 // Update closest hit
-                closestHit = new(true, hitPoint, hitNormal, hitDistance, i);
+                closestHit = new(true, hit.HitPosition, hit.HitNormal, hit.Distance, i);
 
                 // Early out if we hit at the very start
-                if (hitDistance < 1e-6f)
+                if (hit.Distance < 1e-6f)
                 {
                     return closestHit;
                 }
@@ -454,6 +505,25 @@ public class Rubikon
         }
 
         return closestHit;
+    }
+
+    private static TraceResult AABBTraceTriangle(AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2)
+    {
+        var hitPoint = new Vector3(0);
+        var hitNormal = new Vector3(0);
+        var hitDistance = trace.Length;
+
+        var hasHit = false;
+        hasHit = CornerAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
+        hasHit = hasHit || EdgeAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
+        hasHit = hasHit || AabbAgainstVert(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
+
+        if (!hasHit)
+        {
+            return new TraceResult();
+        }
+
+        return new TraceResult(true, hitPoint, hitNormal, hitDistance, -1);
     }
 
     private static bool CornerAgainstTri(

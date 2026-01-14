@@ -769,6 +769,10 @@ public class PlayerMovement
         var velUnchecked = Velocity;
         var posUnchecked = position;
 
+        position.X = float.IsNaN(position.X) ? AABBCenteredPosition.X : position.X;
+        position.Y = float.IsNaN(position.Y) ? AABBCenteredPosition.Y : position.Y;
+        position.Z = float.IsNaN(position.Z) ? AABBCenteredPosition.Z : position.Z;
+
         var velocityBounds = new AABB(Vector3.Zero, MaxVelocityValue);
         Velocity = Vector3.Clamp(Velocity, velocityBounds.Min, velocityBounds.Max);
 
@@ -779,7 +783,6 @@ public class PlayerMovement
         // sanity check, compare against last position
         movementBounds = new AABB(AABBCenteredPosition, MathF.Max(StepSize * 2f, Velocity.Length()));
         position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
-
 
         var velocityError = Vector3.Distance(Velocity, velUnchecked) > 0.1f;
         var positionError = Vector3.Distance(position, posUnchecked) > 0.1f;
