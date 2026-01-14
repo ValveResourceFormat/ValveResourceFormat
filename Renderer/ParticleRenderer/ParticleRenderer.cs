@@ -22,6 +22,8 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private readonly List<ParticleFunctionRenderer> Renderers = [];
 
+        private readonly HashSet<string> loggedWarnings = [];
+
         public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
         public int BehaviorVersion { get; }
@@ -358,7 +360,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    RendererContext.Logger.LogWarning("Unsupported emitter class '{EmitterClass}'", emitterClass);
+                    LogUniqueUnsupportedWarning("emitter", emitterClass);
                 }
             }
         }
@@ -379,7 +381,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    RendererContext.Logger.LogWarning("Unsupported initializer class '{InitializerClass}'", initializerClass);
+                    LogUniqueUnsupportedWarning("initializer", initializerClass);
                 }
             }
         }
@@ -400,7 +402,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    RendererContext.Logger.LogWarning("Unsupported operator class '{OperatorClass}'", operatorClass);
+                    LogUniqueUnsupportedWarning("operator", operatorClass);
                 }
             }
         }
@@ -421,7 +423,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    RendererContext.Logger.LogWarning("Unsupported force generator class '{OperatorClass}'", operatorClass);
+                    LogUniqueUnsupportedWarning("force generator", operatorClass);
                 }
             }
         }
@@ -442,7 +444,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    RendererContext.Logger.LogWarning("Unsupported renderer class '{RendererClass}'", rendererClass);
+                    LogUniqueUnsupportedWarning("renderer", rendererClass);
                 }
             }
         }
@@ -462,7 +464,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    RendererContext.Logger.LogWarning("Unsupported pre-emission operator class '{PreEmissionOperatorClass}'", preEmissionOperatorClass);
+                    LogUniqueUnsupportedWarning("pre-emission operator", preEmissionOperatorClass);
                 }
             }
         }
@@ -497,6 +499,15 @@ namespace ValveResourceFormat.Renderer.Particles
             // Also skip ops that only run during endcap (currently unsupported)
             return parse.Boolean("m_bDisableOperator", default)
                 || parse.Enum<ParticleEndCapMode>("m_nOpEndCapState", default) == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON;
+        }
+
+        private void LogUniqueUnsupportedWarning(string componentType, string className)
+        {
+            var message = $"Unsupported {componentType} class '{className}'";
+            if (loggedWarnings.Add(message))
+            {
+                RendererContext.Logger.LogWarning("{Message}", message);
+            }
         }
 
         // todo: set this when viewer checkbox is toggled
