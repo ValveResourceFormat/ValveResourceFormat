@@ -346,6 +346,9 @@ namespace GUI.Types.GLViewers
                 Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = MouseDelta;
                 MouseDelta = System.Drawing.Point.Empty;
+
+                // Manage cursor visibility and mouse locking based on noclip state
+                GrabbedMouse = !Input.NoClip;
             }
         }
 
