@@ -18,6 +18,8 @@ public class Rubikon
     /// Triangle mesh collision data for ray tracing.
     /// </summary>
     public record PhysicsMeshData(
+        string[] InteractAs,
+        string[] InteractExclude,
         Vector3[] VertexPositions,
         Triangle[] Triangles,
         Node[] PhysicsTree
@@ -41,7 +43,6 @@ public class Rubikon
     public Rubikon(PhysAggregateData physicsData)
     {
         var worldMeshes = physicsData.Parts[0].Shape.Meshes
-            .Where(m => physicsData.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default")
             .ToArray();
 
         Meshes = new PhysicsMeshData[worldMeshes.Length];
@@ -53,8 +54,17 @@ public class Rubikon
             var triangles = mesh.Shape.GetTriangles();
             var physicsTree = mesh.Shape.ParseNodes();
 
-            Meshes[meshIndex++] = new PhysicsMeshData([.. vertexPositions], [.. triangles], [.. physicsTree]);
+            var collisionAttributes = physicsData.CollisionAttributes[mesh.CollisionAttributeIndex];
+            var collisionGroup = collisionAttributes.GetStringProperty("m_CollisionGroupString");
+
+            var interactAs = collisionAttributes.GetArray<string>("m_InteractAsStrings");
+            var interactExclude = collisionAttributes.GetArray<string>("m_InteractExcludeStrings");
+
+            Meshes[meshIndex++] = new PhysicsMeshData(interactAs, interactExclude, [.. vertexPositions], [.. triangles], [.. physicsTree]);
         }
+
+        // we want to run player clip traces first because the mesh is much simpler
+        Meshes = [.. Meshes.OrderByDescending(m => m.InteractAs.Contains("playerclip"))];
 
         Hulls = new PhysicsHullData[physicsData.Parts[0].Shape.Hulls.Length];
         var hullIndex = 0;
@@ -114,6 +124,11 @@ public class Rubikon
 
         foreach (var mesh in Meshes)
         {
+            if (mesh.InteractAs.Length > 0 && !mesh.InteractAs.Contains("passbullets"))
+            {
+                continue;
+            }
+
             var hit = RayIntersectsWithMesh(ray, mesh);
             if (hit.Hit && hit.Distance < closestHit.Distance)
             {
@@ -151,7 +166,7 @@ public class Rubikon
         }
     }
 
-    public TraceResult TraceAABB(Vector3 from, Vector3 to, AABB aabb)
+    public TraceResult TraceAABB(Vector3 from, Vector3 to, AABB aabb, string collisionName)
     {
         TraceResult closestHit = new();
         var halfExtents = aabb.Size * 0.5f;
@@ -160,6 +175,20 @@ public class Rubikon
         // Check against all meshes
         foreach (var mesh in Meshes)
         {
+            // player collision rules
+            if (collisionName == "player")
+            {
+                if (mesh.InteractExclude.Contains("player"))
+                {
+                    continue;
+                }
+
+                if (mesh.InteractAs.Length > 0 && !mesh.InteractAs.Contains("playerclip"))
+                {
+                    continue;
+                }
+            }
+
             var hit = AABBTraceMesh(trace, mesh);
             if (hit.Hit && hit.Distance < closestHit.Distance)
             {
