@@ -31,6 +31,9 @@ public class Rubikon
     public PhysicsMeshData[] Meshes { get; }
     public PhysicsHullData[] Hulls { get; }
 
+    public Node[] HullTree { get; }
+    private int[] HullIndices { get; }
+
     public Rubikon(PhysAggregateData physicsData)
     {
         var worldMeshes = physicsData.Parts[0].Shape.Meshes
@@ -76,6 +79,10 @@ public class Rubikon
                 [.. planes]
             );
         }
+
+        // Build BVH for hulls
+        HullIndices = Enumerable.Range(0, Hulls.Length).ToArray();
+        HullTree = BuildHullBVH();
     }
 
     public record struct TraceResult(bool Hit, Vector3 HitPosition, Vector3 HitNormal, float Distance, int TriangleIndex)
@@ -194,9 +201,10 @@ public class Rubikon
         //     Debuger.Break();
         // }
 
-        foreach (var hull in Hulls)
+        // Check against hulls using BVH
+        if (HullTree.Length > 0)
         {
-            var hit = AABBTraceHull(trace, hull);
+            var hit = AABBTraceHullBVH(trace);
             if (hit.Hit && hit.Distance < closestHit.Distance)
             {
                 closestHit = hit;
@@ -304,6 +312,67 @@ public class Rubikon
                 edgeIndex = edge1.Next;
                 edge3 = hull.HalfEdges[edge2.Next];
             } while (edge3.Origin != edge0.Origin);
+        }
+
+        return closestHit;
+    }
+
+    private TraceResult AABBTraceHullBVH(AABBTraceContext trace)
+    {
+        Span<(Node Node, int Index)> stack = stackalloc (Node Node, int Index)[STACK_SIZE];
+        var stackCount = 0;
+        stack[stackCount++] = (HullTree[0], 0);
+
+        var closestHit = new TraceResult();
+        var ray = new RayTraceContext(trace.Origin, trace.End);
+
+        while (stackCount > 0)
+        {
+            var nodeWithIndex = stack[--stackCount];
+            var node = nodeWithIndex.Node;
+
+            // Expand node AABB by trace half extents for conservative culling
+            if (!RayIntersectsAABB(ray, node.Min - trace.HalfExtents, node.Max + trace.HalfExtents))
+            {
+                continue;
+            }
+
+            if (node.Type != NodeType.Leaf)
+            {
+                var leftChild = nodeWithIndex.Index + 1;
+                var rightChild = nodeWithIndex.Index + (int)node.ChildOffset;
+
+                var rayIsPositive = ray.Direction[(int)node.Type] >= 0;
+                var (nearId, farId) = rayIsPositive
+                    ? (leftChild, rightChild)
+                    : (rightChild, leftChild);
+
+                // Push far node first so near node is processed first (stack is LIFO)
+                stack[stackCount++] = new(HullTree[farId], farId);
+                stack[stackCount++] = new(HullTree[nearId], nearId);
+                continue;
+            }
+
+            // Process hulls in leaf node
+            var count = (int)node.ChildOffset;
+            var startIndex = (int)node.TriangleOffset;
+
+            for (var i = startIndex; i < startIndex + count; i++)
+            {
+                var hullIndex = HullIndices[i];
+                var hull = Hulls[hullIndex];
+                var hit = AABBTraceHull(trace, hull);
+                if (hit.Hit && hit.Distance < closestHit.Distance)
+                {
+                    closestHit = hit;
+
+                    // Early out if we hit something very close to start
+                    if (hit.Distance < 1e-4f)
+                    {
+                        return closestHit;
+                    }
+                }
+            }
         }
 
         return closestHit;
@@ -782,5 +851,94 @@ public class Rubikon
         }
 
         return intersects;
+    }
+
+    private Node[] BuildHullBVH()
+    {
+        if (Hulls.Length == 0)
+        {
+            return [];
+        }
+
+        if (Hulls.Length == 1)
+        {
+            // Single hull - create a single leaf node
+            return [new Node(Hulls[0].Min, Hulls[0].Max, NodeType.Leaf, 1, 0)];
+        }
+
+        // Build BVH recursively
+        var nodes = new List<Node>();
+
+        BuildHullBVHRecursive(nodes, HullIndices, 0, Hulls.Length);
+
+        return [.. nodes];
+    }
+
+    private void BuildHullBVHRecursive(List<Node> nodes, int[] hullIndices, int start, int count)
+    {
+        var nodeIndex = nodes.Count;
+        nodes.Add(default); // Reserve space for this node
+
+        // Calculate bounding box for this range
+        var min = Hulls[hullIndices[start]].Min;
+        var max = Hulls[hullIndices[start]].Max;
+
+        for (var i = 1; i < count; i++)
+        {
+            var hull = Hulls[hullIndices[start + i]];
+            min = Vector3.Min(min, hull.Min);
+            max = Vector3.Max(max, hull.Max);
+        }
+
+        // If few enough hulls, make a leaf
+        const int MaxHullsPerLeaf = 4;
+        if (count <= MaxHullsPerLeaf)
+        {
+            nodes[nodeIndex] = new Node(
+                min,
+                max,
+                NodeType.Leaf,
+                (uint)count,
+                (uint)start // Starting index in hullIndices array
+            );
+            return;
+        }
+
+        // Choose split axis based on longest extent
+        var extent = max - min;
+        var splitAxis = extent.X > extent.Y
+            ? (extent.X > extent.Z ? NodeType.SplitX : NodeType.SplitZ)
+            : (extent.Y > extent.Z ? NodeType.SplitY : NodeType.SplitZ);
+
+        // Sort hulls along split axis
+        var axisIndex = (int)splitAxis;
+        Array.Sort(hullIndices, start, count, Comparer<int>.Create((a, b) =>
+        {
+            var centerA = (Hulls[a].Min[axisIndex] + Hulls[a].Max[axisIndex]) * 0.5f;
+            var centerB = (Hulls[b].Min[axisIndex] + Hulls[b].Max[axisIndex]) * 0.5f;
+            return centerA.CompareTo(centerB);
+        }));
+
+        // Split in the middle
+        var leftCount = count / 2;
+        var rightCount = count - leftCount;
+
+        // Build left child (immediately after parent)
+        var leftChildIndex = nodes.Count;
+        BuildHullBVHRecursive(nodes, hullIndices, start, leftCount);
+
+        // Build right child
+        var rightChildIndex = nodes.Count;
+        BuildHullBVHRecursive(nodes, hullIndices, start + leftCount, rightCount);
+
+        // Update parent node
+        var childOffset = (uint)(rightChildIndex - nodeIndex);
+        nodes[nodeIndex] = new Node(
+            min,
+            max,
+            splitAxis,
+            childOffset,
+            0
+        );
     }
 }
