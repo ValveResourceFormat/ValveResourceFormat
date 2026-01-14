@@ -68,6 +68,7 @@ public class PlayerMovement
     }
 
     private const float SurfaceFriction = 1.0f;
+    private const float WalkableSlope = 0.7f; // ~45 degrees
 
     // options
     public bool Initialize { get; set; }
@@ -154,8 +155,7 @@ public class PlayerMovement
             {
                 // We have space to stand up - adjust position upward to keep feet at same level
                 // The AABB center needs to move up by half the height difference
-                AABBCenteredPosition += new Vector3(0, 0, heightDifference / 2);
-                position = AABBCenteredPosition;
+                position += new Vector3(0, 0, heightDifference / 2);
             }
             else
             {
@@ -219,7 +219,9 @@ public class PlayerMovement
             // Apply friction before movement
             Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
             Friction(deltaTime);
+            CheckVelocity(ref position);
             WalkMove(wishdir, wishspeed, deltaTime, isDucking, isWalking);
+            CheckVelocity(ref position);
         }
         else
         {
@@ -318,7 +320,7 @@ public class PlayerMovement
 
         var result = TraceBBox(traceStart, traceEnd, aabb);
 
-        if (result.Hit && result.HitNormal.Z > 0.8f && Velocity.Z < 140.0f)
+        if (result.Hit && result.HitNormal.Z > WalkableSlope && Velocity.Z < 140.0f)
         {
             OnGround = true;
             // Snap to ground vertically only, preserve XY position to prevent sliding on slopes
@@ -365,7 +367,7 @@ public class PlayerMovement
         };
 
         // Try increasingly larger offsets
-        for (var distance = 1f; distance <= 64f; distance *= 4f)
+        for (var distance = 1f; distance <= 100f; distance += 10f)
         {
             foreach (var dir in directions)
             {
@@ -440,6 +442,8 @@ public class PlayerMovement
             ClipVelocity(ref remainingDelta, ref vel, result.HitNormal, OnGround);
             Velocity = vel;
 
+            CheckVelocity(ref position);
+
             remainingDistance = remainingDelta.Length();
             if (remainingDistance <= SurfaceEpsilon)
             {
@@ -512,8 +516,6 @@ public class PlayerMovement
     /// </summary>
     private static void ClipVelocity(ref Vector3 delta, ref Vector3 velocity, Vector3 normal, bool onGround)
     {
-        const float WalkableSlope = 0.7f; // ~45 degrees
-
         // Special handling for walkable slopes when on ground - maintain horizontal speed
         if (onGround && normal.Z > WalkableSlope)
         {
@@ -731,6 +733,8 @@ public class PlayerMovement
         {
             Velocity *= effectiveMaxSpeed / Velocity.Length();
         }
+
+        CheckVelocity(ref AABBCenteredPosition);
     }
 
     /// <summary>
@@ -762,25 +766,27 @@ public class PlayerMovement
     /// </summary>
     private void CheckVelocity(ref Vector3 position)
     {
-        // Fix NaN values
-        if (float.IsNaN(Velocity.X) || float.IsNaN(Velocity.Y) || float.IsNaN(Velocity.Z))
-        {
-            Velocity = new Vector3(
-                float.IsNaN(Velocity.X) ? 0 : Velocity.X,
-                float.IsNaN(Velocity.Y) ? 0 : Velocity.Y,
-                float.IsNaN(Velocity.Z) ? 0 : Velocity.Z
-            );
-        }
+        var velUnchecked = Velocity;
+        var posUnchecked = position;
 
+        var velocityBounds = new AABB(Vector3.Zero, MaxVelocityValue);
+        Velocity = Vector3.Clamp(Velocity, velocityBounds.Min, velocityBounds.Max);
+
+        // max bounds
         var movementBounds = new AABB(Vector3.Zero, 16_000f);
         position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
 
-        // Clamp to max velocity
-        Velocity = new Vector3(
-            Math.Clamp(Velocity.X, -MaxVelocityValue, MaxVelocityValue),
-            Math.Clamp(Velocity.Y, -MaxVelocityValue, MaxVelocityValue),
-            Math.Clamp(Velocity.Z, -MaxVelocityValue, MaxVelocityValue)
-        );
+        // sanity check, compare against last position
+        movementBounds = new AABB(AABBCenteredPosition, MathF.Max(StepSize * 2f, Velocity.Length()));
+        position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
+
+
+        var velocityError = Vector3.Distance(Velocity, velUnchecked) > 0.1f;
+        var positionError = Vector3.Distance(position, posUnchecked) > 0.1f;
+        if (velocityError || positionError)
+        {
+            //Debugger.Break();
+        }
     }
 
     private Rubikon.TraceResult TraceBBox(Vector3 from, Vector3 to, AABB aabb)
