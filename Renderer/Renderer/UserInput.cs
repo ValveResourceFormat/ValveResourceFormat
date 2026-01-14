@@ -138,6 +138,7 @@ public class UserInput
         if (wasClipping && NoClip)
         {
             MoveCamera(0, 32, 0, true);
+            CurrentSpeedModifier = 7;
         }
 
         if (!NoClip)
@@ -169,6 +170,8 @@ public class UserInput
 
     public void SaveCameraForTransition(float transitionDuration = 1.5f)
     {
+        NoClip = true;
+
         StartingCamera = GetInterpolatedCamera();
         TransitionDuration = transitionDuration;
         TransitionEndTime = Renderer.Uptime + transitionDuration;
