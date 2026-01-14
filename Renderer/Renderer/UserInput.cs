@@ -49,7 +49,7 @@ public class UserInput
     private const float OrbitZoomSpeed = 0.1f;
 
     private readonly PlayerMovement PlayerMovement;
-    public bool NoclipEnabled { get; private set; } = true;
+    public bool NoClip { get; private set; } = true;
 
     private TrackedKeys Keys;
     private TrackedKeys PreviousKeys;
@@ -123,14 +123,24 @@ public class UserInput
             }
         }
 
-        // Handle noclip toggle (X key)
+        var wasClipping = !NoClip;
         if (Pressed(TrackedKeys.X))
         {
-            NoclipEnabled = !NoclipEnabled;
-            PlayerMovement.Initialize = !NoclipEnabled;
+            NoClip = !NoClip;
+            PlayerMovement.Initialize = !NoClip;
         }
 
-        if (!NoclipEnabled)
+        if (Pressed(TrackedKeys.Escape))
+        {
+            NoClip = true;
+        }
+
+        if (wasClipping && NoClip)
+        {
+            MoveCamera(0, 32, 0, true);
+        }
+
+        if (!NoClip)
         {
             PlayerMovement.ProcessMovement(this, Camera, deltaTime);
             Camera.Pitch -= MouseDeltaPitchYaw.X;
@@ -282,6 +292,7 @@ public class UserInput
 
     /// <summary>
     /// Moves the camera by the specified amounts in camera space.
+    /// Why is this Y-Up?
     /// </summary>
     public void MoveCamera(float x, float y, float z, bool transition = false)
     {
