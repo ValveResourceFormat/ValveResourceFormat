@@ -21,6 +21,8 @@ public enum TrackedKeys
     X = 1 << 10,
     Escape = 1 << 11,
 
+    MouseWheelUp = 1 << 28,
+    MouseWheelDown = 1 << 29,
     MouseLeft = 1 << 30,
     MouseRight = 1 << 31,
     MouseLeftOrRight = MouseLeft | MouseRight,

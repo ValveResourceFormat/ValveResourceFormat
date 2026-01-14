@@ -195,6 +195,11 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseWheel(sender, e);
 
+            if (!Input.NoClip)
+            {
+                return;
+            }
+
             var modifier = Input.OnMouseWheel(e.Delta);
 
             if (Input.OrbitMode)
@@ -293,6 +298,9 @@ namespace GUI.Types.GLViewers
                 Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = MouseDelta;
                 MouseDelta = System.Drawing.Point.Empty;
+
+                // Clear mouse wheel events after processing (they're one-time events)
+                CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
 
                 // Manage cursor visibility and mouse locking based on noclip state
                 GrabbedMouse = !Input.NoClip;
