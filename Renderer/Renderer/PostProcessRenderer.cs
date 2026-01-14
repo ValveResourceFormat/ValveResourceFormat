@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer
         private readonly RendererContext RendererContext;
         private Shader? shaderMSAAResolve;
         private Shader? shaderPostProcess;
+        private Shader? shaderDownsampleBloomThreshold;
 
         public RenderTexture? BlueNoise { get; set; }
         private readonly Random random = new();
@@ -17,7 +18,9 @@ namespace ValveResourceFormat.Renderer
         public float TonemapScalar { get; set; }
         public bool ColorCorrectionEnabled { get; set; } = true;
 
-        private Framebuffer? PostProcessFrameBuffer;
+        private Framebuffer? MSAAResolveFrameBuffer;
+        private Framebuffer? BloomDownsampleFrameBuffer;
+
         private RenderTexture.AttachmentFormat PostProcessrameBufferAttachmentFormat;
         private int BloomBufferDownsampleAmount = 4;
 
@@ -29,17 +32,21 @@ namespace ValveResourceFormat.Renderer
             PostProcessrameBufferAttachmentFormat = new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.Float);
         }
 
+        private void CreateFramebuffer(ref Framebuffer? framebuffer)
+        {
+            framebuffer = Framebuffer.Prepare(nameof(framebuffer), 2, 2, 0, PostProcessrameBufferAttachmentFormat, null);
+            framebuffer.CreateColorAttachment(PostProcessrameBufferAttachmentFormat, 2, 2, FramebufferAttachment.ColorAttachment0);
+            framebuffer.Initialize();
+            framebuffer.CheckStatus_ThrowIfIncomplete();
+        }
         public void Load()
         {
             shaderMSAAResolve = RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve");
             shaderPostProcess = RendererContext.ShaderLoader.LoadShader("vrf.post_processing");
+            shaderDownsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("vrf.downsample_bloomthreshold");
 
-            PostProcessFrameBuffer = Framebuffer.Prepare("BloomFrameBuffer", 2, 2, 0, PostProcessrameBufferAttachmentFormat, null);
-
-            PostProcessFrameBuffer.CreateColorAttachment(PostProcessrameBufferAttachmentFormat, 2, 2, FramebufferAttachment.ColorAttachment0);
-
-            PostProcessFrameBuffer.Initialize();
-            PostProcessFrameBuffer.CheckStatus_ThrowIfIncomplete();
+            CreateFramebuffer(ref MSAAResolveFrameBuffer);
+            CreateFramebuffer(ref BloomDownsampleFrameBuffer);
 
             BloomSampler = GL.GenSampler();
 
@@ -77,25 +84,20 @@ namespace ValveResourceFormat.Renderer
         {
             Debug.Assert(shaderMSAAResolve != null);
             Debug.Assert(shaderPostProcess != null);
+            Debug.Assert(shaderDownsampleBloomThreshold != null);
             Debug.Assert(BlueNoise != null);
-            Debug.Assert(PostProcessFrameBuffer != null);
+            Debug.Assert(MSAAResolveFrameBuffer != null);
+            Debug.Assert(BloomDownsampleFrameBuffer != null);
 
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
 
-            //var bloomBufferWidth = colorBuffer.Width / BloomBufferDownsampleAmount;
-            //var bloomBufferHeight = colorBuffer.Height / BloomBufferDownsampleAmount;
-            //
-            //BloomFrameBuffer?.Resize(bloomBufferWidth, bloomBufferHeight);
-            //GL.Viewport(0, 0, bloomBufferWidth, bloomBufferHeight);
-
             // MSAA resolve
-            PostProcessFrameBuffer.BindAndClear(FramebufferTarget.DrawFramebuffer);
-            PostProcessFrameBuffer.Resize(colorBufferRead.Width, colorBufferRead.Height);
+            MSAAResolveFrameBuffer.BindAndClear(FramebufferTarget.DrawFramebuffer);
+            MSAAResolveFrameBuffer.Resize(colorBufferRead.Width, colorBufferRead.Height);
 
             shaderMSAAResolve.Use();
 
-            // Bind textures
             shaderMSAAResolve.SetTexture(0, "g_tColorBuffer", colorBufferRead.GetColorRenderTexture(FramebufferAttachment.ColorAttachment0)!);
             shaderMSAAResolve.SetUniform1("g_bFlipY", flipY);
             shaderMSAAResolve.SetUniform1("g_nNumSamplesMSAA", colorBufferRead.NumSamples);
@@ -103,14 +105,32 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
-            colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
+            // bloom downsample and threshold
+            var msaaResolvedTexture = MSAAResolveFrameBuffer.GetColorRenderTexture()!;
+
+            msaaResolvedTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            msaaResolvedTexture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+
+            shaderDownsampleBloomThreshold.Use();
+            shaderDownsampleBloomThreshold.SetTexture(0, "inputTexture", msaaResolvedTexture);
+
+            msaaResolvedTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            msaaResolvedTexture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+
+            BloomDownsampleFrameBuffer.Resize(MSAAResolveFrameBuffer.Width / 4, MSAAResolveFrameBuffer.Height / 4);
+            BloomDownsampleFrameBuffer.Bind(FramebufferTarget.DrawFramebuffer);
+
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 
             // Post Process
+            colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
+
             shaderPostProcess.Use();
 
             GL.Viewport(0, 0, colorBufferRead.Width, colorBufferRead.Height);
 
-            shaderPostProcess.SetTexture(0, "g_tColorCorrection", PostProcessFrameBuffer.GetColorRenderTexture(FramebufferAttachment.ColorAttachment0));
+            shaderPostProcess.SetTexture(0, "g_tColorCorrection", MSAAResolveFrameBuffer.GetColorRenderTexture(FramebufferAttachment.ColorAttachment0));
             shaderPostProcess.SetTexture(1, "g_tColorCorrectionLUT", State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
             shaderPostProcess.SetTexture(2, "g_tBlueNoise", BlueNoise);
             shaderPostProcess.SetTexture(3, "g_tStencilBuffer", colorBufferRead.Stencil!);
