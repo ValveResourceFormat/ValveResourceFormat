@@ -1,4 +1,6 @@
 
+using System.Diagnostics;
+
 namespace ValveResourceFormat.Renderer;
 
 public class PlayerMovement
@@ -144,7 +146,7 @@ public class PlayerMovement
             var canUncrouch = true;
             if (Physics != null)
             {
-                var trace = Physics.TraceAABB(traceStart, traceEnd, checkHull);
+                var trace = TraceBBox(traceStart, traceEnd, checkHull);
                 canUncrouch = !trace.Hit;
             }
 
@@ -284,7 +286,7 @@ public class PlayerMovement
         var traceStart = position;
         var traceEnd = position + new Vector3(0, 0, -StepSize);
 
-        var trace = Physics.TraceAABB(traceStart, traceEnd, aabb);
+        var trace = TraceBBox(traceStart, traceEnd, aabb);
 
         // If we hit ground, snap down to it
         if (trace.Hit && trace.HitNormal.Z > 0.7f)
@@ -313,7 +315,7 @@ public class PlayerMovement
         var traceStart = position;
         var traceEnd = position + new Vector3(0, 0, -2f);
 
-        var result = Physics.TraceAABB(traceStart, traceEnd, aabb);
+        var result = TraceBBox(traceStart, traceEnd, aabb);
 
         if (result.Hit && result.HitNormal.Z > 0.8f && Velocity.Z < 140.0f)
         {
@@ -340,7 +342,7 @@ public class PlayerMovement
         }
 
         // Check if we're actually stuck by trying a small downward trace
-        var testTrace = Physics.TraceAABB(position, position + new Vector3(0, 0, -0.1f), aabb);
+        var testTrace = TraceBBox(position, position + new Vector3(0, 0, -0.1f), aabb);
         if (!testTrace.Hit || (testTrace.HitPosition - position).Length() > 0.01f)
         {
             return true; // Not stuck
@@ -369,7 +371,7 @@ public class PlayerMovement
                 var testPos = position + dir * distance;
 
                 // Try a trace to this position to see if it's valid
-                var trace = Physics.TraceAABB(position, testPos, aabb);
+                var trace = TraceBBox(position, testPos, aabb);
 
                 // If we can move at least halfway there without hitting, it's a good position
                 if (!trace.Hit || trace.Distance > distance * 0.5f)
@@ -406,7 +408,7 @@ public class PlayerMovement
 
         for (var bump = 0; bump < MaxBumps && remainingFraction > 0; bump++)
         {
-            var result = Physics.TraceAABB(position, position + remainingDelta, aabb);
+            var result = TraceBBox(position, position + remainingDelta, aabb);
 
             if (!result.Hit)
             {
@@ -453,9 +455,11 @@ public class PlayerMovement
     /// </summary>
     private (Vector3 StepPos, bool Stepped) TryStepMove(Vector3 start, Vector3 delta, AABB aabb)
     {
+        Debug.Assert(Physics != null);
+
         // Step 1: Move up by step height
         var stepUpEnd = start + new Vector3(0, 0, StepSize);
-        var upTrace = Physics!.TraceAABB(start, stepUpEnd, aabb);
+        var upTrace = TraceBBox(start, stepUpEnd, aabb);
 
         // Use whatever height we can achieve (even if blocked)
         var steppedUpPosition = upTrace.Hit
@@ -463,14 +467,14 @@ public class PlayerMovement
             : stepUpEnd;
 
         // Step 2: Move forward from the stepped-up position
-        var forwardTrace = Physics.TraceAABB(steppedUpPosition, steppedUpPosition + delta, aabb);
+        var forwardTrace = TraceBBox(steppedUpPosition, steppedUpPosition + delta, aabb);
         var forwardPosition = forwardTrace.Hit
             ? forwardTrace.HitPosition + forwardTrace.HitNormal * SurfaceEpsilon
             : steppedUpPosition + delta;
 
         // Step 3: Move down to find the ground (trace extra distance to ensure we find it)
         var downEnd = forwardPosition + new Vector3(0, 0, -(StepSize + 2.0f));
-        var downTrace = Physics.TraceAABB(forwardPosition, downEnd, aabb);
+        var downTrace = TraceBBox(forwardPosition, downEnd, aabb);
 
         if (!downTrace.Hit)
         {
@@ -782,5 +786,11 @@ public class PlayerMovement
             Math.Clamp(Velocity.Y, -MaxVelocityValue, MaxVelocityValue),
             Math.Clamp(Velocity.Z, -MaxVelocityValue, MaxVelocityValue)
         );
+    }
+
+    private Rubikon.TraceResult TraceBBox(Vector3 from, Vector3 to, AABB aabb)
+    {
+        Debug.Assert(Physics != null, "Physics world must be initialized");
+        return Physics.TraceAABB(from, to, aabb, "player");
     }
 }
