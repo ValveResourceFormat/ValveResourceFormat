@@ -44,7 +44,7 @@ internal abstract class GLBaseControl : IDisposable
 
     private bool FirstPaint = true;
     public long LastUpdate { get; protected set; }
-    public bool Paused;
+    public bool Paused = true;
     protected long lastFpsUpdate;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "RendererContext is disposed in Dispose method")]
@@ -597,7 +597,7 @@ internal abstract class GLBaseControl : IDisposable
 
     protected static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
 
-    public void Draw(long currentTime, float frameTime)
+    public void Draw(bool isPaused)
     {
         using var lockedGl = glLock.EnterScope();
 
@@ -632,6 +632,17 @@ internal abstract class GLBaseControl : IDisposable
             FirstPaint = false;
         }
 
+        var wasPaused = Paused;
+        var resumingRender = wasPaused && !isPaused;
+        Paused = isPaused;
+
+        var currentTime = Stopwatch.GetTimestamp();
+        var elapsed = resumingRender
+            ? TimeSpan.Zero
+            : Stopwatch.GetElapsedTime(LastUpdate, currentTime);
+
+        // Clamp frametime so it does not cause issues in things like particle rendering
+        var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
         LastUpdate = currentTime;
         OnUpdate(frameTime);
 
