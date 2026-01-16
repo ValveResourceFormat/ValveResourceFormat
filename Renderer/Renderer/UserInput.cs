@@ -84,17 +84,17 @@ public class UserInput
     /// <summary>
     /// Checks if a key is currently being held down.
     /// </summary>
-    public bool Holding(TrackedKeys key) => Keys.HasFlag(key);
+    public bool Holding(TrackedKeys key) => (Keys & key) != 0;
 
     /// <summary>
     /// Checks if a key was just pressed this frame (pressed now but not last frame).
     /// </summary>
-    public bool Pressed(TrackedKeys key) => Holding(key) && !PreviousKeys.HasFlag(key);
+    public bool Pressed(TrackedKeys key) => (Keys & ~PreviousKeys & key) != 0;
 
     /// <summary>
     /// Checks if a key was just released this frame (not pressed now but was pressed last frame).
     /// </summary>
-    private bool Released(TrackedKeys key) => !Holding(key) && PreviousKeys.HasFlag(key);
+    private bool Released(TrackedKeys key) => (PreviousKeys & ~Keys & key) != 0;
 
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)
     {
@@ -217,7 +217,7 @@ public class UserInput
     {
         var previousCamera = CameraPositionAngles;
 
-        if (keyboardState.HasFlag(TrackedKeys.MouseRight))
+        if ((keyboardState & TrackedKeys.MouseRight) != 0)
         {
             var speed = deltaTime * OrbitDistance / 2;
             var panOffset = Camera.Right * speed * -MouseDelta2D.X;
@@ -226,19 +226,19 @@ public class UserInput
             Camera.Location += panOffset;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.MouseLeft))
+        if ((keyboardState & TrackedKeys.MouseLeft) != 0)
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.ClampRotation();
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Forward))
+        if ((keyboardState & TrackedKeys.Forward) != 0)
         {
             OrbitZoom(-deltaTime * 10);
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Back))
+        if ((keyboardState & TrackedKeys.Back) != 0)
         {
             OrbitZoom(deltaTime * 10);
         }
@@ -292,7 +292,7 @@ public class UserInput
 
     private void HandleFreeFlightControls(float deltaTime, TrackedKeys keyboardState)
     {
-        if (keyboardState.HasFlag(TrackedKeys.Shift))
+        if ((keyboardState & TrackedKeys.Shift) != 0)
         {
             // Camera truck and pedestal movement (blender calls this pan)
             var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
@@ -370,32 +370,32 @@ public class UserInput
         var maxSpeed = MovementSpeed * SpeedModifiers[CurrentSpeedModifier];
         var targetVelocity = Vector3.Zero;
 
-        if (keyboardState.HasFlag(TrackedKeys.Forward))
+        if ((keyboardState & TrackedKeys.Forward) != 0)
         {
             targetVelocity += Camera.Forward * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Back))
+        if ((keyboardState & TrackedKeys.Back) != 0)
         {
             targetVelocity -= Camera.Forward * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Right))
+        if ((keyboardState & TrackedKeys.Right) != 0)
         {
             targetVelocity += Camera.Right * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Left))
+        if ((keyboardState & TrackedKeys.Left) != 0)
         {
             targetVelocity -= Camera.Right * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Down))
+        if ((keyboardState & TrackedKeys.Down) != 0)
         {
             targetVelocity += new Vector3(0, 0, -maxSpeed);
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Up))
+        if ((keyboardState & TrackedKeys.Up) != 0)
         {
             targetVelocity += new Vector3(0, 0, maxSpeed);
         }
