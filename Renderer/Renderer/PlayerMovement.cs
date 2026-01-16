@@ -663,7 +663,10 @@ public class PlayerMovement
     private void Friction(float deltaTime)
     {
         var speed = Velocity.Length();
-        if (speed < 0.1f) return;
+        if (speed < 0.1f)
+        {
+            return;
+        }
 
         var control = speed < StopSpeedValue ? StopSpeedValue : speed;
         var drop = control * FrictionValue * SurfaceFriction * deltaTime;
@@ -683,7 +686,10 @@ public class PlayerMovement
         var currentspeed = Vector3.Dot(Velocity, wishdir);
         var addspeed = wishspeed - currentspeed;
 
-        if (addspeed <= 0) return;
+        if (addspeed <= 0)
+        {
+            return;
+        }
 
         currentspeed = Math.Max(0, currentspeed);
 
@@ -726,8 +732,14 @@ public class PlayerMovement
 
         // Clamp to effective max speed
         var effectiveMaxSpeed = RunSpeed;
-        if (isDucking) effectiveMaxSpeed *= DuckSpeedModifier;
-        else if (isWalking) effectiveMaxSpeed *= WalkSpeedModifier;
+        if (isDucking)
+        {
+            effectiveMaxSpeed *= DuckSpeedModifier;
+        }
+        else if (isWalking)
+        {
+            effectiveMaxSpeed *= WalkSpeedModifier;
+        }
 
         if (Velocity.LengthSquared() > effectiveMaxSpeed * effectiveMaxSpeed)
         {
@@ -754,7 +766,10 @@ public class PlayerMovement
         var currentspeed = Vector3.Dot(Velocity, wishdir);
         var addspeed = wishspd - currentspeed;
 
-        if (addspeed <= 0) return;
+        if (addspeed <= 0)
+        {
+            return;
+        }
 
         // Note: uses original wishspeed, NOT the capped wishspd
         var accelspeed = Math.Min(accel * wishspeed * deltaTime * SurfaceFriction, addspeed);

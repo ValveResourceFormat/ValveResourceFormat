@@ -155,7 +155,7 @@ public class Rubikon
         return closestHit;
     }
 
-    public struct AABBTraceContext
+    public readonly struct AABBTraceContext
     {
         public Vector3 Origin { get; }
         public Vector3 End { get; }
@@ -233,7 +233,7 @@ public class Rubikon
     {
         foreach (var mesh in Meshes)
         {
-            bool hit = MeshVertsInsideAABB(aabb, mesh);
+            var hit = MeshVertsInsideAABB(aabb, mesh);
 
             if (hit)
             {
@@ -593,8 +593,8 @@ public class Rubikon
 
     private static TraceResult AABBTraceTriangle(AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2)
     {
-        var hitPoint = new Vector3(0);
-        var hitNormal = new Vector3(0);
+        var hitPoint = Vector3.Zero;
+        var hitNormal = Vector3.Zero;
         var hitDistance = trace.Length;
 
         var hasHit = false;
@@ -623,12 +623,12 @@ public class Rubikon
         var edge1 = v1 - v0;
         var edge2 = v2 - v0;
         var triangleNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
-        Vector3 triNormSign = new Vector3(Math.Sign(triangleNormal.X), Math.Sign(triangleNormal.Y), Math.Sign(triangleNormal.Z));
-        Vector3 cornerCoords = trace.Origin + Vector3.Multiply(triNormSign, trace.HalfExtents) * Math.Sign(Vector3.Dot(triangleNormal, trace.Direction));
+        var triNormSign = new Vector3(Math.Sign(triangleNormal.X), Math.Sign(triangleNormal.Y), Math.Sign(triangleNormal.Z));
+        var cornerCoords = trace.Origin + Vector3.Multiply(triNormSign, trace.HalfExtents) * Math.Sign(Vector3.Dot(triangleNormal, trace.Direction));
 
         //RayTraceContext ray = new RayTraceContext(cornerCoords, trace.Direction);
 
-        RayTraceContext ray = new RayTraceContext(cornerCoords, cornerCoords + trace.Direction * trace.Length * 1);
+        var ray = new RayTraceContext(cornerCoords, cornerCoords + trace.Direction * trace.Length);
 
 
         //RayTraceContext ray = new RayTraceContext(new Vector3(0), new Vector3(0, 1, 0));
@@ -637,7 +637,7 @@ public class Rubikon
         //v1 = new Vector3(-1, 1, 2);
         //v2 = new Vector3(2, 1, -1);
 
-        bool DoesHit = RayIntersectsTriangle(ray, v0, v1, v2, out var intersection);
+        var DoesHit = RayIntersectsTriangle(ray, v0, v1, v2, out var intersection);
 
         if (DoesHit)
         {
@@ -660,46 +660,60 @@ public class Rubikon
         //Fundamentally: For each edge on the AABB, we need to do an edge-edge trace against each edge of the triangle.
         //fortunately, we can prefilter that down to 9 edge-edge traces, as only 3 AABB-edges could ever be the first hit for an AABB-trace.
 
-        ReadOnlySpan<Vector3> points = [v0, v1, v2];
+        var hasHit = false;
 
-        bool hasHit = false;
-
-        for (int edge = 0; edge < 3; edge++)
+        for (var edge = 0; edge < 3; edge++)
         {
-            Vector3 EdgeStart = points[edge % 3];
-            Vector3 EdgeEnd = points[(edge + 1) % 3];
+            var (EdgeStart, EdgeEnd) = edge switch
+            {
+                0 => (v0, v1),
+                1 => (v1, v2),
+                _ => (v2, v0)
+            };
 
-            Vector3 EdgeDirection = EdgeEnd - EdgeStart;
+            var EdgeDirection = EdgeEnd - EdgeStart;
 
-            bool MissesOnAxis = false;
+            var MissesOnAxis = false;
 
             //Essentially, for the selection of edges, we just look at the world in 2D along each axis once.
-            for (int axis = 0; axis < 3 && !MissesOnAxis; axis++)
+            for (var axis = 0; axis < 3 && !MissesOnAxis; axis++)
             {
-                //just rotate our edge orientation by 90 deg, flatten and normalize it
-                Vector3 hitNormal = new Vector3(0);
+                var axis1 = (axis + 1) % 3;
+                var axis2 = (axis + 2) % 3;
 
-                if (Math.Abs(EdgeDirection[(axis + 1) % 3]) < float.Epsilon && Math.Abs(EdgeDirection[(axis + 2) % 3]) < float.Epsilon)
+                var edgeComp1 = EdgeDirection[axis1];
+                var edgeComp2 = EdgeDirection[axis2];
+
+                if (Math.Abs(edgeComp1) < float.Epsilon && Math.Abs(edgeComp2) < float.Epsilon)
+                {
                     continue;
+                }
 
-                hitNormal[(axis + 1) % 3] = EdgeDirection[(axis + 2) % 3];
-                hitNormal[(axis + 2) % 3] = -EdgeDirection[(axis + 1) % 3];
-                hitNormal = Vector3.Normalize(hitNormal) * Math.Sign(-Vector3.Dot(hitNormal, trace.Direction));
+                //just rotate our edge orientation by 90 deg, flatten and normalize it
+                var hitNormal = Vector3.Zero;
+                hitNormal[axis1] = edgeComp2;
+                hitNormal[axis2] = -edgeComp1;
+
+                var hitNormalLen = hitNormal.Length();
+                if (hitNormalLen < float.Epsilon)
+                {
+                    continue;
+                }
+
+                hitNormal /= hitNormalLen;
+                hitNormal *= Math.Sign(-Vector3.Dot(hitNormal, trace.Direction));
 
                 //now to figure out the AABB edge we care about:
 
-                Vector3 AABBEdgeCenter = new Vector3(0);
-
-                AABBEdgeCenter = trace.HalfExtents;
-
                 //example: if normal points up and right, only the bottom left edge can hit
+                var AABBEdgeCenter = trace.HalfExtents;
                 AABBEdgeCenter[axis] = 0;
-                AABBEdgeCenter[(axis + 1) % 3] *= -Math.Sign(hitNormal[(axis + 1) % 3]);
-                AABBEdgeCenter[(axis + 2) % 3] *= -Math.Sign(hitNormal[(axis + 2) % 3]);
+                AABBEdgeCenter[axis1] *= -Math.Sign(hitNormal[axis1]);
+                AABBEdgeCenter[axis2] *= -Math.Sign(hitNormal[axis2]);
 
                 AABBEdgeCenter += trace.Origin;
 
-                Vector3 DirToStart = EdgeStart - AABBEdgeCenter;
+                var DirToStart = EdgeStart - AABBEdgeCenter;
 
                 //if true, we are moving away from the edge here and that means we can skip all further attemps to intersect it
                 if (Vector3.Dot(DirToStart, hitNormal) > 0)
@@ -712,7 +726,7 @@ public class Rubikon
 
                 //now to figure out the coordinates of where we would land in the extended edge plane
 
-                float Distance = Vector3.Dot(DirToStart, hitNormal) / Vector3.Dot(hitNormal, trace.Direction);
+                var Distance = Vector3.Dot(DirToStart, hitNormal) / Vector3.Dot(hitNormal, trace.Direction);
 
                 //same shit here, if we never reach that edge in the first place on any axis, we are not hitting that edge period
                 if (Distance > distance)
@@ -722,22 +736,24 @@ public class Rubikon
                     continue;
                 }
 
-                Vector3 PlaneHitCoord = AABBEdgeCenter + trace.Direction * Distance;
+                var PlaneHitCoord = AABBEdgeCenter + trace.Direction * Distance;
 
                 //I promise this is less clusterfuck than it looks
-                int LongestAxisEdgeDir = EdgeDirection[(axis + 1) % 3] > EdgeDirection[(axis + 2) % 3] ? (axis + 1) % 3 : (axis + 2) % 3;
+                var LongestAxisEdgeDir = Math.Abs(EdgeDirection[axis1]) > Math.Abs(EdgeDirection[axis2]) ? axis1 : axis2;
 
-                float diff = PlaneHitCoord[LongestAxisEdgeDir] - EdgeStart[LongestAxisEdgeDir];
+                var diff = PlaneHitCoord[LongestAxisEdgeDir] - EdgeStart[LongestAxisEdgeDir];
 
-                float a = diff / EdgeDirection[LongestAxisEdgeDir];
+                var a = diff / EdgeDirection[LongestAxisEdgeDir];
 
                 //should be obvious that we can't go beyond the edges bounds
                 if (a < 0 || a > 1.0f)
+                {
                     continue;
+                }
 
-                Vector3 NearestOnAxis = EdgeStart + EdgeDirection * diff / EdgeDirection[LongestAxisEdgeDir];
+                var NearestOnAxis = EdgeStart + EdgeDirection * a;
 
-                float AxisDistance = Math.Abs(NearestOnAxis[axis] - PlaneHitCoord[axis]);
+                var AxisDistance = Math.Abs(NearestOnAxis[axis] - PlaneHitCoord[axis]);
 
                 if (AxisDistance < trace.HalfExtents[axis])
                 {
@@ -766,9 +782,8 @@ public class Rubikon
             var nodeWithIndex = stack[--stackCount];
             var node = nodeWithIndex.Node;
 
-            // Expand node AABB by trace half extents for conservative culling
-
-            if (aabb.Intersects(new AABB(node.Min, node.Max)))
+            // Skip nodes that don't intersect with query AABB
+            if (!aabb.Intersects(new AABB(node.Min, node.Max)))
             {
                 continue;
             }
@@ -822,32 +837,31 @@ public class Rubikon
         ref float distance
         )
     {
-        Vector3 TraceOriginMin = trace.Origin - trace.HalfExtents;
-        Vector3 TraceOriginMax = trace.Origin + trace.HalfExtents;
-
-        ReadOnlySpan<Vector3> points = [v0, v1, v2];
+        var TraceOriginMin = trace.Origin - trace.HalfExtents;
+        var TraceOriginMax = trace.Origin + trace.HalfExtents;
 
         var intersects = false;
 
-        for (int i = 0; i < 3; i++)
+        for (var i = 0; i < 3; i++)
         {
-            var t1 = (TraceOriginMin - points[i]) / -trace.Direction;
+            var point = i switch
+            {
+                0 => v0,
+                1 => v1,
+                _ => v2
+            };
 
-            var t2 = (TraceOriginMax - points[i]) / -trace.Direction;
+            var t1 = (TraceOriginMin - point) / -trace.Direction;
+
+            var t2 = (TraceOriginMax - point) / -trace.Direction;
 
             var tNear = Vector3.Min(t1, t2);
 
             var tFar = Vector3.Max(t1, t2);
 
-            var tNearMaxIndex = 0;
-
-            for (int j = 1; j < 3; j++)
-            {
-                if (tNear[j] > tNear[tNearMaxIndex])
-                {
-                    tNearMaxIndex = j;
-                }
-            }
+            var tNearMaxIndex = tNear.X > tNear.Y
+                ? (tNear.X > tNear.Z ? 0 : 2)
+                : (tNear.Y > tNear.Z ? 1 : 2);
 
             var tNearMax = tNear[tNearMaxIndex];
 
@@ -858,7 +872,7 @@ public class Rubikon
                 if (tNearMax < distance)
                 {
                     distance = tNearMax;
-                    normal = new Vector3(0);
+                    normal = Vector3.Zero;
                     normal[tNearMaxIndex] = -Math.Sign(trace.Direction[tNearMaxIndex]);
                     hitPoint = distance * trace.Direction + trace.Origin;
                 }
