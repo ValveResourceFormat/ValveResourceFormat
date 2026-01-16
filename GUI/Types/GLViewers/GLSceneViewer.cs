@@ -216,6 +216,11 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseUp(sender, e);
 
+            if (!Input.NoClip)
+            {
+                return;
+            }
+
             if (InitialMousePosition == new Point(e.X, e.Y))
             {
                 Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Select);
@@ -225,6 +230,11 @@ namespace GUI.Types.GLViewers
         protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             base.OnMouseDown(sender, e);
+
+            if (!Input.NoClip)
+            {
+                return;
+            }
 
             if (e.Button == MouseButtons.Left)
             {
