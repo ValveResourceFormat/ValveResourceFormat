@@ -366,7 +366,7 @@ namespace GUI.Types.GLViewers
                 CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
 
                 // Manage cursor visibility and mouse locking based on noclip state
-                GrabbedMouse = !Input.NoClip;
+                GrabbedMouse = !Input.NoClip && !Paused;
             }
         }
 

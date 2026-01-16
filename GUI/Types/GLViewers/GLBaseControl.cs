@@ -30,7 +30,6 @@ internal abstract class GLBaseControl : IDisposable
     protected TrackedKeys CurrentlyPressedKeys;
     public Point LastMouseDelta { get; protected set; }
 
-    private bool mouseVisibilityChange;
     public bool GrabbedMouse
     {
         get;
@@ -38,7 +37,8 @@ internal abstract class GLBaseControl : IDisposable
         {
             if (field != value)
             {
-                mouseVisibilityChange = true;
+                Action changeCursorVisibility = value ? Cursor.Hide : Cursor.Show;
+                GLControl?.BeginInvoke(changeCursorVisibility);
             }
 
             field = value;
@@ -236,10 +236,11 @@ internal abstract class GLBaseControl : IDisposable
         }
     }
 
-    private void OnLostFocus(object? sender, EventArgs e)
+    public void OnLostFocus(object? sender, EventArgs e)
     {
         CurrentlyPressedKeys = TrackedKeys.None;
         MouseDelta = Point.Empty;
+        GrabbedMouse = false;
     }
 
     private static TrackedKeys RemapKey(Keys key) => key switch
@@ -364,13 +365,6 @@ internal abstract class GLBaseControl : IDisposable
 
     protected virtual void OnMouseMove(object? sender, MouseEventArgs e)
     {
-        if (mouseVisibilityChange)
-        {
-            mouseVisibilityChange = false;
-            Action changeVisibility = GrabbedMouse ? Cursor.Hide : Cursor.Show;
-            changeVisibility();
-        }
-
         if (!GrabbedMouse && (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
         {
             return;
