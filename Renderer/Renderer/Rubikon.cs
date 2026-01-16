@@ -883,12 +883,12 @@ public class Rubikon
         // Build BVH recursively
         var nodes = new List<Node>();
 
-        BuildHullBVHRecursive(nodes, HullIndices, 0, Hulls.Length);
+        BuildHullBVHRecursive(nodes, HullIndices, 0, Hulls.Length, 0);
 
         return [.. nodes];
     }
 
-    private void BuildHullBVHRecursive(List<Node> nodes, int[] hullIndices, int start, int count)
+    private void BuildHullBVHRecursive(List<Node> nodes, int[] hullIndices, int start, int count, int depth)
     {
         var nodeIndex = nodes.Count;
         nodes.Add(default); // Reserve space for this node
@@ -904,9 +904,9 @@ public class Rubikon
             max = Vector3.Max(max, hull.Max);
         }
 
-        // If few enough hulls, make a leaf
+        // If few enough hulls or max depth reached, make a leaf
         const int MaxHullsPerLeaf = 4;
-        if (count <= MaxHullsPerLeaf)
+        if (count <= MaxHullsPerLeaf || depth >= STACK_SIZE)
         {
             nodes[nodeIndex] = new Node(
                 min,
@@ -939,11 +939,11 @@ public class Rubikon
 
         // Build left child (immediately after parent)
         var leftChildIndex = nodes.Count;
-        BuildHullBVHRecursive(nodes, hullIndices, start, leftCount);
+        BuildHullBVHRecursive(nodes, hullIndices, start, leftCount, depth + 1);
 
         // Build right child
         var rightChildIndex = nodes.Count;
-        BuildHullBVHRecursive(nodes, hullIndices, start + leftCount, rightCount);
+        BuildHullBVHRecursive(nodes, hullIndices, start + leftCount, rightCount, depth + 1);
 
         // Update parent node
         var childOffset = (uint)(rightChildIndex - nodeIndex);
