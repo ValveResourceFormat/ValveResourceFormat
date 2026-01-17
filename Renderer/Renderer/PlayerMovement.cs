@@ -106,6 +106,7 @@ public class PlayerMovement
         {
             ResetPosition(camera);
             TryUnstuck(ref AABBCenteredPosition, SnappedHull);
+            Velocity = input.Velocity;
             Initialize = false;
         }
 
