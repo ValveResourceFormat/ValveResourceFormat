@@ -365,7 +365,6 @@ namespace GUI.Types.GLViewers
                 // Clear mouse wheel events after processing (they're one-time events)
                 CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
 
-                // Manage cursor visibility and mouse locking based on noclip state
                 GrabbedMouse = !Input.NoClip && !Paused;
             }
         }
@@ -500,6 +499,18 @@ namespace GUI.Types.GLViewers
             }
 
             BlitFramebufferToScreen();
+
+            if (GrabbedMouse)
+            {
+                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 0.43f,
+                    Y = 0.85f,
+                    Scale = 12f,
+                    Color = Color32.Yellow,
+                    Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
+                }, Renderer.Camera);
+            }
 
             TextRenderer.Render(Renderer.Camera);
             Picker?.TriggerEventIfAny();

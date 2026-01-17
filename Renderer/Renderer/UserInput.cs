@@ -64,7 +64,7 @@ public class UserInput
 
     private TrackedKeys Keys;
     private TrackedKeys PreviousKeys;
-    private Vector3 Velocity = Vector3.Zero;
+    public Vector3 Velocity { get; private set; }
 
     /// <summary>
     /// Force an input update on the next tick.
@@ -164,6 +164,7 @@ public class UserInput
         if (!NoClip)
         {
             PlayerMovement.ProcessMovement(this, Camera, deltaTime);
+            Velocity = PlayerMovement.Velocity;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.ClampRotation();
