@@ -12,11 +12,12 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
-    enum ShaderProgramType
+    public enum ShaderProgramType
     {
         Vertex = 0,
         Fragment = 1,
-        Max = 2,
+        Compute = 2,
+        Max = 3,
     }
 
     public partial class ShaderLoader : IDisposable
@@ -55,7 +56,7 @@ namespace ValveResourceFormat.Renderer
             public HashSet<string> RenderModes { get; } = [];
             public HashSet<string> Uniforms { get; } = [];
             public HashSet<string> SrgbUniforms { get; } = [];
-            public string[] Sources { get; } = new string[(int)ShaderProgramType.Max];
+            public Dictionary<ShaderProgramType, string> Sources { get; } = [];
 
 #if DEBUG
             public HashSet<string> ShaderVariants { get; } = [];
@@ -66,7 +67,7 @@ namespace ValveResourceFormat.Renderer
         {
             Task.Run(() =>
             {
-                foreach (var shader in ShaderParser.GetAvailableShaderNames())
+                foreach (var shader in Parser.AvailableShaders.Keys)
                 {
                     GetOrParseShader(shader);
                 }
@@ -107,16 +108,29 @@ namespace ValveResourceFormat.Renderer
             }
 
             var parsedData = new ParsedShaderData();
-            var vertexName = $"{shaderFileName}.vert.slang";
-            var fragmentName = $"{shaderFileName}.frag.slang";
 
-            var vertexSource = Parser.PreprocessShader(vertexName, parsedData);
-            parsedData.Sources[(int)ShaderProgramType.Vertex] = vertexSource;
-            Parser.ClearBuilder();
+            var availableStages = Parser.AvailableShaders.GetValueOrDefault(shaderFileName)
+                ?? throw new FileNotFoundException($"Shader '{shaderFileName}' does not exist.");
 
-            var fragmentSource = Parser.PreprocessShader(fragmentName, parsedData);
-            parsedData.Sources[(int)ShaderProgramType.Fragment] = fragmentSource;
-            Parser.ClearBuilder();
+            if (availableStages.Length == 0
+            || availableStages[(int)ShaderProgramType.Vertex] == false && availableStages[(int)ShaderProgramType.Compute] == false)
+            {
+                throw new InvalidDataException($"Shader '{shaderFileName}' does not have a vertex or compute stage.");
+            }
+
+            foreach (var (@type, extension) in ShaderParser.ProgramTypeToExtension)
+            {
+                if (!availableStages[(int)@type])
+                {
+                    continue;
+                }
+
+                var nameWithExtension = $"{shaderFileName}.{extension}.slang";
+
+                var shaderSource = Parser.PreprocessShader(nameWithExtension, parsedData);
+                parsedData.Sources[@type] = shaderSource;
+                Parser.ClearBuilder();
+            }
 
             ParsedCache[shaderFileName] = parsedData;
             return parsedData;
@@ -131,16 +145,36 @@ namespace ValveResourceFormat.Renderer
                 var shaderFileName = GetShaderFileByName(shaderName);
                 var parsedData = GetOrParseShader(shaderFileName);
 
-                var vertexShader = GL.CreateShader(ShaderType.VertexShader);
-                var fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-                CompileShaderObjects(vertexShader, fragmentShader, shaderFileName, shaderName, arguments, parsedData);
+                var sources = parsedData.Sources;
+
+                static ShaderType ToShaderType(ShaderProgramType type) => type switch
+                {
+                    ShaderProgramType.Vertex => ShaderType.VertexShader,
+                    ShaderProgramType.Fragment => ShaderType.FragmentShader,
+                    ShaderProgramType.Compute => ShaderType.ComputeShader,
+                    _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+                };
+
+                var shaderObjects = new int[sources.Count];
+                var shaderSources = new string[sources.Count];
+                var s = 0;
+                foreach (var (stage, source) in sources)
+                {
+                    shaderObjects[s] = GL.CreateShader(ToShaderType(stage));
+                    shaderSources[s] = source!;
+                    s++;
+                }
+
+                CompileShaderObjects(shaderObjects, shaderSources, shaderFileName, shaderName, arguments, parsedData);
 
                 shaderProgram = GL.CreateProgram();
 
 #if DEBUG
                 GL.ObjectLabel(ObjectLabelIdentifier.Program, shaderProgram, shaderFileName.Length, shaderFileName);
-                GL.ObjectLabel(ObjectLabelIdentifier.Shader, vertexShader, shaderFileName.Length, shaderFileName);
-                GL.ObjectLabel(ObjectLabelIdentifier.Shader, fragmentShader, shaderFileName.Length, shaderFileName);
+                for (var i = 0; i < shaderObjects.Length; i++)
+                {
+                    GL.ObjectLabel(ObjectLabelIdentifier.Shader, shaderObjects[i], shaderFileName.Length, shaderFileName);
+                }
 #endif
 
                 var shader = new Shader(shaderName, RendererContext)
@@ -151,14 +185,16 @@ namespace ValveResourceFormat.Renderer
 
                     Parameters = arguments,
                     Program = shaderProgram,
-                    ShaderObjects = [vertexShader, fragmentShader],
+                    ShaderObjects = shaderObjects,
                     RenderModes = parsedData.RenderModes,
                     UniformNames = parsedData.Uniforms,
                     SrgbUniforms = parsedData.SrgbUniforms
                 };
 
-                GL.AttachShader(shader.Program, vertexShader);
-                GL.AttachShader(shader.Program, fragmentShader);
+                foreach (var shaderObj in shaderObjects)
+                {
+                    GL.AttachShader(shader.Program, shaderObj);
+                }
 
                 GL.LinkProgram(shader.Program);
 
@@ -200,7 +236,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private static void CompileShaderObjects(int vertexShader, int fragmentShader, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
+        private static void CompileShaderObjects(int[] shaderObjects, string[] shaderSources, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
             var header = new StringBuilder();
             header.Append(ShaderParser.ExpectedShaderVersion);
@@ -224,8 +260,10 @@ namespace ValveResourceFormat.Renderer
 
             var headerText = header.ToString();
 
-            CompileShaderObject(vertexShader, shaderFile, originalShaderName, arguments, headerText, parsedData.Sources[(int)ShaderProgramType.Vertex]);
-            CompileShaderObject(fragmentShader, shaderFile, originalShaderName, arguments, headerText, parsedData.Sources[(int)ShaderProgramType.Fragment]);
+            for (var i = 0; i < shaderObjects.Length; i++)
+            {
+                CompileShaderObject(shaderObjects[i], shaderFile, originalShaderName, arguments, headerText, shaderSources[i]);
+            }
         }
 
         private static void CompileShaderObject(int shader, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, string headerText, string shaderText)
@@ -314,6 +352,7 @@ namespace ValveResourceFormat.Renderer
             return Path.GetFileName(shaderFilePath[..^ShaderFileExtension.Length]);
         }
 
+        public const string SlangExtension = ".slang";
         public const string ShaderFileExtension = ".vert.slang";
         const string VrfInternalShaderPrefix = "vrf.";
 
@@ -419,7 +458,7 @@ namespace ValveResourceFormat.Renderer
         {
             Parser.Reset();
 
-            if (name != null && (name.EndsWith(".vert.slang", StringComparison.Ordinal) || name.EndsWith(".frag.slang", StringComparison.Ordinal)))
+            if (name != null && ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".{ext}.slang", StringComparison.Ordinal)))
             {
                 // If a named shader changed (not an include), then we can only reload this shader
                 name = ShaderNameFromPath(name!);
@@ -450,7 +489,17 @@ namespace ValveResourceFormat.Renderer
             var loader = renderContext.ShaderLoader;
             var folder = ShaderParser.GetShaderDiskPath(string.Empty);
 
-            var shaders = Directory.GetFiles(folder, filter ?? $"*{ShaderFileExtension}");
+            var vertShaders = Directory.GetFiles(folder, "*.vert.slang");
+            var compShaders = Directory.GetFiles(folder, "*.comp.slang");
+            var allShaders = vertShaders.Concat(compShaders).ToArray();
+
+            // Apply filter if specified
+            if (filter != null)
+            {
+                allShaders = [.. allShaders.Where(s => Path.GetFileName(s).Contains(filter, StringComparison.OrdinalIgnoreCase))];
+            }
+
+            var shaders = allShaders;
 
             GLEnvironment.Initialize(renderContext.Logger);
 

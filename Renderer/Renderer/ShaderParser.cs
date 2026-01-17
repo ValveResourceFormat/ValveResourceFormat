@@ -258,26 +258,71 @@ namespace ValveResourceFormat.Renderer
             return builder.ToString();
         }
 
-        public static IEnumerable<string> GetAvailableShaderNames()
+        internal static readonly Dictionary<ShaderProgramType, string> ProgramTypeToExtension = new()
         {
+            { ShaderProgramType.Vertex, "vert" },
+            { ShaderProgramType.Fragment, "frag" },
+            { ShaderProgramType.Compute, "comp" }
+        };
+
+        internal static readonly Dictionary<string, ShaderProgramType> ExtensionToProgramType = ProgramTypeToExtension
+            .ToDictionary(kv => kv.Value, kv => kv.Key, StringComparer.Ordinal);
+
+        private static ShaderProgramType GetTypeFromFileName(string fileName)
+        {
+            var ext = fileName[^(ShaderFileExtension.Length - 1)..^SlangExtension.Length];
+            return ExtensionToProgramType.GetValueOrDefault(ext, ShaderProgramType.Max);
+        }
+
+        public Dictionary<string, bool[]> AvailableShaders { get; }
+
+        public ShaderParser()
+        {
+            AvailableShaders = GetAvailableShaders();
+        }
+
+        private static Dictionary<string, bool[]> GetAvailableShaders()
+        {
+            Dictionary<string, bool[]> availableShaders = [];
+
+            void LogShaderStage(string shaderName, ShaderProgramType shaderType)
+            {
+                if (shaderType >= ShaderProgramType.Max)
+                {
+                    return;
+                }
+
+                if (!availableShaders.TryGetValue(shaderName, out var stages))
+                {
+                    stages = new bool[3];
+                    availableShaders[shaderName] = stages;
+                }
+
+                stages[(int)shaderType] = true;
+            }
+
 #if DEBUG
             var dirInfo = new DirectoryInfo(ShaderRootDirectory);
-            var files = dirInfo.GetFiles($"*{ShaderFileExtension}", SearchOption.TopDirectoryOnly);
+            var files = dirInfo.GetFiles($"*{SlangExtension}", SearchOption.TopDirectoryOnly);
 
             foreach (var file in files)
             {
-                yield return ShaderNameFromPath(file.FullName);
+                var shaderName = ShaderNameFromPath(file.FullName);
+                var shaderType = GetTypeFromFileName(file.Name);
+                LogShaderStage(shaderName, shaderType);
             }
 #else
             var resources = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceNames()
                 .Where(static r => r.StartsWith(ShaderDirectory, StringComparison.Ordinal))
-                .Where(static r => r.EndsWith(ShaderFileExtension, StringComparison.Ordinal));
+                .Where(static r => r.EndsWith(SlangExtension, StringComparison.Ordinal));
             foreach (var resource in resources)
             {
                 var shaderName = resource[ShaderDirectory.Length..^ShaderFileExtension.Length];
-                yield return shaderName;
+                var shaderType = GetTypeFromFileName(resource);
+                LogShaderStage(shaderName, shaderType);
             }
 #endif
+            return availableShaders;
         }
 
 #if !DEBUG
