@@ -53,6 +53,7 @@ public class PlayerMovement
     private Rubikon? Physics => Input.PhysicsWorld;
 
     private float CrouchBlend; // 0 = standing, 1 = fully ducked
+    private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
 
     private AABB Hull
@@ -108,7 +109,7 @@ public class PlayerMovement
             Initialize = false;
         }
 
-        var position = AABBCenteredPosition; // Use character's feet position for physics
+        var position = AABBCenteredPosition;
         var pitch = camera.Pitch;
         var yaw = camera.Yaw;
 
@@ -116,58 +117,11 @@ public class PlayerMovement
         var isDucking = HoldingCtrl;
         var isWalking = !HoldingCtrl && HoldingShift;
 
-        if (HoldingCtrl)
-        {
-            CrouchBlend += 1f / CrouchBlendTime * deltaTime;
-            CrouchBlend = MathUtils.Saturate(CrouchBlend);
-        }
-        else
-        {
-            CrouchBlend = 0f;
-        }
+        BlendDuckedHull(deltaTime, ref position, isDucking);
 
         var playerHull = Hull;
 
-        // Handle crouch/uncrouch transitions
-        if (WasDuckingLastFrame && !isDucking)
-        {
-            // Trying to uncrouch - check if there's space above us
-            var standingHull = PlayerHullStanding;
-            var duckedHull = PlayerHullDucked;
-            var heightDifference = standingHull.Size.Z - duckedHull.Size.Z; // 72 - 48 = 24 units
-
-            // Trace upward using a small vertical hull to check clearance above the ducked hull
-            // We trace from the current ducked position upward by the height difference
-            var traceStart = AABBCenteredPosition;
-            var traceEnd = AABBCenteredPosition + new Vector3(0, 0, heightDifference);
-
-            // Use the ducked hull's horizontal dimensions but check vertical clearance
-            var checkHull = new AABB(duckedHull.Min, duckedHull.Max);
-
-            var canUncrouch = true;
-            if (Physics != null)
-            {
-                var trace = TraceBBox(traceStart, traceEnd, checkHull);
-                canUncrouch = !trace.Hit;
-            }
-
-            if (canUncrouch)
-            {
-                // We have space to stand up - adjust position upward to keep feet at same level
-                // The AABB center needs to move up by half the height difference
-                position += new Vector3(0, 0, heightDifference / 2);
-            }
-            else
-            {
-                // Can't uncrouch - blocked by geometry above, stay ducked and stop blend
-                isDucking = true;
-                CrouchBlend = 1f;
-            }
-        }
-
         WasDuckingLastFrame = isDucking;
-
-        // Store previous ground state
         WasOnGroundLastFrame = OnGround;
 
         // Categorize position (check if on ground) - use lerped hull for collision
@@ -271,6 +225,40 @@ public class PlayerMovement
         }*/
 
         return;
+    }
+
+    static readonly float crouchHeightDifference = PlayerHullStanding.Size.Z - PlayerHullDucked.Size.Z;
+
+    private void BlendDuckedHull(float deltaTime, ref Vector3 position, bool isDucking)
+    {
+        var crouchDelta = isDucking ? 1f : -1f;
+        crouchDelta = crouchDelta / CrouchBlendTime * deltaTime;
+
+        var goalCrouch = MathUtils.Saturate(CrouchBlend + crouchDelta);
+        crouchDelta = goalCrouch - CrouchBlend;
+
+        // Handle crouch/uncrouch transitions
+        if (crouchDelta != 0f)
+        {
+            // uncrouching
+            if (crouchDelta < 0f)
+            {
+                // do not uncrouch if there is no headroom
+                var traceUp = TraceBBox(position, position + new Vector3(0, 0, crouchHeightDifference), PlayerHullDucked);
+                if (traceUp.Hit)
+                {
+                    crouchDelta = 0f;
+                }
+            }
+
+            // In air, keep head at same level
+            // On ground, keep feet at same level
+            var bboxPositionDelta = crouchHeightDifference * crouchDelta / 2f;
+            bboxPositionDelta *= OnGround ? -1f : 1f;
+            position += new Vector3(0, 0, bboxPositionDelta);
+        }
+
+        CrouchBlend = MathUtils.Saturate(CrouchBlend + crouchDelta);
     }
 
     /// <summary>
@@ -649,10 +637,7 @@ public class PlayerMovement
         }
 
         // Apply duck/crouch speed modifier (from CS:GO cs_gamemovement.cpp)
-        if (HoldingCtrl) // Duck/crouch
-        {
-            wishspeed *= DuckSpeedModifier;
-        }
+        wishspeed *= DuckSpeedModifierSmooth;
 
         return (wishdir, wishspeed);
     }
@@ -700,8 +685,8 @@ public class PlayerMovement
         // Apply duck/walk modifiers
         if (isDucking)
         {
-            accelerationScale *= DuckSpeedModifier;
-            goalSpeed *= DuckSpeedModifier;
+            accelerationScale *= DuckSpeedModifierSmooth;
+            goalSpeed *= DuckSpeedModifierSmooth;
         }
         if (isWalking)
         {
@@ -731,12 +716,8 @@ public class PlayerMovement
         Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
 
         // Clamp to effective max speed
-        var effectiveMaxSpeed = RunSpeed;
-        if (isDucking)
-        {
-            effectiveMaxSpeed *= DuckSpeedModifier;
-        }
-        else if (isWalking)
+        var effectiveMaxSpeed = RunSpeed * DuckSpeedModifierSmooth;
+        if (isWalking)
         {
             effectiveMaxSpeed *= WalkSpeedModifier;
         }
