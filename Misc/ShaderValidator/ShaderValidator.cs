@@ -14,7 +14,7 @@ internal class ShaderValidator
         var logger = loggerFactory.CreateLogger<ShaderValidator>();
         var progressReporter = new LogProgress(logger);
 
-        var shaderFilter = args.Length > 0 ? $"*{args[0]}*" : null;
+        var shaderFilter = args.Length > 0 ? args[0] : null;
 
         using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
         {
