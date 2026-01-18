@@ -84,12 +84,40 @@ namespace GUI.Forms
             }
         }
 
-        public void Execute()
+        private bool IsVpkLikelyVmap()
+        {
+            foreach (var file in filesToExtractSorted)
+            {
+                if (file.Key == "vmap_c")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public void ExecuteMultipleFileExtract()
         {
             if (filesToExtract.Count == 0 && filesToExtractSorted.Sum(x => x.Value.Count) == 0)
             {
                 MessageBox.Show("There are no files to extract", "Failed to extract");
                 return;
+            }
+
+            if (IsVpkLikelyVmap())
+            {
+                var result = MessageBox.Show(
+                """
+                You are currently attempting to decompile a map VPK, if you meant to decompile the map for editing in hammer, you should instead
+                decompile the .vmap_c file in this VPK.
+                """, "Decompile warning", MessageBoxButtons.OKCancel);
+
+                if (result == DialogResult.Cancel)
+                {
+                    return;
+                }
+
             }
 
             if (decompile && ShowTypesDialog() != DialogResult.Continue)

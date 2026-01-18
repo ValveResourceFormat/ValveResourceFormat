@@ -30,6 +30,11 @@ namespace GUI.Types.Exporter
 
         public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
         {
+            if (!PreExportDisclaimer(Path.GetExtension(fileName)))
+            {
+                return;
+            }
+
             if (decompile && fileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
                 var exportData = new ExportData
@@ -208,7 +213,7 @@ namespace GUI.Types.Exporter
                 try
                 {
                     extractDialog.QueueFiles(selectedNode);
-                    extractDialog.Execute();
+                    extractDialog.ExecuteMultipleFileExtract();
                     extractDialog = null;
                 }
                 finally
@@ -236,7 +241,7 @@ namespace GUI.Types.Exporter
                     extractDialog.QueueFiles(item);
                 }
 
-                extractDialog.Execute();
+                extractDialog.ExecuteMultipleFileExtract();
                 extractDialog = null;
             }
             finally
@@ -244,5 +249,46 @@ namespace GUI.Types.Exporter
                 extractDialog?.Dispose();
             }
         }
+
+        public static bool PreExportDisclaimer(string fileExtension)
+        {
+            var messageString = "";
+
+            switch (fileExtension)
+            {
+                case ".vmap_c":
+
+                    messageString =
+                    """
+                    Decompiling Source2 maps is a difficult process, as such the output will be messy and imperfect, and will not resemble how
+                    real .vmap files are made!
+
+                    - Models will be merged by material across the map.
+                    - Parts of the skybox mesh might be missing.
+                    - The collision of the map will be merged into one mesh using special materials.
+                    - The map will lack lightmap resolution volumes.
+                    - Hammer meshes will be triangulated.
+
+                    It is NOT ADVISED to work on decompiled maps as your first map if you are new to mapping!
+                    """;
+                    break;
+
+                default:
+                    break;
+            }
+
+            if (!string.IsNullOrEmpty(messageString))
+            {
+                var result = MessageBox.Show(messageString, "Decompile warning", MessageBoxButtons.OKCancel);
+
+                if (result == DialogResult.Cancel)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
     }
 }
