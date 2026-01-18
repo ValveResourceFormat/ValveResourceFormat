@@ -48,6 +48,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Gets or sets a value indicating whether this animation is in world space.
         /// </summary>
         public bool Worldspace { get; init; }
+
+        /// <summary>
+        /// Gets or sets LegacyRealtime value of animation sequence. False for animations constructed without animation sequence data.
+        /// </summary>
+        public bool Realtime { get; init; }
+
+        /// <summary>
+        /// Gets or sets Autoplay value of animation sequence. False for animations constructed without animation sequence data.
+        /// </summary>
+        public bool Autoplay { get; init; }
+
         private AnimationFrameBlock[] FrameBlocks { get; }
         private AnimationSegmentDecoder[] SegmentArray { get; }
 
@@ -70,6 +81,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Gets the sequence parameters for this animation.
         /// </summary>
         public AnimationSequenceParams SequenceParams { get; }
+
+        /// <summary>
+        /// Gets the auto layer data for this animation. Empty for animations that were constructed without sequence data.
+        /// </summary>
+        public AnimationAutoLayer[] AutoLayers { get; } = [];
+
+        /// <summary>
+        /// Gets fetch data for this animation. Null animations that were constructed without sequence data.
+        /// </summary>
+        public AnimationFetch? Fetch { get; }
 
         private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
@@ -127,6 +148,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Hidden = seqFlags.GetProperty<bool>("m_bHidden");
             Delta = seqFlags.GetProperty<bool>("m_bLegacyDelta");
             Worldspace = seqFlags.GetProperty<bool>("m_bLegacyWorldspace");
+            Realtime = seqFlags.GetProperty<bool>("m_bLegacyRealtime");
+            Autoplay = seqFlags.GetProperty<bool>("m_bAutoplay");
 
             // Activities from sequence descriptor
             Activities = seqDesc.GetArray("m_activityArray")
@@ -163,6 +186,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Events = animDesc.GetArray("m_eventArray")
                 .Select(x => new AnimationEvent(x))
                 .ToArray();
+
+            // Auto layers
+            var autoLayerArray = seqDesc.GetArray("m_autoLayerArray");
+            AutoLayers = new AnimationAutoLayer[autoLayerArray.Length];
+            for (var i = 0; i < autoLayerArray.Length; i++)
+            {
+                AutoLayers[i] = new AnimationAutoLayer(autoLayerArray[i]);
+            }
+
+            // Fetch
+            var fetch = seqDesc.GetSubCollection("m_fetch");
+            Fetch = new AnimationFetch(fetch);
         }
 
         /// <summary>
