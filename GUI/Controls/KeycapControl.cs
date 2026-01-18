@@ -57,7 +57,8 @@ namespace GUI.Controls
             ResizeRedraw = true;
             BackColor = Color.Transparent;
             AutoSize = false;
-            Height = 20;
+            Height = this.AdjustForDPI(20);
+            Padding = new Padding(0);
             Font = new Font(Font.FontFamily, 9f);
         }
 
@@ -83,8 +84,9 @@ namespace GUI.Controls
 
             // Calculate keycap rectangle
             var keycapWidth = keySize.Width + this.AdjustForDPI(KeycapPadding * 2);
-            var keycapHeight = Height - 2; // Leave 1px margin top and bottom
-            var keycapRect = new Rectangle(0, 1, keycapWidth, keycapHeight);
+            var keycapMargin = this.AdjustForDPI(1);
+            var keycapHeight = Height - (keycapMargin * 2);
+            var keycapRect = new Rectangle(0, keycapMargin, keycapWidth, keycapHeight);
 
             // Draw keycap background with rounded corners
             using var path = Themer.GetRoundedRect(keycapRect, this.AdjustForDPI(CornerRadius));

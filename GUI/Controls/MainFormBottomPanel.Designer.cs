@@ -75,7 +75,6 @@ partial class MainFormBottomPanel
         keybindingsPanel.Dock = DockStyle.Right;
         keybindingsPanel.Location = new System.Drawing.Point(458, 0);
         keybindingsPanel.Name = "keybindingsPanel";
-        keybindingsPanel.Padding = new Padding(8, 4, 8, 4);
         keybindingsPanel.Size = new System.Drawing.Size(16, 30);
         keybindingsPanel.TabIndex = 2;
         keybindingsPanel.Visible = false;

@@ -16,7 +16,7 @@ namespace GUI.Controls
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
             BackColor = Color.Transparent;
-            Padding = new Padding(4, 3, 4, 3);
+            Padding = new Padding(this.AdjustForDPI(4), this.AdjustForDPI(4), this.AdjustForDPI(4), this.AdjustForDPI(4));
         }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace GUI.Controls
                 {
                     KeyText = binding.KeyCombination,
                     Description = binding.Description,
-                    Margin = new Padding(0, 0, 4, 0)
+                    Margin = new Padding(0, 0, this.AdjustForDPI(4), 0)
                 };
                 Controls.Add(keycap);
             }
