@@ -222,8 +222,7 @@ public class Renderer
             Textures = Textures,
         };
 
-        RenderSceneShadows(renderContext);
-        RenderScenesWithView(renderContext);
+        Render(renderContext);
     }
 
 
@@ -247,7 +246,10 @@ public class Renderer
 
         renderContext.Framebuffer.BindAndClear();
 
-        var isWireframe = IsWireframe; // To avoid toggling it mid frame
+        var isStandardPass = renderContext.ReplacementShader == null
+            && ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
+
+        var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
 
         // TODO: check if renderpass allows wireframe mode
         // TODO+: replace wireframe shaders with solid color
@@ -267,7 +269,7 @@ public class Renderer
             Scene.RenderOpaqueLayer(renderContext);
         }
 
-        using (new GLDebugGroup("Occlusion Tests"))
+        if (isStandardPass && Scene.EnableOcclusionCulling)
         {
             Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
         }
@@ -303,7 +305,7 @@ public class Renderer
                 }
             }
 
-            if (ReferenceEquals(renderContext.Framebuffer, MainFramebuffer))
+            if (isStandardPass)
             {
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
             }
@@ -336,7 +338,7 @@ public class Renderer
             GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
         }
 
-        if (renderContext.ReplacementShader is null)
+        if (isStandardPass)
         {
             using (new GLDebugGroup("Outline Render"))
             {

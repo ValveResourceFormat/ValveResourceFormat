@@ -513,11 +513,7 @@ namespace ValveResourceFormat.Renderer
 
         public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
         {
-            if (!EnableOcclusionCulling)
-            {
-                return;
-            }
-
+            using var _ = new GLDebugGroup("Occlusion Tests");
             occlusionDirty = true;
 
             GL.ColorMask(false, false, false, false);
