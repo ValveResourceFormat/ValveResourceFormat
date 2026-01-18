@@ -216,10 +216,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.Disable(EnableCap.DepthTest);
 
         var textureType = GetTextureTypeDefine(inputTexture.Target);
-        var shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", new Dictionary<string, byte>
-        {
-            [textureType] = 1,
-        });
+        var shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", (textureType, 1));
 
         shader.Use();
 

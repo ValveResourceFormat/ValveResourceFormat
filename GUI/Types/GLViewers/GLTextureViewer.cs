@@ -1109,12 +1109,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var arguments = new Dictionary<string, byte>
-            {
-                [textureType] = 1,
-            };
-
-            shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", arguments);
+            shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", (textureType, 1));
         }
 
         private void UploadTexture(bool forceSoftwareDecode)

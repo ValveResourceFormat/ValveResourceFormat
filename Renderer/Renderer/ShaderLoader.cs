@@ -79,6 +79,12 @@ namespace ValveResourceFormat.Renderer
             RendererContext = rendererContext;
         }
 
+        public Shader LoadShader(string shaderName, params (string ComboName, byte ComboValue)[] combos)
+        {
+            var args = combos.ToDictionary(c => c.ComboName, c => c.ComboValue);
+            return LoadShader(shaderName, args);
+        }
+
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte>? arguments = null, bool blocking = true)
         {
             arguments ??= EmptyArgs;
