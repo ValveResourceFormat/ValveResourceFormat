@@ -305,6 +305,7 @@ partial class ModelExtract
         var modelModifierList = MakeLazyList("ModelModifierList");
         var weightLists = MakeLazyList("WeightListList");
         var hitboxSetList = MakeLazyList("HitboxSetList");
+        var poseParamList = MakeLazyList("PoseParamList");
 
         var boneMarkupList = MakeListNode("BoneMarkupList");
         root.Children.AddItem(boneMarkupList.Node);
@@ -464,6 +465,9 @@ partial class ModelExtract
             {
                 additionalSequenceData.Add(data.GetStringProperty("m_sName"), data);
             }
+
+            var poseParams = sequenceData.GetArray("m_localPoseParamArray");
+            ExtractPoseParams(poseParams);
         }
 
         if (AnimationsToExtract.Count > 0)
@@ -806,6 +810,29 @@ partial class ModelExtract
                 }
 
                 weightLists.Value.AddItem(weightListNode);
+            }
+        }
+
+
+        void ExtractPoseParams(KVObject[] poseParamsData)
+        {
+            foreach (var poseParam in poseParamsData)
+            {
+                var name = poseParam.GetProperty<string>("m_sName");
+                var start = poseParam.GetFloatProperty("m_flStart");
+                var end = poseParam.GetFloatProperty("m_flEnd");
+                var loop = poseParam.GetFloatProperty("m_flLoop");
+                var looping = poseParam.GetProperty<bool>("m_bLooping");
+
+                var poseParamNode = MakeNode("PoseParam",
+                    ("name", name),
+                    ("poseparam_min", start),
+                    ("poseparam_max", end),
+                    ("poseparam_looping", looping),
+                    ("poseparam_loop", loop)
+                );
+
+                poseParamList.Value.AddItem(poseParamNode);
             }
         }
 
