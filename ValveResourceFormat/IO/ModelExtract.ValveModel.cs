@@ -558,6 +558,12 @@ partial class ModelExtract
                     childrenKV.AddItem(layerNode);
                 }
 
+                if (animation.Anim.Autoplay)
+                {
+                    var autoLayer = MakeNode("AnimAutoLayer", []);
+                    childrenKV.AddItem(autoLayer);
+                }
+
                 if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var animSequenceData))
                 {
                     var sequenceKeys = animSequenceData.GetSubCollection("m_SequenceKeys");
