@@ -272,6 +272,13 @@ partial class ModelExtract
         }
     }
 
+    static KVObject ProcessAnimationAutoLayer(Animation animation, AnimationAutoLayer autoLayer)
+    {
+        //TODO: Determine type of layer node to create (seemingly?: AnimBlendLayer if LocalPose==-1 && Pose=false, AnimAddLayer if LocalPose!=-1 && Pose=false, AnimBlendLayerPoseParam if Pose=true)
+        //TODO: Add params
+        return MakeNode("AnimBlendLayer", []);
+    }
+
     /// <summary>
     /// Converts the model to Valve model format as a string.
     /// </summary>
@@ -543,6 +550,12 @@ partial class ModelExtract
                         animEventNode.AddProperty("event_keys", animEvent.EventData);
                     }
                     childrenKV.AddItem(animEventNode);
+                }
+
+                foreach (var autoLayer in animation.Anim.AutoLayers)
+                {
+                    var layerNode = ProcessAnimationAutoLayer(animation.Anim, autoLayer);
+                    childrenKV.AddItem(layerNode);
                 }
 
                 if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var animSequenceData))
