@@ -143,8 +143,8 @@ public class UserInput
         var time = 1f - MathF.Pow((TransitionEndTime - Renderer.Uptime) / TransitionDuration, 5f); // easeOutQuint
 
         var location = Vector3.Lerp(StartingCamera.Location, Camera.Location, time);
-        var pitch = float.Lerp(StartingCamera.Pitch, Camera.Pitch, time);
-        var yaw = float.Lerp(StartingCamera.Yaw, Camera.Yaw, time);
+        var pitch = MathUtils.LerpAngle(StartingCamera.Pitch, Camera.Pitch, time);
+        var yaw = MathUtils.LerpAngle(StartingCamera.Yaw, Camera.Yaw, time);
 
         return new(location, pitch, yaw);
     }

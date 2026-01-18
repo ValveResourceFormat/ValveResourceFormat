@@ -90,5 +90,21 @@ namespace ValveResourceFormat.Renderer
         {
             return rad * (180.0f / MathF.PI);
         }
+
+        /// <summary>
+        /// Linearly interpolates between two angles in radians, taking the shortest path around the circle.
+        /// </summary>
+        /// <param name="from">Start angle in radians.</param>
+        /// <param name="to">End angle in radians.</param>
+        /// <param name="amount">Interpolation weight (0.0 = from, 1.0 = to).</param>
+        /// <returns>Interpolated angle in radians.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float LerpAngle(float from, float to, float amount)
+        {
+            var diff = (to - from) % MathF.Tau;
+            var shortestPath = 2.0f * diff % MathF.Tau - diff;
+
+            return from + shortestPath * amount;
+        }
     }
 }
