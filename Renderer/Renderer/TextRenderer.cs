@@ -113,6 +113,20 @@ namespace ValveResourceFormat.Renderer
             AddText(textRenderRequest);
         }
 
+        public void AddTextRelative(string text, float x, float y, float scale, Color32 color, Camera camera)
+        {
+            var req = new TextRenderRequest
+            {
+                Text = text,
+                X = x,
+                Y = y,
+                Scale = scale,
+                Color = color,
+            };
+
+            AddTextRelative(req, camera);
+        }
+
         public void AddTextRelative(TextRenderRequest textRenderRequest, Camera camera)
         {
             textRenderRequest.X = camera.WindowSize.X * MathUtils.Saturate(textRenderRequest.X);

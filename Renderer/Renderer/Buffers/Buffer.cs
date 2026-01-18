@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Buffers
             }
         }
 
-        public void Delete()
+        public virtual void Delete()
         {
             GL.DeleteBuffer(Handle);
         }

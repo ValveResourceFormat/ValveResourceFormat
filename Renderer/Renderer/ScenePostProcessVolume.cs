@@ -106,6 +106,7 @@ namespace ValveResourceFormat.Renderer
 
         public float ExposureSpeedUp { get; init; }
         public float ExposureSpeedDown { get; init; }
+        public float ExposureSmoothingRange { get; init; }
 
         public float ExposureCompensation { get; init; }
 
@@ -116,12 +117,13 @@ namespace ValveResourceFormat.Renderer
             ExposureMax = 8.0f;
             ExposureSpeedUp = 1.0f;
             ExposureSpeedDown = 1.0f;
+            ExposureSmoothingRange = 100f;
             ExposureCompensation = 0.0f;
         }
 
         public static ExposureSettings LoadFromEntity(Entity entity)
         {
-            var def = default(ExposureSettings);
+            var def = new ExposureSettings();
             return new ExposureSettings
             {
                 // todo: These changed to minlogexposure maxlogexposure

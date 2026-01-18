@@ -7,4 +7,6 @@ public enum ReservedBufferSlots
     EnvironmentMap = 2,
     LightProbe = 3,
     Transforms = 10,
+    Histogram = 11,
+    AverageLuminance = 12,
 }

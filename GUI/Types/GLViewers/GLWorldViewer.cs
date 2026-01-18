@@ -75,10 +75,13 @@ namespace GUI.Types.GLViewers
             {
                 var exposure = exposureAmount * 10;
                 UpdateExposureText(exposure);
-                Scene.PostProcessInfo.CustomExposure = exposure;
+                Renderer.Postprocess.CustomExposure = exposure;
+
+                // also set auto exposure to off for debugging, in case this is slowing things down
+                Renderer.Postprocess.State = Renderer.Postprocess.State with { ExposureSettings = Renderer.Postprocess.State.ExposureSettings with { AutoExposureEnabled = false } };
             });
 
-            var sceneExposure = Scene.PostProcessInfo.CalculateTonemapScalar();
+            var sceneExposure = Renderer.Postprocess.CurrentExposure;
             exposureSlider.Slider.Value = sceneExposure / 10;
             UpdateExposureText(sceneExposure);
         }

@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer;
 public class Renderer
 {
     public float Uptime { get; set; }
+    public float DeltaTime { get; set; }
     public RendererContext RendererContext { get; }
     public Camera Camera { get; set; }
 
@@ -23,6 +24,9 @@ public class Renderer
     private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
     public Framebuffer? ShadowDepthBuffer { get; private set; }
     public Framebuffer? FramebufferCopy { get; private set; }
+
+    private readonly Shader[] histogramShaders = new Shader[2];
+    private readonly StorageBuffer[] histogramBuffers = new StorageBuffer[2];
 
     // Injected
     public Framebuffer? MainFramebuffer { get; set; }
@@ -68,6 +72,12 @@ public class Renderer
         depthOnlyShaders[(int)DepthOnlyProgram.AnimatedEightBones] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only", ("D_ANIMATED", 1), ("D_EIGHT_BONE_BLENDING", 1));
 
         depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
+
+        histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.histogram");
+        histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.histogram", ("D_HISTOGRAM_MODE", 1));
+
+        histogramBuffers[0] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.Histogram, 256, BufferUsageHint.DynamicDraw);
+        histogramBuffers[1] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.AverageLuminance, 4, BufferUsageHint.DynamicRead);
 
         FramebufferCopy = Framebuffer.Prepare(nameof(FramebufferCopy), 4, 4, 0,
             new Framebuffer.AttachmentFormat(PixelInternalFormat.R11fG11fB10f, PixelFormat.Rgb, PixelType.HalfFloat),
@@ -156,7 +166,7 @@ public class Renderer
         }
     }
 
-    void UpdatePerViewGpuBuffers(Scene scene, Camera camera)
+    void UpdatePerViewGpuBuffers(Scene scene, Camera camera, float deltaTime)
     {
         Debug.Assert(ViewBuffer != null);
 
@@ -169,7 +179,7 @@ public class Renderer
         if (Postprocess != null)
         {
             Postprocess.State = scene.PostProcessInfo.CurrentState;
-            Postprocess.TonemapScalar = scene.PostProcessInfo.CalculateTonemapScalar();
+            Postprocess.CalculateTonemapScalar(deltaTime);
         }
     }
 
@@ -201,7 +211,7 @@ public class Renderer
             Textures = Textures,
         };
 
-        UpdatePerViewGpuBuffers(Scene, Camera);
+        UpdatePerViewGpuBuffers(Scene, Camera, DeltaTime);
         Scene.SetSceneBuffers();
 
         Scene.RenderOpaqueLayer(renderContext);
@@ -250,6 +260,8 @@ public class Renderer
             && ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
+        var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
+
 
         // TODO: check if renderpass allows wireframe mode
         // TODO+: replace wireframe shaders with solid color
@@ -260,7 +272,7 @@ public class Renderer
 
         GL.DepthRange(0.05, 1);
 
-        UpdatePerViewGpuBuffers(Scene, renderContext.Camera);
+        UpdatePerViewGpuBuffers(Scene, renderContext.Camera, DeltaTime);
         Scene.SetSceneBuffers();
 
         using (new GLDebugGroup("Main Scene Opaque Render"))
@@ -305,6 +317,8 @@ public class Renderer
                 }
             }
 
+            copyColor |= computeFramebufferLuminance;
+
             if (isStandardPass)
             {
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
@@ -340,6 +354,11 @@ public class Renderer
 
         if (isStandardPass)
         {
+            if (computeFramebufferLuminance)
+            {
+                ComputeAverageLuminance(renderContext);
+            }
+
             using (new GLDebugGroup("Outline Render"))
             {
                 RenderOutlineLayer(renderContext);
@@ -369,6 +388,51 @@ public class Renderer
         ViewBuffer.Update();
 
         Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
+    }
+
+    private void ComputeAverageLuminance(Scene.RenderContext renderContext)
+    {
+        Debug.Assert(FramebufferCopy != null);
+
+        var width = FramebufferCopy.Width;
+        var height = FramebufferCopy.Height;
+
+        static void Dispatch(Shader shader, RenderTexture texture, int x, int y)
+        {
+            var minLuminance = 0.005f / 256.0f;
+            var maxLuminance = 8f; //65_204f;
+            var logMin = MathF.Log2(minLuminance);
+            var logRange = MathF.Log2(maxLuminance) - logMin;
+
+            shader.Use();
+            shader.SetTexture(0, "inputImage", texture);
+            shader.SetUniform1("logMinLuminance", logMin);
+            shader.SetUniform1("logLuminanceRange", logRange);
+
+            GL.DispatchCompute(x, y, 1);
+        }
+
+        histogramBuffers[0].Clear();
+        histogramBuffers[0].BindBufferBase();
+        histogramBuffers[1].BindBufferBase();
+
+        var inputTex = FramebufferCopy.Color;
+        Debug.Assert(inputTex != null);
+
+        // Build histogram
+        var groupsX = Math.Max(1, (width + 15) / 16);
+        var groupsY = Math.Max(1, (height + 15) / 16);
+        Dispatch(histogramShaders[0], inputTex, groupsX, groupsY);
+        GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+
+        // Reduce histogram
+        Dispatch(histogramShaders[1], inputTex, 1, 1); // local_size_x = 256
+
+        GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit | MemoryBarrierFlags.BufferUpdateBarrierBit);
+
+        var output = Vector4.Zero;
+        histogramBuffers[1].Read(ref output);
+        Postprocess.AverageLuminance = output.X;
     }
 
     private void RenderOutlineLayer(Scene.RenderContext renderContext)
@@ -453,6 +517,7 @@ public class Renderer
         }
 
         Uptime += updateContext.Timestep;
+        DeltaTime = updateContext.Timestep;
         ViewBuffer.Data.Time = Uptime;
 
         Camera.RecalculateMatrices();

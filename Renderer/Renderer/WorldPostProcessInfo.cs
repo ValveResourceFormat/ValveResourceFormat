@@ -22,7 +22,6 @@ namespace ValveResourceFormat.Renderer
 
         // Current post processing state
         public PostProcessState CurrentState { get; private set; } = new();
-        public float CustomExposure { get; set; } = -1;
 
         public void AddPostProcessVolume(ScenePostProcessVolume postProcess)
         {
@@ -72,38 +71,5 @@ namespace ValveResourceFormat.Renderer
 
             CurrentState = newState;
         }
-
-        public float CalculateTonemapScalar()
-        {
-            var exposure = 1.0f;
-
-            if (CustomExposure != -1)
-            {
-                return CustomExposure;
-            }
-
-            // Don't actually compute auto-exposure, but at least limit it to their bounds if the min/max excludes 1
-            if (CurrentState.ExposureSettings.AutoExposureEnabled)
-            {
-                if (CurrentState.ExposureSettings.ExposureMin > 1.0f)
-                {
-                    exposure = CurrentState.ExposureSettings.ExposureMin;
-                }
-                if (CurrentState.ExposureSettings.ExposureMax < 1.0f)
-                {
-                    exposure = CurrentState.ExposureSettings.ExposureMax;
-                }
-
-                // Apply exposure compensation
-                exposure *= MathF.Pow(2.0f, CurrentState.ExposureSettings.ExposureCompensation);
-            }
-
-            return exposure;
-        }
-
-        //public void SetTonemapViewConstants(ViewConstants viewConstants)
-        //{
-        //    viewConstants.ToneMapScalarLinear = CalculateTonemapScalar();
-        //}
     }
 }
