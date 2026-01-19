@@ -96,6 +96,27 @@ namespace ValveResourceFormat.Renderer
             FlexStateManager?.ResetControllers();
         }
 
+        public void SetMaterialCombo((string ComboName, byte ComboValue) combo)
+        {
+            foreach (var drawCall in DrawCalls)
+            {
+                var material = drawCall.Material;
+                var materialData = material.Material;
+                var materialName = materialData.Name;
+
+                var currentCombos = material.Shader.Parameters;
+                if (currentCombos.GetValueOrDefault(combo.ComboName) == combo.ComboValue)
+                {
+                    continue;
+                }
+
+                var newCombos = currentCombos.ToDictionary();
+
+                newCombos[combo.ComboName] = combo.ComboValue;
+                drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(materialName, newCombos));
+            }
+        }
+
         public void ReplaceMaterials(Dictionary<string, string> materialTable)
         {
             foreach (var drawCall in DrawCalls)

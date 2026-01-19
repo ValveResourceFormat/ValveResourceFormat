@@ -5,6 +5,16 @@
 
 #include "instancing.slang"
 
+#define D_ANIMATED 0
+
+#if (D_ANIMATED == 0)
+    // No animation
+    mat4 getSkinMatrix()
+    {
+        return mat4(1.0);
+    }
+#else
+
 layout (location = 1) in uvec4 vBLENDINDICES;
 layout (location = 2) in vec4 vBLENDWEIGHT;
 
@@ -65,5 +75,6 @@ mat4 getSkinMatrix()
 
     return skinMatrix;
 }
+#endif // D_ANIMATED
 
 #endif

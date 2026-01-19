@@ -96,7 +96,10 @@ namespace GUI.Types.GLViewers
 
                 animationComboBoxCurrentIndex = i;
                 Debug.Assert(modelSceneNode != null);
-                modelSceneNode.SetAnimation(animation);
+                using (var lockedGL = MakeCurrent())
+                {
+                    modelSceneNode.SetAnimation(animation);
+                }
                 rootMotionCheckBox!.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
                 enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
             });

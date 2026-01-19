@@ -302,7 +302,7 @@ void main()
     vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
 #endif
 
-#if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)
+#if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1) && (D_ANIMATED == 1)
     eyeInterpolator = GetCharacterEyeInterpolator(vPOSITION);
 #endif
 
