@@ -4,6 +4,9 @@
 #define VRF_CSGO_CHARACTER_EYES_COMMON_INCLUDE
 
 #define F_EYEBALLS 0
+#ifndef D_ANIMATED
+#define D_ANIMATED 0
+#endif
 
 struct EyePixelInput
 {

@@ -611,7 +611,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     AdjustRoughnessByGeometricNormal(mat);
 
 #if (GameVfx_csgo_character != 0)
-    #if (F_EYEBALLS == 1)
+    #if (F_EYEBALLS == 1) && (D_ANIMATED == 1)
         ApplyEye(eyeInterpolator, texCoord, mat);
     #endif
 #endif
