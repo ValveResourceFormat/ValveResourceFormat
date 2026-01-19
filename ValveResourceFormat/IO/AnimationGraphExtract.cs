@@ -14,7 +14,7 @@ public class AnimationGraphExtract
     private readonly BinaryKV3 resourceData;
     private KVObject graph => resourceData.Data;
     private readonly string? outputFileName;
-    private int nodePositionOffset = 0;
+    private int nodePositionOffset;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -97,7 +97,7 @@ public class AnimationGraphExtract
         Tags = tagManager.GetArray("m_tags");
         Parameters = paramListUpdater.GetArray("m_parameters");
 
-        KVObject clipDataManager = null;
+        KVObject clipDataManager;
         if (tagManager.ContainsKey("sequence_tag_spans"))
         {
             var sequenceTagSpans = tagManager.GetArray("sequence_tag_spans");
@@ -1065,7 +1065,7 @@ public class AnimationGraphExtract
                 "CVectorAnimParameter" => "VECTOR",
                 "CQuaternionAnimParameter" => "QUATERNION",
                 "CSymbolAnimParameter" => "SYMBOL",
-                _ => paramClass.Replace("C", "").Replace("AnimParameter", "").ToUpper()
+                _ => paramClass.Replace("C", "").Replace("AnimParameter", "").ToUpper(System.Globalization.CultureInfo.CurrentCulture)
             };
             if (paramTypeName == uncompiledType)
             {
