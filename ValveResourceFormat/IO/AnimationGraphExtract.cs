@@ -4,8 +4,6 @@ using System.Text;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
-using System.Collections.Generic;
-
 namespace ValveResourceFormat.IO;
 
 /// <summary>
@@ -82,12 +80,7 @@ public class AnimationGraphExtract
 
         var tagManager = data.GetSubCollection("m_pTagManagerUpdater");
         var paramListUpdater = data.GetSubCollection("m_pParamListUpdater");
-
-        KVObject scriptManager = null;
-        if (data.ContainsKey("m_scriptManager"))
-        {
-            scriptManager = data.GetSubCollection("m_scriptManager");
-        }
+        var scriptManager = data.GetSubCollection("m_scriptManager");
 
         if (data.GetArray("m_managers") is KVObject[] managers)
         {
@@ -104,6 +97,18 @@ public class AnimationGraphExtract
         Tags = tagManager.GetArray("m_tags");
         Parameters = paramListUpdater.GetArray("m_parameters");
 
+        KVObject clipDataManager = null;
+        if (tagManager.ContainsKey("sequence_tag_spans"))
+        {
+            var sequenceTagSpans = tagManager.GetArray("sequence_tag_spans");
+            clipDataManager = ConvertClipDataManager(sequenceTagSpans);
+        }
+        else
+        {
+            clipDataManager = MakeNode("CAnimClipDataManager");
+            clipDataManager.AddProperty("m_itemTable", new KVObject(null, isArray: false, 0));
+        }
+
         var nodeManager = MakeListNode("CAnimNodeManager", "m_nodes");
         var componentList = new List<KVObject>();
         if (data.ContainsKey("m_components"))
@@ -113,7 +118,7 @@ public class AnimationGraphExtract
             {
                 try
                 {
-                    var componentData = ConvertComponent(compiledComponent, scriptManager);
+                    var componentData = ConvertComponent(compiledComponent);
                     componentList.Add(componentData);
                 }
                 catch (Exception ex)
@@ -155,12 +160,52 @@ public class AnimationGraphExtract
             // ("m_referencedTagGroups", referencedTagGroups),
             // ("m_referencedAnimGraphs", referencedAnimGraphs),
             // ("m_pSettingsManager", settingsManager),
-            // ("m_clipDataManager", clipDataManager),
+            ("m_clipDataManager", clipDataManager),
             ("m_modelName", graph.GetProperty<string>("m_modelName")),
             ]
         );
 
         return new KV3File(kv, format: KV3IDLookup.Get("animgraph19")).ToString();
+    }
+
+    private KVObject ConvertClipDataManager(KVObject[] sequenceTagSpans)
+    {
+        var clipDataManager = MakeNode("CAnimClipDataManager");
+        var itemTable = new KVObject(null, isArray: false, 0);
+        foreach (var sequenceSpan in sequenceTagSpans)
+        {
+            var sequenceName = sequenceSpan.GetStringProperty("m_sSequenceName");
+            var compiledTagSpans = sequenceSpan.GetArray("m_tags");
+            if (string.IsNullOrEmpty(sequenceName) || compiledTagSpans.Length == 0)
+            {
+                continue;
+            }
+            var clipData = MakeNode("CAnimClipData");
+            clipData.AddProperty("m_clipName", sequenceName);
+            var tagSpans = new List<KVObject>();
+            foreach (var compiledTagSpan in compiledTagSpans)
+            {
+                var tagIndex = compiledTagSpan.GetIntegerProperty("m_tagIndex");
+                var startCycle = compiledTagSpan.GetFloatProperty("m_startCycle");
+                var endCycle = compiledTagSpan.GetFloatProperty("m_endCycle");
+                var duration = endCycle - startCycle;
+                var tagId = -1L;
+                if (tagIndex >= 0 && tagIndex < Tags.Length)
+                {
+                    tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                }
+                var tagSpan = MakeNode("CAnimTagSpan");
+                tagSpan.AddProperty("m_id", MakeNodeIdObjectValue(tagId));
+                tagSpan.AddProperty("m_fStartCycle", startCycle);
+                tagSpan.AddProperty("m_fDuration", duration);
+                tagSpans.Add(tagSpan);
+            }
+            clipData.AddProperty("m_tagSpans", KVValue.MakeArray(tagSpans.ToArray()));
+            itemTable.AddProperty(sequenceName, clipData);
+        }
+
+        clipDataManager.AddProperty("m_itemTable", itemTable);
+        return clipDataManager;
     }
 
     private static KVValue MakeNodeIdObjectValue(long nodeId)
@@ -210,7 +255,206 @@ public class AnimationGraphExtract
 
         return blendDuration;
     }
-    private KVObject ConvertComponent(KVObject compiledComponent, KVObject scriptManager)
+    private KVObject[] ConvertStateMachine(KVObject compiledStateMachine, KVObject[] stateDataArray, KVObject[] transitionDataArray, bool isComponent = false)
+    {
+        var compiledStates = compiledStateMachine.GetArray("m_states");
+        var compiledTransitions = compiledStateMachine.GetArray("m_transitions");
+        var states = new KVObject[compiledStates.Length];
+
+        int startStateIndex = -1;
+        for (int i = 0; i < compiledStates.Length; i++)
+        {
+            if (compiledStates[i].GetIntegerProperty("m_bIsStartState") > 0)
+            {
+                startStateIndex = i;
+                break;
+            }
+        }
+        for (int i = 0; i < compiledStates.Length; i++)
+        {
+            var compiledState = compiledStates[i];
+            var stateData = stateDataArray != null && i < stateDataArray.Length ? stateDataArray[i] : null;
+
+            string stateNodeType = isComponent ? "CAnimComponentState" : "CAnimNodeState";
+            var stateNode = MakeNode(stateNodeType);
+            float stateX, stateY;
+            var random = new Random(i);
+            if (i == startStateIndex)
+            {
+                stateX = -50.0f + random.Next(-20, 21);
+                stateY = -30.0f + random.Next(-15, 16);
+            }
+            else
+            {
+                int positionFromStart = i > startStateIndex ? i - startStateIndex : i + (compiledStates.Length - startStateIndex);
+                stateX = 150.0f * positionFromStart + random.Next(-30, 31);
+                stateY = 40.0f + random.Next(-10, 11);
+            }
+            stateNode.AddProperty("m_position", MakeVector2(stateX, stateY));
+            nodePositionOffset++;
+            stateNode.AddProperty("m_name", compiledState.GetStringProperty("m_name"));
+            stateNode.AddProperty("m_stateID", compiledState.GetSubCollection("m_stateID"));
+            stateNode.AddProperty("m_bIsStartState", compiledState.GetIntegerProperty("m_bIsStartState") > 0);
+            stateNode.AddProperty("m_bIsEndtState", compiledState.GetIntegerProperty("m_bIsEndState") > 0);
+            stateNode.AddProperty("m_bIsPassthrough", compiledState.GetIntegerProperty("m_bIsPassthrough") > 0);
+
+            if (compiledState.ContainsKey("m_transitionIndices"))
+            {
+                var transitionIndices = compiledState.GetIntegerArray("m_transitionIndices");
+                var transitions = new List<KVObject>();
+
+                foreach (var transitionIndex in transitionIndices)
+                {
+                    if (transitionIndex >= 0 && transitionIndex < compiledTransitions.Length)
+                    {
+                        var compiledTransition = compiledTransitions[transitionIndex];
+                        var transitionData = transitionDataArray != null && transitionIndex < transitionDataArray.Length ?
+                            transitionDataArray[transitionIndex] : null;
+
+                        string transitionNodeType = isComponent ? "CAnimComponentStateTransition" : "CAnimNodeStateTransition";
+                        var transitionNode = MakeNode(transitionNodeType);
+                        var srcStateIndex = compiledTransition.GetIntegerProperty("m_srcStateIndex");
+                        var destStateIndex = compiledTransition.GetIntegerProperty("m_destStateIndex");
+                        var srcStateID = compiledStates[srcStateIndex].GetSubCollection("m_stateID");
+                        var destStateID = compiledStates[destStateIndex].GetSubCollection("m_stateID");
+
+                        transitionNode.AddProperty("m_srcState", srcStateID);
+                        transitionNode.AddProperty("m_destState", destStateID);
+                        transitionNode.AddProperty("m_bDisabled", compiledTransition.GetIntegerProperty("m_bDisabled") > 0);
+
+                        var conditionList = MakeNode("CConditionContainer");
+                        conditionList.AddProperty("m_conditions", new KVObject(null, isArray: true, 0));
+                        transitionNode.AddProperty("m_conditionList", conditionList);
+
+                        if (!isComponent)
+                        {
+                            AddInputConnection(transitionNode, compiledTransition.GetIntegerProperty("m_nodeIndex"));
+                            if (transitionData != null)
+                            {
+                                transitionNode.AddProperty("m_bReset", transitionData.GetIntegerProperty("m_bReset") > 0);
+                                if (transitionData.ContainsKey("m_resetCycleOption"))
+                                {
+                                    var resetOption = transitionData.GetIntegerProperty("m_resetCycleOption");
+                                    var resetOptionStr = resetOption switch
+                                    {
+                                        0 => "Beginning",
+                                        1 => "SameCycleAsSource",
+                                        2 => "InverseSourceCycle",
+                                        3 => "FixedValue",
+                                        4 => "SameTimeAsSource",
+                                        _ => "Beginning"
+                                    };
+                                    transitionNode.AddProperty("m_resetCycleOption", resetOptionStr);
+                                }
+
+                                if (transitionData.ContainsKey("m_blendDuration"))
+                                {
+                                    var blendDuration = transitionData.GetSubCollection("m_blendDuration");
+                                    if (blendDuration != null)
+                                    {
+                                        var convertedBlendDuration = ConvertBlendDuration(blendDuration);
+                                        transitionNode.AddProperty("m_blendDuration", convertedBlendDuration);
+                                    }
+                                }
+
+                                if (transitionData.ContainsKey("m_resetCycleValue"))
+                                {
+                                    var resetcycleValue = transitionData.GetSubCollection("m_resetCycleValue");
+                                    if (resetcycleValue != null)
+                                    {
+                                        var convertedfixedcycleValue = ConvertBlendDuration(resetcycleValue);
+                                        transitionNode.AddProperty("m_flFixedCycleValue", convertedfixedcycleValue);
+                                    }
+                                }
+
+                                if (transitionData.ContainsKey("m_curve"))
+                                {
+                                    var compiledCurve = transitionData.GetSubCollection("m_curve");
+                                    var blendCurve = MakeNode("CBlendCurve");
+
+                                    if (compiledCurve.ContainsKey("m_flControlPoint1"))
+                                    {
+                                        blendCurve.AddProperty("m_flControlPoint1", compiledCurve.GetFloatProperty("m_flControlPoint1"));
+                                    }
+                                    else
+                                    {
+                                        blendCurve.AddProperty("m_flControlPoint1", 0.0f);
+                                    }
+                                    if (compiledCurve.ContainsKey("m_flControlPoint2"))
+                                    {
+                                        blendCurve.AddProperty("m_flControlPoint2", compiledCurve.GetFloatProperty("m_flControlPoint2"));
+                                    }
+                                    else
+                                    {
+                                        blendCurve.AddProperty("m_flControlPoint2", 1.0f);
+                                    }
+                                    transitionNode.AddProperty("m_blendCurve", blendCurve);
+                                }
+                                else
+                                {
+                                    var blendCurve = MakeNode("CBlendCurve");
+                                    blendCurve.AddProperty("m_flControlPoint1", 0.0f);
+                                    blendCurve.AddProperty("m_flControlPoint2", 1.0f);
+                                    transitionNode.AddProperty("m_blendCurve", blendCurve);
+                                }
+                            }
+                        }
+                        transitions.Add(transitionNode);
+                    }
+                }
+                stateNode.AddProperty("m_transitions", KVValue.MakeArray(transitions.ToArray()));
+            }
+
+            if (compiledState.ContainsKey("m_actions"))
+            {
+                var compiledActions = compiledState.GetArray("m_actions");
+                var actions = new List<KVObject>();
+
+                foreach (var compiledAction in compiledActions)
+                {
+                    var action = MakeNode("CStateAction");
+                    if (compiledAction.ContainsKey("m_pAction"))
+                    {
+                        var compiledActionData = compiledAction.GetSubCollection("m_pAction");
+                        var actionData = MakeNode(compiledActionData.GetStringProperty("_class").Replace("Updater", string.Empty, StringComparison.Ordinal));
+
+                        if (compiledActionData.ContainsKey("m_nTagIndex"))
+                        {
+                            var tagId = compiledActionData.GetIntegerProperty("m_nTagIndex");
+                            if (tagId != -1)
+                            {
+                                tagId = Tags[tagId].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                            }
+                            actionData.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
+                        }
+                        if (compiledActionData.ContainsKey("m_hParam"))
+                        {
+                            var paramRef = compiledActionData.GetSubCollection("m_hParam");
+                            var paramType = paramRef.GetStringProperty("m_type");
+                            var paramIndex = paramRef.GetIntegerProperty("m_index");
+                            actionData.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
+                        }
+                        if (compiledActionData.ContainsKey("m_value"))
+                        {
+                            actionData.AddProperty("m_value", compiledActionData.GetSubCollection("m_value"));
+                        }
+                        action.AddProperty("m_pAction", actionData);
+                    }
+                    actions.Add(action);
+                }
+                stateNode.AddProperty("m_actions", KVValue.MakeArray(actions.ToArray()));
+            }
+            if (!isComponent && stateData != null)
+            {
+                AddInputConnection(stateNode, stateData.GetSubCollection("m_pChild").GetIntegerProperty("m_nodeIndex"));
+                stateNode.AddProperty("m_bIsRootMotionExclusive", stateData.GetIntegerProperty("m_bExclusiveRootMotion") > 0);
+            }
+            states[i] = stateNode;
+        }
+
+        return states;
+    }
+    private KVObject ConvertComponent(KVObject compiledComponent)
     {
         var className = compiledComponent.GetStringProperty("_class");
         var newClassName = className.Replace("Updater", string.Empty, StringComparison.Ordinal);
@@ -471,8 +715,8 @@ public class AnimationGraphExtract
             component.AddProperty("m_sName", compiledComponent.GetProperty<string>("m_name"));
             if (compiledComponent.ContainsKey("m_stateMachine"))
             {
-                var stateMachine = compiledComponent.GetSubCollection("m_stateMachine");
-                var states = ConvertStateMachineStates(stateMachine, scriptManager);
+                var compiledStateMachine = compiledComponent.GetSubCollection("m_stateMachine");
+                var states = ConvertStateMachine(compiledStateMachine, null, null, isComponent: true);
                 component.AddProperty("m_states", KVValue.MakeArray(states));
             }
             return component;
@@ -532,575 +776,6 @@ public class AnimationGraphExtract
         }
         return component;
     }
-
-    private KVObject[] ConvertStateMachineStates(KVObject compiledStateMachine, KVObject scriptManager)
-    {
-        Console.WriteLine($"Converting state machine, scriptManager is null: {scriptManager == null}");
-        var compiledStates = compiledStateMachine.GetArray("m_states");
-        var compiledTransitions = compiledStateMachine.GetArray("m_transitions");
-
-        // Parse scripts first to get condition mapping
-        var scriptConditions = new Dictionary<long, List<KVObject[]>>();
-        if (scriptManager != null && scriptManager.ContainsKey("m_scriptInfo"))
-        {
-            var scriptInfos = scriptManager.GetArray("m_scriptInfo");
-            Console.WriteLine($"Found {scriptInfos.Length} scripts in script manager");
-            for (int scriptIndex = 0; scriptIndex < scriptInfos.Length; scriptIndex++)
-            {
-                var scriptInfo = scriptInfos[scriptIndex];
-                var code = scriptInfo.GetStringProperty("m_code");
-                Console.WriteLine($"Script {scriptIndex}: {code}");
-                var conditions = ParseScriptConditions(code);
-                scriptConditions[scriptIndex] = conditions;
-            }
-        }
-
-        var states = new KVObject[compiledStates.Length];
-
-        // First pass: create states
-        for (int i = 0; i < compiledStates.Length; i++)
-        {
-            var compiledState = compiledStates[i];
-            var stateId = compiledState.GetSubCollection("m_stateID");
-            var stateName = compiledState.GetStringProperty("m_name");
-            var isStart = compiledState.GetIntegerProperty("m_bIsStartState") > 0;
-            var isEnd = compiledState.GetIntegerProperty("m_bIsEndState") > 0;
-            var isPassthrough = compiledState.GetIntegerProperty("m_bIsPassthrough") > 0;
-
-            var state = MakeNode("CAnimComponentState");
-            state.AddProperty("m_name", stateName);
-            state.AddProperty("m_stateID", stateId);
-            state.AddProperty("m_bIsStartState", isStart);
-            state.AddProperty("m_bIsEndtState", isEnd); // Note: typo in source format
-            state.AddProperty("m_bIsPassthrough", isPassthrough);
-
-            // Create transitions
-            if (compiledState.ContainsKey("m_transitionIndices"))
-            {
-                var transitionIndices = compiledState.GetIntegerArray("m_transitionIndices");
-                var transitions = new List<KVObject>();
-
-                // Get script index for this state
-                var scriptIndex = compiledState.GetSubCollection("m_hScript").GetIntegerProperty("m_id");
-
-                // Get conditions for this script
-                var conditionsForState = scriptConditions.ContainsKey(scriptIndex) ?
-                    scriptConditions[scriptIndex] : new List<KVObject[]>();
-
-                for (int ti = 0; ti < transitionIndices.Length; ti++)
-                {
-                    var transitionIndex = transitionIndices[ti];
-                    if (transitionIndex >= 0 && transitionIndex < compiledTransitions.Length)
-                    {
-                        var compiledTransition = compiledTransitions[transitionIndex];
-                        var transition = CreateTransition(compiledTransition, compiledStates, ti, conditionsForState);
-                        transitions.Add(transition);
-                    }
-                }
-
-                state.AddProperty("m_transitions", KVValue.MakeArray(transitions.ToArray()));
-            }
-
-            state.AddProperty("m_actions", KVValue.MakeArray(Array.Empty<KVObject>()));
-
-            states[i] = state;
-        }
-
-        return states;
-    }
-
-    private KVObject CreateTransition(KVObject compiledTransition, KVObject[] compiledStates, int conditionIndex, List<KVObject[]> conditionsForState)
-    {
-        var srcStateIndex = compiledTransition.GetIntegerProperty("m_srcStateIndex");
-        var destStateIndex = compiledTransition.GetIntegerProperty("m_destStateIndex");
-        var disabled = compiledTransition.GetIntegerProperty("m_bDisabled") > 0;
-
-        var srcStateId = compiledStates[srcStateIndex].GetSubCollection("m_stateID");
-        var destStateId = compiledStates[destStateIndex].GetSubCollection("m_stateID");
-
-        var transition = MakeNode("CAnimComponentStateTransition");
-        transition.AddProperty("m_srcState", srcStateId);
-        transition.AddProperty("m_destState", destStateId);
-        transition.AddProperty("m_bDisabled", disabled);
-
-        var conditionList = MakeNode("CConditionContainer");
-        var conditionsArray = new KVObject(null, isArray: true, 0);
-
-        if (conditionIndex < conditionsForState.Count)
-        {
-            var conditionGroup = conditionsForState[conditionIndex];
-            if (conditionGroup != null)
-            {
-                foreach (var condition in conditionGroup)
-                {
-                    if (condition != null)
-                    {
-                        conditionsArray.AddItem(condition);
-                    }
-                }
-            }
-        }
-        conditionList.AddProperty("m_conditions", conditionsArray);
-        transition.AddProperty("m_conditionList", conditionList);
-        return transition;
-    }
-
-    private List<KVObject[]> ParseScriptConditions(string code)
-    {
-        var result = new List<KVObject[]>();
-        if (string.IsNullOrEmpty(code))
-        {
-            return result;
-        }
-        var cleanCode = code.Replace(" ", "").Replace("\n", "").Replace("\r", "").Replace("\t", "");
-        try
-        {
-            // Parse the entire expression recursively
-            ParseTernaryBranches(cleanCode, result, 0);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error parsing script code: {ex.Message}");
-            Console.WriteLine($"Code: {cleanCode}");
-        }
-        return result;
-    }
-
-    private void ParseTernaryBranches(string expression, List<KVObject[]> result, int startDepth)
-    {
-        // Base case: empty or just (-1)
-        if (string.IsNullOrEmpty(expression) || expression == "(-1)")
-        {
-            return;
-        }
-
-        Console.WriteLine($"Parsing expression at depth {startDepth}: {expression}");
-
-        // Extract the outermost condition
-        int depth = 0;
-        int conditionStart = -1;
-        int conditionEnd = -1;
-
-        for (int i = 0; i < expression.Length; i++)
-        {
-            if (expression[i] == '(')
-            {
-                if (depth == 0)
-                {
-                    conditionStart = i;
-                }
-                depth++;
-            }
-            else if (expression[i] == ')')
-            {
-                depth--;
-                if (depth == 0)
-                {
-                    conditionEnd = i;
-                    break;
-                }
-            }
-        }
-
-        if (conditionStart == -1 || conditionEnd == -1)
-        {
-            Console.WriteLine($"No complete condition found in: {expression}");
-            return;
-        }
-
-        // Extract condition without outer parentheses
-        string condition = expression.Substring(conditionStart + 1, conditionEnd - conditionStart - 1);
-        Console.WriteLine($"Extracted condition: {condition}");
-
-        // Find the question mark after this condition
-        int questionMarkPos = expression.IndexOf('?', conditionEnd);
-        if (questionMarkPos == -1)
-        {
-            Console.WriteLine($"No question mark found after condition in: {expression}");
-            return;
-        }
-
-        // Find the matching colon for this ternary
-        depth = 0;
-        int colonPos = -1;
-        for (int i = questionMarkPos; i < expression.Length; i++)
-        {
-            if (expression[i] == '(')
-            {
-                depth++;
-            }
-            else if (expression[i] == ')')
-            {
-                depth--;
-            }
-            else if (expression[i] == ':' && depth == 0)
-            {
-                colonPos = i;
-                break;
-            }
-        }
-
-        if (colonPos == -1)
-        {
-            Console.WriteLine($"No colon found in: {expression}");
-            return;
-        }
-
-        // Extract the transition index
-        string indexStr = expression.Substring(questionMarkPos + 1, colonPos - questionMarkPos - 1);
-        if (!int.TryParse(indexStr, out int transitionIndex))
-        {
-            Console.WriteLine($"Could not parse transition index from: {indexStr}");
-            return;
-        }
-
-        Console.WriteLine($"Transition index: {transitionIndex}");
-
-        // Parse the condition
-        var parsedCondition = ParseCondition(condition);
-        if (parsedCondition != null)
-        {
-            // Ensure we have enough slots
-            while (result.Count <= transitionIndex)
-            {
-                result.Add(Array.Empty<KVObject>());
-            }
-
-            result[transitionIndex] = [parsedCondition];
-            Console.WriteLine($"Added condition for transition {transitionIndex}");
-        }
-
-        // Parse the false branch (everything after the colon)
-        string falseBranch = expression.Substring(colonPos + 1);
-        Console.WriteLine($"False branch: {falseBranch}");
-
-        // Recursively parse the false branch
-        ParseTernaryBranches(falseBranch, result, startDepth + 1);
-    }
-
-    private void ParseTernaryExpression(string expression, List<KVObject[]> result)
-    {
-        // Base case: (-1)
-        if (expression == "(-1)")
-        {
-            return;
-        }
-
-        // Find the condition part (first balanced parentheses)
-        int depth = 0;
-        int conditionEnd = -1;
-        for (int i = 0; i < expression.Length; i++)
-        {
-            if (expression[i] == '(')
-            {
-                depth++;
-            }
-            else if (expression[i] == ')')
-            {
-                depth--;
-                if (depth == 0)
-                {
-                    conditionEnd = i;
-                    break;
-                }
-            }
-        }
-
-        if (conditionEnd == -1) return;
-
-        // Extract condition (without outer parentheses)
-        var conditionStr = expression.Substring(1, conditionEnd - 1);
-
-        // Find the question mark
-        var questionMarkPos = expression.IndexOf('?', conditionEnd);
-        if (questionMarkPos == -1) return;
-
-        // Find the colon after the index
-        var colonPos = expression.IndexOf(':', questionMarkPos);
-        if (colonPos == -1) return;
-
-        // Extract transition index
-        var indexStr = expression.Substring(questionMarkPos + 1, colonPos - questionMarkPos - 1);
-        if (!int.TryParse(indexStr, out int transitionIndex))
-        {
-            return;
-        }
-
-        // Parse condition
-        var condition = ParseCondition(conditionStr);
-
-        // Ensure we have enough slots in the result
-        while (result.Count <= transitionIndex)
-        {
-            result.Add(Array.Empty<KVObject>());
-        }
-
-        result[transitionIndex] = [condition];
-
-        // Parse the rest recursively
-        var rest = expression.Substring(colonPos + 1);
-        ParseTernaryExpression(rest, result);
-    }
-
-    private KVObject ParseCondition(string condition)
-    {
-        if (string.IsNullOrEmpty(condition))
-        {
-            return null;
-        }
-
-        // Check for tag condition first
-        if (condition.Contains("IsTagActive"))
-        {
-            return ParseTagCondition(condition);
-        }
-
-        // Handle parameter conditions
-        return ParseParameterCondition(condition);
-    }
-
-    private KVObject ParseTagCondition(string condition)
-    {
-        if (string.IsNullOrEmpty(condition))
-        {
-            Console.WriteLine("Tag condition is null or empty");
-            return null;
-        }
-
-        // Example: IsTagActive(TAG_TEST_TAG) or !IsTagActive(TAG_TEST_TAG)
-        var isNegated = condition.StartsWith('!');
-        var conditionToParse = isNegated ? condition.Substring(1) : condition;
-
-        Console.WriteLine($"Parsing tag condition: '{condition}', isNegated: {isNegated}");
-
-        var start = conditionToParse.IndexOf('(');
-        var end = conditionToParse.LastIndexOf(')');
-
-        if (start == -1 || end == -1 || start >= end)
-        {
-            Console.WriteLine($"Invalid tag condition format: {condition}");
-            return null;
-        }
-
-        var tagName = conditionToParse.Substring(start + 1, end - start - 1);
-        Console.WriteLine($"Raw tag name: '{tagName}'");
-
-        // Normalize tag name: remove "TAG_" prefix and replace underscores with spaces
-        var normalizedTagName = tagName;
-        if (normalizedTagName.StartsWith("TAG_"))
-        {
-            normalizedTagName = normalizedTagName["TAG_".Length..];
-            Console.WriteLine($"After removing TAG_ prefix: '{normalizedTagName}'");
-        }
-        normalizedTagName = normalizedTagName.Replace('_', ' ');
-        Console.WriteLine($"Normalized tag name: '{normalizedTagName}'");
-
-        // Find tag by name - try normalized name first, then original
-        var tag = Tags.FirstOrDefault(t =>
-            string.Equals(t.GetStringProperty("m_name"), normalizedTagName, StringComparison.OrdinalIgnoreCase));
-
-        if (tag == null)
-        {
-            Console.WriteLine($"Tag '{normalizedTagName}' not found, trying original name '{tagName}'");
-            tag = Tags.FirstOrDefault(t =>
-                string.Equals(t.GetStringProperty("m_name"), tagName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (tag == null)
-        {
-            Console.WriteLine($"Tag '{tagName}' (normalized: '{normalizedTagName}') not found in Tags array (count: {Tags.Length})");
-            foreach (var t in Tags)
-            {
-                Console.WriteLine($"  Available: '{t.GetStringProperty("m_name")}'");
-            }
-            return null;
-        }
-
-        var tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-        Console.WriteLine($"Found tag: name='{tag.GetStringProperty("m_name")}', id={tagId}");
-
-        var tagCondition = MakeNode("CTagCondition");
-        tagCondition.AddProperty("m_tagID", MakeNodeIdObjectValue(tagId));
-        tagCondition.AddProperty("m_comparisonValue", !isNegated);
-
-        Console.WriteLine($"Successfully created tag condition");
-        return tagCondition;
-    }
-
-    private KVObject ParseParameterCondition(string condition)
-    {
-        if (string.IsNullOrEmpty(condition))
-        {
-            return null;
-        }
-
-        // Find operator
-        string[] operators = ["==", "!=", "<", ">", "<=", ">="];
-        string foundOperator = null;
-        int operatorPos = -1;
-
-        foreach (var op in operators)
-        {
-            operatorPos = condition.IndexOf(op);
-            if (operatorPos != -1)
-            {
-                foundOperator = op;
-                break;
-            }
-        }
-
-        if (foundOperator == null || operatorPos == -1)
-        {
-            return null;
-        }
-
-        var paramName = condition.Substring(0, operatorPos).Trim();
-        var valuePart = condition.Substring(operatorPos + foundOperator.Length).Trim();
-
-        // Remove parentheses from value if present
-        if (valuePart.StartsWith('(') && valuePart.EndsWith(')'))
-        {
-            valuePart = valuePart[1..^1];
-        }
-
-        // Normalize parameter name: replace underscores with spaces
-        var normalizedParamName = paramName.Replace('_', ' ');
-        Console.WriteLine($"Looking for parameter: '{paramName}' (normalized to '{normalizedParamName}')");
-
-        // Find parameter - try normalized name first, then original
-        var parameter = Parameters.FirstOrDefault(p =>
-            string.Equals(p.GetStringProperty("m_name"), normalizedParamName, StringComparison.OrdinalIgnoreCase));
-
-        if (parameter == null)
-        {
-            // Try the original name as fallback
-            parameter = Parameters.FirstOrDefault(p =>
-                string.Equals(p.GetStringProperty("m_name"), paramName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (parameter == null)
-        {
-            Console.WriteLine($"Parameter '{paramName}' (normalized: '{normalizedParamName}') not found in Parameters array");
-            return null;
-        }
-
-        var paramId = parameter.GetSubCollection("m_id").GetIntegerProperty("m_id");
-        var paramType = parameter.GetStringProperty("m_eType");
-
-        // Map operator
-        var operatorMap = new Dictionary<string, string>
-        {
-            ["=="] = "COMPARISON_EQUALS",
-            ["!="] = "COMPARISON_NOT_EQUALS",
-            [">"] = "COMPARISON_GREATER",
-            ["<"] = "COMPARISON_LESS",
-            [">="] = "COMPARISON_GREATER_OR_EQUAL",
-            ["<="] = "COMPARISON_LESS_OR_EQUAL",
-        };
-
-        var comparisonOp = operatorMap.GetValueOrDefault(foundOperator, "COMPARISON_EQUALS");
-
-        // Parse value based on parameter type
-        var typedValue = CreateTypedValue(valuePart, paramType, parameter);
-        var comparisonString = GetComparisonString(valuePart, paramType, parameter);
-
-        var paramCondition = MakeNode("CParameterCondition");
-        paramCondition.AddProperty("m_paramID", MakeNodeIdObjectValue(paramId));
-        paramCondition.AddProperty("m_comparisonOp", comparisonOp);
-        paramCondition.AddProperty("m_comparisonValue", typedValue);
-        paramCondition.AddProperty("m_comparisonString", comparisonString);
-
-        return paramCondition;
-    }
-
-    private KVObject CreateTypedValue(string valueString, string paramType, KVObject parameter)
-    {
-        var typedValue = new KVObject(null, 2);
-
-        int typeCode = paramType switch
-        {
-            "BOOL" => 1,
-            "INTEGER" => 2,
-            "STRING" => 3,
-            "FLOAT" => 4,
-            "ENUM" => 2, // ENUM uses integer type
-            "VECTOR" => 5,
-            "QUATERNION" => 6,
-            _ => 0
-        };
-
-        object data;
-
-        try
-        {
-            data = paramType switch
-            {
-                "BOOL" => valueString == "1",
-                "INTEGER" => int.Parse(valueString),
-                "FLOAT" => float.Parse(valueString),
-                "ENUM" => int.Parse(valueString),
-                _ => valueString
-            };
-        }
-        catch
-        {
-            Console.WriteLine($"Error parsing value '{valueString}' for type '{paramType}'");
-            data = paramType == "BOOL" ? false : 0;
-        }
-
-        typedValue.AddProperty("m_nType", typeCode);
-        typedValue.AddProperty("m_data", data);
-
-        return typedValue;
-    }
-
-    private string GetComparisonString(string valueString, string paramType, KVObject parameter)
-    {
-        Console.WriteLine($"Getting comparison string for value '{valueString}', type '{paramType}'");
-
-        if (paramType == "BOOL")
-        {
-            return valueString == "1" ? "true" : "false";
-        }
-
-        if (paramType == "ENUM")
-        {
-            return GetEnumComparisonString(valueString, parameter);
-        }
-
-        return valueString;
-    }
-
-    private string GetEnumComparisonString(string valueString, KVObject parameter)
-    {
-        Console.WriteLine($"Getting enum comparison string for '{valueString}'");
-
-        if (!parameter.ContainsKey("m_enumOptions"))
-        {
-            Console.WriteLine($"No enum options found for parameter '{parameter.GetStringProperty("m_name")}'");
-            return valueString;
-        }
-
-        var enumOptions = parameter.GetArray<string>("m_enumOptions");
-        if (!int.TryParse(valueString, out int enumValue))
-        {
-            Console.WriteLine($"Could not parse enum value '{valueString}' as integer");
-            return valueString;
-        }
-
-        if (enumValue >= 0 && enumValue < enumOptions.Length)
-        {
-            var optionName = enumOptions[enumValue];
-            var paramName = parameter.GetStringProperty("m_name").ToUpper();
-            var result = $"ENUM_{paramName}_{optionName.ToUpper()}";
-            Console.WriteLine($"Enum comparison string: {result}");
-            return result;
-        }
-
-        Console.WriteLine($"Enum value {enumValue} out of range (0-{enumOptions.Length - 1})");
-        return valueString;
-    }
-
     KVObject ConvertToUncompiled(KVObject compiledNode)
     {
         var className = compiledNode.GetProperty<string>("_class");
@@ -1132,7 +807,6 @@ public class AnimationGraphExtract
         {
             if (key is "_class"
                     or "m_nodePath"
-                    or "m_paramSpans" // todo
             )
             {
                 continue;
@@ -1180,8 +854,6 @@ public class AnimationGraphExtract
                     node.AddProperty("m_blendDuration", convertedBlendDuration);
                     continue;
                 }
-
-                // blendDuration
             }
             else if (className is "CStateMachine")
             {
@@ -1192,7 +864,7 @@ public class AnimationGraphExtract
             }
             else if (className is "CSequence")
             {
-                // skip
+                // m_hSequence uses a clip number from the vmdl's ASEQ/m_localSequenceNameArray block.
                 if (key is "m_hSequence" or "m_duration")
                 {
                     continue;
@@ -1251,26 +923,97 @@ public class AnimationGraphExtract
             {
                 if (className is "CSequence" or "CCycleControlClip" or "CBlend2D")
                 {
-                    // this is tag spans like so:
-                    // {
-                    //     m_tagIndex = 0
-                    //     m_startCycle = 0.000000
-                    //     m_endCycle = 1.000000
-                    // },
+                    try
+                    {
+                        var compiledTagSpans = compiledNode.GetArray("m_tags");
+                        var tagSpans = new List<KVObject>();
+
+                        foreach (var compiledTagSpan in compiledTagSpans)
+                        {
+                            var tagIndex = compiledTagSpan.GetIntegerProperty("m_tagIndex");
+                            var startCycle = compiledTagSpan.GetFloatProperty("m_startCycle");
+                            var endCycle = compiledTagSpan.GetFloatProperty("m_endCycle");
+                            var duration = endCycle - startCycle;
+                            var tagId = -1L;
+                            if (tagIndex >= 0 && tagIndex < Tags.Length)
+                            {
+                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                            }
+                            var tagSpan = MakeNode("CAnimTagSpan");
+                            tagSpan.AddProperty("m_id", MakeNodeIdObjectValue(tagId));
+                            tagSpan.AddProperty("m_fStartCycle", startCycle);
+                            tagSpan.AddProperty("m_fDuration", duration);
+                            tagSpans.Add(tagSpan);
+                        }
+
+                        node.AddProperty("m_tagSpans", KVValue.MakeArray(tagSpans.ToArray()));
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error converting tag spans for {className}: {ex.Message}");
+                        node.AddProperty("m_tagSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
+                    }
                     continue;
                 }
+                else
+                {
+                    try
+                    {
+                        var tagIds = compiledNode.GetIntegerArray(key);
+                        node.AddProperty(key, KVValue.MakeArray(tagIds.Select(MakeNodeIdObjectValue)));
+                        continue;
+                    }
+                    catch (InvalidCastException)
+                    {
+                        Console.WriteLine(className + " m_tags is in unexpected format");
+                        continue;
+                    }
+                }
+            }
 
+            if (key is "m_paramSpans")
+            {
                 try
                 {
-                    var tagIds = compiledNode.GetIntegerArray(key);
-                    node.AddProperty(key, KVValue.MakeArray(tagIds.Select(MakeNodeIdObjectValue)));
-                    continue;
+                    var compiledParamSpans = compiledNode.GetSubCollection("m_paramSpans");
+                    if (compiledParamSpans != null && compiledParamSpans.ContainsKey("m_spans"))
+                    {
+                        var compiledSpans = compiledParamSpans.GetArray("m_spans");
+                        var paramSpans = new List<KVObject>();
+                        foreach (var compiledSpan in compiledSpans)
+                        {
+                            var paramSpan = MakeNode("CAnimParamSpan");
+                            if (compiledSpan.ContainsKey("m_samples"))
+                            {
+                                paramSpan.AddProperty("m_samples", compiledSpan.GetProperty<KVObject>("m_samples"));
+                            }
+                            if (compiledSpan.ContainsKey("m_hParam"))
+                            {
+                                var paramHandle = compiledSpan.GetSubCollection("m_hParam");
+                                var paramType = paramHandle.GetStringProperty("m_type");
+                                var paramIndex = paramHandle.GetIntegerProperty("m_index");
+                                var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                                paramSpan.AddProperty("m_id", paramIdValue);
+                            }
+                            if (compiledSpan.ContainsKey("m_flStartCycle"))
+                            {
+                                paramSpan.AddProperty("m_flStartCycle", compiledSpan.GetFloatProperty("m_flStartCycle"));
+                            }
+                            if (compiledSpan.ContainsKey("m_flEndCycle"))
+                            {
+                                paramSpan.AddProperty("m_flEndCycle", compiledSpan.GetFloatProperty("m_flEndCycle"));
+                            }
+                            paramSpans.Add(paramSpan);
+                        }
+                        node.AddProperty("m_paramSpans", KVValue.MakeArray(paramSpans.ToArray()));
+                    }
                 }
-                catch (InvalidCastException)
+                catch (Exception ex)
                 {
-                    Console.WriteLine(className + " m_tags is a tag span");
-                    continue;
+                    Console.WriteLine($"Error converting param spans for {className}: {ex.Message}");
+                    node.AddProperty("m_paramSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
                 }
+                continue;
             }
 
             if (key is "m_paramIndex")
@@ -1293,127 +1036,8 @@ public class AnimationGraphExtract
             var stateData = compiledNode.GetArray("m_stateData");
             var transitionData = compiledNode.GetArray("m_transitionData");
 
-            var states = stateMachine.GetArray("m_states");
-            var transitions = stateMachine.GetArray("m_transitions");
-
-            HashSet<string> passThroughStateProperties =
-            [
-                "m_name",
-                "m_stateID",
-                "m_bIsStartState",
-                "m_bIsEndtState",
-                "m_bIsPassthrough",
-            ];
-
-            var uncompiledStates = states.Select((state, i) =>
-            {
-                var data = stateData[i];
-                var transitionIndices = state.GetIntegerArray("m_transitionIndices");
-
-                var stateNode = MakeNode("CAnimNodeState");
-                float stateX = -150.0f * (nodePositionOffset + 1);
-                float stateY = 100.0f * (nodePositionOffset + 1);
-                var random = new Random(nodePositionOffset);
-                stateY += random.Next(-50, 51);
-                stateNode.AddProperty("m_vecPosition", MakeVector2(stateX, stateY));
-                nodePositionOffset++;
-
-                var uncompiledTransitions = transitionIndices.Select((transitionId) =>
-                {
-                    var transition = transitions[transitionId];
-                    var data = transitionData[transitionId];
-
-                    // m_conditionList?
-
-                    var transitionNode = MakeNode("CAnimNodeStateTransition",
-                        ("m_srcState", MakeNodeIdObjectValue(transition.GetIntegerProperty("m_srcStateIndex"))),
-                        ("m_destState", MakeNodeIdObjectValue(transition.GetIntegerProperty("m_destStateIndex"))),
-                        ("m_bDisabled", transition.GetIntegerProperty("m_bDisabled") > 0),
-                        ("m_bReset", data.GetIntegerProperty("m_bReset") > 0)
-                    );
-                    float transitionX = -150.0f * (nodePositionOffset + 1);
-                    float transitionY = 100.0f * (nodePositionOffset + 1);
-                    var transRandom = new Random(nodePositionOffset);
-                    transitionY += transRandom.Next(-50, 51);
-                    transitionNode.AddProperty("m_vecPosition", MakeVector2(transitionX, transitionY));
-                    nodePositionOffset++;
-
-                    // data m_resetCycleOption int -> string
-                    // cycle and blend duration
-
-                    AddInputConnection(transitionNode, transition.GetIntegerProperty("m_nodeIndex"));
-                    return transitionNode;
-                });
-
-                stateNode.AddProperty("m_transitions", KVValue.MakeArray(uncompiledTransitions));
-
-                if (state.ContainsKey("m_actions"))
-                {
-                    stateNode.AddProperty("m_actions", KVValue.MakeArray(state.GetArray("m_actions").Select(compiledAction =>
-                    {
-                        var uncompiledAction = MakeNode("CStateAction");
-                        float actionX = -150.0f * (nodePositionOffset + 1);
-                        float actionY = 100.0f * (nodePositionOffset + 1);
-                        var actionRandom = new Random(nodePositionOffset);
-                        actionY += actionRandom.Next(-50, 51);
-                        uncompiledAction.AddProperty("m_vecPosition", MakeVector2(actionX, actionY));
-                        nodePositionOffset++;
-
-                        foreach (var compiledProperty in compiledAction)
-                        {
-                            if (compiledProperty.Key is "m_pAction")
-                            {
-                                var action = (KVObject)compiledProperty.Value;
-                                var actionData = MakeNode(action.GetProperty<string>("_class").Replace("Updater", string.Empty, StringComparison.Ordinal));
-                                if (action.ContainsKey("m_nTagIndex"))
-                                {
-                                    // convert from index to handle
-                                    var tagId = action.GetIntegerProperty("m_nTagIndex");
-                                    if (tagId != -1)
-                                    {
-                                        tagId = Tags[tagId].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                                    }
-
-                                    actionData.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
-                                }
-
-                                if (action.ContainsKey("m_hParam"))
-                                {
-                                    var paramRef = action.GetSubCollection("m_hParam");
-                                    var paramType = paramRef.GetStringProperty("m_type");
-                                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                                    actionData.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
-                                }
-
-                                if (action.ContainsKey("m_value"))
-                                {
-                                    actionData.AddProperty("m_value", action.GetSubCollection("m_value"));
-                                }
-
-                                uncompiledAction.AddProperty(compiledProperty.Key, actionData);
-                                continue;
-                            }
-                            uncompiledAction.AddProperty(compiledProperty.Key, compiledProperty.Value);
-                        }
-                        return uncompiledAction;
-                    })));
-                }
-
-                // Pasthrough properties
-                foreach (var (key, value) in state.Properties)
-                {
-                    if (passThroughStateProperties.Contains(key))
-                    {
-                        stateNode.AddProperty(key, value);
-                    }
-                }
-
-                AddInputConnection(stateNode, data.GetSubCollection("m_pChild").GetIntegerProperty("m_nodeIndex"));
-                stateNode.AddProperty("m_bIsRootMotionExclusive", data.GetIntegerProperty("m_bExclusiveRootMotion") > 0);
-                return stateNode;
-            });
-
-            node.AddProperty("m_states", KVValue.MakeArray(uncompiledStates));
+            var states = ConvertStateMachine(stateMachine, stateData, transitionData, isComponent: false);
+            node.AddProperty("m_states", KVValue.MakeArray(states));
         }
 
         return node;
@@ -1439,6 +1063,7 @@ public class AnimationGraphExtract
                 "CBoolAnimParameter" => "BOOL",
                 "CIntAnimParameter" => "INTEGER",
                 "CVectorAnimParameter" => "VECTOR",
+                "CQuaternionAnimParameter" => "QUATERNION",
                 "CSymbolAnimParameter" => "SYMBOL",
                 _ => paramClass.Replace("C", "").Replace("AnimParameter", "").ToUpper()
             };
