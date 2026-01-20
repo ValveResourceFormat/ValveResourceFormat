@@ -15,20 +15,21 @@ public class AnimationGraphExtract
     private KVObject graph => resourceData.Data;
     private readonly string? outputFileName;
     private int nodePositionOffset;
+    private readonly IFileLoader fileLoader;
+    private Dictionary<int, string> weightListNamesCache;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
     /// </summary>
     /// <param name="resource">The resource to extract from.</param>
-    public AnimationGraphExtract(Resource resource)
+    public AnimationGraphExtract(Resource resource, IFileLoader fileLoader)
     {
         if (resource.DataBlock is not BinaryKV3 kv3)
         {
             throw new InvalidDataException($"Resource data block is not a BinaryKV3");
         }
-
         resourceData = kv3;
-
+        this.fileLoader = fileLoader;
         if (resource.FileName != null)
         {
             outputFileName = resource.FileName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal)
@@ -36,7 +37,6 @@ public class AnimationGraphExtract
                 : resource.FileName;
         }
     }
-
     /// <summary>
     /// Converts the animation graph to a content file.
     /// </summary>
@@ -45,7 +45,6 @@ public class AnimationGraphExtract
     {
         // for newer resources, the class is "CAnimGraphModelBinding"
         var isUncompiledAnimationGraph = graph.GetStringProperty("_class") == "CAnimationGraph";
-
         var contentFile = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(isUncompiledAnimationGraph
@@ -54,7 +53,6 @@ public class AnimationGraphExtract
             ),
             FileName = outputFileName ?? "animgraph",
         };
-
         return contentFile;
     }
 
@@ -97,17 +95,9 @@ public class AnimationGraphExtract
         Tags = tagManager.GetArray("m_tags");
         Parameters = paramListUpdater.GetArray("m_parameters");
 
-        KVObject clipDataManager;
-        if (tagManager.ContainsKey("sequence_tag_spans"))
-        {
-            var sequenceTagSpans = tagManager.GetArray("sequence_tag_spans");
-            clipDataManager = ConvertClipDataManager(sequenceTagSpans);
-        }
-        else
-        {
-            clipDataManager = MakeNode("CAnimClipDataManager");
-            clipDataManager.AddProperty("m_itemTable", new KVObject(null, isArray: false, 0));
-        }
+        var clipDataManager = tagManager.ContainsKey("sequence_tag_spans")
+            ? ConvertClipDataManager(tagManager.GetArray("sequence_tag_spans"))
+            : MakeNode("CAnimClipDataManager", ("m_itemTable", new KVObject(null, isArray: false, 0)));
 
         var nodeManager = MakeListNode("CAnimNodeManager", "m_nodes");
         var componentList = new List<KVObject>();
@@ -116,15 +106,8 @@ public class AnimationGraphExtract
             var compiledComponents = data.GetArray("m_components");
             foreach (var compiledComponent in compiledComponents)
             {
-                try
-                {
-                    var componentData = ConvertComponent(compiledComponent);
-                    componentList.Add(componentData);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error converting component: {ex.Message}");
-                }
+                var componentData = ConvertComponent(compiledComponent);
+                componentList.Add(componentData);
             }
         }
 
@@ -167,7 +150,88 @@ public class AnimationGraphExtract
 
         return new KV3File(kv, format: KV3IDLookup.Get("animgraph19")).ToString();
     }
+    private Dictionary<int, string> LoadWeightListNamesFromModel()
+    {
+        var weightListNames = new Dictionary<int, string>();
+        var modelName = graph.GetStringProperty("m_modelName");
+        if (string.IsNullOrEmpty(modelName))
+        {
+            weightListNames[0] = "default";
+            return weightListNames;
+        }
+        try
+        {
+            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            if (modelResource == null)
+            {
+                weightListNames[0] = "default";
+                return weightListNames;
+            }
+            var aseqData = GetAseqDataFromResource(modelResource);
+            if (aseqData != null)
+            {
+                var localBoneMaskArray = aseqData.GetArray("m_localBoneMaskArray");
+                if (localBoneMaskArray != null)
+                {
+                    for (var i = 0; i < localBoneMaskArray.Length; i++)
+                    {
+                        var boneMask = localBoneMaskArray[i];
+                        var weightListName = boneMask.GetStringProperty("m_sName");
+                        weightListNames[i] = !string.IsNullOrEmpty(weightListName)
+                            ? weightListName
+                            : i == 0 ? "default" : $"weightlist_{i}";
+                    }
+                    if (weightListNames.Count == 0 && localBoneMaskArray.Length == 0)
+                    {
+                        weightListNames[0] = "default";
+                    }
+                }
+                else
+                {
+                    weightListNames[0] = "default";
+                }
+            }
+            else
+            {
+                weightListNames[0] = "default";
+            }
+        }
+        catch
+        {
+            weightListNames[0] = "default";
+        }
+        if (!weightListNames.ContainsKey(0))
+        {
+            weightListNames[0] = "default";
+        }
+        return weightListNames;
+    }
+    private static KVObject? GetAseqDataFromResource(Resource modelResource)
+    {
+        if (modelResource.ContainsBlockType(BlockType.ASEQ))
+        {
+            var aseqBlock = modelResource.GetBlockByType(BlockType.ASEQ);
 
+            if (aseqBlock is KeyValuesOrNTRO keyValuesOrNTRO)
+            {
+                var data = keyValuesOrNTRO.Data;
+                if (data is KVObject kvData)
+                {
+                    if (kvData.ContainsKey("m_localBoneMaskArray") ||
+                        kvData.ContainsKey("m_localSequenceNameArray") ||
+                        kvData.GetStringProperty("m_sName")?.Contains("embedded_sequence_data") == true)
+                    {
+                        return kvData;
+                    }
+                    else if (kvData.ContainsKey("ASEQ"))
+                    {
+                        return kvData.GetSubCollection("ASEQ");
+                    }
+                }
+            }
+        }
+        return null;
+    }
     private KVObject ConvertClipDataManager(KVObject[] sequenceTagSpans)
     {
         var clipDataManager = MakeNode("CAnimClipDataManager");
@@ -254,6 +318,15 @@ public class AnimationGraphExtract
         blendDuration.AddProperty("m_eSource", source);
 
         return blendDuration;
+    }
+    private string GetWeightListName(long weightListIndex)
+    {
+        weightListNamesCache ??= LoadWeightListNamesFromModel();
+        if (weightListNamesCache.TryGetValue((int)weightListIndex, out var name))
+        {
+            return name;
+        }
+        return weightListIndex == 0 ? "default" : $"weightlist_{weightListIndex}";
     }
     private KVObject[] ConvertStateMachine(KVObject compiledStateMachine, KVObject[] stateDataArray, KVObject[] transitionDataArray, bool isComponent = false)
     {
@@ -817,7 +890,7 @@ public class AnimationGraphExtract
 
             // common remapped key
             if (key is "m_name" && className is "CSequence" or "CChoice" or "CSelector"
-                or "CStateMachine" or "CRoot")
+            or "CStateMachine" or "CRoot" or "CAdd" or "CSubtract")
             {
                 newKey = "m_sName";
             }
@@ -865,51 +938,165 @@ public class AnimationGraphExtract
             else if (className is "CSequence")
             {
                 // m_hSequence uses a clip number from the vmdl's ASEQ/m_localSequenceNameArray block.
-                if (key is "m_hSequence" or "m_duration")
+                // It's also used in Blend2DUpdateNode/m_items, AimMatrix, CycleControlClip, DirectionalBlend, LeanMatrix, SingleFrame
+                if (key is "m_duration")
                 {
                     continue;
                 }
-
-                // remap
-                if (key is "m_name")
+                else if (key is "m_hSequence")
                 {
-                    // Is this reliable? Using the node name as the sequence name.
-                    node.AddProperty("m_sequenceName", value);
+                    continue;
+                }
+                else if (key is "m_name")
+                {
+                    node.AddProperty("m_sName", value);
+                    continue;
                 }
             }
             else if (className is "CChoice")
             {
-                // skip
-                if (key is "m_weights" or "m_blendTimes")
-                {
-                    continue;
-                }
-
                 if (key is "m_children")
                 {
                     var weights = compiledNode.GetFloatArray("m_weights");
                     var blendTimes = compiledNode.GetFloatArray("m_blendTimes");
-
                     if (inputNodeIds is not null)
                     {
-                        var newInputs = weights.Zip(blendTimes, inputNodeIds).Select((choice) =>
+                        var newInputs = weights.Zip(blendTimes, inputNodeIds).Select((choice, index) =>
                         {
                             var (weight, blendTime, nodeId) = choice;
-
-                            var choiceNode = new KVObject(null, 3);
+                            var choiceNode = new KVObject(null, 4);
                             AddInputConnection(choiceNode, nodeId);
+                            choiceNode.AddProperty("m_name", (index + 1).ToString());
                             choiceNode.AddProperty("m_weight", weight);
                             choiceNode.AddProperty("m_blendTime", blendTime);
-
                             return choiceNode;
                         });
-
                         node.AddProperty("m_children", KVValue.MakeArray(newInputs));
                     }
                     continue;
                 }
+                if (key is "m_weights" or "m_blendTimes")
+                {
+                    continue;
+                }
             }
-
+            else if (className is "CAdd")
+            {
+                if (key is "m_pChild1")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    node.AddProperty("m_baseInput", MakeInputConnection(childNodeId));
+                    continue;
+                }
+                else if (key is "m_pChild2")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    node.AddProperty("m_additiveInput", MakeInputConnection(childNodeId));
+                    continue;
+                }
+                else if (key is "m_bResetChild1")
+                {
+                    node.AddProperty("m_bResetBase", value);
+                    continue;
+                }
+                else if (key is "m_bResetChild2")
+                {
+                    node.AddProperty("m_bResetAdditive", value);
+                    continue;
+                }
+            }
+            else if (className is "CSubtract")
+            {
+                if (key is "m_pChild1")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    node.AddProperty("m_baseInputConnection", MakeInputConnection(childNodeId));
+                    continue;
+                }
+                else if (key is "m_pChild2")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    node.AddProperty("m_subtractInputConnection", MakeInputConnection(childNodeId));
+                    continue;
+                }
+                else if (key is "m_bResetChild1")
+                {
+                    node.AddProperty("m_bResetBase", value);
+                    continue;
+                }
+                else if (key is "m_bResetChild2")
+                {
+                    node.AddProperty("m_bResetSubtract", value);
+                    continue;
+                }
+            }
+            else if (className is "CBoneMask")
+            {
+                if (key is "m_pChild1")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    node.AddProperty("m_inputConnection1", MakeInputConnection(childNodeId));
+                    continue;
+                }
+                else if (key is "m_pChild2")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    node.AddProperty("m_inputConnection2", MakeInputConnection(childNodeId));
+                    continue;
+                }
+                if (key is "m_hBlendParameter")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                    node.AddProperty("m_blendParameter", paramIdValue);
+                    continue;
+                }
+                if (key is "m_nWeightListIndex")
+                {
+                    var weightListIndex = compiledNode.GetIntegerProperty("m_nWeightListIndex");
+                    var weightListName = GetWeightListName(weightListIndex);
+                    node.AddProperty("m_weightListName", weightListName);
+                    continue;
+                }
+            }
+            else if (className is "CBlend")
+            {
+                if (key is "m_children")
+                {
+                    var targetValues = compiledNode.GetFloatArray("m_targetValues");
+                    if (inputNodeIds is not null)
+                    {
+                        var blendChildren = new List<KVObject>();
+                        for (int childIndex = 0; childIndex < inputNodeIds.Length; childIndex++)
+                        {
+                            var nodeId = inputNodeIds[childIndex];
+                            var blendValue = childIndex < targetValues.Length ? targetValues[childIndex] : 0.0f;
+                            var blendChild = MakeNode("CBlendNodeChild");
+                            AddInputConnection(blendChild, nodeId);
+                            blendChild.AddProperty("m_name", "Unnamed");
+                            blendChild.AddProperty("m_blendValue", blendValue);
+                            blendChildren.Add(blendChild);
+                        }
+                        node.AddProperty("m_children", KVValue.MakeArray(blendChildren.ToArray()));
+                    }
+                    continue;
+                }
+                if (key is "m_targetValues" or "m_sortedOrder")
+                {
+                    continue;
+                }
+                if (key is "m_paramIndex")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                    node.AddProperty("m_param", paramIdValue);
+                    continue;
+                }
+            }
             if (key is "m_children")
             {
                 if (inputNodeIds is not null)
@@ -950,7 +1137,6 @@ public class AnimationGraphExtract
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Error converting tag spans for {className}: {ex.Message}");
                         node.AddProperty("m_tagSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
                     }
                     continue;
@@ -965,7 +1151,6 @@ public class AnimationGraphExtract
                     }
                     catch (InvalidCastException)
                     {
-                        Console.WriteLine(className + " m_tags is in unexpected format");
                         continue;
                     }
                 }
@@ -1010,7 +1195,6 @@ public class AnimationGraphExtract
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error converting param spans for {className}: {ex.Message}");
                     node.AddProperty("m_paramSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
                 }
                 continue;
