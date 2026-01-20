@@ -53,6 +53,11 @@ namespace ValveResourceFormat.Blocks
             /// Raw buffer data.
             /// </summary>
             public byte[] Data;
+
+            /// <summary>
+            /// Total size of the buffer in bytes.
+            /// </summary>
+            public readonly uint TotalSizeInBytes => ElementCount * ElementSizeInBytes;
         }
 
         /// <summary>
@@ -122,25 +127,12 @@ namespace ValveResourceFormat.Blocks
             foreach (var vb in vertexBuffers)
             {
                 var vertexBuffer = BufferDataFromDATA(vb, isVertex: true);
-
-                var decompressedSize = vertexBuffer.ElementCount * vertexBuffer.ElementSizeInBytes;
-                if (vertexBuffer.Data.Length != decompressedSize)
-                {
-                    vertexBuffer.Data = MeshOptimizerVertexDecoder.DecodeVertexBuffer((int)vertexBuffer.ElementCount, (int)vertexBuffer.ElementSizeInBytes, vertexBuffer.Data);
-                }
                 VertexBuffers.Add(vertexBuffer);
             }
             var indexBuffers = data.GetArray("m_indexBuffers");
             foreach (var ib in indexBuffers)
             {
                 var indexBuffer = BufferDataFromDATA(ib, isVertex: false);
-
-                var decompressedSize = indexBuffer.ElementCount * indexBuffer.ElementSizeInBytes;
-                if (indexBuffer.Data.Length != decompressedSize)
-                {
-                    indexBuffer.Data = MeshOptimizerIndexDecoder.DecodeIndexBuffer((int)indexBuffer.ElementCount, (int)indexBuffer.ElementSizeInBytes, indexBuffer.Data);
-                }
-
                 IndexBuffers.Add(indexBuffer);
             }
         }
@@ -219,7 +211,7 @@ namespace ValveResourceFormat.Blocks
 
             reader.BaseStream.Position = refB + dataOffset;
 
-            var decompressedSize = (int)(buffer.ElementCount * buffer.ElementSizeInBytes);
+            var decompressedSize = (int)buffer.TotalSizeInBytes;
 
             if (decompressedSize > totalSize)
             {
@@ -296,7 +288,7 @@ namespace ValveResourceFormat.Blocks
             };
 
             var inputLayoutFields = data.GetArray("m_inputLayoutFields");
-            buffer.InputLayoutFields = inputLayoutFields.Select(static il =>
+            buffer.InputLayoutFields = [.. inputLayoutFields.Select(static il =>
             {
                 var semanticName = il.Properties["m_pSemanticName"];
                 var semanticNameStr = string.Empty;
@@ -325,11 +317,14 @@ namespace ValveResourceFormat.Blocks
                     InstanceStepRate = il.GetInt32Property("m_nInstanceStepRate"),
                     ShaderSemantic = il.GetStringProperty("m_szShaderSemantic"),
                 };
-            }).ToArray();
+            })];
 
             if (data.ContainsKey("m_pData"))
             {
-                buffer.Data = data.GetArray<byte>("m_pData");
+                var bufferData = data.GetArray<byte>("m_pData");
+                buffer.Data = bufferData.Length == buffer.TotalSizeInBytes
+                    ? bufferData
+                    : DecompressData(buffer, bufferData, bufferData.Length, isVertex, isZstdCompressed: false);
             }
             else // MVTX MIDX update
             {
@@ -337,21 +332,20 @@ namespace ValveResourceFormat.Blocks
                 var dataBlock = Resource.GetBlockByIndex(blockIndex);
                 var isMeshoptCompressed = data.GetByteProperty("m_bMeshoptCompressed") == 1;
                 var isZstdCompressed = data.GetByteProperty("m_bCompressedZSTD") == 1;
-                var decompressedSize = (int)(buffer.ElementCount * buffer.ElementSizeInBytes);
-                var totalSize = (int)dataBlock.Size;
+                var compressedSize = (int)dataBlock.Size;
 
-                var temp = ArrayPool<byte>.Shared.Rent(totalSize);
+                var temp = ArrayPool<byte>.Shared.Rent(compressedSize);
 
                 try
                 {
                     Debug.Assert(Resource.Reader != null);
-                    var span = temp.AsSpan(0, totalSize);
+                    var span = temp.AsSpan(0, compressedSize);
                     Resource.Reader.BaseStream.Position = dataBlock.Offset;
                     Resource.Reader.Read(span);
 
                     if (isMeshoptCompressed)
                     {
-                        buffer.Data = DecompressData(buffer, span, decompressedSize, isVertex, isZstdCompressed);
+                        buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed);
                     }
                     else
                     {

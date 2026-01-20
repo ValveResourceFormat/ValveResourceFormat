@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < vbib.VertexBuffers.Count; i++)
             {
-                GL.NamedBufferData(VertexBuffers[i], (IntPtr)(vbib.VertexBuffers[i].ElementCount * vbib.VertexBuffers[i].ElementSizeInBytes), vbib.VertexBuffers[i].Data, BufferUsageHint.StaticDraw);
+                GL.NamedBufferData(VertexBuffers[i], (IntPtr)vbib.VertexBuffers[i].TotalSizeInBytes, vbib.VertexBuffers[i].Data, BufferUsageHint.StaticDraw);
             }
 
             IndexBuffers = new int[vbib.IndexBuffers.Count];
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < vbib.IndexBuffers.Count; i++)
             {
-                GL.NamedBufferData(IndexBuffers[i], (IntPtr)(vbib.IndexBuffers[i].ElementCount * vbib.IndexBuffers[i].ElementSizeInBytes), vbib.IndexBuffers[i].Data, BufferUsageHint.StaticDraw);
+                GL.NamedBufferData(IndexBuffers[i], (IntPtr)vbib.IndexBuffers[i].TotalSizeInBytes, vbib.IndexBuffers[i].Data, BufferUsageHint.StaticDraw);
             }
         }
 
