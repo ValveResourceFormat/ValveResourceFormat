@@ -537,7 +537,7 @@ namespace GUI.Types.Viewers
             return false;
         }
 
-        private static TreeViewDoubleBuffered BuildExternalRefTree(VrfGuiContext vrfGuiContext, List<ResourceExtRefList.ResourceReferenceInfo> references)
+        public static TreeViewDoubleBuffered BuildExternalRefTree(VrfGuiContext vrfGuiContext, List<ResourceExtRefList.ResourceReferenceInfo> references)
         {
             var treeView = new TreeViewDoubleBuffered
             {

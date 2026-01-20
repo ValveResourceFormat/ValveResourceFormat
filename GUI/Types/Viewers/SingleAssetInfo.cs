@@ -1,12 +1,13 @@
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 
 namespace GUI.Types.Viewers
@@ -77,17 +78,10 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            var resTabs = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
             var parentTab = new ThemedTabPage(Path.GetFileName(filePath))
             {
                 ToolTipText = filePath
             };
-            parentTab.Controls.Add(resTabs);
-
-            var tab = new ThemedTabPage("File");
 
             var fileInfo = new StringBuilder();
 
@@ -100,13 +94,28 @@ namespace GUI.Types.Viewers
 
             var fileControl = new CodeTextBox(fileInfo.ToString());
 
-            tab.Controls.Add(fileControl);
-            resTabs.TabPages.Add(tab);
-
             if (assetInfo == null)
             {
+                fileControl.Dock = DockStyle.Fill;
+                parentTab.Controls.Add(fileControl);
                 return parentTab;
             }
+
+            var mainSplitter = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+            };
+            parentTab.Controls.Add(mainSplitter);
+
+            var leftSplitter = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+            };
+            mainSplitter.Panel1.Controls.Add(leftSplitter);
+
+            fileControl.Dock = DockStyle.Fill;
+            leftSplitter.Panel1.Controls.Add(fileControl);
 
             var referencedBy = new List<FileReference>();
 
@@ -143,32 +152,24 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            // Info
-            tab = new ThemedTabPage("Info");
+            var externalReferences = referencedBy
+                .Select(static r => new ResourceExtRefList.ResourceReferenceInfo { Name = r.File })
+                .DistinctBy(static x => x.Name)
+                .ToList();
+            var referencedControl = Resource.BuildExternalRefTree(guiContext, externalReferences);
+            leftSplitter.Panel2.Controls.Add(referencedControl);
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, assetInfo, "Asset Info");
 
-            var infoControl = new CodeTextBox(Encoding.UTF8.GetString(ms.ToArray()));
-            tab.Controls.Add(infoControl);
-            resTabs.TabPages.Add(tab);
-
-            // Referenced by
-            tab = new ThemedTabPage("Referenced by");
-
-            var referencedContorl = new DataGridView
+            var infoControl = new CodeTextBox(Encoding.UTF8.GetString(ms.ToArray()))
             {
                 Dock = DockStyle.Fill,
-                AutoGenerateColumns = true,
-                AutoSize = true,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                DataSource = new BindingSource(new BindingList<FileReference>(referencedBy), string.Empty),
             };
+            mainSplitter.Panel2.Controls.Add(infoControl);
 
-            tab.Controls.Add(referencedContorl);
-            resTabs.TabPages.Add(tab);
+            mainSplitter.SplitterDistance = mainSplitter.Width / 2;
+            leftSplitter.SplitterDistance = leftSplitter.Height / 2;
 
             return parentTab;
         }
