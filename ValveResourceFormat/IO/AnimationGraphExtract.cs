@@ -250,7 +250,7 @@ public class AnimationGraphExtract
         blendDuration.AddProperty("m_paramID", paramIdValue);
         var paramIdObject = (KVObject)paramIdValue.Value;
         var paramId = paramIdObject.GetIntegerProperty("m_id");
-        var source = paramId == 4294967295 ? "Constant" : "Parameter";
+        var source = paramId == uint.MaxValue ? "Constant" : "Parameter";
         blendDuration.AddProperty("m_eSource", source);
 
         return blendDuration;
