@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="CLI/CLI.csproj" />
+  <Project Path="GUI/GUI.csproj" />
+  <Project Path="Renderer/Renderer.csproj" />
+  <Project Path="Tests/Tests.csproj" />
+  <Project Path="ValveResourceFormat/ValveResourceFormat.csproj" />
+</Solution>

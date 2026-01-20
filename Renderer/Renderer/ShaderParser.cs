@@ -334,7 +334,7 @@ namespace ValveResourceFormat.Renderer
             return stream;
         }
 #else
-        // Path to the folder where the ValveResourceFormat.sln is on disk (parent of the GUI folder)
+        // Path to the folder where the ValveResourceFormat.slnx is on disk (parent of the GUI folder)
         private static readonly string SolutionRootDirector = GetSolutionRootDirectory();
         private static readonly string ShaderRootDirectory = Path.Combine(SolutionRootDirector, ShaderDirectory.Replace('.', Path.DirectorySeparatorChar));
 
@@ -378,7 +378,7 @@ namespace ValveResourceFormat.Renderer
                     throw new DirectoryNotFoundException("Failed to find the project root folder for the shaders, are you debugging in some unconventional setup?");
                 }
 
-                fileName = Path.Join(root, "ValveResourceFormat.sln");
+                fileName = Path.Join(root, "ValveResourceFormat.slnx");
             }
             while (!File.Exists(fileName));
 
