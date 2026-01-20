@@ -126,12 +126,16 @@ namespace ValveResourceFormat.Renderer
             var def = new ExposureSettings();
             return new ExposureSettings
             {
-                // todo: These changed to minlogexposure maxlogexposure
-                ExposureMin = entity.GetPropertyUnchecked("minexposure", def.ExposureMin),
-                ExposureMax = entity.GetPropertyUnchecked("maxexposure", def.ExposureMax),
+                ExposureMin = entity.ContainsKey("minlogexposure")
+                    ? MathF.Pow(2, entity.GetPropertyUnchecked<float>("minlogexposure"))
+                    : entity.GetPropertyUnchecked("minexposure", def.ExposureMin),
+                ExposureMax = entity.ContainsKey("maxlogexposure")
+                    ? MathF.Pow(2, entity.GetPropertyUnchecked<float>("maxlogexposure"))
+                    : entity.GetPropertyUnchecked("maxexposure", def.ExposureMax),
                 ExposureSpeedUp = entity.GetPropertyUnchecked("exposurespeedup", def.ExposureSpeedUp),
                 ExposureSpeedDown = entity.GetPropertyUnchecked("exposurespeeddown", def.ExposureSpeedDown),
                 ExposureCompensation = entity.GetPropertyUnchecked("exposurecompensation", def.ExposureCompensation),
+                ExposureSmoothingRange = entity.GetPropertyUnchecked("exposuresmoothingrange", def.ExposureSmoothingRange),
                 AutoExposureEnabled = entity.GetProperty<bool>("enableexposure"), // todo: test where this is enabled/disabled
             };
         }
