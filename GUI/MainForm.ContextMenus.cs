@@ -315,13 +315,22 @@ namespace GUI
                 return;
             }
 
-            var tab = Types.Viewers.SingleAssetInfo.Create(guiContext, selectedNode.PackageEntry);
+            Cursor.Current = Cursors.WaitCursor;
 
-            if (tab != null)
+            try
             {
-                tab.ImageIndex = Icons["Info"];
-                mainTabs.TabPages.Add(tab);
-                mainTabs.SelectTab(tab);
+                var tab = Types.Viewers.SingleAssetInfo.Create(guiContext, selectedNode.PackageEntry);
+
+                if (tab != null)
+                {
+                    tab.ImageIndex = Icons["Info"];
+                    mainTabs.TabPages.Add(tab);
+                    mainTabs.SelectTab(tab);
+                }
+            }
+            finally
+            {
+                Cursor.Current = Cursors.Default;
             }
         }
 
