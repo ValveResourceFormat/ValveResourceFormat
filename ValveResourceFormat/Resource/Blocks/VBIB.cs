@@ -322,9 +322,11 @@ namespace ValveResourceFormat.Blocks
             if (data.ContainsKey("m_pData"))
             {
                 var bufferData = data.GetArray<byte>("m_pData");
-                buffer.Data = bufferData.Length == buffer.TotalSizeInBytes
+                var decompressedSize = (int)buffer.TotalSizeInBytes;
+
+                buffer.Data = bufferData.Length == decompressedSize
                     ? bufferData
-                    : DecompressData(buffer, bufferData, bufferData.Length, isVertex, isZstdCompressed: false);
+                    : DecompressData(buffer, bufferData, decompressedSize, isVertex, isZstdCompressed: false);
             }
             else // MVTX MIDX update
             {
