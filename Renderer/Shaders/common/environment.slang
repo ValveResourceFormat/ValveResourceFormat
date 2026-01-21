@@ -78,7 +78,7 @@ float GetEnvMapLOD(float roughness, vec3 R)
 
 
 // Cubemap Normalization
-#define bUseCubemapNormalization 0
+#define bUseCubemapNormalization 1
 const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445); // Normalization value in Alyx. Haven't checked the other games
 
 float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
@@ -89,14 +89,18 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
     }
 
     #if (bUseCubemapNormalization == 1)
-        // Cancel out lighting
-        // SH is currently fully 1.0, for temporary reasons.
-        // We don't know how to get the greyscale SH that they use here, because the radiance coefficients in the cubemap texture are rgb.
-        float NormalizationTerm = GetLuma(irradiance);// / dot(vec4(N, 1.0), g_vEnvironmentMapNormalizationSH[EnvMapIndex]);
+        float NormalizationTerm = pow(GetLuma(irradiance), 1.5) * 4;
 
-        // Reduce cancellation on glossier surfaces
-        float NormalizationClamp = max(1.0, rough * CubemapNormalizationParams.x + CubemapNormalizationParams.y);
-        return min(NormalizationTerm, NormalizationClamp);
+        const float lowestNormalization = 0.1; 
+        const float rmin = -0.1;
+        const float rmax = 0.9;
+
+        float center = 0.5 * (rmin + rmax);
+        float range = 0.5 * (rmax - rmin);
+        float dist = saturate(abs(rough - center) / range);
+        float smoothdist = smoothstep(lowestNormalization, 1.0, dist);
+
+        return clamp(NormalizationTerm, max(lowestNormalization, dist), 1.0);
     #else
         return 1.0;
     #endif
