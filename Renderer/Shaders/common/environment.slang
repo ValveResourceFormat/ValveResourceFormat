@@ -65,7 +65,7 @@ vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, 
 }
 
 
-float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
+float GetEnvMapLOD(float roughness, vec3 R)
 {
     if (g_iRenderMode == renderMode_Cubemaps)
     {
@@ -73,13 +73,6 @@ float GetEnvMapLOD(float roughness, vec3 R, float clothMask)
     }
 
     const float EnvMapMipCount = g_vEnvMapSizeConstants.x;
-
-    if (F_CLOTH_SHADING == 1)
-    {
-        float lod = mix(roughness, pow(roughness, 0.125), clothMask);
-        return lod * EnvMapMipCount;
-    }
-
     return roughness * EnvMapMipCount;
 }
 
@@ -113,10 +106,10 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
 // BRDF
 uniform sampler2D g_tBRDFLookup;
 
-vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
+vec3 EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
 {
     float NdotV = ClampToPositive(dot(N, V));
-    vec2 lookupCoords = vec2(NdotV, sqrt(rough));
+    vec2 lookupCoords = vec2(NdotV, perceptualRoughness);
 
     vec2 GGXLut = textureLod(g_tBRDFLookup, lookupCoords, 0.0).xy;
     GGXLut = pow2(GGXLut);
@@ -124,10 +117,10 @@ vec3 EnvBRDF(vec3 specColor, float rough, vec3 N, vec3 V)
     return specColor * GGXLut.x + GGXLut.y;
 }
 
-float EnvBRDFCloth(float roughness, vec3 N, vec3 V)
+float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
 {
     float NoH = dot(normalize(N + V), N);
-    return D_Charlie(roughness, NoH) * V_Neubelt(NoH, NoH);
+    return D_Charlie(pow2(perceptualRoughness), NoH) * V_Neubelt(NoH, NoH);
 }
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
@@ -161,27 +154,27 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
         vec3 reflectionNormal = mat.AmbientNormal;
     #endif
 
-    #if defined(ANISO_ROUGHNESS)
-        float roughness = sqrt(max(mat.Roughness.x, mat.Roughness.y));
-    #else
-        float roughness = mat.Roughness.x;
-    #endif
-
     if (g_iRenderMode == renderMode_Cubemaps)
     {
         reflectionNormal = mat.GeometricNormal;
-        roughness = 0.0;
+        mat.IsometricRoughness = MIN_ROUGHNESS;
+    }
+
+    float perceptualRoughness = RemapValClamped(mat.IsometricRoughness, MIN_ROUGHNESS, 1.0, 0.0, 1.0);
+    
+    if (F_CLOTH_SHADING == 1)
+    {
+        perceptualRoughness = mix(perceptualRoughness, sqrt(perceptualRoughness), mat.ClothMask);
     }
 
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
 
     // Blend to fully corrected
-    float flAmbientNormalMix = roughnessReflectionCorrectionAmount * mix(roughness, sqrt(roughness), mat.ClothMask);
+    float flAmbientNormalMix = roughnessReflectionCorrectionAmount * perceptualRoughness;
+    float lod = GetEnvMapLOD(sqrt(perceptualRoughness), R);
 
     vec3 envMap = vec3(0.0);
-
-    const float lod = GetEnvMapLOD(roughness, R, 0.0);
 
     #if (S_SCENE_CUBEMAP_TYPE == 0)
         envMap = vec3(0.3, 0.1, 0.1);
@@ -283,7 +276,7 @@ vec3 GetEnvironment(MaterialProperties_t mat, float roughnessReflectionCorrectio
 
 vec3 GetEnvironment(MaterialProperties_t mat)
 {
-    return GetEnvironment(mat, 1.0);
+    return GetEnvironment(mat, 0.2);
 }
 
 #endif

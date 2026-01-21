@@ -39,10 +39,11 @@ vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
 // D = Normal distribution (Distribution of the microfacets)
 float D_GGX(float NoH, float roughness)
 {
-	float alpha = pow2(roughness);
-	float denom = pow2(NoH) * (pow2(alpha) - 1.0) + 1.0;
-	float d = pow2(alpha / max(denom, 0.001));
-    return d;
+	float oneMinusNoHSquared = 1.0 - pow2(NoH);
+	float a = NoH * roughness;
+	float k = min(roughness / (oneMinusNoHSquared + pow2(a)), 453.5); // 453.5 prevents fp16 overflow
+	float d = k * (k * (1.0 / PI));
+	return d;
 }
 
 #if defined(ANISO_ROUGHNESS)
@@ -73,16 +74,16 @@ float D_AnisoGGX(vec2 roughness, vec3 halfVector, vec3 normal, vec3 tangent, vec
     Dots.z = dot(halfVector, normal);
 
     Dots /= vec3(alpha, 1.0);
-    float ndf = pow2(dot(Dots, Dots)) * alpha.x * alpha.y; // this is really weird
-    return 1.0 / ndf;
+    float ndf = pow2(dot(Dots, Dots)) * alpha.x * alpha.y;
+    return 1.0 / (PI * ndf);
 }
 #endif
 
 // Geometric Shadowing visibility function --------------------------------------
 	// G = Geometric shadowing term (Microfacets shadowing)
-float G_SchlickSmithGGX(float NoL, float NoV, float roughness)
+float G_SchlickSmithGGX(float NoL, float NoV, float perceptualRoughness)
 {
-    float VisRough = pow2(roughness + 1.0) / 8.0;
+    float VisRough = pow2(perceptualRoughness + 1.0) / 8.0;
     float SchlickVisL = NoL * (1.0 - VisRough) + VisRough;
     float SchlickVisV = NoV * (1.0 - VisRough) + VisRough;
     float Vis = 1.0 / (4.0 * max(SchlickVisL * SchlickVisV, 0.0001));
@@ -136,13 +137,14 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 	float NoH = saturate( dot(normal, halfVector) );
 	float NoV = saturate( dot(normal, mat.ViewDir) );
 	float VoH = ClampToPositive(dot(lightVector, halfVector));
+	float roughness = pow2(mat.IsometricRoughness); // linear
 
 #if defined(ANISO_ROUGHNESS)
     // Anisotropic shading
     float NDF = D_AnisoGGX(mat.Roughness, halfVector, normal, mat.AnisotropicTangent, mat.AnisotropicBitangent);
 	float Vis = G_SchlickSmithGGX(NoL, NoV, max(mat.Roughness.x, mat.Roughness.y));
 #else
-    float NDF = D_GGX(NoH, mat.IsometricRoughness);
+    float NDF = D_GGX(NoH, roughness);
 	float Vis = G_SchlickSmithGGX(NoL, NoV, mat.IsometricRoughness);
 #endif
 	vec3 F = F_Schlick(VoH, mat.SpecularColor);
@@ -150,7 +152,7 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 
     if (F_CLOTH_SHADING == 1)
     {
-        float ClothNDF = D_Charlie(mat.IsometricRoughness, NoH);
+        float ClothNDF = D_Charlie(roughness, NoH);
         float ClothVis = V_Neubelt(NoL, NoV);
         ndfVis = mix(ndfVis, ClothNDF * ClothVis, mat.ClothMask);
     }

@@ -275,12 +275,11 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat)
 LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
 {
     LightingTerms_t lighting = InitLighting();
-    mat.Roughness = clamp(mat.Roughness, vec2(0.045), vec2(1.0));
 
     #if defined(ANISO_ROUGHNESS)
         mat.IsometricRoughness = dot(mat.Roughness, vec2(0.5));
     #else
-        mat.IsometricRoughness = mat.Roughness.x;
+        mat.IsometricRoughness = max(mat.Roughness.x, mat.Roughness.y);
     #endif
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)

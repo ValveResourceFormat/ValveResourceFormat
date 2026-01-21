@@ -20,9 +20,9 @@
 // Geometric roughness. Essentially just Specular Anti-Aliasing
 float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
 {
-    vec3 normalDerivX = dFdxCoarse(geometricNormal);
-    vec3 normalDerivY = dFdyCoarse(geometricNormal);
-    float geometricRoughnessFactor = pow(saturate(max(dot(normalDerivX, normalDerivX), dot(normalDerivY, normalDerivY))), 0.333);
+    vec3 normalDerivX = dFdx(geometricNormal);
+    vec3 normalDerivY = dFdy(geometricNormal);
+    float geometricRoughnessFactor = pow(saturate(max(dot(normalDerivX, normalDerivX), dot(normalDerivY, normalDerivY))), 0.5); // s2 uses 0.333
     return geometricRoughnessFactor;
 }
 
@@ -135,10 +135,10 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     }
 }
 
+const float MIN_ROUGHNESS = 0.0525;
+
 void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
 {
-    const float MIN_ROUGHNESS = 0.0525;
-
     float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(mat.GeometricNormal);
     geometricRoughnessFactor = max(geometricRoughnessFactor, MIN_ROUGHNESS);
 
