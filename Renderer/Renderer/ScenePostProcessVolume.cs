@@ -97,9 +97,9 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
-    public readonly struct ExposureSettings
+    public struct ExposureSettings
     {
-        public bool AutoExposureEnabled { get; init; }
+        public bool AutoExposureEnabled { get; set; }
 
         public float ExposureMin { get; init; }
         public float ExposureMax { get; init; }
@@ -124,7 +124,7 @@ namespace ValveResourceFormat.Renderer
         public static ExposureSettings LoadFromEntity(Entity entity)
         {
             var def = new ExposureSettings();
-            return new ExposureSettings
+            var settings = new ExposureSettings
             {
                 ExposureMin = entity.ContainsKey("minlogexposure")
                     ? MathF.Pow(2, entity.GetPropertyUnchecked<float>("minlogexposure"))
@@ -138,6 +138,9 @@ namespace ValveResourceFormat.Renderer
                 ExposureSmoothingRange = entity.GetPropertyUnchecked("exposuresmoothingrange", def.ExposureSmoothingRange),
                 AutoExposureEnabled = entity.GetProperty<bool>("enableexposure"), // todo: test where this is enabled/disabled
             };
+
+            settings.AutoExposureEnabled = settings.AutoExposureEnabled && settings.ExposureMax > settings.ExposureMin;
+            return settings;
         }
     }
 
