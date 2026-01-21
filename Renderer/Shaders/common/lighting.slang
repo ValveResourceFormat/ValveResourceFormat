@@ -275,6 +275,7 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat)
 LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
 {
     LightingTerms_t lighting = InitLighting();
+    mat.Roughness = clamp(mat.Roughness, vec2(0.045), vec2(1.0));
 
     #if defined(ANISO_ROUGHNESS)
         mat.IsometricRoughness = dot(mat.Roughness, vec2(0.5));

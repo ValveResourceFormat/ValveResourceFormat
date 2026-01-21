@@ -41,7 +41,8 @@ float D_GGX(float NoH, float roughness)
 {
 	float alpha = pow2(roughness);
 	float denom = pow2(NoH) * (pow2(alpha) - 1.0) + 1.0;
-	return pow2(alpha / denom);
+	float d = pow2(alpha / max(denom, 0.001));
+    return d;
 }
 
 #if defined(ANISO_ROUGHNESS)
@@ -84,7 +85,7 @@ float G_SchlickSmithGGX(float NoL, float NoV, float roughness)
     float VisRough = pow2(roughness + 1.0) / 8.0;
     float SchlickVisL = NoL * (1.0 - VisRough) + VisRough;
     float SchlickVisV = NoV * (1.0 - VisRough) + VisRough;
-    float Vis = 1.0 / (4.0 * SchlickVisL * SchlickVisV);
+    float Vis = 1.0 / (4.0 * max(SchlickVisL * SchlickVisV, 0.0001));
     return Vis;
 }
 
@@ -110,7 +111,6 @@ uniform int F_CLOTH_SHADING;
 
 float D_Charlie(float roughness, float NoH)
 {
-    roughness = max(roughness * roughness, 0.000001);
     float invRough = 1.0 / roughness;
     return (invRough + 2.0) * pow(1.0 - pow2(NoH), invRough * 0.5) / TAU;
 }
