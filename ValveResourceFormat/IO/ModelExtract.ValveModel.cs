@@ -272,11 +272,46 @@ partial class ModelExtract
         }
     }
 
-    static KVObject ProcessAnimationAutoLayer(Animation animation, AnimationAutoLayer autoLayer)
+    static KVObject ProcessAnimationAutoLayer(Animation animation, AnimationAutoLayer autoLayer, string[] localSequenceNameArray, string[] poseParamNames)
     {
-        //TODO: Determine type of layer node to create (seemingly?: AnimBlendLayer if LocalPose==-1 && Pose=false, AnimAddLayer if LocalPose!=-1 && Pose=false, AnimBlendLayerPoseParam if Pose=true)
-        //TODO: Add params
-        return MakeNode("AnimBlendLayer", []);
+        var animName = localSequenceNameArray[autoLayer.LocalReference];
+
+        if (autoLayer.Pose == true)
+        {
+            var poseParam = poseParamNames[autoLayer.LocalPose];
+            return MakeNode("AnimBlendLayerPoseParam", [
+                ("anim_name", animName),
+                ("spline", autoLayer.Spline),
+                ("xfade", autoLayer.XFade),
+                ("no_blend", autoLayer.NoBlend),
+                ("local_space", autoLayer.Local),
+                ("pose_param_name", poseParam),
+                ("start_cycle", autoLayer.Start),
+                ("peak_cycle", autoLayer.Peak),
+                ("tail_cycle", autoLayer.Tail),
+                ("end_cycle", autoLayer.End),
+            ]);
+        }
+        else if (autoLayer.LocalPose != -1)
+        {
+            return MakeNode("AnimAddLayer", [
+                ("anim_name", animName),
+            ]);
+        }
+        else
+        {
+            return MakeNode("AnimBlendLayer", [
+                ("anim_name", animName),
+                ("spline", autoLayer.Spline),
+                ("xfade", autoLayer.XFade),
+                ("no_blend", autoLayer.NoBlend),
+                ("local_space", autoLayer.Local),
+                ("start_frame", (int)(autoLayer.Start * animation.FrameCount)),
+                ("peak_frame", (int)(autoLayer.Peak * animation.FrameCount)),
+                ("tail_frame", (int)(autoLayer.Tail * animation.FrameCount)),
+                ("end_frame", (int)(autoLayer.End * animation.FrameCount)),
+            ]);
+        }
     }
 
     /// <summary>
@@ -463,6 +498,8 @@ partial class ModelExtract
 
         var modelSequenceData = model?.Resource?.GetBlockByType(BlockType.ASEQ) as KeyValuesOrNTRO;
         var additionalSequenceData = new Dictionary<string, KVObject>();
+        string[]? sequenceLocalReferenceArray = null;
+        string[]? poseParamNames = null;
 
         if (modelSequenceData?.Data is KVObject sequenceData)
         {
@@ -475,6 +512,9 @@ partial class ModelExtract
 
             var poseParams = sequenceData.GetArray("m_localPoseParamArray");
             ExtractPoseParams(poseParams);
+
+            poseParamNames = [.. poseParams.Select(x => x.GetStringProperty("m_sName"))];
+            sequenceLocalReferenceArray = sequenceData.GetArray<string>("m_localSequenceNameArray");
         }
 
         if (AnimationsToExtract.Count > 0)
@@ -552,10 +592,13 @@ partial class ModelExtract
                     childrenKV.AddItem(animEventNode);
                 }
 
-                foreach (var autoLayer in animation.Anim.AutoLayers)
+                if (sequenceLocalReferenceArray != null && poseParamNames != null)
                 {
-                    var layerNode = ProcessAnimationAutoLayer(animation.Anim, autoLayer);
-                    childrenKV.AddItem(layerNode);
+                    foreach (var autoLayer in animation.Anim.AutoLayers)
+                    {
+                        var layerNode = ProcessAnimationAutoLayer(animation.Anim, autoLayer, sequenceLocalReferenceArray, poseParamNames);
+                        childrenKV.AddItem(layerNode);
+                    }
                 }
 
                 if (animation.Anim.Autoplay)
