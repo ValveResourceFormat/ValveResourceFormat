@@ -19,6 +19,18 @@ public class AnimationGraphExtract
     private readonly IFileLoader fileLoader;
     private Dictionary<int, string>? weightListNamesCache;
     private Dictionary<int, string>? sequenceNamesCache;
+    private Dictionary<long, KVObject>? compiledNodeIndexMap;
+    private Dictionary<long, List<long>>? groupHierarchies;
+    private Dictionary<long, long>? nodeToGroupMap;
+    private Dictionary<long, long>? nodeIndexToIdMap;
+
+    private class GroupNode
+    {
+        public long GroupId { get; set; }
+        public List<long> ChildNodeIds { get; set; } = [];
+        public List<GroupNode> ChildGroups { get; set; } = [];
+        public long? ParentGroupId { get; set; }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -72,6 +84,359 @@ public class AnimationGraphExtract
     public KVObject[] Parameters { get; set; } = [];
 
     /// <summary>
+    /// Builds the group hierarchy from compiled node paths.
+    /// </summary>
+    private void BuildGroupHierarchy(KVObject[] compiledNodes)
+    {
+        compiledNodeIndexMap = [];
+        groupHierarchies = [];
+        nodeToGroupMap = [];
+        nodeIndexToIdMap = [];
+
+        for (var i = 0; i < compiledNodes.Length; i++)
+        {
+            var compiledNode = compiledNodes[i];
+            var nodePath = compiledNode.GetSubCollection("m_nodePath");
+
+            if (nodePath is null)
+            {
+                continue;
+            }
+
+            var path = nodePath.GetArray("m_path");
+            var count = nodePath.GetIntegerProperty("m_nCount");
+
+            if (count <= 0)
+            {
+                continue;
+            }
+
+            var nodeId = path[(int)count - 1].GetIntegerProperty("m_id");
+            compiledNodeIndexMap[nodeId] = compiledNode;
+            nodeIndexToIdMap[i] = nodeId;
+
+            if (count > 1)
+            {
+                var groupPath = new List<long>();
+                for (var j = 0; j < count - 1; j++)
+                {
+                    groupPath.Add(path[j].GetIntegerProperty("m_id"));
+                }
+                groupHierarchies[nodeId] = groupPath;
+                var parentGroupId = groupPath[^1];
+                if (parentGroupId != 0)
+                {
+                    nodeToGroupMap[nodeId] = parentGroupId;
+                }
+            }
+        }
+    }
+
+    private Dictionary<long, GroupNode> BuildGroupHierarchyTree()
+    {
+        var groupTree = new Dictionary<long, GroupNode>();
+
+        if (groupHierarchies == null)
+        {
+            return groupTree;
+        }
+        foreach (var (nodeId, groupPath) in groupHierarchies)
+        {
+            for (var i = 0; i < groupPath.Count; i++)
+            {
+                var groupId = groupPath[i];
+                if (!groupTree.TryGetValue(groupId, out var groupNode))
+                {
+                    groupNode = new GroupNode { GroupId = groupId };
+                    groupTree[groupId] = groupNode;
+                }
+                if (i > 0)
+                {
+                    var parentGroupId = groupPath[i - 1];
+                    groupNode.ParentGroupId = parentGroupId;
+                    if (groupTree.TryGetValue(parentGroupId, out var parentGroup))
+                    {
+                        if (!parentGroup.ChildGroups.Any(g => g.GroupId == groupId))
+                        {
+                            parentGroup.ChildGroups.Add(groupNode);
+                        }
+                    }
+                }
+            }
+        }
+        foreach (var (nodeId, groupPath) in groupHierarchies)
+        {
+            if (groupPath.Count > 0)
+            {
+                var immediateParentId = groupPath[^1];
+                if (groupTree.TryGetValue(immediateParentId, out var parentGroup))
+                {
+                    parentGroup.ChildNodeIds.Add(nodeId);
+                }
+            }
+        }
+        if (nodeToGroupMap != null)
+        {
+            foreach (var (nodeId, groupId) in nodeToGroupMap)
+            {
+                if (!groupHierarchies.ContainsKey(nodeId))
+                {
+                    if (groupTree.TryGetValue(groupId, out var parentGroup))
+                    {
+                        parentGroup.ChildNodeIds.Add(nodeId);
+                    }
+                }
+            }
+        }
+        return groupTree;
+    }
+
+    /// <summary>
+    /// Creates a group node from its hierarchy.
+    /// </summary>
+    private KVObject CreateGroupNode(GroupNode groupNode, Dictionary<long, KVObject> allCompiledNodes)
+    {
+        var groupId = groupNode.GroupId;
+        var groupNodeKV = MakeNode("CGroupAnimNode");
+        groupNodeKV.AddProperty("m_sName", $"Group_{groupId}");
+        groupNodeKV.AddProperty("m_vecPosition", MakeVector2(0.0f, 0.0f));
+        groupNodeKV.AddProperty("m_nNodeID", MakeNodeIdObjectValue(groupId));
+        groupNodeKV.AddProperty("m_networkMode", "ServerAuthoritative");
+
+        var inputNodeId = GenerateGroupNodeId(groupId, true);
+        var outputNodeId = GenerateGroupNodeId(groupId, false);
+
+        var nodeManager = MakeListNode("CAnimNodeManager", "m_nodes");
+        var inputConnectionMap = new List<KVObject>();
+        var inputConnectionMapDict = new Dictionary<long, KVValue>();
+
+        var groupNodes = new Dictionary<long, KVObject>();
+
+        foreach (var childNodeId in groupNode.ChildNodeIds)
+        {
+            if (allCompiledNodes.TryGetValue(childNodeId, out var compiledNode))
+            {
+                var uncompiledNode = ConvertToUncompiled(compiledNode);
+                uncompiledNode.AddProperty("m_nNodeID", MakeNodeIdObjectValue(childNodeId));
+                groupNodes[childNodeId] = uncompiledNode;
+            }
+        }
+
+        foreach (var childGroup in groupNode.ChildGroups)
+        {
+            var nestedGroupNode = CreateGroupNode(childGroup, allCompiledNodes);
+            nodeManager.Children.AddItem(CreateNodeManagerItem(childGroup.GroupId, nestedGroupNode));
+        }
+
+        var groupInputNode = CreateGroupInputNode(inputNodeId, groupNodes, inputConnectionMapDict, groupNode.ChildGroups);
+        var groupOutputNode = CreateGroupOutputNode(outputNodeId, groupNodes, groupId, groupNode.ChildGroups);
+
+        nodeManager.Children.AddItem(CreateNodeManagerItem(inputNodeId, groupInputNode));
+        nodeManager.Children.AddItem(CreateNodeManagerItem(outputNodeId, groupOutputNode));
+
+        foreach (var (nodeId, nodeData) in groupNodes)
+        {
+            nodeManager.Children.AddItem(CreateNodeManagerItem(nodeId, nodeData));
+        }
+
+        foreach (var (keyId, connection) in inputConnectionMapDict)
+        {
+            var connectionMapEntry = new KVObject(null, 2);
+            connectionMapEntry.AddProperty("key", MakeNodeIdObjectValue(keyId));
+            connectionMapEntry.AddProperty("value", connection);
+            inputConnectionMap.Add(connectionMapEntry);
+        }
+
+        groupNodeKV.AddProperty("m_inputNodeID", MakeNodeIdObjectValue(inputNodeId));
+        groupNodeKV.AddProperty("m_outputNodeID", MakeNodeIdObjectValue(outputNodeId));
+        groupNodeKV.AddProperty("m_nodeMgr", nodeManager.Node);
+        groupNodeKV.AddProperty("m_inputConnectionMap", KVValue.MakeArray(inputConnectionMap.ToArray()));
+
+        return groupNodeKV;
+    }
+
+    private KVObject CreateGroupInputNode(long nodeId, Dictionary<long, KVObject> groupNodes,
+    Dictionary<long, KVValue> inputConnectionMap, List<GroupNode> childGroups)
+    {
+        var inputNode = MakeNode("CGroupInputAnimNode");
+        inputNode.AddProperty("m_sName", "Group Input");
+        inputNode.AddProperty("m_vecPosition", MakeVector2(-200.0f, 0.0f));
+        inputNode.AddProperty("m_nNodeID", MakeNodeIdObjectValue(nodeId));
+        inputNode.AddProperty("m_networkMode", "ServerAuthoritative");
+
+        var proxyItems = new List<KVObject>();
+        var proxyIndex = 1;
+
+        foreach (var (childNodeId, childNode) in groupNodes)
+        {
+            var externalConnections = FindExternalConnections(childNode, childNodeId);
+
+            foreach (var externalConn in externalConnections)
+            {
+                var proxyName = $"Input {proxyIndex++}";
+                var outputId = GenerateProxyId(nodeId, proxyIndex);
+
+                var proxyItem = CreateProxyItem(proxyName, outputId);
+                inputConnectionMap[outputId] = externalConn;
+                proxyItems.Add(proxyItem);
+            }
+        }
+
+        foreach (var childGroup in childGroups)
+        {
+            var proxyName = $"Group {childGroup.GroupId}";
+            var outputId = GenerateProxyId(nodeId, proxyIndex++);
+
+            var proxyItem = CreateProxyItem(proxyName, outputId);
+
+            var childGroupInputId = GenerateGroupNodeId(childGroup.GroupId, true);
+            var connection = MakeInputConnection(childGroupInputId);
+            inputConnectionMap[outputId] = connection;
+
+            proxyItems.Add(proxyItem);
+        }
+
+        if (proxyItems.Count == 0)
+        {
+            var proxyItem = CreateProxyItem("Input 1", GenerateProxyId(nodeId, 1));
+            proxyItems.Add(proxyItem);
+        }
+
+        inputNode.AddProperty("m_proxyItems", KVValue.MakeArray(proxyItems.ToArray()));
+        return inputNode;
+    }
+
+    private static KVObject CreateGroupOutputNode(long nodeId, Dictionary<long, KVObject> groupNodes, long groupId, List<GroupNode> childGroups)
+    {
+        var outputNode = MakeNode("CGroupOutputAnimNode");
+        outputNode.AddProperty("m_sName", "Group Output");
+        outputNode.AddProperty("m_vecPosition", MakeVector2(200.0f, 0.0f));
+        outputNode.AddProperty("m_nNodeID", MakeNodeIdObjectValue(nodeId));
+        outputNode.AddProperty("m_networkMode", "ServerAuthoritative");
+
+        var proxyItems = new List<KVObject>();
+
+        var proxyItem = CreateProxyItem("Output 1", GenerateProxyId(nodeId, 1));
+        proxyItems.Add(proxyItem);
+
+        outputNode.AddProperty("m_proxyItems", KVValue.MakeArray(proxyItems.ToArray()));
+        return outputNode;
+    }
+
+    private List<KVValue> FindExternalConnections(KVObject node, long nodeId)
+    {
+        var externalConnections = new List<KVValue>();
+
+        var connectionKeys = new[]
+        {
+            "m_children", "m_pChildNode", "m_pChild1", "m_pChild2",
+            "m_baseInput", "m_additiveInput", "m_baseInputConnection",
+            "m_subtractInputConnection", "m_inputConnection1", "m_inputConnection2",
+            "m_inputConnection"
+        };
+
+        foreach (var key in connectionKeys)
+        {
+            if (node.Properties.TryGetValue(key, out var value))
+            {
+                if (value.Value is KVObject connectionObj)
+                {
+                    long connectedNodeId = -1;
+
+                    if (connectionObj.ContainsKey("m_nodeID"))
+                    {
+                        var nodeIdObj = connectionObj.GetSubCollection("m_nodeID");
+                        if (nodeIdObj != null && nodeIdObj.ContainsKey("m_id"))
+                        {
+                            connectedNodeId = nodeIdObj.GetIntegerProperty("m_id");
+                        }
+                    }
+                    else if (connectionObj.ContainsKey("m_nodeIndex") && nodeIndexToIdMap != null)
+                    {
+                        var nodeIndex = connectionObj.GetIntegerProperty("m_nodeIndex");
+                        nodeIndexToIdMap.TryGetValue(nodeIndex, out connectedNodeId);
+                    }
+
+                    if (connectedNodeId != -1 && connectedNodeId != nodeId)
+                    {
+                        if (nodeToGroupMap != null &&
+                            nodeToGroupMap.TryGetValue(nodeId, out var nodeGroup) &&
+                            nodeToGroupMap.TryGetValue(connectedNodeId, out var connectedNodeGroup) &&
+                            nodeGroup != connectedNodeGroup)
+                        {
+                            externalConnections.Add(value);
+                        }
+                    }
+                }
+                else if (value.Value is KVObject[] connections)
+                {
+                    foreach (var conn in connections)
+                    {
+                        long connectedNodeId = -1;
+
+                        if (conn.ContainsKey("m_nodeID"))
+                        {
+                            var nodeIdObj = conn.GetSubCollection("m_nodeID");
+                            if (nodeIdObj != null && nodeIdObj.ContainsKey("m_id"))
+                            {
+                                connectedNodeId = nodeIdObj.GetIntegerProperty("m_id");
+                            }
+                        }
+                        else if (conn.ContainsKey("m_nodeIndex") && nodeIndexToIdMap != null)
+                        {
+                            var nodeIndex = conn.GetIntegerProperty("m_nodeIndex");
+                            nodeIndexToIdMap.TryGetValue(nodeIndex, out connectedNodeId);
+                        }
+
+                        if (connectedNodeId != -1 && connectedNodeId != nodeId)
+                        {
+                            if (nodeToGroupMap != null &&
+                                nodeToGroupMap.TryGetValue(nodeId, out var nodeGroup) &&
+                                nodeToGroupMap.TryGetValue(connectedNodeId, out var connectedNodeGroup) &&
+                                nodeGroup != connectedNodeGroup)
+                            {
+                                externalConnections.Add(new KVValue(conn));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return externalConnections;
+    }
+
+    private static KVObject CreateProxyItem(string name, long outputId)
+    {
+        var proxyItem = new KVObject(null, 3);
+        proxyItem.AddProperty("m_name", name);
+        proxyItem.AddProperty("m_outputID", MakeNodeIdObjectValue(outputId));
+
+        var inputConnection = new KVObject(null, 2);
+        inputConnection.AddProperty("m_nodeID", MakeNodeIdObjectValue(-1));
+        inputConnection.AddProperty("m_outputID", MakeNodeIdObjectValue(-1));
+        proxyItem.AddProperty("m_inputConnection", inputConnection);
+        return proxyItem;
+    }
+
+    private static KVObject CreateNodeManagerItem(long keyId, KVObject nodeData)
+    {
+        var managerItem = new KVObject(null, 2);
+        managerItem.AddProperty("key", MakeNodeIdObjectValue(keyId));
+        managerItem.AddProperty("value", nodeData);
+        return managerItem;
+    }
+
+    private static long GenerateGroupNodeId(long baseId, bool isInput)
+    {
+        var hash = (int)baseId;
+        var modifier = isInput ? 0x10000000L : 0x20000000L;
+        return (baseId & 0x0FFFFFFF) | modifier;
+    }
+    private static long GenerateProxyId(long baseId, int index)
+    {
+        return (baseId & 0x0FFFFFFF) | (0x30000000L + (index << 16));
+    }
+    /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
     /// </summary>
     /// <returns>The animation graph as a <see cref="KV3File"/> string in version 19 format.</returns>
@@ -79,7 +444,9 @@ public class AnimationGraphExtract
     {
         var data = Graph.GetSubCollection("m_pSharedData");
         var compiledNodes = data.GetArray("m_nodes");
-        var compiledNodeIndexMap = data.GetArray("m_nodeIndexMap").Select(kv => kv.GetIntegerProperty("value")).ToArray();
+
+        BuildGroupHierarchy(compiledNodes);
+        var groupTree = BuildGroupHierarchyTree();
 
         var tagManager = data.GetSubCollection("m_pTagManagerUpdater");
         var paramListUpdater = data.GetSubCollection("m_pParamListUpdater");
@@ -118,22 +485,36 @@ public class AnimationGraphExtract
             }
         }
 
-        var i = 0;
-        foreach (var compiledNode in compiledNodes)
+        var allCompiledNodes = compiledNodeIndexMap ?? [];
+
+        var rootGroups = groupTree.Values
+            .Where(g => !g.ParentGroupId.HasValue || !groupTree.ContainsKey(g.ParentGroupId.Value))
+            .ToList();
+
+        foreach (var rootGroup in rootGroups)
         {
-            var nodeId = i++; // compiledNodeIndexMap[i++];
-            var nodeData = ConvertToUncompiled(compiledNode);
-            var nodeIdObject = MakeNodeIdObjectValue(nodeId);
-
-            nodeData.AddProperty("m_nNodeID", nodeIdObject);
-
-            var nodeManagerItem = new KVObject(null, 2);
-            nodeManagerItem.AddProperty("key", nodeIdObject);
-            nodeManagerItem.AddProperty("value", nodeData);
-
-            nodeManager.Children.AddItem(nodeManagerItem);
+            var groupNode = CreateGroupNode(rootGroup, allCompiledNodes);
+            nodeManager.Children.AddItem(CreateNodeManagerItem(rootGroup.GroupId, groupNode));
         }
 
+        foreach (var compiledNode in compiledNodes)
+        {
+            var nodePath = compiledNode.GetSubCollection("m_nodePath");
+            if (nodePath?.GetIntegerProperty("m_nCount") == 1)
+            {
+                var path = nodePath.GetArray("m_path");
+                var nodeId = path[0].GetIntegerProperty("m_id");
+
+                if (!nodeToGroupMap?.ContainsKey(nodeId) == true &&
+                    !groupTree.ContainsKey(nodeId) &&
+                    !groupTree.Values.Any(g => g.ChildNodeIds.Contains(nodeId)))
+                {
+                    var uncompiledNode = ConvertToUncompiled(compiledNode);
+                    uncompiledNode.AddProperty("m_nNodeID", MakeNodeIdObjectValue(nodeId));
+                    nodeManager.Children.AddItem(CreateNodeManagerItem(nodeId, uncompiledNode));
+                }
+            }
+        }
         var localParameters = KVValue.MakeArray(Parameters);
         var localTags = KVValue.MakeArray(Tags);
         var componentManager = MakeNode("CAnimComponentManager");
@@ -491,7 +872,11 @@ public class AnimationGraphExtract
 
                     if (!isComponent)
                     {
-                        AddInputConnection(transitionNode, compiledTransition.GetIntegerProperty("m_nodeIndex"));
+                        var nodeIndex = compiledTransition.GetIntegerProperty("m_nodeIndex");
+                        if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var childNodeId) == true)
+                        {
+                            AddInputConnection(transitionNode, childNodeId);
+                        }
 
                         if (transitionData is not null)
                         {
@@ -618,7 +1003,12 @@ public class AnimationGraphExtract
 
             if (!isComponent && stateData is not null)
             {
-                AddInputConnection(stateNode, stateData.GetSubCollection("m_pChild").GetIntegerProperty("m_nodeIndex"));
+                var childRef = stateData.GetSubCollection("m_pChild");
+                var nodeIndex = childRef.GetIntegerProperty("m_nodeIndex");
+                if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var childNodeId) == true)
+                {
+                    AddInputConnection(stateNode, childNodeId);
+                }
                 stateNode.AddProperty("m_bIsRootMotionExclusive", stateData.GetIntegerProperty("m_bExclusiveRootMotion") > 0);
             }
 
@@ -991,10 +1381,14 @@ public class AnimationGraphExtract
         var node = MakeNode(newClass);
 
         var children = compiledNode.GetArray("m_children");
-        var inputNodeIds = children?.Select(child => child.GetIntegerProperty("m_nodeIndex")).ToArray();
+        var inputNodeIds = children?.Select(child =>
+        {
+            var nodeIndex = child.GetIntegerProperty("m_nodeIndex");
+            return nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true ? nodeId : -1L;
+        }).Where(id => id != -1).ToArray();
 
         // TODO: Preferably the node position algorithm should be similar to the AG2 graph viewer node placement algorithm
-        // instead of random + left shift. Along with decompilation of the nodes into groups based on m_nCount = in m_nodePath / m_nodeIndexMap
+        // instead of random + left shift.
 
         if (className == "CRoot")
         {
@@ -1026,7 +1420,31 @@ public class AnimationGraphExtract
             {
                 newKey = "m_sName";
             }
+            if (key is "m_pChildNode" or "m_pChild1" or "m_pChild2" or "m_pChild" && value.Value is KVObject childRef)
+            {
+                var nodeIndex = childRef.GetIntegerProperty("m_nodeIndex");
+                if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
+                {
+                    var connectionKey = key switch
+                    {
+                        "m_pChildNode" => "m_inputConnection",
+                        "m_pChild1" when className == "CAdd" => "m_baseInput",
+                        "m_pChild2" when className == "CAdd" => "m_additiveInput",
+                        "m_pChild1" when className == "CSubtract" => "m_baseInputConnection",
+                        "m_pChild2" when className == "CSubtract" => "m_subtractInputConnection",
+                        "m_pChild1" when className == "CBoneMask" => "m_inputConnection1",
+                        "m_pChild2" when className == "CBoneMask" => "m_inputConnection2",
+                        _ => key
+                    };
 
+                    if (connectionKey != key)
+                    {
+                        var connection = MakeInputConnection(nodeId);
+                        node.AddProperty(connectionKey, connection);
+                        continue;
+                    }
+                }
+            }
             if (key == "m_hSequence")
             {
                 var sequenceIndex = compiledNode.GetIntegerProperty("m_hSequence");
@@ -1239,19 +1657,7 @@ public class AnimationGraphExtract
             }
             else if (className == "CAdd")
             {
-                if (key == "m_pChild1")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_baseInput", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_pChild2")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_additiveInput", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_bResetChild1")
+                if (key == "m_bResetChild1")
                 {
                     node.AddProperty("m_bResetBase", value);
                     continue;
@@ -1264,19 +1670,7 @@ public class AnimationGraphExtract
             }
             else if (className == "CSubtract")
             {
-                if (key == "m_pChild1")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_baseInputConnection", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_pChild2")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_subtractInputConnection", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_bResetChild1")
+                if (key == "m_bResetChild1")
                 {
                     node.AddProperty("m_bResetBase", value);
                     continue;
@@ -1289,19 +1683,6 @@ public class AnimationGraphExtract
             }
             else if (className == "CBoneMask")
             {
-                if (key == "m_pChild1")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_inputConnection1", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_pChild2")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_inputConnection2", MakeInputConnection(childNodeId));
-                    continue;
-                }
-
                 if (key == "m_hBlendParameter")
                 {
                     var paramRef = subCollection.Value;
