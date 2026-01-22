@@ -84,40 +84,12 @@ namespace GUI.Forms
             }
         }
 
-        private bool IsVpkLikelyVmap()
-        {
-            foreach (var file in filesToExtractSorted)
-            {
-                if (file.Key == "vmap_c")
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         public void ExecuteMultipleFileExtract()
         {
             if (filesToExtract.Count == 0 && filesToExtractSorted.Sum(x => x.Value.Count) == 0)
             {
                 MessageBox.Show("There are no files to extract", "Failed to extract");
                 return;
-            }
-
-            if (IsVpkLikelyVmap())
-            {
-                var result = MessageBox.Show(
-                """
-                You are currently attempting to decompile a map VPK, if you meant to decompile the map for editing in hammer, you should instead
-                decompile the .vmap_c file in this VPK.
-                """, "Decompile warning", MessageBoxButtons.OKCancel);
-
-                if (result == DialogResult.Cancel)
-                {
-                    return;
-                }
-
             }
 
             if (decompile && ShowTypesDialog() != DialogResult.Continue)
@@ -148,6 +120,8 @@ namespace GUI.Forms
         {
             using var typesDialog = new ExtractOutputTypesForm();
             typesDialog.ChangeTypeEvent += OnTypesDialogSelectedValueChanged;
+
+            var hasVmap = fileTypesToExtract.Any(x => x.Key == "vmap_c");
 
             foreach (var type in fileTypesToExtract.OrderByDescending(x => x.Value.Count))
             {
@@ -183,10 +157,14 @@ namespace GUI.Forms
                     outputTypes.Insert(1, "sound");
                 }
 
-                type.Value.OutputFormat = outputTypes[1];
-
                 // Select first suggested type, the 0th item is always "do not export"
-                typesDialog.AddTypeToTable(type.Key, type.Value.Count, outputTypes, 1);
+                // For folders containing a map, default to "do not export", except for the map itself.
+                var selectedIndex = hasVmap
+                    ? firstType is "vmap" ? 1 : 0
+                    : 1;
+
+                type.Value.OutputFormat = selectedIndex == 0 ? null : outputTypes[selectedIndex];
+                typesDialog.AddTypeToTable(type.Key, type.Value.Count, outputTypes, selectedIndex);
             }
 
             var result = typesDialog.ShowDialog();
