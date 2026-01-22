@@ -1375,6 +1375,16 @@ public class AnimationGraphExtract
                     continue;
                 }
             }
+            else if (className == "CRagdoll")
+            {
+                if (key == "m_nWeightListIndex")
+                {
+                    var weightListIndex = compiledNode.GetIntegerProperty("m_nWeightListIndex");
+                    var weightListName = GetWeightListName(weightListIndex);
+                    node.AddProperty("m_weightListName", weightListName);
+                    continue;
+                }
+            }
             else if (className == "CBlend")
             {
                 if (key == "m_children")
@@ -1407,6 +1417,18 @@ public class AnimationGraphExtract
                     continue;
                 }
 
+                if (key == "m_paramIndex")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                    node.AddProperty("m_param", paramIdValue);
+                    continue;
+                }
+            }
+            else if (className == "CSpeedScale")
+            {
                 if (key == "m_paramIndex")
                 {
                     var paramRef = subCollection.Value;
