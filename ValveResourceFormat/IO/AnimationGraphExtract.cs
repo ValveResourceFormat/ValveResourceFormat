@@ -272,7 +272,7 @@ public class AnimationGraphExtract
 
         return weightListNames;
     }
-
+    // Eventually this should load sequences from referenced animinclude model(s). ModelDoc tells me they are after model's own ASEQ sequences in order.
     private Dictionary<int, string> LoadSequenceNamesFromModel()
     {
         var sequenceNames = new Dictionary<int, string>();
