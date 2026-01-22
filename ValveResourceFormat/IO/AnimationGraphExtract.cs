@@ -1088,7 +1088,13 @@ public class AnimationGraphExtract
             var subCollection = new Lazy<KVObject>(() => (KVObject)value.Value!);
 
             // Common remapped key
-            if (key == "m_name" && className is "CSequence" or "CChoice" or "CSelector" or "CStateMachine" or "CRoot" or "CAdd" or "CSubtract" or "CMover")
+            if (key == "m_name" && className is "CLeanMatrix" or "CAdd" or "CAimMatrix" or "CBindPose" or "CBlend2D"
+                or "CBlend" or "CBoneMask" or "CChoice" or "CChoreo" or "CCycleControl" or "CCycleControlClip"
+                or "CDirectionalBlend" or "CDirectPlayback" or "CFollowAttachment" or "CFollowPath" or "CFootAdjustment" or "CFootLock"
+                or "CFootStepTrigger" or "CHitReact" or "CInputStream" or "CJiggleBone" or "CLookAt" or "CMotionMatching" or "CMover"
+                or "CPathHelper" or "CRagdoll" or "CRoot" or "CSelector" or "CSequence" or "CSetFacing" or "CSingleFrame" or "CSkeletalInput"
+                or "CSlowDownonSlopes" or "CSolveIKChain" or "CSpeedScale" or "CStateMachine" or "CStopatGoal" or "CSubtract" or "CTurnHelper"
+                or "CTwoBoneIK" or "CWayPointHelper" or "CZeroPose" or "CFootPinning")
             {
                 newKey = "m_sName";
             }
@@ -1416,28 +1422,6 @@ public class AnimationGraphExtract
                 {
                     continue;
                 }
-
-                if (key == "m_paramIndex")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
-                    node.AddProperty("m_param", paramIdValue);
-                    continue;
-                }
-            }
-            else if (className == "CSpeedScale")
-            {
-                if (key == "m_paramIndex")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
-                    node.AddProperty("m_param", paramIdValue);
-                    continue;
-                }
             }
             else if (className == "CBlend2D")
             {
@@ -1448,6 +1432,17 @@ public class AnimationGraphExtract
 
                     foreach (var item in items)
                     {
+                        var hasSequence = item.ContainsKey("m_hSequence") && item.GetIntegerProperty("m_hSequence") != -1;
+                        var hasChild = item.ContainsKey("m_pChild") &&
+                                       item.GetSubCollection("m_pChild")?.GetIntegerProperty("m_nodeIndex") != -1;
+
+                        var itemClass = (hasSequence, hasChild) switch
+                        {
+                            (true, _) => "CSequenceBlend2DItem",
+                            (false, true) => "CNodeBlend2DItem",
+                            _ => "CSequenceBlend2DItem"
+                        };
+
                         var convertedItem = new KVObject(null, item.Properties.Count);
 
                         foreach (var (itemKey, itemValue) in item.Properties)
@@ -1455,8 +1450,25 @@ public class AnimationGraphExtract
                             if (itemKey == "m_hSequence")
                             {
                                 var sequenceIndex = item.GetIntegerProperty("m_hSequence");
-                                var sequenceName = GetSequenceName(sequenceIndex);
-                                convertedItem.AddProperty("m_sequenceName", sequenceName);
+                                if (sequenceIndex != -1)
+                                {
+                                    var sequenceName = GetSequenceName(sequenceIndex);
+                                    convertedItem.AddProperty("m_sequenceName", sequenceName);
+                                }
+                            }
+                            else if (itemKey == "m_pChild")
+                            {
+                                if (itemClass == "CNodeBlend2DItem")
+                                {
+                                    var itemChildRef = item.GetSubCollection("m_pChild");
+                                    var nodeIndex = itemChildRef.GetIntegerProperty("m_nodeIndex");
+                                    if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
+                                    {
+                                        var connection = MakeInputConnection(nodeId);
+                                        convertedItem.AddProperty("m_inputConnection", connection);
+                                    }
+                                }
+                                continue;
                             }
                             else if (itemKey == "m_tags")
                             {
@@ -1509,16 +1521,12 @@ public class AnimationGraphExtract
                             {
                                 convertedItem.AddProperty(itemKey, itemValue);
                             }
-                            else if (itemKey == "m_pChild")
-                            {
-                                continue;
-                            }
                             else
                             {
                                 convertedItem.AddProperty(itemKey, itemValue);
                             }
                         }
-                        convertedItem.AddProperty("_class", "CSequenceBlend2DItem");
+                        convertedItem.AddProperty("_class", itemClass);
                         convertedItems.Add(convertedItem);
                     }
 
@@ -1577,6 +1585,14 @@ public class AnimationGraphExtract
                 if (key == "m_blendSourceX" || key == "m_blendSourceY")
                 {
                     node.AddProperty(key, value);
+                    continue;
+                }
+            }
+            else if (className == "CTurnHelper")
+            {
+                if (key == "m_turnStartTimeOffset")
+                {
+                    node.AddProperty("m_turnStartTime", value);
                     continue;
                 }
             }
@@ -1721,12 +1737,12 @@ public class AnimationGraphExtract
                 continue;
             }
 
-            if (key == "m_paramIndex")
+            if (key == "m_paramIndex" || key == "m_hParam")
             {
                 var paramRef = subCollection.Value;
                 var paramType = paramRef.GetStringProperty("m_type");
                 var paramIndex = paramRef.GetIntegerProperty("m_index");
-                node.AddProperty("m_paramID", ParameterIDFromIndex(paramType, paramIndex));
+                node.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
                 continue;
             }
 
