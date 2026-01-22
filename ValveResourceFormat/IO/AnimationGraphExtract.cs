@@ -19,6 +19,8 @@ public class AnimationGraphExtract
     private readonly IFileLoader fileLoader;
     private Dictionary<int, string>? weightListNamesCache;
     private Dictionary<int, string>? sequenceNamesCache;
+    private Dictionary<long, KVObject>? compiledNodeIndexMap;
+    private Dictionary<long, long>? nodeIndexToIdMap;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -72,14 +74,58 @@ public class AnimationGraphExtract
     public KVObject[] Parameters { get; set; } = [];
 
     /// <summary>
+    /// Builds the mapping from compiled node indices to their actual node IDs.
+    /// </summary>
+    private void BuildNodeIdMap(KVObject[] compiledNodes)
+    {
+        compiledNodeIndexMap = [];
+        nodeIndexToIdMap = [];
+
+        for (var i = 0; i < compiledNodes.Length; i++)
+        {
+            var compiledNode = compiledNodes[i];
+            var nodePath = compiledNode.GetSubCollection("m_nodePath");
+            if (nodePath is null)
+            {
+                continue;
+            }
+            var path = nodePath.GetArray("m_path");
+            var count = nodePath.GetIntegerProperty("m_nCount");
+            if (count <= 0)
+            {
+                continue;
+            }
+            var nodeId = 0L;
+            for (var j = (int)count - 1; j >= 0; j--)
+            {
+                var id = path[j].GetIntegerProperty("m_id");
+                if (id != uint.MaxValue)
+                {
+                    nodeId = id;
+                    break;
+                }
+            }
+            if (nodeId == uint.MaxValue)
+            {
+                continue;
+            }
+            compiledNodeIndexMap[nodeId] = compiledNode;
+            nodeIndexToIdMap[i] = nodeId;
+        }
+    }
+    private float nodeGridX;
+    private float nodeGridY;
+    /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
     /// </summary>
     /// <returns>The animation graph as a <see cref="KV3File"/> string in version 19 format.</returns>
     public string ToEditableAnimGraphVersion19()
     {
+        nodeGridX = 0;
+        nodeGridY = 0;
         var data = Graph.GetSubCollection("m_pSharedData");
         var compiledNodes = data.GetArray("m_nodes");
-        var compiledNodeIndexMap = data.GetArray("m_nodeIndexMap").Select(kv => kv.GetIntegerProperty("value")).ToArray();
+        BuildNodeIdMap(compiledNodes);
 
         var tagManager = data.GetSubCollection("m_pTagManagerUpdater");
         var paramListUpdater = data.GetSubCollection("m_pParamListUpdater");
@@ -118,17 +164,21 @@ public class AnimationGraphExtract
             }
         }
 
-        var i = 0;
         foreach (var compiledNode in compiledNodes)
         {
-            var nodeId = i++; // compiledNodeIndexMap[i++];
-            var nodeData = ConvertToUncompiled(compiledNode);
-            var nodeIdObject = MakeNodeIdObjectValue(nodeId);
+            var nodePath = compiledNode.GetSubCollection("m_nodePath");
+            if (nodePath is null) continue;
 
-            nodeData.AddProperty("m_nNodeID", nodeIdObject);
+            var path = nodePath.GetArray("m_path");
+            var count = nodePath.GetIntegerProperty("m_nCount");
+            if (count <= 0) continue;
+
+            var nodeId = path[(int)count - 1].GetIntegerProperty("m_id");
+            var nodeData = ConvertToUncompiled(compiledNode);
+            nodeData.AddProperty("m_nNodeID", MakeNodeIdObjectValue(nodeId));
 
             var nodeManagerItem = new KVObject(null, 2);
-            nodeManagerItem.AddProperty("key", nodeIdObject);
+            nodeManagerItem.AddProperty("key", MakeNodeIdObjectValue(nodeId));
             nodeManagerItem.AddProperty("value", nodeData);
 
             nodeManager.Children.AddItem(nodeManagerItem);
@@ -232,6 +282,7 @@ public class AnimationGraphExtract
         {
             return sequenceNames;
         }
+
         try
         {
             var modelResource = fileLoader.LoadFileCompiled(modelName);
@@ -239,6 +290,7 @@ public class AnimationGraphExtract
             {
                 return sequenceNames;
             }
+
             var aseqData = GetAseqDataFromResource(modelResource);
             if (aseqData is not null)
             {
@@ -410,6 +462,7 @@ public class AnimationGraphExtract
             ? name
             : $"sequence_{sequenceIndex}";
     }
+
     private KVObject[] ConvertStateMachine(KVObject compiledStateMachine, KVObject[]? stateDataArray, KVObject[]? transitionDataArray, bool isComponent = false)
     {
         var compiledStates = compiledStateMachine.GetArray("m_states");
@@ -491,7 +544,11 @@ public class AnimationGraphExtract
 
                     if (!isComponent)
                     {
-                        AddInputConnection(transitionNode, compiledTransition.GetIntegerProperty("m_nodeIndex"));
+                        var nodeIndex = compiledTransition.GetIntegerProperty("m_nodeIndex");
+                        if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var childNodeId) == true)
+                        {
+                            AddInputConnection(transitionNode, childNodeId);
+                        }
 
                         if (transitionData is not null)
                         {
@@ -618,7 +675,13 @@ public class AnimationGraphExtract
 
             if (!isComponent && stateData is not null)
             {
-                AddInputConnection(stateNode, stateData.GetSubCollection("m_pChild").GetIntegerProperty("m_nodeIndex"));
+                var childRef = stateData.GetSubCollection("m_pChild");
+                var nodeIndex = childRef.GetIntegerProperty("m_nodeIndex");
+                if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var childNodeId) == true)
+                {
+                    AddInputConnection(stateNode, childNodeId);
+                }
+
                 stateNode.AddProperty("m_bIsRootMotionExclusive", stateData.GetIntegerProperty("m_bExclusiveRootMotion") > 0);
             }
 
@@ -879,7 +942,7 @@ public class AnimationGraphExtract
         if (className == "CVRInputComponentUpdater")
         {
             string[] paramProperties =
-            {
+            [
                 "m_FingerCurl_Thumb",
                 "m_FingerCurl_Index",
                 "m_FingerCurl_Middle",
@@ -889,7 +952,7 @@ public class AnimationGraphExtract
                 "m_FingerSplay_Index_Middle",
                 "m_FingerSplay_Middle_Ring",
                 "m_FingerSplay_Ring_Pinky",
-            };
+            ];
 
             foreach (var paramName in paramProperties)
             {
@@ -991,24 +1054,27 @@ public class AnimationGraphExtract
         var node = MakeNode(newClass);
 
         var children = compiledNode.GetArray("m_children");
-        var inputNodeIds = children?.Select(child => child.GetIntegerProperty("m_nodeIndex")).ToArray();
+        var inputNodeIds = children?.Select(child =>
+        {
+            var nodeIndex = child.GetIntegerProperty("m_nodeIndex");
+            return nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true ? nodeId : -1L;
+        }).Where(id => id != -1).ToArray();
 
         // TODO: Preferably the node position algorithm should be similar to the AG2 graph viewer node placement algorithm
-        // instead of random + left shift. Along with decompilation of the nodes into groups based on m_nCount = in m_nodePath / m_nodeIndexMap
 
         if (className == "CRoot")
         {
             node.AddProperty("m_vecPosition", MakeVector2(0.0f, 0.0f));
-            nodePositionOffset = 0;
         }
         else
         {
-            var xPosition = -150.0f * (nodePositionOffset + 1);
-            var yPosition = 100.0f * (nodePositionOffset + 1);
-            var random = new Random(nodePositionOffset);
-            yPosition += random.Next(-50, 51);
-            node.AddProperty("m_vecPosition", MakeVector2(xPosition, yPosition));
-            nodePositionOffset++;
+            node.AddProperty("m_vecPosition", MakeVector2(nodeGridX, nodeGridY));
+            nodeGridX += 200.0f;
+            if (nodeGridX >= 2000.0f)
+            {
+                nodeGridX = 0;
+                nodeGridY += 200.0f;
+            }
         }
 
         foreach (var (key, value) in compiledNode.Properties)
@@ -1025,6 +1091,32 @@ public class AnimationGraphExtract
             if (key == "m_name" && className is "CSequence" or "CChoice" or "CSelector" or "CStateMachine" or "CRoot" or "CAdd" or "CSubtract" or "CMover")
             {
                 newKey = "m_sName";
+            }
+
+            if (key is "m_pChildNode" or "m_pChild1" or "m_pChild2" or "m_pChild" && value.Value is KVObject childRef)
+            {
+                var nodeIndex = childRef.GetIntegerProperty("m_nodeIndex");
+                if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
+                {
+                    var connectionKey = key switch
+                    {
+                        "m_pChildNode" => "m_inputConnection",
+                        "m_pChild1" when className == "CAdd" => "m_baseInput",
+                        "m_pChild2" when className == "CAdd" => "m_additiveInput",
+                        "m_pChild1" when className == "CSubtract" => "m_baseInputConnection",
+                        "m_pChild2" when className == "CSubtract" => "m_subtractInputConnection",
+                        "m_pChild1" when className == "CBoneMask" => "m_inputConnection1",
+                        "m_pChild2" when className == "CBoneMask" => "m_inputConnection2",
+                        _ => key
+                    };
+
+                    if (connectionKey != key)
+                    {
+                        var connection = MakeInputConnection(nodeId);
+                        node.AddProperty(connectionKey, connection);
+                        continue;
+                    }
+                }
             }
 
             if (key == "m_hSequence")
@@ -1239,19 +1331,7 @@ public class AnimationGraphExtract
             }
             else if (className == "CAdd")
             {
-                if (key == "m_pChild1")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_baseInput", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_pChild2")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_additiveInput", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_bResetChild1")
+                if (key == "m_bResetChild1")
                 {
                     node.AddProperty("m_bResetBase", value);
                     continue;
@@ -1264,19 +1344,7 @@ public class AnimationGraphExtract
             }
             else if (className == "CSubtract")
             {
-                if (key == "m_pChild1")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_baseInputConnection", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_pChild2")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_subtractInputConnection", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_bResetChild1")
+                if (key == "m_bResetChild1")
                 {
                     node.AddProperty("m_bResetBase", value);
                     continue;
@@ -1289,19 +1357,6 @@ public class AnimationGraphExtract
             }
             else if (className == "CBoneMask")
             {
-                if (key == "m_pChild1")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_inputConnection1", MakeInputConnection(childNodeId));
-                    continue;
-                }
-                else if (key == "m_pChild2")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    node.AddProperty("m_inputConnection2", MakeInputConnection(childNodeId));
-                    continue;
-                }
-
                 if (key == "m_hBlendParameter")
                 {
                     var paramRef = subCollection.Value;
