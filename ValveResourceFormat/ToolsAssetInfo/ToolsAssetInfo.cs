@@ -90,6 +90,32 @@ namespace ValveResourceFormat.ToolsAssetInfo
             }
 
             /// <summary>
+            /// Represents an extended dependency (version 15+).
+            /// </summary>
+            public readonly struct ExtendedDependency
+            {
+                /// <summary>
+                /// Gets unknown bits.
+                /// </summary>
+                public uint Unknown1 { get; init; }
+
+                /// <summary>
+                /// Gets unknown bits.
+                /// </summary>
+                public uint Unknown2 { get; init; }
+
+                /// <summary>
+                /// Gets unknown bits (could be a crc).
+                /// </summary>
+                public uint Unknown3 { get; init; }
+
+                /// <summary>
+                /// Gets the filename.
+                /// </summary>
+                public string Filename { get; init; }
+            }
+
+            /// <summary>
             /// Gets or sets a value indicating whether the file needs refresh.
             /// </summary>
             public bool NeedsRefresh { get; set; }
@@ -153,6 +179,11 @@ namespace ValveResourceFormat.ToolsAssetInfo
             /// Gets the special dependencies.
             /// </summary>
             public List<SpecialDependency> SpecialDependencies { get; } = [];
+
+            /// <summary>
+            /// Gets the extended dependencies.
+            /// </summary>
+            public List<ExtendedDependency> ExtendedDependencies { get; } = [];
 
             /// <summary>
             /// Gets the searchable user data.
@@ -224,7 +255,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             if (magic == MAGIC2)
             {
-                if (Version < 11 || Version > 14)
+                if (Version < 11 || Version > 15)
                 {
                     throw new UnexpectedMagicException("Unexpected version", Version, nameof(Version));
                 }
@@ -481,6 +512,28 @@ namespace ValveResourceFormat.ToolsAssetInfo
                         UserData = userData,
                         Fingerprint = fingerprint,
                     });
+                }
+
+                if (Version >= 15)
+                {
+                    count = reader.ReadInt32();
+                    file.ExtendedDependencies.Capacity = count;
+
+                    while (count-- > 0)
+                    {
+                        var unk1 = reader.ReadUInt32();
+                        var unk2 = reader.ReadUInt32();
+                        var fileHash = reader.ReadUInt64();
+                        var unk3 = reader.ReadUInt32(); // read as 4 bytes, a crc?
+
+                        file.ExtendedDependencies.Add(new File.ExtendedDependency
+                        {
+                            Unknown1 = unk1,
+                            Unknown2 = unk2,
+                            Unknown3 = unk3,
+                            Filename = ConstructFilePath(fileHash),
+                        });
+                    }
                 }
 
                 // m_SearchableUserData

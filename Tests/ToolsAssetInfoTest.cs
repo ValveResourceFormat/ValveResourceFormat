@@ -7,6 +7,19 @@ namespace Tests
     public class ToolsAssetInfoTest
     {
         [Test]
+        public void ParseToolsAssetV15()
+        {
+            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "readonly_tools_asset_info_v15.bin");
+
+            var assetsInfo = new ToolsAssetInfo();
+            assetsInfo.Read(file);
+            assetsInfo.ToString();
+
+            Assert.That(assetsInfo.Files, Contains.Key("maps/content_examples/lighting_info.vmap"));
+            Assert.That(assetsInfo.Files, Contains.Key("sounds/interior_01.vsnd"));
+        }
+
+        [Test]
         public void ParseToolsAssetV14()
         {
             var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "readonly_tools_asset_info_v14.bin");
