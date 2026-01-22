@@ -15,7 +15,6 @@ public class AnimationGraphExtract
     private readonly BinaryKV3 resourceData;
     private KVObject Graph => resourceData.Data;
     private readonly string? outputFileName;
-    private int nodePositionOffset;
     private readonly IFileLoader fileLoader;
     private Dictionary<int, string>? weightListNamesCache;
     private Dictionary<int, string>? sequenceNamesCache;
@@ -113,16 +112,73 @@ public class AnimationGraphExtract
             nodeIndexToIdMap[i] = nodeId;
         }
     }
-    private float nodeGridX;
-    private float nodeGridY;
+
+    private sealed class LayoutNode(long id)
+    {
+        public long Id { get; } = id;
+        public Vector2 Position { get; set; }
+    }
+
+    private sealed class LayoutConnection(LayoutNode source, LayoutNode target)
+    {
+        public LayoutNode Source { get; } = source;
+        public LayoutNode Target { get; } = target;
+    }
+
+    private static void ApplyLayoutPositions(
+        Dictionary<long, KVObject> createdNodes,
+        Dictionary<long, LayoutNode> layoutNodes,
+        List<LayoutConnection> connections)
+    {
+        if (layoutNodes.Count == 0)
+        {
+            return;
+        }
+
+        // Build connection lookup
+        var nodeInputs = new Dictionary<LayoutNode, List<LayoutConnection>>();
+        var nodeOutputs = new Dictionary<LayoutNode, List<LayoutConnection>>();
+
+        foreach (var node in layoutNodes.Values)
+        {
+            nodeInputs[node] = [];
+            nodeOutputs[node] = [];
+        }
+
+        foreach (var conn in connections)
+        {
+            nodeOutputs[conn.Source].Add(conn);
+            nodeInputs[conn.Target].Add(conn);
+        }
+
+        var defaultSize = new Vector2(200f, 80f);
+
+        GraphLayout.LayoutNodes(
+            nodes: layoutNodes.Values,
+            connections: connections,
+            getPosition: n => n.Position,
+            setPosition: (n, p) => n.Position = p,
+            getSize: _ => defaultSize,
+            getSourceNode: c => c.Source,
+            getTargetNode: c => c.Target,
+            getInputConnections: n => nodeInputs.GetValueOrDefault(n) ?? [],
+            getOutputConnections: n => nodeOutputs.GetValueOrDefault(n) ?? []
+        );
+
+        // Apply positions to created nodes
+        foreach (var (nodeId, node) in createdNodes)
+        {
+            var pos = layoutNodes[nodeId].Position;
+            node.AddProperty("m_vecPosition", MakeVector2(pos.X, pos.Y));
+        }
+    }
+
     /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
     /// </summary>
     /// <returns>The animation graph as a <see cref="KV3File"/> string in version 19 format.</returns>
     public string ToEditableAnimGraphVersion19()
     {
-        nodeGridX = 0;
-        nodeGridY = 0;
         var data = Graph.GetSubCollection("m_pSharedData");
         var compiledNodes = data.GetArray("m_nodes");
         BuildNodeIdMap(compiledNodes);
@@ -164,6 +220,10 @@ public class AnimationGraphExtract
             }
         }
 
+        var createdNodes = new Dictionary<long, KVObject>();
+        var layoutNodes = new Dictionary<long, LayoutNode>();
+        var nodeOutConnections = new Dictionary<long, List<long>>();
+
         foreach (var compiledNode in compiledNodes)
         {
             var nodePath = compiledNode.GetSubCollection("m_nodePath");
@@ -174,13 +234,36 @@ public class AnimationGraphExtract
             if (count <= 0) continue;
 
             var nodeId = path[(int)count - 1].GetIntegerProperty("m_id");
-            var nodeData = ConvertToUncompiled(compiledNode);
+            var outConnections = new List<long>();
+            var nodeData = ConvertToUncompiled(compiledNode, outConnections);
             nodeData.AddProperty("m_nNodeID", MakeNodeIdObjectValue(nodeId));
 
+            createdNodes[nodeId] = nodeData;
+            layoutNodes[nodeId] = new LayoutNode(nodeId);
+            nodeOutConnections[nodeId] = outConnections;
+        }
+
+        var connections = new List<LayoutConnection>();
+        foreach (var (nodeId, outConns) in nodeOutConnections)
+        {
+            foreach (var targetId in outConns)
+            {
+                if (layoutNodes.TryGetValue(targetId, out var targetNode))
+                {
+                    connections.Add(new LayoutConnection(layoutNodes[nodeId], targetNode));
+                }
+            }
+        }
+
+        // Apply layout positions
+        ApplyLayoutPositions(createdNodes, layoutNodes, connections);
+
+        // Add nodes to manager
+        foreach (var (nodeId, nodeData) in createdNodes)
+        {
             var nodeManagerItem = new KVObject(null, 2);
             nodeManagerItem.AddProperty("key", MakeNodeIdObjectValue(nodeId));
             nodeManagerItem.AddProperty("value", nodeData);
-
             nodeManager.Children.AddItem(nodeManagerItem);
         }
 
@@ -503,7 +586,6 @@ public class AnimationGraphExtract
             }
 
             stateNode.AddProperty("m_position", MakeVector2(stateX, stateY));
-            nodePositionOffset++;
             stateNode.AddProperty("m_name", compiledState.GetStringProperty("m_name"));
             stateNode.AddProperty("m_stateID", compiledState.GetSubCollection("m_stateID"));
             stateNode.AddProperty("m_bIsStartState", compiledState.GetIntegerProperty("m_bIsStartState") > 0);
@@ -1045,7 +1127,7 @@ public class AnimationGraphExtract
         return component;
     }
 
-    private KVObject ConvertToUncompiled(KVObject compiledNode)
+    private KVObject ConvertToUncompiled(KVObject compiledNode, List<long> outConnections)
     {
         var className = compiledNode.GetProperty<string>("_class");
         className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
@@ -1060,21 +1142,10 @@ public class AnimationGraphExtract
             return nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true ? nodeId : -1L;
         }).Where(id => id != -1).ToArray();
 
-        // TODO: Preferably the node position algorithm should be similar to the AG2 graph viewer node placement algorithm
-
-        if (className == "CRoot")
+        // Collect connections from m_children
+        if (inputNodeIds != null)
         {
-            node.AddProperty("m_vecPosition", MakeVector2(0.0f, 0.0f));
-        }
-        else
-        {
-            node.AddProperty("m_vecPosition", MakeVector2(nodeGridX, nodeGridY));
-            nodeGridX += 200.0f;
-            if (nodeGridX >= 2000.0f)
-            {
-                nodeGridX = 0;
-                nodeGridY += 200.0f;
-            }
+            outConnections.AddRange(inputNodeIds);
         }
 
         foreach (var (key, value) in compiledNode.Properties)
@@ -1104,6 +1175,8 @@ public class AnimationGraphExtract
                 var nodeIndex = childRef.GetIntegerProperty("m_nodeIndex");
                 if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
                 {
+                    outConnections.Add(nodeId);
+
                     var connectionKey = key switch
                     {
                         "m_pChildNode" => "m_inputConnection",
