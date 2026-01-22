@@ -105,6 +105,11 @@ namespace ValveResourceFormat.CompiledShader
                 ShaderFiles = new VfxShaderFile[hashes.Length];
                 foreach (var i in byteCodeIndex)
                 {
+                    if (i == -1)
+                    {
+                        continue;
+                    }
+
                     var hash = new Guid(hashes[i].GetArray<byte>("m_nHashChar")!);
                     var byteCodeOffset = offsets[i];
                     var byteCodeSize = offsets[i + 1];
