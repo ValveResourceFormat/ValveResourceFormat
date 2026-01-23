@@ -541,6 +541,32 @@ partial class ModelExtract
                 }
             }
 
+            void AddToFolderOrRoot(string name, KVObject node)
+            {
+                var folderOrRoot = animationToFolder.GetValueOrDefault(name, animationList.Value);
+                folderOrRoot.AddItem(node);
+            }
+
+            foreach (var (name, aseq) in additionalSequenceData)
+            {
+                var sequenceKeys = aseq.GetSubCollection("m_SequenceKeys");
+                if (sequenceKeys == null)
+                {
+                    continue;
+                }
+
+                // Animations that have this property do not appear in Animations list.
+                if (sequenceKeys.GetProperty<bool>("bind_pose"))
+                {
+                    var animBindPose = MakeNode(
+                        "AnimBindPose",
+                        ("name", name)
+                    );
+
+                    AddToFolderOrRoot(name, animBindPose);
+                }
+            }
+
             var sequences = AnimationsToExtract.Where(x => x.Anim.FromSequence);
             foreach (var animation in sequences)
             {
@@ -649,8 +675,7 @@ partial class ModelExtract
                     animationFile.AddProperty("children", childrenKV);
                 }
 
-                var folderOrRoot = animationToFolder.GetValueOrDefault(animation.Anim.Name, animationList.Value);
-                folderOrRoot.AddItem(animationFile);
+                AddToFolderOrRoot(animation.Anim.Name, animationFile);
             }
         }
 
