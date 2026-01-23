@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,8 @@ namespace GUI.Types.Viewers
     {
         private TextControl control;
         private TreeView fileListView;
+        private readonly Container components;
+        private ThemedContextMenuStrip shaderFileContextMenu;
         private readonly VrfGuiContext vrfGuiContext;
 
         public static bool IsAccepted(uint magic)
@@ -37,6 +40,19 @@ namespace GUI.Types.Viewers
             };
             fileListView.NodeMouseClick += OnNodeMouseClick;
             Themer.ThemeControl(fileListView);
+
+            components = new Container();
+            shaderFileContextMenu = new ThemedContextMenuStrip(components)
+            {
+                ImageScalingSize = new System.Drawing.Size(24, 24),
+            };
+            var exportBytecodeMenuItem = new ThemedToolStripMenuItem
+            {
+                Text = "Export bytecode",
+                SVGImageResourceName = "GUI.Icons.Export.svg",
+            };
+            exportBytecodeMenuItem.Click += OnExportBytecodeClick;
+            shaderFileContextMenu.Items.Add(exportBytecodeMenuItem);
 
             control = new TextControl(CodeTextBox.HighlightLanguage.Shaders);
             control.AddControl(fileListView);
@@ -212,6 +228,8 @@ namespace GUI.Types.Viewers
             {
                 fileListView?.Dispose();
                 control?.Dispose();
+                components?.Dispose();
+                shaderFileContextMenu?.Dispose();
             }
         }
 
@@ -219,6 +237,17 @@ namespace GUI.Types.Viewers
         {
             if (e.Node == null)
             {
+                return;
+            }
+
+            if (e.Button == MouseButtons.Right && e.Node.Tag is VfxShaderFile clickedShader)
+            {
+                if (clickedShader.Bytecode.Length > 0)
+                {
+                    shaderFileContextMenu.Tag = clickedShader;
+                    shaderFileContextMenu.Show(fileListView, e.Location);
+                }
+
                 return;
             }
 
@@ -369,6 +398,40 @@ namespace GUI.Types.Viewers
             using var output = new IndentedTextWriter();
             var zframeSummary = new PrintZFrameSummary(combo, output);
             control.TextBox.Text = output.ToString();
+        }
+
+        private void OnExportBytecodeClick(object? sender, EventArgs e)
+        {
+            if (shaderFileContextMenu.Tag is not VfxShaderFile shaderFile)
+            {
+                return;
+            }
+
+            var combo = shaderFile.ParentCombo;
+            Debug.Assert(combo.ParentProgramData != null);
+
+            var extension = shaderFile.BlockName == "VULKAN" ? "spv" : shaderFile.BlockName.ToLowerInvariant();
+            using var dialog = new SaveFileDialog
+            {
+                Title = "Export bytecode",
+                FileName = $"{combo.ParentProgramData.ShaderName}_{combo.StaticComboId:x08}_{shaderFile.ShaderFileId:x02}",
+                InitialDirectory = Settings.Config.SaveDirectory,
+                DefaultExt = extension,
+                Filter = $"{shaderFile.BlockName} bytecode (*{extension})|*{extension}|All files (*.*)|*.*",
+                AddToRecent = true,
+            };
+
+            if (dialog.ShowDialog() != DialogResult.OK)
+            {
+                return;
+            }
+
+            if (Path.GetDirectoryName(dialog.FileName) is { } directory)
+            {
+                Settings.Config.SaveDirectory = directory;
+            }
+
+            File.WriteAllBytes(dialog.FileName, shaderFile.Bytecode);
         }
     }
 }
