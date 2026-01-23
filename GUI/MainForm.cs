@@ -242,7 +242,8 @@ namespace GUI
                 while ((line = reader.ReadLine()) != null)
                 {
                     var space = line.IndexOf(' ', StringComparison.Ordinal);
-                    Debug.Assert(ExtensionIcons.TryAdd(line[..space], ExtensionIcons[line[(space + 1)..]]));
+                    var addResult = ExtensionIcons.TryAdd(line[..space], ExtensionIcons[line[(space + 1)..]]);
+                    Debug.Assert(addResult, "Duplicate icon");
                 }
             }
         }
