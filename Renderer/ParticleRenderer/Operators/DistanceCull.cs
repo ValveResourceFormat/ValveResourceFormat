@@ -4,21 +4,21 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     class DistanceCull : ParticleFunctionOperator
     {
         private readonly int cp;
-        private readonly float distance;
+        private readonly INumberProvider distance = new LiteralNumberProvider(0);
         private readonly Vector3 PointOffset = Vector3.Zero;
         private readonly bool cullInside;
         public DistanceCull(ParticleDefinitionParser parse) : base(parse)
         {
             cp = parse.Int32("m_nControlPoint", cp);
             PointOffset = parse.Vector3("m_vecPointOffset", PointOffset);
-            distance = parse.Float("m_flDistance", distance);
+            distance = parse.NumberProvider("m_flDistance", distance);
             cullInside = parse.Boolean("m_bCullInside", cullInside);
         }
         private bool CulledBySphere(Vector3 position, ParticleSystemRenderState particleSystemState)
         {
             var sphereOrigin = particleSystemState.GetControlPoint(cp).Position + PointOffset;
 
-            var distanceFromEdge = Vector3.Distance(sphereOrigin, position) - distance;
+            var distanceFromEdge = Vector3.Distance(sphereOrigin, position) - distance.NextNumber();
 
             return cullInside
                 ? distanceFromEdge < 0
