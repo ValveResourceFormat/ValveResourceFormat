@@ -93,6 +93,7 @@ namespace GUI.Forms
             dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
             dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
+            dataGridProperties.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
             dataGridProperties.DefaultCellStyle = dataGridViewCellStyle2;
             dataGridProperties.Dock = DockStyle.Fill;
             dataGridProperties.Location = new System.Drawing.Point(3, 3);

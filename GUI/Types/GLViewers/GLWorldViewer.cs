@@ -697,23 +697,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(entityInfoForm != null);
             Debug.Assert(sceneNode.EntityData != null);
 
-            foreach (var (key, value) in sceneNode.EntityData.Properties)
-            {
-                entityInfoForm.EntityInfoControl.AddProperty(key, value switch
-                {
-                    null => string.Empty,
-                    KVObject { IsArray: true } kvArray => string.Join(' ', kvArray.Select(p => p.Value?.ToString() ?? string.Empty)),
-                    _ => value.ToString() ?? string.Empty,
-                });
-            }
-
-            if (sceneNode.EntityData.Connections != null)
-            {
-                foreach (var connection in sceneNode.EntityData.Connections)
-                {
-                    entityInfoForm.EntityInfoControl.AddConnection(connection);
-                }
-            }
+            entityInfoForm.EntityInfoControl.PopulateFromEntity(sceneNode.EntityData);
 
             var classname = sceneNode.EntityData.GetProperty<string>("classname");
             entityInfoForm.Text = $"Entity: {classname}";

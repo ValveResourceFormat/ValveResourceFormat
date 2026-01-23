@@ -1,7 +1,11 @@
+using System.Linq;
 using System.Windows.Forms;
 using GUI.Types.Viewers;
 using GUI.Utils;
+using ValveResourceFormat;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Forms
 {
@@ -53,6 +57,22 @@ namespace GUI.Forms
             dataGridOutputs.Rows.Clear();
         }
 
+        public void PopulateFromEntity(Entity entity)
+        {
+            foreach (var (key, value) in entity.Properties)
+            {
+                AddProperty(key, StringifyValue(value));
+            }
+
+            if (entity.Connections != null)
+            {
+                foreach (var connection in entity.Connections)
+                {
+                    AddConnection(connection);
+                }
+            }
+        }
+
         public void AddProperty(string name, string value)
         {
             dataGridProperties.Rows.Add([name, value]);
@@ -97,7 +117,7 @@ namespace GUI.Forms
                 var colName = columnName;
                 var name = (string)row.Cells[colName].Value!;
 
-                var found = Resource.OpenExternalReference(vrfGuiContext, name);
+                var found = Types.Viewers.Resource.OpenExternalReference(vrfGuiContext, name);
 
                 if (found && Parent is Form form)
                 {

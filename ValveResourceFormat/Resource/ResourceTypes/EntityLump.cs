@@ -310,16 +310,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var property in entity.Properties)
                 {
-                    var value = property.Value;
-
-                    if (value == null)
-                    {
-                        value = "null";
-                    }
-                    else if (value is KVObject kvArray)
-                    {
-                        value = $"Array [{string.Join(", ", kvArray.Select(p => p.Value.ToString()).ToArray())}]";
-                    }
+                    var value = StringifyValue(property.Value);
 
                     builder.AppendLine(CultureInfo.InvariantCulture, $"{property.Key,-30} {value}");
                 }
@@ -499,6 +490,36 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Return a string representation of an entity property.
+        /// </summary>
+        /// <param name="value">Entity property.</param>
+        /// <returns>Stringified value.</returns>
+        public static string StringifyValue(object? value)
+        {
+            var valueStr = string.Empty;
+
+            if (value is KVObject kvObject)
+            {
+                if (kvObject.IsArray)
+                {
+                    valueStr = string.Join(' ', kvObject.Select(p => p.Value.ToString() ?? string.Empty));
+                }
+                else
+                {
+                    using var writer = new IndentedTextWriter();
+                    kvObject.Serialize(writer);
+                    valueStr = writer.ToString();
+                }
+            }
+            else if (value is not null)
+            {
+                valueStr = value.ToString() ?? string.Empty;
+            }
+
+            return valueStr;
         }
     }
 }

@@ -386,25 +386,7 @@ namespace GUI.Types.Viewers
         private void ShowEntityProperties(Entity entity)
         {
             EntityInfo.Clear();
-
-            foreach (var (key, value) in entity.Properties)
-            {
-                EntityInfo.AddProperty(key, value switch
-                {
-                    null => string.Empty,
-                    KVObject { IsArray: true } kvArray => string.Join(' ', kvArray.Select(p => p.Value.ToString())),
-                    _ => value.ToString(),
-                } ?? string.Empty);
-            }
-
-            if (entity.Connections != null)
-            {
-                foreach (var connection in entity.Connections)
-                {
-                    EntityInfo.AddConnection(connection);
-                }
-            }
-
+            EntityInfo.PopulateFromEntity(entity);
             EntityInfo.ShowOutputsTabIfAnyData();
 
             var groupBoxName = "Entity Properties";
