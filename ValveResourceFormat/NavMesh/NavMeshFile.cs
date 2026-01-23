@@ -64,6 +64,11 @@ namespace ValveResourceFormat.NavMesh
         public KVObject? KV3Unknown2 { get; set; }
 
         /// <summary>
+        /// Unknown KV3 data stored in v36 .nav files.
+        /// </summary>
+        public KVObject? KV3Unknown3 { get; set; }
+
+        /// <summary>
         /// Reads the navigation mesh from a file.
         /// </summary>
         public void Read(string filename)
@@ -151,7 +156,10 @@ namespace ValveResourceFormat.NavMesh
             GenerationParams = new NavMeshGenerationParams();
             GenerationParams.Read(binaryReader, this);
 
-            //TODO: Version 36 seems to store another kv3 at the end (not sure if before or after custom data)
+            if (Version >= 36)
+            {
+                KV3Unknown3 = ReadKV3(binaryReader); //TODO: What's stored here?
+            }
 
             ReadCustomData(binaryReader);
 

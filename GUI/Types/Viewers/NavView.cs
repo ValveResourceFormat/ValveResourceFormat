@@ -84,6 +84,12 @@ namespace GUI.Types.Viewers
                 var page = CreateKVTab("NAV UNKNOWN KV3 2", navMeshFile.KV3Unknown2);
                 tabControl.Controls.Add(page);
             }
+
+            if (navMeshFile.KV3Unknown3 != null)
+            {
+                var page = CreateKVTab("NAV UNKNOWN KV3 3", navMeshFile.KV3Unknown3);
+                tabControl.Controls.Add(page);
+            }
         }
 
         public void Dispose()
