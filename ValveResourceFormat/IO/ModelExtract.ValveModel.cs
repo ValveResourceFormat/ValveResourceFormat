@@ -607,6 +607,27 @@ partial class ModelExtract
                     childrenKV.AddItem(autoLayer);
                 }
 
+                if (poseParamNames != null && animation.Anim.Fetch != null && animation.Anim.Fetch.Value.LocalCyclePoseParameter != -1)
+                {
+                    var poseParamIndex = animation.Anim.Fetch.Value.LocalCyclePoseParameter;
+                    var poseParam = poseParamNames[poseParamIndex];
+
+                    var autoLayer = MakeNode("AnimCycleOverride", [
+                        ("cycle_type", "Pose To Cycle"),
+                        ("pose_param_name", poseParam),
+                    ]);
+                    childrenKV.AddItem(autoLayer);
+                }
+
+                if (animation.Anim.Realtime)
+                {
+                    var autoLayer = MakeNode("AnimCycleOverride", [
+                        ("cycle_type", "Auto Cycle"),
+                        ("pose_param_name", ""),
+                    ]);
+                    childrenKV.AddItem(autoLayer);
+                }
+
                 if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var animSequenceData))
                 {
                     var sequenceKeys = animSequenceData.GetSubCollection("m_SequenceKeys");
