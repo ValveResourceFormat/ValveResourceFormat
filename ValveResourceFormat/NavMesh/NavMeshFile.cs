@@ -168,11 +168,8 @@ namespace ValveResourceFormat.NavMesh
 
         private static KVObject? ReadKV3(BinaryReader binaryReader)
         {
-            while (binaryReader.ReadByte() == 0)
-            {
-                //Reading past 0x00 padding
-            }
-            binaryReader.BaseStream.Position--;
+            // Align to 8-byte boundary
+            binaryReader.BaseStream.Position = (binaryReader.BaseStream.Position + 7) & ~7L;
 
             var kv3 = new BinaryKV3
             {
