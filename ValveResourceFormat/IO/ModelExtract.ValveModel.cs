@@ -541,7 +541,8 @@ partial class ModelExtract
                 }
             }
 
-            foreach (var animation in AnimationsToExtract)
+            var sequences = AnimationsToExtract.Where(x => x.Anim.FromSequence);
+            foreach (var animation in sequences)
             {
                 var animationFile = MakeNode(
                     "AnimFile",

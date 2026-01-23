@@ -92,6 +92,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public AnimationFetch? Fetch { get; }
 
+        /// <summary>
+        /// Gets whether this animation was constructed from sequence data.
+        /// </summary>
+        public bool FromSequence { get; }
+
         private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
             // Get animation properties
@@ -133,6 +138,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             var sequenceParams = animDesc.GetSubCollection("m_sequenceParams");
             SequenceParams = new AnimationSequenceParams(sequenceParams);
+
+            FromSequence = false;
         }
 
         /// <summary>
@@ -198,6 +205,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Fetch
             var fetch = seqDesc.GetSubCollection("m_fetch");
             Fetch = new AnimationFetch(fetch);
+
+            FromSequence = true;
         }
 
         /// <summary>
