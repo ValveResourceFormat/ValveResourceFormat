@@ -1057,9 +1057,9 @@ namespace GUI.Types.GLViewers
             );
         }
 
-        protected override void OnResize()
+        protected override void OnResize(int w, int h)
         {
-            base.OnResize();
+            base.OnResize(w, h);
 
             if (texture != null)
             {

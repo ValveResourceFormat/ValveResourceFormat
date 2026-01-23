@@ -201,10 +201,8 @@ internal abstract class GLBaseControl : IDisposable
         CurrentlyPressedKeys &= ~RemapKey(e.KeyCode);
     }
 
-    protected virtual void OnResize()
+    protected virtual void OnResize(int w, int h)
     {
-        var (w, h) = (GLControl?.Width ?? 0, GLControl?.Height ?? 0);
-
         if (w <= 0 || h <= 0)
         {
             return;
@@ -412,7 +410,7 @@ internal abstract class GLBaseControl : IDisposable
 
     protected virtual void OnSizeChanged(object? sender, EventArgs e)
     {
-        ShouldResize = true;
+        ShouldResize = GLControl is not null && GLControl.Width > 0 && GLControl.Height > 0;
     }
 
     protected virtual void OnFirstPaint()
@@ -622,7 +620,7 @@ internal abstract class GLBaseControl : IDisposable
 
         if (ShouldResize)
         {
-            OnResize();
+            OnResize(GLNativeWindow.Size.X, GLNativeWindow.Size.Y);
             ShouldResize = false;
         }
 

@@ -181,11 +181,9 @@ namespace GUI.Types.GLViewers
 
         protected abstract void OnPicked(object? sender, PickingTexture.PickingResponse pixelInfo);
 
-        protected override void OnResize()
+        protected override void OnResize(int w, int h)
         {
-            base.OnResize();
-
-            var (w, h) = (GLControl!.Width, GLControl.Height);
+            base.OnResize(w, h);
 
             Renderer.Camera.SetViewportSize(w, h);
             Picker?.Resize(w, h);
