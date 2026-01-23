@@ -417,7 +417,7 @@ namespace GUI.Types.Viewers
                 FileName = $"{combo.ParentProgramData.ShaderName}_{combo.StaticComboId:x08}_{shaderFile.ShaderFileId:x02}",
                 InitialDirectory = Settings.Config.SaveDirectory,
                 DefaultExt = extension,
-                Filter = $"{shaderFile.BlockName} bytecode (*{extension})|*{extension}|All files (*.*)|*.*",
+                Filter = $"{shaderFile.BlockName} bytecode (*.{extension})|*.{extension}|All files (*.*)|*.*",
                 AddToRecent = true,
             };
 
