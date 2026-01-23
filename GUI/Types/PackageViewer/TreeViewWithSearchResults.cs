@@ -328,7 +328,6 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            currentNode.CreatedNode = realNode;
             mainTreeView.BeginUpdate();
             realNode.Nodes.Clear();
 
@@ -353,6 +352,7 @@ namespace GUI.Types.PackageViewer
                 CreateFileNode(realNode, file);
             }
 
+            currentNode.CreatedNode = realNode;
             mainTreeView.EndUpdate();
         }
 
@@ -381,7 +381,7 @@ namespace GUI.Types.PackageViewer
 
         private BetterTreeNode? CreateTreeNodes(VirtualPackageNode node, bool isCreating = false)
         {
-            var createdNode = node.CreatedNode;
+            var originalNode = node;
             var queue = new Stack<VirtualPackageNode>();
 
             while (node.Parent != null && node.CreatedNode == null)
@@ -412,12 +412,11 @@ namespace GUI.Types.PackageViewer
 
                 if (treeNode != null)
                 {
-                    currentNode.CreatedNode = treeNode;
                     CreateNodes(treeNode);
                 }
             }
 
-            return createdNode;
+            return originalNode.CreatedNode;
         }
 
         internal void AddFolderNode(string directoryName)
@@ -709,7 +708,7 @@ namespace GUI.Types.PackageViewer
             }
 
             // When left or right clicking a folder, select it in the tree view and ensure it is visible
-            if (item.PkgNode != null && mainListView.SelectedItems.Count == 1)
+            if (item.PkgNode != null && mainListView.SelectedItems.Count <= 1)
             {
                 mainTreeView.BeginUpdate();
                 var node = CreateTreeNodes(item.PkgNode);
@@ -731,7 +730,7 @@ namespace GUI.Types.PackageViewer
             if (item.PackageEntry != null)
             {
                 // When right clicking a file, select it in the tree view and ensure it is visible
-                if (mainListView.SelectedItems.Count == 1)
+                if (mainListView.SelectedItems.Count <= 1)
                 {
                     var pkgNode = mainTreeView.Root;
 
@@ -766,28 +765,24 @@ namespace GUI.Types.PackageViewer
 
                     mainTreeView.BeginUpdate();
 
-                    // Walk all the virtual nodes down to create them if they don't exist yet
-                    for (var i = 0; i < packageNodes.Count; i++)
-                    {
-                        pkgNode = packageNodes[i];
-                        var parentNode = CreateTreeNodes(pkgNode);
+                    // Create tree nodes for the deepest folder (this also creates all ancestor nodes)
+                    var parentNode = CreateTreeNodes(pkgNode);
 
-                        // When deepest node is reached, select the actual file node
-                        if (i == packageNodes.Count - 1 && parentNode != null)
+                    mainTreeView.EndUpdate();
+
+                    // Select the file node after EndUpdate so EnsureVisible works correctly
+                    if (parentNode != null)
+                    {
+                        foreach (BetterTreeNode node in parentNode.Nodes)
                         {
-                            foreach (BetterTreeNode node in parentNode.Nodes)
+                            if (node.PackageEntry == item.PackageEntry)
                             {
-                                if (node.PackageEntry == item.PackageEntry)
-                                {
-                                    node.EnsureVisible();
-                                    mainTreeView.SelectedNode = node;
-                                    break;
-                                }
+                                node.EnsureVisible();
+                                mainTreeView.SelectedNode = node;
+                                break;
                             }
                         }
                     }
-
-                    mainTreeView.EndUpdate();
                 }
 
                 OpenContextMenu?.Invoke(sender, new PackageContextMenuEventArgs
