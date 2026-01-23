@@ -112,7 +112,7 @@ namespace ValveResourceFormat.CompiledShader
 
                     var hash = new Guid(hashes[i].GetArray<byte>("m_nHashChar")!);
                     var byteCodeOffset = offsets[i];
-                    var byteCodeSize = offsets[i + 1];
+                    var byteCodeSize = offsets[i + 1] - byteCodeOffset;
 
                     byteCodeReader.BaseStream.Position = byteCodeOffset;
                     ShaderFiles[i] = ParentProgramData.VcsPlatformType switch
