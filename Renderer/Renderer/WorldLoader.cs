@@ -69,6 +69,8 @@ namespace ValveResourceFormat.Renderer
                     .Select(x => x.Name)
                     .Where(r => !r.StartsWith("_bakeresourcecache", StringComparison.Ordinal));
 
+                var otherTask = Task.Run(LoadNavigationMesh);
+
                 Parallel.ForEach(resourceNames, resourceReference =>
                 {
                     var resource = PreloadResource(resourceReference);
@@ -103,6 +105,8 @@ namespace ValveResourceFormat.Renderer
                         });
                     }
                 });
+
+                otherTask.Wait();
             }
 
             Load();
@@ -1130,6 +1134,11 @@ namespace ValveResourceFormat.Renderer
 
         public void LoadNavigationMesh()
         {
+            if (NavMesh is not null)
+            {
+                return;
+            }
+
             var navFilePath = Path.ChangeExtension(MapName, ".nav");
             try
             {
