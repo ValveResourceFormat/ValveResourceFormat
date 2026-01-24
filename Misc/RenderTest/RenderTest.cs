@@ -189,7 +189,7 @@ internal class RenderTestWindow : GameWindow
         var mousePos = new Vector2(MouseState.Position.X, MouseState.Position.Y);
         var mouseDelta = Vector2.Zero;
 
-        if (isCursorLocked || firstMouseMove)
+        if (isCursorLocked && !firstMouseMove)
         {
             mouseDelta = mousePos - lastMousePosition;
         }
@@ -292,15 +292,10 @@ internal class RenderTestWindow : GameWindow
         }
 
         var mapPath = vmaps[0].GetFullPath();
-        var mapResource = rendererContext.FileLoader.LoadFile(mapPath)!;
+        var loadedMap = WorldLoader.LoadMap(mapPath, scene);
 
-        // todo: make it so worldloader can work with vmap resource
-        var worldPath = WorldLoader.GetWorldPathFromMap(mapPath);
-        var worldResource = rendererContext.FileLoader.LoadFile(worldPath)!;
-
-        var worldLoader = new WorldLoader((World)worldResource.DataBlock!, scene, mapResource.ExternalReferences);
-        SceneRenderer.SkyboxScene = worldLoader.SkyboxScene;
-        SceneRenderer.Skybox2D = worldLoader.Skybox2D;
+        SceneRenderer.SkyboxScene = loadedMap.SkyboxScene;
+        SceneRenderer.Skybox2D = loadedMap.Skybox2D;
 
         // Initialize scene (creates lighting buffers, octrees, etc.)
         SceneRenderer.Scene.Initialize();

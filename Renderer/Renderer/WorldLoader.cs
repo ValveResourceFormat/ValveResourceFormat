@@ -39,6 +39,21 @@ namespace ValveResourceFormat.Renderer
         public float WorldScale { get; set; } = 1.0f;
         // TODO: also store skybox reference rotation
 
+        public static WorldLoader LoadMap(string mapResourceName, Scene scene)
+        {
+            if (mapResourceName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                mapResourceName = mapResourceName[..^GameFileLoader.CompiledFileSuffix.Length];
+            }
+
+            var renderContext = scene.RendererContext;
+            var mapResource = renderContext.FileLoader.LoadFileCompiled(mapResourceName) ?? throw new FileNotFoundException($"Failed to load map file '{mapResourceName}'.");
+            var worldPath = GetWorldNameFromMap(mapResourceName);
+            var worldResource = renderContext.FileLoader.LoadFileCompiled(worldPath) ?? throw new FileNotFoundException($"Failed to load world file '{worldPath}'.");
+
+            return new WorldLoader((World)worldResource.DataBlock!, scene, mapResource.ExternalReferences);
+        }
+
         public WorldLoader(World world, Scene scene, ResourceExtRefList? mapResourceReferences)
         {
             MapName = Path.GetDirectoryName(world.Resource!.FileName!)!.Replace('\\', '/');
@@ -1081,22 +1096,10 @@ namespace ValveResourceFormat.Renderer
                 "world.vwrld_c"
             );
 
-            var skyboxWorld = RendererContext.FileLoader.LoadFile(worldName);
-            var skyboxWorldData = (World?)skyboxWorld?.DataBlock;
-
-            if (skyboxWorldData == null)
-            {
-                if (package != null)
-                {
-                    RendererContext.FileLoader.RemovePackageFromSearch(package);
-                }
-                return;
-            }
-
             SkyboxScene = new Scene(RendererContext);
             SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
 
-            var skyboxResult = new WorldLoader(skyboxWorldData, SkyboxScene, null);
+            var skyboxResult = LoadMap(targetmapname, SkyboxScene);
 
             // Take origin and angles from skybox_reference
             EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
@@ -1343,9 +1346,14 @@ namespace ValveResourceFormat.Renderer
             return null;
         }
 
-        public static string GetWorldPathFromMap(string mapPath)
+        public static string GetWorldNameFromMap(string mapName)
         {
-            return $"{mapPath[..^7]}/world.vwrld_c";
+            mapName = mapName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.InvariantCultureIgnoreCase)
+                ? mapName[..^GameFileLoader.CompiledFileSuffix.Length]
+                : mapName;
+
+            const string VmapExtension = ".vmap";
+            return $"{mapName[..^VmapExtension.Length]}/world.vwrld";
         }
     }
 }

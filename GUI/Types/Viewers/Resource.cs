@@ -100,17 +100,17 @@ namespace GUI.Types.Viewers
 
                 case ResourceType.Map:
                     {
-                        var mapResource = vrfGuiContext.LoadFile(WorldLoader.GetWorldPathFromMap(resource.FileName!));
+                        var worldResource = vrfGuiContext.LoadFileCompiled(WorldLoader.GetWorldNameFromMap(resource.FileName!));
                         var mapExternalReferences = resource.ExternalReferences;
 
-                        if (mapResource != null && mapResource.DataBlock is World mapWorldData)
+                        if (worldResource != null && worldResource.DataBlock is World mapWorldData)
                         {
                             GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, mapWorldData, mapExternalReferences);
                             GLViewerTabName = "MAP";
                         }
                         else
                         {
-                            mapResource?.Dispose();
+                            worldResource?.Dispose();
                         }
                         break;
                     }
