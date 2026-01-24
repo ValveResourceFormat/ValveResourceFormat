@@ -21,14 +21,11 @@ namespace GUI.Types.GLViewers
 
         public Scene Scene { get; }
         public Scene? SkyboxScene => Renderer.SkyboxScene;
-        public SceneSkybox2D? Skybox2D => Renderer.Skybox2D;
         public VrfGuiContext GuiContext;
 
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
         private bool ShowSolidBackground;
-        public bool ShowSkybox { get; set; } = true;
-        public bool IsWireframe { get; set; }
 
         private bool showStaticOctree;
         private bool showDynamicOctree;
@@ -465,7 +462,7 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(UiControl != null);
 
-            UiControl.AddCheckBox("Show Wireframe", false, (v) => IsWireframe = v);
+            UiControl.AddCheckBox("Show Wireframe", Renderer.IsWireframe, (v) => Renderer.IsWireframe = v);
         }
 
         protected void AddRenderModeSelectionControl()
