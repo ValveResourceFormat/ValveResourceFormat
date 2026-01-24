@@ -1,0 +1,10 @@
+{
+  "name": "slangapi",
+  "version": "1.0.0",
+  "dependencies": [
+    {
+      "name": "shader-slang",
+      "default-features": true
+    }
+  ]
+}
