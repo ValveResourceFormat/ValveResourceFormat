@@ -1,0 +1,23 @@
+#version 460
+
+#define F_ALPHA_TEST 0
+
+#include "common/texturing.slang"
+
+in vec2 vTexCoordOut;
+
+uniform sampler2D g_tColor; // SrgbRead(true)
+
+out vec4 outputColor;
+
+void main()
+{
+    vec4 color = texture(g_tColor, vTexCoordOut);
+
+#if (F_ALPHA_TEST == 1) || (F_ALPHA_TEST == 2)
+    color.a = AlphaTestAntiAliasing(color.a, vTexCoordOut);
+#endif
+
+    outputColor = color;
+}
+
