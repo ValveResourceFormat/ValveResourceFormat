@@ -1,0 +1,21 @@
+#version 460
+
+#include "common/utils.glSlang"
+
+in vec3 vFragPosition;
+out vec4 outputColor;
+
+#include "common/ViewConstants.glSlang"
+
+#include "common/fog.glSlang"
+
+void main(void) {
+    outputColor.rgb = vec3(0.0);
+
+    if (g_bFogEnabled)
+    {
+        ApplyFog(outputColor.rgb, vFragPosition);
+        outputColor.rgb = outputColor.rgb;
+    }
+}
+

@@ -131,7 +131,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                var nameWithExtension = $"{shaderFileName}.{extension}.slang";
+                var nameWithExtension = $"{shaderFileName}.{extension}.glSlang";
 
                 var shaderSource = Parser.PreprocessShader(nameWithExtension, parsedData);
                 parsedData.Sources[@type] = shaderSource;
@@ -358,8 +358,8 @@ namespace ValveResourceFormat.Renderer
             return Path.GetFileName(shaderFilePath[..^ShaderFileExtension.Length]);
         }
 
-        public const string SlangExtension = ".slang";
-        public const string ShaderFileExtension = ".vert.slang";
+        public const string SlangExtension = ".glSlang";
+        public const string ShaderFileExtension = ".vert.glSlang";
         const string VrfInternalShaderPrefix = "vrf.";
 
         // Map Valve's shader names to shader files VRF has
