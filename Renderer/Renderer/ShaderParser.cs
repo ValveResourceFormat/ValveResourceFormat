@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using static ValveResourceFormat.Renderer.ShaderLoader;
@@ -364,8 +363,9 @@ namespace ValveResourceFormat.Renderer
             return Path.Combine(ShaderRootDirectory, name);
         }
 
-        private static string GetSolutionRootDirectory([CallerFilePath] string? root = "")
+        private static string GetSolutionRootDirectory()
         {
+            var root = AppContext.BaseDirectory;
             var failsafe = 10;
             var fileName = string.Empty;
 
