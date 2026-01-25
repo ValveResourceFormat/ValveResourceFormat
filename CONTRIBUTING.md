@@ -1,6 +1,6 @@
 When contributing new code, run `dotnet format` and make sure tests pass with `dotnet test`.
 
-If you need help or pointers, [join the SteamDB discord](https://steamdb.info/discord/) which has a dedicated #source2-viewer channel.
+If you need help or pointers, [join our Discord](https://discord.gg/s9QQ7Wg7r4)
 
 ## Library (ValveResourceFormat)
 

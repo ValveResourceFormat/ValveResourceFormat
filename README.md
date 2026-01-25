@@ -23,7 +23,7 @@ This repository is split into four components:
 
 ## Join our Discord
 
-[![Join our Discord](https://discord.com/api/guilds/467730051622764565/embed.png?style=banner2)](https://steamdb.info/discord/)
+[![Join our Discord](https://discord.com/api/guilds/1408482312060145725/embed.png?style=banner2)](https://discord.gg/s9QQ7Wg7r4)
 
 ## Eye catchy screenshots
 <table>
