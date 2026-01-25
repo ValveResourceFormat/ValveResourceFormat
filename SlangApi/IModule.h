@@ -10,7 +10,6 @@ __declspec(dllexport) SlangResult
 IModule_findEntryPointByName(slang::IModule** module, char const* name, slang::IEntryPoint** outEntryPoint)
 {
 	auto ret =  (*module)->findEntryPointByName(name, outEntryPoint);
-	std::cout << std::hex << "returned entry pointer: " << *outEntryPoint << std::endl;
 	return ret;
 }
 
