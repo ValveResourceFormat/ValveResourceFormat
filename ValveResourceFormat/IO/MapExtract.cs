@@ -1521,13 +1521,24 @@ public sealed class MapExtract
             return default;
         }
 
+        if (data is KVObject kvObject)
+        {
+            if (kvObject.IsArray)
+            {
+                return string.Join(' ', kvObject.Select(p => p.Value.ToString() ?? string.Empty));
+            }
+
+            using var writer = new IndentedTextWriter();
+            kvObject.Serialize(writer);
+            return writer.ToString();
+        }
+
         return data switch
         {
             string str => str,
             bool boolean => StringBool(boolean),
             Vector3 vector => $"{vector.X} {vector.Y} {vector.Z}",
             Vector2 vector => $"{vector.X} {vector.Y}",
-            KVObject { IsArray: true } kvArray => string.Join(' ', kvArray.Select(p => p.Value.ToString())),
             null => string.Empty,
             _ when data.GetType().IsPrimitive => data.ToString(),
             _ => throw new NotImplementedException()
