@@ -1,0 +1,13 @@
+#version 460
+
+#include "common/instancing.glSlang"
+#include "common/animation.glSlang"
+
+layout (location = 0) in vec3 vPOSITION;
+
+#include "common/ViewConstants.glSlang"
+
+void main(void) {
+    gl_Position = g_matWorldToProjection * CalculateObjectToWorldMatrix() * getSkinMatrix() * vec4(vPOSITION, 1.0);
+}
+
