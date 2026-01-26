@@ -211,6 +211,14 @@ namespace GUI.Types.GLViewers
                     Scene.Add(physSceneNode, false);
                 }
             }
+
+            var post = new ScenePostProcessVolume(Scene)
+            {
+                HasBloom = true,
+                IsMaster = true,
+            };
+
+            Scene.PostProcessInfo.AddPostProcessVolume(post);
         }
 
         protected override void AddUiControls()

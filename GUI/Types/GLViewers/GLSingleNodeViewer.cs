@@ -68,7 +68,7 @@ namespace GUI.Types.GLViewers
         }
 
         Vector2 defaultSunAngles = new(80f, 170f);
-        Vector4 defaultSunColor = new Vector4(255, 247, 235, 700) / 255.0f;
+        Vector4 defaultSunColor = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
 
         protected Vector2 sunAngles;
 
