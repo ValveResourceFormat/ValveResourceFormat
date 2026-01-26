@@ -7,22 +7,22 @@ namespace Renderer.SlangCompiler;
 
 public partial class SlangBindings
 {
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern TypeLayoutReflectionPtr VariableLayoutReflection_getTypeLayout(ref VariableLayoutReflectionPtr variableLayout);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern IntPtr VariableLayoutReflection_getName(ref VariableLayoutReflectionPtr variableLayout);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern ulong VariableLayoutReflection_getOffset(ref VariableLayoutReflectionPtr variableLayout, ParameterCategory category);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint VariableLayoutReflection_getBindingIndex(ref VariableLayoutReflectionPtr variableLayout);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern ParameterCategory VariableLayoutReflection_getCategory(ref VariableLayoutReflectionPtr variableLayout);
 
     public struct VariableLayoutReflectionPtr

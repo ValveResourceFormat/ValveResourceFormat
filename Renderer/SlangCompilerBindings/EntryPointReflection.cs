@@ -7,13 +7,13 @@ namespace Renderer.SlangCompiler;
 
 public partial class SlangBindings
 {
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern IntPtr EntryPointReflection_getName(ref EntryPointReflectionPtr entryPointReflection);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint EntryPointReflection_getParameterCount(ref EntryPointReflectionPtr entryPointReflection);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern TypeLayoutReflectionPtr EntryPointReflection_getTypeLayout(ref EntryPointReflectionPtr entryPointReflection);
 
     public struct EntryPointReflectionPtr

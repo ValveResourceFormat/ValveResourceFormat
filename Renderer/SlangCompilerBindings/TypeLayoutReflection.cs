@@ -8,19 +8,19 @@ namespace Renderer.SlangCompiler;
 
 public partial class SlangBindings
 {
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern TypeReflectionPtr TypeLayoutReflection_getType(ref TypeLayoutReflectionPtr typeLayout);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint TypeLayoutReflection_getFieldCount(ref TypeLayoutReflectionPtr typeLayout);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern VariableLayoutReflectionPtr TypeLayoutReflection_getFieldByIndex(ref TypeLayoutReflectionPtr typeLayout, uint index);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern ParameterCategory TypeLayoutReflection_getParameterCategory(ref TypeLayoutReflectionPtr typeLayout);
 
     public struct TypeLayoutReflectionPtr

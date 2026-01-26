@@ -7,13 +7,13 @@ namespace Renderer.SlangCompiler;
 
 public partial class SlangBindings
 {
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangResult IModule_findEntryPointByName(ref IModulePtr module, [MarshalAs(UnmanagedType.LPStr)] string name, out IEntryPointPtr outEntryPoint);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern int IModule_getDefinedEntryPointCount(ref IModulePtr module);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangResult IModule_getDefinedEntryPoint(ref IModulePtr module, int index, out IEntryPointPtr outEntryPoint);
 
     public struct IModulePtr
