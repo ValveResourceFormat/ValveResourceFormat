@@ -16,3 +16,22 @@ ShaderReflection_getGlobalParamsTypeLayout(slang::ShaderReflection** shaderRefle
 {
 	return (*shaderReflection)->getGlobalParamsTypeLayout();
 }
+
+__declspec(dllexport) slang::VariableLayoutReflection*
+ShaderReflection_getGlobalParamsVarLayout(slang::ShaderReflection** shaderReflection)
+{
+	return (*shaderReflection)->getGlobalParamsVarLayout();
+}
+
+__declspec(dllexport) uint64_t
+ShaderReflection_getEntryPointCount(slang::ShaderReflection** shaderReflection)
+{
+	return (*shaderReflection)->getEntryPointCount();
+}
+
+
+__declspec(dllexport) slang::EntryPointReflection*
+ShaderReflection_getEntryPointByIndex(slang::ShaderReflection** shaderReflection, SlangUInt index)
+{
+	return (*shaderReflection)->getEntryPointByIndex(index);
+}
