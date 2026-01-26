@@ -37,7 +37,7 @@ void main() {
 
     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative.xy;
     float line = min(grid.x, grid.y);
-    vec4 gridColor = vec4(vec3(0.9), 1.0 - min(line, 1.0));
+    vec4 gridColor = vec4(vec3(0.9, 0.9, 0.95), 1.0 - min(line, 1.0));
 
     float angleFade = min(1.0, pow(abs(normalize(fragPos3D - g_vCameraPositionWs).z), 1.2) * 20); // arbitrary values
     angleFade = mix(1.0, angleFade, min(length(fragPosAbs), 1.0));

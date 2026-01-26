@@ -1,8 +1,8 @@
 #version 460
 
 in vec2 aVertexPosition;
-out vec3 nearPoint;
-out vec3 farPoint;
+sample out vec3 nearPoint;
+sample out vec3 farPoint;
 
 #include "common/ViewConstants.slang"
 
