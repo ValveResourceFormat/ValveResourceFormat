@@ -8,8 +8,8 @@ float far = 100;
 vec3 colorRed = vec3(0.9, 0.2, 0.2);
 vec3 colorGreen = vec3(0.2, 0.8, 0.2);
 
-in vec3 nearPoint;
-in vec3 farPoint;
+sample in vec3 nearPoint;
+sample in vec3 farPoint;
 
 out vec4 outputColor;
 
@@ -28,18 +28,19 @@ void main() {
 
     gl_FragDepth = ((gl_DepthRange.diff * linearDepth) + gl_DepthRange.near);
 
-    float fading = max(0, (0.05 + pow(linearDepth, 0.15)));
+    float fading = max(0, (0.05 + pow(linearDepth, 0.1)));
     bool bIsNearOrigin = lessThanEqual(fragPosAbs, vec2(120.0)) == bvec2(1.0);
+
     float scale = bIsNearOrigin ? 15.0 : 60.0;
     vec2 coord = fragPos3D.xy / scale;
     vec2 derivative = fwidth(fragPos3D.xy)  / scale;
 
     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative.xy;
     float line = min(grid.x, grid.y);
-    vec4 gridColor = vec4(0.9, 0.9, 1.0, 1.0 - min(line, 1.0));
+    vec4 gridColor = vec4(vec3(0.9), 1.0 - min(line, 1.0));
 
-    float angleFade = min(1.0, pow(abs(normalize(fragPos3D - g_vCameraPositionWs).z), 1.4) * 100); // 1.4 and 100 are arbitrary values
-    angleFade = mix(1.0, angleFade, min(length(fragPosAbs) / 2000, 1.0));
+    float angleFade = min(1.0, pow(abs(normalize(fragPos3D - g_vCameraPositionWs).z), 1.2) * 20); // arbitrary values
+    angleFade = mix(1.0, angleFade, min(length(fragPosAbs), 1.0));
 
     vec2 axisLines = abs(coord) / derivative;
 
@@ -74,4 +75,7 @@ void main() {
 
     gridColor.a *= fading * angleFade;
     outputColor = gridColor *  float(t > 0);
+
+    // output to sRGB space
+    outputColor.rgb = pow(outputColor.rgb, vec3(2.2));
 }
