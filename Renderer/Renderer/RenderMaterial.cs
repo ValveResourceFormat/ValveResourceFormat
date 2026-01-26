@@ -53,6 +53,7 @@ namespace ValveResourceFormat.Renderer
         public bool IsOverlay { get; private set; }
         public bool IsToolsMaterial { get; private set; }
         public bool IsCs2Water { get; private set; }
+        public bool VertexAnimation { get; private set; }
         public bool DoNotCastShadows { get; private set; }
 
         public bool IsTranslucent => blendMode >= BlendMode.Translucent;
@@ -165,6 +166,9 @@ namespace ValveResourceFormat.Renderer
                 IsCs2Water = true;
                 return;
             }
+
+            VertexAnimation = material.IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
+                || material.IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0;
 
             // :MaterialIsOverlay
             hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;

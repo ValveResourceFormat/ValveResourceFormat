@@ -31,7 +31,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
     in vec2 vLightmapUV;
-    out vec3 vLightmapUVScaled;
+    centroid out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
     #if defined(vr_standard_vfx)
         #undef F_VERTEX_COLOR

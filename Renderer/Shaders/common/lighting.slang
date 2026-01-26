@@ -8,7 +8,7 @@
 #define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    in vec3 vLightmapUVScaled;
+    centroid in vec3 vLightmapUVScaled;
     uniform sampler2DArray g_tIrradiance;
     #if (S_LIGHTMAP_VERSION_MINOR >= 3)
         uniform sampler2DArray g_tDirectionalIrradianceR;
@@ -172,7 +172,6 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
 
 #define UseLightmapDirectionality true
-const float g_flSceneDirectionalLightmapStrength = 0.8;
 uniform float g_flDirectionalLightmapStrength = 1.0;
 uniform float g_flDirectionalLightmapMinZ = 0.05;
 
@@ -183,7 +182,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3
 {
     if (UseLightmapDirectionality)
     {
-        vec3 vTangentSpaceLightVector;
+        vec3 vTangentSpaceLightVector = vec3(0.0);
 
         vTangentSpaceLightVector.xy = UnpackFromColor(irradianceDirection.xy);
 
@@ -193,7 +192,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3
         vTangentSpaceLightVector *= (colorSpaceMul / max(colorSpaceMul, length(vTangentSpaceLightVector.xy)));
         vTangentSpaceLightVector.z = cosTheta;
 
-        float flDirectionality = mix(irradianceDirection.z, 1.0, g_flDirectionalLightmapStrength) - g_flSceneDirectionalLightmapStrength;
+        float flDirectionality = mix(0, irradianceDirection.z, g_flDirectionalLightmapStrength);
         vec3 vNonDirectionalLightmap = irradianceColor * saturate(flDirectionality);
 
         float NoL = ClampToPositive(dot(vTangentSpaceLightVector, normalMap));

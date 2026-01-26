@@ -388,9 +388,9 @@ namespace ValveResourceFormat.Renderer
         private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
         {
             [DepthOnlyProgram.Static] = [],
-            [DepthOnlyProgram.StaticAlphaTest] = [],
             [DepthOnlyProgram.Animated] = [],
             [DepthOnlyProgram.AnimatedEightBones] = [],
+            [DepthOnlyProgram.Unspecified] = [],
         };
 
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
@@ -443,10 +443,13 @@ namespace ValveResourceFormat.Renderer
                             continue;
                         }
 
-                        var bucket = (opaqueCall.Material.IsAlphaTest, animated) switch
+                        // todo: create depth only variants for these shader types
+                        var renderWithUnoptimizedShader = opaqueCall.Material.VertexAnimation || opaqueCall.Material.IsAlphaTest;
+
+                        var bucket = (renderWithUnoptimizedShader, animated) switch
                         {
+                            (true, _) => DepthOnlyProgram.Unspecified, // shader will be null
                             (false, false) => DepthOnlyProgram.Static,
-                            (true, _) => DepthOnlyProgram.StaticAlphaTest,
                             (false, true) => DepthOnlyProgram.Animated,
                         };
 

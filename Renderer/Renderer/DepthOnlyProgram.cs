@@ -3,8 +3,9 @@ namespace ValveResourceFormat.Renderer;
 public enum DepthOnlyProgram
 {
     Static,
-    StaticAlphaTest,
+    //StaticAlphaTest,
     Animated,
     AnimatedEightBones,
     OcclusionQueryAABBProxy,
+    Unspecified,
 }

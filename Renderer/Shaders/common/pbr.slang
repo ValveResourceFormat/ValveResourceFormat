@@ -75,7 +75,7 @@ float D_AnisoGGX(vec2 roughness, vec3 halfVector, vec3 normal, vec3 tangent, vec
 
     Dots /= vec3(alpha, 1.0);
     float ndf = pow2(dot(Dots, Dots)) * alpha.x * alpha.y;
-    return 1.0 / (PI * ndf);
+    return 1.0 / (PI * max(ndf, 0.0001));
 }
 #endif
 
@@ -113,13 +113,12 @@ uniform int F_CLOTH_SHADING;
 float D_Charlie(float roughness, float NoH)
 {
     float invRough = 1.0 / roughness;
-    return (invRough + 2.0) * pow(1.0 - pow2(NoH), invRough * 0.5) / TAU;
+    return (invRough + 2.0) * pow(max(1.0 - pow2(NoH), 0.0078125), invRough * 0.5) / TAU;
 }
 
 float V_Neubelt(float NoL, float NoV)
 {
-    float clampedNoV = min(NoV + 0.001, 1.0);
-    return 1.0 / (4.0 * (clampedNoV + NoL - NoL * clampedNoV));
+    return 1.0 / max(4.0 * (NoL + NoV - NoL * NoV), 0.00001532);
 }
 
 // Still pass normal due to some effects modifying normal per light
@@ -134,9 +133,9 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
         normal = GetRetroReflectiveNormal(mat.ExtraParams.r, lightVector, mat.ViewDir, normal, halfVector);
     }
 
-	float NoH = saturate( dot(normal, halfVector) );
-	float NoV = saturate( dot(normal, mat.ViewDir) );
-	float VoH = ClampToPositive(dot(lightVector, halfVector));
+	float NoH = saturate(dot(normal, halfVector));
+	float NoV = saturate(dot(normal, mat.ViewDir));
+	float VoH = saturate(dot(lightVector, halfVector));
 	float roughness = pow2(mat.IsometricRoughness); // linear
 
 #if defined(ANISO_ROUGHNESS)

@@ -119,8 +119,9 @@ vec3 EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
 
 float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
 {
+    float NoV = dot(N, V);
     float NoH = dot(normalize(N + V), N);
-    return D_Charlie(pow2(perceptualRoughness), NoH) * V_Neubelt(NoH, NoH);
+    return D_Charlie(pow2(perceptualRoughness), NoV) * V_Neubelt(NoH, NoH);
 }
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
