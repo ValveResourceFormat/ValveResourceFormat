@@ -7,10 +7,10 @@ namespace Renderer.SlangCompiler;
 
 public partial class SlangBindings
 {
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern IModulePtr ISession_loadModule(ref ISessionPtr session, [MarshalAs(UnmanagedType.LPStr)] string path, out ISlangBlob diagnosticBlob);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangResult ISession_createCompositeComponentType(ref ISessionPtr session, IComponentTypePtr[] components, int componentCount, out IComponentTypePtr outComponentType, out ISlangBlob diagnostics);
 
 

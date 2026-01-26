@@ -7,26 +7,26 @@ namespace Renderer.SlangCompiler;
 
 public partial class SlangBindings
 {
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangTypeKind TypeReflection_getKind(ref TypeReflectionPtr typeReflection);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint TypeReflection_getFieldCount(ref TypeReflectionPtr typeReflection);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint TypeReflection_getRowCount(ref TypeReflectionPtr typeReflection);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint TypeReflection_getColumnCount(ref TypeReflectionPtr typeReflection);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangResourceShape TypeReflection_getResourceShape(ref TypeReflectionPtr typeReflection);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern IntPtr TypeReflection_getName(ref TypeReflectionPtr typeReflection);
 
 

@@ -10,18 +10,18 @@ public partial class SlangBindings
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern TypeLayoutReflectionPtr ShaderReflection_getGlobalParamsTypeLayout(ref ProgramLayoutPtr layout);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern VariableLayoutReflectionPtr ShaderReflection_getGlobalParamsVarLayout(ref ProgramLayoutPtr layout);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint ShaderReflection_getParameterCount(ref ProgramLayoutPtr layout);
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern ulong ShaderReflection_getEntryPointCount(ref ProgramLayoutPtr layout);
 
 
-    [DllImport("SlangSharpAPI", CallingConvention = CallingConvention.Cdecl)]
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern EntryPointReflectionPtr ShaderReflection_getEntryPointByIndex(ref ProgramLayoutPtr layout, ulong index);
 
     public struct ProgramLayoutPtr
