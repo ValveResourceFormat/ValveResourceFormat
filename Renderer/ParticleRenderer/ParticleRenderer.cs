@@ -22,10 +22,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private readonly List<ParticleFunctionRenderer> Renderers = [];
 
-        private readonly HashSet<string> loggedWarnings = [];
+        private static readonly HashSet<string> loggedWarnings = [];
 
         public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
+        public string Name { get; set; }
         public int BehaviorVersion { get; }
 
         private readonly int InitialParticles;
@@ -89,6 +90,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 Data = this,
                 EndEarly = false
             };
+
+            Name = particleSystem.Resource?.FileName ?? "<unnamed>";
 
             SetupEmitters(particleSystem.GetEmitters());
             SetupInitializers(particleSystem.GetInitializers());
@@ -506,7 +509,7 @@ namespace ValveResourceFormat.Renderer.Particles
             var message = $"Unsupported {componentType} class '{className}'";
             if (loggedWarnings.Add(message))
             {
-                RendererContext.Logger.LogWarning("{Message}", message);
+                RendererContext.Logger.LogWarning("{Message} {File}", message, Name);
             }
         }
 
