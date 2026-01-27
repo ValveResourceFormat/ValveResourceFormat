@@ -57,7 +57,9 @@ public partial class SlangBindings
 
         public uint release()
         {
-            return ISession_release(ref Ptr);
+            if(!isNull())
+                return ISession_release(ref Ptr);
+            return 0;
         }
     }
 }
