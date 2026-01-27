@@ -4,6 +4,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -13,6 +14,9 @@ namespace ValveResourceFormat.Renderer
         public Animation Animation { get; }
 
         AnimationController SequencePlayback { get; }
+
+        private readonly int[] nmSkelToModelSkeleton;
+        private readonly Dictionary<string, string?> boneRemapDebugNames = [];
 
         public AnimationGraphController(Skeleton modelSkeleton, NmGraphDefinition graphDefinition, GameFileLoader fileLoader)
             : base(modelSkeleton, [])
@@ -36,6 +40,35 @@ namespace ValveResourceFormat.Renderer
             // test sequence playback for the ag2 anim
             SequencePlayback = new AnimationController(Skeleton2, []);
             SequencePlayback.SetAnimation(Animation);
+
+            {
+                // Build bone remap table
+                var sourceBoneCount = Skeleton2.Bones.Length;
+                var destinationBoneCount = Skeleton.Bones.Length;
+                nmSkelToModelSkeleton = new int[destinationBoneCount];
+                var nameToIndex = new Dictionary<uint, int>(sourceBoneCount);
+
+                for (var i = 0; i < sourceBoneCount; i++)
+                {
+                    var name = Skeleton2.Bones[i].Name;
+                    nameToIndex[StringToken.Store(name)] = i;
+                }
+
+                for (var i = 0; i < destinationBoneCount; i++)
+                {
+                    var name = Skeleton.Bones[i].Name;
+                    var hash = StringToken.Store(name);
+
+                    nmSkelToModelSkeleton[i] = -1;
+                    boneRemapDebugNames[name] = null;
+
+                    if (nameToIndex.TryGetValue(hash, out var idx))
+                    {
+                        nmSkelToModelSkeleton[i] = idx;
+                        boneRemapDebugNames[name] = Skeleton2.Bones[idx].Name;
+                    }
+                }
+            }
         }
 
         public override void SetAnimation(Animation? animation)
@@ -49,10 +82,17 @@ namespace ValveResourceFormat.Renderer
 
             if (updated)
             {
-                Debug.Assert(SequencePlayback.Pose.Length == Pose.Length, "Skeleton has different number of bones!");
                 for (var i = 0; i < Pose.Length; i++)
                 {
-                    Pose[i] = SequencePlayback.Pose[i];
+                    var srcIdx = nmSkelToModelSkeleton[i];
+                    if (srcIdx >= 0 && srcIdx < SequencePlayback.Pose.Length)
+                    {
+                        Pose[i] = SequencePlayback.Pose[srcIdx];
+                        continue;
+                    }
+
+                    // If bone not found, fallback to bind pose or leave unchanged
+                    // Pose[i] = SequencePlayback.BindPose.Length > i ? SequencePlayback.BindPose[i] : Pose[i];
                 }
             }
 

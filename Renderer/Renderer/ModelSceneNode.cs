@@ -323,7 +323,7 @@ namespace ValveResourceFormat.Renderer
             SetActiveMeshGroups(model.GetDefaultMeshGroups());
         }
 
-        private void SetupBoneMatrixBuffers()
+        public void SetupBoneMatrixBuffers()
         {
             if (boneCount == 0 || boneMatricesGpu != null)
             {

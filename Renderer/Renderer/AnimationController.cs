@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
-            foreach (var root in FrameCache.Skeleton.Roots)
+            foreach (var root in Skeleton.Roots)
             {
                 if (root.IsProceduralCloth)
                 {

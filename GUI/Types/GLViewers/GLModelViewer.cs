@@ -184,6 +184,7 @@ namespace GUI.Types.GLViewers
                             modelSceneNode.AnimationController = animGraphController;
 
                             // force model to use skinning matrices
+                            modelSceneNode.SetupBoneMatrixBuffers();
                             modelSceneNode.SetAnimation(animGraphController.Animation);
                         }
                     }
