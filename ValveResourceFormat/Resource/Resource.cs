@@ -581,6 +581,7 @@ namespace ValveResourceFormat
                 or ResourceType.Morph
                 or ResourceType.SmartProp
                 or ResourceType.AnimationGraph
+                or ResourceType.NmGraph
                 or ResourceType.NmClip
                 or ResourceType.PostProcessing;
         }

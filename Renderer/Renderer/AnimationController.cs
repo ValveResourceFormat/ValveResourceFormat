@@ -93,7 +93,7 @@ namespace ValveResourceFormat.Renderer
             return true;
         }
 
-        public void SetAnimation(Animation? animation)
+        public virtual void SetAnimation(Animation? animation)
         {
             FrameCache.Clear();
             ActiveAnimation = animation;

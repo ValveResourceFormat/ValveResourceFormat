@@ -180,8 +180,11 @@ namespace GUI.Types.GLViewers
                         var animGraphResource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
                         if (animGraphResource != null && animGraphResource.DataBlock is NmGraphDefinition graphDefinition)
                         {
-                            animGraphController = new AnimationGraphController(model.Skeleton, graphDefinition);
+                            animGraphController = new AnimationGraphController(model.Skeleton, graphDefinition, Scene.RendererContext.FileLoader);
                             modelSceneNode.AnimationController = animGraphController;
+
+                            // force model to use skinning matrices
+                            modelSceneNode.SetAnimation(animGraphController.Animation);
                         }
                     }
                 }

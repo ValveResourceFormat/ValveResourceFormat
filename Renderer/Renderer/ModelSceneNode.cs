@@ -365,12 +365,7 @@ namespace ValveResourceFormat.Renderer
 
         public void SetAnimation(Animation? activeAnimation)
         {
-            if (AnimationController is not AnimationController sequenceController)
-            {
-                return;
-            }
-
-            sequenceController.SetAnimation(activeAnimation);
+            AnimationController.SetAnimation(activeAnimation);
             UpdateBoundingBox();
 
             if (activeAnimation != default)
