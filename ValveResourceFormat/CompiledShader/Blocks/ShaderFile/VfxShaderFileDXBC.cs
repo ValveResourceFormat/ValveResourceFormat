@@ -38,10 +38,10 @@ public class VfxShaderFileDXBC : VfxShaderFile
 
     /// <inheritdoc/>
     /// <remarks>
-    /// DXBC decompilation is not supported. This method always throws an InvalidOperationException.
+    /// DXBC decompilation is not supported. Showing hash for now is useful for finding shader from renderdoc.
     /// </remarks>
     public override string GetDecompiledFile()
     {
-        throw new InvalidOperationException("DXBC decompilation is not supported.");
+        return $"Shader hash: {new Guid(Bytecode.AsSpan(4, 16)).ToString()}\n\nDXBC decompilation is currently not supported.";
     }
 }
