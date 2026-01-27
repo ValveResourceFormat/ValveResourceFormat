@@ -2,9 +2,9 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer
 {
-    public class AnimationGraphController : BaseAnimationController
+    public class AnimationGraphController : AnimationController
     {
-        public AnimationGraphController(Skeleton skeleton) : base(skeleton)
+        public AnimationGraphController(Skeleton skeleton) : base(skeleton, [])
         {
         }
 
