@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Renderer.SlangCompiler;
+namespace SlangCompiler;
 
 public partial class SlangBindings
 {
@@ -23,10 +23,33 @@ public partial class SlangBindings
 
     public class ISession
     {
+        //this is how we talk to the C++ side
         ISessionPtr Ptr;
         public ISession(ISessionPtr sessionPointer)
         {
             Ptr = sessionPointer;
+        }
+
+        public IModule loadModule(string path, out ISlangBlob diagnosticBlob)
+        {
+            return new IModule(ISession_loadModule(ref Ptr, path, out diagnosticBlob));
+        }
+
+        public SlangResult createCompositeComponentType(IComponentType[] components, out IComponentType outComponentType, out ISlangBlob diagnostics)
+        {
+            IComponentTypePtr[] componentPtrs = new IComponentTypePtr[components.Length];
+            for (int i = 0; i < components.Length; i++)
+            {
+                componentPtrs[i] = components[i].Ptr;
+            }
+            SlangResult result = ISession_createCompositeComponentType(ref Ptr, componentPtrs, componentPtrs.Length, out IComponentTypePtr outComponentTypePtr, out diagnostics);
+            outComponentType = new IComponentType(outComponentTypePtr);
+            return result;
+        }
+
+        public bool isNull()
+        {
+            return Ptr.ptr == IntPtr.Zero;
         }
     }
 }

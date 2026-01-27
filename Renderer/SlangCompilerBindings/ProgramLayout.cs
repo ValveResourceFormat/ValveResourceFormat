@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Renderer.SlangCompiler;
+namespace SlangCompiler;
 
 public partial class SlangBindings
 {

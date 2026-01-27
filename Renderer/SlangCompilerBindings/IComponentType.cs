@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Renderer.SlangCompiler;
+namespace SlangCompiler;
 
 public partial class SlangBindings
 {
@@ -32,6 +32,11 @@ public partial class SlangBindings
         public IComponentType(IComponentTypePtr componentTypePointer)
         {
             Ptr = componentTypePointer;
+        }
+
+        public bool isNull()
+        {
+            return Ptr.ptr == IntPtr.Zero;
         }
         public SlangResult getTargetCode(long target, out ISlangBlob outBlob)
         {
