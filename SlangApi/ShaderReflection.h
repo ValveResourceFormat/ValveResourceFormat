@@ -29,7 +29,6 @@ ShaderReflection_getEntryPointCount(slang::ShaderReflection** shaderReflection)
 	return (*shaderReflection)->getEntryPointCount();
 }
 
-
 __declspec(dllexport) slang::EntryPointReflection*
 ShaderReflection_getEntryPointByIndex(slang::ShaderReflection** shaderReflection, SlangUInt index)
 {

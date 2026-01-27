@@ -111,8 +111,8 @@ namespace ValveResourceFormat.Renderer
             globalSlangSession.createSession(slangSessionDesc, out slangSession);
         }
 
-        static IGlobalSession globalSlangSession = new IGlobalSession(new IGlobalSessionPtr());
-        static ISession slangSession = new ISession(new ISessionPtr());
+        public static IGlobalSession globalSlangSession = new IGlobalSession(new IGlobalSessionPtr());
+        public static ISession slangSession = new ISession(new ISessionPtr());
 
 
 
@@ -237,10 +237,6 @@ namespace ValveResourceFormat.Renderer
                     linkedProgram.getTargetCode(0, out ISlangBlob outBlob);
                     //module.getTargetCode(0, out ISlangBlob outBlob);
                     parsedData.Sources[@type] = outBlob.getString();
-
-
-
-
                 }
             }
 
@@ -465,7 +461,8 @@ namespace ValveResourceFormat.Renderer
 
         public static string ShaderNameFromPath(string shaderFilePath)
         {
-            return Path.GetFileName(shaderFilePath[..^ShaderFileExtension.Length]);
+            //return Path.GetFileName(shaderFilePath[..^ShaderFileExtension.Length]);
+            return Path.GetFileName(shaderFilePath.Split(".")[0]);
         }
 
         public const string SlangExtension = ".glSlang";

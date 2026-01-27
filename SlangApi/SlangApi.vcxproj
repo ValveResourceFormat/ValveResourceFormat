@@ -25,9 +25,16 @@
     <ClInclude Include="IModule.h" />
     <ClInclude Include="ISession.h" />
     <ClInclude Include="ISlangBlob.h" />
+    <ClInclude Include="ShaderReflection.h" />
+    <ClInclude Include="TypeLayoutReflection.h" />
+    <ClInclude Include="TypeReflection.h" />
+    <ClInclude Include="VariableLayoutReflection.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="SlangApi.cpp" />
+    <ClCompile Include="SlangApi.cpp">
+      <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </CompileAsManaged>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vcpkg.json" />
@@ -38,6 +45,7 @@
     <ProjectGuid>{6b218a2e-9b54-42df-9a13-f91315f453a7}</ProjectGuid>
     <RootNamespace>SlangApi</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>7.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -85,6 +93,10 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ManagedAssembly>
+    </ManagedAssembly>
+  </PropertyGroup>
   <PropertyGroup Label="Vcpkg">
     <VcpkgEnableManifest>true</VcpkgEnableManifest>
   </PropertyGroup>

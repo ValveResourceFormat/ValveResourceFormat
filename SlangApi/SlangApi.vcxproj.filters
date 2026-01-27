@@ -33,6 +33,18 @@
     <ClInclude Include="ISlangBlob.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="TypeLayoutReflection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VariableLayoutReflection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderReflection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeReflection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SlangApi.cpp">
