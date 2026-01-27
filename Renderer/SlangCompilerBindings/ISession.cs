@@ -13,6 +13,9 @@ public partial class SlangBindings
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangResult ISession_createCompositeComponentType(ref ISessionPtr session, IComponentTypePtr[] components, int componentCount, out IComponentTypePtr outComponentType, out ISlangBlob diagnostics);
 
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern uint ISession_release(ref ISessionPtr session);
+
 
     public struct ISessionPtr
     {
@@ -50,6 +53,11 @@ public partial class SlangBindings
         public bool isNull()
         {
             return Ptr.ptr == IntPtr.Zero;
+        }
+
+        public uint release()
+        {
+            return ISession_release(ref Ptr);
         }
     }
 }

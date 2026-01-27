@@ -22,3 +22,9 @@ ISession_createCompositeComponentType(
 		outCompositeComponentType,
 		outDiagnostics);
 }
+
+__declspec(dllexport) unsigned int
+ISession_release(slang::ISession** session)
+{
+    return (*session)->release();
+}

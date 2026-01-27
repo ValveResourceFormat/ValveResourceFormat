@@ -5,7 +5,9 @@ using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
+using SlangCompiler;
 using ValveResourceFormat.Renderer;
+using static SlangCompiler.SlangBindings;
 
 namespace GUI.Types.GLViewers;
 
@@ -74,6 +76,27 @@ internal class ShaderHotReload : IDisposable
 
     public void ReloadShaders(string? name = null)
     {
+
+        ShaderLoader.slangSession.release();
+
+        SessionDesc slangSessionDesc = new SessionDesc();
+        slangSessionDesc.allowGLSLSyntax = true;
+
+        TargetDesc targetDesc = new TargetDesc();
+
+        targetDesc.format = SlangCompileTarget.SLANG_GLSL;
+        targetDesc.profile = ShaderLoader.globalSlangSession.findProfile("glsl_460");
+        unsafe
+        {
+            slangSessionDesc.targets = &targetDesc;
+        }
+        slangSessionDesc.targetCount = 1;
+        slangSessionDesc.defaultMatrixLayoutMode = SlangMatrixLayoutMode.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
+
+
+        //slangSessionDesc.targets = Marshal.AllocHGlobal(Marshal.SizeOf<TargetDesc>());
+        ShaderLoader.globalSlangSession.createSession(slangSessionDesc, out ShaderLoader.slangSession);
+
         using var lockedGl = ViewerControl.MakeCurrent();
         ShaderLoader.ReloadAllShaders(name);
         ShadersReloaded?.Invoke(this, name);

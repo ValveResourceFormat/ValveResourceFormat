@@ -5,7 +5,7 @@
 
 
 
-//DO NOT USE, IT IS BROKEN
+//Do not use before linking!
 __declspec(dllexport) SlangResult 
 IModule_findEntryPointByName(slang::IModule** module, char const* name, slang::IEntryPoint** outEntryPoint)
 {
