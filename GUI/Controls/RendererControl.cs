@@ -54,6 +54,72 @@ partial class RendererControl : UserControl
         return checkbox.CheckBox;
     }
 
+    public ThemedFloatNumeric AddNumericField(string name, float startingValue, Action<float> changeCallback)
+    {
+        // Use FlowLayoutPanel for horizontal layout
+        var flowPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+
+        var label = new Label
+        {
+            Text = name,
+            AutoSize = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0, 0, 8, 0),
+        };
+
+        var field = new ThemedFloatNumeric
+        {
+            MinValue = float.MinValue,
+            MaxValue = float.MaxValue,
+            DecimalMax = 3,
+            DragWithinRange = false,
+            Value = startingValue,
+            Margin = new Padding(0, 0, 0, 0),
+            Size = new Size(40, 20),
+        };
+
+        field.ValueChanged += (s, e) => changeCallback(field.Value);
+
+        flowPanel.Controls.Add(label);
+        flowPanel.Controls.Add(field);
+        ControlsPanel.Controls.Add(flowPanel);
+        SetControlLocation(flowPanel);
+        return field;
+    }
+
+    public Slider AddSlider(string name, float min, float max, float startingValue, Action<float> changeCallback)
+    {
+        var sliderControl = new GLViewerSliderControl();
+        sliderControl.Slider.ValueChanged = changeCallback;
+
+        /*
+        Vector2 range = new(min, max);
+        float Pack(float v) => (v - range.X) / (range.Y - range.X);
+        float Unpack(float s) => s * (range.Y - range.X) + range.X;
+
+        var slider = uiControl.AddTrackBar(val =>
+        {
+            animGraphController.FloatParameters[paramName] = Unpack(val);
+        });
+
+        void SetValue(float v) => slider.Slider.Value = Pack(v);
+        SetValue(value);
+        */
+
+        ControlsPanel.Controls.Add(sliderControl);
+
+        SetControlLocation(sliderControl);
+
+        return sliderControl.Slider;
+    }
+
     public ComboBox AddSelection(string name, Action<string, int> changeCallback, bool horizontal = false, bool fill = false)
     {
         var selectionControl = new GLViewerSelectionControl(name, horizontal, fill);
@@ -143,6 +209,18 @@ partial class RendererControl : UserControl
         panel.Controls.Add(label);
         ControlsPanel.Controls.Add(panel);
         SetControlLocation(panel);
+    }
+
+    public Label AddLabel(string text)
+    {
+        var label = new Label
+        {
+            Text = text,
+            AutoSize = true,
+        };
+        ControlsPanel.Controls.Add(label);
+        SetControlLocation(label);
+        return label;
     }
 
     public void SetMoveSpeed(string text)

@@ -1,10 +1,11 @@
 using System.Diagnostics;
 using System.IO;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.ThirdParty;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -18,15 +19,43 @@ namespace ValveResourceFormat.Renderer
         private readonly int[] nmSkelToModelSkeleton;
         private readonly Dictionary<string, string?> boneRemapDebugNames = [];
 
+
+        public string Name { get; set; }
+        public Dictionary<string, bool> BoolParameters { get; } = [];
+        public Dictionary<string, float> FloatParameters { get; } = [];
+        public Dictionary<string, string> IdParameters { get; } = [];
+        // target
+        public Dictionary<string, Vector4> VectorParameters { get; } = [];
+
+
+        private readonly HashSet<string> KnownIds = [];
+        private readonly Dictionary<string, HashSet<string>> IdOptions = [];
+        public IEnumerable<string> GetParameterIdOptions(string parameterName)
+        {
+            if (IdOptions.TryGetValue(parameterName, out var options))
+            {
+                return options;
+            }
+
+            return [];
+        }
+
         public AnimationGraphController(Skeleton modelSkeleton, NmGraphDefinition graphDefinition, GameFileLoader fileLoader)
             : base(modelSkeleton, [])
         {
             var graph = graphDefinition.Data;
+            Debug.Assert(graph != null, "Animation graph definition data is null.");
+
+            var variationId = graph.GetProperty<string>("m_variationID");
+            Name = $"{Path.GetFileNameWithoutExtension(graphDefinition.Resource.FileName)} ({variationId})";
 
             // Load animated skeleton
             var skeletonName = graph.GetProperty<string>("m_skeleton");
             var res = fileLoader.LoadFileCompiled(skeletonName) ?? throw new InvalidDataException($"Skeleton file '{skeletonName}' could not be found.");
             Skeleton2 = Skeleton.FromSkeletonData(((BinaryKV3)res.DataBlock!).Data);
+
+
+            IterateGraph(graph);
 
             // Load first clip
             var resources = graph.GetArray<string>("m_resources");
@@ -68,6 +97,57 @@ namespace ValveResourceFormat.Renderer
                         boneRemapDebugNames[name] = Skeleton2.Bones[idx].Name;
                     }
                 }
+            }
+        }
+
+        private void IterateGraph(KVObject graph)
+        {
+            // figure out parameters
+            var parameterIds = graph.GetArray<string>("m_controlParameterIDs");
+            var nodes = graph.GetArray<KVObject>("m_nodes");
+
+            // copied from node viewer
+            // todo: unduplicate
+            string GetType(int nodeIdx)
+            {
+                var className = nodes[nodeIdx].GetStringProperty("_class");
+                const string Prefix = "CNm";
+                const string Suffix = "Node::CDefinition";
+                var @type = className[Prefix.Length..^Suffix.Length];
+                return @type;
+            }
+
+            var i = 0;
+            foreach (var node in nodes)
+            {
+                var type = GetType(i);
+
+                const string ControlParameterClassPreffix = "ControlParameter";
+                if (type.StartsWith(ControlParameterClassPreffix, StringComparison.Ordinal))
+                {
+                    var parameterName = parameterIds[i];
+                    var parameterType = type[ControlParameterClassPreffix.Length..];
+
+                    switch (parameterType)
+                    {
+                        case "Bool": BoolParameters[parameterName] = false; break;
+                        case "Float": FloatParameters[parameterName] = 0.0f; break;
+                        case "ID": IdParameters[parameterName] = string.Empty; break;
+                        case "Vector": VectorParameters[parameterName] = Vector4.Zero; break;
+                        default: throw new InvalidDataException($"Unknown control parameter type '{parameterType}' in animation graph.");
+                    }
+                }
+                else if (type == "IDComparison")
+                {
+                    var parameterName = parameterIds[node.GetInt32Property("m_nInputValueNodeIdx")];
+                    var idsToCompare = node.GetArray<string>("m_comparisionIDs");
+
+                    KnownIds.UnionWith(idsToCompare);
+                    IdOptions.TryAdd(parameterName, [.. idsToCompare]);
+                    IdOptions[parameterName].UnionWith(idsToCompare);
+                }
+
+                i++;
             }
         }
 

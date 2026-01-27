@@ -280,6 +280,11 @@ namespace GUI.Types.GLViewers
                     });
                 }
 
+                if (animGraphController != null)
+                {
+                    CreateAnimGraphControls(UiControl, animGraphController, modelSceneNode);
+                }
+
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
                     Debug.Assert(hitboxSetSceneNode != null);
@@ -370,6 +375,42 @@ namespace GUI.Types.GLViewers
             }
 
             base.AddUiControls();
+        }
+
+        private static void CreateAnimGraphControls(RendererControl uiControl, AnimationGraphController animGraphController, ModelSceneNode modelSceneNode)
+        {
+            uiControl.AddDivider();
+            uiControl.AddLabel($"Animation: {animGraphController.Name}");
+
+
+            foreach (var (paramName, _) in animGraphController.BoolParameters)
+            {
+                uiControl.AddCheckBox(paramName, animGraphController.BoolParameters[paramName], isChecked =>
+                {
+                    animGraphController.BoolParameters[paramName] = isChecked;
+                });
+            }
+
+            foreach (var (paramName, value) in animGraphController.FloatParameters)
+            {
+                uiControl.AddNumericField(paramName, value, val =>
+                {
+                    animGraphController.FloatParameters[paramName] = val;
+                });
+            }
+
+            foreach (var (paramName, value) in animGraphController.IdParameters)
+            {
+                var combo = uiControl.AddSelection(paramName, (id, _) =>
+                {
+                    animGraphController.IdParameters[paramName] = id;
+                }, horizontal: true);
+
+                combo.Items.AddRange([.. animGraphController.GetParameterIdOptions(paramName)]);
+                combo.SelectedIndex = Math.Max(0, combo.Items.IndexOf(value));
+            }
+
+            uiControl.AddDivider();
         }
 
         protected void SetAnimationControllerUpdateHandler()
