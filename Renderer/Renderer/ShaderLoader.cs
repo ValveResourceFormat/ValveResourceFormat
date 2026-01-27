@@ -91,6 +91,12 @@ namespace ValveResourceFormat.Renderer
         static void setupSlangCompiler()
         {
             createGlslCompatibleGlobalSession(out globalSlangSession);
+            RecreateSlangSession();
+        }
+
+        static public void RecreateSlangSession()
+        {
+            slangSession.release();
 
             SessionDesc slangSessionDesc = new SessionDesc();
             slangSessionDesc.allowGLSLSyntax = true;
@@ -106,13 +112,11 @@ namespace ValveResourceFormat.Renderer
             slangSessionDesc.targetCount = 1;
             slangSessionDesc.defaultMatrixLayoutMode = SlangMatrixLayoutMode.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
 
-
-            //slangSessionDesc.targets = Marshal.AllocHGlobal(Marshal.SizeOf<TargetDesc>());
             globalSlangSession.createSession(slangSessionDesc, out slangSession);
         }
 
-        public static IGlobalSession globalSlangSession = new IGlobalSession(new IGlobalSessionPtr());
-        public static ISession slangSession = new ISession(new ISessionPtr());
+        static IGlobalSession globalSlangSession = new IGlobalSession(new IGlobalSessionPtr());
+        static ISession slangSession = new ISession(new ISessionPtr());
 
 
 
