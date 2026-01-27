@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Renderer
 
             meshNamesForLod1 = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
 
-            AnimationController = new(model.Skeleton, model.FlexControllers);
+            AnimationController = new AnimationController(model.Skeleton, model.FlexControllers);
             boneCount = model.Skeleton.Bones.Length;
             remappingTable = model.Data.GetIntegerArray("m_remappingTable").Select(i => (int)i).ToArray();
 
@@ -100,9 +100,9 @@ namespace ValveResourceFormat.Renderer
 
             public bool AreValid => LeftEyeBoneIndex != -1 && RightEyeBoneIndex != -1 && TargetBoneIndex != -1;
 
-            public CharacterEyeParameters(AnimationController animationController)
+            public CharacterEyeParameters(BaseAnimationController animationController)
             {
-                var skeleton = animationController.FrameCache.Skeleton;
+                var skeleton = animationController.Skeleton;
 
                 LeftEyeBoneIndex = skeleton.Bones.FirstOrDefault(b => b.Name == "eyeball_l")?.Index ?? -1;
                 RightEyeBoneIndex = skeleton.Bones.FirstOrDefault(b => b.Name == "eyeball_r")?.Index ?? -1;
@@ -218,9 +218,9 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            if (AnimationController.AnimationFrame != null)
+            if (AnimationController is AnimationController { AnimationFrame: not null } sequenceController)
             {
-                var datas = AnimationController.AnimationFrame.Datas;
+                var datas = sequenceController.AnimationFrame.Datas;
                 foreach (var renderableMesh in RenderableMeshes)
                 {
                     if (renderableMesh.FlexStateManager == null)
@@ -365,7 +365,12 @@ namespace ValveResourceFormat.Renderer
 
         public void SetAnimation(Animation? activeAnimation)
         {
-            AnimationController.SetAnimation(activeAnimation);
+            if (AnimationController is not AnimationController sequenceController)
+            {
+                return;
+            }
+
+            sequenceController.SetAnimation(activeAnimation);
             UpdateBoundingBox();
 
             if (activeAnimation != default)
