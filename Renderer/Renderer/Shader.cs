@@ -11,9 +11,11 @@ namespace ValveResourceFormat.Renderer
         public string Name { get; }
         public uint NameHash { get; }
         public int Program { get; set; }
+        public int UniformBuffer { get; set; }
 
         public bool IsLoaded { get; private set; }
         public bool IsValid { get; private set; }
+        public bool IsSlang { get; set; }
 
         public required int[] ShaderObjects { get; init; }
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }

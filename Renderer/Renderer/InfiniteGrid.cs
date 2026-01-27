@@ -29,8 +29,8 @@ namespace ValveResourceFormat.Renderer
             GL.CreateBuffers(1, out int buffer);
             GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
             GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, sizeof(float) * 2);
-
-            var attributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
+            //SLANG: needed hardcoding because the input name doesn't exist anymore
+            var attributeLocation = 0; // GL.GetAttribLocation(shader.Program, "aVertexPosition");
             GL.EnableVertexArrayAttrib(vao, attributeLocation);
             GL.VertexArrayAttribFormat(vao, attributeLocation, 2, VertexAttribType.Float, false, 0);
             GL.VertexArrayAttribBinding(vao, attributeLocation, 0);

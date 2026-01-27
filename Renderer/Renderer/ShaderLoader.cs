@@ -9,6 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using SlangCompiler;
+using static SlangCompiler.SlangBindings;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -76,11 +78,14 @@ namespace ValveResourceFormat.Renderer
 
         static ShaderLoader()
         {
+            if (slangSession.isNull())
+                setupSlangCompiler();
+
             Task.Run(() =>
             {
                 foreach (var shader in Parser.AvailableShaders.Keys)
                 {
-                    GetOrParseShader(shader);
+                        GetOrParseShader(shader);
                 }
             });
         }
@@ -88,7 +93,39 @@ namespace ValveResourceFormat.Renderer
         public ShaderLoader(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
+
+            if(slangSession.isNull())
+                setupSlangCompiler();
+
         }
+
+        static void setupSlangCompiler()
+        {
+            createGlslCompatibleGlobalSession(out globalSlangSession);
+
+            SessionDesc slangSessionDesc = new SessionDesc();
+            slangSessionDesc.allowGLSLSyntax = true;
+
+            TargetDesc targetDesc = new TargetDesc();
+
+            targetDesc.format = SlangCompileTarget.SLANG_GLSL;
+            targetDesc.profile = globalSlangSession.findProfile("glsl_460");
+            unsafe
+            {
+                slangSessionDesc.targets = &targetDesc;
+            }
+            slangSessionDesc.targetCount = 1;
+            slangSessionDesc.defaultMatrixLayoutMode = SlangMatrixLayoutMode.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
+
+
+            //slangSessionDesc.targets = Marshal.AllocHGlobal(Marshal.SizeOf<TargetDesc>());
+            globalSlangSession.createSession(slangSessionDesc, out slangSession);
+        }
+
+        static IGlobalSession globalSlangSession = new IGlobalSession(new IGlobalSessionPtr());
+        static ISession slangSession = new ISession(new ISessionPtr());
+
+
 
         public Shader LoadShader(string shaderName, params (string ComboName, byte ComboValue)[] combos)
         {
@@ -117,6 +154,18 @@ namespace ValveResourceFormat.Renderer
         }
 
         private static ParsedShaderData GetOrParseShader(string shaderFileName)
+        {
+            if (File.Exists(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang")))
+            {
+                return GetOrParseSlangShader(shaderFileName);
+            }
+            else
+            {
+                return GetOrParseGlslShader(shaderFileName);
+            }
+        }
+
+        private static ParsedShaderData GetOrParseGlslShader(string shaderFileName)
         {
             using var _ = ParserLock.EnterScope();
             if (ParsedCache.TryGetValue(shaderFileName, out var cached))
@@ -147,6 +196,63 @@ namespace ValveResourceFormat.Renderer
                 var shaderSource = Parser.PreprocessShader(nameWithExtension, parsedData);
                 parsedData.Sources[@type] = shaderSource;
                 Parser.ClearBuilder();
+            }
+
+            ParsedCache[shaderFileName] = parsedData;
+            return parsedData;
+        }
+
+        private static ParsedShaderData GetOrParseSlangShader(string shaderFileName)
+        {
+            using var _ = ParserLock.EnterScope();
+            if (ParsedCache.TryGetValue(shaderFileName, out var cached))
+            {
+                return cached;
+            }
+
+            var parsedData = new ParsedShaderData();
+
+            var availableStages = Parser.AvailableShaders.GetValueOrDefault(shaderFileName)
+                ?? throw new FileNotFoundException($"Shader '{shaderFileName}' does not exist.");
+
+            if (availableStages.Length == 0
+            || availableStages[(int)ShaderProgramType.Vertex] == false && availableStages[(int)ShaderProgramType.Compute] == false)
+            {
+                throw new InvalidDataException($"Shader '{shaderFileName}' does not have a vertex or compute stage.");
+            }
+
+            //only loading one file. Shaders with split vert and frag shaders must import the vertex shader.
+            var nameWithExtension = $"{shaderFileName}.slang";
+
+            IModule module = slangSession.loadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out ISlangBlob diagnostics);
+
+            if (module.getDefinedEntryPointCount() > 0)
+            {
+                foreach (var (@type, extension) in ShaderParser.ProgramTypeToExtension)
+                {
+                    IEntryPoint entryPoint = new IEntryPoint(new IEntryPointPtr());
+
+                    if (@type == ShaderProgramType.Vertex)
+                        module.findEntryPointByName("vertexMain", out entryPoint);
+                    else if (@type == ShaderProgramType.Fragment)
+                        module.findEntryPointByName("fragmentMain", out entryPoint);
+
+                    if (entryPoint.isNull())
+                        continue;
+
+                    //time to compose!
+                    IComponentType[] componentTypes = { module, entryPoint };
+
+                    slangSession.createCompositeComponentType(componentTypes, out IComponentType compositeType, out ISlangBlob linkDiagnostics);
+                    compositeType.link(out IComponentType linkedProgram, out ISlangBlob linkingDiagnostics);
+                    linkedProgram.getTargetCode(0, out ISlangBlob outBlob);
+                    //module.getTargetCode(0, out ISlangBlob outBlob);
+                    parsedData.Sources[@type] = outBlob.getString();
+
+
+
+
+                }
             }
 
             ParsedCache[shaderFileName] = parsedData;
@@ -205,7 +311,8 @@ namespace ValveResourceFormat.Renderer
                     ShaderObjects = shaderObjects,
                     RenderModes = parsedData.RenderModes,
                     UniformNames = parsedData.Uniforms,
-                    SrgbUniforms = parsedData.SrgbUniforms
+                    SrgbUniforms = parsedData.SrgbUniforms,
+                    IsSlang = false
                 };
 
                 foreach (var shaderObj in shaderObjects)
@@ -256,25 +363,28 @@ namespace ValveResourceFormat.Renderer
         private static void CompileShaderObjects(int[] shaderObjects, string[] shaderSources, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
             var header = new StringBuilder();
-            header.Append(ShaderParser.ExpectedShaderVersion);
-            header.Append('\n');
 
-            // Append original shader name as a define
-            header.Append("#define ");
-            header.Append(Path.GetFileNameWithoutExtension(originalShaderName));
-            header.Append("_vfx 1\n");
-
-            // Add all defines (with argument overrides or defaults)
-            foreach (var (defineName, defaultValue) in parsedData.Defines)
+            if (!(shaderSources[0].Split("\n")[0] == "#version 460"))
             {
-                var value = arguments.TryGetValue(defineName, out var argValue) ? argValue : defaultValue;
-                header.Append("#define ");
-                header.Append(defineName);
-                header.Append(' ');
-                header.Append(value.ToString(CultureInfo.InvariantCulture));
+                header.Append(ShaderParser.ExpectedShaderVersion);
                 header.Append('\n');
-            }
+                // Append original shader name as a define
+                header.Append("#define ");
+                header.Append(Path.GetFileNameWithoutExtension(originalShaderName));
+                header.Append("_vfx 1\n");
 
+                // Add all defines (with argument overrides or defaults)
+                foreach (var (defineName, defaultValue) in parsedData.Defines)
+                {
+                    var value = arguments.TryGetValue(defineName, out var argValue) ? argValue : defaultValue;
+                    header.Append("#define ");
+                    header.Append(defineName);
+                    header.Append(' ');
+                    header.Append(value.ToString(CultureInfo.InvariantCulture));
+                    header.Append('\n');
+                }
+            }
+            
             var headerText = header.ToString();
 
             for (var i = 0; i < shaderObjects.Length; i++)
@@ -475,7 +585,7 @@ namespace ValveResourceFormat.Renderer
         {
             Parser.Reset();
 
-            if (name != null && ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".{ext}.slang", StringComparison.Ordinal)))
+            if (name != null && (ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".{ext}.glSlang", StringComparison.Ordinal)) || ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".slang", StringComparison.Ordinal))))
             {
                 // If a named shader changed (not an include), then we can only reload this shader
                 name = ShaderNameFromPath(name!);

@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
-using static Renderer.SlangCompiler.TypeReflection;
 
-namespace Renderer.SlangCompiler;
+
+namespace SlangCompiler;
 
 public partial class SlangBindings
 {

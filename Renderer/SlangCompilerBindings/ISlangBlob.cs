@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Renderer.SlangCompiler;
+namespace SlangCompiler;
 
 public partial class SlangBindings
 {
@@ -43,6 +44,11 @@ public partial class SlangBindings
         public long getBufferSize()
         {
             return ISlangBlob_getBufferSize(ref ptr);
+        }
+
+        public string getString()
+        {
+            return Marshal.PtrToStringUTF8(getBufferPointer(), (int)getBufferSize());
         }
     }
 }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Renderer.SlangCompiler;
+namespace SlangCompiler;
 
 
 public partial class SlangBindings
@@ -67,6 +67,11 @@ public partial class SlangBindings
         public SlangProfileID findProfile(string name)
         {
             return IGlobalSession_findProfile(ref Ptr, name);
+        }
+
+        public bool isNull()
+        {
+            return Ptr.ptr == IntPtr.Zero;
         }
     }
 }
