@@ -9,6 +9,8 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.GLViewers
 {
@@ -29,6 +31,7 @@ namespace GUI.Types.GLViewers
         public ComboBox? materialGroupListBox { get; private set; }
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
+        protected AnimationGraphController? animGraphController;
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
         private CheckedListBox? physicsGroupsComboBox;
@@ -161,6 +164,28 @@ namespace GUI.Types.GLViewers
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
+
+                if (ModelViewerWithAnimGraphSupport)
+                {
+                    // check in model data if there is an anim graph reference.
+
+                    var animGraph2Refs = model.Data.GetArray<KVObject>("m_animGraph2Refs");
+                    // m_vecNmSkeletonRefs
+
+                    if (animGraph2Refs != null && animGraph2Refs.Length > 0)
+                    {
+                        var animGraphRef = animGraph2Refs[0];
+                        var identifier = animGraphRef.GetProperty<string>("m_sIdentifier");
+                        var graphName = animGraphRef.GetProperty<string>("m_hGraph");
+                        var animGraphResource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
+                        if (animGraphResource != null && animGraphResource.DataBlock is NmGraphDefinition graphDefinition)
+                        {
+                            animGraphController = new AnimationGraphController(model.Skeleton, graphDefinition);
+                            modelSceneNode.AnimationController = animGraphController;
+                        }
+                    }
+                }
+
                 animationController = modelSceneNode.AnimationController;
                 Scene.Add(modelSceneNode, true);
 

@@ -537,6 +537,7 @@ namespace ValveResourceFormat
             return ResourceType switch
             {
                 ResourceType.AnimationGraph => new AnimGraph() { Resource = this },
+                ResourceType.NmGraph => new ResourceTypes.ModelAnimation2.NmGraphDefinition() { Resource = this },
                 ResourceType.NmClip => new ResourceTypes.ModelAnimation2.AnimationClip() { Resource = this },
                 ResourceType.ChoreoSceneFileData => new ChoreoSceneFileData() { Resource = this },
                 ResourceType.EntityLump => new EntityLump() { Resource = this },

@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public AnimationController AnimationController { get; }
+        public AnimationController AnimationController { get; set; }
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
         public bool HasMeshes => meshRenderers.Count > 0;
 

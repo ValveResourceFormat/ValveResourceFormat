@@ -1,10 +1,11 @@
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 namespace ValveResourceFormat.Renderer
 {
     public class AnimationGraphController : AnimationController
     {
-        public AnimationGraphController(Skeleton skeleton) : base(skeleton, [])
+        public AnimationGraphController(Skeleton skeleton, NmGraphDefinition graphDefinition) : base(skeleton, [])
         {
         }
 
