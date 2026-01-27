@@ -15,6 +15,7 @@ namespace GUI.Types.GLViewers
     class GLModelViewer : GLSingleNodeViewer
     {
         protected Model? model { get; init; }
+        private readonly bool ModelViewerWithAnimGraphSupport;
         private PhysAggregateData? phys;
         public ComboBox? animationComboBox { get; protected set; }
         protected CheckBox? animationPlayPause;
@@ -41,6 +42,7 @@ namespace GUI.Types.GLViewers
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Model model) : base(vrfGuiContext, rendererContext)
         {
             this.model = model;
+            ModelViewerWithAnimGraphSupport = true;
         }
 
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, PhysAggregateData phys) : base(vrfGuiContext, rendererContext)
