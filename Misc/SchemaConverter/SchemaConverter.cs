@@ -37,12 +37,102 @@ void ConvertAnimLib()
         File.Delete(file);
     }
 
+    HashSet<string> enumTypes = [];
+    Dictionary<string, string?> classHierarchies = [];
+
+    bool IsRootEnum(string enumName)
+    {
+        return enumTypes.Contains(enumName);
+    }
+
+    string RootParent(string @class)
+    {
+        var rootParent = @class;
+        while (classHierarchies.TryGetValue(rootParent, out var parent) && parent is not null)
+        {
+            rootParent = parent;
+        }
+
+        return rootParent;
+    }
+
+    string ChooseFolder(string fileName, string destinationDirLocal)
+    {
+        fileName = fileName.Split("__", StringSplitOptions.RemoveEmptyEntries)[0];
+
+        if (IsRootEnum(fileName))
+        {
+            destinationDirLocal += "/Enums";
+            Directory.CreateDirectory(destinationDirLocal);
+        }
+
+        Dictionary<string, string> classFolderMapping = new()
+        {
+            { "GraphNode", "Nodes"},
+            { "Event", "Events" },
+            { "PoseTask", "Tasks" },
+        };
+
+        if (classFolderMapping.TryGetValue(RootParent(fileName), out var folder))
+        {
+            destinationDirLocal += $"/{folder}";
+            Directory.CreateDirectory(destinationDirLocal);
+        }
+
+        return destinationDirLocal;
+    }
+
     // for each .h file
-    foreach (var file in Directory.GetFiles(sourceDir, "*.h"))
+    var headerFiles = Directory.GetFiles(sourceDir, "*.h");
+
+    // pre process
+    foreach (var file in headerFiles)
+    {
+        using var reader = new StreamReader(file);
+        string? line;
+
+        var classRegex = ClassRegex();
+        var enumRegex = EnumRegex();
+
+        while ((line = reader.ReadLine()) != null)
+        {
+            line = line.Trim();
+
+            // Skip empty lines and comments
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var match = classRegex.Match(line);
+            if (match.Success)
+            {
+                var @class = match.Groups["identifier"].Value;
+                var baseClass = match.Groups["baseIdentifier"].Success ? match.Groups["baseIdentifier"].Value : null;
+
+                classHierarchies[ConvertClassName(@class, sourceNameSpace)] = baseClass is not null ? ConvertClassName(baseClass, sourceNameSpace) : null;
+                continue;
+            }
+
+            match = enumRegex.Match(line);
+            if (match.Success)
+            {
+                var identifier = match.Groups["identifier"].Value;
+                enumTypes.Add(ConvertClassName(identifier, sourceNameSpace));
+                continue;
+            }
+        }
+    }
+
+    // dump
+    foreach (var file in headerFiles)
     {
         var fileName = Path.GetFileNameWithoutExtension(file);
         fileName = ConvertClassName(fileName, sourceNameSpace);
-        var destFile = Path.Combine(destinationDir, fileName + ".cs");
+
+        var destinationDirLocal = ChooseFolder(fileName, destinationDir);
+
+        var destFile = Path.Combine(destinationDirLocal, fileName + ".cs");
 
         using var reader = new StreamReader(file);
         using var writer = new StreamWriter(destFile);
@@ -145,7 +235,9 @@ string ConvertClassName(string cStyleClassName, string cStyleNamespacePreffix = 
         sb.Append(cleanPart);
     }
 
-    return sb.ToString();
+    var clean = sb.ToString();
+    clean = clean.Replace("__Definition", "");
+    return clean;
 }
 
 string ConvertHungarianNotation(string name)
