@@ -137,6 +137,7 @@ void ConvertAnimLib()
         using var reader = new StreamReader(file);
         using var writer = new StreamWriter(destFile);
 
+        writer.WriteLine($"using ValveResourceFormat.Serialization.KeyValues;"); // global using?
         writer.WriteLine($"namespace {destinationNameSpace};");
         writer.WriteLine();
 
@@ -291,6 +292,7 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
     var writeClassMembers = false;
     var convertedClass = string.Empty;
     var hasBaseClass = false;
+    List<string> memberParserLines = [];
 
     while ((line = reader.ReadLine()) != null)
     {
@@ -357,7 +359,10 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                     var baseCtor = hasBaseClass ? $" : base(data)" : string.Empty;
                     writer.WriteLine($"    public {convertedClass}(KVObject data){baseCtor}");
                     writer.WriteLine("    {");
-                    writer.WriteLine("        // TODO: parse members");
+                    foreach (var __line in memberParserLines)
+                    {
+                        writer.WriteLine($"        {__line}");
+                    }
                     writer.WriteLine("    }");
                 }
                 writer.WriteLine("}");
@@ -388,7 +393,7 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                 {
                     var templateArgs = args.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
                     var itemType = ConvertClassName(templateArgs[0], cStyleNamespacePreffix);
-                    type = $"List<{itemType}>";
+                    type = $"{itemType}[]";
                     args = null;
                 }
 
@@ -401,6 +406,12 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
 
                 // write property
                 writer.WriteLine($"    public {csType} {newName} {{ get; set; }}{argComment}");
+
+                memberParserLines.Add(csType switch
+                {
+                    "short" => $"{newName} = data.GetInt16Property(\"{name}\");",
+                    _ => $"//{newName} = ;",
+                });
             }
         }
 
