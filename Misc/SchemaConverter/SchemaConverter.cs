@@ -55,7 +55,7 @@ void ConvertAnimLib()
     }
 
     // build project
-    Process.Start("dotnet", $"build \"{destinationProject}\" /p:NoWarn=CA1812,CS8618")?.WaitForExit();
+    Process.Start("dotnet", $"build \"{destinationProject}\" /p:NoWarn=CA1812")?.WaitForExit();
 }
 
 var matchingTypes = new HashSet<string>()
@@ -246,7 +246,7 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
         // todo: move enums to /Enums/ folder?
         if (writeEnum)
         {
-            writer.WriteLine(rawLine == "};" ? "}" : rawLine);
+            writer.WriteLine(rawLine == "};" ? "}" : rawLine.Replace("\t", "    "));
             continue;
         }
 
