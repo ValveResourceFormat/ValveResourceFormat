@@ -48,8 +48,12 @@ public class UserInput
     private const float MaxOrbitDistance = 10000f;
     private const float OrbitZoomSpeed = 0.1f;
 
+    private readonly PlayerMovement PlayerMovement;
+    public bool NoClip { get; private set; } = true;
+
+    private TrackedKeys Keys;
     private TrackedKeys PreviousKeys;
-    private Vector3 Velocity = Vector3.Zero;
+    public Vector3 Velocity { get; private set; }
 
     /// <summary>
     /// Force an input update on the next tick.
@@ -63,10 +67,27 @@ public class UserInput
     {
         Renderer = renderer;
         Camera = new Camera(renderer.RendererContext);
+        PlayerMovement = new PlayerMovement(this);
     }
+
+    /// <summary>
+    /// Checks if a key is currently being held down.
+    /// </summary>
+    public bool Holding(TrackedKeys key) => (Keys & key) != 0;
+
+    /// <summary>
+    /// Checks if a key was just pressed this frame (pressed now but not last frame).
+    /// </summary>
+    public bool Pressed(TrackedKeys key) => (Keys & ~PreviousKeys & key) != 0;
+
+    /// <summary>
+    /// Checks if a key was just released this frame (not pressed now but was pressed last frame).
+    /// </summary>
+    private bool Released(TrackedKeys key) => (PreviousKeys & ~Keys & key) != 0;
 
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)
     {
+        Keys = keyboardState;
         ForceUpdate = false;
 
         if (!EnableMouseLook)
@@ -85,14 +106,11 @@ public class UserInput
 
         if (!OrbitModeAlways)
         {
-            var holdingAlt = keyboardState.HasFlag(TrackedKeys.Alt);
-            var justPressedAlt = holdingAlt && !PreviousKeys.HasFlag(TrackedKeys.Alt);
-
-            if (!holdingAlt)
+            if (!Holding(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
             }
-            else if (justPressedAlt)
+            else if (Pressed(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
 
@@ -103,10 +121,35 @@ public class UserInput
                 }
 
             }
-
         }
 
-        if (OrbitMode)
+        var wasClipping = !NoClip;
+        if (Pressed(TrackedKeys.X))
+        {
+            NoClip = !NoClip;
+            PlayerMovement.Initialize = !NoClip;
+        }
+
+        if (Pressed(TrackedKeys.Escape))
+        {
+            NoClip = true;
+        }
+
+        if (wasClipping && NoClip)
+        {
+            MoveCamera(0, 32, 0, true);
+            CurrentSpeedModifier = 7;
+        }
+
+        if (!NoClip)
+        {
+            PlayerMovement.ProcessMovement(this, Camera, deltaTime);
+            Velocity = PlayerMovement.Velocity;
+            Camera.Pitch -= MouseDeltaPitchYaw.X;
+            Camera.Yaw -= MouseDeltaPitchYaw.Y;
+            Camera.ClampRotation();
+        }
+        else if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState);
         }
@@ -128,6 +171,8 @@ public class UserInput
 
     public void SaveCameraForTransition(float transitionDuration = 1.5f)
     {
+        NoClip = true;
+
         StartingCamera = GetInterpolatedCamera();
         TransitionDuration = transitionDuration;
         TransitionEndTime = Renderer.Uptime + transitionDuration;
@@ -153,7 +198,7 @@ public class UserInput
     {
         var previousCamera = CameraPositionAngles;
 
-        if (keyboardState.HasFlag(TrackedKeys.MouseRight))
+        if ((keyboardState & TrackedKeys.MouseRight) != 0)
         {
             var speed = deltaTime * OrbitDistance / 2;
             var panOffset = Camera.Right * speed * -MouseDelta2D.X;
@@ -162,19 +207,19 @@ public class UserInput
             Camera.Location += panOffset;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.MouseLeft))
+        if ((keyboardState & TrackedKeys.MouseLeft) != 0)
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.ClampRotation();
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Forward))
+        if ((keyboardState & TrackedKeys.Forward) != 0)
         {
             OrbitZoom(-deltaTime * 10);
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Back))
+        if ((keyboardState & TrackedKeys.Back) != 0)
         {
             OrbitZoom(deltaTime * 10);
         }
@@ -228,7 +273,7 @@ public class UserInput
 
     private void HandleFreeFlightControls(float deltaTime, TrackedKeys keyboardState)
     {
-        if (keyboardState.HasFlag(TrackedKeys.Shift))
+        if ((keyboardState & TrackedKeys.Shift) != 0)
         {
             // Camera truck and pedestal movement (blender calls this pan)
             var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
@@ -251,6 +296,7 @@ public class UserInput
 
     /// <summary>
     /// Moves the camera by the specified amounts in camera space.
+    /// Why is this Y-Up?
     /// </summary>
     public void MoveCamera(float x, float y, float z, bool transition = false)
     {
@@ -305,32 +351,32 @@ public class UserInput
         var maxSpeed = MovementSpeed * SpeedModifiers[CurrentSpeedModifier];
         var targetVelocity = Vector3.Zero;
 
-        if (keyboardState.HasFlag(TrackedKeys.Forward))
+        if ((keyboardState & TrackedKeys.Forward) != 0)
         {
             targetVelocity += Camera.Forward * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Back))
+        if ((keyboardState & TrackedKeys.Back) != 0)
         {
             targetVelocity -= Camera.Forward * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Right))
+        if ((keyboardState & TrackedKeys.Right) != 0)
         {
             targetVelocity += Camera.Right * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Left))
+        if ((keyboardState & TrackedKeys.Left) != 0)
         {
             targetVelocity -= Camera.Right * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Down))
+        if ((keyboardState & TrackedKeys.Down) != 0)
         {
             targetVelocity += new Vector3(0, 0, -maxSpeed);
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Up))
+        if ((keyboardState & TrackedKeys.Up) != 0)
         {
             targetVelocity += new Vector3(0, 0, maxSpeed);
         }
