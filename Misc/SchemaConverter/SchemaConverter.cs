@@ -289,6 +289,8 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
 
     var writeEnum = false;
     var writeClassMembers = false;
+    var convertedClass = string.Empty;
+    var hasBaseClass = false;
 
     while ((line = reader.ReadLine()) != null)
     {
@@ -307,10 +309,12 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
             var @class = match.Groups["identifier"].Value;
             var baseClass = match.Groups["baseIdentifier"].Success ? match.Groups["baseIdentifier"].Value : null;
 
-            var csClass = $"class {ConvertClassName(@class, cStyleNamespacePreffix)}";
+            convertedClass = ConvertClassName(@class, cStyleNamespacePreffix);
+            var csClass = $"class {convertedClass}";
             if (!string.IsNullOrEmpty(baseClass))
             {
                 csClass += $" : {ConvertClassName(baseClass, cStyleNamespacePreffix)}";
+                hasBaseClass = true;
             }
             writer.WriteLine(csClass);
             writer.WriteLine("{");
@@ -346,6 +350,16 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
         {
             if (line == "};")
             {
+                {
+                    // kvobject constructor
+                    writer.WriteLine();
+
+                    var baseCtor = hasBaseClass ? $" : base(data)" : string.Empty;
+                    writer.WriteLine($"    public {convertedClass}(KVObject data){baseCtor}");
+                    writer.WriteLine("    {");
+                    writer.WriteLine("        // TODO: parse members");
+                    writer.WriteLine("    }");
+                }
                 writer.WriteLine("}");
                 writeClassMembers = false;
                 continue;
@@ -387,7 +401,6 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
 
                 // write property
                 writer.WriteLine($"    public {csType} {newName} {{ get; set; }}{argComment}");
-
             }
         }
 
