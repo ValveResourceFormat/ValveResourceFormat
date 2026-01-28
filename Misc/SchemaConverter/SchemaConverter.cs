@@ -1,8 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-Console.WriteLine("Creating classes...");
-
 string CurrentFileName([CallerFilePath] string csFilePath = "")
 {
     return csFilePath ?? throw new InvalidOperationException();
@@ -138,10 +136,14 @@ string ConvertClassName(string cStyleClassName, string cStyleNamespacePreffix = 
 void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, string cStyleNamespacePreffix = "")
 {
     string? line;
+
     var classRegex = ClassRegex();
+    var enumRegex = EnumRegex();
+    bool writeEnum = false;
 
     while ((line = reader.ReadLine()) != null)
     {
+        var rawLine = line;
         line = line.Trim();
 
         // Skip empty lines and comments
@@ -167,7 +169,7 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
             continue;
         }
 
-        match = enumRegex().Match(line);
+        match = enumRegex.Match(line);
         if (match.Success)
         {
             var identifier = match.Groups["identifier"].Value;
@@ -180,12 +182,19 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
             }
 
             writer.WriteLine(csEnum);
-            writer.WriteLine("{");
-            writer.WriteLine("}");
+            writeEnum = true;
+            continue;
+        }
+
+        // todo: move enums to /Enums/ folder?
+        if (writeEnum)
+        {
+            writer.WriteLine(rawLine == "};" ? "}" : rawLine);
         }
     }
 }
 
+Console.WriteLine("Creating classes...");
 ConvertAnimLib();
 
 partial class Program
@@ -194,5 +203,5 @@ partial class Program
     private static partial System.Text.RegularExpressions.Regex ClassRegex();
 
     [System.Text.RegularExpressions.GeneratedRegex(@"enum (?<identifier>[\w:]+)(?: : (?<baseType>[\w:]+))?")]
-    private static partial System.Text.RegularExpressions.Regex enumRegex();
+    private static partial System.Text.RegularExpressions.Regex EnumRegex();
 }
