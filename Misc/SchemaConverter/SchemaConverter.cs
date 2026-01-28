@@ -55,7 +55,7 @@ void ConvertAnimLib()
     }
 
     // build project
-    Process.Start("dotnet", $"build \"{destinationProject}\" /p:NoWarn=CA1812")?.WaitForExit();
+    Process.Start("dotnet", $"build \"{destinationProject}\" /p:NoWarn=CA1812,CS8618")?.WaitForExit();
 }
 
 var matchingTypes = new HashSet<string>()
@@ -66,19 +66,36 @@ var matchingTypes = new HashSet<string>()
 var simpleTypeMap = new Dictionary<string, string>()
 {
     { "uint8_t", "byte" },
+    { "uint8", "byte" },
     { "int8_t", "sbyte" },
     { "uint16_t", "ushort" },
+    { "uint16", "ushort" },
     { "int16_t", "short" },
     { "int16", "short" },
     { "uint32_t", "uint" },
     { "int32_t", "int" },
     { "int32", "int" },
+    { "uint32", "uint" },
     { "float32", "float" },
     { "uint64_t", "ulong" },
     { "int64_t", "long" },
 
     { "CGlobalSymbol", "GlobalSymbol" },
+    { "CUtlStringToken", "GlobalSymbol" },
     { "CUtlString", "string" },
+    { "CUtlBinaryBlock", "byte[]" },
+    { "Vector2D", "Vector2" },
+    { "Vector", "Vector4" },
+    { "CTransform", "Matrix4x4" },
+    { "CResourceName", "string" },
+
+    { "ParticleAttachment_t", "ValveResourceFormat.Renderer.Particles.ParticleAttachment" },
+    { "CPiecewiseCurve", "ValveResourceFormat.Renderer.Particles.Utils.PiecewiseCurve" },
+    { "KeyValues3", "ValveResourceFormat.Serialization.KeyValues.KVObject" },
+
+    // todo
+    { "CStrongHandle", "object" },
+    { "CStrongHandleVoid", "object" },
 };
 
 /*
@@ -260,16 +277,24 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                 var name = match.Groups["name"].Value; // m_hParticleSystem
                 // args can be split by ',' for multiple template arguments
 
-                // C# reserved identifiers
-                // m_operator
+                // template types
+                if (type is "CUtlLeanVector" or "CUtlLeanVectorFixedGrowable" or "CUtlVector" or "CUtlVectorFixedGrowable")
+                {
+                    var templateArgs = args.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                    var itemType = ConvertClassName(templateArgs[0], cStyleNamespacePreffix);
+                    type = $"List<{itemType}>";
+                    args = null;
+                }
 
                 var newName = ConvertHungarianNotation(name);
 
                 // convert type
                 var csType = ConvertClassName(type, cStyleNamespacePreffix);
 
+                var argComment = args is not null && args.Length > 0 ? $" // {args}" : string.Empty;
+
                 // write property
-                writer.WriteLine($"    public {csType} {newName} {{ get; set; }}");
+                writer.WriteLine($"    public {csType} {newName} {{ get; set; }}{argComment}");
 
             }
         }
@@ -289,7 +314,7 @@ partial class Program
     [System.Text.RegularExpressions.GeneratedRegex(@"enum (?<identifier>[\w:]+)(?: : (?<baseType>[\w:]+))?")]
     private static partial System.Text.RegularExpressions.Regex EnumRegex();
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"^\s*(?<type>[\w:]+)(?:\s*<\s*(?<args>[^>]+?)\s*>)?\s+(?<name>\w+)", System.Text.RegularExpressions.RegexOptions.None)]
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\s*(?<type>[\w:]+)(?:\s*<\s*(?<args>[\w:\s,<>]+?)\s*>)?\s+(?<name>\w+)", System.Text.RegularExpressions.RegexOptions.None)]
     private static partial System.Text.RegularExpressions.Regex PropertyTypeRegex();
 
 

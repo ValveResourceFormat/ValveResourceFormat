@@ -108,7 +108,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
     /// A piecewise curve used in particle systems' dynamic parameters.
     /// Vital to the animation of many effects, but also hard as fuck to figure out how they did.
     /// </summary>
-    class PiecewiseCurve
+    public class PiecewiseCurve
     {
         private readonly Vector2 CurveDomainMin;
         private readonly Vector2 CurveDomainMax;
