@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 string CurrentFileName([CallerFilePath] string csFilePath = "")
@@ -68,10 +69,16 @@ var simpleTypeMap = new Dictionary<string, string>()
     { "int8_t", "sbyte" },
     { "uint16_t", "ushort" },
     { "int16_t", "short" },
+    { "int16", "short" },
     { "uint32_t", "uint" },
     { "int32_t", "int" },
+    { "int32", "int" },
+    { "float32", "float" },
     { "uint64_t", "ulong" },
     { "int64_t", "long" },
+
+    { "CGlobalSymbol", "GlobalSymbol" },
+    { "CUtlString", "string" },
 };
 
 /*
@@ -124,6 +131,36 @@ string ConvertClassName(string cStyleClassName, string cStyleNamespacePreffix = 
     return sb.ToString();
 }
 
+string ConvertHungarianNotation(string name)
+{
+    var stripInitial = "m_";
+    Span<string> stripType = ["n", "b", "fl", "h", "s", "sz"];
+
+    var newName = name;
+
+    if (newName.StartsWith(stripInitial, StringComparison.Ordinal))
+    {
+        newName = newName[stripInitial.Length..];
+    }
+
+    foreach (var type in stripType)
+    {
+        if (newName.StartsWith(type, StringComparison.Ordinal) && newName.Length > type.Length && char.IsUpper(newName[type.Length]))
+        {
+            newName = newName[type.Length..];
+            break;
+        }
+    }
+
+    // capitalize first letter
+    if (newName.Length > 0)
+    {
+        newName = char.ToUpper(newName[0], CultureInfo.InvariantCulture) + newName[1..];
+    }
+
+    return newName;
+}
+
 /*
     class CNmVelocityBlendNode::CDefinition : public CNmParameterizedBlendNode::CDefinition
     {
@@ -139,7 +176,10 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
 
     var classRegex = ClassRegex();
     var enumRegex = EnumRegex();
-    bool writeEnum = false;
+    var memberTemplateRegex = PropertyTypeRegex();
+
+    var writeEnum = false;
+    var writeClassMembers = false;
 
     while ((line = reader.ReadLine()) != null)
     {
@@ -165,7 +205,7 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
             }
             writer.WriteLine(csClass);
             writer.WriteLine("{");
-            writer.WriteLine("}");
+            writeClassMembers = true;
             continue;
         }
 
@@ -190,10 +230,54 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
         if (writeEnum)
         {
             writer.WriteLine(rawLine == "};" ? "}" : rawLine);
+            continue;
         }
+
+        if (writeClassMembers)
+        {
+            if (line == "};")
+            {
+                writer.WriteLine("}");
+                writeClassMembers = false;
+                continue;
+            }
+
+            // member line
+            // e.g.   uint32_t m_nSomeValue;
+            var semicolonIndex = line.IndexOf(';', StringComparison.Ordinal);
+            if (semicolonIndex < 0)
+            {
+                continue;
+            }
+
+            var memberLine = line[..semicolonIndex].Trim();
+
+            match = memberTemplateRegex.Match(memberLine);
+            if (match.Success)
+            {
+                var type = match.Groups["type"].Value; // CStrongHandle
+                var args = match.Groups["args"].Value; // InfoForResourceTypeIParticleSystemDefinition
+                var name = match.Groups["name"].Value; // m_hParticleSystem
+                // args can be split by ',' for multiple template arguments
+
+                // C# reserved identifiers
+                // m_operator
+
+                var newName = ConvertHungarianNotation(name);
+
+                // convert type
+                var csType = ConvertClassName(type, cStyleNamespacePreffix);
+
+                // write property
+                writer.WriteLine($"    public {csType} {newName} {{ get; set; }}");
+
+            }
+        }
+
     }
 }
 
+Test();
 Console.WriteLine("Creating classes...");
 ConvertAnimLib();
 
@@ -204,4 +288,32 @@ partial class Program
 
     [System.Text.RegularExpressions.GeneratedRegex(@"enum (?<identifier>[\w:]+)(?: : (?<baseType>[\w:]+))?")]
     private static partial System.Text.RegularExpressions.Regex EnumRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\s*(?<type>[\w:]+)(?:\s*<\s*(?<args>[^>]+?)\s*>)?\s+(?<name>\w+)", System.Text.RegularExpressions.RegexOptions.None)]
+    private static partial System.Text.RegularExpressions.Regex PropertyTypeRegex();
+
+
+    public static void Test()
+    {
+        Span<(string, string?, string, string)> propertyTests = [
+            ("CStrongHandle", "InfoForResourceTypeIParticleSystemDefinition", "m_hParticleSystem", "CStrongHandle< InfoForResourceTypeIParticleSystemDefinition > m_hParticleSystem"),
+            ("CUtlString", null, "m_name", "CUtlString m_name"),
+            ("CNmParticleEvent::Type_t", null, "m_type", "CNmParticleEvent::Type_t m_type"),
+        ];
+
+        var regex = PropertyTypeRegex();
+        foreach (var (eType, eTemplateArgs, eName, test) in propertyTests)
+        {
+            var match = regex.Match(test);
+            Debug.Assert(match.Success, $"Failed to match '{test}'");
+
+            var type = match.Groups["type"].Value;
+            var args = match.Groups["args"].Value;
+            var name = match.Groups["name"].Value;
+
+            Debug.Assert(type == eType, $"Expected type '{eType}', got '{type}'");
+            Debug.Assert(args == (eTemplateArgs ?? ""), $"Expected args '{eTemplateArgs}', got '{args}'");
+            Debug.Assert(name == eName, $"Expected name '{eName}', got '{name}'");
+        }
+    }
 }
