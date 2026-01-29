@@ -15,32 +15,40 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public required GraphNode[] Nodes { get; set; }
     }
 
-    partial class BoolValueNode { public virtual bool Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
-    partial class ConstBoolNode { public override bool Evaluate(GraphContext ctx) => Value; }
-    partial class ControlParameterBoolNode { public override bool Evaluate(GraphContext ctx) => ctx.Controller.BoolParameters[ctx.Controller.ParameterNames[NodeIdx]]; }
-    partial class AndNode { public override bool Evaluate(GraphContext ctx) => ConditionNodeIndices.All(conditionIdx => ((BoolValueNode)ctx.Nodes[conditionIdx]).Evaluate(ctx)); }
-    partial class OrNode { public override bool Evaluate(GraphContext ctx) => ConditionNodeIndices.Any(conditionIdx => ((BoolValueNode)ctx.Nodes[conditionIdx]).Evaluate(ctx)); }
+    partial class BoolValueNode { public virtual bool GetValue(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class ConstBoolNode { public override bool GetValue(GraphContext ctx) => Value; }
+    partial class ControlParameterBoolNode { public override bool GetValue(GraphContext ctx) => ctx.Controller.BoolParameters[ctx.Controller.ParameterNames[NodeIdx]]; }
+    partial class AndNode { public override bool GetValue(GraphContext ctx) => ConditionNodeIndices.All(conditionIdx => ((BoolValueNode)ctx.Nodes[conditionIdx]).GetValue(ctx)); }
+    partial class OrNode { public override bool GetValue(GraphContext ctx) => ConditionNodeIndices.Any(conditionIdx => ((BoolValueNode)ctx.Nodes[conditionIdx]).GetValue(ctx)); }
 
     partial class FloatComparisonNode
     {
-        public override bool Evaluate(GraphContext ctx)
-        {
-            var inputValue = ((FloatValueNode)ctx.Nodes[InputValueNodeIdx]).Evaluate(ctx);
+        FloatValueNode InputNode;
+        FloatValueNode? ComparandNode;
 
-            var comparisonValue = ComparisonValue;
+        public void Initialize(GraphContext ctx)
+        {
+            Debug.Assert(InputValueNodeIdx != -1);
+
+            InputNode = (FloatValueNode)ctx.Nodes[InputValueNodeIdx];
             if (ComparandValueNodeIdx != -1)
             {
-                var inputNode = (FloatValueNode)ctx.Nodes[ComparandValueNodeIdx];
-                comparisonValue = inputNode.Evaluate(ctx);
+                ComparandNode = (FloatValueNode)ctx.Nodes[ComparandValueNodeIdx];
             }
+        }
+
+        public override bool GetValue(GraphContext ctx)
+        {
+            var inputValue = InputNode.Evaluate(ctx);
+            var comparisonValue = ComparandNode?.Evaluate(ctx) ?? ComparisonValue;
 
             return Comparison switch
             {
-                FloatComparisonNode__Comparison.LessThan => inputValue < ComparisonValue,
-                FloatComparisonNode__Comparison.LessThanEqual => inputValue <= ComparisonValue,
-                FloatComparisonNode__Comparison.GreaterThan => inputValue > ComparisonValue,
-                FloatComparisonNode__Comparison.GreaterThanEqual => inputValue >= ComparisonValue,
-                FloatComparisonNode__Comparison.NearEqual => MathF.Abs(inputValue - ComparisonValue) <= Epsilon,
+                FloatComparisonNode__Comparison.LessThan => inputValue < comparisonValue,
+                FloatComparisonNode__Comparison.LessThanEqual => inputValue <= comparisonValue,
+                FloatComparisonNode__Comparison.GreaterThan => inputValue > comparisonValue,
+                FloatComparisonNode__Comparison.GreaterThanEqual => inputValue >= comparisonValue,
+                FloatComparisonNode__Comparison.NearEqual => MathF.Abs(inputValue - comparisonValue) <= Epsilon,
                 _ => false,
             };
         }
