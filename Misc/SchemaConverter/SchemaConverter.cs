@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-
+using System.Text.RegularExpressions;
 string CurrentFileName([CallerFilePath] string csFilePath = "")
 {
     return csFilePath ?? throw new InvalidOperationException();
@@ -17,6 +17,10 @@ string WalkUpDir(string path, int levels)
 
     return currentPath;
 }
+
+HashSet<string> enumTypes = [];
+Dictionary<string, string?> classHierarchies = [];
+
 
 void ConvertAnimLib()
 {
@@ -36,9 +40,6 @@ void ConvertAnimLib()
     {
         File.Delete(file);
     }
-
-    HashSet<string> enumTypes = [];
-    Dictionary<string, string?> classHierarchies = [];
 
     bool IsRootEnum(string enumName)
     {
@@ -130,6 +131,8 @@ void ConvertAnimLib()
         var fileName = Path.GetFileNameWithoutExtension(file);
         fileName = ConvertClassName(fileName, sourceNameSpace);
 
+        var isEnum = enumTypes.Contains(fileName);
+
         var destinationDirLocal = ChooseFolder(fileName, destinationDir);
 
         var destFile = Path.Combine(destinationDirLocal, fileName + ".cs");
@@ -137,7 +140,10 @@ void ConvertAnimLib()
         using var reader = new StreamReader(file);
         using var writer = new StreamWriter(destFile);
 
-        writer.WriteLine($"using ValveResourceFormat.Serialization.KeyValues;"); // global using?
+        if (!isEnum)
+        {
+            writer.WriteLine($"using ValveResourceFormat.Serialization.KeyValues;"); // global using?
+        }
         writer.WriteLine($"namespace {destinationNameSpace};");
         writer.WriteLine();
 
@@ -180,13 +186,13 @@ var simpleTypeMap = new Dictionary<string, string>()
     { "CTransform", "Matrix4x4" },
     { "CResourceName", "string" },
 
-    { "ParticleAttachment_t", "ValveResourceFormat.Renderer.Particles.ParticleAttachment" },
-    { "CPiecewiseCurve", "ValveResourceFormat.Renderer.Particles.Utils.PiecewiseCurve" },
-    { "KeyValues3", "ValveResourceFormat.Serialization.KeyValues.KVObject" },
+    { "ParticleAttachment_t", "Particles.ParticleAttachment" },
+    { "CPiecewiseCurve", "Particles.Utils.PiecewiseCurve" },
+    { "KeyValues3", "KVObject" },
 
     // todo
-    { "CStrongHandle", "object" },
-    { "CStrongHandleVoid", "object" },
+    { "CStrongHandle", "string" },
+    { "CStrongHandleVoid", "string" },
 };
 
 /*
@@ -405,12 +411,52 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                 var argComment = args is not null && args.Length > 0 ? $" // {args}" : string.Empty;
 
                 // write property
-                writer.WriteLine($"    public {csType} {newName} {{ get; set; }}{argComment}");
+                writer.WriteLine($"    public {csType} {newName} {{ get; }}{argComment}");
+
+                if (classHierarchies.ContainsKey(csType))
+                {
+                    memberParserLines.Add($"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));");
+                    continue;
+                }
+
+                if (enumTypes.Contains(csType))
+                {
+                    memberParserLines.Add($"{newName} = data.GetEnumValue<{csType}>(\"{name}\");");
+                    continue;
+                }
+
+                if (csType.EndsWith("[]", StringComparison.Ordinal))
+                {
+                    var itemType = csType[..^2];
+                    if (classHierarchies.ContainsKey(itemType))
+                    {
+                        memberParserLines.Add($"{newName} = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>(\"{name}\"), kv => new {itemType}(kv))];");
+                        continue;
+                    }
+
+                    if (enumTypes.Contains(itemType))
+                    {
+                        //memberParserLines.Add($"{newName} = data.GetArray<string>(\"{name}\").Select(s => Enum.Parse<{itemType}>(s)).ToArray();");
+                        //continue;
+                    }
+
+                    memberParserLines.Add($"{newName} = data.GetArray<{itemType}>(\"{name}\");");
+                    continue;
+                }
 
                 memberParserLines.Add(csType switch
                 {
+                    "bool" => $"{newName} = data.GetProperty<bool>(\"{name}\");",
+                    "string" => $"{newName} = data.GetProperty<string>(\"{name}\");",
                     "short" => $"{newName} = data.GetInt16Property(\"{name}\");",
-                    _ => $"//{newName} = ;",
+                    "int" => $"{newName} = data.GetInt32Property(\"{name}\");",
+                    "uint" => $"{newName} = data.GetUInt32Property(\"{name}\");",
+                    "float" => $"{newName} = data.GetFloatProperty(\"{name}\");",
+                    "Matrix4x4" => $"{newName} = data.GetProperty<KVObject>(\"{name}\").ToMatrix4x4();",
+                    "GlobalSymbol" => $"{newName} = data.GetProperty<string>(\"{name}\");",
+                    "Particles.Utils.PiecewiseCurve" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"), false);",
+                    "KVObject" => $"{newName} = data.GetProperty<KVObject>(\"{name}\");",
+                    _ => $"//{newName} = {name};",
                 });
             }
         }
