@@ -421,7 +421,9 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                 // write property
                 writer.WriteLine($"    public {csType} {newName} {{ get; }}{argComment}");
 
-                if (classHierarchies.ContainsKey(csType))
+                var hasHandWrittenImpl = csType is "Transform" or "Range";
+
+                if (classHierarchies.ContainsKey(csType) || hasHandWrittenImpl)
                 {
                     memberParserLines.Add($"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));");
                     continue;
@@ -460,8 +462,8 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                     "int" => $"{newName} = data.GetInt32Property(\"{name}\");",
                     "uint" => $"{newName} = data.GetUInt32Property(\"{name}\");",
                     "float" => $"{newName} = data.GetFloatProperty(\"{name}\");",
-                    "Matrix4x4" => $"{newName} = data.GetProperty<KVObject>(\"{name}\").ToMatrix4x4();",
                     "GlobalSymbol" => $"{newName} = data.GetProperty<string>(\"{name}\");",
+                    "Transform" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));",
                     "Particles.Utils.PiecewiseCurve" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"), false);",
                     "KVObject" => $"{newName} = data.GetProperty<KVObject>(\"{name}\");",
                     _ => $"//{newName} = {name};",
