@@ -825,17 +825,14 @@ public class AnimationGraphExtract
 
         return weightListNames;
     }
-    // Eventually this should load sequences from referenced animinclude model(s). ModelDoc tells me they are after model's own ASEQ sequences in order.
     private Dictionary<int, string> LoadSequenceNamesFromModel()
     {
         var sequenceNames = new Dictionary<int, string>();
         var modelName = Graph.GetStringProperty("m_modelName");
-
         if (string.IsNullOrEmpty(modelName))
         {
             return sequenceNames;
         }
-
         try
         {
             var modelResource = fileLoader.LoadFileCompiled(modelName);
@@ -843,7 +840,7 @@ public class AnimationGraphExtract
             {
                 return sequenceNames;
             }
-
+            var index = 0;
             var aseqData = GetAseqDataFromResource(modelResource);
             if (aseqData is not null)
             {
@@ -855,8 +852,21 @@ public class AnimationGraphExtract
                         var sequenceName = localSequenceNameArray[i];
                         if (!string.IsNullOrEmpty(sequenceName))
                         {
-                            sequenceNames[i] = sequenceName;
+                            sequenceNames[index] = sequenceName;
+                            index++;
                         }
+                    }
+                }
+            }
+            if (modelResource.DataBlock is Model modelData)
+            {
+                var referencedAnimations = modelData.GetReferencedAnimations(fileLoader);
+                foreach (var animation in referencedAnimations)
+                {
+                    if (!string.IsNullOrEmpty(animation.Name))
+                    {
+                        sequenceNames[index] = animation.Name;
+                        index++;
                     }
                 }
             }
