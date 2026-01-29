@@ -21,6 +21,17 @@ string WalkUpDir(string path, int levels)
 HashSet<string> enumTypes = [];
 Dictionary<string, string?> classHierarchies = [];
 
+string RootClass(string @class)
+{
+    var rootParent = @class;
+    while (classHierarchies.TryGetValue(rootParent, out var parent) && parent is not null)
+    {
+        rootParent = parent;
+    }
+
+    return rootParent;
+}
+
 
 void ConvertAnimLib()
 {
@@ -46,17 +57,6 @@ void ConvertAnimLib()
         return enumTypes.Contains(enumName);
     }
 
-    string RootParent(string @class)
-    {
-        var rootParent = @class;
-        while (classHierarchies.TryGetValue(rootParent, out var parent) && parent is not null)
-        {
-            rootParent = parent;
-        }
-
-        return rootParent;
-    }
-
     string ChooseFolder(string fileName, string destinationDirLocal)
     {
         fileName = fileName.Split("__", StringSplitOptions.RemoveEmptyEntries)[0];
@@ -74,7 +74,7 @@ void ConvertAnimLib()
             { "PoseTask", "Tasks" },
         };
 
-        if (classFolderMapping.TryGetValue(RootParent(fileName), out var folder))
+        if (classFolderMapping.TryGetValue(RootClass(fileName), out var folder))
         {
             destinationDirLocal += $"/{folder}";
             Directory.CreateDirectory(destinationDirLocal);
@@ -318,7 +318,15 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
             var baseClass = match.Groups["baseIdentifier"].Success ? match.Groups["baseIdentifier"].Value : null;
 
             convertedClass = ConvertClassName(@class, cStyleNamespacePreffix);
-            var csClass = $"partial class {convertedClass}";
+
+            var isFinal = classHierarchies.ContainsValue(convertedClass) == false;
+            hasBaseClass = classHierarchies.TryGetValue(convertedClass, out var baseClassName) && baseClassName is not null;
+
+            var useStruct = false; //isFinal && !hasBaseClass;
+            var partialImplementation = RootClass(convertedClass) == "GraphNode";
+            var csClassType = useStruct ? "readonly partial struct" : (partialImplementation ? "partial class" : "class");
+
+            var csClass = $"{csClassType} {convertedClass}";
             if (!string.IsNullOrEmpty(baseClass))
             {
                 csClass += $" : {ConvertClassName(baseClass, cStyleNamespacePreffix)}";
