@@ -31,8 +31,6 @@ namespace ValveResourceFormat.Renderer
         public BloomRenderer Bloom { get; private set; }
         public DOFRenderer DOF { get; private set; }
 
-        public bool DOFEnabled { get; set; }
-
         public static Framebuffer.AttachmentFormat DefaultColorFormat => new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.Float);
 
         public PostProcessRenderer(RendererContext rendererContext)
@@ -83,7 +81,7 @@ namespace ValveResourceFormat.Renderer
             Debug.Assert(shaderMSAAResolve != null);
             Debug.Assert(shaderPostProcess != null && shaderPostProcessBloom != null);
 
-            if (DOFEnabled)
+            if (DOF.DOFEnabled)
             {
                 Debug.Assert(shaderMSAAResolveDOF != null);
             }
@@ -98,7 +96,7 @@ namespace ValveResourceFormat.Renderer
             {
                 var msaaResolveShader = shaderMSAAResolve;
 
-                if (DOFEnabled)
+                if (DOF.DOFEnabled)
                 {
                     msaaResolveShader = shaderMSAAResolveDOF!;
                 }
@@ -113,7 +111,7 @@ namespace ValveResourceFormat.Renderer
                 msaaResolveShader.SetUniform1("g_bFlipY", flipY);
                 msaaResolveShader.SetUniform1("g_nNumSamplesMSAA", colorBufferRead.NumSamples);
 
-                if (DOFEnabled)
+                if (DOF.DOFEnabled)
                 {
                     msaaResolveShader.SetTexture(1, "g_tSceneDepth", colorBufferRead.Depth);
 
@@ -135,7 +133,7 @@ namespace ValveResourceFormat.Renderer
 
             var postProcessInputFramebuffer = MsaaResolveFramebuffer;
 
-            if (DOFEnabled)
+            if (DOF.DOFEnabled)
             {
                 DOF.Render(MsaaResolveFramebuffer);
                 postProcessInputFramebuffer = DOF.DOFFrameBuffer!;
