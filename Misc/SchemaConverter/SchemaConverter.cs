@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
+
 string CurrentFileName([CallerFilePath] string csFilePath = "")
 {
     return csFilePath ?? throw new InvalidOperationException();
@@ -183,7 +183,7 @@ var simpleTypeMap = new Dictionary<string, string>()
     { "CUtlBinaryBlock", "byte[]" },
     { "Vector2D", "Vector2" },
     { "Vector", "Vector4" },
-    { "CTransform", "Matrix4x4" },
+    { "CTransform", "Transform" },
     { "CResourceName", "string" },
 
     { "ParticleAttachment_t", "Particles.ParticleAttachment" },
@@ -318,7 +318,7 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
             var baseClass = match.Groups["baseIdentifier"].Success ? match.Groups["baseIdentifier"].Value : null;
 
             convertedClass = ConvertClassName(@class, cStyleNamespacePreffix);
-            var csClass = $"class {convertedClass}";
+            var csClass = $"partial class {convertedClass}";
             if (!string.IsNullOrEmpty(baseClass))
             {
                 csClass += $" : {ConvertClassName(baseClass, cStyleNamespacePreffix)}";
@@ -358,6 +358,7 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
         {
             if (line == "};")
             {
+                if (memberParserLines.Count > 0)
                 {
                     // kvobject constructor
                     writer.WriteLine();
@@ -370,6 +371,13 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                         writer.WriteLine($"        {__line}");
                     }
                     writer.WriteLine("    }");
+                }
+                else
+                {
+                    writer.WriteLine(hasBaseClass
+                        ? $"    public {convertedClass}(KVObject data) : base(data) {{ }}"
+                        : $"    public {convertedClass}(KVObject _) {{ }}"
+                    );
                 }
                 writer.WriteLine("}");
                 writeClassMembers = false;
@@ -436,8 +444,8 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
 
                     if (enumTypes.Contains(itemType))
                     {
-                        //memberParserLines.Add($"{newName} = data.GetArray<string>(\"{name}\").Select(s => Enum.Parse<{itemType}>(s)).ToArray();");
-                        //continue;
+                        memberParserLines.Add($"enum array error");
+                        continue;
                     }
 
                     memberParserLines.Add($"{newName} = data.GetArray<{itemType}>(\"{name}\");");

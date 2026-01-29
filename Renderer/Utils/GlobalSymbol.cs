@@ -15,10 +15,10 @@ readonly struct GlobalSymbol : IEquatable<GlobalSymbol>
         Token = StringToken.Store(name);
     }
 
-    public GlobalSymbol(uint token)
+    public GlobalSymbol(uint token, bool allowUnknown = false)
     {
         Debug.Assert(
-            StringToken.InvertedTable.ContainsKey(token),
+            allowUnknown || StringToken.InvertedTable.ContainsKey(token),
             $"Unknown symbol {token}."
         );
 
@@ -28,6 +28,7 @@ readonly struct GlobalSymbol : IEquatable<GlobalSymbol>
     public override readonly string ToString() => Name;
 
     public static implicit operator uint(GlobalSymbol symbol) => symbol.Token;
+    public static implicit operator GlobalSymbol(uint token) => new(token, allowUnknown: true);
     public static implicit operator GlobalSymbol(string name) => new(name);
 
     // record struct?
