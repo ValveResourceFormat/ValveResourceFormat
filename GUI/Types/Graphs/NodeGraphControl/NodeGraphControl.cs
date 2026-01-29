@@ -10,7 +10,7 @@ namespace GUI.Types.Graphs
         Copyright (c) 2021 amaurote
         https://github.com/amaurote/NodeGraphControl
     */
-    public partial class NodeGraphControl : IDisposable
+    public class NodeGraphControl : IDisposable
     {
         public const int CornerSize = 12;
 
@@ -567,6 +567,33 @@ namespace GUI.Types.Graphs
         {
             primarySelectedNode = null;
             connectedNodes.Clear();
+            OnGraphChanged();
+        }
+
+        public void LayoutNodes()
+        {
+            if (_graphNodes.Count == 0)
+            {
+                return;
+            }
+
+            GraphLayout.LayoutNodes(
+                nodes: _graphNodes,
+                connections: _connections,
+                getPosition: static n => new Vector2(n.Location.X, n.Location.Y),
+                setPosition: static (n, p) => n.Location = new SKPoint(p.X, p.Y),
+                getSize: static n => new Vector2(n.BoundsFull.Width, n.BoundsFull.Height),
+                getSourceNode: static w => w.From.Owner,
+                getTargetNode: static w => w.To.Owner,
+                getInputConnections: static n => n.Sockets.OfType<SocketIn>().SelectMany(s => s.Connections),
+                getOutputConnections: static n => n.Sockets.OfType<SocketOut>().SelectMany(s => s.Connections)
+            );
+
+            foreach (var node in _graphNodes)
+            {
+                node.Calculate();
+            }
+
             OnGraphChanged();
         }
     }
