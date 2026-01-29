@@ -190,7 +190,6 @@ public class AnimationGraphExtract
     private List<ModelAttachment> LoadAttachmentsFromModel()
     {
         var modelName = Graph.GetStringProperty("m_modelName");
-
         if (string.IsNullOrEmpty(modelName))
         {
             return [];
@@ -200,7 +199,6 @@ public class AnimationGraphExtract
             return cached;
         }
         var attachments = new List<ModelAttachment>();
-
         try
         {
             var modelResource = fileLoader.LoadFileCompiled(modelName);
@@ -208,62 +206,23 @@ public class AnimationGraphExtract
             {
                 return attachments;
             }
-
-            var mdatBlock = modelResource.GetBlockByType(BlockType.MDAT);
-            if (mdatBlock is not KeyValuesOrNTRO mdatData)
+            if (modelResource.DataBlock is Model modelData)
             {
-                return attachments;
-            }
-            var mdat = mdatData.Data;
-            if (!mdat.ContainsKey("m_attachments"))
-            {
-                return attachments;
-            }
-
-            var attachmentItems = mdat.GetArray("m_attachments");
-            foreach (var attachmentItem in attachmentItems)
-            {
-                try
+                foreach (var attachmentPair in modelData.Attachments)
                 {
-                    var key = attachmentItem.GetStringProperty("key");
-                    var value = attachmentItem.GetSubCollection("value");
-                    if (value is null)
+                    var attachment = attachmentPair.Value;
+                    if (attachment.Length == 0)
                     {
                         continue;
                     }
-
-                    var name = value.GetStringProperty("m_name");
-                    var influenceOffsets = value.GetArray("m_vInfluenceOffsets");
-                    var influenceRotations = value.GetArray("m_vInfluenceRotations");
-
-                    if (influenceOffsets.Length == 0 || influenceRotations.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    var offset = influenceOffsets[0];
-                    var offsetX = offset.ContainsKey("0") ? offset.GetFloatProperty("0") : 0f;
-                    var offsetY = offset.ContainsKey("1") ? offset.GetFloatProperty("1") : 0f;
-                    var offsetZ = offset.ContainsKey("2") ? offset.GetFloatProperty("2") : 0f;
-                    var position = new Vector3(offsetX, offsetY, offsetZ);
-
-                    var rotation = influenceRotations[0];
-                    var rotX = rotation.ContainsKey("0") ? rotation.GetFloatProperty("0") : 0f;
-                    var rotY = rotation.ContainsKey("1") ? rotation.GetFloatProperty("1") : 0f;
-                    var rotZ = rotation.ContainsKey("2") ? rotation.GetFloatProperty("2") : 0f;
-                    var rotW = rotation.ContainsKey("3") ? rotation.GetFloatProperty("3") : 1f;
-                    var quaternion = new Quaternion(rotX, rotY, rotZ, rotW);
-
+                    var mainInfluence = attachment[^1];
                     attachments.Add(new ModelAttachment
                     {
-                        Name = name,
+                        Name = attachment.Name,
                         BoneIndex = -1,
-                        Position = position,
-                        Rotation = quaternion
+                        Position = mainInfluence.Offset,
+                        Rotation = mainInfluence.Rotation
                     });
-                }
-                catch (Exception)
-                {
                 }
             }
         }
@@ -289,7 +248,6 @@ public class AnimationGraphExtract
         }
 
         var numInfluences = compiledAttachment.GetIntegerProperty("m_numInfluences");
-
         if (numInfluences != 1)
         {
             return string.Empty;
@@ -297,7 +255,6 @@ public class AnimationGraphExtract
 
         var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets");
         var influenceRotations = compiledAttachment.GetArray("m_influenceRotations");
-
         if (influenceOffsets.Length == 0 || influenceRotations.Length == 0)
         {
             return string.Empty;
@@ -321,12 +278,10 @@ public class AnimationGraphExtract
         foreach (var attachment in attachments)
         {
             var posDiff = Vector3.DistanceSquared(attachment.Position, position);
-
             if (posDiff > epsilon)
             {
                 continue;
             }
-
             var dot = Quaternion.Dot(attachment.Rotation, quaternion);
             var absDot = Math.Abs(dot);
 
@@ -342,7 +297,6 @@ public class AnimationGraphExtract
     private string[] LoadBoneNamesFromModel()
     {
         var modelName = Graph.GetStringProperty("m_modelName");
-
         if (string.IsNullOrEmpty(modelName))
         {
             return [];
@@ -359,44 +313,12 @@ public class AnimationGraphExtract
             {
                 return [];
             }
-            var dataBlock = modelResource.GetBlockByType(BlockType.DATA);
-            if (dataBlock is KeyValuesOrNTRO data)
+            if (modelResource.DataBlock is Model modelData)
             {
-                var dataObj = data.Data;
-
-                if (dataObj.ContainsKey("m_modelSkeleton"))
+                var skeleton = modelData.Skeleton;
+                foreach (var bone in skeleton.Bones)
                 {
-                    var skeleton = dataObj.GetSubCollection("m_modelSkeleton");
-                    if (skeleton.ContainsKey("m_boneName"))
-                    {
-                        var names = skeleton.GetArray<string>("m_boneName");
-                        boneNames.AddRange(names);
-                    }
-                }
-            }
-            if (boneNames.Count == 0)
-            {
-                var mdatBlock = modelResource.GetBlockByType(BlockType.MDAT);
-                if (mdatBlock is KeyValuesOrNTRO mdatData)
-                {
-                    var mdat = mdatData.Data;
-
-                    if (mdat.ContainsKey("m_skeleton"))
-                    {
-                        var skeleton = mdat.GetSubCollection("m_skeleton");
-                        if (skeleton.ContainsKey("m_bones"))
-                        {
-                            var bones = skeleton.GetArray("m_bones");
-                            foreach (var bone in bones)
-                            {
-                                var boneName = bone.GetStringProperty("m_boneName");
-                                if (!string.IsNullOrEmpty(boneName))
-                                {
-                                    boneNames.Add(boneName);
-                                }
-                            }
-                        }
-                    }
+                    boneNames.Add(bone.Name);
                 }
             }
         }
