@@ -182,7 +182,7 @@ var simpleTypeMap = new Dictionary<string, string>()
     { "CUtlString", "string" },
     { "CUtlBinaryBlock", "byte[]" },
     { "Vector2D", "Vector2" },
-    { "Vector", "Vector4" },
+    { "Vector", "Vector3" },
     { "CTransform", "Transform" },
     { "CResourceName", "string" },
 
@@ -472,6 +472,9 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                     "float" => $"{newName} = data.GetFloatProperty(\"{name}\");",
                     "GlobalSymbol" => $"{newName} = data.GetProperty<string>(\"{name}\");",
                     "Transform" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"));",
+                    "Vector3" => $"{newName} = data.GetSubCollection(\"{name}\").ToVector3();",
+                    "byte" => $"{newName} = data.GetByteProperty(\"{name}\");",
+                    "Quaternion" => $"{newName} = data.GetSubCollection(\"{name}\").ToQuaternion();",
                     "Particles.Utils.PiecewiseCurve" => $"{newName} = new(data.GetProperty<KVObject>(\"{name}\"), false);",
                     "KVObject" => $"{newName} = data.GetProperty<KVObject>(\"{name}\");",
                     _ => $"//{newName} = {name};",

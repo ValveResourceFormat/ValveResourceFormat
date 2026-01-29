@@ -9,7 +9,7 @@ partial class ChainLookatNode : PassthroughNode
     public float BlendTimeSeconds { get; }
     public byte ChainLength { get; }
     public bool IsTargetInWorldSpace { get; }
-    public Vector4 ChainForwardDir { get; }
+    public Vector3 ChainForwardDir { get; }
 
     public ChainLookatNode(KVObject data) : base(data)
     {
@@ -17,8 +17,8 @@ partial class ChainLookatNode : PassthroughNode
         LookatTargetNodeIdx = data.GetInt16Property("m_nLookatTargetNodeIdx");
         EnabledNodeIdx = data.GetInt16Property("m_nEnabledNodeIdx");
         BlendTimeSeconds = data.GetFloatProperty("m_flBlendTimeSeconds");
-        //ChainLength = m_nChainLength;
+        ChainLength = data.GetByteProperty("m_nChainLength");
         IsTargetInWorldSpace = data.GetProperty<bool>("m_bIsTargetInWorldSpace");
-        //ChainForwardDir = m_chainForwardDir;
+        ChainForwardDir = data.GetSubCollection("m_chainForwardDir").ToVector3();
     }
 }

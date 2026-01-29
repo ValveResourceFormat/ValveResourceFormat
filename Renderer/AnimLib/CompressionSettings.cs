@@ -18,7 +18,7 @@ class CompressionSettings
         TranslationRangeY = new(data.GetProperty<KVObject>("m_translationRangeY"));
         TranslationRangeZ = new(data.GetProperty<KVObject>("m_translationRangeZ"));
         ScaleRange = new(data.GetProperty<KVObject>("m_scaleRange"));
-        //ConstantRotation = m_constantRotation;
+        ConstantRotation = data.GetSubCollection("m_constantRotation").ToQuaternion();
         IsRotationStatic = data.GetProperty<bool>("m_bIsRotationStatic");
         IsTranslationStatic = data.GetProperty<bool>("m_bIsTranslationStatic");
         IsScaleStatic = data.GetProperty<bool>("m_bIsScaleStatic");
