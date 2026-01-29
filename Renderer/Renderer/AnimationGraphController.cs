@@ -1,11 +1,77 @@
 using System.Diagnostics;
 using System.IO;
-using ValveResourceFormat.CompiledShader;
+using System.Linq;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
+
+namespace ValveResourceFormat.Renderer.AnimLib
+{
+    class GraphContext
+    {
+        public required AnimationGraphController Controller { get; set; }
+        public required GraphNode[] Nodes { get; set; }
+    }
+
+    partial class BoolValueNode { public virtual bool Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class ConstBoolNode { public override bool Evaluate(GraphContext ctx) => Value; }
+    partial class ControlParameterBoolNode { public override bool Evaluate(GraphContext ctx) => ctx.Controller.BoolParameters[ctx.Controller.ParameterNames[NodeIdx]]; }
+    partial class AndNode { public override bool Evaluate(GraphContext ctx) => ConditionNodeIndices.All(conditionIdx => ((BoolValueNode)ctx.Nodes[conditionIdx]).Evaluate(ctx)); }
+    partial class OrNode { public override bool Evaluate(GraphContext ctx) => ConditionNodeIndices.Any(conditionIdx => ((BoolValueNode)ctx.Nodes[conditionIdx]).Evaluate(ctx)); }
+
+    partial class FloatComparisonNode
+    {
+        public override bool Evaluate(GraphContext ctx)
+        {
+            var inputValue = ((FloatValueNode)ctx.Nodes[InputValueNodeIdx]).Evaluate(ctx);
+
+            var comparisonValue = ComparisonValue;
+            if (ComparandValueNodeIdx != -1)
+            {
+                var inputNode = (FloatValueNode)ctx.Nodes[ComparandValueNodeIdx];
+                comparisonValue = inputNode.Evaluate(ctx);
+            }
+
+            return Comparison switch
+            {
+                FloatComparisonNode__Comparison.LessThan => inputValue < ComparisonValue,
+                FloatComparisonNode__Comparison.LessThanEqual => inputValue <= ComparisonValue,
+                FloatComparisonNode__Comparison.GreaterThan => inputValue > ComparisonValue,
+                FloatComparisonNode__Comparison.GreaterThanEqual => inputValue >= ComparisonValue,
+                FloatComparisonNode__Comparison.NearEqual => MathF.Abs(inputValue - ComparisonValue) <= Epsilon,
+                _ => false,
+            };
+        }
+    }
+
+    partial class FloatValueNode { public virtual float Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class IDValueNode { public virtual GlobalSymbol Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class VectorValueNode { public virtual Vector3 Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
+
+    partial class ParameterizedClipSelectorNode
+    {
+        public ClipReferenceNode SelectOption(GraphContext ctx)
+        {
+            var parameterNode = (FloatValueNode)ctx.Nodes[ParameterNodeIdx];
+            var options = OptionNodeIndices.Select(idx => (ClipReferenceNode)ctx.Nodes[idx]).ToArray();
+            var selectedIndex = parameterNode.Evaluate(ctx) switch
+            {
+                var v when v <= 0.0f => 0,
+                var v when v >= options.Length - 1 => options.Length - 1,
+                var v => (int)MathF.Round(v)
+            };
+
+            if (HasWeightsSet)
+            {
+                // ?
+            }
+
+            return options[selectedIndex];
+        }
+    }
+}
 
 namespace ValveResourceFormat.Renderer
 {
@@ -26,7 +92,7 @@ namespace ValveResourceFormat.Renderer
         public Dictionary<string, string> IdParameters { get; } = [];
         // target
         public Dictionary<string, Vector4> VectorParameters { get; } = [];
-
+        public string[] ParameterNames { get; private set; }
 
         private readonly HashSet<string> KnownIds = [];
         private readonly Dictionary<string, HashSet<string>> IdOptions = [];
@@ -103,7 +169,7 @@ namespace ValveResourceFormat.Renderer
         private void IterateGraph(KVObject graph)
         {
             // figure out parameters
-            var parameterIds = graph.GetArray<string>("m_controlParameterIDs");
+            ParameterNames = graph.GetArray<string>("m_controlParameterIDs");
             var nodes = graph.GetArray<KVObject>("m_nodes");
 
             // copied from node viewer
