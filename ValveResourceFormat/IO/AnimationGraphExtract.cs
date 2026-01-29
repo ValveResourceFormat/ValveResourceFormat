@@ -20,6 +20,8 @@ public class AnimationGraphExtract
     private Dictionary<int, string>? sequenceNamesCache;
     private Dictionary<long, KVObject>? compiledNodeIndexMap;
     private Dictionary<long, long>? nodeIndexToIdMap;
+    private Dictionary<string, List<ModelAttachment>>? modelAttachmentsCache;
+    private Dictionary<string, string[]>? modelBoneNamesCache;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -173,6 +175,259 @@ public class AnimationGraphExtract
         }
     }
 
+    private sealed class ModelAttachment
+    {
+        public string Name { get; set; } = string.Empty;
+        public int BoneIndex { get; set; }
+        public Vector3 Position { get; set; }
+        public Quaternion Rotation { get; set; }
+    }
+
+    private List<ModelAttachment> LoadAttachmentsFromModel()
+    {
+        var modelName = Graph.GetStringProperty("m_modelName");
+
+        if (string.IsNullOrEmpty(modelName))
+        {
+            return [];
+        }
+        if (modelAttachmentsCache?.TryGetValue(modelName, out var cached) == true)
+        {
+            return cached;
+        }
+        var attachments = new List<ModelAttachment>();
+
+        try
+        {
+            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            if (modelResource is null)
+            {
+                return attachments;
+            }
+
+            var mdatBlock = modelResource.GetBlockByType(BlockType.MDAT);
+            if (mdatBlock is not KeyValuesOrNTRO mdatData)
+            {
+                return attachments;
+            }
+            var mdat = mdatData.Data;
+            if (!mdat.ContainsKey("m_attachments"))
+            {
+                return attachments;
+            }
+
+            var attachmentItems = mdat.GetArray("m_attachments");
+            foreach (var attachmentItem in attachmentItems)
+            {
+                try
+                {
+                    var key = attachmentItem.GetStringProperty("key");
+                    var value = attachmentItem.GetSubCollection("value");
+                    if (value is null)
+                    {
+                        continue;
+                    }
+
+                    var name = value.GetStringProperty("m_name");
+                    var influenceOffsets = value.GetArray("m_vInfluenceOffsets");
+                    var influenceRotations = value.GetArray("m_vInfluenceRotations");
+
+                    if (influenceOffsets.Length == 0 || influenceRotations.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var offset = influenceOffsets[0];
+                    var offsetX = offset.ContainsKey("0") ? offset.GetFloatProperty("0") : 0f;
+                    var offsetY = offset.ContainsKey("1") ? offset.GetFloatProperty("1") : 0f;
+                    var offsetZ = offset.ContainsKey("2") ? offset.GetFloatProperty("2") : 0f;
+                    var position = new Vector3(offsetX, offsetY, offsetZ);
+
+                    var rotation = influenceRotations[0];
+                    var rotX = rotation.ContainsKey("0") ? rotation.GetFloatProperty("0") : 0f;
+                    var rotY = rotation.ContainsKey("1") ? rotation.GetFloatProperty("1") : 0f;
+                    var rotZ = rotation.ContainsKey("2") ? rotation.GetFloatProperty("2") : 0f;
+                    var rotW = rotation.ContainsKey("3") ? rotation.GetFloatProperty("3") : 1f;
+                    var quaternion = new Quaternion(rotX, rotY, rotZ, rotW);
+
+                    attachments.Add(new ModelAttachment
+                    {
+                        Name = name,
+                        BoneIndex = -1,
+                        Position = position,
+                        Rotation = quaternion
+                    });
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+        catch (Exception)
+        {
+        }
+        modelAttachmentsCache ??= [];
+        modelAttachmentsCache[modelName] = attachments;
+        return attachments;
+    }
+
+    private string FindMatchingAttachmentName(KVObject compiledAttachment)
+    {
+        if (compiledAttachment is null)
+        {
+            return string.Empty;
+        }
+
+        var attachments = LoadAttachmentsFromModel();
+        if (attachments.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var numInfluences = compiledAttachment.GetIntegerProperty("m_numInfluences");
+
+        if (numInfluences != 1)
+        {
+            return string.Empty;
+        }
+
+        var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets");
+        var influenceRotations = compiledAttachment.GetArray("m_influenceRotations");
+
+        if (influenceOffsets.Length == 0 || influenceRotations.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var offset = influenceOffsets[0];
+        var offsetX = offset.ContainsKey("0") ? offset.GetFloatProperty("0") : 0f;
+        var offsetY = offset.ContainsKey("1") ? offset.GetFloatProperty("1") : 0f;
+        var offsetZ = offset.ContainsKey("2") ? offset.GetFloatProperty("2") : 0f;
+        var position = new Vector3(offsetX, offsetY, offsetZ);
+
+        var rotation = influenceRotations[0];
+        var rotX = rotation.ContainsKey("0") ? rotation.GetFloatProperty("0") : 0f;
+        var rotY = rotation.ContainsKey("1") ? rotation.GetFloatProperty("1") : 0f;
+        var rotZ = rotation.ContainsKey("2") ? rotation.GetFloatProperty("2") : 0f;
+        var rotW = rotation.ContainsKey("3") ? rotation.GetFloatProperty("3") : 1f;
+        var quaternion = new Quaternion(rotX, rotY, rotZ, rotW);
+
+        const float epsilon = 0.001f;
+
+        foreach (var attachment in attachments)
+        {
+            var posDiff = Vector3.DistanceSquared(attachment.Position, position);
+
+            if (posDiff > epsilon)
+            {
+                continue;
+            }
+
+            var dot = Quaternion.Dot(attachment.Rotation, quaternion);
+            var absDot = Math.Abs(dot);
+
+            if (Math.Abs(absDot - 1.0f) > epsilon)
+            {
+                continue;
+            }
+            return attachment.Name;
+        }
+        return string.Empty;
+    }
+
+    private string[] LoadBoneNamesFromModel()
+    {
+        var modelName = Graph.GetStringProperty("m_modelName");
+
+        if (string.IsNullOrEmpty(modelName))
+        {
+            return [];
+        }
+
+        if (modelBoneNamesCache?.TryGetValue(modelName, out var cached) == true)
+        {
+            return cached;
+        }
+
+        var boneNames = new List<string>();
+
+        try
+        {
+            var modelResource = fileLoader.LoadFileCompiled(modelName);
+
+            if (modelResource is null)
+            {
+                return [];
+            }
+
+            var mdatBlock = modelResource.GetBlockByType(BlockType.MDAT);
+            if (mdatBlock is KeyValuesOrNTRO mdatData)
+            {
+                var mdat = mdatData.Data;
+
+                if (mdat.ContainsKey("m_skeleton"))
+                {
+                    var skeleton = mdat.GetSubCollection("m_skeleton");
+                    if (skeleton.ContainsKey("m_bones"))
+                    {
+                        var bones = skeleton.GetArray("m_bones");
+                        foreach (var bone in bones)
+                        {
+                            var boneName = bone.GetStringProperty("m_boneName");
+                            if (!string.IsNullOrEmpty(boneName))
+                            {
+                                boneNames.Add(boneName);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (boneNames.Count == 0)
+            {
+                var dataBlock = modelResource.GetBlockByType(BlockType.DATA);
+                if (dataBlock is KeyValuesOrNTRO data)
+                {
+                    var dataObj = data.Data;
+                    if (dataObj.ContainsKey("m_modelSkeleton"))
+                    {
+                        var skeleton = dataObj.GetSubCollection("m_modelSkeleton");
+                        if (skeleton.ContainsKey("m_boneName"))
+                        {
+                            var names = skeleton.GetArray<string>("m_boneName");
+                            boneNames.AddRange(names);
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            return [];
+        }
+
+        modelBoneNamesCache ??= [];
+        modelBoneNamesCache[modelName] = boneNames.ToArray();
+        return boneNames.ToArray();
+    }
+
+    private string GetBoneName(int boneIndex)
+    {
+        var boneNames = LoadBoneNamesFromModel();
+        if (boneIndex >= 0 && boneIndex < boneNames.Length)
+        {
+            return boneNames[boneIndex];
+        }
+        return string.Empty;
+    }
+
+    private string GetSequenceNameFromIndex(long sequenceIndex)
+    {
+        sequenceNamesCache ??= LoadSequenceNamesFromModel();
+        return sequenceNamesCache.TryGetValue((int)sequenceIndex, out var name)
+            ? name
+            : $"sequence_{sequenceIndex}";
+    }
     /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
     /// </summary>
@@ -477,6 +732,48 @@ public class AnimationGraphExtract
         return clipDataManager;
     }
 
+    private static string ExtractCommonPrefix(string[] sequenceNames)
+    {
+        if (sequenceNames.Length != 8)
+        {
+            return string.Empty;
+        }
+
+        var directionalSuffixes = new string[]
+        {
+        "_n", "_nw", "_w", "_sw", "_s", "_se", "_e", "_ne",
+        "_N", "_NW", "_W", "_SW", "_S", "_SE", "_E", "_NE"
+        };
+        foreach (var seq in sequenceNames)
+        {
+            foreach (var suffix in directionalSuffixes)
+            {
+                if (seq.EndsWith(suffix, StringComparison.Ordinal))
+                {
+                    var candidatePrefix = seq[..^suffix.Length];
+
+                    if (sequenceNames.All(s => s.StartsWith(candidatePrefix, StringComparison.Ordinal)))
+                    {
+                        var allMatch = true;
+                        foreach (var otherSeq in sequenceNames)
+                        {
+                            var remaining = otherSeq[candidatePrefix.Length..];
+                            if (!directionalSuffixes.Contains(remaining))
+                            {
+                                allMatch = false;
+                                break;
+                            }
+                        }
+                        if (allMatch)
+                        {
+                            return candidatePrefix;
+                        }
+                    }
+                }
+            }
+        }
+        return string.Empty;
+    }
     private static KVValue MakeNodeIdObjectValue(long nodeId)
     {
         var nodeIdObject = new KVObject("fakeIndentKey", 1);
@@ -1667,6 +1964,246 @@ public class AnimationGraphExtract
                 {
                     node.AddProperty("m_turnStartTime", value);
                     continue;
+                }
+            }
+            else if (className == "CAimMatrix")
+            {
+                if (key == "m_target")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_paramIndex")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hSequence")
+                {
+                    var sequenceIndex = compiledNode.GetIntegerProperty("m_hSequence");
+                    var sequenceName = GetSequenceName(sequenceIndex);
+                    node.AddProperty("m_sequenceName", sequenceName);
+                    continue;
+                }
+                else if (key == "m_bResetChild")
+                {
+                    node.AddProperty("m_bResetBase", value);
+                    continue;
+                }
+                else if (key == "m_bLockWhenWaning")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_opFixedSettings")
+                {
+                    var opFixedSettings = subCollection.Value;
+
+                    if (opFixedSettings.ContainsKey("m_eBlendMode"))
+                    {
+                        node.AddProperty("m_blendMode", opFixedSettings.GetProperty<string>("m_eBlendMode"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_nBoneMaskIndex"))
+                    {
+                        var boneMaskIndex = opFixedSettings.GetIntegerProperty("m_nBoneMaskIndex");
+                        var boneMaskName = boneMaskIndex == -1 ? "" : GetWeightListName(boneMaskIndex);
+                        node.AddProperty("m_boneMaskName", boneMaskName);
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_damping"))
+                    {
+                        node.AddProperty("m_damping", opFixedSettings.GetSubCollection("m_damping"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_flMaxYawAngle"))
+                    {
+                        node.AddProperty("m_fAngleIncrement", opFixedSettings.GetFloatProperty("m_flMaxYawAngle"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_attachment"))
+                    {
+                        var attachment = opFixedSettings.GetSubCollection("m_attachment");
+                        var attachmentName = FindMatchingAttachmentName(attachment);
+                        node.AddProperty("m_attachmentName", attachmentName);
+                    }
+                    else
+                    {
+                        node.AddProperty("m_attachmentName", "aim");
+                    }
+                    continue;
+                }
+            }
+            else if (className == "CDirectionalBlend")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_hSequences")
+                {
+                    var sequenceIndices = compiledNode.GetIntegerArray("m_hSequences");
+                    if (sequenceIndices.Length == 8)
+                    {
+                        var sequenceNames = new string[8];
+                        for (var i = 0; i < 8; i++)
+                        {
+                            sequenceNames[i] = GetSequenceName(sequenceIndices[i]);
+                        }
+                        var prefix = ExtractCommonPrefix(sequenceNames);
+                        if (!string.IsNullOrEmpty(prefix))
+                        {
+                            node.AddProperty("m_animNamePrefix", prefix);
+                        }
+                        else
+                        {
+                            node.AddProperty("m_animNamePrefix", "");
+                        }
+                    }
+                    else
+                    {
+                        node.AddProperty("m_animNamePrefix", "");
+                    }
+                    continue;
+                }
+                else if (key == "m_paramIndex")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_blendValueSource")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_playbackSpeed" || key == "m_bLoop" || key == "m_bLockBlendOnReset")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_damping")
+                {
+                    node.AddProperty(key, subCollection.Value);
+                    continue;
+                }
+                else if (key == "m_duration")
+                {
+                    continue;
+                }
+            }
+            else if (className == "CFollowAttachment")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_opFixedData")
+                {
+                    var opFixedData = subCollection.Value;
+
+                    if (opFixedData.ContainsKey("m_boneIndex"))
+                    {
+                        var boneIndex = (int)opFixedData.GetIntegerProperty("m_boneIndex");
+                        var boneName = GetBoneName(boneIndex);
+                        node.AddProperty("m_boneName", boneName);
+                    }
+
+                    if (opFixedData.ContainsKey("m_attachment"))
+                    {
+                        var attachment = opFixedData.GetSubCollection("m_attachment");
+                        var attachmentName = FindMatchingAttachmentName(attachment);
+                        node.AddProperty("m_attachmentName", attachmentName);
+                    }
+
+                    if (opFixedData.ContainsKey("m_bMatchTranslation"))
+                    {
+                        node.AddProperty("m_bMatchTranslation", opFixedData.GetIntegerProperty("m_bMatchTranslation") > 0);
+                    }
+
+                    if (opFixedData.ContainsKey("m_bMatchRotation"))
+                    {
+                        node.AddProperty("m_bMatchRotation", opFixedData.GetIntegerProperty("m_bMatchRotation") > 0);
+                    }
+
+                    continue;
+                }
+            }
+            else if (className == "CFootAdjustment")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_facingTarget")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_facingTarget", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_clips")
+                {
+                    var clipIndices = compiledNode.GetIntegerArray("m_clips");
+                    var clipNames = clipIndices.Select(GetSequenceNameFromIndex).ToArray();
+                    node.AddProperty("m_clips", KVValue.MakeArray(clipNames.Select(name => new KVValue(ValveKeyValue.KVValueType.String, name)).ToArray()));
+                    continue;
+                }
+                else if (key == "m_bResetChild")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_bAnimationDriven")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_flTurnTimeMin" || key == "m_flTurnTimeMax" ||
+                         key == "m_flStepHeightMax" || key == "m_flStepHeightMaxAngle")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_hBasePoseCacheHandle")
+                {
+                    continue;
+                }
+                if (!node.Properties.ContainsKey("m_baseClipName"))
+                {
+                    node.AddProperty("m_baseClipName", "");
                 }
             }
 
