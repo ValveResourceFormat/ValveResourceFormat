@@ -51,9 +51,9 @@ vec4 SampleColorBuffer(vec2 coords)
     // convert from screen coords to clipspace (normalised device coordinates)
     vec4 screenToClip = vec4(
 
-        sampleCoord.x * 2.0 - 1.0, // [0, 1] -> [-1, 1]
-        sampleCoord.y * 2.0 - 1.0, // [0, 1] -> [-1, 1]
-        clamp((lowestDepth - g_flViewportMinZ) / (g_flViewportMaxZ - g_flViewportMinZ), 0.0, 1.0), // normalise depth 
+        sampleCoord.x * 2.0 - 1.0,                                    // [0, 1] -> [-1, 1]
+        sampleCoord.y * 2.0 - 1.0,                                    // [0, 1] -> [-1, 1]
+        LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, lowestDepth),  // normalise depth 
         1.0
 
     );

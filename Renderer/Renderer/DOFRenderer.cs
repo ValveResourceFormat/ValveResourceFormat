@@ -19,6 +19,10 @@ public class DOFRenderer
 
     public float FocalDistance { get; set; } = 100f;
 
+    private readonly float[] Offsets = new float[MAX_DOF_SAMPLES * 4];
+
+    public bool DOFEnabled { get; set; }
+
     public Framebuffer? DOFFrameBuffer { get; private set; }
     public Dof2InputParams CurrentDofParams { get; private set; }
 
@@ -26,20 +30,8 @@ public class DOFRenderer
 
     private readonly RendererContext RendererContext;
 
-    public struct Dof2InputParams
+    public record struct Dof2InputParams
     {
-        public bool Equals(Dof2InputParams left)
-        {
-            return left.NearScale == this.NearScale &&
-           left.NearBias == this.NearBias &&
-           left.FarScale == this.FarScale &&
-           left.FarBias == this.FarBias &&
-           left.MaxBlurSize == this.MaxBlurSize &&
-           left.RadScale == this.RadScale &&
-           left.Width == this.Width &&
-           left.Height == this.Height;
-        }
-
         public float NearScale { get; set; }
         public float NearBias { get; set; }
         public float FarScale { get; set; }
@@ -123,8 +115,6 @@ public class DOFRenderer
 
         DOF!.SetUniform1("flMaxBlurSize", CurrentDofParams.MaxBlurSize);
 
-        float[] offsets = new float[MAX_DOF_SAMPLES * 4];
-
         var angle = 0.0f;
         var radius = CurrentDofParams.RadScale;
         var sample = 0;
@@ -134,10 +124,10 @@ public class DOFRenderer
             var y = MathF.Sin(angle) * g_vInvRenderTargetDim.Y * radius;
 
             var currentSampleIndex = sample * 4;
-            offsets[currentSampleIndex] = x;
-            offsets[currentSampleIndex + 1] = y;
-            offsets[currentSampleIndex + 2] = radius - 0.5f;
-            offsets[currentSampleIndex + 3] = radius + 0.5f;
+            Offsets[currentSampleIndex] = x;
+            Offsets[currentSampleIndex + 1] = y;
+            Offsets[currentSampleIndex + 2] = radius - 0.5f;
+            Offsets[currentSampleIndex + 3] = radius + 0.5f;
 
             angle += GOLDEN_ANGLE;
             radius += CurrentDofParams.RadScale / radius;
@@ -145,7 +135,7 @@ public class DOFRenderer
             sample++;
         }
 
-        DOF.SetUniform4Array("g_vSampleOffsetsRadMinMax", offsets.Length, offsets);
+        DOF.SetUniform4Array("g_vSampleOffsetsRadMinMax", Offsets.Length, Offsets);
         DOF.SetUniform1("g_nSamples", sample);
     }
 }

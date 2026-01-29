@@ -364,7 +364,7 @@ namespace GUI.Types.GLViewers
 
             Action<bool> dofCheckBoxAction = (v) =>
             {
-                Renderer.Postprocess.DOFEnabled = v;
+                Renderer.Postprocess.DOF.DOFEnabled = v;
 
                 controlsContainer.Enabled = v;
                 controlsContainer.Visible = v;
@@ -372,9 +372,9 @@ namespace GUI.Types.GLViewers
                 groupBoxPanel.Height = v ? 230 : 60;
             };
 
-            dofCheckBoxAction(Renderer.Postprocess.DOFEnabled);
+            dofCheckBoxAction(Renderer.Postprocess.DOF.DOFEnabled);
 
-            var checkBox = RendererControl.GetCheckBox("Depth Of Field", Renderer.Postprocess.DOFEnabled, dofCheckBoxAction);
+            var checkBox = RendererControl.GetCheckBox("Depth Of Field", Renderer.Postprocess.DOF.DOFEnabled, dofCheckBoxAction);
             checkBox.Dock = DockStyle.Top;
 
             controlsContainer.Controls.Add(RendererControl.GetFloatInput("Far blurry", (float val) =>
