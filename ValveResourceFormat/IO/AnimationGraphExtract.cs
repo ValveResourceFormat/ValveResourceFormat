@@ -22,6 +22,10 @@ public class AnimationGraphExtract
     private Dictionary<long, long>? nodeIndexToIdMap;
     private Dictionary<string, List<ModelAttachment>>? modelAttachmentsCache;
     private Dictionary<string, string[]>? modelBoneNamesCache;
+    private Dictionary<string, string[]>? modelIKChainNamesCache;
+    private Dictionary<string, string[]>? modelFootNamesCache;
+    private Dictionary<string, LookAtChainInfo[]>? modelLookAtChainInfoCache;
+    private Dictionary<string, string[]>? modelLookAtChainNamesCache;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -343,90 +347,379 @@ public class AnimationGraphExtract
         {
             return [];
         }
-
         if (modelBoneNamesCache?.TryGetValue(modelName, out var cached) == true)
         {
             return cached;
         }
-
         var boneNames = new List<string>();
-
         try
         {
             var modelResource = fileLoader.LoadFileCompiled(modelName);
-
             if (modelResource is null)
             {
                 return [];
             }
-
-            var mdatBlock = modelResource.GetBlockByType(BlockType.MDAT);
-            if (mdatBlock is KeyValuesOrNTRO mdatData)
+            var dataBlock = modelResource.GetBlockByType(BlockType.DATA);
+            if (dataBlock is KeyValuesOrNTRO data)
             {
-                var mdat = mdatData.Data;
+                var dataObj = data.Data;
 
-                if (mdat.ContainsKey("m_skeleton"))
+                if (dataObj.ContainsKey("m_modelSkeleton"))
                 {
-                    var skeleton = mdat.GetSubCollection("m_skeleton");
-                    if (skeleton.ContainsKey("m_bones"))
+                    var skeleton = dataObj.GetSubCollection("m_modelSkeleton");
+                    if (skeleton.ContainsKey("m_boneName"))
                     {
-                        var bones = skeleton.GetArray("m_bones");
-                        foreach (var bone in bones)
+                        var names = skeleton.GetArray<string>("m_boneName");
+                        boneNames.AddRange(names);
+                    }
+                }
+            }
+            if (boneNames.Count == 0)
+            {
+                var mdatBlock = modelResource.GetBlockByType(BlockType.MDAT);
+                if (mdatBlock is KeyValuesOrNTRO mdatData)
+                {
+                    var mdat = mdatData.Data;
+
+                    if (mdat.ContainsKey("m_skeleton"))
+                    {
+                        var skeleton = mdat.GetSubCollection("m_skeleton");
+                        if (skeleton.ContainsKey("m_bones"))
                         {
-                            var boneName = bone.GetStringProperty("m_boneName");
-                            if (!string.IsNullOrEmpty(boneName))
+                            var bones = skeleton.GetArray("m_bones");
+                            foreach (var bone in bones)
                             {
-                                boneNames.Add(boneName);
+                                var boneName = bone.GetStringProperty("m_boneName");
+                                if (!string.IsNullOrEmpty(boneName))
+                                {
+                                    boneNames.Add(boneName);
+                                }
                             }
                         }
                     }
                 }
             }
-
-            if (boneNames.Count == 0)
-            {
-                var dataBlock = modelResource.GetBlockByType(BlockType.DATA);
-                if (dataBlock is KeyValuesOrNTRO data)
-                {
-                    var dataObj = data.Data;
-                    if (dataObj.ContainsKey("m_modelSkeleton"))
-                    {
-                        var skeleton = dataObj.GetSubCollection("m_modelSkeleton");
-                        if (skeleton.ContainsKey("m_boneName"))
-                        {
-                            var names = skeleton.GetArray<string>("m_boneName");
-                            boneNames.AddRange(names);
-                        }
-                    }
-                }
-            }
         }
-        catch
+        catch (Exception)
         {
             return [];
         }
-
         modelBoneNamesCache ??= [];
         modelBoneNamesCache[modelName] = boneNames.ToArray();
         return boneNames.ToArray();
     }
-
     private string GetBoneName(int boneIndex)
     {
         var boneNames = LoadBoneNamesFromModel();
-        if (boneIndex >= 0 && boneIndex < boneNames.Length)
-        {
-            return boneNames[boneIndex];
-        }
-        return string.Empty;
+        return boneIndex >= 0 && boneIndex < boneNames.Length ? boneNames[boneIndex] : string.Empty;
     }
-
     private string GetSequenceNameFromIndex(long sequenceIndex)
     {
         sequenceNamesCache ??= LoadSequenceNamesFromModel();
         return sequenceNamesCache.TryGetValue((int)sequenceIndex, out var name)
             ? name
             : $"sequence_{sequenceIndex}";
+    }
+    private string[] LoadIKChainNamesFromModel()
+    {
+        var modelName = Graph.GetStringProperty("m_modelName");
+        if (string.IsNullOrEmpty(modelName))
+        {
+            return [];
+        }
+        if (modelIKChainNamesCache?.TryGetValue(modelName, out var cached) == true)
+        {
+            return cached;
+        }
+        var ikChainNames = new List<string>();
+        try
+        {
+            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            if (modelResource is null)
+            {
+                return [];
+            }
+            if (modelResource.DataBlock is not Model modelData)
+            {
+                return [];
+            }
+            var keyvalues = modelData.KeyValues;
+            if (keyvalues.ContainsKey("ikdata"))
+            {
+                var ikdata = keyvalues.GetSubCollection("ikdata");
+                if (ikdata.ContainsKey("m_IKChains"))
+                {
+                    var ikChains = ikdata.GetArray("m_IKChains");
+
+                    foreach (var chain in ikChains)
+                    {
+                        var name = chain.GetStringProperty("m_Name");
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            ikChainNames.Add(name);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+        modelIKChainNamesCache ??= [];
+        modelIKChainNamesCache[modelName] = ikChainNames.ToArray();
+        return ikChainNames.ToArray();
+    }
+    private string GetIKChainName(int ikChainIndex)
+    {
+        var ikChainNames = LoadIKChainNamesFromModel();
+        return ikChainIndex >= 0 && ikChainIndex < ikChainNames.Length ? ikChainNames[ikChainIndex] : string.Empty;
+    }
+    private string GetFootName(int footIndex)
+    {
+        var footNames = LoadFootNamesFromModel();
+        return footIndex >= 0 && footIndex < footNames.Length ? footNames[footIndex] : string.Empty;
+    }
+    private string[] LoadFootNamesFromModel()
+    {
+        var modelName = Graph.GetStringProperty("m_modelName");
+        if (string.IsNullOrEmpty(modelName))
+        {
+            return [];
+        }
+        if (modelFootNamesCache?.TryGetValue(modelName, out var cached) == true)
+        {
+            return cached;
+        }
+        var footNames = new List<string>();
+        try
+        {
+            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            if (modelResource is null)
+            {
+                return [];
+            }
+            if (modelResource.DataBlock is not Model modelData)
+            {
+                return [];
+            }
+            var keyvalues = modelData.KeyValues;
+            if (keyvalues.ContainsKey("FeetSettings"))
+            {
+                var feetSettings = keyvalues.GetSubCollection("FeetSettings");
+
+                foreach (var (footKey, _) in feetSettings.Properties)
+                {
+                    if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
+                    {
+                        footNames.Add(footKey);
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+        modelFootNamesCache ??= [];
+        modelFootNamesCache[modelName] = footNames.ToArray();
+        return footNames.ToArray();
+    }
+
+    private sealed class LookAtChainInfo
+    {
+        public string Name { get; set; } = string.Empty;
+        public string[] BoneNames { get; set; } = [];
+        public float[] BoneWeights { get; set; } = [];
+    }
+
+    private string[] LoadLookAtChainNamesFromModel()
+    {
+        var modelName = Graph.GetStringProperty("m_modelName");
+        if (string.IsNullOrEmpty(modelName))
+        {
+            return [];
+        }
+        if (modelLookAtChainNamesCache?.TryGetValue(modelName, out var cached) == true)
+        {
+            return cached;
+        }
+        var lookAtChainNames = new List<string>();
+        try
+        {
+            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            if (modelResource is null)
+            {
+                return [];
+            }
+            if (modelResource.DataBlock is not Model modelData)
+            {
+                return [];
+            }
+            var keyvalues = modelData.KeyValues;
+            if (keyvalues.ContainsKey("LookAtList"))
+            {
+                var lookAtList = keyvalues.GetSubCollection("LookAtList");
+                foreach (var chainEntry in lookAtList.Properties)
+                {
+                    if (chainEntry.Value.Value is KVObject chainData)
+                    {
+                        var name = chainData.GetStringProperty("name");
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            lookAtChainNames.Add(name);
+                        }
+                    }
+                }
+            }
+            else if (keyvalues.ContainsKey("LookAtData"))
+            {
+                var lookAtData = keyvalues.GetSubCollection("LookAtData");
+                if (lookAtData.ContainsKey("m_lookAtList"))
+                {
+                    var lookAtList = lookAtData.GetArray("m_lookAtList");
+
+                    foreach (var lookAtItem in lookAtList)
+                    {
+                        var name = lookAtItem.GetStringProperty("m_sName");
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            lookAtChainNames.Add(name);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+        modelLookAtChainNamesCache ??= [];
+        modelLookAtChainNamesCache[modelName] = lookAtChainNames.ToArray();
+        return lookAtChainNames.ToArray();
+    }
+    private string[] GetBoneNamesFromIndices(KVObject compiledBones)
+    {
+        if (compiledBones is null || !compiledBones.ContainsKey("m_bones"))
+        {
+            return [];
+        }
+        var compiledBonesArray = compiledBones.GetArray("m_bones");
+        var boneNames = new string[compiledBonesArray.Length];
+
+        for (int i = 0; i < compiledBonesArray.Length; i++)
+        {
+            var boneIndex = (int)compiledBonesArray[i].GetIntegerProperty("m_index");
+            boneNames[i] = GetBoneName(boneIndex);
+        }
+        return boneNames;
+    }
+    private LookAtChainInfo[] LoadLookAtChainInfoFromModel()
+    {
+        var modelName = Graph.GetStringProperty("m_modelName");
+        if (string.IsNullOrEmpty(modelName))
+        {
+            return [];
+        }
+        if (modelLookAtChainInfoCache?.TryGetValue(modelName, out var cached) == true)
+        {
+            return cached;
+        }
+        var lookAtChains = new List<LookAtChainInfo>();
+        try
+        {
+            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            if (modelResource is null)
+            {
+                return [];
+            }
+            if (modelResource.DataBlock is not Model modelData)
+            {
+                return [];
+            }
+            var keyvalues = modelData.KeyValues;
+            if (keyvalues.ContainsKey("LookAtList"))
+            {
+                var lookAtList = keyvalues.GetSubCollection("LookAtList");
+                foreach (var chainEntry in lookAtList.Properties)
+                {
+                    if (chainEntry.Value.Value is not KVObject chainData)
+                    {
+                        continue;
+                    }
+                    var chain = new LookAtChainInfo
+                    {
+                        Name = chainData.GetStringProperty("name")
+                    };
+                    if (chainData.ContainsKey("bones"))
+                    {
+                        var bones = chainData.GetArray("bones");
+                        var boneNames = new List<string>();
+                        var boneWeights = new List<float>();
+
+                        foreach (var bone in bones)
+                        {
+                            boneNames.Add(bone.GetStringProperty("name"));
+                            boneWeights.Add(bone.GetFloatProperty("weight"));
+                        }
+
+                        chain.BoneNames = boneNames.ToArray();
+                        chain.BoneWeights = boneWeights.ToArray();
+                    }
+                    lookAtChains.Add(chain);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+        modelLookAtChainInfoCache ??= [];
+        modelLookAtChainInfoCache[modelName] = lookAtChains.ToArray();
+        return lookAtChains.ToArray();
+    }
+    private string FindMatchingLookAtChainName(KVObject compiledBones)
+    {
+        if (compiledBones is null || !compiledBones.ContainsKey("m_bones"))
+        {
+            return string.Empty;
+        }
+        var lookAtChains = LoadLookAtChainInfoFromModel();
+        if (lookAtChains.Length == 0)
+        {
+            return string.Empty;
+        }
+        var compiledBoneNames = GetBoneNamesFromIndices(compiledBones);
+        foreach (var chain in lookAtChains)
+        {
+            if (chain.BoneNames.Length == compiledBoneNames.Length)
+            {
+                bool match = true;
+                for (int i = 0; i < chain.BoneNames.Length; i++)
+                {
+                    if (chain.BoneNames[i] != compiledBoneNames[i])
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match)
+                {
+                    return chain.Name;
+                }
+            }
+        }
+        foreach (var chain in lookAtChains)
+        {
+            var chainSet = new HashSet<string>(chain.BoneNames);
+            var compiledSet = new HashSet<string>(compiledBoneNames);
+
+            if (chainSet.SetEquals(compiledSet))
+            {
+                return chain.Name;
+            }
+        }
+        return string.Empty;
     }
     /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
@@ -842,7 +1135,6 @@ public class AnimationGraphExtract
             ? name
             : $"sequence_{sequenceIndex}";
     }
-
     private KVObject[] ConvertStateMachine(KVObject compiledStateMachine, KVObject[]? stateDataArray, KVObject[]? transitionDataArray, bool isComponent = false)
     {
         var compiledStates = compiledStateMachine.GetArray("m_states");
@@ -2206,17 +2498,595 @@ public class AnimationGraphExtract
                     node.AddProperty("m_baseClipName", "");
                 }
             }
+            else if (className == "CFootPinning")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_poseOpFixedData")
+                {
+                    var poseOpFixedData = subCollection.Value;
+                    if (poseOpFixedData.ContainsKey("m_footInfo"))
+                    {
+                        var footInfoArray = poseOpFixedData.GetArray("m_footInfo");
+                        var convertedItems = new List<KVObject>();
 
+                        foreach (var footInfo in footInfoArray)
+                        {
+                            var convertedItem = new KVObject(null, 8);
+                            if (footInfo.ContainsKey("m_nFootIndex"))
+                            {
+                                var footIndex = (int)footInfo.GetIntegerProperty("m_nFootIndex");
+                                var footName = GetFootName(footIndex);
+                                if (!string.IsNullOrEmpty(footName))
+                                {
+                                    convertedItem.AddProperty("m_footName", footName);
+                                }
+                            }
+                            if (footInfo.ContainsKey("m_nTargetBoneIndex"))
+                            {
+                                var boneIndex = (int)footInfo.GetIntegerProperty("m_nTargetBoneIndex");
+                                var boneName = GetBoneName(boneIndex);
+                                if (!string.IsNullOrEmpty(boneName))
+                                {
+                                    convertedItem.AddProperty("m_targetBoneName", boneName);
+                                }
+                            }
+                            if (footInfo.ContainsKey("m_ikChainIndex"))
+                            {
+                                var ikChainIndex = (int)footInfo.GetIntegerProperty("m_ikChainIndex");
+                                var ikChainName = GetIKChainName(ikChainIndex);
+                                if (!string.IsNullOrEmpty(ikChainName))
+                                {
+                                    convertedItem.AddProperty("m_ikChainName", ikChainName);
+                                }
+                            }
+                            if (footInfo.ContainsKey("m_nTagIndex"))
+                            {
+                                var tagIndex = footInfo.GetIntegerProperty("m_nTagIndex");
+                                var tagId = -1L;
+                                if (tagIndex >= 0 && tagIndex < Tags.Length)
+                                {
+                                    tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                                }
+                                convertedItem.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
+                            }
+                            convertedItem.AddProperty("m_param", MakeNodeIdObjectValue(-1));
+                            if (footInfo.ContainsKey("m_flMaxRotationLeft"))
+                            {
+                                convertedItem.AddProperty("m_flMaxRotationLeft", footInfo.GetFloatProperty("m_flMaxRotationLeft"));
+                            }
+                            if (footInfo.ContainsKey("m_flMaxRotationRight"))
+                            {
+                                convertedItem.AddProperty("m_flMaxRotationRight", footInfo.GetFloatProperty("m_flMaxRotationRight"));
+                            }
+                            convertedItems.Add(convertedItem);
+                        }
+                        if (convertedItems.Count > 0)
+                        {
+                            node.AddProperty("m_items", KVValue.MakeArray(convertedItems.ToArray()));
+                        }
+                    }
+                    if (poseOpFixedData.ContainsKey("m_flBlendTime"))
+                    {
+                        node.AddProperty("m_flBlendTime", poseOpFixedData.GetFloatProperty("m_flBlendTime"));
+                    }
+                    if (poseOpFixedData.ContainsKey("m_flLockBreakDistance"))
+                    {
+                        node.AddProperty("m_flLockBreakDistance", poseOpFixedData.GetFloatProperty("m_flLockBreakDistance"));
+                    }
+                    if (poseOpFixedData.ContainsKey("m_flMaxLegTwist"))
+                    {
+                        node.AddProperty("m_flMaxLegTwist", poseOpFixedData.GetFloatProperty("m_flMaxLegTwist"));
+                    }
+                    if (poseOpFixedData.ContainsKey("m_nHipBoneIndex"))
+                    {
+                        var hipBoneIndex = (int)poseOpFixedData.GetIntegerProperty("m_nHipBoneIndex");
+                        var hipBoneName = GetBoneName(hipBoneIndex);
+                        if (!string.IsNullOrEmpty(hipBoneName))
+                        {
+                            node.AddProperty("m_hipBoneName", hipBoneName);
+                        }
+                    }
+                    if (poseOpFixedData.ContainsKey("m_bApplyLegTwistLimits"))
+                    {
+                        node.AddProperty("m_bApplyLegTwistLimits", poseOpFixedData.GetIntegerProperty("m_bApplyLegTwistLimits") > 0);
+                    }
+                    if (poseOpFixedData.ContainsKey("m_bApplyFootRotationLimits"))
+                    {
+                        node.AddProperty("m_bApplyFootRotationLimits", poseOpFixedData.GetIntegerProperty("m_bApplyFootRotationLimits") > 0);
+                    }
+                    continue;
+                }
+                else if (key == "m_eTimingSource")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_flMaxLegStraightAmount")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_bResetChild")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+            }
+            else if (className == "CFootStepTrigger")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_flTolerance")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_triggers")
+                {
+                    var triggers = compiledNode.GetArray("m_triggers");
+                    var convertedItems = new List<KVObject>();
+                    foreach (var trigger in triggers)
+                    {
+                        var convertedItem = new KVObject(null, 3);
+                        if (trigger.ContainsKey("m_nFootIndex"))
+                        {
+                            var footIndex = (int)trigger.GetIntegerProperty("m_nFootIndex");
+                            var footName = GetFootName(footIndex);
+                            if (!string.IsNullOrEmpty(footName))
+                            {
+                                convertedItem.AddProperty("m_footName", footName);
+                            }
+                        }
+                        if (trigger.ContainsKey("m_triggerPhase"))
+                        {
+                            convertedItem.AddProperty("m_triggerPhase", trigger.GetProperty<string>("m_triggerPhase"));
+                        }
+                        if (trigger.ContainsKey("m_tags"))
+                        {
+                            try
+                            {
+                                var tagIndices = trigger.GetIntegerArray("m_tags");
+                                var tagIds = new List<KVObject>();
+
+                                foreach (var tagIndex in tagIndices)
+                                {
+                                    var tagId = -1L;
+                                    if (tagIndex >= 0 && tagIndex < Tags.Length)
+                                    {
+                                        tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                                    }
+                                    tagIds.Add(MakeNodeIdObjectValue(tagId).Value as KVObject ?? new KVObject("tag", 0));
+                                }
+                                convertedItem.AddProperty("m_tags", KVValue.MakeArray(tagIds.ToArray()));
+                            }
+                            catch (InvalidCastException)
+                            {
+                                convertedItem.AddProperty("m_tags", KVValue.MakeArray(Array.Empty<KVObject>()));
+                            }
+                        }
+                        else
+                        {
+                            convertedItem.AddProperty("m_tags", KVValue.MakeArray(Array.Empty<KVObject>()));
+                        }
+                        convertedItems.Add(convertedItem);
+                    }
+                    node.AddProperty("m_items", KVValue.MakeArray(convertedItems.ToArray()));
+                    continue;
+                }
+            }
+            else if (className == "CJiggleBone")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_opFixedData")
+                {
+                    var opFixedData = subCollection.Value;
+                    if (opFixedData.ContainsKey("m_boneSettings"))
+                    {
+                        var boneSettingsArray = opFixedData.GetArray("m_boneSettings");
+                        var convertedItems = new List<KVObject>();
+                        foreach (var boneSetting in boneSettingsArray)
+                        {
+                            var convertedItem = new KVObject(null, 7);
+                            if (boneSetting.ContainsKey("m_nBoneIndex"))
+                            {
+                                var boneIndex = (int)boneSetting.GetIntegerProperty("m_nBoneIndex");
+                                var boneName = GetBoneName(boneIndex);
+                                if (!string.IsNullOrEmpty(boneName))
+                                {
+                                    convertedItem.AddProperty("m_boneName", boneName);
+                                }
+                            }
+                            if (boneSetting.ContainsKey("m_flSpringStrength"))
+                            {
+                                convertedItem.AddProperty("m_flSpringStrength", boneSetting.GetFloatProperty("m_flSpringStrength"));
+                            }
+                            if (boneSetting.ContainsKey("m_flMaxTimeStep"))
+                            {
+                                var maxTimeStep = boneSetting.GetFloatProperty("m_flMaxTimeStep");
+                                if (maxTimeStep > 0)
+                                {
+                                    var simRateFPS = 1.0f / maxTimeStep;
+                                    convertedItem.AddProperty("m_flSimRateFPS", simRateFPS);
+                                }
+                                else
+                                {
+                                    convertedItem.AddProperty("m_flSimRateFPS", 90.0f);
+                                }
+                            }
+                            if (boneSetting.ContainsKey("m_flDamping"))
+                            {
+                                convertedItem.AddProperty("m_flDamping", boneSetting.GetFloatProperty("m_flDamping"));
+                            }
+                            if (boneSetting.ContainsKey("m_eSimSpace"))
+                            {
+                                convertedItem.AddProperty("m_eSimSpace", boneSetting.GetProperty<string>("m_eSimSpace"));
+                            }
+                            if (boneSetting.ContainsKey("m_vBoundsMaxLS"))
+                            {
+                                convertedItem.AddProperty("m_vBoundsMaxLS", boneSetting.GetSubCollection("m_vBoundsMaxLS"));
+                            }
+                            if (boneSetting.ContainsKey("m_vBoundsMinLS"))
+                            {
+                                convertedItem.AddProperty("m_vBoundsMinLS", boneSetting.GetSubCollection("m_vBoundsMinLS"));
+                            }
+                            convertedItems.Add(convertedItem);
+                        }
+                        node.AddProperty("m_items", KVValue.MakeArray(convertedItems.ToArray()));
+                    }
+                    continue;
+                }
+            }
+            else if (className == "CJumpHelper")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_hSequence")
+                {
+                    var sequenceIndex = compiledNode.GetIntegerProperty("m_hSequence");
+                    var sequenceName = GetSequenceName(sequenceIndex);
+                    node.AddProperty("m_sequenceName", sequenceName);
+                    continue;
+                }
+                else if (key == "m_hTargetParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                    node.AddProperty("m_targetParamID", paramIdValue);
+                    continue;
+                }
+                else if (key == "m_flJumpStartCycle")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_flJumpEndCycle")
+                {
+                    var jumpStart = compiledNode.GetFloatProperty("m_flJumpStartCycle");
+                    var jumpEnd = compiledNode.GetFloatProperty("m_flJumpEndCycle");
+                    var jumpDuration = jumpEnd - jumpStart;
+                    node.AddProperty("m_flJumpDuration", jumpDuration);
+                    continue;
+                }
+                else if (key == "m_flOriginalJumpDuration")
+                {
+                    continue;
+                }
+                else if (key == "m_flOriginalJumpMovement")
+                {
+                    continue;
+                }
+                else if (key == "m_bScaleSpeed" || key == "m_playbackSpeed" || key == "m_bLoop" || key == "m_eCorrectionMethod")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_duration")
+                {
+                    continue;
+                }
+                else if (key == "m_tags")
+                {
+                    try
+                    {
+                        var tagIndices = compiledNode.GetIntegerArray("m_tags");
+                        var tagIds = new List<KVObject>();
+
+                        foreach (var tagIndex in tagIndices)
+                        {
+                            var tagId = -1L;
+                            if (tagIndex >= 0 && tagIndex < Tags.Length)
+                            {
+                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                            }
+                            tagIds.Add(MakeNodeIdObjectValue(tagId).Value as KVObject ?? new KVObject("tag", 0));
+                        }
+
+                        node.AddProperty("m_tagSpans", KVValue.MakeArray(tagIds.ToArray()));
+                    }
+                    catch (InvalidCastException)
+                    {
+                        node.AddProperty("m_tagSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
+                    }
+                    continue;
+                }
+                else if (key == "m_paramSpans")
+                {
+                    try
+                    {
+                        var compiledParamSpans = compiledNode.GetSubCollection("m_paramSpans");
+
+                        if (compiledParamSpans is not null && compiledParamSpans.ContainsKey("m_spans"))
+                        {
+                            var compiledSpans = compiledParamSpans.GetArray("m_spans");
+                            var paramSpans = new List<KVObject>();
+
+                            foreach (var compiledSpan in compiledSpans)
+                            {
+                                var paramSpan = MakeNode("CAnimParamSpan");
+
+                                if (compiledSpan.ContainsKey("m_samples"))
+                                {
+                                    paramSpan.AddProperty("m_samples", compiledSpan.GetProperty<KVObject>("m_samples"));
+                                }
+
+                                if (compiledSpan.ContainsKey("m_hParam"))
+                                {
+                                    var paramHandle = compiledSpan.GetSubCollection("m_hParam");
+                                    var paramType = paramHandle.GetStringProperty("m_type");
+                                    var paramIndex = paramHandle.GetIntegerProperty("m_index");
+                                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                                    paramSpan.AddProperty("m_id", paramIdValue);
+                                }
+
+                                if (compiledSpan.ContainsKey("m_flStartCycle"))
+                                {
+                                    paramSpan.AddProperty("m_flStartCycle", compiledSpan.GetFloatProperty("m_flStartCycle"));
+                                }
+
+                                if (compiledSpan.ContainsKey("m_flEndCycle"))
+                                {
+                                    paramSpan.AddProperty("m_flEndCycle", compiledSpan.GetFloatProperty("m_flEndCycle"));
+                                }
+
+                                paramSpans.Add(paramSpan);
+                            }
+
+                            node.AddProperty("m_paramSpans", KVValue.MakeArray(paramSpans.ToArray()));
+                        }
+                        else
+                        {
+                            node.AddProperty("m_paramSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
+                        }
+                    }
+                    catch
+                    {
+                        node.AddProperty("m_paramSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
+                    }
+                    continue;
+                }
+            }
+            else if (className == "CLeanMatrix")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_hSequence")
+                {
+                    var sequenceIndex = compiledNode.GetIntegerProperty("m_hSequence");
+                    var sequenceName = GetSequenceName(sequenceIndex);
+                    node.AddProperty("m_sequenceName", sequenceName);
+                    continue;
+                }
+                else if (key == "m_paramIndex")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                    node.AddProperty("m_param", paramIdValue);
+                    continue;
+                }
+                else if (key == "m_verticalAxis")
+                {
+                    node.AddProperty("m_verticalAxisDirection", value);
+                    continue;
+                }
+                else if (key == "m_horizontalAxis")
+                {
+                    node.AddProperty("m_horizontalAxisDirection", value);
+                    continue;
+                }
+                else if (key == "m_damping")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_blendSource")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_flMaxValue")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_frameCorners" || key == "m_poses" || key == "m_nSequenceMaxFrame")
+                {
+                    continue;
+                }
+            }
+            else if (className == "CLookAt")
+            {
+                if (key == "m_name")
+                {
+                    node.AddProperty("m_sName", value);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        AddInputConnection(node, childNodeId);
+                    }
+                    continue;
+                }
+                else if (key == "m_target")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_paramIndex")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                    node.AddProperty("m_param", paramIdValue);
+                    continue;
+                }
+                else if (key == "m_weightParamIndex")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                    node.AddProperty("m_weightParam", paramIdValue);
+                    continue;
+                }
+                else if (key == "m_opFixedSettings")
+                {
+                    var opFixedSettings = subCollection.Value;
+                    if (opFixedSettings.ContainsKey("m_bones"))
+                    {
+                        var lookAtChainName = FindMatchingLookAtChainName(opFixedSettings);
+                        node.AddProperty("m_lookatChainName", lookAtChainName);
+                    }
+                    else
+                    {
+                        node.AddProperty("m_lookatChainName", "");
+                    }
+                    if (opFixedSettings.ContainsKey("m_attachment"))
+                    {
+                        var attachment = opFixedSettings.GetSubCollection("m_attachment");
+                        var attachmentName = FindMatchingAttachmentName(attachment);
+                        node.AddProperty("m_attachmentName", attachmentName);
+                    }
+                    else
+                    {
+                        node.AddProperty("m_attachmentName", "aim");
+                    }
+                    if (opFixedSettings.ContainsKey("m_flYawLimit"))
+                    {
+                        node.AddProperty("m_flYawLimit", opFixedSettings.GetFloatProperty("m_flYawLimit"));
+                    }
+                    if (opFixedSettings.ContainsKey("m_flPitchLimit"))
+                    {
+                        node.AddProperty("m_flPitchLimit", opFixedSettings.GetFloatProperty("m_flPitchLimit"));
+                    }
+                    if (opFixedSettings.ContainsKey("m_flHysteresisInnerAngle"))
+                    {
+                        node.AddProperty("m_flHysteresisInnerAngle", opFixedSettings.GetFloatProperty("m_flHysteresisInnerAngle"));
+                    }
+                    if (opFixedSettings.ContainsKey("m_flHysteresisOuterAngle"))
+                    {
+                        node.AddProperty("m_flHysteresisOuterAngle", opFixedSettings.GetFloatProperty("m_flHysteresisOuterAngle"));
+                    }
+                    if (opFixedSettings.ContainsKey("m_bRotateYawForward"))
+                    {
+                        node.AddProperty("m_bRotateYawForward", opFixedSettings.GetIntegerProperty("m_bRotateYawForward") > 0);
+                    }
+                    if (opFixedSettings.ContainsKey("m_bMaintainUpDirection"))
+                    {
+                        node.AddProperty("m_bMaintainUpDirection", opFixedSettings.GetIntegerProperty("m_bMaintainUpDirection") > 0);
+                    }
+                    if (opFixedSettings.ContainsKey("m_bTargetIsPosition"))
+                    {
+                        node.AddProperty("m_bIsPosition", opFixedSettings.GetIntegerProperty("m_bTargetIsPosition") > 0);
+                    }
+                    if (opFixedSettings.ContainsKey("m_bUseHysteresis"))
+                    {
+                        node.AddProperty("m_bUseHysteresis", opFixedSettings.GetIntegerProperty("m_bUseHysteresis") > 0);
+                    }
+                    if (opFixedSettings.ContainsKey("m_damping"))
+                    {
+                        node.AddProperty("m_damping", opFixedSettings.GetSubCollection("m_damping"));
+                    }
+                    continue;
+                }
+                else if (key == "m_bResetChild")
+                {
+                    node.AddProperty("m_bResetBase", value);
+                    continue;
+                }
+                else if (key == "m_bLockWhenWaning")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+            }
             if (key == "m_children")
             {
                 if (inputNodeIds is not null)
                 {
                     node.AddProperty(key, KVValue.MakeArray(inputNodeIds.Select(MakeInputConnection)));
                 }
-
                 continue;
             }
-
             if (key == "m_tags")
             {
                 if (className is "CSequence" or "CCycleControlClip" or "CBlend2D")
