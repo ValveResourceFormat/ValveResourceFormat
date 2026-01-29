@@ -60,23 +60,27 @@ vec4 SampleColorBuffer(vec2 coords)
 
     // undo view projection to get back 3d world coordinates
     vec4 worldPos =  g_invViewProjMatrix * screenToClip;
-    vec4 worldPos3D = vec4(worldPos.xyz / worldPos.w, 1.0);
 
-    // projecting worldpos onto the lens plane, gives us how far away the point is from the plane
-    // g_vLensPlane.w is the plane offset, using dot between 4d vectors for this is clever
-    float distanceFromLensPlane = dot(g_vLensPlane, worldPos3D);
+    if (worldPos.w != 0.0)
+    {
+        vec4 worldPos3D = vec4(worldPos.xyz / worldPos.w, 1.0);
 
-    float nearScale = g_vNearFarScaleBias.x;
-    float nearBias = g_vNearFarScaleBias.y;
-    float farScale = g_vNearFarScaleBias.z;
-    float farBias = g_vNearFarScaleBias.w;
+        // projecting worldpos onto the lens plane, gives us how far away the point is from the plane
+        // g_vLensPlane.w is the plane offset, using dot between 4d vectors for this is clever
+        float distanceFromLensPlane = dot(g_vLensPlane, worldPos3D);
 
-    float closeCoC = clamp((distanceFromLensPlane * nearScale) + -nearBias, 0.0, 1.0);
-    float farCoC = clamp((distanceFromLensPlane * farScale) + farBias, 0.0, 1.0);
+        float nearScale = g_vNearFarScaleBias.x;
+        float nearBias = g_vNearFarScaleBias.y;
+        float farScale = g_vNearFarScaleBias.z;
+        float farBias = g_vNearFarScaleBias.w;
 
-    outputAlpha = max(closeCoC, farCoC);
+        float closeCoC = clamp((distanceFromLensPlane * nearScale) + -nearBias, 0.0, 1.0);
+        float farCoC = clamp((distanceFromLensPlane * farScale) + farBias, 0.0, 1.0);
+
+        outputAlpha = max(closeCoC, farCoC);
+    }
 #endif
-
+   
     return vec4(vColorMSAA.rgb, outputAlpha);
 }
 
