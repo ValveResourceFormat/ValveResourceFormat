@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
@@ -238,6 +239,8 @@ namespace GUI.Types.GLViewers
             savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
             UiControl.AddControl(savedCameraPositionsControl);
 
+            AddDOFControls();
+
             if (LoadedWorld != null && LoadedWorld.CameraMatrices.Count > 0)
             {
                 cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
@@ -342,6 +345,83 @@ namespace GUI.Types.GLViewers
             ignoreLayersChangeEvents = false;
 
             base.AddUiControls();
+        }
+
+        public void AddDOFControls()
+        {
+            var groupBoxPanel = new Panel();
+            groupBoxPanel.Height = 230;
+            groupBoxPanel.Padding = new(4);
+
+            var groupBox = new ThemedGroupBox();
+            groupBox.Text = "Depth Of Field";
+            groupBox.Dock = DockStyle.Fill;
+            groupBox.Padding = new(4);
+
+            var controlsContainer = new Panel();
+            controlsContainer.Height = 175;
+            controlsContainer.Dock = DockStyle.Top;
+
+            Action<bool> dofCheckBoxAction = (v) =>
+            {
+                Renderer.Postprocess.DOFEnabled = v;
+
+                controlsContainer.Enabled = v;
+                controlsContainer.Visible = v;
+
+                groupBoxPanel.Height = v ? 230 : 60;
+            };
+
+            dofCheckBoxAction(Renderer.Postprocess.DOFEnabled);
+
+            var checkBox = RendererControl.GetCheckBox("Depth Of Field", Renderer.Postprocess.DOFEnabled, dofCheckBoxAction);
+            checkBox.Dock = DockStyle.Top;
+
+            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Far blurry", (float val) =>
+            {
+                Renderer.Postprocess.DOF.FarBlurry = val;
+            }, Renderer.Postprocess.DOF.FarBlurry, 0, 10000));
+
+            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Far crisp", (float val) =>
+            {
+                Renderer.Postprocess.DOF.FarCrisp = val;
+            }, Renderer.Postprocess.DOF.FarCrisp, 0, 10000));
+
+            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Near blurry", (float val) =>
+            {
+                Renderer.Postprocess.DOF.NearBlurry = -val;
+            }, Renderer.Postprocess.DOF.NearBlurry, 0, 100));
+
+            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Near crisp", (float val) =>
+            {
+                Renderer.Postprocess.DOF.NearCrisp = val;
+            }, Renderer.Postprocess.DOF.NearCrisp, 0, 1000));
+
+            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Max Blur Size", (float val) =>
+            {
+                Renderer.Postprocess.DOF.MaxBlurSize = val;
+            }, Renderer.Postprocess.DOF.MaxBlurSize, 0, 100));
+
+            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Radius Scale", (float val) =>
+            {
+                Renderer.Postprocess.DOF.RadScale = val;
+            }, Renderer.Postprocess.DOF.RadScale, 0, 1));
+
+            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Focal Distance", (float val) =>
+            {
+                Renderer.Postprocess.DOF.FocalDistance = val;
+            }, Renderer.Postprocess.DOF.FocalDistance, 0, 10000));
+
+            foreach (Control control in controlsContainer.Controls)
+            {
+                control.Dock = DockStyle.Top;
+            }
+
+            groupBox.Controls.Add(controlsContainer);
+            groupBox.Controls.Add(checkBox);
+            groupBoxPanel.Controls.Add(groupBox);
+
+            UiControl!.AddControl(groupBoxPanel);
         }
 
         public void SelectAndFocusEntity(EntityLump.Entity entity)

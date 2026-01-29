@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer
         public Vector3 Up { get; private set; }
 
         private RendererContext RendererContext;
-        private Matrix4x4 ProjectionMatrix;
+        public Matrix4x4 ProjectionMatrix { get; private set; }
         public Matrix4x4 CameraViewMatrix { get; private set; }
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; } = new Frustum();
