@@ -11,7 +11,7 @@ void main()
 {
     vec2 fragCoord = gl_FragCoord.xy / textureSize(g_tInputColor_CoC, 0);
 
-    vec4 centerSample = texture2D(g_tInputColor_CoC, fragCoord);
+    vec4 centerSample = texture(g_tInputColor_CoC, fragCoord);
     float centerCoC = centerSample.w * 2.0;
 
     float weightSum = 1.0;
@@ -21,7 +21,7 @@ void main()
     {
         vec2 currentSampleOffset = (fragCoord + g_vSampleOffsetsRadMinMax[i].xy).xy;
 
-        vec4 offsetSample = texture2D(g_tInputColor_CoC, currentSampleOffset);
+        vec4 offsetSample = texture(g_tInputColor_CoC, currentSampleOffset);
         float offsetCoC = offsetSample.w;
         
         if (offsetCoC > centerCoC)
