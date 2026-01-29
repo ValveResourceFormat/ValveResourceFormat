@@ -502,7 +502,7 @@ public class Renderer
         Debug.Assert(inputFramebuffer.NumSamples > 0);
         Debug.Assert(outputFramebuffer.NumSamples == 0);
 
-        Postprocess.Render(inputFramebuffer, outputFramebuffer, flipY);
+        Postprocess.Render(inputFramebuffer, outputFramebuffer, Camera, flipY);
     }
 
     public void Dispose()
