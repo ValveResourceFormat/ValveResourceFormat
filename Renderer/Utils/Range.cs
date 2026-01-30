@@ -9,6 +9,13 @@ record struct Range(float Min, float Max)
     {
     }
 
+    public Range(float singleValue)
+        : this(singleValue, singleValue)
+    {
+    }
+
+    public readonly float Length => Max - Min;
+
     public readonly float GetClampedValue(float input)
     {
         return Math.Clamp(input, Min, Max);

@@ -25,6 +25,33 @@ record struct Transform(Vector3 Position, float Scale, Quaternion Rotation)
         );
     }
 
+    public static Transform operator *(Transform t, Matrix4x4 m)
+    {
+        // Apply the matrix to the transform by multiplying matrices then decomposing back.
+        var combined = t.ToMatrix() * m;
+        if (Matrix4x4.Decompose(combined, out var scaleVec, out var rot, out var trans))
+        {
+            // Transform stores a uniform scale; take X (decompose returns per-axis scale).
+            var scale = scaleVec.X;
+            return new Transform(trans, scale, Quaternion.Normalize(rot));
+        }
+
+        // Decompose failed — return original transform unchanged (safe fallback).
+        return t;
+    }
+
+    public static Transform operator *(Matrix4x4 m, Transform t)
+    {
+        var combined = m * t.ToMatrix();
+        if (Matrix4x4.Decompose(combined, out var scaleVec, out var rot, out var trans))
+        {
+            var scale = scaleVec.X;
+            return new Transform(trans, scale, Quaternion.Normalize(rot));
+        }
+
+        return t;
+    }
+
     public readonly Matrix4x4 ToMatrix()
     {
         var scaleMatrix = Matrix4x4.CreateScale(Scale);

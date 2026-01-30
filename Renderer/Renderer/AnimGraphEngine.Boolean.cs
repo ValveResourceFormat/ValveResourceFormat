@@ -145,7 +145,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override bool GetValue(GraphContext ctx)
         {
-            var inputValue = InputValueNode.Evaluate(ctx);
+            var inputValue = InputValueNode.GetValue(ctx);
 
             var matches = ComparisionIDs.Contains(inputValue);
             return Comparison switch

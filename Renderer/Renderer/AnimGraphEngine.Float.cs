@@ -3,7 +3,10 @@ using System.Linq;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    partial class FloatValueNode { public virtual float GetValue(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class FloatValueNode
+    {
+        public virtual float GetValue(GraphContext ctx) => throw new NotImplementedException();
+    }
 
     partial class CachedFloatNode
     {
@@ -166,49 +169,63 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class FloatEaseNode
     {
         FloatValueNode InputValueNode;
-        float _easeBegin;
-        float _easeEnd;
-        float _currentValue;
-        float _currentEaseTime;
+        Range EaseRange;
+        float CurrentValue;
+        float CurrentEaseTime;
 
         public void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
             if (UseStartValue)
             {
-                _easeBegin = _easeEnd = StartValue;
+                EaseRange = new(StartValue);
             }
             else
             {
-                _easeBegin = _easeEnd = InputValueNode.GetValue(ctx);
+                EaseRange = new(InputValueNode.GetValue(ctx));
             }
-            _currentValue = _easeBegin;
-            _currentEaseTime = 0;
+            CurrentValue = EaseRange.Min;
+            CurrentEaseTime = 0;
         }
 
         public override float GetValue(GraphContext ctx)
         {
-            float inputTargetValue = InputValueNode.GetValue(ctx);
-            if (Math.Abs(_currentValue - inputTargetValue) < 0.01f)
+            var inputTargetValue = InputValueNode.GetValue(ctx);
+            PerformRangeEase(ctx.DeltaTime, inputTargetValue,
+                ref EaseRange,
+                ref CurrentValue,
+                ref CurrentEaseTime,
+                EaseTime, EasingOp);
+
+            return CurrentValue;
+        }
+
+        public static void PerformRangeEase(float deltaTime, float inputTargetValue,
+            ref Range Range,
+            ref float CurrentValue,
+            ref float CurrentEaseTime,
+            float EaseTime,
+            EasingOperation EasingOp)
+        {
+            if (Math.Abs(CurrentValue - inputTargetValue) < 0.01f)
             {
-                _easeBegin = _easeEnd = inputTargetValue;
-                _currentValue = inputTargetValue;
-                _currentEaseTime = 0;
+                Range = new(inputTargetValue);
+                CurrentValue = inputTargetValue;
+                CurrentEaseTime = 0;
+                return;
             }
-            else
+
+            if (inputTargetValue != Range.Max)
             {
-                if (inputTargetValue != _easeEnd)
-                {
-                    _easeEnd = inputTargetValue;
-                    _easeBegin = _currentValue;
-                    _currentEaseTime = 0;
-                }
-                _currentEaseTime += ctx.DeltaTime;
-                float T = Math.Clamp(_currentEaseTime / EaseTime, 0.0f, 1.0f);
-                float blendValue = T * (_easeEnd - _easeBegin);
-                _currentValue = _easeBegin + blendValue;
+                Range.Min = CurrentValue;
+                Range.Max = inputTargetValue;
+                CurrentEaseTime = 0;
             }
-            return _currentValue;
+
+            CurrentEaseTime += deltaTime;
+            var t = MathUtils.Saturate(CurrentEaseTime / EaseTime);
+            var blendValue = MathUtils.Ease(EasingOp, t) * Range.Length;
+            CurrentValue = Range.Min + blendValue;
         }
     }
 
@@ -225,18 +242,41 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override float GetValue(GraphContext ctx)
         {
-            float valueA = InputValueNodeA.GetValue(ctx);
-            float valueB = InputValueNodeB?.GetValue(ctx) ?? ValueB;
-            float result = Operator switch
+            var a = InputValueNodeA.GetValue(ctx);
+            var b = InputValueNodeB?.GetValue(ctx) ?? ValueB;
+
+            var result = Operator switch
             {
-                FloatMathNode__Operator.Add => valueA + valueB,
-                FloatMathNode__Operator.Sub => valueA - valueB,
-                FloatMathNode__Operator.Mul => valueA * valueB,
-                FloatMathNode__Operator.Div => valueB == 0 ? 0 : valueA / valueB,
-                _ => throw new NotImplementedException()
+                FloatMathNode__Operator.Add => a + b,
+                FloatMathNode__Operator.Sub => a - b,
+                FloatMathNode__Operator.Mul => a * b,
+                FloatMathNode__Operator.Div => b == 0 ? 0 : a / b,
+
+                // unary / other ops (ignore `b`)
+                FloatMathNode__Operator.Mod => b == 0 ? 0 : a % b,
+                FloatMathNode__Operator.Abs => MathF.Abs(a),
+                FloatMathNode__Operator.Negate => -a,
+                FloatMathNode__Operator.Floor => MathF.Floor(a),
+                FloatMathNode__Operator.Ceiling => MathF.Ceiling(a),
+
+                // integer / fractional decomposition uses floor so fractional part is in [0,1)
+                FloatMathNode__Operator.IntegerPart => MathF.Floor(a),
+                FloatMathNode__Operator.FractionalPart => a - MathF.Floor(a),
+                FloatMathNode__Operator.InverseFractionalPart => 1f - (a - MathF.Floor(a)),
+
+                _ => throw new UnreachableException()
             };
-            if (ReturnAbsoluteResult) result = Math.Abs(result);
-            if (ReturnNegatedResult) result = -result;
+
+            if (ReturnAbsoluteResult)
+            {
+                result = Math.Abs(result);
+            }
+
+            if (ReturnNegatedResult)
+            {
+                result = -result;
+            }
+
             return result;
         }
     }
@@ -252,18 +292,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override float GetValue(GraphContext ctx)
         {
-            float input = InputValueNode.GetValue(ctx);
-            return MathUtils.RemapRange(input, InputRange.m_begin, InputRange.m_end, OutputRange.m_begin, OutputRange.m_end);
+            var input = InputValueNode.GetValue(ctx);
+            return MathUtils.RemapRange(input, InputRange.Begin, InputRange.End, OutputRange.Begin, OutputRange.End);
         }
     }
 
     partial class FloatSelectorNode
     {
-        FloatValueNode[] ConditionNodes;
-        float _easeBegin;
-        float _easeEnd;
-        float _currentValue;
-        float _currentEaseTime;
+        BoolValueNode[] ConditionNodes;
+        Range EaseRange;
+        float CurrentValue;
+        float CurrentEaseTime;
 
         public void Initialize(GraphContext ctx)
         {
@@ -272,48 +311,40 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override float GetValue(GraphContext ctx)
         {
-            float inputTargetValue = DefaultValue;
-            for (int i = 0; i < ConditionNodes.Length; i++)
+            // Select value
+            //-------------------------------------------------------------------------
+            var inputTargetValue = DefaultValue;
+            for (var i = 0; i < ConditionNodes.Length; i++)
             {
-                if (ConditionNodes[i].GetValue(ctx) != 0)
+                if (ConditionNodes[i].GetValue(ctx))
                 {
                     inputTargetValue = Values[i];
                     break;
                 }
             }
+
             if (EasingOp == EasingOperation.None)
             {
-                _currentValue = inputTargetValue;
+                return inputTargetValue;
             }
-            else
-            {
-                if (Math.Abs(_currentValue - inputTargetValue) < 0.01f)
-                {
-                    _easeBegin = _easeEnd = inputTargetValue;
-                    _currentValue = inputTargetValue;
-                    _currentEaseTime = 0;
-                }
-                else
-                {
-                    if (inputTargetValue != _easeEnd)
-                    {
-                        _easeEnd = inputTargetValue;
-                        _easeBegin = _currentValue;
-                        _currentEaseTime = 0;
-                    }
-                    _currentEaseTime += ctx.DeltaTime;
-                    float T = Math.Clamp(_currentEaseTime / EaseTime, 0.0f, 1.0f);
-                    float blendValue = T * (_easeEnd - _easeBegin);
-                    _currentValue = _easeBegin + blendValue;
-                }
-            }
-            return _currentValue;
+
+            // Perform easing
+            //-------------------------------------------------------------------------
+            FloatEaseNode.PerformRangeEase(
+                ctx.DeltaTime,
+                inputTargetValue,
+                ref EaseRange,
+                ref CurrentValue,
+                ref CurrentEaseTime,
+                EaseTime, EasingOp);
+
+            return CurrentValue;
         }
     }
 
     partial class FloatSwitchNode
     {
-        FloatValueNode SwitchValueNode;
+        BoolValueNode SwitchValueNode;
         FloatValueNode TrueValueNode;
         FloatValueNode FalseValueNode;
 
@@ -326,7 +357,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override float GetValue(GraphContext ctx)
         {
-            bool switchValue = SwitchValueNode.GetValue(ctx) != 0;
+            var switchValue = SwitchValueNode.GetValue(ctx);
             return switchValue ? TrueValueNode.GetValue(ctx) : FalseValueNode.GetValue(ctx);
         }
     }
@@ -345,38 +376,138 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class IDToFloatNode
     {
-        FloatValueNode InputValueNode;
+        IDValueNode InputValueNode;
 
         public void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+            Debug.Assert(IDs.Length == Values.Length);
         }
 
-        public override float GetValue(GraphContext ctx) => throw new NotImplementedException();
+        public override float GetValue(GraphContext ctx)
+        {
+            var inputId = InputValueNode.GetValue(ctx);
+
+            var foundIndex = IDs.IndexOf(inputId);
+            if (foundIndex >= 0)
+            {
+                return Values[foundIndex];
+            }
+
+            return DefaultValue;
+        }
     }
 
     partial class TargetInfoNode
     {
-        FloatValueNode InputValueNode;
+        TargetValueNode TargetNode;
 
         public void Initialize(GraphContext ctx)
         {
-            ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+            ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
         }
 
-        public override float GetValue(GraphContext ctx) => throw new NotImplementedException();
+        public override float GetValue(GraphContext ctx)
+        {
+            var target = TargetNode.GetValue(ctx);
+
+            if (!target.IsSet)
+            {
+                return 0.0f;
+            }
+
+            var isValidTransform = target.TryGetTransform(ctx.Pose, out var inputTargetTransform);
+
+            // todo: this code seems to sometimes reuse last computed value, but we don't store it
+            var lastValue = 1f;
+            if (!isValidTransform)
+            {
+                return lastValue;
+            }
+
+            if (IsWorldSpaceTarget)
+            {
+                inputTargetTransform *= ctx.WorldTransformInverse;
+            }
+
+            switch (InfoType)
+            {
+                case TargetInfoNode__Info.AngleHorizontal:
+                    {
+                        var dir2 = inputTargetTransform.Position.AsVector2();
+                        if (dir2.LengthSquared() < 1e-6f)
+                        {
+                            return 0.0f;
+                        }
+
+                        var dirN = Vector2.Normalize(dir2);
+                        var dotForward = Math.Clamp(Vector2.Dot(dirN, Vector2.UnitX), -1f, 1f);
+                        var angle = MathF.Acos(dotForward);
+                        var degrees = MathUtils.ToDegrees(angle);
+
+                        var dotRight = Vector2.Dot(dirN, Vector2.UnitY);
+                        return dotRight < 0.0f ? -degrees : degrees;
+                    }
+
+                case TargetInfoNode__Info.AngleVertical:
+                    {
+                        var dir3 = inputTargetTransform.Position;
+                        if (dir3.LengthSquared() < 1e-6f)
+                        {
+                            return 0.0f;
+                        }
+
+                        var dirN = Vector3.Normalize(dir3);
+                        var dotUp = Math.Clamp(Vector3.Dot(Vector3.UnitZ, dirN), -1f, 1f);
+                        return MathUtils.ToDegrees((MathF.PI / 2f) - MathF.Acos(dotUp));
+                    }
+
+                case TargetInfoNode__Info.Distance:
+                    return inputTargetTransform.Position.Length();
+
+                case TargetInfoNode__Info.DistanceHorizontalOnly:
+                    return inputTargetTransform.Position.AsVector2().Length();
+
+                case TargetInfoNode__Info.DistanceVerticalOnly:
+                    return MathF.Abs(inputTargetTransform.Position.Z);
+
+                case TargetInfoNode__Info.DeltaOrientationX:
+                    {
+                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Rotation);
+                        return e.X;
+                    }
+
+                case TargetInfoNode__Info.DeltaOrientationY:
+                    {
+                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Rotation);
+                        return e.Y;
+                    }
+
+                case TargetInfoNode__Info.DeltaOrientationZ:
+                    {
+                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Rotation);
+                        return e.Z;
+                    }
+
+                default:
+                    return 0.0f;
+            }
+        }
     }
 
     partial class VectorInfoNode
     {
-        FloatValueNode InputValueNode;
+        TargetValueNode TargetNode;
 
         public void Initialize(GraphContext ctx)
         {
-            ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+            ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
         }
 
-        public override float GetValue(GraphContext ctx) => throw new NotImplementedException();
+        public override float GetValue(GraphContext ctx)
+        {
+            return 1f;
+        }
     }
 
     partial class VirtualParameterFloatNode

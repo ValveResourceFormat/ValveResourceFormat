@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    partial class IDValueNode { public virtual GlobalSymbol Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class IDValueNode { public virtual GlobalSymbol GetValue(GraphContext ctx) => throw new NotImplementedException(); }
 
     partial class CachedIDNode
     {
@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override GlobalSymbol Evaluate(GraphContext ctx)
+        public override GlobalSymbol GetValue(GraphContext ctx)
         {
             if (!HasCachedValue)
             {
@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 }
                 else
                 {
-                    CachedValue = InputValueNode.Evaluate(ctx);
+                    CachedValue = InputValueNode.GetValue(ctx);
                 }
             }
 
@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ConstIDNode
     {
-        public override GlobalSymbol Evaluate(GraphContext ctx) => Value;
+        public override GlobalSymbol GetValue(GraphContext ctx) => Value;
     }
 
     partial class ControlParameterIDNode
@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             parameterName = ctx.Controller.ParameterNames[NodeIdx];
         }
 
-        public override GlobalSymbol Evaluate(GraphContext ctx)
+        public override GlobalSymbol GetValue(GraphContext ctx)
         {
             return new GlobalSymbol(ctx.Controller.IdParameters[parameterName]);
         }
