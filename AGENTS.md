@@ -26,7 +26,7 @@ Follow standard Microsoft C# conventions. Key rules:
 ### Formatting
 - **Indentation:** 4 spaces (never tabs, no trailing spaces)
 - **Line endings:** LF (Unix-style) for C# files
-- **Braces:** Opening braces on new lines (Allman style)
+- **Braces:** Opening braces on new lines (Allman style). Always use braces.
 - **Final newline:** Required in all files
 
 ### Naming Conventions
@@ -42,6 +42,11 @@ Follow standard Microsoft C# conventions. Key rules:
 - **Use collection expressions:** `[]` instead of `new List<>()`
 - **Nullable types:** Use `?` appropriately (`string?`, `Resource?`)
 - **No `this.` qualification** unless disambiguating
+
+### AnimGraphEngine context:
+- MathF operations instead of (float)Math
+- C# implementation of GetValue returns the value directly, instead of updating an instance member.
+- Prefer early returns.
 
 ### Expression Bodies
 - **Prefer expression bodies** for properties, indexers, accessors
