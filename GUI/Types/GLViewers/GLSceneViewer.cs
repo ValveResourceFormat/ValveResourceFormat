@@ -461,7 +461,8 @@ namespace GUI.Types.GLViewers
 
                 if (ShowBaseGrid && baseGrid != null)
                 {
-                    baseGrid.Render();
+                    //SLANG: needed rendercontext for texture binding testing
+                    baseGrid.Render(renderContext);
                 }
             }
 

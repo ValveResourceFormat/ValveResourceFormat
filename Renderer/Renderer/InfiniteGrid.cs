@@ -41,13 +41,18 @@ namespace ValveResourceFormat.Renderer
 #endif
         }
 
-        public void Render()
+        public void Render(Scene.RenderContext context)
         {
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             shader.Use();
             GL.BindVertexArray(vao);
+
+            foreach (var (slot, name, texture) in context.Textures)
+            {
+                shader.SetTexture((int)slot, name, texture);
+            }
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
