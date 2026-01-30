@@ -15,6 +15,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public required AnimationGraphController Controller { get; set; }
         public required GraphNode[] Nodes { get; set; }
         public BranchState BranchState { get; set; } = BranchState.Active;
+        public float DeltaTime { get; set; }
 
         public void SetNodeFromIndex<T>(short childNodeIdx, ref T childNode) where T : GraphNode
         {

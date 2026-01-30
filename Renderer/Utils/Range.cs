@@ -8,4 +8,9 @@ record struct Range(float Min, float Max)
         : this(data.GetFloatProperty("m_flMin"), data.GetFloatProperty("m_flMax"))
     {
     }
+
+    public readonly float GetClampedValue(float input)
+    {
+        return Math.Clamp(input, Min, Max);
+    }
 }
