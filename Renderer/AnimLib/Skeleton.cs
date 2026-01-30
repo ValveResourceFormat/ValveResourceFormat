@@ -25,4 +25,17 @@ class Skeleton
         SecondarySkeletons = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_secondarySkeletons"), kv => new Skeleton__SecondarySkeleton(kv))];
         IsPropSkeleton = data.GetProperty<bool>("m_bIsPropSkeleton");
     }
+
+    public int GetBoneMaskIndex(GlobalSymbol boneMaskID)
+    {
+        for (var i = 0; i < MaskDefinitions.Length; i++)
+        {
+            if (MaskDefinitions[i].ID == boneMaskID)
+            {
+                return i;
+            }
+        }
+
+        return -1; // InvalidIndex
+    }
 }

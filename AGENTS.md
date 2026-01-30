@@ -47,6 +47,9 @@ Follow standard Microsoft C# conventions. Key rules:
 - MathF operations instead of (float)Math
 - C# implementation of GetValue returns the value directly, instead of updating an instance member.
 - Prefer early returns.
+- TODO later:
+  - Events
+  - BoneMask, BoneMaskTaskList
 
 ### Expression Bodies
 - **Prefer expression bodies** for properties, indexers, accessors

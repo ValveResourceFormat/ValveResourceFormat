@@ -33,7 +33,7 @@ struct Target
         HasOffsets = true;
     }
 
-    public readonly bool TryGetTransform(/*Pose pose, */out Transform result)
+    public readonly bool TryGetTransform(Pose pose, out Transform result)
     {
         if (!IsBoneTarget)
         {
@@ -41,43 +41,48 @@ struct Target
             return true;
         }
 
-        /*
-        EE_ASSERT( pPose != nullptr );
-        auto pSkeleton = pPose->GetSkeleton();
+        Debug.Assert(pose != null && pose.Skeleton != null);
+        var skeleton = pose.Skeleton;
 
-        int32_t const boneIdx = pSkeleton->GetBoneIndex( m_boneID );
-        if ( boneIdx == InvalidIndex )
+        var boneIdx = Array.IndexOf(skeleton.BoneIDs, BoneID);
+        if (boneIdx < 0)
         {
+            result = default;
             return false;
         }
 
-        if ( m_hasOffsets )
+        if (HasOffsets)
         {
             // Get the local transform and the parent global transform
-            if ( m_isUsingBoneSpaceOffsets )
+            if (IsUsingBoneSpaceOffsets)
             {
-                outTransform = pPose->GetTransform( boneIdx );
-                outTransform.SetRotation( m_transform.GetRotation() * outTransform.GetRotation() );
-                outTransform.SetTranslation( outTransform.GetTranslation() + m_transform.GetTranslation() );
+                result = pose.GetTransform(boneIdx);
 
-                int32_t const parentBoneIdx = pSkeleton->GetParentBoneIndex( boneIdx );
-                if ( parentBoneIdx != InvalidIndex )
+                // Apply the offset's rotation then translation (preserve multiplication order from the C++ code)
+                var offset = Transform;
+                var combinedRot = Quaternion.Normalize(offset.Rotation * result.Rotation);
+                result = result with { Rotation = combinedRot, Position = result.Position + offset.Position };
+
+                var parentBoneIdx = skeleton.ParentIndices[boneIdx];
+                if (parentBoneIdx != -1)
                 {
-                    outTransform = outTransform * pPose->GetModelSpaceTransform( parentBoneIdx );
+                    // Compose local (bone) transform with parent's model-space transform
+                    result *= pose.GetModelSpaceTransform(parentBoneIdx).ToMatrix();
                 }
             }
             else // Get the model space transform for the target bone
             {
-                outTransform = pPose->GetModelSpaceTransform( boneIdx );
-                outTransform.SetRotation( m_transform.GetRotation() * outTransform.GetRotation() );
-                outTransform.SetTranslation( outTransform.GetTranslation() + m_transform.GetTranslation() );
+                result = pose.GetModelSpaceTransform(boneIdx);
+                var offset = Transform;
+                var combinedRot = Quaternion.Normalize(offset.Rotation * result.Rotation);
+                result = result with { Rotation = combinedRot, Position = result.Position + offset.Position };
             }
         }
         else
         {
-            outTransform = pPose->GetModelSpaceTransform( boneIdx );
+            result = pose.GetModelSpaceTransform(boneIdx);
         }
-        */
+
         return true;
     }
 }
