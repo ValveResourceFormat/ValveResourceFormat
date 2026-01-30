@@ -30,15 +30,18 @@ public class UserInput
     public Camera Camera { get; }
     public Rubikon? PhysicsWorld { get; set; }
 
+    private Vector3? _orbitTarget;
+    private bool _forceUpdate = true;
+
     // Orbit controls
-    public bool OrbitMode => OrbitTarget != null;
+    public bool OrbitMode => _orbitTarget != null;
     public bool OrbitModeAlways { get; set; }
     public Vector3? OrbitTarget
     {
-        get;
+        get => _orbitTarget;
         set
         {
-            field = value;
+            _orbitTarget = value;
             OrbitDistance = Vector3.Distance(Camera.Location, value ?? Vector3.Zero);
         }
     }
@@ -54,7 +57,7 @@ public class UserInput
     /// <summary>
     /// Force an input update on the next tick.
     /// </summary>
-    public bool ForceUpdate { get => field || TransitionEndTime > Renderer.Uptime; set; } = true;
+    public bool ForceUpdate { get => _forceUpdate || TransitionEndTime > Renderer.Uptime; set => _forceUpdate = value; }
     public bool EnableMouseLook { get; set; } = true;
     private Vector2 MouseDelta2D;
     private Vector2 MouseDeltaPitchYaw;
