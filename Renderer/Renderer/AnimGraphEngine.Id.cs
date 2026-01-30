@@ -36,12 +36,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
-    partial class ConstIDNode : IDValueNode
+    partial class ConstIDNode
     {
         public override GlobalSymbol Evaluate(GraphContext ctx) => Value;
     }
 
-    partial class ControlParameterIDNode : IDValueNode
+    partial class ControlParameterIDNode
     {
         string parameterName;
 

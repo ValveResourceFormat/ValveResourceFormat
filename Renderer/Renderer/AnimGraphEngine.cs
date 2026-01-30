@@ -39,5 +39,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 SetNodeFromIndex(childNodeIndices[i], ref childNodes[i]);
             }
         }
+
+        public void LogWarning(short nodeIdx, string message)
+        {
+            Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message}");
+        }
     }
 }

@@ -1,14 +1,18 @@
+using System.Diagnostics;
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class Target
+struct Target
 {
-    public Transform Transform { get; }
+    /// <summary>
+    /// Either the actual transform or the offsets that need to be applied
+    /// </summary>
+    public Transform Transform { get; set; }
     public GlobalSymbol BoneID { get; }
     public bool IsBoneTarget { get; }
-    public bool IsUsingBoneSpaceOffsets { get; }
-    public bool HasOffsets { get; }
-    public bool IsSet { get; }
+    public bool IsUsingBoneSpaceOffsets { get; set; }
+    public bool HasOffsets { get; set; }
+    public bool IsSet { get; set; }
 
     public Target(KVObject data)
     {
@@ -18,5 +22,14 @@ class Target
         IsUsingBoneSpaceOffsets = data.GetProperty<bool>("m_bIsUsingBoneSpaceOffsets");
         HasOffsets = data.GetProperty<bool>("m_bHasOffsets");
         IsSet = data.GetProperty<bool>("m_bIsSet");
+    }
+
+    public void SetOffsets(Quaternion rotationOffset, Vector3 translationOffset, bool isBoneSpaceOffset)
+    {
+        Debug.Assert(IsSet && IsBoneTarget); // Offsets only make sense for bone targets
+
+        Transform = new(translationOffset, 1f, rotationOffset);
+        IsUsingBoneSpaceOffsets = isBoneSpaceOffset;
+        HasOffsets = true;
     }
 }

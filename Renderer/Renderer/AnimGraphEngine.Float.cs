@@ -36,12 +36,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
-    partial class ConstFloatNode : FloatValueNode
+    partial class ConstFloatNode
     {
         public override float GetValue(GraphContext ctx) => Value;
     }
 
-    partial class ControlParameterFloatNode : FloatValueNode
+    partial class ControlParameterFloatNode
     {
         string parameterName;
 

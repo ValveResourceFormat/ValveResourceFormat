@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Linq;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
@@ -36,12 +35,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
-    partial class ConstVectorNode : VectorValueNode
+    partial class ConstVectorNode
     {
         public override Vector3 GetValue(GraphContext ctx) => Value;
     }
 
-    partial class ControlParameterVectorNode : VectorValueNode
+    partial class ControlParameterVectorNode
     {
         string parameterName;
 
