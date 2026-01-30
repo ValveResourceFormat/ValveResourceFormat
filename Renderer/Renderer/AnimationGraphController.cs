@@ -7,79 +7,6 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.Renderer.AnimLib
-{
-    class GraphContext
-    {
-        public required AnimationGraphController Controller { get; set; }
-        public required GraphNode[] Nodes { get; set; }
-    }
-
-    partial class BoolValueNode { public virtual bool GetValue(GraphContext ctx) => throw new NotImplementedException(); }
-    partial class ConstBoolNode { public override bool GetValue(GraphContext ctx) => Value; }
-    partial class ControlParameterBoolNode { public override bool GetValue(GraphContext ctx) => ctx.Controller.BoolParameters[ctx.Controller.ParameterNames[NodeIdx]]; }
-    partial class AndNode { public override bool GetValue(GraphContext ctx) => ConditionNodeIndices.All(conditionIdx => ((BoolValueNode)ctx.Nodes[conditionIdx]).GetValue(ctx)); }
-    partial class OrNode { public override bool GetValue(GraphContext ctx) => ConditionNodeIndices.Any(conditionIdx => ((BoolValueNode)ctx.Nodes[conditionIdx]).GetValue(ctx)); }
-
-    partial class FloatComparisonNode
-    {
-        FloatValueNode InputNode;
-        FloatValueNode? ComparandNode;
-
-        public void Initialize(GraphContext ctx)
-        {
-            Debug.Assert(InputValueNodeIdx != -1);
-
-            InputNode = (FloatValueNode)ctx.Nodes[InputValueNodeIdx];
-            if (ComparandValueNodeIdx != -1)
-            {
-                ComparandNode = (FloatValueNode)ctx.Nodes[ComparandValueNodeIdx];
-            }
-        }
-
-        public override bool GetValue(GraphContext ctx)
-        {
-            var inputValue = InputNode.Evaluate(ctx);
-            var comparisonValue = ComparandNode?.Evaluate(ctx) ?? ComparisonValue;
-
-            return Comparison switch
-            {
-                FloatComparisonNode__Comparison.LessThan => inputValue < comparisonValue,
-                FloatComparisonNode__Comparison.LessThanEqual => inputValue <= comparisonValue,
-                FloatComparisonNode__Comparison.GreaterThan => inputValue > comparisonValue,
-                FloatComparisonNode__Comparison.GreaterThanEqual => inputValue >= comparisonValue,
-                FloatComparisonNode__Comparison.NearEqual => MathF.Abs(inputValue - comparisonValue) <= Epsilon,
-                _ => false,
-            };
-        }
-    }
-
-    partial class FloatValueNode { public virtual float Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
-    partial class IDValueNode { public virtual GlobalSymbol Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
-    partial class VectorValueNode { public virtual Vector3 Evaluate(GraphContext ctx) => throw new NotImplementedException(); }
-
-    partial class ParameterizedClipSelectorNode
-    {
-        public ClipReferenceNode SelectOption(GraphContext ctx)
-        {
-            var parameterNode = (FloatValueNode)ctx.Nodes[ParameterNodeIdx];
-            var options = OptionNodeIndices.Select(idx => (ClipReferenceNode)ctx.Nodes[idx]).ToArray();
-            var selectedIndex = parameterNode.Evaluate(ctx) switch
-            {
-                var v when v <= 0.0f => 0,
-                var v when v >= options.Length - 1 => options.Length - 1,
-                var v => (int)MathF.Round(v)
-            };
-
-            if (HasWeightsSet)
-            {
-                // ?
-            }
-
-            return options[selectedIndex];
-        }
-    }
-}
 
 namespace ValveResourceFormat.Renderer
 {
@@ -199,7 +126,7 @@ namespace ValveResourceFormat.Renderer
                 const string ControlParameterClassPreffix = "ControlParameter";
                 if (type.StartsWith(ControlParameterClassPreffix, StringComparison.Ordinal))
                 {
-                    var parameterName = parameterIds[i];
+                    var parameterName = ParameterNames[i];
                     var parameterType = type[ControlParameterClassPreffix.Length..];
 
                     switch (parameterType)
@@ -213,7 +140,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (type == "IDComparison")
                 {
-                    var parameterName = parameterIds[node.GetInt32Property("m_nInputValueNodeIdx")];
+                    var parameterName = ParameterNames[node.GetInt32Property("m_nInputValueNodeIdx")];
                     var idsToCompare = node.GetArray<string>("m_comparisionIDs");
 
                     KnownIds.UnionWith(idsToCompare);
