@@ -20,6 +20,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public BranchState BranchState { get; set; } = BranchState.Active;
         public float DeltaTime { get; set; }
+
+        public Skeleton Skeleton { get; } // => Controller.Skeleton;
         public Matrix4x4 WorldTransformInverse;
         public Matrix4x4[] Pose => Controller.Pose;
 
