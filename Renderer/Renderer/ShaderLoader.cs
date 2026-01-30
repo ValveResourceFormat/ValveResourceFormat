@@ -223,7 +223,7 @@ namespace ValveResourceFormat.Renderer
 #endif
 
                 var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
-                RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled {CompiledStatus} successfully", shaderName, shaderFileName, argsDescription, blocking ? "and linked" : string.Empty);
+                RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled{CompiledStatus} successfully (program={Program})", shaderName, shaderFileName, argsDescription, blocking ? " and linked" : string.Empty, shader.Program);
 
                 return shader;
             }
