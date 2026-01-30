@@ -17,6 +17,11 @@ IComponentType_link(slang::IComponentType** componentType, slang::IComponentType
 	return (*componentType)->link(outLinkedComponentType, outDiagnostics);
 }
 
+__declspec(dllexport) SlangResult
+IComponentType_linkWithOptions(slang::IComponentType** componentType, slang::IComponentType** outLinkedComponentType, uint32_t compilerOptionEntryCount, slang::CompilerOptionEntry* compilerOptionEntries, ISlangBlob** outDiagnostics)
+{
+    return (*componentType)->linkWithOptions(outLinkedComponentType, compilerOptionEntryCount, compilerOptionEntries, outDiagnostics);
+}
 
 __declspec(dllexport) slang::ProgramLayout*
 IComponentType_getLayout(slang::IComponentType** componentType)

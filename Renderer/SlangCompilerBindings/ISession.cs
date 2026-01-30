@@ -11,6 +11,9 @@ public partial class SlangBindings
     static extern IModulePtr ISession_loadModule(ref ISessionPtr session, [MarshalAs(UnmanagedType.LPStr)] string path, out ISlangBlob diagnosticBlob);
 
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern IModulePtr ISession_loadModuleFromSourceString(ref ISessionPtr session, [MarshalAs(UnmanagedType.LPStr)] string name, [MarshalAs(UnmanagedType.LPStr)] string path, [MarshalAs(UnmanagedType.LPStr)] string source, out ISlangBlob diagnosticBlob);
+
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangResult ISession_createCompositeComponentType(ref ISessionPtr session, IComponentTypePtr[] components, int componentCount, out IComponentTypePtr outComponentType, out ISlangBlob diagnostics);
 
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
@@ -36,6 +39,11 @@ public partial class SlangBindings
         public IModule loadModule(string path, out ISlangBlob diagnosticBlob)
         {
             return new IModule(ISession_loadModule(ref Ptr, path, out diagnosticBlob));
+        }
+
+        public IModule loadModuleFromSourceString(string name, string path, string source, out ISlangBlob diagnosticBlob)
+        {
+            return new IModule(ISession_loadModuleFromSourceString(ref Ptr, name, path, source, out diagnosticBlob));
         }
 
         public SlangResult createCompositeComponentType(IComponentType[] components, out IComponentType outComponentType, out ISlangBlob diagnostics)

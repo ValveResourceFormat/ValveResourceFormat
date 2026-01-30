@@ -25,3 +25,9 @@ IModule_getDefinedEntryPoint(slang::IModule** module, SlangInt32 index, slang::I
 	return (*module)->getDefinedEntryPoint(index, outEntryPoint);
 }
 
+__declspec(dllexport) uint32_t
+IModule_release(slang::IModule** module)
+{
+    return (*module)->release();
+}
+

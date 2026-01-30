@@ -64,7 +64,7 @@ public enum SlangLineDirectiveMode : uint
                                                  #line will appear in emitting source) */
 };
 
-public enum CompilerOptionName
+public enum CompilerOptionName : int
 {
     MacroDefine, // stringValue0: macro name;  stringValue1: macro value
     DepFile,
@@ -240,7 +240,7 @@ public enum CompilerOptionName
     CountOf,
 };
 
-public enum CompilerOptionValueKind
+public enum CompilerOptionValueKind : int
 {
     Int,
     String
@@ -273,13 +273,13 @@ public enum SlangMatrixLayoutMode : uint
 
 public enum SlangStage : uint
 {
-    SLANG_STAGE_NONE,
-    SLANG_STAGE_VERTEX,
-    SLANG_STAGE_HULL,
-    SLANG_STAGE_DOMAIN,
-    SLANG_STAGE_GEOMETRY,
-    SLANG_STAGE_FRAGMENT,
-    SLANG_STAGE_COMPUTE,
+    eNone,
+    eVertex,
+    eHull,
+    eDomain,
+    eGeometry,
+    eFragment,
+    eCompute,
     SLANG_STAGE_RAY_GENERATION,
     SLANG_STAGE_INTERSECTION,
     SLANG_STAGE_ANY_HIT,
@@ -293,7 +293,7 @@ public enum SlangStage : uint
     SLANG_STAGE_COUNT,
 
     // alias:
-    SLANG_STAGE_PIXEL = SLANG_STAGE_FRAGMENT,
+    ePixel = eFragment,
 };
 
 public enum SlangCompileTarget : int
