@@ -4,10 +4,17 @@ using System.Linq;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
+    enum BranchState
+    {
+        Active,
+        Inactive,
+    };
+
     class GraphContext
     {
         public required AnimationGraphController Controller { get; set; }
         public required GraphNode[] Nodes { get; set; }
+        public BranchState BranchState { get; set; } = BranchState.Active;
 
         public void SetNodeFromIndex<T>(short childNodeIdx, ref T childNode) where T : GraphNode
         {

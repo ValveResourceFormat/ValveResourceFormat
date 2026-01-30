@@ -33,7 +33,33 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class CachedBoolNode
     {
-        //
+        BoolValueNode InputValueNode;
+        bool CachedValue;
+        bool HasCachedValue;
+
+        public void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        public override bool GetValue(GraphContext ctx)
+        {
+            if (!HasCachedValue)
+            {
+                Debug.Assert(Mode == CachedValueMode.OnExit);
+
+                if (ctx.BranchState == BranchState.Inactive)
+                {
+                    HasCachedValue = true;
+                }
+                else
+                {
+                    CachedValue = InputValueNode.GetValue(ctx);
+                }
+            }
+
+            return CachedValue;
+        }
     }
 
     partial class AndNode
@@ -58,8 +84,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public void Initialize(GraphContext ctx)
         {
-            Debug.Assert(InputValueNodeIdx != -1);
-
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputNode);
             ctx.SetOptionalNodeFromIndex(ComparandValueNodeIdx, ref ComparandNode);
         }
