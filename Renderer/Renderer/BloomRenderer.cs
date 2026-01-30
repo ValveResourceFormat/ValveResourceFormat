@@ -191,9 +191,9 @@ public class BloomRenderer
             var blurTint = settings.BlurTint[i] * settings.BlurWeight[i];
 
             // last merge
-            // there are 5 blue+tint values, but only 4 mips to combine, seems like s2 bloom uses to start
+            // there are 5 blur+tint values, but only 4 mips to combine, seems like s2 bloom used to start
             // at half res, and downsample to 5 mips at some point, but right now it looks like they just
-            // combine the last two tint + blur combos into a single one for last mip merge
+            // combine the last two blur + tint combos into a single one for last mip merge
             if (isLastUpsample)
             {
                 blurTint += settings.BlurTint[i - 1] * settings.BlurWeight[i - 1];

@@ -39,7 +39,7 @@ partial class RendererControl : UserControl
         SetControlLocation(control);
     }
 
-    public CheckBox AddCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
+    public static GLViewerCheckboxControl GetCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
     {
         var checkbox = new GLViewerCheckboxControl(name, defaultChecked);
         checkbox.CheckBox.CheckedChanged += (_, __) =>
@@ -47,9 +47,13 @@ partial class RendererControl : UserControl
             changeCallback(checkbox.CheckBox.Checked);
         };
 
-        ControlsPanel.Controls.Add(checkbox);
+        return checkbox;
+    }
 
-        SetControlLocation(checkbox);
+    public CheckBox AddCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
+    {
+        var checkbox = GetCheckBox(name, defaultChecked, changeCallback);
+        AddControl(checkbox);
 
         return checkbox.CheckBox;
     }
@@ -122,6 +126,40 @@ partial class RendererControl : UserControl
         SetControlLocation(trackBar);
 
         return trackBar;
+    }
+
+    public static Panel GetFloatInput(string name, Action<float> onValChanged, float startValue = 0, float minValue = 0, float maxValue = 1000)
+    {
+        var panel = new Panel();
+
+        var label = new Label();
+        label.Text = name;
+        label.Dock = DockStyle.Left;
+
+        var numeric = new ThemedFloatNumeric();
+
+        numeric.MinValue = minValue;
+        numeric.MaxValue = maxValue;
+        numeric.DragWithinRange = true;
+        numeric.DragDistance = 600;
+        numeric.Value = startValue;
+        numeric.Dock = DockStyle.Fill;
+
+        numeric.ValueChanged += (object? obj, EventArgs e) =>
+        {
+            onValChanged(((ThemedFloatNumeric)obj!).Value);
+        };
+
+        panel.Controls.Add(numeric);
+        panel.Controls.Add(label);
+        panel.Height = 22;
+
+        return panel;
+    }
+
+    public void AddFloatInput(string name, Action<float> onValChanged, float startValue = 0, float minValue = 0, float maxValue = 1000)
+    {
+        AddControl(GetFloatInput(name, onValChanged, startValue, minValue, maxValue));
     }
 
     public void AddDivider()
