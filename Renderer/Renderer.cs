@@ -487,7 +487,7 @@ public class Renderer
     }
 
     /// <summary>
-    /// Multisampling resolve, postprocess the image & convert to gamma.
+    /// Multisampling resolve, postprocess the image, and convert to gamma.
     /// </summary>
     public void PostprocessRender(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer, bool flipY = false)
     {
