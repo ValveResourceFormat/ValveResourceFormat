@@ -134,8 +134,8 @@ public partial class SlangBindings
         public CompilerOptionValueKind kind = CompilerOptionValueKind.Int;
         public int intValue0 = 0;
         public int intValue1 = 0;
-        public char* stringValue0 = null;
-        public char* stringValue1 = null;
+        public IntPtr stringValue0 = 0;
+        public IntPtr stringValue1 = 0;
         public CompilerOptionValue()
         { }
     };

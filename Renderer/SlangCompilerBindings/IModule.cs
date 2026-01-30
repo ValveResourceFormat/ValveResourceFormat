@@ -16,6 +16,9 @@ public partial class SlangBindings
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangResult IModule_getDefinedEntryPoint(ref IModulePtr module, int index, out IEntryPointPtr outEntryPoint);
 
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern uint IModule_release(ref IModulePtr module);
+
     public struct IModulePtr
     {
         internal IntPtr ptr = 0;
@@ -55,6 +58,12 @@ public partial class SlangBindings
             SlangResult result = IModule_getDefinedEntryPoint(ref selfPointer, index, out IEntryPointPtr entryPointPtr);
             outEntryPoint = new IEntryPoint(entryPointPtr);
             return result;
+        }
+
+        public uint release()
+        {
+            IModulePtr selfPointer = GetPointer();
+            return IModule_release(ref selfPointer);
         }
     }
 }

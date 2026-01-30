@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EntryPointReflection.h" />
     <ClInclude Include="IComponentType.h" />
     <ClInclude Include="IEntryPoint.h" />
     <ClInclude Include="IGlobalSession.h" />

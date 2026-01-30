@@ -8,6 +8,13 @@ ISession_loadModule(slang::ISession** session, const char* name, slang::IBlob** 
 	return (*session)->loadModule(name, diagnosticBlob);
 }
 
+__declspec(dllexport) slang::IModule*
+ISession_loadModuleFromSourceString(slang::ISession** session, const char* name, const char* path, const char* source, slang::IBlob** diagnosticBlob)
+{
+    return (*session)->loadModuleFromSourceString(name, path, source, diagnosticBlob);
+}
+
+
 __declspec(dllexport) SlangResult
 ISession_createCompositeComponentType(
 	slang::ISession** session,

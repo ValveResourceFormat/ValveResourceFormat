@@ -11,10 +11,20 @@ public partial class SlangBindings
     static extern IntPtr EntryPointReflection_getName(ref EntryPointReflectionPtr entryPointReflection);
 
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern SlangStage EntryPointReflection_getStage(ref EntryPointReflectionPtr entryPointReflection);
+
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint EntryPointReflection_getParameterCount(ref EntryPointReflectionPtr entryPointReflection);
 
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern VariableLayoutReflectionPtr EntryPointReflection_getVarLayout(ref EntryPointReflectionPtr entryPointReflection);
+
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern TypeLayoutReflectionPtr EntryPointReflection_getTypeLayout(ref EntryPointReflectionPtr entryPointReflection);
+
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern VariableLayoutReflectionPtr EntryPointReflection_getResultVarLayout(ref EntryPointReflectionPtr entryPointReflection);
+
 
     public struct EntryPointReflectionPtr
     {
@@ -27,26 +37,40 @@ public partial class SlangBindings
     public struct EntryPointReflection
     {
         //this is how we talk to the C++ side
-        EntryPointReflectionPtr ptr;
+        EntryPointReflectionPtr Ptr;
         public EntryPointReflection(EntryPointReflectionPtr entryPointReflectionPointer)
         {
-            ptr = entryPointReflectionPointer;
+            Ptr = entryPointReflectionPointer;
         }
 
         public string getName()
         {
-            return Marshal.PtrToStringUTF8(EntryPointReflection_getName(ref ptr));
+            return Marshal.PtrToStringUTF8(EntryPointReflection_getName(ref Ptr));
+        }
+
+        public SlangStage getStage()
+        {
+            return EntryPointReflection_getStage(ref Ptr);
         }
 
         public uint getParameterCount()
         {
-            return EntryPointReflection_getParameterCount(ref ptr);
+            return EntryPointReflection_getParameterCount(ref Ptr);
+        }
+
+        public VariableLayoutReflection getVarLayout()
+        {
+            return new VariableLayoutReflection(EntryPointReflection_getVarLayout(ref Ptr));
         }
 
         public TypeLayoutReflection getTypeLayout()
         {
-            return new TypeLayoutReflection(EntryPointReflection_getTypeLayout(ref ptr));
+            return new TypeLayoutReflection(EntryPointReflection_getTypeLayout(ref Ptr));
+        }
 
+        public VariableLayoutReflection getResultVarLayout()
+        {
+            return new VariableLayoutReflection(EntryPointReflection_getResultVarLayout(ref Ptr));
         }
     }
 }

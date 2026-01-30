@@ -14,6 +14,9 @@ public partial class SlangBindings
     static extern SlangResult IComponentType_link(ref IComponentTypePtr component, out IComponentTypePtr outLinked, out ISlangBlob diagnostics);
 
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern SlangResult IComponentType_linkWithOptions(ref IComponentTypePtr component, out IComponentTypePtr outLinked, uint compilerOptionsEntryCount, CompilerOptionEntry[] optionsEntries, out ISlangBlob diagnostics);
+
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern ProgramLayoutPtr IComponentType_getLayout(ref IComponentTypePtr component);
 
     public struct IComponentTypePtr
@@ -51,7 +54,12 @@ public partial class SlangBindings
             return ret;
         }
 
-        //TODO: This is configurable on the C++ side. Might want to emulate that capability later
+        public SlangResult linkWithOptions(out IComponentType returnedComponent, CompilerOptionEntry[] compilerOptions, out ISlangBlob diagnostics)
+        {
+            SlangResult ret = IComponentType_linkWithOptions(ref Ptr, out IComponentTypePtr outComponent, (uint)compilerOptions.Length, compilerOptions, out diagnostics);
+            returnedComponent = new IComponentType(outComponent);
+            return ret;
+        }
         public ProgramLayout getLayout()
         {
             return new ProgramLayout(IComponentType_getLayout(ref Ptr));

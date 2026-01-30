@@ -45,6 +45,9 @@
     <ClInclude Include="TypeReflection.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="EntryPointReflection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SlangApi.cpp">
