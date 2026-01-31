@@ -190,6 +190,11 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseWheel(sender, e);
 
+            if (!Input.NoClip)
+            {
+                return;
+            }
+
             var modifier = Input.OnMouseWheel(e.Delta);
 
             if (Input.OrbitMode)
@@ -206,6 +211,11 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseUp(sender, e);
 
+            if (!Input.NoClip)
+            {
+                return;
+            }
+
             if (InitialMousePosition == new Point(e.X, e.Y))
             {
                 Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Select);
@@ -215,6 +225,11 @@ namespace GUI.Types.GLViewers
         protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             base.OnMouseDown(sender, e);
+
+            if (!Input.NoClip)
+            {
+                return;
+            }
 
             if (e.Button == MouseButtons.Left)
             {
@@ -288,6 +303,11 @@ namespace GUI.Types.GLViewers
                 Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = MouseDelta;
                 MouseDelta = System.Drawing.Point.Empty;
+
+                // Clear mouse wheel events after processing (they're one-time events)
+                CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
+
+                GrabbedMouse = !Input.NoClip && !Paused;
             }
         }
 
@@ -421,6 +441,18 @@ namespace GUI.Types.GLViewers
             }
 
             BlitFramebufferToScreen();
+
+            if (GrabbedMouse)
+            {
+                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 0.43f,
+                    Y = 0.85f,
+                    Scale = 12f,
+                    Color = Color32.Yellow,
+                    Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
+                }, Renderer.Camera);
+            }
 
             TextRenderer.Render(Renderer.Camera);
             Picker?.TriggerEventIfAny();

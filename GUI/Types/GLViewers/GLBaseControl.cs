@@ -30,6 +30,21 @@ internal abstract class GLBaseControl : IDisposable
     protected TrackedKeys CurrentlyPressedKeys;
     public Point LastMouseDelta { get; protected set; }
 
+    public bool GrabbedMouse
+    {
+        get;
+        set
+        {
+            if (field != value)
+            {
+                Action changeCursorVisibility = value ? Cursor.Hide : Cursor.Show;
+                GLControl?.BeginInvoke(changeCursorVisibility);
+            }
+
+            field = value;
+        }
+    }
+
 #if DEBUG
     public ShaderHotReload ShaderHotReload;
     public static ContextFlags Flags => ContextFlags.ForwardCompatible | ContextFlags.Debug;
@@ -221,10 +236,11 @@ internal abstract class GLBaseControl : IDisposable
         }
     }
 
-    private void OnLostFocus(object? sender, EventArgs e)
+    public void OnLostFocus(object? sender, EventArgs e)
     {
         CurrentlyPressedKeys = TrackedKeys.None;
         MouseDelta = Point.Empty;
+        GrabbedMouse = false;
     }
 
     private static TrackedKeys RemapKey(Keys key) => key switch
@@ -242,6 +258,9 @@ internal abstract class GLBaseControl : IDisposable
         Keys.ControlKey => TrackedKeys.Control,
         Keys.ShiftKey or Keys.LShiftKey => TrackedKeys.Shift,
         Keys.Menu or Keys.LMenu => TrackedKeys.Alt,
+        Keys.Space => TrackedKeys.Space,
+        Keys.X => TrackedKeys.X,
+        Keys.Escape => TrackedKeys.Escape,
         _ => TrackedKeys.None,
     };
 
@@ -346,7 +365,12 @@ internal abstract class GLBaseControl : IDisposable
 
     protected virtual void OnMouseMove(object? sender, MouseEventArgs e)
     {
-        if ((CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0 || GLControl == null)
+        if (!GrabbedMouse && (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
+        {
+            return;
+        }
+
+        if (GLControl == null)
         {
             return;
         }
@@ -395,10 +419,27 @@ internal abstract class GLBaseControl : IDisposable
         MouseDelta.X += position.X - MousePreviousPosition.X;
         MouseDelta.Y += position.Y - MousePreviousPosition.Y;
         MousePreviousPosition = position;
+
+        if (GrabbedMouse)
+        {
+            var centerPoint = new Point(GLControl.Width / 2, GLControl.Height / 2);
+            var screenCenter = GLControl.PointToScreen(centerPoint);
+            MousePreviousPosition = screenCenter;
+            Cursor.Position = screenCenter;
+        }
     }
 
     protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
     {
+        // Track mouse wheel state
+        if (e.Delta > 0)
+        {
+            CurrentlyPressedKeys |= TrackedKeys.MouseWheelUp;
+        }
+        else if (e.Delta < 0)
+        {
+            CurrentlyPressedKeys |= TrackedKeys.MouseWheelDown;
+        }
     }
 
     private void OnGlControlPaint(object? sender, EventArgs e)
