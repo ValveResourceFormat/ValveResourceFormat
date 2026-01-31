@@ -91,6 +91,13 @@ public class Renderer
     /// </summary>
     public RenderTexture? ResolvedSceneDepth { get; private set; }
 
+    /// <summary>
+    /// When set, forces <see cref="ResolvedSceneDepth"/> to be refreshed this frame even if no material
+    /// or occlusion pass requests it. Used by overlays (e.g. world-space text) that need the scene depth
+    /// to occlude themselves against geometry. Must be set before <see cref="Render(Scene.RenderContext)"/>.
+    /// </summary>
+    public bool ForceResolveSceneDepth { get; set; }
+
     private readonly Shader[] histogramShaders = new Shader[2];
     private readonly StorageBuffer[] histogramBuffers = new StorageBuffer[2];
 
@@ -487,6 +494,7 @@ public class Renderer
             var skyboxScene = SkyboxScene;
             var render3DSkybox = ShowSkybox && skyboxScene != null;
             var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
+            copyDepth |= ForceResolveSceneDepth;
             Postprocess.HasOutlineObjects = Scene.HasOutlineObjects;
 
             if (render3DSkybox)

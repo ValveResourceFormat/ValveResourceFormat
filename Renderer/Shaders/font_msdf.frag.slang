@@ -12,10 +12,12 @@
 
 in vec2 vTexCoord;
 in vec4 vFragColor;
+in float vSceneDepth;
 
 out vec4 color;
 
 uniform sampler2D msdf;
+uniform sampler2D g_tSceneDepth; // resolved scene depth (reverse-Z window space)
 uniform float g_fRange; // distance field's pixel range
 
 float median(float r, float g, float b) {
@@ -28,6 +30,19 @@ float screenPxRange() {
 }
 
 void main() {
+    // Occlude world-space text that sits behind scene geometry. We render to the default
+    // framebuffer which has no usable depth, so we compare against the resolved scene depth
+    // texture instead. Reverse-Z: a larger depth value is closer, so the text fragment is
+    // hidden when its depth is smaller (further) than what the scene wrote at this pixel.
+    // Screen-space text passes a negative depth to opt out of the test entirely.
+    if (vSceneDepth >= 0.0) {
+        float sceneDepth = texelFetch(g_tSceneDepth, ivec2(gl_FragCoord.xy), 0).r;
+
+        if (vSceneDepth < sceneDepth) {
+            discard;
+        }
+    }
+
     vec3 tex = texture(msdf, vTexCoord).rgb;
     float distance = median(tex.r, tex.g, tex.b);
     float range = screenPxRange();
