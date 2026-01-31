@@ -71,6 +71,13 @@ namespace ValveResourceFormat.Renderer
             public HashSet<string> SrgbUniforms { get; } = [];
             public Dictionary<ShaderProgramType, string> Sources { get; } = [];
 
+            //SLANG. This is necessary for specialisation. We aren't parsing a GLSL source anymore.
+            public IComponentType SlangComponentType { get; set; } = new IModule(new IModulePtr());
+            //SLANG
+            public List<IEntryPoint> EntryPoints { get; } = new List<IEntryPoint>();
+            //SLANG
+            public bool IsSlang { get; set; } = false;
+
 #if DEBUG
             public HashSet<string> ShaderVariants { get; } = [];
 #endif
@@ -85,7 +92,7 @@ namespace ValveResourceFormat.Renderer
             {
                 foreach (var shader in Parser.AvailableShaders.Keys)
                 {
-                        GetOrParseShader(shader);
+                    GetOrParseShader(shader);
                 }
             });
         }
@@ -216,6 +223,8 @@ namespace ValveResourceFormat.Renderer
 
             var parsedData = new ParsedShaderData();
 
+            parsedData.IsSlang = true;
+
             var availableStages = Parser.AvailableShaders.GetValueOrDefault(shaderFileName)
                 ?? throw new FileNotFoundException($"Shader '{shaderFileName}' does not exist.");
 
@@ -230,44 +239,34 @@ namespace ValveResourceFormat.Renderer
 
             IModule module = slangSession.loadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out ISlangBlob diagnostics);
 
-            if (module.getDefinedEntryPointCount() > 0)
+            for (int i = 0; i < module.getDefinedEntryPointCount(); i++)
             {
-                foreach (var (@type, extension) in ShaderParser.ProgramTypeToExtension)
-                {
-                    IEntryPoint entryPoint = new IEntryPoint(new IEntryPointPtr());
-
-                    if (@type == ShaderProgramType.Vertex)
-                        module.findEntryPointByName("vertexMain", out entryPoint);
-                    else if (@type == ShaderProgramType.Fragment)
-                        module.findEntryPointByName("fragmentMain", out entryPoint);
-
-                    if (entryPoint.isNull())
-                        continue;
-
-                    //time to compose!
-                    IComponentType[] componentTypes = { module, entryPoint };
-
-                    slangSession.createCompositeComponentType(componentTypes, out IComponentType compositeType, out ISlangBlob linkDiagnostics);
-                    compositeType.link(out IComponentType linkedProgram, out ISlangBlob linkingDiagnostics);
-                    linkedProgram.getTargetCode(0, out ISlangBlob outBlob);
-                    //module.getTargetCode(0, out ISlangBlob outBlob);
-                    parsedData.Sources[@type] = outBlob.getString();
-                }
+                module.getDefinedEntryPoint(i, out IEntryPoint entryPoint);
+                parsedData.EntryPoints.Add(entryPoint);
             }
+
+            module.link(out IComponentType linkedModule, out ISlangBlob linkDiag);
+            parsedData.SlangComponentType = linkedModule;
+
 
             ParsedCache[shaderFileName] = parsedData;
             return parsedData;
         }
 
-        private Shader CompileAndLinkShader(string shaderName, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
+        private Shader CompileAndLinkGlslShader(string shaderName, ParsedShaderData parsedData, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
         {
             var shaderProgram = -1;
+            //SLANG: this is a test to check if this is as easy as it feels
+            string configModuleSource = "";
+            foreach (var argument in arguments)
+            {
+                configModuleSource += "export static const int " + argument.Key + "=" + argument.Value + ";\n";
+            }
+
 
             try
             {
                 var shaderFileName = GetShaderFileByName(shaderName);
-                var parsedData = GetOrParseShader(shaderFileName);
-
                 var sources = parsedData.Sources;
 
                 static ShaderType ToShaderType(ShaderProgramType type) => type switch
@@ -312,7 +311,7 @@ namespace ValveResourceFormat.Renderer
                     RenderModes = parsedData.RenderModes,
                     UniformNames = parsedData.Uniforms,
                     SrgbUniforms = parsedData.SrgbUniforms,
-                    IsSlang = false
+                    IsSlang = parsedData.IsSlang
                 };
 
                 foreach (var shaderObj in shaderObjects)
@@ -360,6 +359,211 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        private Shader CompileAndLinkSlangShader(string shaderName, ParsedShaderData parsedData, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
+        {
+            var shaderProgram = -1;
+            try
+            {
+                var shaderFileName = GetShaderFileByName(shaderName);
+                var sources = new Dictionary<SlangStage, string>();
+
+                //SLANG: we must build an argument config!
+                string configModuleSource = "";
+                foreach (var argument in arguments)
+                {
+                    configModuleSource += "export static const int " + argument.Key + "=" + argument.Value + ";\n";
+                }
+                IModule configMod = slangSession.loadModuleFromSourceString("config", "config", configModuleSource, out ISlangBlob diagnosticBlob);
+
+                //apply the config right away!
+                slangSession.createCompositeComponentType(new IComponentType[] { configMod, parsedData.SlangComponentType }, out IComponentType specialisedProgram, out diagnosticBlob);
+
+                //time to reflect on things!
+                int ReflectedUniformBufferBinding = -1;
+                int ReflectedUniformBufferSize = 0;
+                Dictionary<string, int> ReflectedUniformOffsets = new Dictionary<string, int>();
+                Dictionary<string, int> ReflectedResourceBindings = new Dictionary<string, int>();
+                Dictionary<string, int> ReflectedAttributes = new Dictionary<string, int>();
+
+                var programLayout = specialisedProgram.getLayout();
+                var globalVarLayout = programLayout.getGlobalParamsVarLayout();
+
+                //
+                
+
+
+                //Reflect parameters
+                if (globalVarLayout.getCategory() == ParameterCategory.eNone)
+                {
+                    //SLANG: Wonderful! That means we don't have a uniform buffer because we have no lose uniforms!
+                    var globalTypeLayout = globalVarLayout.getTypeLayout();
+
+                    //SLANG: Any field in here is therefore a bound resource!
+                    for (uint i = 0; i < globalTypeLayout.getFieldCount(); i++)
+                    {
+                        var resource = globalTypeLayout.getFieldByIndex(i);
+
+                        ReflectedResourceBindings.Add(resource.getName(), (int)resource.getBindingIndex());
+                    }
+                }
+                else if (globalVarLayout.getCategory() == ParameterCategory.eDescriptorTableSlot)
+                {
+                    ReflectedUniformBufferBinding = (int)globalVarLayout.getBindingIndex();
+                    //SLANG: globallayout(a variable)->buffer->containing a variable -> of type struct (or so we hope)
+                    var bufferType = globalVarLayout.getTypeLayout().getElementVarLayout().getTypeLayout();
+                    ReflectedUniformBufferSize = (int)bufferType.getSize();
+
+                    for (uint i = 0; i < bufferType.getFieldCount(); i++)
+                    {
+                        var field = bufferType.getFieldByIndex(i);
+
+                        if (field.getCategory() == ParameterCategory.eUniform)
+                        {
+                            ReflectedUniformOffsets.Add(field.getName(), (int)field.getOffset());
+                        }
+                        else
+                        {
+                            ReflectedResourceBindings.Add(field.getName(), (int)field.getBindingIndex());
+                        }
+                    }
+                }
+
+
+
+                static ShaderType ToShaderType(SlangStage type) => type switch
+                {
+                    SlangStage.eVertex => ShaderType.VertexShader,
+                    SlangStage.eFragment => ShaderType.FragmentShader,
+                    SlangStage.eCompute => ShaderType.ComputeShader,
+                    _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+                };
+
+                //time to get the stage output code and also reflect input, if we have a vertex stage!
+                foreach (IEntryPoint entryPoint in parsedData.EntryPoints)
+                {
+                    slangSession.createCompositeComponentType(new IComponentType[] { specialisedProgram, entryPoint }, out IComponentType shaderStageProgram, out diagnosticBlob);
+                    shaderStageProgram.link(out IComponentType linkedShaderStageProgram, out diagnosticBlob);
+                    linkedShaderStageProgram.getTargetCode(0, out ISlangBlob stageCode);
+                    var entryPointReflection = linkedShaderStageProgram.getLayout().getEntryPointByIndex(0);
+                    var stage = entryPointReflection.getStage();
+                    if (stage == SlangStage.eVertex)
+                    {
+                        var inputLayout = entryPointReflection.getVarLayout();
+                        var inputCount = inputLayout.getTypeLayout().getFieldCount();
+                        for (uint i = 0; i < inputCount; i++)
+                        {
+                            var inputElementLayout = inputLayout.getTypeLayout().getFieldByIndex(i);
+
+                            ReflectedAttributes.Add(inputElementLayout.getName(), (int)inputElementLayout.getBindingIndex());
+                        }
+
+                    }
+                    sources.Add(stage, stageCode.getString());
+                }
+                var shaderObjects = new int[sources.Count];
+                var shaderSources = new string[sources.Count];
+                var s = 0;
+                foreach (var (stage, source) in sources)
+                {
+                    shaderObjects[s] = GL.CreateShader(ToShaderType(stage));
+                    shaderSources[s] = source!;
+                    s++;
+                }
+
+                for (var i = 0; i < shaderObjects.Length; i++)
+                {
+                    //SLANG: I forgot why I made a copy of it. too lazy to investigate rn
+                    CompileSlangShaderObject(shaderObjects[i], shaderName, shaderName, arguments, "", shaderSources[i]);
+                }
+
+                shaderProgram = GL.CreateProgram();
+
+#if DEBUG
+                GL.ObjectLabel(ObjectLabelIdentifier.Program, shaderProgram, shaderFileName.Length, shaderFileName);
+                for (var i = 0; i < shaderObjects.Length; i++)
+                {
+                    GL.ObjectLabel(ObjectLabelIdentifier.Shader, shaderObjects[i], shaderFileName.Length, shaderFileName);
+                }
+#endif
+
+
+                var shader = new Shader(shaderName, RendererContext)
+                {
+#if DEBUG
+                    FileName = shaderFileName,
+#endif
+
+                    Parameters = arguments,
+                    Program = shaderProgram,
+                    ShaderObjects = shaderObjects,
+                    UniformBufferBinding = ReflectedUniformBufferBinding,
+                    UniformBufferSize = ReflectedUniformBufferSize,
+                    UniformOffsets = ReflectedUniformOffsets,
+                    ResourceBindings = ReflectedResourceBindings,
+                    Attributes = new Dictionary<string, int>(),
+                    RenderModes = parsedData.RenderModes,
+                    UniformNames = parsedData.Uniforms,
+                    SrgbUniforms = parsedData.SrgbUniforms,
+                    IsSlang = parsedData.IsSlang
+                };
+
+                foreach (var shaderObj in shaderObjects)
+                {
+                    GL.AttachShader(shader.Program, shaderObj);
+                }
+
+                GL.LinkProgram(shader.Program);
+
+                if (blocking)
+                {
+                    if (!shader.EnsureLoaded())
+                    {
+                        GL.GetProgramInfoLog(shader.Program, out var log);
+                        ThrowShaderError(log, string.Concat(shaderFileName, GetArgumentDescription(arguments)), shaderName, "Failed to link shader");
+                    }
+                }
+
+                ShaderDefines[shaderName] = parsedData.Defines;
+
+#if DEBUG
+                LastShaderVariantNames = parsedData.ShaderVariants;
+                LastShaderSourceLines = [.. Parser.SourceFileLines];
+#endif
+
+                var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
+                RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled {CompiledStatus} successfully", shaderName, shaderFileName, argsDescription, blocking ? "and linked" : string.Empty);
+
+                return shader;
+            }
+            catch (ShaderCompilerException)
+            {
+                if (shaderProgram > -1)
+                {
+                    GL.DeleteProgram(shaderProgram);
+                }
+
+                throw;
+            }
+            finally
+            {
+                Parser.ClearBuilder();
+            }
+        }
+
+        private Shader CompileAndLinkShader(string shaderName, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
+        {
+            var shaderFileName = GetShaderFileByName(shaderName);
+            var parsedData = GetOrParseShader(shaderFileName);
+            if (parsedData.IsSlang)
+            {
+                return CompileAndLinkSlangShader(shaderName, parsedData, arguments, blocking);
+            }
+            else
+            {
+                return CompileAndLinkGlslShader(shaderName, parsedData, arguments, blocking);
+            }
+        }
+
         private static void CompileShaderObjects(int[] shaderObjects, string[] shaderSources, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
             var header = new StringBuilder();
@@ -384,7 +588,7 @@ namespace ValveResourceFormat.Renderer
                     header.Append('\n');
                 }
             }
-            
+
             var headerText = header.ToString();
 
             for (var i = 0; i < shaderObjects.Length; i++)
@@ -394,6 +598,24 @@ namespace ValveResourceFormat.Renderer
         }
 
         private static void CompileShaderObject(int shader, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, string headerText, string shaderText)
+        {
+            string[] sources = [headerText, shaderText];
+            int[] lengths = [sources[0].Length, sources[1].Length];
+
+            GL.ShaderSource(shader, sources.Length, sources, lengths);
+
+            GL.CompileShader(shader);
+            GL.GetShader(shader, ShaderParameter.CompileStatus, out var shaderStatus);
+
+            if (shaderStatus != 1)
+            {
+                GL.GetShaderInfoLog(shader, out var log);
+
+                ThrowShaderError(log, string.Concat(shaderFile, GetArgumentDescription(arguments)), originalShaderName, "Failed to set up shader");
+            }
+        }
+
+        private static void CompileSlangShaderObject(int shader, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, string headerText, string shaderText)
         {
             string[] sources = [headerText, shaderText];
             int[] lengths = [sources[0].Length, sources[1].Length];

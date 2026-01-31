@@ -308,7 +308,9 @@ namespace ValveResourceFormat.Renderer
                     numWeights = (uint)request.Mesh.BoneWeightCount;
                 }
 
-                GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
+
+                shader.SetUniformAtLocation(uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
+                //GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
             }
 
             if (uniforms.MorphVertexIdOffset != -1)
@@ -326,7 +328,8 @@ namespace ValveResourceFormat.Renderer
             if (uniforms.Transform > -1)
             {
                 var transform = request.Node.Transform.To3x4();
-                GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
+                shader.SetUniformAtLocation(uniforms.Transform, transform);
+                //GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
             }
 
             if (uniforms.Tint > -1)
@@ -334,7 +337,10 @@ namespace ValveResourceFormat.Renderer
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
                 var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
 
-                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
+                //if(shader.IsSlang)
+                shader.SetUniformAtLocation(uniforms.Tint, Color32.FromVector4(tint).PackedValue);
+                //else
+                 //   GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
             }
 
             var instanceCount = 1;
@@ -347,7 +353,8 @@ namespace ValveResourceFormat.Renderer
 
             if (uniforms.IsInstancing > -1)
             {
-                GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
+                shader.SetUniformAtLocation(uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
 
             GL.DrawElementsInstancedBaseVertex(

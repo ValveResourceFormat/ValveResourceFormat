@@ -1,5 +1,10 @@
+using System.Diagnostics;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
+using static ValveResourceFormat.Blocks.ResourceIntrospectionManifest.ResourceDiskEnum;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -11,16 +16,28 @@ namespace ValveResourceFormat.Renderer
         public string Name { get; }
         public uint NameHash { get; }
         public int Program { get; set; }
+
+        //SLANG
         public int UniformBuffer { get; set; }
+        public int UniformBufferSize { get; set; }
+        //SLANG
+        public int UniformBufferBinding { get; set; }
 
         public bool IsLoaded { get; private set; }
         public bool IsValid { get; private set; }
+
+        //SLANG
         public bool IsSlang { get; set; }
 
         public required int[] ShaderObjects { get; init; }
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public required HashSet<string> RenderModes { get; init; }
         public required HashSet<string> UniformNames { get; init; }
+
+        //SLANG
+        public Dictionary<string, int> UniformOffsets { get; set; } = [];
+        //SLANG
+        public Dictionary<string, int> ResourceBindings { get; set; } = [];
         public required HashSet<string> SrgbUniforms { get; init; }
         public HashSet<string> ReservedTexuresUsed { get; } = [];
 
@@ -28,7 +45,7 @@ namespace ValveResourceFormat.Renderer
         public RenderMaterial Default { get; init; }
         protected MaterialLoader MaterialLoader { get; init; }
 
-        public Dictionary<string, int> Attributes { get; } = [];
+        public Dictionary<string, int> Attributes { get; set; } = [];
 
 #if DEBUG
         public required string FileName { get; init; }
@@ -42,6 +59,10 @@ namespace ValveResourceFormat.Renderer
             MaterialLoader = rendererContext.MaterialLoader;
         }
 
+        ~Shader()
+        {
+            //GL.DeleteBuffer(UniformBuffer);
+        }
         public bool EnsureLoaded()
         {
             if (!IsLoaded)
@@ -57,10 +78,20 @@ namespace ValveResourceFormat.Renderer
                     GL.DeleteShader(obj);
                 }
 
-                if (IsValid)
+                //SLANG: this job will have already been done in a different place. For uniform locations, that extra register becomes completely obsolete
+                if (IsValid && !IsSlang)
                 {
                     StoreAttributeLocations();
                     StoreUniformLocations();
+                }
+                //SLANG: This is where we create our UBO
+                if (IsValid && IsSlang)
+                {
+                    UniformBuffer = GL.GenBuffer();
+
+                    // Allocate memory (still generic at this point)
+                    GL.BindBuffer(BufferTarget.UniformBuffer, UniformBuffer);
+                    GL.BufferData(BufferTarget.UniformBuffer, UniformBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
                 }
             }
 
@@ -147,6 +178,12 @@ namespace ValveResourceFormat.Renderer
         public void Use()
         {
             EnsureLoaded();
+
+            if (IsSlang)
+            {
+                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+            }
+
             GL.UseProgram(Program);
         }
 
@@ -205,6 +242,16 @@ namespace ValveResourceFormat.Renderer
 
         public int GetUniformLocation(string name)
         {
+            //SLANG: this will take different meaning depending on whether it is a slang shader or not. This is a bit scuffed and hides the meaning of "uniform location", but whatever for now
+
+            if (IsSlang)
+            {
+                if (UniformOffsets.TryGetValue(name, out var offset))
+                {
+                    return offset;
+                }
+                return -1;
+            }
             if (Uniforms.TryGetValue(name, out var locationType))
             {
                 return locationType.Location;
@@ -215,6 +262,93 @@ namespace ValveResourceFormat.Renderer
             Uniforms[name] = (0, location, SrgbUniforms.Contains(name));
 
             return location;
+        }
+
+        public void SetUniformAtLocation<T>(int location, T value) where T : struct
+        {
+            if (IsSlang)
+            {
+                if (location + Marshal.SizeOf<T>() > UniformBufferSize)
+                {
+                    throw new Exception($"Buffer overflow: offset={location}, size={Marshal.SizeOf<T>()}, bufferSize={UniformBufferSize}");
+                }
+                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)location, (IntPtr)Marshal.SizeOf<T>(), ref value);
+            }
+            else
+            {
+                if (location > -1)
+                {
+                    switch (value)
+                    {
+                        case int i:
+                            GL.ProgramUniform1((uint)Program, location, i);
+                            break;
+                        case uint u:
+                            GL.ProgramUniform1((uint)Program, location, u);
+                            break;
+                        case float f:
+                            GL.ProgramUniform1((uint)Program, location, f);
+                            break;
+                        case Vector2 v2:
+                            GL.ProgramUniform2((uint)Program, location, v2.X, v2.Y);
+                            break;
+                        case Vector3 v3:
+                            GL.ProgramUniform3((uint)Program, location, v3.X, v3.Y, v3.Z);
+                            break;
+                        case Vector4 v4:
+                            GL.ProgramUniform4((uint)Program, location, v4.X, v4.Y, v4.Z, v4.W);
+                            break;
+                        case Matrix4x4 m4:
+                            {
+                                var mat4 = m4.ToOpenTK();
+                                GL.ProgramUniformMatrix4(Program, location, false, ref mat4);
+                                break;
+                            }
+                        case OpenTK.Mathematics.Matrix3x4 m3x4:
+                            {
+                                GL.ProgramUniformMatrix3x4(Program, location, false, ref m3x4);
+                                break;
+                            }
+                        default:
+                            throw new NotSupportedException($"Type {typeof(T)} not supported for uniforms");
+                    }
+
+
+                }
+            }
+        }
+        struct uvec4
+        {
+            public uint u1;
+            public uint u2;
+            public uint u3;
+            public uint u4;
+            public uvec4() { }
+        }
+        public void SetUniformAtLocation(int location, uint u1, uint u2, uint u3, uint u4)
+        {
+            if (IsSlang)
+            {
+                uvec4 hackVec = new uvec4 { u1 = u1, u2 = u2, u3 = u3, u4 = u4 };
+
+                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)location, (IntPtr)Marshal.SizeOf<uvec4>(), ref hackVec);
+            }
+            else
+            {
+                GL.ProgramUniform4((uint)Program, location, u1, u2, u3, u4);
+            }
+        }
+
+        //SLANG
+        public int GetResourceBinding(string name)
+        {
+            if (ResourceBindings.TryGetValue(name, out var value))
+            {
+                return value;
+            }
+            return 0;
         }
 
         public int GetUniformBlockIndex(string name)
@@ -254,19 +388,41 @@ namespace ValveResourceFormat.Renderer
 
         public void SetUniform1(string name, float value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform1(Program, uniformLocation, value);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                    GL.BufferSubData(BufferTarget.UniformBuffer, offset, sizeof(float), ref value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform1(Program, uniformLocation, value);
+                }
             }
         }
 
         public void SetUniform1(string name, int value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform1(Program, uniformLocation, value);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                    GL.BufferSubData(BufferTarget.UniformBuffer, offset, sizeof(int), value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform1(Program, uniformLocation, value);
+                }
             }
         }
 
@@ -274,37 +430,85 @@ namespace ValveResourceFormat.Renderer
 
         public void SetUniform1(string name, uint value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform1((uint)Program, uniformLocation, value);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                    GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)offset, (IntPtr)sizeof(uint), ref value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform1(Program, uniformLocation, value);
+                }
             }
         }
 
         public void SetUniform2(string name, Vector2 value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform2(Program, uniformLocation, value.X, value.Y);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+
+
+                    GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector2>(), ref value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform2(Program, uniformLocation, value.X, value.Y);
+                }
             }
         }
 
         public void SetUniform3(string name, Vector3 value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform3(Program, uniformLocation, value.X, value.Y, value.Z);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+
+
+                    GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector3>(), ref value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform3(Program, uniformLocation, value.X, value.Y, value.Z);
+                }
             }
         }
 
         public void SetUniform4(string name, Vector4 value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform4(Program, uniformLocation, value.X, value.Y, value.Z, value.W);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                    GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector4>(), ref value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform4(Program, uniformLocation, value.X, value.Y, value.Z, value.W);
+                }
             }
         }
 
@@ -385,6 +589,12 @@ namespace ValveResourceFormat.Renderer
 
         public bool SetTexture(int slot, string name, RenderTexture? texture)
         {
+            if (IsSlang && ResourceBindings.TryGetValue(name, out int val))
+            {
+                SetTexture(val, 0, texture);
+                return true;
+            }
+
             if (texture == null)
             {
                 return false;

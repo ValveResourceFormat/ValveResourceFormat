@@ -90,6 +90,8 @@ struct FragmentOutput
     float depth : SV_Depth;
 };
 
+Sampler2D g_tNoise;
+
 static const float near = 0.01;
 static const float far = 100.0;
 static const float3 colorRed = float3(0.9, 0.2, 0.2);
@@ -124,8 +126,10 @@ FragmentOutput fragmentMain(FragmentInput input)
     float2 derivative = fwidth(fragPos3D.xy) / scale;
     float2 grid = abs(frac(coord - 0.5) - 0.5) / derivative;
     float line = min(grid.x, grid.y);
+
+    float4 gridColor = float4(0.9, 0.9, 1.0, 1.0 - min(line, 1.0)) * g_tNoise.Sample(float2(fragPos3D.xy / 100000));
+
     
-    float4 gridColor = float4(0.9, 0.9, 1.0, 1.0 - min(line, 1.0));
     
     float angleFade = min(1.0, pow(abs(normalize(fragPos3D - g_vCameraPositionWs).z), 1.4) * 100.0);
     angleFade = lerp(1.0, angleFade, min(length(fragPosAbs) / 2000.0, 1.0));
@@ -168,6 +172,10 @@ FragmentOutput fragmentMain(FragmentInput input)
     
     gridColor.a *= fading * angleFade;
     output.color = gridColor * float(t > 0.0);
-    
+
+
+    #ifdef TEST_VALUE
+        output.color.a = 1.0f;
+    #endif
     return output;
 }
