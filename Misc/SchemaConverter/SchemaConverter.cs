@@ -323,6 +323,8 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
             hasBaseClass = classHierarchies.TryGetValue(convertedClass, out var baseClassName) && baseClassName is not null;
 
             var useStruct = false; //isFinal && !hasBaseClass;
+            useStruct |= convertedClass is "BitFlags";
+
             var partialImplementation = RootClass(convertedClass) == "GraphNode";
             var csClassType = useStruct ? "readonly partial struct" : (partialImplementation ? "partial class" : "class");
 
@@ -455,6 +457,12 @@ void ConvertSchemaOutputToCsharp(StreamReader reader, StreamWriter writer, strin
                     if (enumTypes.Contains(itemType))
                     {
                         memberParserLines.Add($"enum array error");
+                        continue;
+                    }
+
+                    if (itemType == "GlobalSymbol")
+                    {
+                        memberParserLines.Add($"{newName} = data.GetSymbolArray(\"{name}\");");
                         continue;
                     }
 
