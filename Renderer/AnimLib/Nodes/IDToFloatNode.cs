@@ -12,7 +12,7 @@ partial class IDToFloatNode : FloatValueNode
     {
         InputValueNodeIdx = data.GetInt16Property("m_nInputValueNodeIdx");
         DefaultValue = data.GetFloatProperty("m_defaultValue");
-        IDs = data.GetArray<GlobalSymbol>("m_IDs");
+        IDs = data.GetSymbolArray("m_IDs");
         Values = data.GetArray<float>("m_values");
     }
 }

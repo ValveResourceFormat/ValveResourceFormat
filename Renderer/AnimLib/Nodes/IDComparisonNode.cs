@@ -11,6 +11,6 @@ partial class IDComparisonNode : BoolValueNode
     {
         InputValueNodeIdx = data.GetInt16Property("m_nInputValueNodeIdx");
         Comparison = data.GetEnumValue<IDComparisonNode__Comparison>("m_comparison");
-        ComparisionIDs = data.GetArray<GlobalSymbol>("m_comparisionIDs");
+        ComparisionIDs = data.GetSymbolArray("m_comparisionIDs");
     }
 }

@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CachedValue;
         bool HasCachedValue;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         string parameterName;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Controller.ParameterNames.Length);
             parameterName = ctx.Controller.ParameterNames[NodeIdx];
@@ -64,7 +64,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode SourceStateNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
@@ -76,7 +76,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode InputValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
@@ -126,7 +126,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode InputValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode DefaultNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(DefaultNodeIdx, ref DefaultNode);
         }
@@ -154,7 +154,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode InputValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
@@ -173,7 +173,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentValue;
         float CurrentEaseTime;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
             if (UseStartValue)
@@ -234,7 +234,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         FloatValueNode InputValueNodeA;
         FloatValueNode? InputValueNodeB;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdxA, ref InputValueNodeA);
             ctx.SetOptionalNodeFromIndex(InputValueNodeIdxB, ref InputValueNodeB);
@@ -285,7 +285,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode InputValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
@@ -304,7 +304,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentValue;
         float CurrentEaseTime;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref ConditionNodes);
         }
@@ -348,7 +348,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         FloatValueNode TrueValueNode;
         FloatValueNode FalseValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SwitchValueNodeIdx, ref SwitchValueNode);
             ctx.SetNodeFromIndex(TrueValueNodeIdx, ref TrueValueNode);
@@ -366,7 +366,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode SourceStateNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
@@ -378,7 +378,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         IDValueNode InputValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
             Debug.Assert(IDs.Length == Values.Length);
@@ -402,7 +402,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         TargetValueNode TargetNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
         }
@@ -499,7 +499,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         TargetValueNode TargetNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
         }
@@ -514,7 +514,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode ChildNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }

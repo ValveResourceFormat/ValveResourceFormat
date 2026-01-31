@@ -11,6 +11,6 @@ partial class IDEventConditionNode : BoolValueNode
     {
         SourceStateNodeIdx = data.GetInt16Property("m_nSourceStateNodeIdx");
         EventConditionRules = new(data.GetProperty<KVObject>("m_eventConditionRules"));
-        EventIDs = data.GetArray<GlobalSymbol>("m_eventIDs");
+        EventIDs = data.GetSymbolArray("m_eventIDs");
     }
 }

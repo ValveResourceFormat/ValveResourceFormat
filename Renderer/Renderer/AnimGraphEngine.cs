@@ -4,6 +4,7 @@ global using Pose = System.Numerics.Matrix4x4[];
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
@@ -13,17 +14,78 @@ namespace ValveResourceFormat.Renderer.AnimLib
         Inactive,
     };
 
+    abstract partial class GraphNode
+    {
+        public abstract void Initialize(GraphContext context);
+    }
+
+    partial class ValueNode
+    {
+        public override void Initialize(GraphContext ctx) { }
+    }
+
+    static class KVObjectExtensions2
+    {
+        public static GlobalSymbol[] GetSymbolArray(this KVObject collection, string name)
+        {
+            return [.. collection.GetArray<string>(name).Select(s => new GlobalSymbol(s))];
+        }
+    }
+
     class GraphContext
     {
-        public required AnimationGraphController Controller { get; set; }
-        public required GraphNode[] Nodes { get; set; }
+        public AnimationGraphController Controller { get; set; }
+        public GraphNode[] Nodes { get; set; }
 
         public BranchState BranchState { get; set; } = BranchState.Active;
         public float DeltaTime { get; set; }
 
         public Skeleton Skeleton { get; } // => Controller.Skeleton;
         public Matrix4x4 WorldTransformInverse;
-        public Matrix4x4[] Pose => Controller.Pose;
+
+        private KVObject nmGraph;
+        private ResourceTypes.ModelAnimation.Skeleton nmSkel;
+
+        public GraphContext(KVObject graph, ResourceTypes.ModelAnimation.Skeleton skeleton, AnimationGraphController controller)
+        {
+            nmGraph = graph;
+            nmSkel = skeleton;
+            Controller = controller;
+
+            // Create nodes
+            var nodeArray = nmGraph.GetArray<KVObject>("m_nodes");
+            Nodes = new GraphNode[nodeArray.Length];
+
+            // todo: code gen
+            var allNodeTypes = typeof(GraphNode).Assembly.GetTypes()
+                .Where(t => t.IsSubclassOf(typeof(GraphNode)))
+                .ToDictionary(t => t.Name, t => t);
+
+            // Transfer node data from KVObject
+            for (short i = 0; i < nodeArray.Length; i++)
+            {
+                var nodeData = nodeArray[i];
+                var @class = nodeData.GetProperty<string>("_class");
+
+                // find the correct node type on the AnimLib namespace
+                var nodeTypeName = @class["CNm".Length..^"::CDefinition".Length];
+                var nodeType = allNodeTypes[nodeTypeName];
+
+                var node = (GraphNode?)Activator.CreateInstance(nodeType, [nodeData])
+                    ?? throw new InvalidOperationException($"Could not create instance of node type {nodeType.Name}.");
+
+                Nodes[i] = node;
+            }
+
+
+            // Initialize nodes, populate strong references
+            foreach (var node in Nodes)
+            {
+                node.Initialize(this);
+            }
+        }
+
+        public Pose Pose { get; }// => Controller.Pose;
 
         public void SetNodeFromIndex<T>(short childNodeIdx, ref T childNode) where T : GraphNode
         {

@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         Target CachedValue;
         bool HasCachedValue;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         TargetValueNode InputValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }

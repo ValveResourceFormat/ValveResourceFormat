@@ -19,7 +19,7 @@ partial class ClipNode : ClipReferenceNode
         SampleRootMotion = data.GetProperty<bool>("m_bSampleRootMotion");
         AllowLooping = data.GetProperty<bool>("m_bAllowLooping");
         DataSlotIdx = data.GetInt16Property("m_nDataSlotIdx");
-        GraphEvents = data.GetArray<GlobalSymbol>("m_graphEvents");
+        GraphEvents = data.GetSymbolArray("m_graphEvents");
         SpeedMultiplier = data.GetFloatProperty("m_flSpeedMultiplier");
         StartSyncEventOffset = data.GetInt32Property("m_nStartSyncEventOffset");
     }

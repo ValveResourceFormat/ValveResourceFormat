@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         Vector3 CachedValue;
         bool HasCachedValue;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         string parameterName;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Controller.ParameterNames.Length);
             parameterName = ctx.Controller.ParameterNames[NodeIdx];

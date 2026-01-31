@@ -22,8 +22,8 @@ class GraphDefinition
         Skeleton = data.GetProperty<string>("m_skeleton");
         PersistentNodeIndices = data.GetArray<short>("m_persistentNodeIndices");
         RootNodeIdx = data.GetInt16Property("m_nRootNodeIdx");
-        ControlParameterIDs = data.GetArray<GlobalSymbol>("m_controlParameterIDs");
-        VirtualParameterIDs = data.GetArray<GlobalSymbol>("m_virtualParameterIDs");
+        ControlParameterIDs = data.GetSymbolArray("m_controlParameterIDs");
+        VirtualParameterIDs = data.GetSymbolArray("m_virtualParameterIDs");
         VirtualParameterNodeIndices = data.GetArray<short>("m_virtualParameterNodeIndices");
         ReferencedGraphSlots = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_referencedGraphSlots"), kv => new GraphDefinition__ReferencedGraphSlot(kv))];
         ExternalGraphSlots = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_externalGraphSlots"), kv => new GraphDefinition__ExternalGraphSlot(kv))];

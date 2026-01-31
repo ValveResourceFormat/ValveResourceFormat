@@ -20,6 +20,7 @@ namespace ValveResourceFormat.Renderer
         private readonly int[] nmSkelToModelSkeleton;
         private readonly Dictionary<string, string?> boneRemapDebugNames = [];
 
+        AnimLib.GraphContext Graph { get; set; }
 
         public string Name { get; set; }
         public Dictionary<string, bool> BoolParameters { get; } = [];
@@ -57,6 +58,8 @@ namespace ValveResourceFormat.Renderer
 
 
             IterateGraph(graph);
+
+            Graph = new AnimLib.GraphContext(graph, Skeleton2, this);
 
             // Load first clip
             var resources = graph.GetArray<string>("m_resources");

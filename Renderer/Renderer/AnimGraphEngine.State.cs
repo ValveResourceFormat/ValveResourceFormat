@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public bool TransitioningOut => Transition == TransitionState.TransitioningOut;
 
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetOptionalNodeFromIndex(ChildNodeIdx, ref ChildNode);
             ctx.SetOptionalNodeFromIndex(LayerBoneMaskNodeIdx, ref BoneMaskValueNode);

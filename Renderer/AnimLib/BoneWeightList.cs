@@ -10,7 +10,7 @@ class BoneWeightList
     public BoneWeightList(KVObject data)
     {
         SkeletonName = data.GetProperty<string>("m_skeletonName");
-        BoneIDs = data.GetArray<GlobalSymbol>("m_boneIDs");
+        BoneIDs = data.GetSymbolArray("m_boneIDs");
         Weights = data.GetArray<float>("m_weights");
     }
 }

@@ -81,10 +81,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Gets an short property stored as long
         /// </summary>
-        public static short GetInt16Property(this KVObject collection, string name) => collection.GetProperty<long>(name) switch
+        public static short GetInt16Property(this KVObject collection, string name) => collection.GetProperty<object>(name) switch
         {
-            var l when l < 0 || l > short.MaxValue => throw new OverflowException($"Value {l} is out of range for Int16"),
-            var l => (short)l,
+            long l when l < short.MinValue || l > short.MaxValue => throw new OverflowException($"Value {l} is out of range for Int16"),
+            long l => (short)l,
+            int i when i < short.MinValue || i > short.MaxValue => throw new OverflowException($"Value {i} is out of range for Int16"),
+            int i => (short)i,
+            _ => throw new InvalidCastException($"Unexpected underlying type for Int16"),
         };
 
         /// <summary>

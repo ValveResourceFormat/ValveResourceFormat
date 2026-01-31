@@ -219,6 +219,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public TimeSpan Duration;
         public float CurrentTime; /* Percent */ 
         public float PreviousTime;  /* Percent */ 
+
+        public override void Initialize(GraphContext ctx) { }
     }
 
 
@@ -227,7 +229,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public ClipReferenceNode[] OptionNodes;
         public FloatValueNode ParameterNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);

@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class BoneMaskNode
     {
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             var maskIndex = ctx.Skeleton.GetBoneMaskIndex(BoneMaskID);
             if (maskIndex != -1)
@@ -55,7 +55,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class FixedWeightBoneMaskNode
     {
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             TaskList.EmplaceTask(BoneWeight);
         }
@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         BoneMaskValueNode TargetBoneMask;
         FloatValueNode BlendWeightValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SourceMaskNodeIdx, ref SourceBoneMask);
             ctx.SetNodeFromIndex(TargetMaskNodeIdx, ref TargetBoneMask);
@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentTimeInBlend;
         bool Blending;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ParameterValueNodeIdx, ref ParameterValueNode);
             ctx.SetOptionalNodeFromIndex(DefaultMaskNodeIdx, ref DefaultMaskValueNode);
@@ -199,7 +199,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         BoneMaskValueNode TrueValueNode;
         BoneMaskValueNode FalseValueNode;
 
-        public void Initialize(GraphContext ctx)
+        public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SwitchValueNodeIdx, ref SwitchValueNode);
             ctx.SetNodeFromIndex(TrueValueNodeIdx, ref TrueValueNode);

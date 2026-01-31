@@ -16,7 +16,7 @@ class Skeleton
     public Skeleton(KVObject data)
     {
         ID = data.GetProperty<string>("m_ID");
-        BoneIDs = data.GetArray<GlobalSymbol>("m_boneIDs");
+        BoneIDs = data.GetSymbolArray("m_boneIDs");
         ParentIndices = data.GetArray<int>("m_parentIndices");
         ParentSpaceReferencePose = data.GetArray<Transform>("m_parentSpaceReferencePose");
         ModelSpaceReferencePose = data.GetArray<Transform>("m_modelSpaceReferencePose");

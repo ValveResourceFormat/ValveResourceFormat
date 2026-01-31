@@ -16,7 +16,7 @@ partial class BoneMaskSelectorNode : BoneMaskValueNode
         ParameterValueNodeIdx = data.GetInt16Property("m_parameterValueNodeIdx");
         SwitchDynamically = data.GetProperty<bool>("m_bSwitchDynamically");
         MaskNodeIndices = data.GetArray<short>("m_maskNodeIndices");
-        ParameterValues = data.GetArray<GlobalSymbol>("m_parameterValues");
+        ParameterValues = data.GetSymbolArray("m_parameterValues");
         BlendTimeSeconds = data.GetFloatProperty("m_flBlendTimeSeconds");
     }
 }

@@ -10,7 +10,7 @@ partial class IDSelectorNode : IDValueNode
     public IDSelectorNode(KVObject data) : base(data)
     {
         ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices");
-        Values = data.GetArray<GlobalSymbol>("m_values");
+        Values = data.GetSymbolArray("m_values");
         DefaultValue = data.GetProperty<string>("m_defaultValue");
     }
 }

@@ -27,7 +27,7 @@ class Clip
         CompressedPoseData = data.GetArray<byte>("m_compressedPoseData");
         TrackCompressionSettings = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_trackCompressionSettings"), kv => new CompressionSettings(kv))];
         CompressedPoseOffsets = data.GetArray<uint>("m_compressedPoseOffsets");
-        FloatCurveIDs = data.GetArray<GlobalSymbol>("m_floatCurveIDs");
+        FloatCurveIDs = data.GetSymbolArray("m_floatCurveIDs");
         FloatCurveDefs = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_floatCurveDefs"), kv => new FloatCurveCompressionSettings(kv))];
         CompressedFloatCurveData = data.GetArray<ushort>("m_compressedFloatCurveData");
         CompressedFloatCurveOffsets = data.GetArray<uint>("m_compressedFloatCurveOffsets");
