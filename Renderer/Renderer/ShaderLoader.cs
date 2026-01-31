@@ -500,7 +500,7 @@ namespace ValveResourceFormat.Renderer
                     UniformBufferSize = ReflectedUniformBufferSize,
                     UniformOffsets = ReflectedUniformOffsets,
                     ResourceBindings = ReflectedResourceBindings,
-                    Attributes = new Dictionary<string, int>(),
+                    Attributes = ReflectedAttributes,
                     RenderModes = parsedData.RenderModes,
                     UniformNames = parsedData.Uniforms,
                     SrgbUniforms = parsedData.SrgbUniforms,
