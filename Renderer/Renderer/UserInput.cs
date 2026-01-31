@@ -36,6 +36,8 @@ public class UserInput
     // Orbit controls
     public bool OrbitMode => _orbitTarget != null;
     public bool OrbitModeAlways { get; set; }
+    public Func<Vector3?>? OrbitTargetProvider { get; set; }
+
     public Vector3? OrbitTarget
     {
         get => _orbitTarget;
@@ -105,6 +107,15 @@ public class UserInput
                     OrbitTarget = hitPosition;
                 }
 
+                if (OrbitTarget == null && OrbitTargetProvider != null)
+                {
+                    OrbitTarget = OrbitTargetProvider();
+                    if (OrbitTarget != null)
+                    {
+                        // the target might not be in front of the camera, so we need to transition
+                        SaveCameraForTransition();
+                    }
+                }
             }
 
         }
