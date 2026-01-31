@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer
         public int Program { get; set; }
 
         //SLANG
-        public int UniformBuffer { get; set; }
+        public int UniformBuffer { get; set; } = -1;
         public int UniformBufferSize { get; set; }
         //SLANG
         public int UniformBufferBinding { get; set; }
@@ -80,15 +80,6 @@ namespace ValveResourceFormat.Renderer
                 {
                     StoreAttributeLocations();
                     StoreUniformLocations();
-                }
-                //SLANG: This is where we create our UBO
-                if (IsValid && IsSlang)
-                {
-                    UniformBuffer = GL.GenBuffer();
-
-                    // Allocate memory (still generic at this point)
-                    GL.BindBuffer(BufferTarget.UniformBuffer, UniformBuffer);
-                    GL.BufferData(BufferTarget.UniformBuffer, UniformBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
                 }
             }
 
@@ -178,7 +169,27 @@ namespace ValveResourceFormat.Renderer
 
             if (IsSlang)
             {
-                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                //SLANG: This is where we create our UBO
+                if (UniformBufferBinding >= 0)
+                {
+                    if (UniformBuffer == -1)
+                    {
+                        UniformBuffer = GL.GenBuffer();
+                        GL.BindBuffer(BufferTarget.UniformBuffer, UniformBuffer);
+                        GL.BufferData(BufferTarget.UniformBuffer, UniformBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+                    }
+
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                }
+
+                if (UniformBufferSize == 64)
+                {
+                    float[] matrix = new float[16];
+
+                    GL.GetBufferParameter(BufferTarget.UniformBuffer, BufferParameterName.BufferSize, out int size);
+
+                    //GL.GetBufferSubData(BufferTarget.UniformBuffer, (IntPtr)0, 16 * sizeof(float), matrix);
+                }
             }
 
             GL.UseProgram(Program);
@@ -270,7 +281,14 @@ namespace ValveResourceFormat.Renderer
                     throw new Exception($"Buffer overflow: offset={location}, size={Marshal.SizeOf<T>()}, bufferSize={UniformBufferSize}");
                 }
                 GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)location, (IntPtr)Marshal.SizeOf<T>(), ref value);
+                GL.NamedBufferSubData(UniformBuffer, (IntPtr)location, (IntPtr)Marshal.SizeOf<T>(), ref value);
+
+                if (UniformBufferSize == 64)
+                {
+                    float[] matrix = new float[16];
+                    //GL.GetNamedBufferSubData(UniformBuffer, (IntPtr)0, 16 * sizeof(float), matrix);
+                }
+
             }
             else
             {
@@ -330,7 +348,7 @@ namespace ValveResourceFormat.Renderer
                 uvec4 hackVec = new uvec4 { u1 = u1, u2 = u2, u3 = u3, u4 = u4 };
 
                 GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)location, (IntPtr)Marshal.SizeOf<uvec4>(), ref hackVec);
+                GL.NamedBufferSubData(UniformBufferBinding, (IntPtr)location, (IntPtr)Marshal.SizeOf<uvec4>(), ref hackVec);
             }
             else
             {
@@ -432,7 +450,7 @@ namespace ValveResourceFormat.Renderer
                 if (UniformOffsets.TryGetValue(name, out int offset))
                 {
                     GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                    GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)offset, (IntPtr)sizeof(uint), ref value);
+                    GL.NamedBufferSubData(UniformBuffer, (IntPtr)offset, (IntPtr)sizeof(uint), ref value);
                 }
             }
             else
@@ -440,7 +458,7 @@ namespace ValveResourceFormat.Renderer
                 var uniformLocation = GetUniformLocation(name);
                 if (uniformLocation > -1)
                 {
-                    GL.ProgramUniform1(Program, uniformLocation, value);
+                    GL.ProgramUniform1((uint)Program, uniformLocation, value);
                 }
             }
         }
@@ -454,7 +472,7 @@ namespace ValveResourceFormat.Renderer
                     GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
 
 
-                    GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector2>(), ref value);
+                    GL.NamedBufferSubData(UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector2>(), ref value);
                 }
             }
             else
@@ -476,7 +494,7 @@ namespace ValveResourceFormat.Renderer
                     GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
 
 
-                    GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector3>(), ref value);
+                    GL.NamedBufferSubData(UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector3>(), ref value);
                 }
             }
             else
@@ -496,7 +514,7 @@ namespace ValveResourceFormat.Renderer
                 if (UniformOffsets.TryGetValue(name, out int offset))
                 {
                     GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                    GL.BufferSubData(BufferTarget.UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector4>(), ref value);
+                    GL.NamedBufferSubData(UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector4>(), ref value);
                 }
             }
             else
@@ -636,7 +654,14 @@ namespace ValveResourceFormat.Renderer
             RenderModes.UnionWith(shader.RenderModes);
 
             Uniforms.Clear();
-            Attributes.Clear();
+
+            //SLANG: Is Attributes.Clear(); necessary? Seems saner to just do this little trick here? Ooooh its necessary because the attributes get set again after this....okie dokie. I shall use my method for slang!
+
+            if(IsSlang)
+                Attributes = shader.Attributes;
+            else
+                Attributes.Clear();
+
         }
 #endif
     }
