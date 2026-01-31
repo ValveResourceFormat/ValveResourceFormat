@@ -52,7 +52,7 @@ public partial class SlangBindings
             return Marshal.PtrToStringUTF8(VariableLayoutReflection_getName(ref Ptr));
         }
 
-        public ulong getOffset(ParameterCategory category = ParameterCategory.SLANG_PARAMETER_CATEGORY_UNIFORM)
+        public ulong getOffset(ParameterCategory category = ParameterCategory.eUniform)
         {
             return VariableLayoutReflection_getOffset(ref Ptr, category);
         }
