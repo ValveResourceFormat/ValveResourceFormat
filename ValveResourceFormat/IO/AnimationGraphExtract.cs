@@ -86,37 +86,95 @@ public class AnimationGraphExtract
         compiledNodeIndexMap = [];
         nodeIndexToIdMap = [];
 
+        var assignedNodeIds = new HashSet<long>();
         for (var i = 0; i < compiledNodes.Length; i++)
         {
             var compiledNode = compiledNodes[i];
             var nodePath = compiledNode.GetSubCollection("m_nodePath");
             if (nodePath is null)
             {
+                var newNodeId = GenerateNewNodeId(assignedNodeIds);
+                assignedNodeIds.Add(newNodeId);
+                compiledNodeIndexMap[newNodeId] = compiledNode;
+                nodeIndexToIdMap[i] = newNodeId;
                 continue;
             }
+
             var path = nodePath.GetArray("m_path");
             var count = nodePath.GetIntegerProperty("m_nCount");
-            if (count <= 0)
+
+            if (count <= 0 || path is null || path.Length == 0)
             {
+                var newNodeId = GenerateNewNodeId(assignedNodeIds);
+                assignedNodeIds.Add(newNodeId);
+                compiledNodeIndexMap[newNodeId] = compiledNode;
+                nodeIndexToIdMap[i] = newNodeId;
                 continue;
             }
-            var nodeId = 0L;
+
+            long? foundId = null;
             for (var j = (int)count - 1; j >= 0; j--)
             {
                 var id = path[j].GetIntegerProperty("m_id");
                 if (id != uint.MaxValue)
                 {
-                    nodeId = id;
+                    foundId = id;
                     break;
                 }
             }
-            if (nodeId == uint.MaxValue)
+
+            if (foundId.HasValue)
             {
-                continue;
+                var nodeId = foundId.Value;
+
+                if (assignedNodeIds.Contains(nodeId))
+                {
+                    nodeId = GenerateNewNodeId(assignedNodeIds);
+                }
+
+                assignedNodeIds.Add(nodeId);
+                compiledNodeIndexMap[nodeId] = compiledNode;
+                nodeIndexToIdMap[i] = nodeId;
             }
-            compiledNodeIndexMap[nodeId] = compiledNode;
-            nodeIndexToIdMap[i] = nodeId;
+            else
+            {
+                var newNodeId = GenerateNewNodeId(assignedNodeIds);
+                assignedNodeIds.Add(newNodeId);
+                compiledNodeIndexMap[newNodeId] = compiledNode;
+                nodeIndexToIdMap[i] = newNodeId;
+            }
         }
+    }
+
+    private static long GenerateNewNodeId(HashSet<long> assignedNodeIds)
+    {
+        var random = new Random();
+        var baseNumber = (long)(random.NextDouble() * 9000000000L) + 1000000000L;
+
+        var candidate = baseNumber;
+        var attempts = 0;
+
+        while (attempts < 10000)
+        {
+            if (!assignedNodeIds.Contains(candidate))
+            {
+                return candidate;
+            }
+            candidate++;
+            attempts++;
+
+            if (candidate > 9999999999L)
+            {
+                candidate = 1000000000L;
+            }
+        }
+
+        var timestampId = (DateTime.UtcNow.Ticks % 9000000000L) + 1000000000L;
+        while (assignedNodeIds.Contains(timestampId))
+        {
+            timestampId = (timestampId + 1) % 9000000000L + 1000000000L;
+        }
+        return timestampId;
     }
 
     private sealed class LayoutNode(long id)
@@ -694,16 +752,15 @@ public class AnimationGraphExtract
         var layoutNodes = new Dictionary<long, LayoutNode>();
         var nodeOutConnections = new Dictionary<long, List<long>>();
 
-        foreach (var compiledNode in compiledNodes)
+        for (var i = 0; i < compiledNodes.Length; i++)
         {
-            var nodePath = compiledNode.GetSubCollection("m_nodePath");
-            if (nodePath is null) continue;
+            var compiledNode = compiledNodes[i];
 
-            var path = nodePath.GetArray("m_path");
-            var count = nodePath.GetIntegerProperty("m_nCount");
-            if (count <= 0) continue;
+            if (nodeIndexToIdMap == null || !nodeIndexToIdMap.TryGetValue(i, out var nodeId))
+            {
+                continue;
+            }
 
-            var nodeId = path[(int)count - 1].GetIntegerProperty("m_id");
             var outConnections = new List<long>();
             var nodeData = ConvertToUncompiled(compiledNode, outConnections);
             nodeData.AddProperty("m_nNodeID", MakeNodeIdObjectValue(nodeId));
