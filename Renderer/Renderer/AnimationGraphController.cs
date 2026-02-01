@@ -13,9 +13,9 @@ namespace ValveResourceFormat.Renderer
     public class AnimationGraphController : AnimationController
     {
         public Skeleton Skeleton2 { get; }
-        public Animation Animation { get; }
+        public Animation? Animation => Sequences.Length > 0 ? Sequences[0].ActiveAnimation : null;
 
-        AnimationController SequencePlayback { get; }
+        public AnimationController[] Sequences { get; private set; } = [];
 
         private readonly int[] nmSkelToModelSkeleton;
         private readonly Dictionary<string, string?> boneRemapDebugNames = [];
@@ -56,23 +56,39 @@ namespace ValveResourceFormat.Renderer
             var res = fileLoader.LoadFileCompiled(skeletonName) ?? throw new InvalidDataException($"Skeleton file '{skeletonName}' could not be found.");
             Skeleton2 = Skeleton.FromSkeletonData(((BinaryKV3)res.DataBlock!).Data);
 
-
             IterateGraph(graph);
+            Debug.Assert(ParameterNames != null);
 
             Graph = new AnimLib.GraphContext(graph, Skeleton2, this);
 
-            // Load first clip
+            // Load all clips
             var resources = graph.GetArray<string>("m_resources");
-            Debug.Assert(resources.Length > 0, "No resources in animation graph definition.");
-            var firstClipName = resources[0];
+            Sequences = new AnimationController[resources.Length];
 
-            var clip = fileLoader.LoadFileCompiled(firstClipName) ?? throw new InvalidDataException($"Animation clip file '{firstClipName}' could not be found.");
+            for (var ri = 0; ri < resources.Length; ri++)
+            {
+                var clipName = resources[ri];
+                var clipFile = fileLoader.LoadFileCompiled(clipName) ?? throw new InvalidDataException($"Animation clip file '{clipName}' could not be found.");
 
-            Animation = new Animation((AnimationClip)clip.DataBlock!);
+                if (clipFile.ResourceType == ResourceType.NmClip)
+                {
+                    var clipAnim = new Animation((AnimationClip)clipFile.DataBlock!);
 
-            // test sequence playback for the ag2 anim
-            SequencePlayback = new AnimationController(Skeleton2, []);
-            SequencePlayback.SetAnimation(Animation);
+                    var ctrl = new AnimationController(Skeleton2, []);
+                    ctrl.SetAnimation(clipAnim);
+                    Sequences[ri] = ctrl;
+                }
+                else if (clipFile.ResourceType == ResourceType.NmGraph)
+                {
+                    var subGraphDef = (NmGraphDefinition)clipFile.DataBlock!;
+                    var subGraph = subGraphDef.Data;
+
+                    Debug.Assert(subGraph != null, "Subgraph definition data is null.");
+
+                    var subGraphController = new AnimationGraphController(modelSkeleton, subGraphDef, fileLoader);
+                    Sequences[ri] = subGraphController;
+                }
+            }
 
             {
                 // Build bone remap table
@@ -155,28 +171,40 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        private int SequenceIndex { get; set; } = -1;
         public override void SetAnimation(Animation? animation)
         {
-            // Ignore
+            if (animation == null)
+            {
+                SequenceIndex = -1;
+                return;
+            }
+
+            SequenceIndex = Array.FindIndex(Sequences, a => a.ActiveAnimation == animation);
         }
 
         public override bool Update(float timeStep)
         {
-            var updated = SequencePlayback.Update(timeStep);
+            var sequence = (SequenceIndex >= 0 && SequenceIndex < Sequences.Length) ? Sequences[SequenceIndex] : null;
+            if (sequence == null)
+            {
+                return false;
+            }
 
+            var updated = sequence.Update(timeStep);
             if (updated)
             {
                 for (var i = 0; i < Pose.Length; i++)
                 {
                     var srcIdx = nmSkelToModelSkeleton[i];
-                    if (srcIdx >= 0 && srcIdx < SequencePlayback.Pose.Length)
+                    if (srcIdx >= 0 && srcIdx < sequence.Pose.Length)
                     {
-                        Pose[i] = SequencePlayback.Pose[srcIdx];
+                        Pose[i] = sequence.Pose[srcIdx];
                         continue;
                     }
 
                     // If bone not found, fallback to bind pose or leave unchanged
-                    // Pose[i] = SequencePlayback.BindPose.Length > i ? SequencePlayback.BindPose[i] : Pose[i];
+                    // Pose[i] = Sequences[0].BindPose.Length > i ? Sequences[0].BindPose[i] : Pose[i];
                 }
             }
 
