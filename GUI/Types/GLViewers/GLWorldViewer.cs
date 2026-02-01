@@ -157,6 +157,28 @@ namespace GUI.Types.GLViewers
             Settings.InvokeRefreshCamerasOnSave();
         }
 
+        public override void PreSceneLoad()
+        {
+            base.PreSceneLoad();
+
+            if (worldNode != null)
+            {
+                base.LoadDefaultLighting();
+
+                Scene.LightingInfo.CubemapType = CubemapType.None; // default envmap actually looks bad
+                Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
+                Scene.LightingInfo.SunLightShadowCoverageScale = 2f;
+
+                var post = new ScenePostProcessVolume(Scene)
+                {
+                    HasBloom = true,
+                    IsMaster = true,
+                };
+
+                Scene.PostProcessInfo.AddPostProcessVolume(post);
+            }
+        }
+
         protected override void LoadScene()
         {
             var cameraSet = false;
@@ -446,6 +468,7 @@ namespace GUI.Types.GLViewers
                     var material = sceneFragment.DrawCall.Material.Material;
                     entityInfoForm.EntityInfoControl.AddProperty("Shader", material.ShaderName);
                     entityInfoForm.EntityInfoControl.AddProperty("Material", material.Name);
+                    entityInfoForm.EntityInfoControl.AddProperty("Aggregate Model", sceneFragment.Name!);
 
                     var tris = sceneFragment.DrawCall.IndexCount / 3;
                     if (sceneFragment.DrawCall.NumMeshlets > 0)
@@ -470,6 +493,7 @@ namespace GUI.Types.GLViewers
                 }
                 else if (sceneNode is ModelSceneNode modelSceneNode)
                 {
+                    entityInfoForm.EntityInfoControl.AddProperty("Model", modelSceneNode.Name!);
                     entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(modelSceneNode.Tint));
                     entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
 

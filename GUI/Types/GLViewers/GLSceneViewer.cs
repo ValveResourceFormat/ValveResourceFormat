@@ -119,6 +119,52 @@ namespace GUI.Types.GLViewers
             Renderer.LoadRendererResources();
         }
 
+        // Default environment + simple sun lighting used by viewers without lighting information
+        protected readonly Vector2 defaultSunAngles = new(80f, 170f);
+        protected readonly Vector4 defaultSunColor = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
+        protected Vector2 sunAngles;
+        private bool loadedDefaultLighting;
+
+        protected virtual void LoadDefaultLighting()
+        {
+            using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
+            Debug.Assert(stream != null);
+
+            using var resource = new ValveResourceFormat.Resource()
+            {
+                FileName = "vrf_default_cubemap.vtex_c"
+            };
+            resource.Read(stream);
+
+            var texture = Scene.RendererContext.MaterialLoader.LoadTexture(resource, true);
+            var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
+            {
+                Transform = Matrix4x4.Identity,
+                EdgeFadeDists = Vector3.Zero,
+                HandShake = 0,
+                ProjectionMode = 0,
+                EnvMapTexture = texture,
+            };
+
+            Scene.LightingInfo.AddEnvironmentMap(environmentMap);
+            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
+
+            sunAngles = defaultSunAngles;
+            Scene.LightingInfo.LightingData.LightColor_Brightness[0] = defaultSunColor;
+            UpdateSunAngles();
+            loadedDefaultLighting = true;
+        }
+
+        protected void UpdateSunAngles()
+        {
+            // clamp and wrap angles
+            sunAngles.X = Math.Clamp(sunAngles.X, 0f, 89f);
+            sunAngles.Y %= 360f;
+
+            Scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(MathUtils.ToRadians(sunAngles.X))
+                                                             * Matrix4x4.CreateRotationZ(MathUtils.ToRadians(sunAngles.Y));
+        }
+
         public virtual void PostSceneLoad()
         {
             Scene.Initialize();
@@ -269,6 +315,18 @@ namespace GUI.Types.GLViewers
         protected override void OnUpdate(float frameTime)
         {
             base.OnUpdate(frameTime);
+
+            Input.EnableMouseLook = true;
+            if (loadedDefaultLighting && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
+            {
+                var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
+
+                sunAngles += delta;
+                Scene.AdjustEnvMapSunAngle(Matrix4x4.CreateRotationZ(-delta.Y / 80f));
+                UpdateSunAngles();
+                Scene.UpdateBuffers();
+                Input.EnableMouseLook = false;
+            }
 
             if (MouseOverRenderArea || Input.ForceUpdate)
             {

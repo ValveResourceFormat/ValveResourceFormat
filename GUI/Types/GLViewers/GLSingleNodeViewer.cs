@@ -31,68 +31,16 @@ namespace GUI.Types.GLViewers
         public override void PreSceneLoad()
         {
             base.PreSceneLoad();
-            LoadDefaultEnvironmentMap();
+            base.LoadDefaultLighting();
         }
 
         protected override void LoadScene()
         {
         }
 
-        private void LoadDefaultEnvironmentMap()
-        {
-            using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
-            Debug.Assert(stream != null);
-
-            using var resource = new Resource()
-            {
-                FileName = "vrf_default_cubemap.vtex_c"
-            };
-            resource.Read(stream);
-
-            var texture = Scene.RendererContext.MaterialLoader.LoadTexture(resource);
-            var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
-            {
-                Transform = Matrix4x4.Identity,
-                EdgeFadeDists = Vector3.Zero,
-                HandShake = 0,
-                ProjectionMode = 0,
-                EnvMapTexture = texture,
-            };
-
-            Scene.LightingInfo.AddEnvironmentMap(environmentMap);
-            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
-
-            sunAngles = defaultSunAngles;
-            Scene.LightingInfo.LightingData.LightColor_Brightness[0] = defaultSunColor;
-            UpdateSunAngles();
-        }
-
-        Vector2 defaultSunAngles = new(80f, 170f);
-        Vector4 defaultSunColor = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
-
-        protected Vector2 sunAngles;
-
         protected override void OnPaint(float frameTime)
         {
-            Input.EnableMouseLook = true;
-            if ((CurrentlyPressedKeys & TrackedKeys.Control) != 0)
-            {
-                var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
-
-                sunAngles += delta;
-                Scene.AdjustEnvMapSunAngle(Matrix4x4.CreateRotationZ(-delta.Y / 80f));
-                UpdateSunAngles();
-                Scene.UpdateBuffers();
-                Input.EnableMouseLook = false;
-            }
-
             base.OnPaint(frameTime);
-        }
-
-        protected void UpdateSunAngles()
-        {
-            Scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(MathUtils.ToRadians(sunAngles.X))
-                                                             * Matrix4x4.CreateRotationZ(MathUtils.ToRadians(sunAngles.Y));
         }
 
         protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)
