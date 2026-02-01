@@ -2,7 +2,6 @@ global using Pose = System.Numerics.Matrix4x4[];
 
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -19,7 +18,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public abstract void Initialize(GraphContext context);
     }
 
-    partial class ValueNode
+    abstract partial class ValueNode
     {
         public override void Initialize(GraphContext ctx) { }
     }
@@ -36,6 +35,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public AnimationGraphController Controller { get; set; }
         public GraphNode[] Nodes { get; set; }
+        public PoseNode RootNode { get; set; }
 
         public BranchState BranchState { get; set; } = BranchState.Active;
         public float DeltaTime { get; set; }
@@ -43,17 +43,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public Skeleton Skeleton { get; } // => Controller.Skeleton;
         public Matrix4x4 WorldTransformInverse;
 
-        private KVObject nmGraph;
+        private GraphDefinition graphDefinition;
         private ResourceTypes.ModelAnimation.Skeleton nmSkel;
 
         public GraphContext(KVObject graph, ResourceTypes.ModelAnimation.Skeleton skeleton, AnimationGraphController controller)
         {
-            nmGraph = graph;
+            graphDefinition = new GraphDefinition(graph);
             nmSkel = skeleton;
             Controller = controller;
 
             // Create nodes
-            var nodeArray = nmGraph.GetArray<KVObject>("m_nodes");
+            var nodeArray = graph.GetArray<KVObject>("m_nodes");
             Nodes = new GraphNode[nodeArray.Length];
 
             // todo: code gen
@@ -77,12 +77,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 Nodes[i] = node;
             }
 
-
             // Initialize nodes, populate strong references
             foreach (var node in Nodes)
             {
                 node.Initialize(this);
             }
+
+            RootNode = (PoseNode)Nodes[graphDefinition.RootNodeIdx];
         }
 
         public Pose Pose { get; }// => Controller.Pose;
@@ -114,6 +115,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public void LogWarning(short nodeIdx, string message)
         {
             Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message}");
+        }
+
+        public void Update(float timeStep)
+        {
+            DeltaTime = timeStep;
+            RootNode.Update(this);
         }
     }
 }

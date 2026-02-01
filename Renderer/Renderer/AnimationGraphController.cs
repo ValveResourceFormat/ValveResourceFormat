@@ -185,6 +185,9 @@ namespace ValveResourceFormat.Renderer
 
         public override bool Update(float timeStep)
         {
+            Graph.Update(timeStep);
+            var graphPose = Graph.Pose;
+
             var sequence = (SequenceIndex >= 0 && SequenceIndex < Sequences.Length) ? Sequences[SequenceIndex] : null;
             if (sequence == null)
             {

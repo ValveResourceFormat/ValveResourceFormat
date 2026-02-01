@@ -217,10 +217,18 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public int LoopCount;
         public TimeSpan Duration;
-        public float CurrentTime; /* Percent */ 
-        public float PreviousTime;  /* Percent */ 
+        public float CurrentTime; /* Percent */
+        public float PreviousTime;  /* Percent */
 
-        public override void Initialize(GraphContext ctx) { }
+        public override void Initialize(GraphContext ctx)
+        {
+            //
+        }
+
+        public virtual void Update(GraphContext ctx)
+        {
+            //
+        }
     }
 
 
