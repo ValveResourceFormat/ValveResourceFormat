@@ -21,12 +21,13 @@ public class DOFRenderer
 
     private readonly float[] Offsets = new float[MAX_DOF_SAMPLES * 4];
 
-    public bool DOFEnabled { get; set; }
+    public bool Enabled { get; set; }
 
-    public Framebuffer? DOFFrameBuffer { get; private set; }
+    public Framebuffer? BlurredResult { get; private set; }
     public Dof2InputParams CurrentDofParams { get; private set; }
 
     private Shader? DOF;
+    public Lazy<Shader> MsaaResolveDof => new(() => RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_DOF", 1)));
 
     private readonly RendererContext RendererContext;
 
@@ -50,25 +51,24 @@ public class DOFRenderer
         RendererContext = rendererContext;
     }
 
-    public void Load()
+    public Framebuffer Render(Framebuffer input)
     {
-        DOFFrameBuffer = Framebuffer.Prepare("Depth Of Field", 2, 2, 0, PostProcessRenderer.DefaultColorFormat, null);
-        DOFFrameBuffer.Initialize();
+        if (DOF == null)
+        {
+            DOF = RendererContext.ShaderLoader.LoadShader("vrf.dof2");
+            BlurredResult = Framebuffer.Prepare("Depth Of Field", 2, 2, 0, PostProcessRenderer.DefaultColorFormat, null);
+            BlurredResult.Initialize();
+        }
 
-        DOF = RendererContext.ShaderLoader.LoadShader("vrf.dof2");
-    }
-
-    public void Render(Framebuffer input)
-    {
         Debug.Assert(DOF != null);
-        Debug.Assert(DOFFrameBuffer != null);
+        Debug.Assert(BlurredResult != null);
 
         using (new GLDebugGroup("Depth Of Field"))
         {
             DOF.Use();
 
-            DOFFrameBuffer.Resize(input.Width, input.Height);
-            DOFFrameBuffer.BindAndClear(FramebufferTarget.DrawFramebuffer);
+            BlurredResult.Resize(input.Width, input.Height);
+            BlurredResult.BindAndClear(FramebufferTarget.DrawFramebuffer);
 
             SetShaderParams();
 
@@ -77,6 +77,24 @@ public class DOFRenderer
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
         }
+
+        return BlurredResult;
+    }
+
+    public void SetDofResolveShaderUniforms(Shader shader, Camera camera, RenderTexture msaaDepth)
+    {
+        shader.SetTexture(1, "g_tSceneDepth", msaaDepth);
+
+        Matrix4x4.Invert(camera.ViewProjectionMatrix, out var invViewProjMatrix);
+        shader.SetUniform4x4("g_invViewProjMatrix", invViewProjMatrix);
+
+        var focalPoint = camera.Location + camera.Forward * FocalDistance;
+        var d = -Vector3.Dot(camera.Forward, focalPoint);
+
+        var lensPlane = new Vector4(camera.Forward, d);
+        shader.SetUniform4("g_vLensPlane", lensPlane);
+
+        shader.SetUniform4("g_vNearFarScaleBias", new Vector4(CurrentDofParams.NearScale, CurrentDofParams.NearBias, CurrentDofParams.FarScale, CurrentDofParams.FarBias));
     }
 
     private Dof2InputParams CreateInputParams()
@@ -94,8 +112,8 @@ public class DOFRenderer
         input.MaxBlurSize = MaxBlurSize;
         input.RadScale = RadScale;
 
-        input.Width = DOFFrameBuffer!.Width;
-        input.Height = DOFFrameBuffer!.Height;
+        input.Width = BlurredResult!.Width;
+        input.Height = BlurredResult!.Height;
 
         return input;
     }
@@ -111,7 +129,7 @@ public class DOFRenderer
 
         CurrentDofParams = newParams;
 
-        var g_vInvRenderTargetDim = new Vector2(1.0f / DOFFrameBuffer!.Width, 1.0f / DOFFrameBuffer.Height);
+        var g_vInvRenderTargetDim = new Vector2(1.0f / BlurredResult!.Width, 1.0f / BlurredResult.Height);
 
         DOF!.SetUniform1("flMaxBlurSize", CurrentDofParams.MaxBlurSize);
 
