@@ -7,7 +7,6 @@ namespace ValveResourceFormat.Renderer
     {
         private readonly RendererContext RendererContext;
         private Shader? shaderMSAAResolve;
-        private Shader? shaderMSAAResolveDOF;
         private Shader? shaderPostProcess;
         private Shader? shaderPostProcessBloom;
         private Framebuffer? MsaaResolveFramebuffer;
@@ -40,7 +39,6 @@ namespace ValveResourceFormat.Renderer
         public void Load()
         {
             shaderMSAAResolve = RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve");
-            shaderMSAAResolveDOF = RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_DOF", 1));
             shaderPostProcess = RendererContext.ShaderLoader.LoadShader("vrf.post_processing", ("D_BLOOM", 0));
             shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("vrf.post_processing", ("D_BLOOM", 1));
 
@@ -49,7 +47,6 @@ namespace ValveResourceFormat.Renderer
             MsaaResolveFramebuffer.Color!.SetWrapMode(TextureWrapMode.ClampToEdge);
 
             Bloom.Load();
-            DOF.Load();
         }
 
         private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
@@ -78,11 +75,6 @@ namespace ValveResourceFormat.Renderer
             Debug.Assert(shaderMSAAResolve != null);
             Debug.Assert(shaderPostProcess != null && shaderPostProcessBloom != null);
 
-            if (DOF.DOFEnabled)
-            {
-                Debug.Assert(shaderMSAAResolveDOF != null);
-            }
-
             Debug.Assert(BlueNoise != null);
             Debug.Assert(MsaaResolveFramebuffer != null);
 
@@ -93,9 +85,9 @@ namespace ValveResourceFormat.Renderer
             {
                 var msaaResolveShader = shaderMSAAResolve;
 
-                if (DOF.DOFEnabled)
+                if (DOF.Enabled)
                 {
-                    msaaResolveShader = shaderMSAAResolveDOF!;
+                    msaaResolveShader = DOF.MsaaResolveDof.Value;
                 }
 
                 MsaaResolveFramebuffer.Resize(colorBufferRead.Width, colorBufferRead.Height);
@@ -108,32 +100,20 @@ namespace ValveResourceFormat.Renderer
                 msaaResolveShader.SetUniform1("g_bFlipY", flipY);
                 msaaResolveShader.SetUniform1("g_nNumSamplesMSAA", colorBufferRead.NumSamples);
 
-                if (DOF.DOFEnabled)
+                if (DOF.Enabled)
                 {
-                    msaaResolveShader.SetTexture(1, "g_tSceneDepth", colorBufferRead.Depth);
-
-                    Matrix4x4.Invert(camera.ViewProjectionMatrix, out var invViewProjMatrix);
-                    msaaResolveShader.SetUniform4x4("g_invViewProjMatrix", invViewProjMatrix);
-
-                    Vector3 focalPoint = camera.Location + camera.Forward * DOF.FocalDistance;
-                    float d = -Vector3.Dot(camera.Forward, focalPoint);
-
-                    Vector4 lensPlane = new Vector4(camera.Forward, d);
-                    msaaResolveShader.SetUniform4("g_vLensPlane", lensPlane);
-
-                    msaaResolveShader.SetUniform4("g_vNearFarScaleBias", new Vector4(DOF.CurrentDofParams.NearScale, DOF.CurrentDofParams.NearBias, DOF.CurrentDofParams.FarScale, DOF.CurrentDofParams.FarBias));
+                    DOF.SetDofResolveShaderUniforms(msaaResolveShader, camera, colorBufferRead.Depth!);
                 }
 
                 GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
             }
 
-            var postProcessInputFramebuffer = MsaaResolveFramebuffer;
+            var resolvedScene = MsaaResolveFramebuffer;
 
-            if (DOF.DOFEnabled)
+            if (DOF.Enabled)
             {
-                DOF.Render(MsaaResolveFramebuffer);
-                postProcessInputFramebuffer = DOF.DOFFrameBuffer!;
+                resolvedScene = DOF.Render(MsaaResolveFramebuffer);
             }
 
             using (new GLDebugGroup("Tonemapping, Color Correction, Bloom"))
@@ -144,14 +124,14 @@ namespace ValveResourceFormat.Renderer
 
                 if (State.HasBloom)
                 {
-                    Bloom.Render(postProcessInputFramebuffer);
+                    Bloom.Render(resolvedScene);
                 }
 
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
                 postProcessShader.Use();
                 GL.Viewport(0, 0, colorBufferRead.Width, colorBufferRead.Height);
 
-                postProcessShader.SetTexture(0, "g_tColorBuffer", postProcessInputFramebuffer.Color);
+                postProcessShader.SetTexture(0, "g_tColorBuffer", resolvedScene.Color);
                 postProcessShader.SetTexture(1, "g_tColorCorrectionLUT", State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
                 postProcessShader.SetTexture(2, "g_tBlueNoise", BlueNoise);
                 postProcessShader.SetTexture(3, "g_tStencilBuffer", colorBufferRead.Stencil!);
