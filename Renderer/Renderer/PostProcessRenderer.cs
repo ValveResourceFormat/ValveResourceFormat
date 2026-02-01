@@ -126,6 +126,7 @@ namespace ValveResourceFormat.Renderer
                 postProcessShader.SetUniform1("g_bFlipY", flipY);
 
                 postProcessShader.SetUniform1("g_bPostProcessEnabled", Enabled);
+                postProcessShader.SetUniform1("g_nNumSamplesMSAA", colorBufferRead.NumSamples);
 
                 postProcessShader.SetUniform1("g_flToneMapScalarLinear", TonemapScalar);
                 SetPostProcessUniforms(postProcessShader, State.TonemapSettings);
