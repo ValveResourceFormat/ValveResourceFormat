@@ -2241,9 +2241,36 @@ public class AnimationGraphExtract
             }
             else if (className == "CTurnHelper")
             {
-                if (key == "m_turnStartTimeOffset")
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_facingTarget")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_turnStartTimeOffset")
                 {
                     node.AddProperty("m_turnStartTime", value);
+                    continue;
+                }
+                else if (key == "m_turnDuration" || key == "m_bMatchChildDuration" ||
+                         key == "m_manualTurnOffset" || key == "m_bUseManualTurnOffset")
+                {
+                    node.AddProperty(key, value);
                     continue;
                 }
             }
@@ -3065,6 +3092,825 @@ public class AnimationGraphExtract
                 else if (key == "m_bLockWhenWaning")
                 {
                     node.AddProperty(key, value);
+                    continue;
+                }
+            }
+            else if (className == "CHitReact")
+            {
+                if (key == "m_pChildNode")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    AddInputConnection(node, childNodeId);
+                    continue;
+                }
+                else if (key == "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_opFixedSettings")
+                {
+                    var opFixedSettings = subCollection.Value;
+                    if (opFixedSettings.ContainsKey("m_nWeightListIndex"))
+                    {
+                        var weightListIndex = opFixedSettings.GetIntegerProperty("m_nWeightListIndex");
+                        var weightListName = GetWeightListName(weightListIndex);
+                        node.AddProperty("m_weightListName", weightListName);
+                    }
+                    if (opFixedSettings.ContainsKey("m_nHipBoneIndex"))
+                    {
+                        var hipBoneIndex = (int)opFixedSettings.GetIntegerProperty("m_nHipBoneIndex");
+                        var hipBoneName = GetBoneName(hipBoneIndex);
+                        if (!string.IsNullOrEmpty(hipBoneName))
+                        {
+                            node.AddProperty("m_hipBoneName", hipBoneName);
+                        }
+                    }
+                    var settingsToCopy = new[]
+                    {
+                    "m_nEffectedBoneCount",
+                    "m_flMaxImpactForce",
+                    "m_flMinImpactForce",
+                    "m_flWhipImpactScale",
+                    "m_flCounterRotationScale",
+                    "m_flDistanceFadeScale",
+                    "m_flPropagationScale",
+                    "m_flWhipDelay",
+                    "m_flSpringStrength",
+                    "m_flWhipSpringStrength",
+                    "m_flMaxAngleRadians",
+                    "m_flHipBoneTranslationScale",
+                    "m_flHipDipSpringStrength",
+                    "m_flHipDipImpactScale",
+                    "m_flHipDipDelay"
+                };
+
+                    foreach (var settingKey in settingsToCopy)
+                    {
+                        if (opFixedSettings.ContainsKey(settingKey))
+                        {
+                            node.AddProperty(settingKey, opFixedSettings.GetProperty<object>(settingKey));
+                        }
+                    }
+                    continue;
+                }
+                else if (key == "m_triggerParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty(key, ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hitBoneParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty(key, ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hitOffsetParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty(key, ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hitDirectionParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty(key, ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hitStrengthParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty(key, ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_flMinDelayBetweenHits")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_bResetChild")
+                {
+                    node.AddProperty("m_bResetBase", value);
+                    continue;
+                }
+            }
+            else if (className == "CSolveIKChain")
+            {
+                if (key == "m_pChildNode")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    AddInputConnection(node, childNodeId);
+                    continue;
+                }
+                else if (key == "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_targetHandles")
+                {
+                    continue;
+                }
+                else if (key == "m_opFixedData")
+                {
+                    var opFixedData = subCollection.Value;
+                    var chainsToSolveData = opFixedData.GetArray("m_ChainsToSolveData");
+                    var targetHandles = compiledNode.GetArray("m_targetHandles");
+
+                    var ikChainsArray = new List<KVObject>();
+
+                    for (var i = 0; i < chainsToSolveData.Length; i++)
+                    {
+                        var chainData = chainsToSolveData[i];
+                        var targetHandle = i < targetHandles.Length ? targetHandles[i] : null;
+
+                        var ikChain = new KVObject(null);
+                        ikChain.AddProperty("_class", "CSolveIKChainAnimNodeChainData");
+
+                        if (chainData.ContainsKey("m_nChainIndex"))
+                        {
+                            var chainIndex = (int)chainData.GetIntegerProperty("m_nChainIndex");
+                            var chainName = GetIKChainName(chainIndex);
+                            ikChain.AddProperty("m_IkChain", chainName);
+                        }
+
+                        ikChain.AddProperty("m_SolverSettingSource", "SOLVEIKCHAINANIMNODESETTINGSOURCE_Default");
+
+                        if (chainData.ContainsKey("m_SolverSettings"))
+                        {
+                            var solverSettings = chainData.GetSubCollection("m_SolverSettings");
+                            var overrideSolverSettings = new KVObject(null);
+
+                            if (solverSettings.ContainsKey("m_SolverType"))
+                            {
+                                overrideSolverSettings.AddProperty("m_SolverType", solverSettings.GetProperty<string>("m_SolverType"));
+                            }
+
+                            ikChain.AddProperty("m_OverrideSolverSettings", overrideSolverSettings);
+                        }
+
+                        ikChain.AddProperty("m_TargetSettingSource", "SOLVEIKCHAINANIMNODESETTINGSOURCE_Default");
+
+                        if (chainData.ContainsKey("m_TargetSettings"))
+                        {
+                            var targetSettings = chainData.GetSubCollection("m_TargetSettings");
+                            var overrideTargetSettings = new KVObject(null);
+
+                            if (targetSettings.ContainsKey("m_TargetSource"))
+                            {
+                                overrideTargetSettings.AddProperty("m_TargetSource", targetSettings.GetProperty<string>("m_TargetSource"));
+                            }
+
+                            if (targetSettings.ContainsKey("m_Bone"))
+                            {
+                                var boneSettings = targetSettings.GetSubCollection("m_Bone");
+                                var boneNameObj = new KVObject(null);
+                                boneNameObj.AddProperty("m_Name", boneSettings.GetStringProperty("m_Name"));
+                                overrideTargetSettings.AddProperty("m_Bone", boneNameObj);
+                            }
+
+                            if (targetHandle != null)
+                            {
+                                var positionHandle = targetHandle.GetSubCollection("m_positionHandle");
+                                var positionParamType = positionHandle.GetStringProperty("m_type");
+                                var positionParamIndex = positionHandle.GetIntegerProperty("m_index");
+                                overrideTargetSettings.AddProperty("m_AnimgraphParameterNamePosition",
+                                    ParameterIDFromIndex(positionParamType, positionParamIndex));
+
+                                var orientationHandle = targetHandle.GetSubCollection("m_orientationHandle");
+                                var orientationParamType = orientationHandle.GetStringProperty("m_type");
+                                var orientationParamIndex = orientationHandle.GetIntegerProperty("m_index");
+                                overrideTargetSettings.AddProperty("m_AnimgraphParameterNameOrientation",
+                                    ParameterIDFromIndex(orientationParamType, orientationParamIndex));
+                            }
+                            else
+                            {
+                                overrideTargetSettings.AddProperty("m_AnimgraphParameterNamePosition", MakeNodeIdObjectValue(-1));
+                                overrideTargetSettings.AddProperty("m_AnimgraphParameterNameOrientation", MakeNodeIdObjectValue(-1));
+                            }
+
+                            if (targetSettings.ContainsKey("m_TargetCoordSystem"))
+                            {
+                                overrideTargetSettings.AddProperty("m_TargetCoordSystem", targetSettings.GetProperty<string>("m_TargetCoordSystem"));
+                            }
+
+                            ikChain.AddProperty("m_OverrideTargetSettings", overrideTargetSettings);
+                        }
+
+                        if (chainData.ContainsKey("m_DebugSetting"))
+                        {
+                            ikChain.AddProperty("m_DebugSetting", chainData.GetProperty<string>("m_DebugSetting"));
+                        }
+
+                        if (chainData.ContainsKey("m_flDebugNormalizedValue"))
+                        {
+                            ikChain.AddProperty("m_flDebugNormalizedLength", chainData.GetFloatProperty("m_flDebugNormalizedValue"));
+                        }
+
+                        if (chainData.ContainsKey("m_vDebugOffset"))
+                        {
+                            ikChain.AddProperty("m_vDebugOffset", chainData.GetSubCollection("m_vDebugOffset"));
+                        }
+
+                        ikChainsArray.Add(ikChain);
+                    }
+
+                    node.AddProperty("m_IkChains", KVValue.MakeArray(ikChainsArray.ToArray()));
+
+                    if (opFixedData.ContainsKey("m_bMatchTargetOrientation"))
+                    {
+                        node.AddProperty("m_bMatchTargetOrientation", opFixedData.GetIntegerProperty("m_bMatchTargetOrientation") > 0);
+                    }
+
+                    continue;
+                }
+            }
+            else if (className == "CStanceOverride")
+            {
+                if (key == "m_pChildNode")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    AddInputConnection(node, childNodeId);
+                    continue;
+                }
+                else if (key == "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_pStanceSourceNode")
+                {
+                    var stanceSourceNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (stanceSourceNodeId != -1)
+                    {
+                        if (nodeIndexToIdMap?.TryGetValue(stanceSourceNodeId, out var mappedNodeId) == true)
+                        {
+                            var stanceSourceConnection = MakeInputConnection(mappedNodeId);
+                            node.AddProperty("m_stanceSourceConnection", stanceSourceConnection);
+                        }
+                    }
+                    else
+                    {
+                        var emptyConnection = MakeInputConnection(-1);
+                        node.AddProperty("m_stanceSourceConnection", emptyConnection);
+                    }
+                    continue;
+                }
+                else if (key == "m_hParameter")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_blendParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_eMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_footStanceInfo")
+                {
+                    continue;
+                }
+                else if (key == "m_opFixedData")
+                {
+                    var opFixedData = subCollection.Value;
+                    if (opFixedData.ContainsKey("m_nFrameIndex"))
+                    {
+                        var frameIndex = opFixedData.GetIntegerProperty("m_nFrameIndex");
+                        node.AddProperty("m_nFrameIndex", frameIndex);
+                    }
+                    continue;
+                }
+                if (!node.Properties.ContainsKey("m_sequenceName"))
+                {
+                    node.AddProperty("m_sequenceName", "");
+                }
+                if (!node.Properties.ContainsKey("m_nFrameIndex"))
+                {
+                    node.AddProperty("m_nFrameIndex", 0);
+                }
+            }
+            else if (className == "CSkeletalInput")
+            {
+                if (!node.Properties.ContainsKey("m_transformSource"))
+                {
+                    node.AddProperty("m_transformSource", "AnimVrBoneTransformSource_LiveStream");
+                }
+                if (!node.Properties.ContainsKey("m_motionRange"))
+                {
+                    node.AddProperty("m_motionRange", "MotionRange_WithController");
+                }
+                if (!node.Properties.ContainsKey("m_bEnableIK"))
+                {
+                    node.AddProperty("m_bEnableIK", true);
+                }
+                if (!node.Properties.ContainsKey("m_bEnableCollision"))
+                {
+                    node.AddProperty("m_bEnableCollision", true);
+                }
+            }
+            else if (className == "CStopAtGoal")
+            {
+                if (key == "m_pChildNode")
+                {
+                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    AddInputConnection(node, childNodeId);
+                    continue;
+                }
+                else if (key == "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_flOuterRadius" || key == "m_flInnerRadius" ||
+                         key == "m_flMaxScale" || key == "m_flMinScale")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                else if (key == "m_damping")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+            }
+            else if (className == "CFootLock")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_opFixedSettings")
+                {
+                    var opFixedSettings = subCollection.Value;
+
+                    if (opFixedSettings.ContainsKey("m_nHipBoneIndex"))
+                    {
+                        var hipBoneIndex = (int)opFixedSettings.GetIntegerProperty("m_nHipBoneIndex");
+                        var hipBoneName = GetBoneName(hipBoneIndex);
+                        if (!string.IsNullOrEmpty(hipBoneName))
+                        {
+                            node.AddProperty("m_hipBoneName", hipBoneName);
+                        }
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_ikSolverType"))
+                    {
+                        node.AddProperty("m_ikSolverType", opFixedSettings.GetProperty<string>("m_ikSolverType"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_bAlwaysUseFallbackHinge"))
+                    {
+                        node.AddProperty("m_bAlwaysUseFallbackHinge", opFixedSettings.GetIntegerProperty("m_bAlwaysUseFallbackHinge") > 0);
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_bApplyLegTwistLimits"))
+                    {
+                        node.AddProperty("m_bApplyLegTwistLimits", opFixedSettings.GetIntegerProperty("m_bApplyLegTwistLimits") > 0);
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_flMaxLegTwist"))
+                    {
+                        node.AddProperty("m_flMaxLegTwist", opFixedSettings.GetFloatProperty("m_flMaxLegTwist"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_bApplyTilt"))
+                    {
+                        node.AddProperty("m_bApplyTilt", opFixedSettings.GetIntegerProperty("m_bApplyTilt") > 0);
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_bApplyHipDrop"))
+                    {
+                        node.AddProperty("m_bApplyHipDrop", opFixedSettings.GetIntegerProperty("m_bApplyHipDrop") > 0);
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_bApplyFootRotationLimits") && !node.Properties.ContainsKey("m_bApplyFootRotationLimits"))
+                    {
+                        node.AddProperty("m_bApplyFootRotationLimits", opFixedSettings.GetIntegerProperty("m_bApplyFootRotationLimits") > 0);
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_flMaxFootHeight"))
+                    {
+                        node.AddProperty("m_flMaxFootHeight", opFixedSettings.GetFloatProperty("m_flMaxFootHeight"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_flExtensionScale"))
+                    {
+                        node.AddProperty("m_flExtensionScale", opFixedSettings.GetFloatProperty("m_flExtensionScale"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_bEnableLockBreaking"))
+                    {
+                        node.AddProperty("m_bEnableLockBreaking", opFixedSettings.GetIntegerProperty("m_bEnableLockBreaking") > 0);
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_flLockBreakTolerance"))
+                    {
+                        node.AddProperty("m_flLockBreakTolerance", opFixedSettings.GetFloatProperty("m_flLockBreakTolerance"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_flLockBlendTime"))
+                    {
+                        node.AddProperty("m_flLockBreakBlendTime", opFixedSettings.GetFloatProperty("m_flLockBlendTime"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_bEnableStretching"))
+                    {
+                        node.AddProperty("m_bEnableStretching", opFixedSettings.GetIntegerProperty("m_bEnableStretching") > 0);
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_flMaxStretchAmount"))
+                    {
+                        node.AddProperty("m_flMaxStretchAmount", opFixedSettings.GetFloatProperty("m_flMaxStretchAmount"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_flStretchExtensionScale"))
+                    {
+                        node.AddProperty("m_flStretchExtensionScale", opFixedSettings.GetFloatProperty("m_flStretchExtensionScale"));
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_hipDampingSettings"))
+                    {
+                        node.AddProperty("m_hipDampingSettings", opFixedSettings.GetSubCollection("m_hipDampingSettings"));
+                    }
+                    continue;
+                }
+                else if (key == "m_footSettings")
+                {
+                    var footSettings = compiledNode.GetArray("m_footSettings");
+                    var opFixedSettings = compiledNode.GetSubCollection("m_opFixedSettings");
+                    var footInfoArray = opFixedSettings?.GetArray("m_footInfo");
+
+                    var items = new List<KVObject>();
+
+                    var firstFootHasGroundTracing = false;
+                    var firstFootTraceAngleBlend = 0.0f;
+
+                    for (int i = 0; i < footSettings.Length; i++)
+                    {
+                        var footSetting = footSettings[i];
+                        var footInfo = footInfoArray != null && i < footInfoArray.Length ? footInfoArray[i] : null;
+
+                        var item = new KVObject(null, 8);
+
+                        if (footSetting.ContainsKey("m_nFootIndex"))
+                        {
+                            var footIndex = (int)footSetting.GetIntegerProperty("m_nFootIndex");
+                            var footName = GetFootName(footIndex);
+                            if (!string.IsNullOrEmpty(footName))
+                            {
+                                item.AddProperty("m_footName", footName);
+                            }
+                        }
+
+                        if (footInfo != null && footInfo.ContainsKey("m_nTargetBoneIndex"))
+                        {
+                            var targetBoneIndex = (int)footInfo.GetIntegerProperty("m_nTargetBoneIndex");
+                            var targetBoneName = GetBoneName(targetBoneIndex);
+                            if (!string.IsNullOrEmpty(targetBoneName))
+                            {
+                                item.AddProperty("m_targetBoneName", targetBoneName);
+                            }
+                        }
+
+                        if (footInfo != null && footInfo.ContainsKey("m_ikChainIndex"))
+                        {
+                            var ikChainIndex = (int)footInfo.GetIntegerProperty("m_ikChainIndex");
+                            var ikChainName = GetIKChainName(ikChainIndex);
+                            if (!string.IsNullOrEmpty(ikChainName))
+                            {
+                                item.AddProperty("m_ikChainName", ikChainName);
+                            }
+                        }
+
+                        if (footSetting.ContainsKey("m_nDisableTagIndex"))
+                        {
+                            var tagIndex = footSetting.GetIntegerProperty("m_nDisableTagIndex");
+                            var tagId = -1L;
+                            if (tagIndex >= 0 && tagIndex < Tags.Length)
+                            {
+                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                            }
+                            item.AddProperty("m_disableTagID", MakeNodeIdObjectValue(tagId));
+                        }
+
+                        if (footSetting.ContainsKey("m_footstepLandedTagIndex"))
+                        {
+                            var tagIndex = footSetting.GetIntegerProperty("m_footstepLandedTagIndex");
+                            var tagId = -1L;
+                            if (tagIndex >= 0 && tagIndex < Tags.Length)
+                            {
+                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                            }
+                            item.AddProperty("m_footstepLandedTag", MakeNodeIdObjectValue(tagId));
+                        }
+
+                        if (footSetting.ContainsKey("m_flMaxRotationLeft"))
+                        {
+                            item.AddProperty("m_flMaxRotationLeft", footSetting.GetFloatProperty("m_flMaxRotationLeft"));
+                        }
+                        else if (footInfo != null && footInfo.ContainsKey("m_flMaxRotationLeft"))
+                        {
+                            item.AddProperty("m_flMaxRotationLeft", footInfo.GetFloatProperty("m_flMaxRotationLeft"));
+                        }
+
+                        if (footSetting.ContainsKey("m_flMaxRotationRight"))
+                        {
+                            item.AddProperty("m_flMaxRotationRight", footSetting.GetFloatProperty("m_flMaxRotationRight"));
+                        }
+                        else if (footInfo != null && footInfo.ContainsKey("m_flMaxRotationRight"))
+                        {
+                            item.AddProperty("m_flMaxRotationRight", footInfo.GetFloatProperty("m_flMaxRotationRight"));
+                        }
+
+                        if (i == 0)
+                        {
+                            if (footSetting.ContainsKey("m_bEnableTracing"))
+                            {
+                                firstFootHasGroundTracing = footSetting.GetIntegerProperty("m_bEnableTracing") > 0;
+                            }
+                            if (footSetting.ContainsKey("m_flTraceAngleBlend"))
+                            {
+                                firstFootTraceAngleBlend = footSetting.GetFloatProperty("m_flTraceAngleBlend");
+                            }
+                        }
+
+                        items.Add(item);
+                    }
+
+                    if (items.Count > 0)
+                    {
+                        node.AddProperty("m_items", KVValue.MakeArray(items.ToArray()));
+                    }
+
+                    if (!node.Properties.ContainsKey("m_bEnableGroundTracing"))
+                    {
+                        node.AddProperty("m_bEnableGroundTracing", firstFootHasGroundTracing);
+                    }
+                    if (!node.Properties.ContainsKey("m_flTraceAngleBlend"))
+                    {
+                        node.AddProperty("m_flTraceAngleBlend", firstFootTraceAngleBlend);
+                    }
+
+                    continue;
+                }
+                else if (key == "m_hipShiftDamping")
+                {
+                    node.AddProperty("m_hipShiftDamping", subCollection.Value);
+                    continue;
+                }
+                else if (key == "m_rootHeightDamping")
+                {
+                    node.AddProperty("m_rootHeightDamping", subCollection.Value);
+                    continue;
+                }
+                else if (key == "m_flStrideCurveScale")
+                {
+                    node.AddProperty("m_flStrideCurveScale", value);
+                    continue;
+                }
+                else if (key == "m_flStrideCurveLimitScale")
+                {
+                    node.AddProperty("m_flStrideCurveLimitScale", value);
+                    continue;
+                }
+                else if (key == "m_flStepHeightIncreaseScale")
+                {
+                    node.AddProperty("m_flStepHeightIncreaseScale", value);
+                    continue;
+                }
+                else if (key == "m_flStepHeightDecreaseScale")
+                {
+                    node.AddProperty("m_flStepHeightDecreaseScale", value);
+                    continue;
+                }
+                else if (key == "m_flHipShiftScale")
+                {
+                    node.AddProperty("m_flHipShiftScale", value);
+                    continue;
+                }
+                else if (key == "m_flBlendTime")
+                {
+                    node.AddProperty("m_flBlendTime", value);
+                    continue;
+                }
+                else if (key == "m_flMaxRootHeightOffset")
+                {
+                    node.AddProperty("m_flMaxRootHeightOffset", value);
+                    continue;
+                }
+                else if (key == "m_flMinRootHeightOffset")
+                {
+                    node.AddProperty("m_flMinRootHeightOffset", value);
+                    continue;
+                }
+                else if (key == "m_flTiltPlanePitchSpringStrength")
+                {
+                    node.AddProperty("m_flTiltPlanePitchSpringStrength", value);
+                    continue;
+                }
+                else if (key == "m_flTiltPlaneRollSpringStrength")
+                {
+                    node.AddProperty("m_flTiltPlaneRollSpringStrength", value);
+                    continue;
+                }
+                else if (key == "m_bApplyFootRotationLimits")
+                {
+                    node.AddProperty("m_bApplyFootRotationLimits", value);
+                    continue;
+                }
+                else if (key == "m_bApplyHipShift")
+                {
+                    node.AddProperty("m_bEnableHipShift", value);
+                    continue;
+                }
+                else if (key == "m_bModulateStepHeight")
+                {
+                    node.AddProperty("m_bModulateStepHeight", value);
+                    continue;
+                }
+                else if (key == "m_bResetChild")
+                {
+                    node.AddProperty("m_bResetChild", value);
+                    continue;
+                }
+                else if (key == "m_bEnableVerticalCurvedPaths")
+                {
+                    node.AddProperty("m_bEnableVerticalCurvedPaths", value);
+                    continue;
+                }
+                else if (key == "m_bEnableRootHeightDamping")
+                {
+                    node.AddProperty("m_bEnableRootHeightDamping", value);
+                    continue;
+                }
+            }
+            else if (className == "CTwoBoneIK")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_opFixedData")
+                {
+                    var opFixedData = subCollection.Value;
+
+                    if (opFixedData.ContainsKey("m_nFixedBoneIndex") &&
+                        opFixedData.ContainsKey("m_nMiddleBoneIndex") &&
+                        opFixedData.ContainsKey("m_nEndBoneIndex"))
+                    {
+                        var fixedBoneIndex = (int)opFixedData.GetIntegerProperty("m_nFixedBoneIndex");
+                        var middleBoneIndex = (int)opFixedData.GetIntegerProperty("m_nMiddleBoneIndex");
+                        var endBoneIndex = (int)opFixedData.GetIntegerProperty("m_nEndBoneIndex");
+
+                        var ikChainNames = LoadIKChainNamesFromModel();
+                        var foundChainName = "";
+
+                        if (ikChainNames.Length > 0)
+                        {
+                            var fixedBoneName = GetBoneName(fixedBoneIndex).ToLowerInvariant();
+
+                            foreach (var chainName in ikChainNames)
+                            {
+                                var lowerChainName = chainName.ToLowerInvariant();
+
+                                if ((fixedBoneName.Contains("arm") && lowerChainName.Contains("arm")) ||
+                                    (fixedBoneName.Contains("leg") && lowerChainName.Contains("leg")) ||
+                                    (fixedBoneName.Contains("hand") && lowerChainName.Contains("hand")) ||
+                                    (fixedBoneName.Contains("foot") && lowerChainName.Contains("foot")))
+                                {
+                                    foundChainName = chainName;
+                                    break;
+                                }
+                            }
+
+                            if (string.IsNullOrEmpty(foundChainName))
+                            {
+                                foundChainName = ikChainNames[0];
+                            }
+                        }
+
+                        node.AddProperty("m_ikChainName", foundChainName);
+                    }
+
+                    if (opFixedData.ContainsKey("m_bAlwaysUseFallbackHinge"))
+                    {
+                        var alwaysUseFallback = opFixedData.GetIntegerProperty("m_bAlwaysUseFallbackHinge") > 0;
+                        node.AddProperty("m_bAutoDetectHingeAxis", !alwaysUseFallback);
+                    }
+                    else
+                    {
+                        node.AddProperty("m_bAutoDetectHingeAxis", true);
+                    }
+
+                    if (opFixedData.ContainsKey("m_endEffectorType"))
+                    {
+                        node.AddProperty("m_endEffectorType", opFixedData.GetProperty<string>("m_endEffectorType"));
+                    }
+
+                    if (opFixedData.ContainsKey("m_endEffectorAttachment"))
+                    {
+                        var attachment = opFixedData.GetSubCollection("m_endEffectorAttachment");
+                        var attachmentName = FindMatchingAttachmentName(attachment);
+                        node.AddProperty("m_endEffectorAttachmentName", attachmentName);
+                    }
+
+                    if (opFixedData.ContainsKey("m_targetType"))
+                    {
+                        node.AddProperty("m_targetType", opFixedData.GetProperty<string>("m_targetType"));
+                    }
+
+                    if (opFixedData.ContainsKey("m_targetAttachment"))
+                    {
+                        var attachment = opFixedData.GetSubCollection("m_targetAttachment");
+                        var attachmentName = FindMatchingAttachmentName(attachment);
+                        node.AddProperty("m_attachmentName", attachmentName);
+                    }
+
+                    if (opFixedData.ContainsKey("m_targetBoneIndex"))
+                    {
+                        var targetBoneIndex = (int)opFixedData.GetIntegerProperty("m_targetBoneIndex");
+                        if (targetBoneIndex != -1)
+                        {
+                            var targetBoneName = GetBoneName(targetBoneIndex);
+                            node.AddProperty("m_targetBoneName", targetBoneName);
+                        }
+                        else
+                        {
+                            node.AddProperty("m_targetBoneName", "");
+                        }
+                    }
+
+                    if (opFixedData.ContainsKey("m_hPositionParam"))
+                    {
+                        var paramRef = opFixedData.GetSubCollection("m_hPositionParam");
+                        var paramType = paramRef.GetStringProperty("m_type");
+                        var paramIndex = paramRef.GetIntegerProperty("m_index");
+                        var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                        node.AddProperty("m_targetParam", paramIdValue);
+                    }
+
+                    if (opFixedData.ContainsKey("m_bMatchTargetOrientation"))
+                    {
+                        node.AddProperty("m_bMatchTargetOrientation", opFixedData.GetIntegerProperty("m_bMatchTargetOrientation") > 0);
+                    }
+
+                    if (opFixedData.ContainsKey("m_hRotationParam"))
+                    {
+                        var paramRef = opFixedData.GetSubCollection("m_hRotationParam");
+                        var paramType = paramRef.GetStringProperty("m_type");
+                        var paramIndex = paramRef.GetIntegerProperty("m_index");
+                        var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                        node.AddProperty("m_rotationParam", paramIdValue);
+                    }
+
+                    if (opFixedData.ContainsKey("m_bConstrainTwist"))
+                    {
+                        node.AddProperty("m_bConstrainTwist", opFixedData.GetIntegerProperty("m_bConstrainTwist") > 0);
+                    }
+
+                    if (opFixedData.ContainsKey("m_flMaxTwist"))
+                    {
+                        node.AddProperty("m_flMaxTwist", opFixedData.GetFloatProperty("m_flMaxTwist"));
+                    }
+
                     continue;
                 }
             }
