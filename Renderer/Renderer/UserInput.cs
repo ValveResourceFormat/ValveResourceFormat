@@ -83,7 +83,36 @@ public class UserInput
     /// <summary>
     /// Checks if a key was just released this frame (not pressed now but was pressed last frame).
     /// </summary>
-    private bool Released(TrackedKeys key) => (PreviousKeys & ~Keys & key) != 0;
+    public bool Released(TrackedKeys key) => (PreviousKeys & ~Keys & key) != 0;
+
+    private readonly Dictionary<TrackedKeys, float> lastKeyPressTimes = [];
+
+    /// <summary>
+    /// Checks if a key was pressed twice within a certain time interval.
+    /// </summary>
+    public bool PressedSuccessive(TrackedKeys key, float maxInterval)
+    {
+        if (Pressed(key))
+        {
+            var currentTime = Renderer.Uptime;
+            if (lastKeyPressTimes.TryGetValue(key, out var lastPressTime))
+            {
+                var interval = currentTime - lastPressTime;
+                lastKeyPressTimes[key] = currentTime;
+
+                if (interval <= maxInterval)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                lastKeyPressTimes[key] = currentTime;
+            }
+        }
+
+        return false;
+    }
 
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)
     {
@@ -124,7 +153,7 @@ public class UserInput
         }
 
         var wasClipping = !NoClip;
-        if (Pressed(TrackedKeys.X))
+        if (Pressed(TrackedKeys.X) || PressedSuccessive(TrackedKeys.Space, 0.5f))
         {
             NoClip = !NoClip;
             PlayerMovement.Initialize = !NoClip;
