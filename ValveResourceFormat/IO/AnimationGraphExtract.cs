@@ -25,8 +25,8 @@ public class AnimationGraphExtract
     private Dictionary<string, string[]>? modelIKChainNamesCache;
     private Dictionary<string, string[]>? modelFootNamesCache;
     private Dictionary<string, LookAtChainInfo[]>? modelLookAtChainInfoCache;
-    private Dictionary<string, string[]>? modelLookAtChainNamesCache;
     private List<KVObject>? footPinningItems;
+    private KVObject? scriptManager;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -200,7 +200,6 @@ public class AnimationGraphExtract
             return;
         }
 
-        // Build connection lookup
         var nodeInputs = new Dictionary<LayoutNode, List<LayoutConnection>>();
         var nodeOutputs = new Dictionary<LayoutNode, List<LayoutConnection>>();
 
@@ -230,7 +229,6 @@ public class AnimationGraphExtract
             getOutputConnections: n => nodeOutputs.GetValueOrDefault(n) ?? []
         );
 
-        // Apply positions to created nodes
         foreach (var (nodeId, node) in createdNodes)
         {
             var pos = layoutNodes[nodeId].Position;
@@ -451,6 +449,96 @@ public class AnimationGraphExtract
         modelIKChainNamesCache[modelName] = ikChainNames.ToArray();
         return ikChainNames.ToArray();
     }
+
+    private Dictionary<string, List<string>> LoadIKChainBonesFromModel()
+    {
+        var chainBones = new Dictionary<string, List<string>>();
+        var modelName = Graph.GetStringProperty("m_modelName");
+        if (string.IsNullOrEmpty(modelName))
+        {
+            return chainBones;
+        }
+
+        try
+        {
+            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            if (modelResource is null)
+            {
+                return chainBones;
+            }
+            if (modelResource.DataBlock is not Model modelData)
+            {
+                return chainBones;
+            }
+            var keyvalues = modelData.KeyValues;
+            if (keyvalues.ContainsKey("ikdata"))
+            {
+                var ikdata = keyvalues.GetSubCollection("ikdata");
+                if (ikdata.ContainsKey("m_IKChains"))
+                {
+                    var ikChains = ikdata.GetArray("m_IKChains");
+
+                    foreach (var chain in ikChains)
+                    {
+                        var name = chain.GetStringProperty("m_Name");
+                        if (string.IsNullOrEmpty(name))
+                        {
+                            continue;
+                        }
+
+                        var boneList = new List<string>();
+                        if (chain.ContainsKey("m_Joints"))
+                        {
+                            var joints = chain.GetArray("m_Joints");
+                            foreach (var joint in joints)
+                            {
+                                if (joint.ContainsKey("m_Bone"))
+                                {
+                                    var bone = joint.GetSubCollection("m_Bone");
+                                    var boneName = bone.GetStringProperty("m_Name");
+                                    if (!string.IsNullOrEmpty(boneName))
+                                    {
+                                        boneList.Add(boneName);
+                                    }
+                                }
+                            }
+                        }
+                        chainBones[name] = boneList;
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            return chainBones;
+        }
+        return chainBones;
+    }
+
+    private string GetIKChainNameByBoneIndices(int fixedBoneIndex, int middleBoneIndex, int endBoneIndex)
+    {
+        var fixedBoneName = GetBoneName(fixedBoneIndex);
+        var middleBoneName = GetBoneName(middleBoneIndex);
+        var endBoneName = GetBoneName(endBoneIndex);
+
+        if (string.IsNullOrEmpty(fixedBoneName) || string.IsNullOrEmpty(middleBoneName) || string.IsNullOrEmpty(endBoneName))
+        {
+            return string.Empty;
+        }
+
+        var chainBones = LoadIKChainBonesFromModel();
+        foreach (var (chainName, bones) in chainBones)
+        {
+            if (bones.Count == 3)
+            {
+                if (bones[0] == fixedBoneName && bones[1] == middleBoneName && bones[2] == endBoneName)
+                {
+                    return chainName;
+                }
+            }
+        }
+        return string.Empty;
+    }
     private string GetIKChainName(int ikChainIndex)
     {
         var ikChainNames = LoadIKChainNamesFromModel();
@@ -512,72 +600,6 @@ public class AnimationGraphExtract
         public string Name { get; set; } = string.Empty;
         public string[] BoneNames { get; set; } = [];
         public float[] BoneWeights { get; set; } = [];
-    }
-
-    private string[] LoadLookAtChainNamesFromModel()
-    {
-        var modelName = Graph.GetStringProperty("m_modelName");
-        if (string.IsNullOrEmpty(modelName))
-        {
-            return [];
-        }
-        if (modelLookAtChainNamesCache?.TryGetValue(modelName, out var cached) == true)
-        {
-            return cached;
-        }
-        var lookAtChainNames = new List<string>();
-        try
-        {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
-            if (modelResource is null)
-            {
-                return [];
-            }
-            if (modelResource.DataBlock is not Model modelData)
-            {
-                return [];
-            }
-            var keyvalues = modelData.KeyValues;
-            if (keyvalues.ContainsKey("LookAtList"))
-            {
-                var lookAtList = keyvalues.GetSubCollection("LookAtList");
-                foreach (var chainEntry in lookAtList.Properties)
-                {
-                    if (chainEntry.Value.Value is KVObject chainData)
-                    {
-                        var name = chainData.GetStringProperty("name");
-                        if (!string.IsNullOrEmpty(name))
-                        {
-                            lookAtChainNames.Add(name);
-                        }
-                    }
-                }
-            }
-            else if (keyvalues.ContainsKey("LookAtData"))
-            {
-                var lookAtData = keyvalues.GetSubCollection("LookAtData");
-                if (lookAtData.ContainsKey("m_lookAtList"))
-                {
-                    var lookAtList = lookAtData.GetArray("m_lookAtList");
-
-                    foreach (var lookAtItem in lookAtList)
-                    {
-                        var name = lookAtItem.GetStringProperty("m_sName");
-                        if (!string.IsNullOrEmpty(name))
-                        {
-                            lookAtChainNames.Add(name);
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception)
-        {
-            return [];
-        }
-        modelLookAtChainNamesCache ??= [];
-        modelLookAtChainNamesCache[modelName] = lookAtChainNames.ToArray();
-        return lookAtChainNames.ToArray();
     }
     private string[] GetBoneNamesFromIndices(KVObject compiledBones)
     {
@@ -714,7 +736,7 @@ public class AnimationGraphExtract
 
         var tagManager = data.GetSubCollection("m_pTagManagerUpdater");
         var paramListUpdater = data.GetSubCollection("m_pParamListUpdater");
-        var scriptManager = data.GetSubCollection("m_scriptManager");
+        scriptManager = data.GetSubCollection("m_scriptManager");
 
         if (data.GetArray("m_managers") is KVObject[] managers)
         {
@@ -783,10 +805,8 @@ public class AnimationGraphExtract
             }
         }
 
-        // Apply layout positions
         ApplyLayoutPositions(createdNodes, layoutNodes, connections);
 
-        // Add nodes to manager
         foreach (var (nodeId, nodeData) in createdNodes)
         {
             var nodeManagerItem = new KVObject(null, 2);
@@ -1176,16 +1196,17 @@ public class AnimationGraphExtract
                 var transitionIndices = compiledState.GetIntegerArray("m_transitionIndices");
                 var transitions = new List<KVObject>();
 
-                foreach (var transitionIndex in transitionIndices)
+                for (var transitionIndex = 0; transitionIndex < transitionIndices.Length; transitionIndex++)
                 {
-                    if (transitionIndex < 0 || transitionIndex >= compiledTransitions.Length)
+                    var globalTransitionIndex = transitionIndices[transitionIndex];
+                    if (globalTransitionIndex < 0 || globalTransitionIndex >= compiledTransitions.Length)
                     {
                         continue;
                     }
 
-                    var compiledTransition = compiledTransitions[transitionIndex];
-                    var transitionData = transitionDataArray != null && transitionIndex < transitionDataArray.Length
-                        ? transitionDataArray[transitionIndex]
+                    var compiledTransition = compiledTransitions[globalTransitionIndex];
+                    var transitionData = transitionDataArray != null && globalTransitionIndex < transitionDataArray.Length
+                        ? transitionDataArray[globalTransitionIndex]
                         : null;
 
                     var transitionNodeType = isComponent ? "CAnimComponentStateTransition" : "CAnimNodeStateTransition";
@@ -1200,7 +1221,24 @@ public class AnimationGraphExtract
                     transitionNode.AddProperty("m_bDisabled", compiledTransition.GetIntegerProperty("m_bDisabled") > 0);
 
                     var conditionList = MakeNode("CConditionContainer");
-                    conditionList.AddProperty("m_conditions", new KVObject(null, isArray: true, 0));
+                    var conditions = new List<KVObject>();
+
+                    if (compiledState.ContainsKey("m_hScript"))
+                    {
+                        var scriptHandle = compiledState.GetSubCollection("m_hScript");
+                        var scriptIndex = scriptHandle.GetIntegerProperty("m_id");
+
+                        if (scriptIndex >= 0 && scriptManager != null)
+                        {
+                            var scriptConditions = CreateConditionsFromScript(scriptIndex, transitionIndex);
+                            if (scriptConditions != null)
+                            {
+                                conditions.AddRange(scriptConditions);
+                            }
+                        }
+                    }
+
+                    conditionList.AddProperty("m_conditions", KVValue.MakeArray(conditions.ToArray()));
                     transitionNode.AddProperty("m_conditionList", conditionList);
 
                     if (!isComponent)
@@ -1298,15 +1336,43 @@ public class AnimationGraphExtract
                     if (compiledAction.ContainsKey("m_pAction"))
                     {
                         var compiledActionData = compiledAction.GetSubCollection("m_pAction");
-                        var actionData = MakeNode(compiledActionData.GetStringProperty("_class").Replace("Updater", string.Empty, StringComparison.Ordinal));
+                        var actionClassName = compiledActionData.GetStringProperty("_class");
+                        var newActionClassName = actionClassName.Replace("Updater", string.Empty, StringComparison.Ordinal);
+                        var actionData = MakeNode(newActionClassName);
+
+                        bool isExpressionAction = false;
+
+                        if (compiledActionData.ContainsKey("m_hScript"))
+                        {
+                            var scriptHandle = compiledActionData.GetSubCollection("m_hScript");
+                            var scriptIndex = scriptHandle.GetIntegerProperty("m_id");
+
+                            if (scriptIndex >= 0 && scriptManager != null)
+                            {
+                                var scriptInfoArray = scriptManager.GetArray("m_scriptInfo");
+                                if (scriptIndex < scriptInfoArray.Length)
+                                {
+                                    var scriptInfo = scriptInfoArray[scriptIndex];
+                                    var scriptType = scriptInfo.GetStringProperty("m_eScriptType");
+                                    var scriptCode = scriptInfo.GetStringProperty("m_code");
+
+                                    if (scriptType == "ANIMSCRIPT_FUSE_GENERAL" && !string.IsNullOrEmpty(scriptCode))
+                                    {
+                                        isExpressionAction = true;
+                                        actionData.AddProperty("m_expression", scriptCode);
+                                    }
+                                }
+                            }
+                        }
 
                         if (compiledActionData.ContainsKey("m_nTagIndex"))
                         {
-                            var tagId = compiledActionData.GetIntegerProperty("m_nTagIndex");
+                            var tagIndex = compiledActionData.GetIntegerProperty("m_nTagIndex");
+                            var tagId = -1L;
 
-                            if (tagId != -1)
+                            if (tagIndex != -1 && tagIndex < Tags.Length)
                             {
-                                tagId = Tags[tagId].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
                             }
 
                             actionData.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
@@ -1325,7 +1391,22 @@ public class AnimationGraphExtract
                             actionData.AddProperty("m_value", compiledActionData.GetSubCollection("m_value"));
                         }
 
+                        foreach (var (key, value) in compiledActionData.Properties)
+                        {
+                            if (key is "_class" or "m_nTagIndex" or "m_hParam" or "m_value" or "m_hScript" or "m_eScriptType" or "m_code")
+                            {
+                                continue;
+                            }
+
+                            actionData.AddProperty(key, value);
+                        }
+
                         action.AddProperty("m_pAction", actionData);
+                    }
+
+                    if (compiledAction.ContainsKey("m_eBehavior"))
+                    {
+                        action.AddProperty("m_eBehavior", compiledAction.GetProperty<string>("m_eBehavior"));
                     }
 
                     actions.Add(action);
@@ -1352,6 +1433,1106 @@ public class AnimationGraphExtract
         return states;
     }
 
+    private static int CountQuestionMarks(string script)
+    {
+        var count = 0;
+        var inParentheses = 0;
+
+        for (var i = 0; i < script.Length; i++)
+        {
+            var c = script[i];
+            if (c == '(')
+            {
+                inParentheses++;
+            }
+            else if (c == ')')
+            {
+                inParentheses--;
+            }
+            else if (c == '?' && inParentheses == 0)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private KVObject[]? CreateConditionsFromScript(long scriptIndex, int transitionIndex)
+    {
+        if (scriptManager == null || !scriptManager.ContainsKey("m_scriptInfo"))
+        {
+            return null;
+        }
+
+        var scriptInfoArray = scriptManager.GetArray("m_scriptInfo");
+        if (scriptIndex < 0 || scriptIndex >= scriptInfoArray.Length)
+        {
+            return null;
+        }
+
+        var scriptInfo = scriptInfoArray[scriptIndex];
+        var scriptCode = scriptInfo.GetStringProperty("m_code");
+        var scriptType = scriptInfo.GetStringProperty("m_eScriptType");
+
+        if (scriptType != "ANIMSCRIPT_FUSE_STATEMACHINE" || string.IsNullOrEmpty(scriptCode))
+        {
+            return null;
+        }
+
+        var conditions = ParseConditionScript(scriptCode, transitionIndex);
+
+        if (conditions == null || conditions.Count == 0)
+        {
+            var questionCount = CountQuestionMarks(scriptCode);
+            if (transitionIndex >= questionCount)
+            {
+                return null;
+            }
+
+            return null;
+        }
+
+        return conditions.ToArray();
+    }
+
+    private List<KVObject>? ParseConditionScript(string scriptCode, int targetTransitionIndex)
+    {
+        var conditions = new List<KVObject>();
+
+        var trimmedScript = scriptCode.Trim();
+        var conditionString = ExtractConditionFromTernary(trimmedScript, targetTransitionIndex);
+
+        if (string.IsNullOrEmpty(conditionString))
+        {
+            return null;
+        }
+
+        var processedCondition = RemoveAllOuterParentheses(conditionString);
+        return ParseConditionExpression(processedCondition);
+    }
+
+    private static string RemoveAllOuterParentheses(string condition)
+    {
+        var result = condition.Trim();
+
+        while (result.StartsWith('(') && result.EndsWith(')'))
+        {
+            var parenCount = 0;
+            var shouldRemove = true;
+
+            for (var i = 0; i < result.Length; i++)
+            {
+                if (result[i] == '(')
+                {
+                    parenCount++;
+                }
+                else if (result[i] == ')')
+                {
+                    parenCount--;
+                    if (parenCount == 0 && i < result.Length - 1)
+                    {
+                        shouldRemove = false;
+                        break;
+                    }
+                }
+            }
+
+            if (shouldRemove && parenCount == 0)
+            {
+                result = result[1..^1].Trim();
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    private KVObject? ParseMultiComponentCondition(string conditionString)
+    {
+        var trimmedCondition = conditionString.Trim();
+        trimmedCondition = RemoveAllOuterParentheses(trimmedCondition);
+
+        var componentConditions = SplitByOperator(trimmedCondition, "&&");
+
+        if (componentConditions.Count < 2)
+        {
+            return null;
+        }
+
+        var firstComponent = componentConditions[0].Trim();
+        firstComponent = RemoveAllOuterParentheses(firstComponent);
+
+        var dotIndex = firstComponent.IndexOf('.');
+        if (dotIndex == -1)
+        {
+            return null;
+        }
+
+        var paramName = firstComponent[..dotIndex].Trim();
+        var (foundParam, paramId, paramClass) = FindParameterByName(paramName);
+
+        if (foundParam == null)
+        {
+            return null;
+        }
+
+        string[] expectedComponents;
+        int componentType;
+
+        switch (paramClass)
+        {
+            case "CVectorAnimParameter":
+                expectedComponents = ["x", "y", "z"];
+                componentType = 5;
+                break;
+
+            case "CQuaternionAnimParameter":
+                expectedComponents = ["x", "y", "z", "w"];
+                componentType = 6;
+                break;
+
+            default:
+                return null;
+        }
+
+        if (componentConditions.Count != expectedComponents.Length)
+        {
+            return null;
+        }
+
+        var componentValues = new float[expectedComponents.Length];
+        var comparisonOp = "COMPARISON_EQUALS";
+        var foundComponents = new HashSet<string>();
+
+        foreach (var componentCondition in componentConditions)
+        {
+            var trimmedComponent = componentCondition.Trim();
+            trimmedComponent = RemoveAllOuterParentheses(trimmedComponent);
+
+            string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
+            string? foundOp = null;
+            string? leftSide = null;
+            string? rightSide = null;
+
+            foreach (var op in operators)
+            {
+                if (trimmedComponent.Contains(op))
+                {
+                    var parts = trimmedComponent.Split(op, StringSplitOptions.TrimEntries);
+                    if (parts.Length == 2)
+                    {
+                        leftSide = parts[0];
+                        rightSide = parts[1];
+                        foundOp = op;
+                        break;
+                    }
+                }
+            }
+
+            if (foundOp == null || leftSide == null || rightSide == null)
+            {
+                continue;
+            }
+
+            comparisonOp = foundOp switch
+            {
+                "==" => "COMPARISON_EQUALS",
+                "!=" => "COMPARISON_NOT_EQUALS",
+                ">" => "COMPARISON_GREATER",
+                ">=" => "COMPARISON_GREATER_OR_EQUAL",
+                "<" => "COMPARISON_LESS",
+                "<=" => "COMPARISON_LESS_OR_EQUAL",
+                _ => "COMPARISON_EQUALS"
+            };
+
+            var componentDotIndex = leftSide.IndexOf('.');
+            if (componentDotIndex == -1)
+            {
+                continue;
+            }
+
+            var component = leftSide[(componentDotIndex + 1)..].Trim().ToLowerInvariant();
+            if (!expectedComponents.Contains(component))
+            {
+                continue;
+            }
+
+            if (foundComponents.Contains(component))
+            {
+                continue;
+            }
+
+            foundComponents.Add(component);
+            var cleanRightSide = rightSide.Trim('(', ')', ' ');
+            if (!float.TryParse(cleanRightSide, out var floatValue))
+            {
+                continue;
+            }
+
+            var componentIndex = Array.IndexOf(expectedComponents, component);
+            if (componentIndex >= 0 && componentIndex < componentValues.Length)
+            {
+                componentValues[componentIndex] = floatValue;
+            }
+        }
+
+        if (foundComponents.Count != expectedComponents.Length)
+        {
+            return null;
+        }
+
+        var paramCondition = MakeNode("CParameterCondition");
+        paramCondition.AddProperty("m_paramID", MakeNodeIdObjectValue(paramId));
+        paramCondition.AddProperty("m_comparisonOp", comparisonOp);
+        paramCondition.AddProperty("m_comparisonString", "");
+
+        var comparisonValue = new KVObject(null, 2);
+        comparisonValue.AddProperty("m_nType", componentType);
+
+        var componentArray = new KVObject(null, isArray: true, componentValues.Length);
+        for (int i = 0; i < componentValues.Length; i++)
+        {
+            componentArray.AddItem(new KVValue(ValveKeyValue.KVValueType.FloatingPoint, componentValues[i]));
+        }
+
+        comparisonValue.AddProperty("m_data", componentArray);
+        paramCondition.AddProperty("m_comparisonValue", comparisonValue);
+
+        return paramCondition;
+    }
+
+    private List<KVObject>? ParseConditionExpression(string conditionExpression)
+    {
+        var conditions = new List<KVObject>();
+
+        var multiComponentCondition = ParseMultiComponentCondition(conditionExpression);
+        if (multiComponentCondition != null)
+        {
+            conditions.Add(multiComponentCondition);
+            return conditions.Count > 0 ? conditions : null;
+        }
+
+        var andParts = SplitByOperator(conditionExpression, "&&");
+
+        if (andParts.Count > 1)
+        {
+            foreach (var andPart in andParts)
+            {
+                var trimmedPart = andPart.Trim();
+                var orParts = SplitByOperator(trimmedPart, "||");
+
+                if (orParts.Count > 1)
+                {
+                    var orCondition = CreateOrCondition(orParts);
+                    if (orCondition != null)
+                    {
+                        conditions.Add(orCondition);
+                    }
+                }
+                else
+                {
+                    var condition = ParseAtomicCondition(trimmedPart);
+                    if (condition != null)
+                    {
+                        conditions.Add(condition);
+                    }
+                }
+            }
+        }
+        else
+        {
+            var trimmedExpression = conditionExpression.Trim();
+            var orParts = SplitByOperator(trimmedExpression, "||");
+
+            if (orParts.Count > 1)
+            {
+                var orCondition = CreateOrCondition(orParts);
+                if (orCondition != null)
+                {
+                    conditions.Add(orCondition);
+                }
+            }
+            else
+            {
+                var condition = ParseAtomicCondition(trimmedExpression);
+                if (condition != null)
+                {
+                    conditions.Add(condition);
+                }
+            }
+        }
+
+        return conditions.Count > 0 ? conditions : null;
+    }
+
+    private static List<string> SplitByOperator(string expression, string op)
+    {
+        var result = new List<string>();
+        var currentPart = new StringBuilder();
+        var parenCount = 0;
+
+        for (var i = 0; i < expression.Length; i++)
+        {
+            var c = expression[i];
+
+            if (c == '(')
+            {
+                parenCount++;
+            }
+            else if (c == ')')
+            {
+                parenCount--;
+            }
+
+            if (parenCount == 0 && i + op.Length <= expression.Length)
+            {
+                var potentialOp = expression.Substring(i, op.Length);
+                if (potentialOp == op)
+                {
+                    var trimmedPart = currentPart.ToString().Trim();
+                    if (!string.IsNullOrEmpty(trimmedPart))
+                    {
+                        var cleanedPart = RemoveAllOuterParentheses(trimmedPart);
+                        result.Add(cleanedPart);
+                    }
+                    currentPart.Clear();
+                    i += op.Length - 1;
+                    continue;
+                }
+            }
+
+            currentPart.Append(c);
+        }
+
+        var finalPart = currentPart.ToString().Trim();
+        if (!string.IsNullOrEmpty(finalPart))
+        {
+            var cleanedPart = RemoveAllOuterParentheses(finalPart);
+            result.Add(cleanedPart);
+        }
+
+        return result;
+    }
+
+    private KVObject? CreateOrCondition(List<string> orParts)
+    {
+        if (orParts.Count < 2)
+        {
+            return null;
+        }
+
+        var orCondition = MakeNode("COrCondition");
+        var subConditions = new List<KVObject>();
+
+        foreach (var orPart in orParts)
+        {
+            var trimmedPart = orPart.Trim();
+            var condition = ParseAtomicCondition(trimmedPart);
+            if (condition != null)
+            {
+                subConditions.Add(condition);
+            }
+        }
+
+        if (subConditions.Count == 0)
+        {
+            return null;
+        }
+
+        orCondition.AddProperty("m_conditions", KVValue.MakeArray(subConditions.ToArray()));
+        return orCondition;
+    }
+
+    private KVObject? ParseAtomicCondition(string conditionString)
+    {
+        var trimmedCondition = conditionString.Trim();
+        trimmedCondition = RemoveAllOuterParentheses(trimmedCondition);
+
+        var multiComponentCondition = ParseMultiComponentCondition(trimmedCondition);
+        if (multiComponentCondition != null)
+        {
+            return multiComponentCondition;
+        }
+
+        if (trimmedCondition.StartsWith("GetStateWeight(") || trimmedCondition.StartsWith("GetTotalTranslation_"))
+        {
+            return ParseStateStatusCondition(trimmedCondition);
+        }
+
+        if (trimmedCondition.StartsWith("IsTagActive(") || trimmedCondition.StartsWith("!IsTagActive("))
+        {
+            return ParseTagCondition(trimmedCondition);
+        }
+
+        if (trimmedCondition.Contains("GetTimeTillFinished()"))
+        {
+            return ParseFinishedCondition(trimmedCondition);
+        }
+
+        if (trimmedCondition.Contains("GetTimeInState()"))
+        {
+            return ParseTimeCondition(trimmedCondition);
+        }
+
+        if (trimmedCondition.Contains("GetCycle()"))
+        {
+            return ParseCycleCondition(trimmedCondition);
+        }
+
+        return ParseParameterCondition(trimmedCondition);
+    }
+
+    private KVObject? ParseStateStatusCondition(string conditionString)
+    {
+        var stateStatusCondition = MakeNode("CStateStatusCondition");
+        var leftSide = conditionString;
+        string? rightSide = null;
+        string? comparisonOperator = null;
+
+        string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
+        foreach (var op in operators)
+        {
+            if (conditionString.Contains(op))
+            {
+                var parts = conditionString.Split(op, StringSplitOptions.TrimEntries);
+                if (parts.Length == 2)
+                {
+                    leftSide = parts[0];
+                    rightSide = parts[1];
+                    comparisonOperator = op;
+                    break;
+                }
+            }
+        }
+
+        if (comparisonOperator == null)
+        {
+            return null;
+        }
+
+        var comparisonOp = comparisonOperator switch
+        {
+            "==" => "COMPARISON_EQUALS",
+            "!=" => "COMPARISON_NOT_EQUALS",
+            ">" => "COMPARISON_GREATER",
+            ">=" => "COMPARISON_GREATER_OR_EQUAL",
+            "<" => "COMPARISON_LESS",
+            "<=" => "COMPARISON_LESS_OR_EQUAL",
+            _ => "COMPARISON_EQUALS"
+        };
+
+        stateStatusCondition.AddProperty("m_comparisonOp", comparisonOp);
+        var sourceValue = leftSide switch
+        {
+            var s when s.StartsWith("GetStateWeight(0)") => "SourceStateBlendWeight",
+            var s when s.StartsWith("GetStateWeight(1)") => "TargetStateBlendWeight",
+            var s when s.StartsWith("GetTotalTranslation_SourceState()") => "TotalTranslation_SourceState",
+            var s when s.StartsWith("GetTotalTranslation_TargetState()") => "TotalTranslation_TargetState",
+            _ => "SourceStateBlendWeight"
+        };
+
+        stateStatusCondition.AddProperty("m_sourceValue", sourceValue);
+
+        if (rightSide != null)
+        {
+            if (rightSide.StartsWith("GetStateWeight(") || rightSide.StartsWith("GetTotalTranslation_"))
+            {
+                var comparisonStateValue = rightSide switch
+                {
+                    var s when s.StartsWith("GetStateWeight(0)") => "SourceStateBlendWeight",
+                    var s when s.StartsWith("GetStateWeight(1)") => "TargetStateBlendWeight",
+                    var s when s.StartsWith("GetTotalTranslation_SourceState()") => "TotalTranslation_SourceState",
+                    var s when s.StartsWith("GetTotalTranslation_TargetState()") => "TotalTranslation_TargetState",
+                    _ => "SourceStateBlendWeight"
+                };
+
+                stateStatusCondition.AddProperty("m_comparisonValueType", "StateComparisonValue_StateValue");
+                stateStatusCondition.AddProperty("m_comparisonStateValue", comparisonStateValue);
+                stateStatusCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
+                stateStatusCondition.AddProperty("m_comparisonFixedValue", 0.0f);
+            }
+            else if (rightSide.All(c => char.IsLetterOrDigit(c) || c == '_') && !rightSide.Contains('.'))
+            {
+                return HandleParameterComparison(stateStatusCondition, rightSide, sourceValue);
+            }
+            else
+            {
+                var cleanRightSide = rightSide.Trim('(', ')', ' ');
+                if (float.TryParse(cleanRightSide, out var floatValue))
+                {
+                    stateStatusCondition.AddProperty("m_comparisonValueType", "StateComparisonValue_FixedValue");
+                    stateStatusCondition.AddProperty("m_comparisonFixedValue", floatValue);
+                    stateStatusCondition.AddProperty("m_comparisonStateValue", sourceValue);
+                    stateStatusCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
+
+        return stateStatusCondition;
+    }
+
+    private KVObject? ParseTagCondition(string conditionString)
+    {
+        bool isTagActive = true;
+        string tagName;
+
+        if (conditionString.StartsWith("!IsTagActive("))
+        {
+            isTagActive = false;
+            tagName = conditionString["!IsTagActive(".Length..^1].Trim();
+        }
+        else
+        {
+            tagName = conditionString["IsTagActive(".Length..^1].Trim();
+        }
+
+        var tagCondition = MakeNode("CTagCondition");
+        long tagId = FindTagIdByName(tagName);
+        tagCondition.AddProperty("m_tagID", MakeNodeIdObjectValue(tagId));
+        tagCondition.AddProperty("m_comparisonValue", isTagActive);
+        return tagCondition;
+    }
+
+    private static KVObject? ParseFinishedCondition(string conditionString)
+    {
+        var timeCondition = MakeNode("CFinishedCondition");
+
+        if (conditionString.Contains("<="))
+        {
+            var parts = conditionString.Split("<=", StringSplitOptions.TrimEntries);
+            var valueStr = parts[1].Trim('(', ')', ' ');
+
+            if (float.TryParse(valueStr, out var value))
+            {
+                if (value == 0.0f)
+                {
+                    timeCondition.AddProperty("m_option", "FinishedConditionOption_OnFinished");
+                }
+                else
+                {
+                    timeCondition.AddProperty("m_option", "FinishedConditionOption_OnAlmostFinished");
+                }
+                timeCondition.AddProperty("m_bIsFinished", true);
+            }
+        }
+        else if (conditionString.Contains(">="))
+        {
+            var parts = conditionString.Split(">=", StringSplitOptions.TrimEntries);
+            var valueStr = parts[1].Trim('(', ')', ' ');
+
+            if (float.TryParse(valueStr, out var value))
+            {
+                timeCondition.AddProperty("m_option", "FinishedConditionOption_OnFinished");
+                timeCondition.AddProperty("m_bIsFinished", value <= 0.0f);
+            }
+        }
+        else if (conditionString.Contains("=="))
+        {
+            var parts = conditionString.Split("==", StringSplitOptions.TrimEntries);
+            var valueStr = parts[1].Trim('(', ')', ' ');
+
+            if (float.TryParse(valueStr, out var value))
+            {
+                if (value == 0.0f)
+                {
+                    timeCondition.AddProperty("m_option", "FinishedConditionOption_OnFinished");
+                }
+                else
+                {
+                    timeCondition.AddProperty("m_option", "FinishedConditionOption_OnAlmostFinished");
+                }
+                timeCondition.AddProperty("m_bIsFinished", true);
+            }
+        }
+        else
+        {
+            timeCondition.AddProperty("m_option", "FinishedConditionOption_OnFinished");
+            timeCondition.AddProperty("m_bIsFinished", true);
+        }
+        return timeCondition;
+    }
+
+    private static KVObject? ParseTimeCondition(string conditionString)
+    {
+        var timeCondition = MakeNode("CTimeCondition");
+        string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
+        string? foundOp = null;
+        foreach (var op in operators)
+        {
+            if (conditionString.Contains(op))
+            {
+                foundOp = op;
+                break;
+            }
+        }
+
+        if (foundOp != null)
+        {
+            var parts = conditionString.Split(foundOp, StringSplitOptions.TrimEntries);
+            if (parts.Length == 2)
+            {
+                var valueStr = parts[1].Trim('(', ')', ' ');
+                var comparisonOp = foundOp switch
+                {
+                    "==" => "COMPARISON_EQUALS",
+                    "!=" => "COMPARISON_NOT_EQUALS",
+                    ">" => "COMPARISON_GREATER",
+                    ">=" => "COMPARISON_GREATER_OR_EQUAL",
+                    "<" => "COMPARISON_LESS",
+                    "<=" => "COMPARISON_LESS_OR_EQUAL",
+                    _ => "COMPARISON_EQUALS"
+                };
+
+                timeCondition.AddProperty("m_comparisonOp", comparisonOp);
+                timeCondition.AddProperty("m_comparisonString", valueStr);
+                return timeCondition;
+            }
+        }
+        return null;
+    }
+
+    private static KVObject? ParseCycleCondition(string conditionString)
+    {
+        var cycleCondition = MakeNode("CCycleCondition");
+        string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
+        string? foundOp = null;
+        foreach (var op in operators)
+        {
+            if (conditionString.Contains(op))
+            {
+                foundOp = op;
+                break;
+            }
+        }
+
+        if (foundOp != null)
+        {
+            var parts = conditionString.Split(foundOp, StringSplitOptions.TrimEntries);
+            if (parts.Length == 2)
+            {
+                var valueStr = parts[1].Trim('(', ')', ' ');
+                var comparisonOp = foundOp switch
+                {
+                    "==" => "COMPARISON_EQUALS",
+                    "!=" => "COMPARISON_NOT_EQUALS",
+                    ">" => "COMPARISON_GREATER",
+                    ">=" => "COMPARISON_GREATER_OR_EQUAL",
+                    "<" => "COMPARISON_LESS",
+                    "<=" => "COMPARISON_LESS_OR_EQUAL",
+                    _ => "COMPARISON_EQUALS"
+                };
+
+                cycleCondition.AddProperty("m_comparisonOp", comparisonOp);
+                cycleCondition.AddProperty("m_comparisonString", valueStr);
+
+                if (float.TryParse(valueStr, out var floatValue))
+                {
+                    cycleCondition.AddProperty("m_comparisonValue", floatValue);
+                }
+                else
+                {
+                    cycleCondition.AddProperty("m_comparisonValue", 0.0f);
+                }
+
+                cycleCondition.AddProperty("m_comparisonValueType", "COMPARISONVALUETYPE_FIXEDVALUE");
+                cycleCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
+                return cycleCondition;
+            }
+        }
+        return null;
+    }
+
+    private KVObject? ParseParameterCondition(string conditionString)
+    {
+        var cleanedCondition = conditionString.Replace(" (", " ").Replace("( ", " ").Trim('(', ')').Trim();
+
+        if (cleanedCondition.Contains('.') && (cleanedCondition.Contains(".x") || cleanedCondition.Contains(".y") ||
+        cleanedCondition.Contains(".z") || cleanedCondition.Contains(".w")))
+        {
+            return null;
+        }
+
+        string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
+        string? foundOp = null;
+        string? leftSide = null;
+        string? rightSide = null;
+
+        foreach (var op in operators)
+        {
+            var index = cleanedCondition.IndexOf(op);
+            if (index >= 0)
+            {
+                foundOp = op;
+                leftSide = cleanedCondition[..index].Trim();
+                rightSide = cleanedCondition[(index + op.Length)..].Trim();
+                break;
+            }
+        }
+
+        if (foundOp == null || leftSide == null || rightSide == null)
+        {
+            return null;
+        }
+
+        rightSide = rightSide.Trim('(', ')', ' ');
+        var (foundParam, paramId, paramClass) = FindParameterByName(leftSide);
+
+        if (foundParam == null || paramClass == null)
+        {
+            return null;
+        }
+
+        var paramCondition = MakeNode("CParameterCondition");
+        paramCondition.AddProperty("m_paramID", MakeNodeIdObjectValue(paramId));
+
+        var comparisonOp = foundOp switch
+        {
+            "==" => "COMPARISON_EQUALS",
+            "!=" => "COMPARISON_NOT_EQUALS",
+            ">" => "COMPARISON_GREATER",
+            ">=" => "COMPARISON_GREATER_OR_EQUAL",
+            "<" => "COMPARISON_LESS",
+            "<=" => "COMPARISON_LESS_OR_EQUAL",
+            _ => "COMPARISON_EQUALS"
+        };
+
+        paramCondition.AddProperty("m_comparisonOp", comparisonOp);
+        var comparisonValue = new KVObject(null, 2);
+
+        if (paramClass == "CEnumAnimParameter")
+        {
+            comparisonValue.AddProperty("m_nType", 2);
+
+            if (int.TryParse(rightSide, out var intValue))
+            {
+                comparisonValue.AddProperty("m_data", intValue);
+
+                if (foundParam.ContainsKey("m_enumOptions"))
+                {
+                    var enumOptions = foundParam.GetArray<string>("m_enumOptions");
+                    if (intValue >= 0 && intValue < enumOptions.Length)
+                    {
+                        paramCondition.AddProperty("m_comparisonString", enumOptions[intValue]);
+                    }
+                }
+            }
+        }
+        else if (paramClass == "CFloatAnimParameter")
+        {
+            comparisonValue.AddProperty("m_nType", 4);
+
+            if (float.TryParse(rightSide, out var floatValue))
+            {
+                comparisonValue.AddProperty("m_data", floatValue);
+            }
+        }
+        else if (paramClass == "CIntAnimParameter")
+        {
+            comparisonValue.AddProperty("m_nType", 3);
+
+            if (int.TryParse(rightSide, out var intValue))
+            {
+                comparisonValue.AddProperty("m_data", intValue);
+            }
+        }
+        else if (paramClass == "CBoolAnimParameter")
+        {
+            comparisonValue.AddProperty("m_nType", 1);
+
+            var boolValue = rightSide == "1" || rightSide.Equals("true", StringComparison.OrdinalIgnoreCase);
+            comparisonValue.AddProperty("m_data", boolValue);
+            paramCondition.AddProperty("m_comparisonString", boolValue ? "True" : "False");
+        }
+        else
+        {
+            comparisonValue.AddProperty("m_nType", 4);
+
+            if (float.TryParse(rightSide, out var floatValue))
+            {
+                comparisonValue.AddProperty("m_data", floatValue);
+            }
+        }
+
+        paramCondition.AddProperty("m_comparisonValue", comparisonValue);
+        return paramCondition;
+    }
+
+    private KVObject HandleParameterComparison(KVObject stateStatusCondition, string paramName, string sourceValue)
+    {
+        var (foundParam, paramId, _) = FindParameterByName(paramName);
+
+        if (foundParam != null)
+        {
+            stateStatusCondition.AddProperty("m_comparisonValueType", "StateComparisonValue_Parameter");
+            stateStatusCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(paramId));
+            stateStatusCondition.AddProperty("m_comparisonStateValue", sourceValue);
+            stateStatusCondition.AddProperty("m_comparisonFixedValue", 0.0f);
+        }
+        else
+        {
+            if (float.TryParse(paramName, out var floatValue))
+            {
+                stateStatusCondition.AddProperty("m_comparisonValueType", "StateComparisonValue_FixedValue");
+                stateStatusCondition.AddProperty("m_comparisonFixedValue", floatValue);
+                stateStatusCondition.AddProperty("m_comparisonStateValue", sourceValue);
+                stateStatusCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
+            }
+        }
+
+        return stateStatusCondition;
+    }
+
+    private (KVObject? param, long paramId, string? paramClass) FindParameterByName(string paramName)
+    {
+        if (paramName.Contains('.'))
+        {
+            var baseParamName = paramName[..paramName.IndexOf('.')];
+            paramName = baseParamName;
+        }
+
+        for (var i = 0; i < Parameters.Length; i++)
+        {
+            var param = Parameters[i];
+            var currentParamName = param.GetStringProperty("m_name");
+            var currentParamClass = param.GetStringProperty("_class");
+
+            if (currentParamName == paramName)
+            {
+                var paramId = param.GetSubCollection("m_id").GetIntegerProperty("m_id");
+                return (param, paramId, currentParamClass);
+            }
+        }
+
+        var paramNameWithSpaces = paramName.Replace('_', ' ');
+        for (var i = 0; i < Parameters.Length; i++)
+        {
+            var param = Parameters[i];
+            var currentParamName = param.GetStringProperty("m_name");
+
+            if (currentParamName == paramNameWithSpaces)
+            {
+                var paramId = param.GetSubCollection("m_id").GetIntegerProperty("m_id");
+                var paramClass = param.GetStringProperty("_class");
+                return (param, paramId, paramClass);
+            }
+        }
+
+        return (null, -1, null);
+    }
+
+    private long FindTagIdByName(string tagName)
+    {
+        long tagId = -1;
+
+        for (var i = 0; i < Tags.Length; i++)
+        {
+            var tag = Tags[i];
+            var currentTagName = tag.GetStringProperty("m_name");
+
+            if (currentTagName == tagName)
+            {
+                tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                return tagId;
+            }
+        }
+
+        if (tagId == -1 && tagName.StartsWith("TAG_", StringComparison.Ordinal))
+        {
+            var tagNameWithoutPrefix = tagName["TAG_".Length..];
+
+            for (var i = 0; i < Tags.Length; i++)
+            {
+                var tag = Tags[i];
+                var currentTagName = tag.GetStringProperty("m_name");
+
+                if (currentTagName == tagNameWithoutPrefix)
+                {
+                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                    return tagId;
+                }
+            }
+        }
+
+        if (tagId == -1 && tagName.StartsWith("TAG_", StringComparison.Ordinal))
+        {
+            var tagNameWithoutPrefix = tagName["TAG_".Length..];
+            var tagNameWithoutPrefixSpaces = tagNameWithoutPrefix.Replace('_', ' ');
+
+            for (var i = 0; i < Tags.Length; i++)
+            {
+                var tag = Tags[i];
+                var currentTagName = tag.GetStringProperty("m_name");
+
+                if (string.Equals(currentTagName, tagNameWithoutPrefixSpaces, StringComparison.OrdinalIgnoreCase))
+                {
+                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                    return tagId;
+                }
+            }
+        }
+
+        if (tagId == -1)
+        {
+            for (var i = 0; i < Tags.Length; i++)
+            {
+                var tag = Tags[i];
+                var currentTagName = tag.GetStringProperty("m_name");
+
+                if (string.Equals(currentTagName, tagName, StringComparison.OrdinalIgnoreCase))
+                {
+                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                    return tagId;
+                }
+            }
+        }
+
+        if (tagId == -1 && tagName.StartsWith("TAG_", StringComparison.Ordinal))
+        {
+            var tagNameWithoutPrefix = tagName["TAG_".Length..];
+
+            for (var i = 0; i < Tags.Length; i++)
+            {
+                var tag = Tags[i];
+                var currentTagName = tag.GetStringProperty("m_name");
+
+                if (string.Equals(currentTagName, tagNameWithoutPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                    return tagId;
+                }
+            }
+        }
+
+        return tagId;
+    }
+
+    private static string ExtractConditionFromTernary(string script, int index)
+    {
+        var currentScript = script.Trim();
+        var currentIndex = 0;
+
+        while (currentIndex <= index)
+        {
+            var questionPos = FindMatchingQuestionMark(currentScript, 0);
+            if (questionPos == -1)
+            {
+                return string.Empty;
+            }
+
+            if (currentIndex == index)
+            {
+                var condition = currentScript[..questionPos].Trim();
+                return condition;
+            }
+
+            var colonPos = FindMatchingColon(currentScript, questionPos);
+            if (colonPos == -1)
+            {
+                return string.Empty;
+            }
+
+            var afterColon = currentScript[(colonPos + 1)..].Trim();
+            if (afterColon.StartsWith("(-1)"))
+            {
+                return string.Empty;
+            }
+
+            currentScript = afterColon;
+
+            if (currentScript.StartsWith('('))
+            {
+                var matchingParen = FindMatchingParenthesis(currentScript, 0);
+                if (matchingParen == currentScript.Length - 1)
+                {
+                    currentScript = currentScript[1..^1].Trim();
+                }
+            }
+
+            currentIndex++;
+        }
+
+        return string.Empty;
+    }
+
+    private static int FindMatchingQuestionMark(string script, int startPos)
+    {
+        var parenCount = 0;
+        for (var i = startPos; i < script.Length; i++)
+        {
+            var c = script[i];
+            if (c == '(')
+            {
+                parenCount++;
+            }
+            else if (c == ')')
+            {
+                parenCount--;
+            }
+            else if (c == '?' && parenCount == 0)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int FindMatchingColon(string script, int questionPos)
+    {
+        var parenCount = 0;
+        for (var i = questionPos + 1; i < script.Length; i++)
+        {
+            var c = script[i];
+            if (c == '(')
+            {
+                parenCount++;
+            }
+            else if (c == ')')
+            {
+                parenCount--;
+            }
+            else if (c == ':' && parenCount == 0)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int FindMatchingParenthesis(string script, int startPos)
+    {
+        if (script[startPos] != '(')
+        {
+            return -1;
+        }
+
+        var parenCount = 1;
+        for (var i = startPos + 1; i < script.Length; i++)
+        {
+            var c = script[i];
+            if (c == '(')
+            {
+                parenCount++;
+            }
+            else if (c == ')')
+            {
+                parenCount--;
+                if (parenCount == 0)
+                {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
     private KVObject ConvertComponent(KVObject compiledComponent)
     {
         var className = compiledComponent.GetStringProperty("_class");
@@ -1368,7 +2549,6 @@ public class AnimationGraphExtract
             component.AddProperty("m_networkMode", compiledComponent.GetProperty<string>("m_networkMode"));
         }
 
-        // Action Component
         if (className == "CActionComponentUpdater")
         {
             if (compiledComponent.ContainsKey("m_actions"))
@@ -1407,7 +2587,30 @@ public class AnimationGraphExtract
                             continue;
                         }
 
-                        if (actionKey is "m_hScript" or "m_eParamType")
+                        if (actionKey == "m_hScript")
+                        {
+                            var scriptHandle = (KVObject)actionValue.Value!;
+                            var scriptIndex = scriptHandle.GetIntegerProperty("m_id");
+
+                            if (scriptIndex >= 0 && scriptManager != null)
+                            {
+                                var scriptInfoArray = scriptManager.GetArray("m_scriptInfo");
+                                if (scriptIndex < scriptInfoArray.Length)
+                                {
+                                    var scriptInfo = scriptInfoArray[scriptIndex];
+                                    var scriptType = scriptInfo.GetStringProperty("m_eScriptType");
+                                    var scriptCode = scriptInfo.GetStringProperty("m_code");
+
+                                    if (scriptType == "ANIMSCRIPT_FUSE_GENERAL" && !string.IsNullOrEmpty(scriptCode))
+                                    {
+                                        newAction.AddProperty("m_expression", scriptCode);
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+
+                        if (actionKey is "m_eScriptType" or "m_code")
                         {
                             continue;
                         }
@@ -1424,7 +2627,6 @@ public class AnimationGraphExtract
             return component;
         }
 
-        // Look Component
         if (className == "CLookComponentUpdater")
         {
             component.AddProperty("m_bNetworkLookTarget", compiledComponent.GetIntegerProperty("m_bNetworkLookTarget") > 0);
@@ -1462,7 +2664,6 @@ public class AnimationGraphExtract
             return component;
         }
 
-        // Slope Component
         if (className == "CSlopeComponentUpdater")
         {
             var slopeangleParam = compiledComponent.GetSubCollection("m_hSlopeAngle");
@@ -1498,7 +2699,6 @@ public class AnimationGraphExtract
             return component;
         }
 
-        // Ragdoll Component
         if (className == "CRagdollComponentUpdater")
         {
             if (compiledComponent.ContainsKey("m_weightLists"))
@@ -1553,7 +2753,6 @@ public class AnimationGraphExtract
             return component;
         }
 
-        // Damped Value Component
         if (className == "CDampedValueComponentUpdater")
         {
             component.AddProperty("m_name", compiledComponent.GetProperty<string>("m_name"));
@@ -1599,7 +2798,6 @@ public class AnimationGraphExtract
             return component;
         }
 
-        // VR Input Component
         if (className == "CVRInputComponentUpdater")
         {
             string[] paramProperties =
@@ -1629,7 +2827,6 @@ public class AnimationGraphExtract
             return component;
         }
 
-        // State Machine Component
         if (className == "CStateMachineComponentUpdater")
         {
             component.AddProperty("m_sName", compiledComponent.GetProperty<string>("m_name"));
@@ -1722,7 +2919,6 @@ public class AnimationGraphExtract
             return nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true ? nodeId : -1L;
         }).Where(id => id != -1).ToArray();
 
-        // Collect connections from m_children
         if (inputNodeIds != null)
         {
             outConnections.AddRange(inputNodeIds);
@@ -1738,7 +2934,6 @@ public class AnimationGraphExtract
             var newKey = key;
             var subCollection = new Lazy<KVObject>(() => (KVObject)value.Value!);
 
-            // Common remapped key
             if (key == "m_name" && className is "CLeanMatrix" or "CAdd" or "CAimMatrix" or "CBindPose" or "CBlend2D"
                 or "CBlend" or "CBoneMask" or "CChoice" or "CChoreo" or "CCycleControl" or "CCycleControlClip"
                 or "CDirectionalBlend" or "CDirectPlayback" or "CFollowAttachment" or "CFollowPath" or "CFootAdjustment" or "CFootLock"
@@ -1788,7 +2983,6 @@ public class AnimationGraphExtract
 
             if (className == "CRoot")
             {
-                // Get the input connection of the final pose (root node)
                 if (key == "m_pChildNode")
                 {
                     var finalNodeInputIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
@@ -3814,8 +5008,11 @@ public class AnimationGraphExtract
                 else if (key == "m_opFixedData")
                 {
                     var opFixedData = subCollection.Value;
+                    var ikChainNames = LoadIKChainNamesFromModel();
+                    var foundChainName = "";
 
-                    if (opFixedData.ContainsKey("m_nFixedBoneIndex") &&
+                    if (string.IsNullOrEmpty(foundChainName) &&
+                        opFixedData.ContainsKey("m_nFixedBoneIndex") &&
                         opFixedData.ContainsKey("m_nMiddleBoneIndex") &&
                         opFixedData.ContainsKey("m_nEndBoneIndex"))
                     {
@@ -3823,35 +5020,9 @@ public class AnimationGraphExtract
                         var middleBoneIndex = (int)opFixedData.GetIntegerProperty("m_nMiddleBoneIndex");
                         var endBoneIndex = (int)opFixedData.GetIntegerProperty("m_nEndBoneIndex");
 
-                        var ikChainNames = LoadIKChainNamesFromModel();
-                        var foundChainName = "";
-
-                        if (ikChainNames.Length > 0)
-                        {
-                            var fixedBoneName = GetBoneName(fixedBoneIndex).ToLowerInvariant();
-
-                            foreach (var chainName in ikChainNames)
-                            {
-                                var lowerChainName = chainName.ToLowerInvariant();
-
-                                if ((fixedBoneName.Contains("arm") && lowerChainName.Contains("arm")) ||
-                                    (fixedBoneName.Contains("leg") && lowerChainName.Contains("leg")) ||
-                                    (fixedBoneName.Contains("hand") && lowerChainName.Contains("hand")) ||
-                                    (fixedBoneName.Contains("foot") && lowerChainName.Contains("foot")))
-                                {
-                                    foundChainName = chainName;
-                                    break;
-                                }
-                            }
-
-                            if (string.IsNullOrEmpty(foundChainName))
-                            {
-                                foundChainName = ikChainNames[0];
-                            }
-                        }
-
-                        node.AddProperty("m_ikChainName", foundChainName);
+                        foundChainName = GetIKChainNameByBoneIndices(fixedBoneIndex, middleBoneIndex, endBoneIndex);
                     }
+                    node.AddProperty("m_ikChainName", foundChainName);
 
                     if (opFixedData.ContainsKey("m_bAlwaysUseFallbackHinge"))
                     {
@@ -3934,6 +5105,41 @@ public class AnimationGraphExtract
                         node.AddProperty("m_flMaxTwist", opFixedData.GetFloatProperty("m_flMaxTwist"));
                     }
 
+                    continue;
+                }
+            }
+            else if (className == "CSingleFrame")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+
+                    var colonIndex = nameValue.LastIndexOf(':');
+                    if (colonIndex != -1)
+                    {
+                        var frameIndexStr = nameValue[(colonIndex + 1)..].Trim();
+                        if (int.TryParse(frameIndexStr, out var frameIndex))
+                        {
+                            node.AddProperty("m_nFrameIndex", frameIndex);
+                        }
+                    }
+                    continue;
+                }
+                else if (key == "m_hSequence")
+                {
+                    var sequenceIndex = compiledNode.GetIntegerProperty("m_hSequence");
+                    var sequenceName = GetSequenceName(sequenceIndex);
+                    node.AddProperty("m_sequenceName", sequenceName);
+                    continue;
+                }
+                else if (key == "m_hPoseCacheHandle")
+                {
+                    node.AddProperty("m_eFrameSelection", "SpecificFrame");
+                    continue;
+                }
+                else if (key == "m_flCycle")
+                {
                     continue;
                 }
             }
