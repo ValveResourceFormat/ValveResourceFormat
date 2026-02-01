@@ -26,6 +26,7 @@ public class AnimationGraphExtract
     private Dictionary<string, string[]>? modelFootNamesCache;
     private Dictionary<string, LookAtChainInfo[]>? modelLookAtChainInfoCache;
     private Dictionary<string, string[]>? modelLookAtChainNamesCache;
+    private List<KVObject>? footPinningItems;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -1707,6 +1708,7 @@ public class AnimationGraphExtract
 
     private KVObject ConvertToUncompiled(KVObject compiledNode, List<long> outConnections)
     {
+        footPinningItems = new List<KVObject>();
         var className = compiledNode.GetProperty<string>("_class");
         className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
 
@@ -2538,7 +2540,7 @@ public class AnimationGraphExtract
                     if (poseOpFixedData.ContainsKey("m_footInfo"))
                     {
                         var footInfoArray = poseOpFixedData.GetArray("m_footInfo");
-                        var convertedItems = new List<KVObject>();
+                        footPinningItems = new List<KVObject>();
 
                         foreach (var footInfo in footInfoArray)
                         {
@@ -2589,11 +2591,11 @@ public class AnimationGraphExtract
                             {
                                 convertedItem.AddProperty("m_flMaxRotationRight", footInfo.GetFloatProperty("m_flMaxRotationRight"));
                             }
-                            convertedItems.Add(convertedItem);
+                            footPinningItems.Add(convertedItem);
                         }
-                        if (convertedItems.Count > 0)
+                        if (footPinningItems.Count > 0)
                         {
-                            node.AddProperty("m_items", KVValue.MakeArray(convertedItems.ToArray()));
+                            node.AddProperty("m_items", KVValue.MakeArray(footPinningItems.ToArray()));
                         }
                     }
                     if (poseOpFixedData.ContainsKey("m_flBlendTime"))
@@ -2632,9 +2634,30 @@ public class AnimationGraphExtract
                     node.AddProperty(key, value);
                     continue;
                 }
-                else if (key == "m_flMaxLegStraightAmount")
+                else if (key == "m_params")
                 {
-                    node.AddProperty(key, value);
+                    var paramHandles = compiledNode.GetArray("m_params");
+                    var itemsArray = node.GetArray("m_items");
+                    var itemsList = itemsArray?.ToList() ?? new List<KVObject>();
+
+                    if (itemsList.Count == 0 && footPinningItems != null && footPinningItems.Count > 0)
+                    {
+                        itemsList = footPinningItems;
+                    }
+
+                    for (int i = 0; i < itemsList.Count; i++)
+                    {
+                        if (i < paramHandles.Length)
+                        {
+                            var paramHandle = paramHandles[i];
+                            var paramType = paramHandle.GetStringProperty("m_type");
+                            var paramIndex = paramHandle.GetIntegerProperty("m_index");
+                            var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+                            itemsList[i].Properties["m_param"] = paramIdValue;
+                        }
+                    }
+
+                    node.AddProperty("m_items", KVValue.MakeArray(itemsList.ToArray()));
                     continue;
                 }
                 else if (key == "m_bResetChild")
@@ -4094,7 +4117,7 @@ public class AnimationGraphExtract
                 "CFloatAnimParameter" => "FLOAT",
                 "CEnumAnimParameter" => "ENUM",
                 "CBoolAnimParameter" => "BOOL",
-                "CIntAnimParameter" => "INTEGER",
+                "CIntAnimParameter" => "INT",
                 "CVectorAnimParameter" => "VECTOR",
                 "CQuaternionAnimParameter" => "QUATERNION",
                 "CSymbolAnimParameter" => "SYMBOL",
