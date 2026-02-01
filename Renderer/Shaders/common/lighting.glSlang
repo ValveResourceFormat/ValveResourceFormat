@@ -313,6 +313,13 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     return lighting;
 }
 
+#define renderMode_Illumination 0
+#define renderMode_Diffuse 1
+#define renderMode_Specular 2
+#define renderMode_Irradiance 3
+#define renderMode_Occlusion 4
+#define renderMode_LightmapShadows 5
+
 bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat, LightingTerms_t lighting)
 {
     switch (g_iRenderMode)

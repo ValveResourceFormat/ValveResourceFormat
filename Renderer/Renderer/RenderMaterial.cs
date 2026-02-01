@@ -245,35 +245,66 @@ namespace ValveResourceFormat.Renderer
                 // Discard material data for picking shader, (blend modes, etc.)
                 return;
             }
-
-            foreach (var (name, defaultTexture) in shader.Default.Textures)
+            if (shader.IsSlang)
             {
-                var texture = Textures.GetValueOrDefault(name, defaultTexture);
-
-                if (shader.SetTexture(textureUnit, name, texture))
+                foreach (var resource in shader.ResourceBindings)
                 {
-                    textureUnit++;
+                    if (resource.Value.isTexture)
+                    {
+                        var texture = Textures.GetValueOrDefault(resource.Key);
+
+                        shader.SetTexture(resource.Value.Binding, 0, texture);
+                    }
+                }
+
+                foreach (var param in shader.IntParams)
+                {
+                    var value = (int)Material.IntParams.GetValueOrDefault(param.Key, param.Value.DefaultValue);
+                    shader.SetUniformAtLocation(param.Value.Location, value);
+                }
+
+                foreach (var param in shader.FloatParams)
+                {
+                    var value = Material.FloatParams.GetValueOrDefault(param.Key, param.Value.DefaultValue);
+                    shader.SetUniformAtLocation(param.Value.Location, value);
+                }
+
+                foreach (var param in shader.VectorParams)
+                {
+                    var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value.DefaultValue);
+                    shader.SetUniformAtLocation(param.Value.Location, value, param.Value.size);
                 }
             }
-
-            foreach (var param in shader.Default.Material.IntParams)
+            else
             {
-                var value = (int)Material.IntParams.GetValueOrDefault(param.Key, param.Value);
-                shader.SetUniform1(param.Key, value);
-            }
+                foreach (var (name, defaultTexture) in shader.Default.Textures)
+                {
+                    var texture = Textures.GetValueOrDefault(name, defaultTexture);
 
-            foreach (var param in shader.Default.Material.FloatParams)
-            {
-                var value = Material.FloatParams.GetValueOrDefault(param.Key, param.Value);
-                shader.SetUniform1(param.Key, value);
-            }
+                    if (shader.SetTexture(textureUnit, name, texture))
+                    {
+                        textureUnit++;
+                    }
+                }
 
-            foreach (var param in shader.Default.Material.VectorParams)
-            {
-                var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value);
-                shader.SetMaterialVector4Uniform(param.Key, value);
-            }
+                foreach (var param in shader.Default.Material.IntParams)
+                {
+                    var value = (int)Material.IntParams.GetValueOrDefault(param.Key, param.Value);
+                    shader.SetUniform1(param.Key, value);
+                }
 
+                foreach (var param in shader.Default.Material.FloatParams)
+                {
+                    var value = Material.FloatParams.GetValueOrDefault(param.Key, param.Value);
+                    shader.SetUniform1(param.Key, value);
+                }
+
+                foreach (var param in shader.Default.Material.VectorParams)
+                {
+                    var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value);
+                    shader.SetMaterialVector4Uniform(param.Key, value);
+                }
+            }
             SetRenderState();
         }
 

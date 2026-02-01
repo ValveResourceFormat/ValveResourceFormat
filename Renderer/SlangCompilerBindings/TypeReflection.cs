@@ -14,6 +14,9 @@ public partial class SlangBindings
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint TypeReflection_getFieldCount(ref TypeReflectionPtr typeReflection);
 
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern ulong TypeReflection_getElementCount(ref TypeReflectionPtr typeReflection);
+
 
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint TypeReflection_getRowCount(ref TypeReflectionPtr typeReflection);
@@ -21,6 +24,9 @@ public partial class SlangBindings
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern uint TypeReflection_getColumnCount(ref TypeReflectionPtr typeReflection);
 
+
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern SlangScalarType TypeReflection_getScalarType(ref TypeReflectionPtr typeReflection);
 
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern SlangResourceShape TypeReflection_getResourceShape(ref TypeReflectionPtr typeReflection);
@@ -53,6 +59,11 @@ public partial class SlangBindings
         {
             return TypeReflection_getFieldCount(ref Ptr);
         }
+
+        public ulong getElementCount()
+        {
+            return TypeReflection_getElementCount(ref Ptr);
+        }
         public uint getRowCount()
         {
             return TypeReflection_getRowCount(ref Ptr);
@@ -60,6 +71,11 @@ public partial class SlangBindings
         public uint getColumnCount()
         {
             return TypeReflection_getColumnCount(ref Ptr);
+        }
+
+        public SlangScalarType getScalarType()
+        {
+            return TypeReflection_getScalarType(ref Ptr);
         }
 
         public SlangResourceShape getResourceShape()

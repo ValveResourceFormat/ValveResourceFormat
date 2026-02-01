@@ -389,24 +389,24 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 
 // Render modes
 #define renderMode_FullBright 0
-#define renderMode_Color 0
-#define renderMode_BumpMap 0
-#define renderMode_Tangents 0
-#define renderMode_Normals 0
-#define renderMode_BumpNormals 0
-#define renderMode_Roughness 0
-#define renderMode_Metalness 0
-#define renderMode_Height 0
-#define renderMode_ExtraParams 0
+#define renderMode_Color 1
+#define renderMode_BumpMap 2
+#define renderMode_Tangents 3
+#define renderMode_Normals 4
+#define renderMode_BumpNormals 5
+#define renderMode_Roughness 6
+#define renderMode_Metalness 7
+#define renderMode_Height 8
+#define renderMode_ExtraParams 9
 
-#define renderMode_Tint 0
-#define renderMode_FoliageParams 0
-#define renderMode_VertexColor 0
-#define renderMode_TerrainBlend 0
+#define renderMode_Tint 10
+#define renderMode_FoliageParams 11
+#define renderMode_VertexColor 12
+#define renderMode_TerrainBlend 13
 
-#define renderMode_UvDensity 0
-#define renderMode_LightmapUvDensity 0
-#define renderMode_MipmapUsage 0
+#define renderMode_UvDensity 14
+#define renderMode_LightmapUvDensity 15
+#define renderMode_MipmapUsage 16
 
 bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
 {

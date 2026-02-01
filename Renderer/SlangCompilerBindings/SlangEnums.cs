@@ -407,14 +407,14 @@ public enum ParameterCategory : uint
 
 public enum SlangTypeKind : uint
 {
-    SLANG_TYPE_KIND_NONE,
-    SLANG_TYPE_KIND_STRUCT,
-    SLANG_TYPE_KIND_ARRAY,
-    SLANG_TYPE_KIND_MATRIX,
-    SLANG_TYPE_KIND_VECTOR,
-    SLANG_TYPE_KIND_SCALAR,
-    SLANG_TYPE_KIND_CONSTANT_BUFFER,
-    SLANG_TYPE_KIND_RESOURCE,
+    eNone,
+    eStruct,
+    eArray,
+    eMatrix,
+    eVector,
+    eScalar,
+    eConstantBuffer,
+    eResource,
     SLANG_TYPE_KIND_SAMPLER_STATE,
     SLANG_TYPE_KIND_TEXTURE_BUFFER,
     SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER,
@@ -428,6 +428,26 @@ public enum SlangTypeKind : uint
     SLANG_TYPE_KIND_POINTER,
     SLANG_TYPE_KIND_DYNAMIC_RESOURCE,
     SLANG_TYPE_KIND_COUNT,
+};
+
+public enum SlangScalarType : int
+{
+    eNone,
+    eVoid,
+    eBool,
+    eI32,
+    eU32,
+    eI64,
+    eU64,
+    eF16,
+    eF32,
+    eF64,
+    eI8,
+    eU8,
+    eI16,
+    eU16,
+    SLANG_SCALAR_TYPE_INTPTR,
+    SLANG_SCALAR_TYPE_UINTPTR
 };
 
 public enum SlangResourceShape : uint

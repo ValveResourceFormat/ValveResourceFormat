@@ -37,7 +37,11 @@ namespace ValveResourceFormat.Renderer
         //SLANG
         public Dictionary<string, int> UniformOffsets { get; set; } = [];
         //SLANG
-        public Dictionary<string, int> ResourceBindings { get; set; } = [];
+        public Dictionary<string, (ActiveUniformType Type, int Location, int DefaultValue, bool SrgbRead)> IntParams { get; init; } = [];
+        public Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)> FloatParams { get; init; } = [];
+        public Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)> VectorParams { get; init; } = [];
+        //SLANG
+        public Dictionary<string, (int Binding, bool isTexture)> ResourceBindings { get; set; } = [];
         public required HashSet<string> SrgbUniforms { get; init; }
         public HashSet<string> ReservedTexuresUsed { get; } = [];
 
@@ -177,21 +181,13 @@ namespace ValveResourceFormat.Renderer
                 {
                     if (UniformBuffer == -1)
                     {
-                        UniformBuffer = GL.GenBuffer();
-                        GL.BindBuffer(BufferTarget.UniformBuffer, UniformBuffer);
-                        GL.BufferData(BufferTarget.UniformBuffer, UniformBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+                        int[] buffer = new int[1];
+                        GL.CreateBuffers(1, buffer);
+                        UniformBuffer = buffer[0];
+                        GL.NamedBufferData(UniformBuffer, UniformBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
                     }
 
                     GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                }
-
-                if (UniformBufferSize == 64)
-                {
-                    float[] matrix = new float[16];
-
-                    GL.GetBufferParameter(BufferTarget.UniformBuffer, BufferParameterName.BufferSize, out int size);
-
-                    //GL.GetBufferSubData(BufferTarget.UniformBuffer, (IntPtr)0, 16 * sizeof(float), matrix);
                 }
             }
 
@@ -275,23 +271,23 @@ namespace ValveResourceFormat.Renderer
             return location;
         }
 
-        public void SetUniformAtLocation<T>(int location, T value) where T : struct
+        public void SetUniformAtLocation<T>(int location, T value, int size = 0) where T : struct
         {
             if (IsSlang)
             {
+                //SLANG: size is supposed to be in elements. An element is 4 bytes.
+                int byteSize = Convert.ToInt32(size == 0) * (Marshal.SizeOf<T>()) + size * 4;
+
+
+
                 if (location + Marshal.SizeOf<T>() > UniformBufferSize)
                 {
-                    throw new Exception($"Buffer overflow: offset={location}, size={Marshal.SizeOf<T>()}, bufferSize={UniformBufferSize}");
+                    throw new Exception($"Buffer overflow: offset={location}, size={byteSize}, bufferSize={UniformBufferSize}");
                 }
-                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                GL.NamedBufferSubData(UniformBuffer, (IntPtr)location, (IntPtr)Marshal.SizeOf<T>(), ref value);
+                GL.NamedBufferSubData(UniformBuffer, (IntPtr)location, byteSize, ref value);
 
-                if (UniformBufferSize == 64)
-                {
-                    float[] matrix = new float[16];
-                    //GL.GetNamedBufferSubData(UniformBuffer, (IntPtr)0, 16 * sizeof(float), matrix);
-                }
-
+                Vector2 data = new Vector2();
+                GL.GetNamedBufferSubData(UniformBuffer, location, 8, ref data);
             }
             else
             {
@@ -364,7 +360,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (ResourceBindings.TryGetValue(name, out var value))
             {
-                return value;
+                return value.Binding;
             }
             return 0;
         }
@@ -607,9 +603,10 @@ namespace ValveResourceFormat.Renderer
 
         public bool SetTexture(int slot, string name, RenderTexture? texture)
         {
-            if (IsSlang && ResourceBindings.TryGetValue(name, out int val))
+            //SLANG: Just making the assumption that isTexture is true for the entry
+            if (IsSlang && ResourceBindings.TryGetValue(name, out var val))
             {
-                SetTexture(val, 0, texture);
+                SetTexture(val.Binding, 0, texture);
                 return true;
             }
 
@@ -635,7 +632,8 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
             GL.BindTextureUnit(slot, texture.Handle);
-            GL.ProgramUniform1(Program, uniformLocation, slot);
+            if(!IsSlang)
+                GL.ProgramUniform1(Program, uniformLocation, slot);
         }
 
 #if DEBUG

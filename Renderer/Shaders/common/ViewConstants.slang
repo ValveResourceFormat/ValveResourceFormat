@@ -29,3 +29,9 @@ ViewConstants {
     float4x4 g_matvCubeFogSkyWsToOs;
     float4 g_vCubeFogCullingParams_ExposureBias_MaxOpacity;
 };
+
+bool blink()
+{
+    const float phase = 0;
+    return frac((frac(g_flTime * 0.5) + phase)) < 0.5;
+};

@@ -4,6 +4,7 @@
 
 extern "C"
 {
+#include "Attribute.h"
 #include "IGlobalSession.h"
 #include "ISession.h"
 #include "IComponentType.h"
@@ -13,6 +14,7 @@ extern "C"
 #include "EntryPointReflection.h"
 #include "TypeReflection.h"
 #include "TypeLayoutReflection.h"
+#include "VariableReflection.h"
 #include "VariableLayoutReflection.h"
 #include "IEntryPoint.h"
 }

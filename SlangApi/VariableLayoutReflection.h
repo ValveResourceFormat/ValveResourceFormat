@@ -8,6 +8,12 @@ VariableLayoutReflection_getTypeLayout(slang::VariableLayoutReflection** variabl
 	return (*variableLayout)->getTypeLayout();
 }
 
+__declspec(dllexport) slang::VariableReflection*
+VariableLayoutReflection_getVariable(slang::VariableLayoutReflection** variableLayout)
+{
+    return (*variableLayout)->getVariable();
+}
+
 __declspec(dllexport) unsigned int
 VariableLayoutReflection_getBindingIndex(slang::VariableLayoutReflection** variableLayout)
 {
@@ -31,3 +37,20 @@ VariableLayoutReflection_getCategory(slang::VariableLayoutReflection** variableL
 {
 	return (*variableLayout)->getCategory();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

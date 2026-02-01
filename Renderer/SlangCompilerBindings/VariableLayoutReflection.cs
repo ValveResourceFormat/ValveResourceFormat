@@ -10,6 +10,9 @@ public partial class SlangBindings
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern TypeLayoutReflectionPtr VariableLayoutReflection_getTypeLayout(ref VariableLayoutReflectionPtr variableLayout);
 
+    [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
+    static extern VariableReflectionPtr VariableLayoutReflection_getVariable(ref VariableLayoutReflectionPtr variableLayout);
+
 
     [DllImport("SlangApi", CallingConvention = CallingConvention.Cdecl)]
     static extern IntPtr VariableLayoutReflection_getName(ref VariableLayoutReflectionPtr variableLayout);
@@ -45,6 +48,11 @@ public partial class SlangBindings
         public TypeLayoutReflection getTypeLayout()
         {
             return new TypeLayoutReflection(VariableLayoutReflection_getTypeLayout(ref Ptr));
+        }
+
+        public VariableReflection getVariable()
+        {
+            return new VariableReflection(VariableLayoutReflection_getVariable(ref Ptr));
         }
 
         public string getName()

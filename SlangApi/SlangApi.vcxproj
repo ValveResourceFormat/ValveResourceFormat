@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Attribute.h" />
     <ClInclude Include="EntryPointReflection.h" />
     <ClInclude Include="IComponentType.h" />
     <ClInclude Include="IEntryPoint.h" />
@@ -30,6 +31,7 @@
     <ClInclude Include="TypeLayoutReflection.h" />
     <ClInclude Include="TypeReflection.h" />
     <ClInclude Include="VariableLayoutReflection.h" />
+    <ClInclude Include="VariableReflection.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SlangApi.cpp">
