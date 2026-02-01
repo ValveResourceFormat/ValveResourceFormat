@@ -39,7 +39,7 @@ partial class RendererControl : UserControl
         SetControlLocation(control);
     }
 
-    public static GLViewerCheckboxControl GetCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
+    public static GLViewerCheckboxControl CreateCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
     {
         var checkbox = new GLViewerCheckboxControl(name, defaultChecked);
         checkbox.CheckBox.CheckedChanged += (_, __) =>
@@ -52,7 +52,7 @@ partial class RendererControl : UserControl
 
     public CheckBox AddCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
     {
-        var checkbox = GetCheckBox(name, defaultChecked, changeCallback);
+        var checkbox = CreateCheckBox(name, defaultChecked, changeCallback);
         AddControl(checkbox);
 
         return checkbox.CheckBox;
@@ -128,38 +128,39 @@ partial class RendererControl : UserControl
         return trackBar;
     }
 
-    public static Panel GetFloatInput(string name, Action<float> onValChanged, float startValue = 0, float minValue = 0, float maxValue = 1000)
+    public static Panel CreateFloatInput(string name, Action<float> onValChanged, float startValue = 0, float minValue = 0, float maxValue = 1000)
     {
         var panel = new Panel();
 
-        var label = new Label();
-        label.Text = name;
-        label.Dock = DockStyle.Left;
+        var label = new Label
+        {
+            Text = name,
+            Dock = DockStyle.Fill,
+        };
 
-        var numeric = new ThemedFloatNumeric();
+        var numeric = new ThemedFloatNumeric
+        {
+            MinValue = minValue,
+            MaxValue = maxValue,
+            DragWithinRange = true,
+            DragDistance = 600,
+            Value = startValue,
+            Dock = DockStyle.Right,
+            Padding = new Padding(0, 0, 4, 0),
+        };
 
-        numeric.MinValue = minValue;
-        numeric.MaxValue = maxValue;
-        numeric.DragWithinRange = true;
-        numeric.DragDistance = 600;
-        numeric.Value = startValue;
-        numeric.Dock = DockStyle.Fill;
+        numeric.Width = numeric.AdjustForDPI(50);
 
-        numeric.ValueChanged += (object? obj, EventArgs e) =>
+        numeric.ValueChanged += (obj, e) =>
         {
             onValChanged(((ThemedFloatNumeric)obj!).Value);
         };
 
-        panel.Controls.Add(numeric);
         panel.Controls.Add(label);
-        panel.Height = 22;
+        panel.Controls.Add(numeric);
+        panel.Height = panel.AdjustForDPI(22);
 
         return panel;
-    }
-
-    public void AddFloatInput(string name, Action<float> onValChanged, float startValue = 0, float minValue = 0, float maxValue = 1000)
-    {
-        AddControl(GetFloatInput(name, onValChanged, startValue, minValue, maxValue));
     }
 
     public void AddDivider()
