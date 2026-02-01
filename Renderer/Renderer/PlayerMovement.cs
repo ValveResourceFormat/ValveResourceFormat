@@ -90,8 +90,7 @@ public class PlayerMovement
     /// </summary>
     public void ResetPosition(Camera camera)
     {
-        var hull = HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
-        AABBCenteredPosition = camera.Location - new Vector3(0, 0, hull.Size.Z / 2);
+        AABBCenteredPosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, PlayerHullStanding.Size.Z / 2);
         Velocity = Vector3.Zero;
     }
 
@@ -340,8 +339,7 @@ public class PlayerMovement
             return true; // Not stuck
         }
 
-        // Try moving in various directions to find a valid position
-        var directions = new[]
+        Span<Vector3> directions = stackalloc[]
         {
             Vector3.UnitZ,        // Up
             -Vector3.UnitZ,       // Down
