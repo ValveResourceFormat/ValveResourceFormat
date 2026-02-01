@@ -21,6 +21,7 @@ namespace ValveResourceFormat.Renderer
             new("Diffuse"),
             new("Specular"),
             new("Irradiance"),
+            new("IrradianceDebug"),
             new("Illumination"),
             new("LightmapShadows"),
             new("Cubemaps"),

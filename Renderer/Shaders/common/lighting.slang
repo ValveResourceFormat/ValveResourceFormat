@@ -7,9 +7,18 @@
 
 #define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
 
+#define renderMode_Illumination 0
+#define renderMode_Diffuse 0
+#define renderMode_Specular 0
+#define renderMode_Irradiance 0
+#define renderMode_IrradianceDebug 0
+#define renderMode_Occlusion 0
+#define renderMode_LightmapShadows 0
+
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     centroid in vec3 vLightmapUVScaled;
     uniform sampler2DArray g_tIrradiance;
+    uniform sampler2DArray g_tIrradianceDebugChart;
     #if (S_LIGHTMAP_VERSION_MINOR >= 3)
         uniform sampler2DArray g_tDirectionalIrradianceR;
         uniform sampler2DArray g_tDirectionalIrradianceG;
@@ -213,22 +222,35 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
     // Indirect Lighting
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    vec3 irradiance = texture(g_tIrradiance, mat.LightmapUv).rgb;
-    #if (S_LIGHTMAP_VERSION_MINOR >= 3)
-        vec4 vAHDData = texture(g_tDirectionalIrradianceR, mat.LightmapUv);
-    #else
-        vec4 vAHDData = texture(g_tDirectionalIrradiance, mat.LightmapUv);
-    #endif
+    if (g_iRenderMode == renderMode_IrradianceDebug) {
+        vec3 irradiance = texture(g_tIrradianceDebugChart, mat.LightmapUv).rgb;
+        lighting.DiffuseIndirect = irradiance;
+    } else {
+        vec3 irradiance = texture(g_tIrradiance, mat.LightmapUv).rgb;
+        #if (S_LIGHTMAP_VERSION_MINOR >= 3)
+            vec4 vAHDData = texture(g_tDirectionalIrradianceR, mat.LightmapUv);
+        #else
+            vec4 vAHDData = texture(g_tDirectionalIrradiance, mat.LightmapUv);
+        #endif
 
-    lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat.NormalMap);
+        lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat.NormalMap);
 
-    lighting.SpecularOcclusion = vAHDData.a;
+        lighting.SpecularOcclusion = vAHDData.a;
+    }
 
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-    lighting.DiffuseIndirect = ComputeLightProbeShading(mat);
+    if (g_iRenderMode == renderMode_IrradianceDebug) {
+        lighting.DiffuseIndirect = vec3(0);
+    } else {
+        lighting.DiffuseIndirect = ComputeLightProbeShading(mat);
+    }
 
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-    lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
+    if (g_iRenderMode == renderMode_IrradianceDebug) {
+        lighting.DiffuseIndirect = vec3(1);
+    } else {
+        lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
+    }
 #endif
 
     // Environment Maps
@@ -291,13 +313,6 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     return lighting;
 }
 
-#define renderMode_Illumination 0
-#define renderMode_Diffuse 0
-#define renderMode_Specular 0
-#define renderMode_Irradiance 0
-#define renderMode_Occlusion 0
-#define renderMode_LightmapShadows 0
-
 bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat, LightingTerms_t lighting)
 {
     switch (g_iRenderMode)
@@ -306,6 +321,7 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
             outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
             return true;
         case renderMode_Irradiance:
+        case renderMode_IrradianceDebug:
             outputColor = vec4(lighting.DiffuseIndirect, 1.0);
             return true;
         case renderMode_Diffuse:
