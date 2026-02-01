@@ -120,7 +120,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public void Update(float timeStep)
         {
             DeltaTime = timeStep;
-            RootNode.Update(this);
+            var poseResult = RootNode.Update(this);
         }
     }
 }

@@ -213,24 +213,135 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Currently not using tasks and computing poses directly
+
+    struct GraphPoseNodeResult
+    {
+        public Matrix4x4[] Pose;
+        public Matrix4x4 RootMotionDelta;
+        // SampledEventRange
+    }
+
     partial class PoseNode
     {
         public int LoopCount;
-        public TimeSpan Duration;
+        public float Duration;   /* Seconds */
         public float CurrentTime; /* Percent */
         public float PreviousTime;  /* Percent */
 
+        public Matrix4x4[] ModelSpaceTransforms = [];
+
         public override void Initialize(GraphContext ctx)
         {
-            //
+            LoopCount = 0;
+            Duration = 0f;
+            CurrentTime = 1f;
+            PreviousTime = 1f;
+
+            ModelSpaceTransforms = new Matrix4x4[ctx.Controller.BindPose.Length];
         }
 
-        public virtual void Update(GraphContext ctx)
+        public virtual GraphPoseNodeResult Update(GraphContext ctx)
         {
-            //
+            return new GraphPoseNodeResult
+            {
+                Pose = ModelSpaceTransforms,
+                RootMotionDelta = Matrix4x4.Identity,
+            };
         }
     }
 
+    partial class ReferencePoseNode
+    {
+        public override GraphPoseNodeResult Update(GraphContext ctx)
+        {
+            var result = base.Update(ctx);
+            ctx.Controller.BindPose.CopyTo(result.Pose, 0);
+            return result;
+        }
+    }
+
+    partial class ZeroPoseNode
+    {
+        public override GraphPoseNodeResult Update(GraphContext ctx)
+        {
+            var result = base.Update(ctx);
+            for (var i = 0; i < result.Pose.Length; i++)
+            {
+                result.Pose[i] = Matrix4x4.Identity;
+            }
+            return result;
+        }
+    }
+
+    #region Animation Source Nodes
+    partial class ClipNode
+    {
+        public override AnimationController GetAnimation(GraphContext ctx) => Animation;
+        public override bool IsLooping => AllowLooping;
+        public override bool DisableRootMotionSampling => !SampleRootMotion;
+
+        public AnimationController Animation;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            Animation = ctx.Controller.Sequences[DataSlotIdx];
+        }
+    }
+    #endregion
+
+
+    # region Clip Selector Nodes
+    // An interface to directly access a selected animation
+    // This is needed to ensure certain animation nodes only operate on animations directly
+    abstract partial class ClipReferenceNode
+    {
+        public virtual AnimationController? GetAnimation(GraphContext ctx) => SelectedOption?.GetAnimation(ctx);
+        public virtual bool IsLooping => SelectedOption?.IsLooping ?? false;
+        public virtual bool DisableRootMotionSampling => SelectedOption?.DisableRootMotionSampling ?? false;
+        public ClipReferenceNode? SelectedOption;
+
+        public abstract void UpdateSelection(GraphContext ctx);
+    }
+
+    partial class ClipSelectorNode
+    {
+        public ClipReferenceNode[] OptionNodes;
+        public BoolValueNode[] ConditionNodes;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
+            ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref ConditionNodes);
+        }
+
+        public int PickOption(GraphContext ctx)
+        {
+            for (var i = 0; i < ConditionNodes.Length; i++)
+            {
+                var conditionPassed = ConditionNodes[i].GetValue(ctx);
+                if (conditionPassed)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        public override void UpdateSelection(GraphContext ctx)
+        {
+            var selectedIndex = PickOption(ctx);
+            if (selectedIndex >= 0 && selectedIndex < OptionNodes.Length)
+            {
+                SelectedOption = OptionNodes[selectedIndex];
+            }
+            else
+            {
+                SelectedOption = null;
+            }
+        }
+    }
 
     partial class ParameterizedClipSelectorNode
     {
@@ -243,16 +354,73 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);
         }
 
-        public ClipReferenceNode SelectOption(GraphContext ctx)
+        public int PickOption(GraphContext ctx)
         {
-            var selectedIndex = (int)ParameterNode.GetValue(ctx);
+            var parameterValue = ParameterNode.GetValue(ctx);
+            var seed = (int)Math.Floor(Math.Abs(parameterValue));
 
-            if (HasWeightsSet)
+            // todo: IgnoreInvalidOptions
+
+            var numOptions = OptionNodes.Length;
+            if (numOptions == 0)
             {
-                // ?
+                return -1;
             }
 
-            return OptionNodes[selectedIndex];
+            if (!HasWeightsSet)
+            {
+                return seed % numOptions;
+            }
+
+            Debug.Assert(OptionWeights.Length == numOptions);
+
+            // Build cumulative bucket boundaries from the byte weights
+            Span<int> boundaries = stackalloc int[numOptions];
+            var totalWeightedOptions = 0;
+            for (var i = 0; i < numOptions; i++)
+            {
+                Debug.Assert(OptionWeights[i] > 0);
+                totalWeightedOptions += OptionWeights[i];
+                boundaries[i] = totalWeightedOptions;
+            }
+
+            Debug.Assert(totalWeightedOptions > 0);
+
+            var weightedIdx = seed % totalWeightedOptions;
+
+            // Find the bucket that contains the rolled index
+            for (var i = 0; i < numOptions; i++)
+            {
+                if (weightedIdx < boundaries[i])
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        public override void UpdateSelection(GraphContext ctx)
+        {
+            var selectedIndex = PickOption(ctx);
+            if (selectedIndex >= 0 && selectedIndex < OptionNodes.Length)
+            {
+                SelectedOption = OptionNodes[selectedIndex];
+            }
+            else
+            {
+                SelectedOption = null;
+            }
         }
     }
+
+    // what is this
+    partial class TargetSelectorNode
+    {
+        public override void UpdateSelection(GraphContext ctx)
+        {
+            // todo
+        }
+    }
+    #endregion
 }
