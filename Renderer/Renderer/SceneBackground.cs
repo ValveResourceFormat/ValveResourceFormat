@@ -1,6 +1,9 @@
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Default scene background with configurable solid or gradient rendering.
+    /// </summary>
     public class SceneBackground : SceneSkybox2D
     {
         public SceneBackground(Scene scene)

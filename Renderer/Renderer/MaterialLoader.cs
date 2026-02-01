@@ -10,6 +10,9 @@ using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Loads and caches materials and textures from Source 2 resources.
+    /// </summary>
     public class MaterialLoader
     {
         private readonly Dictionary<ulong, RenderMaterial> Materials = [];

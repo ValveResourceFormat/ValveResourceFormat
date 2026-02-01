@@ -1,9 +1,16 @@
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// View frustum for culling objects outside the camera's visible area.
+    /// </summary>
     public class Frustum
     {
         private Vector4[] Planes = new Vector4[6];
 
+        /// <summary>
+        /// Creates an empty frustum with no planes.
+        /// </summary>
+        /// <returns>A new empty frustum.</returns>
         public static Frustum CreateEmpty()
         {
             var rv = new Frustum
@@ -13,6 +20,10 @@ namespace ValveResourceFormat.Renderer
             return rv;
         }
 
+        /// <summary>
+        /// Updates the frustum planes from a view-projection matrix.
+        /// </summary>
+        /// <param name="viewProjectionMatrix">Combined view and projection matrix.</param>
         public void Update(in Matrix4x4 viewProjectionMatrix)
         {
             Planes[0] = Vector4.Normalize(new Vector4(
@@ -47,6 +58,10 @@ namespace ValveResourceFormat.Renderer
                 viewProjectionMatrix.M44 - viewProjectionMatrix.M43));
         }
 
+        /// <summary>
+        /// Creates a deep copy of this frustum.
+        /// </summary>
+        /// <returns>A new frustum with the same planes.</returns>
         public Frustum Clone()
         {
             var rv = new Frustum();
@@ -54,6 +69,11 @@ namespace ValveResourceFormat.Renderer
             return rv;
         }
 
+        /// <summary>
+        /// Tests if an axis-aligned bounding box intersects this frustum.
+        /// </summary>
+        /// <param name="box">The bounding box to test.</param>
+        /// <returns><see langword="true"/> if the box is at least partially inside the frustum.</returns>
         public bool Intersects(in AABB box)
         {
             for (var i = 0; i < Planes.Length; ++i)
@@ -72,6 +92,11 @@ namespace ValveResourceFormat.Renderer
             return true;
         }
 
+        /// <summary>
+        /// Tests if a point is inside this frustum.
+        /// </summary>
+        /// <param name="point">The point to test.</param>
+        /// <returns><see langword="true"/> if the point is inside the frustum.</returns>
         public bool Intersects(in Vector3 point)
         {
             for (var i = 0; i < Planes.Length; ++i)
@@ -84,6 +109,7 @@ namespace ValveResourceFormat.Renderer
             return true;
         }
 
+        /// <inheritdoc/>
         public override int GetHashCode()
         {
             var hash = 0;

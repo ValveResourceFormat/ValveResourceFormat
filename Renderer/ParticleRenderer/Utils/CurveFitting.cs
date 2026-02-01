@@ -74,13 +74,18 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
     }
     internal class CurvePoint
     {
+        /// <summary>
+        /// Tangent interpolation modes for curve control points.
+        /// </summary>
         public enum TangentType
         {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
             Linear, // Linear, obviously
             Spline, // Cubic
             Free, // Linear but both sides are independent of one another
             Mirror, // Locks onto what the other side is doing
             Sine // uh oh.
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         };
         public static TangentType GetTangentType(string value)
         {

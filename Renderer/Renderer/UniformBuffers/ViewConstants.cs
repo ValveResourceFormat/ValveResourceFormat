@@ -2,6 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.Buffers
 {
+    /// <summary>
+    /// Uniform buffer containing camera transforms, fog, and per-frame view state.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public class ViewConstants
     {

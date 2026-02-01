@@ -5,6 +5,10 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.Buffers
 {
+    /// <summary>
+    /// Uniform buffer object that stores shader-accessible structured data on the GPU.
+    /// </summary>
+    /// <typeparam name="T">The struct type to store in the buffer.</typeparam>
     public class UniformBuffer<T> : Buffer, IDisposable
         where T : new()
     {

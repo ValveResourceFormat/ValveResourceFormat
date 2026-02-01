@@ -6,6 +6,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Loads scene objects and aggregates from a world node resource.
+    /// </summary>
     public class WorldNodeLoader
     {
         private readonly WorldNode node;

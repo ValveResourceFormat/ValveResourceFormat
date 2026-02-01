@@ -4,6 +4,9 @@ using Vector2i = OpenTK.Mathematics.Vector2i;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Post-processing renderer that creates bloom effects using multi-pass Gaussian blur.
+/// </summary>
 public class BloomRenderer
 {
     private Shader? firstDownsampleBloomThreshold;

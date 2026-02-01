@@ -12,14 +12,22 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Shader stage types in the rendering pipeline.
+    /// </summary>
     public enum ShaderProgramType
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         Vertex = 0,
         Fragment = 1,
         Compute = 2,
         Max = 3,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
+    /// <summary>
+    /// Compiles and caches OpenGL shader programs from source files.
+    /// </summary>
     public partial class ShaderLoader : IDisposable
     {
         [GeneratedRegex(@"^(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) ?: error")]
@@ -50,6 +58,9 @@ namespace ValveResourceFormat.Renderer
         private List<List<string>> LastShaderSourceLines = [];
 #endif
 
+        /// <summary>
+        /// Preprocessed shader source with defines, uniforms, and compiled stage code.
+        /// </summary>
         public class ParsedShaderData
         {
             public Dictionary<string, byte> Defines { get; } = [];
@@ -641,6 +652,9 @@ namespace ValveResourceFormat.Renderer
         }
 #endif
 
+        /// <summary>
+        /// Exception thrown when shader compilation or linking fails.
+        /// </summary>
         public class ShaderCompilerException : Exception
         {
             public ShaderCompilerException()

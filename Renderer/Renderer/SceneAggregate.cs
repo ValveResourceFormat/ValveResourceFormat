@@ -6,6 +6,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node for instanced rendering of aggregated world geometry.
+    /// </summary>
     public class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
@@ -16,6 +19,9 @@ namespace ValveResourceFormat.Renderer
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
 
+        /// <summary>
+        /// Single drawable fragment within an aggregate with independent bounds.
+        /// </summary>
         public sealed class Fragment : SceneNode
         {
             public required SceneNode Parent { get; init; }

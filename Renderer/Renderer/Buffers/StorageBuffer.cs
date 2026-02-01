@@ -4,6 +4,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.Buffers
 {
+    /// <summary>
+    /// Shader storage buffer object for large read-write data arrays on the GPU.
+    /// </summary>
     public class StorageBuffer : Buffer
     {
         private IntPtr PersistentPtr;

@@ -7,6 +7,9 @@ using SkiaSharp;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Renders text using multi-channel signed distance field fonts.
+    /// </summary>
     public class TextRenderer
     {
         private record FontMetric(Vector4 PlaneBounds, Vector4 AtlasBounds, float Advance);
@@ -21,6 +24,9 @@ namespace ValveResourceFormat.Renderer
             public Color32 Color;
         }
 
+        /// <summary>
+        /// Text rendering parameters.
+        /// </summary>
         public struct TextRenderRequest()
         {
             public float X { get; set; }

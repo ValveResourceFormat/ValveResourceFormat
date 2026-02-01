@@ -3,6 +3,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Post-processing renderer for tonemapping, color grading, and adaptive exposure.
+    /// </summary>
     public class PostProcessRenderer
     {
         private readonly RendererContext RendererContext;

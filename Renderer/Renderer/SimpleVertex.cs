@@ -3,6 +3,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Simple vertex with position and color for debug rendering.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public record struct SimpleVertex(Vector3 Position, Color32 Color)
     {
@@ -25,6 +28,9 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    /// <summary>
+    /// Simple vertex with position, color, and normal for debug rendering.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public record struct SimpleVertexNormal(Vector3 Position, Color32 Color, Vector3 Normal)
     {

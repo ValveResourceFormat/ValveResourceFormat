@@ -14,6 +14,9 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Loads and manages Source 2 world data including entities, lighting, and geometry.
+    /// </summary>
     public class WorldLoader
     {
         private readonly Scene scene;

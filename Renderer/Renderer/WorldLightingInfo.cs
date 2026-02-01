@@ -6,20 +6,33 @@ using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Storage format for environment map cubemap textures.
+    /// </summary>
     public enum CubemapType : byte
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         None,
         IndividualCubemaps,
         CubemapArray,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
+    /// <summary>
+    /// Storage format for light probe irradiance data.
+    /// </summary>
     public enum LightProbeType : byte
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         None,
         IndividualProbes,
         ProbeAtlas,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
+    /// <summary>
+    /// Scene lighting data including lightmaps, reflection probes, and shadow maps.
+    /// </summary>
     public class WorldLightingInfo(Scene scene)
     {
         public Dictionary<string, RenderTexture> Lightmaps { get; } = [];

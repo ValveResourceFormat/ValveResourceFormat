@@ -3,27 +3,45 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// OpenGL environment initialization and default render state configuration.
+/// </summary>
 public static class GLEnvironment
 {
     private const int VersionMajor = 4;
     private const int VersionMinor = 6;
 
+    /// <summary>
+    /// Minimum required OpenGL version (4.6).
+    /// </summary>
     public static readonly Version RequiredVersion = new(VersionMajor, VersionMinor);
 
 #if DEBUG
+    /// <summary>
+    /// Maximum length for OpenGL debug labels.
+    /// </summary>
     public static int MaxLabelLength { get; private set; }
 #endif
 
-    public enum ParallelShaderCompileType : byte
+    private enum ParallelShaderCompileType : byte
     {
         None,
         Arb,
         Khr,
     }
 
-    public static ParallelShaderCompileType ParallelShaderCompileSupport { get; private set; } = ParallelShaderCompileType.None;
+    private static ParallelShaderCompileType ParallelShaderCompileSupport = ParallelShaderCompileType.None;
+
+    /// <summary>
+    /// Gets the GPU renderer name and driver version string.
+    /// </summary>
     public static string? GpuRendererAndDriver { get; private set; }
 
+    /// <summary>
+    /// Initializes the OpenGL environment and queries capabilities.
+    /// </summary>
+    /// <param name="logger">Logger for diagnostic output.</param>
+    /// <exception cref="NotSupportedException">Thrown if the OpenGL version is too old.</exception>
     public static void Initialize(ILogger logger)
     {
         if (GpuRendererAndDriver != null)
@@ -73,6 +91,9 @@ public static class GLEnvironment
 #endif
     }
 
+    /// <summary>
+    /// Sets the default OpenGL render state for Source 2 rendering.
+    /// </summary>
     public static void SetDefaultRenderState()
     {
         // Application semantics / default state
@@ -97,11 +118,17 @@ public static class GLEnvironment
         }
     }
 
+    /// <summary>
+    /// Converts a <see cref="Matrix4x4"/> to an OpenTK Matrix4.
+    /// </summary>
     public static OpenTK.Mathematics.Matrix4 ToOpenTK(this Matrix4x4 m)
     {
         return new OpenTK.Mathematics.Matrix4(m.M11, m.M12, m.M13, m.M14, m.M21, m.M22, m.M23, m.M24, m.M31, m.M32, m.M33, m.M34, m.M41, m.M42, m.M43, m.M44);
     }
 
+    /// <summary>
+    /// Converts a <see cref="Matrix4x4"/> to an OpenTK Matrix3x4 by dropping the last row.
+    /// </summary>
     public static OpenTK.Mathematics.Matrix3x4 To3x4(this Matrix4x4 m)
     {
         return new OpenTK.Mathematics.Matrix3x4(

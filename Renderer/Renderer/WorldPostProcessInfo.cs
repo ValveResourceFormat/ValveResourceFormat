@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Manages post-processing volumes and current post-processing state for the scene.
+    /// </summary>
     public class WorldPostProcessInfo()
     {
         // This may seem like a really stupid structure, but because of

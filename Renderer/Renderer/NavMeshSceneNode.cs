@@ -3,6 +3,9 @@ using ValveResourceFormat.NavMesh;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node that visualizes navigation mesh areas and ladders.
+    /// </summary>
     public class NavMeshSceneNode : ShapeSceneNode
     {
         private static readonly Color32 NavMeshColor = new(64, 32, 255, 100);

@@ -1,7 +1,13 @@
 namespace ValveResourceFormat.Renderer.Particles
 {
+    /// <summary>
+    /// Particle random value generation modes.
+    /// </summary>
     public enum ParticleFloatRandomMode // ParticleFloatRandomMode_t
     {
+        /// <summary>
+        /// Invalid random mode.
+        /// </summary>
         PF_RANDOM_MODE_INVALID = -1,
 
         /// <summary>

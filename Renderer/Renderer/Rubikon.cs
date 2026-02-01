@@ -7,16 +7,25 @@ using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Ray tracing against Rubikon physics collision shapes including meshes and hulls.
+/// </summary>
 public class Rubikon
 {
     private const int STACK_SIZE = 64;
 
+    /// <summary>
+    /// Triangle mesh collision data for ray tracing.
+    /// </summary>
     public record PhysicsMeshData(
         Vector3[] VertexPositions,
         Triangle[] Triangles,
         Node[] PhysicsTree
     );
 
+    /// <summary>
+    /// Convex hull collision data with vertices, edges, and planes.
+    /// </summary>
     public record PhysicsHullData(
         Vector3 Min,
         Vector3 Max,
@@ -68,11 +77,17 @@ public class Rubikon
         }
     }
 
+    /// <summary>
+    /// Ray trace hit result with position, normal, and distance.
+    /// </summary>
     public record struct TraceResult(bool Hit, Vector3 HitPosition, Vector3 HitNormal, float Distance, int TriangleIndex)
     {
         public TraceResult() : this(false, Vector3.Zero, Vector3.UnitZ, float.MaxValue, -1) { }
     }
 
+    /// <summary>
+    /// Precomputed ray direction data for accelerated ray tracing.
+    /// </summary>
     public readonly struct RayTraceContext
     {
         public Vector3 Origin { get; }

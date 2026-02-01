@@ -3,6 +3,9 @@ using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// OpenGL shader program with uniform management and material defaults.
+    /// </summary>
     public class Shader
     {
         public string Name { get; }

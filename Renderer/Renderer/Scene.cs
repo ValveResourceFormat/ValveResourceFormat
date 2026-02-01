@@ -7,8 +7,14 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Container for scene nodes with spatial partitioning, lighting, and render state management.
+    /// </summary>
     public class Scene : IDisposable
     {
+        /// <summary>
+        /// Context data passed to scene nodes during per-frame update.
+        /// </summary>
         public readonly struct UpdateContext
         {
             public required Camera Camera { get; init; }
@@ -16,6 +22,9 @@ namespace ValveResourceFormat.Renderer
             public required float Timestep { get; init; }
         }
 
+        /// <summary>
+        /// Context data passed to scene nodes and renderers during draw calls.
+        /// </summary>
         public struct RenderContext
         {
             public required Scene Scene { get; set; }

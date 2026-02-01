@@ -4,6 +4,9 @@ using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Single GPU draw operation with geometry, material, and render state.
+    /// </summary>
     public class DrawCall
     {
         public PrimitiveType PrimitiveType { get; set; }
@@ -65,12 +68,18 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    /// <summary>
+    /// Index buffer binding for draw calls.
+    /// </summary>
     public readonly struct IndexDrawBuffer
     {
         public int Handle { get; init; }
         public uint Offset { get; init; }
     }
 
+    /// <summary>
+    /// Vertex buffer binding with stride and attribute layout.
+    /// </summary>
     public readonly struct VertexDrawBuffer
     {
         public int Handle { get; init; }

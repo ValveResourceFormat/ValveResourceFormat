@@ -7,6 +7,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Caches GPU mesh buffers and vertex array objects for efficient mesh rendering.
+    /// </summary>
     public partial class GPUMeshBufferCache
     {
         private readonly RendererContext RendererContext;

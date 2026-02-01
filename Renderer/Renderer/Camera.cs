@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Perspective camera with view and projection matrix management.
+    /// </summary>
     public class Camera
     {
         public Vector3 Location { get; set; }

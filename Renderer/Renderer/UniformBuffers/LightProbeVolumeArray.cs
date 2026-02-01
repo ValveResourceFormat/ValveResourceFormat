@@ -2,6 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.Buffers
 {
+    /// <summary>
+    /// Per-volume light probe sampling parameters for shader uniform buffer.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct LightProbeVolume
     {
@@ -12,6 +15,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector4 AtlasOffset;
     }
 
+    /// <summary>
+    /// Uniform buffer array containing all light probe volume data.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public class LightProbeVolumeArray
     {

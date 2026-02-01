@@ -4,6 +4,9 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node that visualizes skeletal bone hierarchy and animation poses.
+    /// </summary>
     public class SkeletonSceneNode : SceneNode
     {
         public bool Enabled { get; set; }

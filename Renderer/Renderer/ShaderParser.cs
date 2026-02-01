@@ -8,6 +8,9 @@ using static ValveResourceFormat.Renderer.ShaderLoader;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Preprocesses shader source files and extracts defines and render modes.
+    /// </summary>
     public partial class ShaderParser
     {
         public const string ShaderDirectory = "Renderer.Shaders.";
@@ -185,7 +188,7 @@ namespace ValveResourceFormat.Renderer
 
                                     if (index == -1)
                                     {
-                                        Debug.Assert(false); /// Add to <see cref="RenderModes.Items"/> if this assert is hit
+                                        Debug.Assert(false); // Add to <see cref="RenderModes.Items"/> if this assert is hit
 
                                         RenderModes.Items = RenderModes.Items.Add(renderModeObj);
                                         index = RenderModes.Items.IndexOf(renderModeObj);

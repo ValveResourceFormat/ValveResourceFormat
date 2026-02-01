@@ -3,6 +3,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node that renders particle system effects.
+    /// </summary>
     public class ParticleSceneNode : SceneNode
     {
         private readonly ParticleRenderer particleRenderer;

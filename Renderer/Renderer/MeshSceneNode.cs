@@ -4,6 +4,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node that renders a single mesh.
+    /// </summary>
     public class MeshSceneNode : MeshCollectionNode
     {
         public override Vector4 Tint

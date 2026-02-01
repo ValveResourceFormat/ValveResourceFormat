@@ -9,6 +9,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node for rendering animated models with skeletal animation and morph targets.
+    /// </summary>
     public class ModelSceneNode : MeshCollectionNode
     {
         public override Vector4 Tint

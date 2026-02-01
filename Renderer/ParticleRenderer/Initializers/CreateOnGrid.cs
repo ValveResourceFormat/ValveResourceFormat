@@ -77,12 +77,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             if (hollow)
             {
-                /// dimenX = ceil(rawDimenX)
-                /// ceil(rawDimX) - RawDimX = extra leftover value
-                /// ceil(leftover) + dimenX - 2
+                // dimenX = ceil(rawDimenX)
+                // ceil(rawDimX) - RawDimX = extra leftover value
+                // ceil(leftover) + dimenX - 2
 
-                /// This is the most accurate way I've thought of currently to correctly emulate these errors
-                /// even though we have to go out of our way to do it
+                // This is the most accurate way I've thought of currently to correctly emulate these errors
+                // even though we have to go out of our way to do it
                 hollowDimenX = (dimenX == 1) ? 1 : (int)MathF.Ceiling(dimenX - rawDimenX) + dimenX - 2;
                 hollowDimenY = (dimenY == 1) ? 1 : (int)MathF.Ceiling(dimenY - rawDimenY) + dimenY - 2;
                 hollowDimenZ = (dimenZ == 1) ? 1 : (int)MathF.Ceiling(dimenZ - rawDimenZ) + dimenZ - 2;

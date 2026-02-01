@@ -2,6 +2,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.Buffers
 {
+    /// <summary>
+    /// Base class for OpenGL buffer objects with automatic binding management.
+    /// </summary>
     public abstract class Buffer
     {
         public BufferTarget Target { get; }

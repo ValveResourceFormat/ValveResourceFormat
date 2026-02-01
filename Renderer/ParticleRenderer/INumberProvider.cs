@@ -9,8 +9,6 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// ONLY use this in emitters and renderers, where per-particle values can't be accessed. Otherwise, use the other version.
         /// </summary>
-        /// <param name="numberProvider"></param>
-        /// <returns></returns>
         public float NextNumber()
             => NextNumber(ref Particle.Default, ParticleSystemRenderState.Default);
 

@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Handles keyboard and mouse input for camera movement and orbit controls.
+/// </summary>
 public class UserInput
 {
     private const float MovementSpeed = 250f; // WASD movement, per second
@@ -21,6 +24,9 @@ public class UserInput
     ];
     private int CurrentSpeedModifier = 4;
 
+    /// <summary>
+    /// Lightweight camera state snapshot for smooth interpolation.
+    /// </summary>
     public record struct CameraLite(Vector3 Location, float Pitch, float Yaw);
 
     private readonly Renderer Renderer;

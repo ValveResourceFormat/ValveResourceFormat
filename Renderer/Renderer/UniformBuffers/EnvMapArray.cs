@@ -2,6 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.Buffers
 {
+    /// <summary>
+    /// Per-probe reflection data for shader uniform buffer.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct EnvMapData
     {
@@ -18,6 +21,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector4 NormalizationSH;
     }
 
+    /// <summary>
+    /// Uniform buffer array containing all environment map probe data.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public class EnvMapArray
     {

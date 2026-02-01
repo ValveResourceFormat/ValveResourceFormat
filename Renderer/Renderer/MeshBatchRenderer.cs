@@ -6,6 +6,9 @@ namespace ValveResourceFormat.Renderer
 {
     static class MeshBatchRenderer
     {
+        /// <summary>
+        /// Draw call request with distance and render order for sorting.
+        /// </summary>
         [DebuggerDisplay("{Node.DebugName,nq}")]
         public struct Request
         {

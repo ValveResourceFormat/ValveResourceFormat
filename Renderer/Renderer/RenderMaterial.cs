@@ -7,8 +7,12 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Reserved GPU texture unit slots for global textures.
+    /// </summary>
     public enum ReservedTextureSlots
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         BRDFLookup = 0,
         BlueNoise,
         FogCubeTexture,
@@ -28,6 +32,7 @@ namespace ValveResourceFormat.Renderer
         SceneStencil,
         MorphCompositeTexture,
         Last = MorphCompositeTexture,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     enum BlendMode
@@ -41,6 +46,9 @@ namespace ValveResourceFormat.Renderer
         ModThenAdd,
     }
 
+    /// <summary>
+    /// Material with shader, textures, and render state for GPU rendering.
+    /// </summary>
     [DebuggerDisplay("{Material.Name} ({Shader.Name})")]
     public class RenderMaterial
     {

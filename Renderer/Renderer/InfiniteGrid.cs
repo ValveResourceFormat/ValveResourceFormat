@@ -2,6 +2,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Renders an infinite reference grid on the XY plane.
+    /// </summary>
     public class InfiniteGrid
     {
         private readonly int vao;

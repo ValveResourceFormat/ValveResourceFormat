@@ -4,6 +4,9 @@ using OpenTK.Mathematics;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// OpenGL framebuffer object with color and depth attachments.
+/// </summary>
 public class Framebuffer
 {
     public int FboHandle { get; }
@@ -76,7 +79,14 @@ public class Framebuffer
 
     #endregion
 
+    /// <summary>
+    /// Color attachment pixel format and type specification.
+    /// </summary>
     public record class AttachmentFormat(PixelInternalFormat InternalFormat, PixelFormat PixelFormat, PixelType PixelType);
+
+    /// <summary>
+    /// Depth attachment pixel format and type specification.
+    /// </summary>
     public record class DepthAttachmentFormat(PixelInternalFormat InternalFormat, PixelType PixelType)
     {
         public static readonly DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);

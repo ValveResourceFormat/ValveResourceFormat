@@ -6,6 +6,9 @@ using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Main renderer for Source 2 scenes with support for shadows, post-processing, and multiple render passes.
+/// </summary>
 public class Renderer
 {
     public float Uptime { get; set; }

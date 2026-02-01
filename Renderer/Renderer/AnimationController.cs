@@ -3,6 +3,9 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Manages skeletal animation playback and computes animated bone poses.
+    /// </summary>
     public class AnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };

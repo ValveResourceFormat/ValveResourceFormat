@@ -8,6 +8,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// GPU-ready mesh with draw calls, materials, and optional skeletal animation support.
+    /// </summary>
     [DebuggerDisplay("{Name}")]
     public class RenderableMesh
     {
@@ -456,6 +459,9 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    /// <summary>
+    /// Base class for scene nodes that contain a collection of renderable meshes.
+    /// </summary>
     public abstract class MeshCollectionNode : SceneNode
     {
         public abstract Vector4 Tint { get; set; }

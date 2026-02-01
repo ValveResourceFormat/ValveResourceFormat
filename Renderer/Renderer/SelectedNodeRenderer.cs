@@ -4,6 +4,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Renders selection outlines and debug information for selected scene nodes.
+    /// </summary>
     public class SelectedNodeRenderer
     {
         private readonly Shader shader;

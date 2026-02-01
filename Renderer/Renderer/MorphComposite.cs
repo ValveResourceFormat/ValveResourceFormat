@@ -7,6 +7,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Combines morph target deformations into GPU texture for facial animation rendering.
+    /// </summary>
     public class MorphComposite
     {
         private const int VertexSize = 16;

@@ -2,6 +2,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Debug visualization renderer for octree spatial partitioning structure.
+    /// </summary>
     public class OctreeDebugRenderer
     {
         private readonly Shader shader;

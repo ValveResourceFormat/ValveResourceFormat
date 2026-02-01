@@ -4,6 +4,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Base class for scene nodes that render primitive shapes like boxes, spheres, and capsules.
+    /// </summary>
     public abstract class ShapeSceneNode : SceneNode
     {
         public virtual bool IsTranslucent { get; } = true;

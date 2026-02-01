@@ -1,10 +1,14 @@
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Flags for keyboard and mouse input state tracking.
+/// </summary>
 [Flags]
 #pragma warning disable CA2217 // Do not mark enums with FlagsAttribute
 public enum TrackedKeys
 #pragma warning restore CA2217
 {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
     None = 0,
 
     Shift = 1 << 0,
@@ -21,4 +25,5 @@ public enum TrackedKeys
     MouseLeft = 1 << 30,
     MouseRight = 1 << 31,
     MouseLeftOrRight = MouseLeft | MouseRight,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }
