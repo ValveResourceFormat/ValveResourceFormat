@@ -370,10 +370,12 @@ namespace GUI.Types.GLViewers
 
         public void AddDOFControls()
         {
+            Debug.Assert(UiControl != null);
+
             var groupBoxPanel = new Panel
             {
-                Height = 230,
-                Padding = new(4)
+                Height = UiControl.AdjustForDPI(230),
+                Padding = new(4),
             };
 
             var groupBox = new ThemedGroupBox
@@ -385,7 +387,7 @@ namespace GUI.Types.GLViewers
 
             var controlsContainer = new Panel
             {
-                Height = 175,
+                Height = UiControl.AdjustForDPI(175),
                 Dock = DockStyle.Top
             };
 
@@ -396,45 +398,46 @@ namespace GUI.Types.GLViewers
                 controlsContainer.Enabled = v;
                 controlsContainer.Visible = v;
 
-                groupBoxPanel.Height = v ? 230 : 60;
+                var height = v ? 230 : 60;
+                groupBoxPanel.Height = UiControl.AdjustForDPI(height);
             }
 
             dofCheckBoxAction(Renderer.Postprocess.DOF.Enabled);
 
-            var checkBox = RendererControl.GetCheckBox("Enabled", Renderer.Postprocess.DOF.Enabled, dofCheckBoxAction);
+            var checkBox = RendererControl.CreateCheckBox("Enabled", Renderer.Postprocess.DOF.Enabled, dofCheckBoxAction);
             checkBox.Dock = DockStyle.Top;
 
-            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Far blurry", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Far blurry", val =>
             {
                 Renderer.Postprocess.DOF.FarBlurry = val;
             }, Renderer.Postprocess.DOF.FarBlurry, 0, 10000));
 
-            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Far crisp", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Far crisp", val =>
             {
                 Renderer.Postprocess.DOF.FarCrisp = val;
             }, Renderer.Postprocess.DOF.FarCrisp, 0, 10000));
 
-            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Near blurry", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Near blurry", val =>
             {
                 Renderer.Postprocess.DOF.NearBlurry = -val;
             }, Renderer.Postprocess.DOF.NearBlurry, 0, 100));
 
-            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Near crisp", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Near crisp", val =>
             {
                 Renderer.Postprocess.DOF.NearCrisp = val;
             }, Renderer.Postprocess.DOF.NearCrisp, 0, 1000));
 
-            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Max Blur Size", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Max Blur Size", val =>
             {
                 Renderer.Postprocess.DOF.MaxBlurSize = val;
             }, Renderer.Postprocess.DOF.MaxBlurSize, 0, 100));
 
-            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Radius Scale", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Radius Scale", val =>
             {
                 Renderer.Postprocess.DOF.RadScale = val;
             }, Renderer.Postprocess.DOF.RadScale, 0, 1));
 
-            controlsContainer.Controls.Add(RendererControl.GetFloatInput("Focal Distance", val =>
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Focal Distance", val =>
             {
                 Renderer.Postprocess.DOF.FocalDistance = val;
             }, Renderer.Postprocess.DOF.FocalDistance, 0, 10000));
@@ -442,13 +445,14 @@ namespace GUI.Types.GLViewers
             foreach (Control control in controlsContainer.Controls)
             {
                 control.Dock = DockStyle.Top;
+                control.Margin = new Padding(4);
             }
 
             groupBox.Controls.Add(controlsContainer);
             groupBox.Controls.Add(checkBox);
             groupBoxPanel.Controls.Add(groupBox);
 
-            UiControl!.AddControl(groupBoxPanel);
+            UiControl.AddControl(groupBoxPanel);
         }
 
         public void SelectAndFocusEntity(EntityLump.Entity entity)
