@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
@@ -10,7 +9,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 using static GUI.Controls.SavedCameraPositionsControl;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
