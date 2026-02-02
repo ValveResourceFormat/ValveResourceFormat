@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
@@ -128,6 +129,33 @@ namespace ValveResourceFormat.Renderer
         public void RegisterUpdateHandler(Action<Animation?, int> handler)
         {
             updateHandler = handler;
+        }
+
+        internal void SamplePoseAtFrame(int i, Matrix4x4[] pose)
+        {
+            Debug.Assert(ActiveAnimation != null);
+            var frame = FrameCache.GetFrame(ActiveAnimation, i);
+
+            foreach (var root in Skeleton.Roots)
+            {
+                GetBoneMatricesRecursive(root, Matrix4x4.Identity, frame, pose);
+            }
+        }
+
+        internal Frame SamplePoseAtPercentage(float cycle, Matrix4x4[] pose)
+        {
+            Debug.Assert(ActiveAnimation != null);
+            Debug.Assert(cycle >= 0f && cycle <= 1f);
+
+            var time = cycle * ActiveAnimation.Duration;
+            var frame = FrameCache.GetInterpolatedFrame(ActiveAnimation, time);
+
+            foreach (var root in Skeleton.Roots)
+            {
+                GetBoneMatricesRecursive(root, Matrix4x4.Identity, frame, pose);
+            }
+
+            return frame;
         }
     }
 }

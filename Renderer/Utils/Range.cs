@@ -16,8 +16,15 @@ record struct Range(float Min, float Max)
 
     public readonly float Length => Max - Min;
 
+    public readonly bool IsSet => Min < Max;
+
     public readonly float GetClampedValue(float input)
     {
         return Math.Clamp(input, Min, Max);
+    }
+
+    public readonly float GetPercentageThroughClamped(float input)
+    {
+        return (GetClampedValue(input) - Min) / Length;
     }
 }

@@ -283,9 +283,127 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public AnimationController Animation;
 
+        public BoolValueNode? ResetTimeValueNode;
+        public BoolValueNode? PlayInReverseValueNode;
+
         public override void Initialize(GraphContext ctx)
         {
             Animation = ctx.Controller.Sequences[DataSlotIdx];
+
+            Debug.Assert(Animation.ActiveAnimation != null);
+            Duration = Animation.ActiveAnimation.Duration;
+
+            ctx.SetOptionalNodeFromIndex(ResetTimeValueNodeIdx, ref ResetTimeValueNode);
+            ctx.SetOptionalNodeFromIndex(PlayInReverseValueNodeIdx, ref PlayInReverseValueNode);
+        }
+
+        public override void UpdateSelection(GraphContext ctx)
+        {
+            //
+        }
+
+        public override GraphPoseNodeResult Update(GraphContext ctx)
+        {
+            var result = base.Update(ctx);
+
+            Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
+            Debug.Assert(Animation.ActiveAnimation != null);
+
+            // Unsynchronized Update
+
+            if (Animation.ActiveAnimation.FrameCount == 1)
+            {
+                Animation.SamplePoseAtFrame(0, result.Pose);
+                return result;
+            }
+
+            var resetTime = ResetTimeValueNode?.GetValue(ctx) ?? false;
+            if (resetTime)
+            {
+                CurrentTime = 0f;
+                PreviousTime = 0f;
+            }
+
+            // todo
+            var playInReverse = PlayInReverseValueNode?.GetValue(ctx) ?? false;
+
+            var deltaPercentage = (ctx.DeltaTime * SpeedMultiplier) / Duration;
+
+            PreviousTime = CurrentTime;
+            CurrentTime += deltaPercentage;
+
+            if (AllowLooping)
+            {
+                if (CurrentTime > 1f)
+                {
+                    var loops = (int)CurrentTime;
+                    LoopCount += loops;
+                    CurrentTime -= loops;
+
+                    Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
+                }
+            }
+            else
+            {
+                CurrentTime = MathUtils.Saturate(CurrentTime);
+            }
+
+            // sample animation pose at current time
+            var frame = Animation.SamplePoseAtPercentage(CurrentTime, result.Pose);
+
+
+            // root motion
+            // frame.Movement.Position;
+
+            return result;
+        }
+    }
+
+    partial class AnimationPoseNode
+    {
+        public FloatValueNode? PoseTimeValueNode;
+        public AnimationController Animation;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetOptionalNodeFromIndex(PoseTimeValueNodeIdx, ref PoseTimeValueNode);
+            Animation = ctx.Controller.Sequences[DataSlotIdx];
+            Debug.Assert(Animation.ActiveAnimation != null);
+            Duration = Animation.ActiveAnimation.Duration;
+            // set to null if skeletons don't match
+        }
+
+        public override GraphPoseNodeResult Update(GraphContext ctx)
+        {
+            var result = base.Update(ctx);
+
+            Debug.Assert(Animation.ActiveAnimation != null);
+
+            if (Animation.ActiveAnimation.FrameCount == 1)
+            {
+                Animation.SamplePoseAtFrame(0, result.Pose);
+                return result;
+            }
+
+            var timeValue = PoseTimeValueNode?.GetValue(ctx) ?? UserSpecifiedTime;
+
+            // Optional remap
+            if (InputTimeRemapRange.IsSet)
+            {
+                timeValue = InputTimeRemapRange.GetPercentageThroughClamped(timeValue);
+            }
+
+            // Convert to percentage
+            if (UseFramesAsInput)
+            {
+                timeValue /= Animation.ActiveAnimation.FrameCount - 1;
+            }
+
+            CurrentTime = MathUtils.Saturate(timeValue);
+            PreviousTime = CurrentTime;
+
+            Animation.SamplePoseAtPercentage(CurrentTime, result.Pose);
+            return result;
         }
     }
     #endregion
