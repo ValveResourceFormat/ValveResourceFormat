@@ -208,13 +208,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             var sourceDuration = SourceStateNode.Duration;
 
-            if (sourceDuration == TimeSpan.Zero)
+            if (sourceDuration == 0f)
             {
                 return true;
             }
             else
             {
-                var transitionTime = TransitionDurationSeconds / sourceDuration.TotalSeconds;
+                var transitionTime = TransitionDurationSeconds / sourceDuration;
                 var transitionPoint = 1.0f - transitionTime;
                 return SourceStateNode.CurrentTime >= transitionPoint;
             }

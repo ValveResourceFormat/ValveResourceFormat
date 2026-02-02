@@ -16,7 +16,7 @@
     <SignAssembly>false</SignAssembly>
     <PublishSingleFile>true</PublishSingleFile>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <NoWarn>NU1901;NU1902;NU1903</NoWarn>
+    <NoWarn>NU1901;NU1902;NU1903;CS8618</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="FCTB" Version="2.16.24">

@@ -59,8 +59,6 @@ namespace ValveResourceFormat.Renderer
             IterateGraph(graph);
             Debug.Assert(ParameterNames != null);
 
-            Graph = new AnimLib.GraphContext(graph, Skeleton2, this);
-
             // Load all clips
             var resources = graph.GetArray<string>("m_resources");
             Sequences = new AnimationController[resources.Length];
@@ -89,6 +87,8 @@ namespace ValveResourceFormat.Renderer
                     Sequences[ri] = subGraphController;
                 }
             }
+
+            Graph = new AnimLib.GraphContext(graph, Skeleton2, this);
 
             {
                 // Build bone remap table
