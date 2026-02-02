@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 using static ValveResourceFormat.Blocks.ResourceIntrospectionManifest.ResourceDiskEnum;
 
 namespace ValveResourceFormat.Renderer
@@ -19,6 +20,8 @@ namespace ValveResourceFormat.Renderer
 
         //SLANG
         public int UniformBuffer { get; set; } = -1;
+
+        public byte[] CpuUniformBuffer { get; set; } = [];
         public int UniformBufferSize { get; set; }
         //SLANG
         public int UniformBufferBinding { get; set; }
@@ -43,7 +46,7 @@ namespace ValveResourceFormat.Renderer
         //SLANG
         public Dictionary<string, (int Binding, bool isTexture)> ResourceBindings { get; set; } = [];
         public required HashSet<string> SrgbUniforms { get; init; }
-        public HashSet<string> ReservedTexuresUsed { get; } = [];
+        public HashSet<string> ReservedTexuresUsed { get; init; } = [];
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
         public RenderMaterial Default { get; init; }
@@ -284,10 +287,10 @@ namespace ValveResourceFormat.Renderer
                 {
                     throw new Exception($"Buffer overflow: offset={location}, size={byteSize}, bufferSize={UniformBufferSize}");
                 }
-                GL.NamedBufferSubData(UniformBuffer, (IntPtr)location, byteSize, ref value);
+                MemoryMarshal.Write(CpuUniformBuffer.AsSpan(location), in value);
 
-                Vector2 data = new Vector2();
-                GL.GetNamedBufferSubData(UniformBuffer, location, 8, ref data);
+                //GL.NamedBufferSubData(UniformBuffer, (IntPtr)location, byteSize, ref value);
+
             }
             else
             {
@@ -363,6 +366,11 @@ namespace ValveResourceFormat.Renderer
                 return value.Binding;
             }
             return 0;
+        }
+
+        public void UpdateUniformBuffer()
+        {
+            GL.NamedBufferData(UniformBuffer, CpuUniformBuffer.Length, CpuUniformBuffer, BufferUsageHint.DynamicDraw);
         }
 
         public int GetUniformBlockIndex(string name)

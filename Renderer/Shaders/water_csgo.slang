@@ -25,18 +25,24 @@ import "common/LightingConstants.slang";
 [shader("fragment")]
 float4 fragmentMain( VertexOutput vOut) : SV_Target
 {
-    float4 outputColor = float4(g_vWaterDecayColor, g_flTime);
-    //return outputColor;
+    float4 outputColor = float4(1);
+    vec2 gbufferUV = gl_FragCoord.xy / textureSize(g_tSceneColor, 0);
+    
 
     MaterialProperties_t mat;
     InitProperties(mat,vOut.vNormalOut, vOut.vFragPosition,vOut.vTangentOut,vOut.vBitangentOut);
 
     vec4 blueNoiseZeroToOne = texelFetch(g_tBlueNoise, ivec2(mod(gl_FragCoord.xy, textureSize(g_tBlueNoise, 0))), 0);
+
+    //return blueNoiseZeroToOne;
+
     vec2 blueNoiseNegHalfToHalf = blueNoiseZeroToOne.xy - 0.5;
     float blueNoiseNegOneToOne = blueNoiseNegHalfToHalf.x * 2.0;
 
     // --- Position & View Vectors ---
-    vec2 gbufferUV = gl_FragCoord.xy / textureSize(g_tSceneColor, 0);
+    
+
+    //return g_tSceneColor.Sample(gbufferUV) * 0.5;
 
     vec2 unbiasedUV = (mat.PositionWS.xy - g_vMapUVMin.xy) / (g_vMapUVMax.xy - g_vMapUVMin.xy);
     unbiasedUV.y = 1.0 - unbiasedUV.y;
@@ -49,6 +55,8 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
     const float flSkyboxScale = 1.0; // g_bIsSkybox ? g_flSkyBoxScale : 1.0
     float distanceToFrag = length(vPositionViewSpace) * flSkyboxScale;
+
+    
 
     // ---- Skybox corrected projection stuff ---------
 
@@ -65,7 +73,10 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
     if (!g_bIsSkybox)
     {
-        float sceneDepth = textureLod(g_tSceneDepth, gbufferUV, 0.0).x;
+        float sceneDepth = g_tSceneDepth.SampleLevel(gbufferUV, 0).r;
+        return float4(1 / sceneDepth / 50);
+
+
         sceneNormalizedDepth = LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, sceneDepth);
 
         sceneNormalizedDepth = max(sceneNormalizedDepth, 0.00001);
@@ -82,12 +93,16 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
         float waterSurfaceViewZ = -(g_matWorldToView * vec4(mat.PositionWS, 1.0)).z;
         waterColumnOpticalDepthFactor = (refractionDistortionFactor * 1.0 + ClampToPositive((1.0 / sceneNormalizedDepth) - waterSurfaceViewZ) * 0.01);
+
+        
     }
 
     float waterSurfaceViewZ = -(g_matWorldToView * vec4(mat.PositionWS, 1.0) ).z;
 
     float adjustedWaterColumnDepth = ClampToPositive(waterColumnOpticalDepthFactor - 0.02);
     float refractedVerticalFactor = waterColumnOpticalDepthFactor * viewDirInv.z;
+
+    
 
     // --- Get Roughness, Foam and Debris ----
     float currentWaterRoughness = g_bIsSkybox
@@ -223,6 +238,8 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     vec2 finalWavePhaseOffset = accumulatedPhaseOffset * 0.1;
     vec3 roughedWaveNormal = accumulatedWaveNormal * currentWaterRoughness;
     float scaledAccumulatedWaveHeight = accumulatedWaveHeight * currentWaterRoughness * 60.0; // For stronger visual effect
+
+    
 
     vec3 ditheredNormal = vec3(0.0, 0.0, 1.0);
     float edgeFactorQ = g_flEdgeShapeEffect;

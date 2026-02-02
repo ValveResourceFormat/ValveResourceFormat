@@ -121,8 +121,8 @@ namespace ValveResourceFormat.Renderer
 
             TargetDesc targetDesc = new TargetDesc();
 
-            targetDesc.format = SlangCompileTarget.SLANG_GLSL;
-            targetDesc.profile = globalSlangSession.findProfile("glsl_460");
+            targetDesc.format = SlangCompileTarget.SLANG_SPIRV;
+            targetDesc.profile = globalSlangSession.findProfile("spirv_1_0");
             unsafe
             {
                 slangSessionDesc.targets = &targetDesc;
@@ -238,7 +238,11 @@ namespace ValveResourceFormat.Renderer
             var nameWithExtension = $"{shaderFileName}.slang";
 
             IModule module = slangSession.loadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out ISlangBlob diagnostics);
-
+            string diagnosticsOut = "";
+            if (shaderFileName == "water_csgo")
+            {
+                diagnosticsOut = diagnostics.getString();
+            }
             for (int i = 0; i < module.getDefinedEntryPointCount(); i++)
             {
                 module.getDefinedEntryPoint(i, out IEntryPoint entryPoint);
@@ -365,7 +369,7 @@ namespace ValveResourceFormat.Renderer
             try
             {
                 var shaderFileName = GetShaderFileByName(shaderName);
-                var sources = new Dictionary<SlangStage, string>();
+                var sources = new Dictionary<SlangStage, ISlangBlob>();
 
                 //SLANG: we must build an argument config!
                 string configModuleSource = "";
@@ -382,14 +386,19 @@ namespace ValveResourceFormat.Renderer
                 int ReflectedUniformBufferBinding = -1;
                 int ReflectedUniformBufferSize = 0;
                 Dictionary<string, int> ReflectedUniformOffsets = new Dictionary<string, int>();
-                Dictionary<string, int> ReflectedResourceBindings = new Dictionary<string, int>();
+
+                Dictionary<string, (ActiveUniformType Type, int Location, int DefaultValue, bool SrgbRead)> ReflectedIntParams = new Dictionary<string, (ActiveUniformType Type, int Location, int DefaultValue, bool SrgbRead)>();
+                Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)> ReflectedFloatParams = new Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)>();
+                Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)> ReflectedVectorParams = new Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)>();
+
+
+                Dictionary<string, (int Binding, bool isTexture)> ReflectedResourceBindings = new Dictionary<string, (int Binding, bool isTexture)>();
                 Dictionary<string, int> ReflectedAttributes = new Dictionary<string, int>();
+
+                HashSet<string> ReflectedReservedTextures = [];
 
                 var programLayout = specialisedProgram.getLayout();
                 var globalVarLayout = programLayout.getGlobalParamsVarLayout();
-
-                //
-                
 
 
                 //Reflect parameters
@@ -403,7 +412,7 @@ namespace ValveResourceFormat.Renderer
                     {
                         var resource = globalTypeLayout.getFieldByIndex(i);
 
-                        ReflectedResourceBindings.Add(resource.getName(), (int)resource.getBindingIndex());
+                        ReflectedResourceBindings.Add(resource.getName(), ((int)resource.getBindingIndex(), false));
                     }
                 }
                 else if (globalVarLayout.getCategory() == ParameterCategory.eDescriptorTableSlot)
@@ -419,11 +428,108 @@ namespace ValveResourceFormat.Renderer
 
                         if (field.getCategory() == ParameterCategory.eUniform)
                         {
-                            ReflectedUniformOffsets.Add(field.getName(), (int)field.getOffset());
+                            string uniformName = field.getName();
+
+                            ReflectedUniformOffsets.Add(uniformName, (int)field.getOffset());
+                            var fieldType = field.getTypeLayout();
+                            var fieldVar = field.getVariable();
+                            var kind = fieldType.getKind();
+
+
+
+                            switch (kind)
+                            {
+                                case SlangTypeKind.eScalar:
+                                    {
+                                        var scalarType = fieldType.getType().getScalarType();
+                                        if (scalarType == SlangScalarType.eI32)
+                                        {
+                                            bool SrgbRead = false;
+                                            float defValue = 0;
+                                            for (uint attributeIndex = 0; attributeIndex < fieldVar.getUserAttributeCount(); attributeIndex++)
+                                            {
+                                                var userAttribute = fieldVar.getUserAttributeByIndex(attributeIndex);
+                                                if (userAttribute.getName() == "SrgbRead")
+                                                {
+                                                    SrgbRead = true;
+                                                }
+                                                if (userAttribute.getName() == "Default")
+                                                {
+                                                    userAttribute.getArgumentValueFloat(0, out defValue);
+                                                }
+                                            }
+
+                                            ReflectedIntParams.Add(uniformName, (ActiveUniformType.Int, (int)field.getOffset(), (int)defValue, SrgbRead));
+                                        }
+                                        if (scalarType == SlangScalarType.eF32)
+                                        {
+                                            bool SrgbRead = false;
+                                            float defValue = 0;
+                                            for (uint attributeIndex = 0; attributeIndex < fieldVar.getUserAttributeCount(); attributeIndex++)
+                                            {
+                                                var userAttribute = fieldVar.getUserAttributeByIndex(attributeIndex);
+                                                if (userAttribute.getName() == "SrgbRead")
+                                                {
+                                                    SrgbRead = true;
+                                                }
+                                                if (userAttribute.getName() == "Default")
+                                                {
+                                                    userAttribute.getArgumentValueFloat(0, out defValue);
+                                                }
+                                            }
+
+                                            ReflectedFloatParams.Add(uniformName, (ActiveUniformType.Int, (int)field.getOffset(), defValue, SrgbRead));
+                                        }
+                                        break;
+                                    }
+                                //Assumption: All vectors are float vectors. If we also want to support int vectors here, we need to handle it differently.
+                                case SlangTypeKind.eVector:
+                                    {
+                                        bool SrgbRead = false;
+                                        Vector4 defValue = new Vector4(0);
+                                        for (uint attributeIndex = 0; attributeIndex < fieldVar.getUserAttributeCount(); attributeIndex++)
+                                        {
+                                            var userAttribute = fieldVar.getUserAttributeByIndex(attributeIndex);
+                                            if (userAttribute.getName() == "SrgbRead")
+                                            {
+                                                SrgbRead = true;
+                                            }
+                                            if (userAttribute.getName().StartsWith("Default"))
+                                            {
+                                                for (uint argIndex = 0; argIndex < userAttribute.getArgumentCount(); argIndex++)
+                                                {
+                                                    userAttribute.getArgumentValueFloat(argIndex, out float defSlotValue);
+
+                                                    defValue[(int)argIndex] = defSlotValue;
+                                                }
+                                            }
+                                        }
+                                        //SLANG: HACK: Getting the size from argument count is flawed, as we might have a mismatch between the default size and the vector type.
+                                        ReflectedVectorParams.Add(uniformName, (ActiveUniformType.FloatVec4, (int)field.getOffset(), (int)field.getTypeLayout().getType().getElementCount(), defValue, SrgbRead));
+
+
+                                        break;
+                                    }
+                            }
                         }
                         else
                         {
-                            ReflectedResourceBindings.Add(field.getName(), (int)field.getBindingIndex());
+                            var fieldType = field.getTypeLayout();
+                            var fieldVar = field.getVariable();
+                            var kind = fieldType.getKind();
+                            string name = field.getName();
+                            SlangResourceShape shape = fieldType.getType().getResourceShape();
+                            if (Convert.ToBoolean(shape & SlangResourceShape.SLANG_TEXTURE_2D))
+                            {
+                                ReflectedResourceBindings.Add(field.getName(), ((int)field.getBindingIndex(), true));
+                                foreach(var resTex in MaterialLoader.ReservedTextures)
+                                    if (name.Contains(resTex))
+                                    {
+                                        ReflectedReservedTextures.Add(name);
+                                    }
+                            }
+                            else
+                                ReflectedResourceBindings.Add(field.getName(), ((int)field.getBindingIndex(), false));
                         }
                     }
                 }
@@ -458,10 +564,10 @@ namespace ValveResourceFormat.Renderer
                         }
 
                     }
-                    sources.Add(stage, stageCode.getString());
+                    sources.Add(stage, stageCode);
                 }
                 var shaderObjects = new int[sources.Count];
-                var shaderSources = new string[sources.Count];
+                var shaderSources = new ISlangBlob[sources.Count];
                 var s = 0;
                 foreach (var (stage, source) in sources)
                 {
@@ -473,7 +579,16 @@ namespace ValveResourceFormat.Renderer
                 for (var i = 0; i < shaderObjects.Length; i++)
                 {
                     //SLANG: I forgot why I made a copy of it. too lazy to investigate rn
-                    CompileSlangShaderObject(shaderObjects[i], shaderName, shaderName, arguments, "", shaderSources[i]);
+                    //CompileSlangShaderObject(shaderObjects[i], shaderName, shaderName, arguments, "", shaderSources[i]);
+
+                    string soCalledNotSpirv = shaderSources[i].getString();
+
+                    GL.ShaderBinary(1, ref shaderObjects[i], ShaderBinaryFormat.ShaderBinaryFormatSpirV, shaderSources[i].getBufferPointer()
+                    , (int)shaderSources[i].getBufferSize());
+
+
+                    GL.SpecializeShader(shaderObjects[i], "main", 0, (int[])null, (int[])null);
+
                 }
 
                 shaderProgram = GL.CreateProgram();
@@ -497,9 +612,14 @@ namespace ValveResourceFormat.Renderer
                     Program = shaderProgram,
                     ShaderObjects = shaderObjects,
                     UniformBufferBinding = ReflectedUniformBufferBinding,
+                    CpuUniformBuffer = new byte[ReflectedUniformBufferSize],
+                    IntParams = ReflectedIntParams,
+                    FloatParams = ReflectedFloatParams,
+                    VectorParams = ReflectedVectorParams,
                     UniformBufferSize = ReflectedUniformBufferSize,
                     UniformOffsets = ReflectedUniformOffsets,
                     ResourceBindings = ReflectedResourceBindings,
+                    ReservedTexuresUsed = ReflectedReservedTextures,
                     Attributes = ReflectedAttributes,
                     RenderModes = parsedData.RenderModes,
                     UniformNames = parsedData.Uniforms,
@@ -514,6 +634,7 @@ namespace ValveResourceFormat.Renderer
 
                 GL.LinkProgram(shader.Program);
 
+                //SLANG: setting this to true causes openGL errors? possible threading fuckery?
                 if (blocking)
                 {
                     if (!shader.EnsureLoaded())

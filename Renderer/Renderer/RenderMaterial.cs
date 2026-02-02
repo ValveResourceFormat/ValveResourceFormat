@@ -252,8 +252,8 @@ namespace ValveResourceFormat.Renderer
                     if (resource.Value.isTexture)
                     {
                         var texture = Textures.GetValueOrDefault(resource.Key);
-
-                        shader.SetTexture(resource.Value.Binding, 0, texture);
+                        if(texture != null)
+                            shader.SetTexture(resource.Value.Binding, 0, texture);
                     }
                 }
 
@@ -274,6 +274,8 @@ namespace ValveResourceFormat.Renderer
                     var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value.DefaultValue);
                     shader.SetUniformAtLocation(param.Value.Location, value, param.Value.size);
                 }
+
+                shader.UpdateUniformBuffer();
             }
             else
             {
