@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         // some InlineVector usage here
 
-        struct TransitionInfo
+        public struct TransitionInfo
         {
             public TransitionNode TransitionNode;
             public BoolValueNode ConditionNode;
@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             public bool CanBeForced;
         }
 
-        struct StateInfo
+        public struct StateInfo
         {
             public StateNode StateNode;
             public BoolValueNode? EntryConditionNode;
@@ -30,6 +30,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         StateInfo[] States;
 
         public override bool IsValid => base.IsValid && ActiveStateIndex >= 0 && ActiveStateIndex < States.Length;
+        public StateInfo ActiveState => States[ActiveStateIndex];
+        public StateNode ActiveStateNode => ActiveState.StateNode;
 
         public override void Initialize(GraphContext ctx)
         {
@@ -63,7 +65,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ActiveStateIndex = DefaultStateIndex;
             Debug.Assert(ActiveStateIndex != -1);
 
-            var activeState = States[ActiveStateIndex].StateNode;
+            var activeState = ActiveState.StateNode;
 
             Duration = activeState.Duration;
             PreviousTime = activeState.PreviousTime;
@@ -79,7 +81,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // If we are fully in a state, update the state directly
             if (ActiveTransition == null)
             {
-                var activeState = States[ActiveStateIndex];
+                var activeState = ActiveState;
                 result = activeState.StateNode.Update(ctx);
                 Duration = activeState.StateNode.Duration;
                 PreviousTime = activeState.StateNode.PreviousTime;
@@ -96,9 +98,72 @@ namespace ValveResourceFormat.Renderer.AnimLib
             if (ctx.BranchState is BranchState.Active)
             {
                 // EvaluateTransitions( context, pUpdateRange, result, taskIndexMarker );
+                EvaluateTransitions(ctx, result);
             }
 
             return result;
+        }
+
+        private void EvaluateTransitions(GraphContext ctx, GraphPoseNodeResult currentResult)
+        {
+            var activeState = ActiveState;
+
+            //-------------------------------------------------------------------------
+            // Check for a valid transition
+            //-------------------------------------------------------------------------
+
+            var transitionIdx = -1;
+            for (var i = 0; i < activeState.Transitions.Length; i++)
+            {
+                var transition = activeState.Transitions[i];
+                Debug.Assert(transition.TargetStateIndex != -1);
+
+                // Disallow any transitions to already transitioning states
+                // unless this is a forced transition; this prevents infinite loops.
+                if (!transition.CanBeForced && States[transition.TargetStateIndex].StateNode.IsTransitioning)
+                {
+                    continue;
+                }
+
+                // Check if the conditions for this transition are satisfied, if they are start a new transition
+                if (transition.ConditionNode.GetValue(ctx))
+                {
+                    transitionIdx = i;
+                    break;
+                }
+            }
+
+            if (transitionIdx == -1)
+            {
+                return;
+            }
+
+            //-------------------------------------------------------------------------
+            // Start new transition
+            //-------------------------------------------------------------------------
+            Debug.Assert(transitionIdx >= 0 && transitionIdx < activeState.Transitions.Length);
+            var selectedTransition = activeState.Transitions[transitionIdx];
+
+            // Initialize target state based on transition settings and what the source is (state or transition)
+            TransitionNode.StartOptions startOptions = new(currentResult)
+            {
+                //UpdateRange = pUpdateRange,
+                IsSourceTransition = (ActiveTransition != null),
+                SourceNode = ActiveTransition != null ? (PoseNode)ActiveTransition : (PoseNode)ActiveState.StateNode,
+                //StartCachingSourcePose = selectedTransition.TransitionNode.CacheSourcePose
+                //SourceTasksStartMarker = ctx.TaskIndexMarker
+            };
+
+            selectedTransition.TransitionNode.InitializeTargetStateAndUpdateTransition(ctx, startOptions);
+
+            ActiveTransition = selectedTransition.TransitionNode;
+
+            // Update state data to that of the new active state
+            ActiveStateIndex = selectedTransition.TargetStateIndex;
+
+            Duration = ActiveState.StateNode.Duration;
+            PreviousTime = ActiveState.StateNode.PreviousTime;
+            CurrentTime = ActiveState.StateNode.CurrentTime;
         }
     }
 }

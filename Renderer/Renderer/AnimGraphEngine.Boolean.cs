@@ -135,6 +135,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         //
     }
 
+    [DebuggerDisplay("{Comparision} {ComparisionIDs}")]
     partial class IDComparisonNode
     {
         IDValueNode InputValueNode;

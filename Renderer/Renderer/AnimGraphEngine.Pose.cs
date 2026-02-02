@@ -354,7 +354,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // sample animation pose at current time
             var frame = Animation.SamplePoseAtPercentage(CurrentTime, result.Pose);
 
-
             // root motion
             // frame.Movement.Position;
 
