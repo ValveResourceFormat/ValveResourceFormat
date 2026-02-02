@@ -13,6 +13,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
         Inactive,
     };
 
+    class LayerContext
+    {
+        public float Weight;
+        public float RootMotionWeight;
+    }
+
     abstract partial class GraphNode
     {
         public abstract void Initialize(GraphContext context);
@@ -87,6 +93,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         public Pose Pose { get; }// => Controller.Pose;
+
+        // Layer context
+        public bool IsInLayer { get; set; }
+        public LayerContext LayerContext { get; }
 
         public void SetNodeFromIndex<T>(short childNodeIdx, ref T childNode) where T : GraphNode
         {
