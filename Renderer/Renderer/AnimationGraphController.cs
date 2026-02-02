@@ -185,8 +185,22 @@ namespace ValveResourceFormat.Renderer
 
         public override bool Update(float timeStep)
         {
-            Graph.Update(timeStep);
-            var graphPose = Graph.Pose;
+            var graphPose = Graph.Update(timeStep);
+
+            for (var i = 0; i < Pose.Length; i++)
+            {
+                var srcIdx = nmSkelToModelSkeleton[i];
+                if (srcIdx >= 0 && srcIdx < graphPose.Pose.Length)
+                {
+                    Pose[i] = graphPose.Pose[srcIdx];
+                    continue;
+                }
+
+                // If bone not found, fallback to bind pose or leave unchanged
+                // Pose[i] = Sequences[0].BindPose.Length > i ? Sequences[0].BindPose[i] : Pose[i];
+            }
+
+            return true;
 
             var sequence = (SequenceIndex >= 0 && SequenceIndex < Sequences.Length) ? Sequences[SequenceIndex] : null;
             if (sequence == null)

@@ -127,10 +127,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message}");
         }
 
-        public void Update(float timeStep)
+        public GraphPoseNodeResult Update(float timeStep)
         {
             DeltaTime = timeStep;
             var poseResult = RootNode.Update(this);
+            return poseResult;
         }
     }
 }
