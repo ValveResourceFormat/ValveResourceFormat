@@ -186,7 +186,7 @@ public class UserInput
 
         if (wasClipping && NoClip)
         {
-            MoveCamera(0, 32, 0, true);
+            MoveCamera(new Vector3(0, 0, 32), transition: true);
             CurrentSpeedModifier = 7;
         }
 
@@ -345,16 +345,12 @@ public class UserInput
 
     /// <summary>
     /// Moves the camera by the specified amounts in camera space.
-    /// Why is this Y-Up?
     /// </summary>
-    public void MoveCamera(float x, float y, float z, bool transition = false)
+    public void MoveCamera(Vector3 delta, bool transition = false)
     {
         Camera.RecalculateDirectionVectors();
-        var forward = Camera.Forward;
-        var right = Camera.Right;
-        var up = Camera.Up;
 
-        var movement = right * x + up * y + forward * z;
+        var movement = Camera.Right * delta.X + Camera.Forward * delta.Y + Camera.Up * delta.Z;
         var newLocation = Camera.Location + movement;
 
         if (transition)

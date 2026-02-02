@@ -224,8 +224,8 @@ namespace GUI.Types.GLViewers
         {
             base.OnFirstPaint();
 
-            Input.MoveCamera(0, 0, -150f);
-            Input.MoveCamera(0, 0, 150f, transition: true);
+            Input.MoveCamera(new Vector3(0, -150f, 0));
+            Input.MoveCamera(new Vector3(0, 150f, 0), transition: true);
         }
 
         protected override void AddUiControls()
