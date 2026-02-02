@@ -241,6 +241,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ModelSpaceTransforms = new Matrix4x4[ctx.Controller.BindPose.Length];
         }
 
+        public virtual bool IsValid => true;
+
         public virtual GraphPoseNodeResult Update(GraphContext ctx)
         {
             return new GraphPoseNodeResult
