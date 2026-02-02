@@ -504,11 +504,22 @@ namespace GUI.Types.GLViewers
             {
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                 {
-                    X = 0.43f,
+                    X = 0.5f,
+                    Y = 0.02f,
+                    Scale = 14f,
+                    Color = new Color32(0, 150, 255),
+                    Text = "* MOVEMENT IS EXPERIMENTAL. EXPECT BUGS. HELP US IMPROVE IT. *",
+                    CenterVertical = true,
+                }, Renderer.Camera);
+
+                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 0.5f,
                     Y = 0.85f,
                     Scale = 12f,
                     Color = Color32.Yellow,
                     Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
+                    CenterVertical = true,
                 }, Renderer.Camera);
             }
 

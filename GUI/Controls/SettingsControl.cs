@@ -98,7 +98,7 @@ namespace GUI.Controls
             {
                 Settings.Config.OpenDirectory = directory;
             }
-            
+
             Settings.Config.GameSearchPaths.Add(fileName);
 
             gamePaths.Items.Add(fileName);

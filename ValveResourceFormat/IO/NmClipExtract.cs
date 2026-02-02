@@ -50,12 +50,12 @@ public class NmClipExtract
             var bonesToSampleInModelSpace = new KVObject("m_bonesToSampleInModelSpace", true, modelSpaceBoneSamplingIndices.Length);
             foreach (var chainIdx in modelSpaceBoneSamplingIndices)
             {
-            if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain!.Length)
-            {
-                throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain!.Length - 1}).");
-            }
-            var boneIdx = modelSpaceSamplingChain[chainIdx]!.GetInt32Property("m_nBoneIdx");
-            bonesToSampleInModelSpace.AddItem(skeleton.Bones[boneIdx].Name);
+                if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain!.Length)
+                {
+                    throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain!.Length - 1}).");
+                }
+                var boneIdx = modelSpaceSamplingChain[chainIdx]!.GetInt32Property("m_nBoneIdx");
+                bonesToSampleInModelSpace.AddItem(skeleton.Bones[boneIdx].Name);
             }
             kv.AddProperty("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
