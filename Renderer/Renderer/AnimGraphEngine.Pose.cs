@@ -290,6 +290,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
+            base.Initialize(ctx);
             Animation = ctx.Controller.Sequences[DataSlotIdx];
 
             Debug.Assert(Animation.ActiveAnimation != null);
@@ -334,7 +335,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             PreviousTime = CurrentTime;
             CurrentTime += deltaPercentage;
 
-            if (AllowLooping)
+            if (true /* temp IsLooping*/ )
             {
                 if (CurrentTime > 1f)
                 {
@@ -368,6 +369,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
+            base.Initialize(ctx);
             ctx.SetOptionalNodeFromIndex(PoseTimeValueNodeIdx, ref PoseTimeValueNode);
             Animation = ctx.Controller.Sequences[DataSlotIdx];
             Debug.Assert(Animation.ActiveAnimation != null);
@@ -422,6 +424,18 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public ClipReferenceNode? SelectedOption;
 
         public abstract void UpdateSelection(GraphContext ctx);
+
+        public override GraphPoseNodeResult Update(GraphContext ctx)
+        {
+            UpdateSelection(ctx);
+
+            if (SelectedOption != null)
+            {
+                return SelectedOption.Update(ctx);
+            }
+
+            return base.Update(ctx);
+        }
     }
 
     partial class ClipSelectorNode
@@ -431,6 +445,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
+            base.Initialize(ctx);
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref ConditionNodes);
         }
@@ -470,6 +485,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
+            base.Initialize(ctx);
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);
         }
