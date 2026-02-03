@@ -75,7 +75,7 @@ namespace Tests
         /*
          *      a = length(1);
          *      a = sqrt(1);
-         *      a = TextureSize(1);
+         *      a = rotation2d(1);
          *      frac(a)
          */
         [Test]
@@ -85,7 +85,7 @@ namespace Tests
             var expectedResult =
                 "v0 = length(1);\n" +
                 "v0 = sqrt(1);\n" +
-                "v0 = TextureSize(1);\n" +
+                "v0 = rotation2d(1);\n" +
                 "return frac(v0);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -357,7 +357,7 @@ namespace Tests
         [Test]
         public void TestDynamicExpression19()
         {
-            var exampleStr = "07 00 00 40 41 06 25 00 08 00 07 00 00 40 41 07 00 00 40 41 06 26 00 08 01 07 00 00 20 41 06 27 00 08 02 09 00 00";
+            var exampleStr = "07 00 00 40 41 06 24 00 08 00 07 00 00 40 41 07 00 00 40 41 06 25 00 08 01 07 00 00 20 41 06 26 00 08 02 09 00 00";
             var expectedResult =
                 "v0 = rotation2d(12);\n" +
                 "v1 = rotate2d(12,12);\n" +
