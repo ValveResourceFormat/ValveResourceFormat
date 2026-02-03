@@ -365,6 +365,54 @@ namespace Tests
                 "return v0;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
+        
+        /*
+         * a = 0;
+         * _27 = TextureSize(g_tColor);
+         * _28 = TextureAverageColor(g_tColor);
+         * _29 = MatrixIdentity();
+         * _2A = MatrixScale(float3(0.5, 0.3, 0.2));
+         * _2B = MatrixTranslate(float3(1.0, 2.0, 3.0));
+         * _2C = MatrixAxisAngle(float4(0.0, 1.0, 0.0, 45.0));
+         * _2D = MatrixAxisToAxis(float3(1.0, 0.0, 0.0), float3(0.0, 1.0, 0.0));
+         * _2E = MatrixMultiply(_2A, _2B);
+         * _2F = MatrixColorCorrect(float4(1.0, 0.8, 0.6, 1.0)); // contrast, saturation, brightness, unknown
+         * _30 = MatrixColorCorrect2(float4(1.0, 0.8, 0.6, 1.0), TextureAverageColor(g_tColor));
+         * _31 = MatrixColorTint(float4(1.0, 1.0, 1.0, 1.0));
+         *
+         * return a;
+         */
+
+        [Test]
+        public void TestDynamicExpression18_Matrices()
+        {
+            var blob = ParseString(
+                "07 00 00 00 00 08 00 19 0F 54 63 59 06 27 00 08 01 19 0F 54 63 59 06 28 00 08 02 06 29 00 08 03 " +
+                "07 00 00 00 3F 07 9A 99 99 3E 07 CD CC 4C 3E 06 19 00 06 2A 00 08 04 07 00 00 80 3F 07 00 00 00 " +
+                "40 07 00 00 40 40 06 19 00 06 2B 00 08 05 07 00 00 00 00 07 00 00 80 3F 07 00 00 00 00 07 00 00 " +
+                "34 42 06 18 00 06 2C 00 08 06 07 00 00 80 3F 07 00 00 00 00 07 00 00 00 00 06 19 00 07 00 00 00 " +
+                "00 07 00 00 80 3F 07 00 00 00 00 06 19 00 06 2D 00 08 07 09 04 09 05 06 2E 00 08 08 07 00 00 80 " +
+                "3F 07 CD CC 4C 3F 07 9A 99 19 3F 07 00 00 80 3F 06 18 00 06 2F 00 08 09 07 00 00 80 3F 07 CD CC " +
+                "4C 3F 07 9A 99 19 3F 07 00 00 80 3F 06 18 00 19 0F 54 63 59 06 28 00 06 30 00 08 0A 07 00 00 80 " +
+                "3F 07 00 00 80 3F 07 00 00 80 3F 07 00 00 80 3F 06 18 00 06 31 00 08 0B 09 00 00"
+            );
+
+            var expectedResult = "v0 = 0;\n" +
+                "v1 = TextureSize(g_tColor);\n" +
+                "v2 = TextureAverageColor(g_tColor);\n" + 
+                "v3 = MatrixIdentity();\n" +
+                "v4 = MatrixScale(float3(.5,.3,.2));\n" +
+                "v5 = MatrixTranslate(float3(1,2,3));\n" +
+                "v6 = MatrixAxisAngle(float4(0,1,0,45));\n" +
+                "v7 = MatrixAxisToAxis(float3(1,0,0),float3(0,1,0));\n" +
+                "v8 = MatrixMultiply(v4,v5);\n" +
+                "v9 = MatrixColorCorrect(float4(1,.8,.6,1));\n" +
+                "v10 = MatrixColorCorrect2(float4(1,.8,.6,1),TextureAverageColor(g_tColor));\n" +
+                "v11 = MatrixColorTint(float4(1,1,1,1));\n" +
+                "return v0;";
+
+            Assert.That(new VfxEval(blob, ["g_tColor"]).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
 
         /*
          * 1+2+3+4
