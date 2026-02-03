@@ -6,6 +6,9 @@ record struct Transform(Vector3 Position, float Scale, Quaternion Rotation)
 {
     public static Transform Identity => new(Vector3.Zero, 1.0f, Quaternion.Identity);
 
+    public readonly Vector4 PositionScale => new(Position, Scale);
+    public readonly Vector3 ScaleVector => new(Scale);
+
     public Transform(KVObject data)
         : this(Vector3.Zero, 1.0f, Quaternion.Identity)
     {
@@ -25,31 +28,36 @@ record struct Transform(Vector3 Position, float Scale, Quaternion Rotation)
         );
     }
 
-    public static Transform operator *(Transform t, Matrix4x4 m)
+    public static Transform operator *(Transform lhs, Transform rhs)
     {
-        // Apply the matrix to the transform by multiplying matrices then decomposing back.
-        var combined = t.ToMatrix() * m;
-        if (Matrix4x4.Decompose(combined, out var scaleVec, out var rot, out var trans))
+        var finalScale = lhs.Scale * rhs.Scale;
+
+        if (lhs.Scale < 0 || rhs.Scale < 0)
         {
-            // Transform stores a uniform scale; take X (decompose returns per-axis scale).
-            var scale = scaleVec.X;
-            return new Transform(trans, scale, Quaternion.Normalize(rot));
+            // Multiply the transforms using matrices to get the correct rotation
+            var lhsMtx = lhs.ToMatrix();
+            var rhsMtx = rhs.ToMatrix();
+            var resultMtx = lhsMtx * rhsMtx;
+
+            // Decompose to extract components
+            Matrix4x4.Decompose(resultMtx, out _, out var rotation, out var _translation);
+
+            // Apply back the sign from the final scale
+            var sign = MathF.Sign(finalScale);
+            if (sign < 0)
+            {
+                // Flip the rotation by negating XYZ components
+                rotation = new Quaternion(-rotation.X, -rotation.Y, -rotation.Z, rotation.W);
+            }
+
+            return new Transform(_translation, MathF.Abs(finalScale), Quaternion.Normalize(rotation));
         }
 
-        // Decompose failed — return original transform unchanged (safe fallback).
-        return t;
-    }
+        // Normal case
+        var combinedRotation = Quaternion.Normalize(lhs.Rotation * rhs.Rotation);
+        var translation = Vector3.Transform(lhs.Position * rhs.Scale, rhs.Rotation) + rhs.Position;
 
-    public static Transform operator *(Matrix4x4 m, Transform t)
-    {
-        var combined = m * t.ToMatrix();
-        if (Matrix4x4.Decompose(combined, out var scaleVec, out var rot, out var trans))
-        {
-            var scale = scaleVec.X;
-            return new Transform(trans, scale, Quaternion.Normalize(rot));
-        }
-
-        return t;
+        return new Transform(translation, finalScale, combinedRotation);
     }
 
     public readonly Matrix4x4 ToMatrix()

@@ -131,18 +131,32 @@ namespace ValveResourceFormat.Renderer
             updateHandler = handler;
         }
 
-        internal void SamplePoseAtFrame(int i, Matrix4x4[] pose)
+        private static void GetBoneMatricesRecursive(Bone bone, Transform parent, Frame frame, Span<Transform> boneTransforms)
+        {
+            var frameBone = frame.Bones[bone.Index];
+            var boneTransform = new Transform(frameBone.Position, frameBone.Scale, frameBone.Angle);
+
+            boneTransform *= parent;
+            boneTransforms[bone.Index] = boneTransform;
+
+            foreach (var child in bone.Children)
+            {
+                GetBoneMatricesRecursive(child, boneTransform, frame, boneTransforms);
+            }
+        }
+
+        internal void SamplePoseAtFrame(int i, Transform[] pose)
         {
             Debug.Assert(ActiveAnimation != null);
             var frame = FrameCache.GetFrame(ActiveAnimation, i);
 
             foreach (var root in Skeleton.Roots)
             {
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, frame, pose);
+                GetBoneMatricesRecursive(root, Transform.Identity, frame, pose);
             }
         }
 
-        internal Frame SamplePoseAtPercentage(float cycle, Matrix4x4[] pose)
+        internal Frame SamplePoseAtPercentage(float cycle, Transform[] pose)
         {
             Debug.Assert(ActiveAnimation != null);
             Debug.Assert(cycle >= 0f && cycle <= 1f);
@@ -152,7 +166,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var root in Skeleton.Roots)
             {
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, frame, pose);
+                GetBoneMatricesRecursive(root, Transform.Identity, frame, pose);
             }
 
             return frame;

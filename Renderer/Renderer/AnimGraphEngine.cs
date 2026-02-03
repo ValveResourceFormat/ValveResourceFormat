@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public float DeltaTime { get; set; }
 
         public Skeleton Skeleton { get; } // => Controller.Skeleton;
-        public Matrix4x4 WorldTransformInverse;
+        public Transform WorldTransformInverse;
 
         private GraphDefinition graphDefinition;
         private ResourceTypes.ModelAnimation.Skeleton nmSkel;

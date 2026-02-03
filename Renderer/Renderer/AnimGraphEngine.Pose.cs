@@ -217,7 +217,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     struct GraphPoseNodeResult
     {
-        public Matrix4x4[] Pose;
+        public Transform[] Pose;
         public Matrix4x4 RootMotionDelta;
         // SampledEventRange
     }
@@ -229,7 +229,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public float CurrentTime; /* Percent */
         public float PreviousTime;  /* Percent */
 
-        public Matrix4x4[] ModelSpaceTransforms = [];
+        public Transform[] ModelSpaceTransforms = [];
 
         public override void Initialize(GraphContext ctx)
         {
@@ -238,7 +238,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             CurrentTime = 1f;
             PreviousTime = 1f;
 
-            ModelSpaceTransforms = new Matrix4x4[ctx.Controller.BindPose.Length];
+            ModelSpaceTransforms = new Transform[ctx.Controller.BindPose.Length];
         }
 
         public virtual bool IsValid => true;
@@ -270,7 +270,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var result = base.Update(ctx);
             for (var i = 0; i < result.Pose.Length; i++)
             {
-                result.Pose[i] = Matrix4x4.Identity;
+                result.Pose[i] = Transform.Identity;
             }
             return result;
         }

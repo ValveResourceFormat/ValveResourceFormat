@@ -192,7 +192,7 @@ namespace ValveResourceFormat.Renderer
                 var srcIdx = nmSkelToModelSkeleton[i];
                 if (srcIdx >= 0 && srcIdx < graphPose.Pose.Length)
                 {
-                    Pose[i] = graphPose.Pose[srcIdx];
+                    Pose[i] = graphPose.Pose[srcIdx].ToMatrix();
                     continue;
                 }
 

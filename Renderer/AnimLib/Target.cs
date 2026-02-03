@@ -67,7 +67,7 @@ struct Target
                 if (parentBoneIdx != -1)
                 {
                     // Compose local (bone) transform with parent's model-space transform
-                    result *= pose.GetModelSpaceTransform(parentBoneIdx).ToMatrix();
+                    result *= pose.GetModelSpaceTransform(parentBoneIdx);
                 }
             }
             else // Get the model space transform for the target bone
