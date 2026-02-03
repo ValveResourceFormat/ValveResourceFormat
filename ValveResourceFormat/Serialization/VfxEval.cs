@@ -61,29 +61,28 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ("normalize",  1),     // 21
             ("length",     1),     // 22
             ("sqr",        1),     // 23
-            ("TextureSize",1),     // 24
-            ("rotation2d", 1),     // 25
-            ("rotate2d",   2),     // 26
-            ("sincos",     1),     // 27
-            ("TextureSize",1),     // 28
-            ("TextureAverageColor", 1), // 29
-            ("MatrixIdentity",      0), // 2A
-            ("MatrixScale",         1), // 2B
-            ("MatrixTranslate",     1), // 2C
-            ("MatrixAxisAngle",     1), // 2D
-            ("MatrixAxisToAxis",    2), // 2E
-            ("MatrixMultiply",      2), // 2F
-            ("MatrixColorCorrect",  1), // 30
-            ("MatrixColorCorrect2", 2), // 31
-            ("MatrixColorTint",     1), // 32
-            ("normalize_safe",      1), // 33
+            ("rotation2d", 1),     // 24
+            ("rotate2d",   2),     // 25
+            ("sincos",     1),     // 26
+            ("TextureSize",1),     // 27
+            ("TextureAverageColor", 1), // 28
+            ("MatrixIdentity",      0), // 29
+            ("MatrixScale",         1), // 2A
+            ("MatrixTranslate",     1), // 2B
+            ("MatrixAxisAngle",     1), // 2C
+            ("MatrixAxisToAxis",    2), // 2D
+            ("MatrixMultiply",      2), // 2E
+            ("MatrixColorCorrect",  1), // 2F
+            ("MatrixColorCorrect2", 2), // 30
+            ("MatrixColorTint",     1), // 31
+            ("normalize_safe",      1), // 32
+            ("Remap01ScaleOffset",  1), // 33
             ("radians",             1), // 34
             ("degrees",             1), // 35
-            ("Remap01ScaleOffset",  1), // 36
-            ("MatrixColorTint2",    2), // 37
-            ("MatrixColorTint3",    3), // 38
-            ("RemapVal",            5), // 39
-            ("RemapValClamped",     5), // 3A
+            ("MatrixColorTint2",    2), // 36
+            ("MatrixColorTint3",    3), // 37
+            ("RemapVal",            5), // 38
+            ("RemapValClamped",     5), // 39
 #pragma warning restore format
         ];
 
