@@ -14,8 +14,19 @@ using KVObject = ValveKeyValue.KVObject;
 namespace ValveResourceFormat.IO
 {
     /// <summary>
-    /// Loads game files from VPK packages and disk with automatic path resolution.
+    /// Loads compiled game resources from VPK packages and disk with automatic path resolution.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This class is intended for loading compiled resources (such as models, textures, materials)
+    /// that need to be parsed as <see cref="Resource"/> objects. It handles resource lookup
+    /// across VPK packages and loose files on disk, automatically discovering game search paths
+    /// from gameinfo.gi files.
+    /// </para>
+    /// <para>
+    /// To read raw file bytes from a VPK package, use <c>Package.ReadEntry</c> instead.
+    /// </para>
+    /// </remarks>
     public class GameFileLoader : IFileLoader, IDisposable
     {
         private const string AddonsSuffix = "_addons";
