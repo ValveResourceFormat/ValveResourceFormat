@@ -42,6 +42,12 @@ public abstract class VfxShaderFile : ShaderDataBlock
         HashMD5 = Guid.Empty;
     }
 
+    internal VfxShaderFile()
+    {
+        ParentCombo = null!;
+        ShaderFileId = -1;
+    }
+
     /// <summary>
     /// Decompiles the shader to source code.
     /// </summary>

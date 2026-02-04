@@ -67,6 +67,17 @@ public class VfxShaderFileVulkan : VfxShaderFile
     }
 
     /// <summary>
+    /// Initializes a new instance from pure SPIR-V, unassociated with any combo.
+    /// </summary>
+    public VfxShaderFileVulkan(byte[] bytecode) : base()
+    {
+        HashMD5 = Guid.Empty;
+        Bytecode = bytecode;
+        BytecodeSize = bytecode.Length;
+        Size = BytecodeSize;
+    }
+
+    /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
     public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile)

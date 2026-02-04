@@ -1021,6 +1021,12 @@ namespace GUI
                 await viewer.LoadAsync(stream).ConfigureAwait(false);
                 return viewer;
             }
+            else if (Types.Viewers.SpirvBinary.IsAccepted(magic))
+            {
+                var viewer = new Types.Viewers.SpirvBinary(vrfGuiContext);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
+            }
 
             var byteViewer = new Types.Viewers.ByteViewer(vrfGuiContext);
             await byteViewer.LoadAsync(stream).ConfigureAwait(false);
