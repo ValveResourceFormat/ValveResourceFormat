@@ -1,128 +1,63 @@
 using System.Diagnostics;
-using System.Linq;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
     class Pose
     {
-        public enum PoseState
+        public enum PoseType
         {
             Unset,
+            Pose,
             ReferencePose,
             ZeroPose,
+            AdditivePose,
         }
 
         public Skeleton Skeleton { get; private set; }
-        Transform[] parentSpaceTransforms = [];
-        Transform[] modelSpaceTransforms = [];
-        PoseState state = PoseState.Unset;
+        readonly FrameBone[] ParentSpaceTransforms = [];
+        readonly FrameBone[] ModelSpaceTransforms = [];
+        PoseType Type = PoseType.Unset;
+
+        public int NumBones => Skeleton.ParentSpaceReferencePose.Length;
 
         /// <summary>Creates a pose for <paramref name="skeleton"/> and sets the initial state.</summary>
-        public Pose(Skeleton skeleton, PoseState initialState = PoseState.Unset)
+        public Pose(Skeleton skeleton, PoseType initialState = PoseType.ReferencePose)
         {
             Debug.Assert(skeleton != null);
             Skeleton = skeleton;
-            parentSpaceTransforms = new Transform[skeleton.ParentSpaceReferencePose.Length];
+            ParentSpaceTransforms = new FrameBone[NumBones];
+            ModelSpaceTransforms = new FrameBone[NumBones];
             Reset(initialState);
         }
 
-        /// <summary>Copy data from another pose.</summary>
-        public void CopyFrom(Pose rhs)
-        {
-            Skeleton = rhs.Skeleton;
-            parentSpaceTransforms = rhs.parentSpaceTransforms.ToArray();
-            modelSpaceTransforms = rhs.modelSpaceTransforms.ToArray();
-            state = rhs.state;
-        }
-
-        /// <summary>Swap contents with <paramref name="rhs"/>.</summary>
-        public void SwapWith(Pose rhs)
-        {
-            var tmpSkeleton = Skeleton;
-            Skeleton = rhs.Skeleton;
-            rhs.Skeleton = tmpSkeleton;
-
-            var tmpState = state;
-            state = rhs.state;
-            rhs.state = tmpState;
-
-            (parentSpaceTransforms, rhs.parentSpaceTransforms) = (rhs.parentSpaceTransforms, parentSpaceTransforms);
-            (modelSpaceTransforms, rhs.modelSpaceTransforms) = (rhs.modelSpaceTransforms, modelSpaceTransforms);
-        }
-
-        public void ChangeSkeleton(Skeleton skeleton)
-        {
-            Debug.Assert(skeleton != null);
-
-            if (Skeleton == skeleton)
-            {
-                return;
-            }
-
-            Skeleton = skeleton;
-            parentSpaceTransforms = new Transform[skeleton.ParentSpaceReferencePose.Length];
-            modelSpaceTransforms = [];
-            state = PoseState.Unset;
-        }
-
-        public void Reset(PoseState initialState, bool calculateModelSpacePose = false)
+        public void Reset(PoseType initialState, bool calculateModelSpacePose = false)
         {
             switch (initialState)
             {
-                case PoseState.ReferencePose:
-                    {
-                        SetToReferencePose(calculateModelSpacePose);
-                    }
-                    break;
+                case PoseType.ReferencePose: SetToReferencePose(); break;
+                case PoseType.ZeroPose: SetToZeroPose(); break;
+                default: Type = PoseType.Unset; break;
+            }
 
-                case PoseState.ZeroPose:
-                    {
-                        SetToZeroPose(calculateModelSpacePose);
-                    }
-                    break;
-
-                default:
-                    {
-                        // Leave memory intact, just change state
-                        state = PoseState.Unset;
-                    }
-                    break;
+            if (calculateModelSpacePose)
+            {
+                CalculateModelSpaceTransforms(NumBones);
             }
         }
 
-        public void SetToReferencePose(bool setGlobalPose)
+        public void SetToReferencePose()
         {
             Debug.Assert(Skeleton != null);
-            parentSpaceTransforms = Skeleton.ParentSpaceReferencePose.ToArray();
-
-            if (setGlobalPose)
-            {
-                modelSpaceTransforms = Skeleton.ModelSpaceReferencePose.ToArray();
-            }
-            else
-            {
-                modelSpaceTransforms = [];
-            }
-
-            state = PoseState.ReferencePose;
+            Skeleton.ParentSpaceReferencePose.CopyTo(ParentSpaceTransforms, 0);
+            Type = PoseType.ReferencePose;
         }
 
-        public void SetToZeroPose(bool setGlobalPose)
+        public void SetToZeroPose()
         {
             Debug.Assert(Skeleton != null);
-            var numBones = Skeleton.ParentSpaceReferencePose.Length;
-            parentSpaceTransforms = Enumerable.Repeat(Transform.Identity, numBones).ToArray();
-
-            if (setGlobalPose)
-            {
-                modelSpaceTransforms = parentSpaceTransforms.ToArray();
-            }
-            else
-            {
-                modelSpaceTransforms = [];
-            }
-
-            state = PoseState.ZeroPose;
+            Array.Fill(ParentSpaceTransforms, FrameBone.Identity);
+            Type = PoseType.ZeroPose;
         }
 
         /// <summary>Calculate model-space transforms for the requested LOD (number of relevant bones).</summary>
@@ -130,22 +65,19 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             Debug.Assert(Skeleton != null);
 
-            var numTotalBones = parentSpaceTransforms.Length;
-            modelSpaceTransforms = new Transform[numTotalBones];
-
+            var numTotalBones = ParentSpaceTransforms.Length;
             if (numTotalBones == 0)
             {
                 return;
             }
 
-            modelSpaceTransforms[0] = parentSpaceTransforms[0];
+            ModelSpaceTransforms[0] = ParentSpaceTransforms[0];
             for (var boneIdx = 1; boneIdx < numRelevantBones; boneIdx++)
             {
                 var parentIdx = Skeleton.ParentIndices[boneIdx];
                 Debug.Assert(parentIdx < boneIdx);
 
-                // Compose parent-space transform with parent's model-space transform
-                modelSpaceTransforms[boneIdx] = Compose(parentSpaceTransforms[boneIdx], modelSpaceTransforms[parentIdx]);
+                ModelSpaceTransforms[boneIdx] *= ParentSpaceTransforms[boneIdx];
             }
         }
 
@@ -154,46 +86,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Debug.Assert(Skeleton != null);
             Debug.Assert(boneIdx < Skeleton.ParentSpaceReferencePose.Length);
 
-            if (modelSpaceTransforms.Length > 0)
-            {
-                return modelSpaceTransforms[boneIdx];
-            }
-
-            // Walk parent chain and accumulate
-            var parents = new int[Skeleton.ParentSpaceReferencePose.Length];
-            var nextEntry = 0;
-
-            var parentIdx = Skeleton.ParentIndices[boneIdx];
-            while (parentIdx != -1)
-            {
-                parents[nextEntry++] = parentIdx;
-                parentIdx = Skeleton.ParentIndices[parentIdx];
-            }
-
-            var boneModelSpaceTransform = parentSpaceTransforms[boneIdx];
-            if (nextEntry > 0)
-            {
-                // Calculate global transform of parent
-                var arrayIdx = nextEntry - 1;
-                parentIdx = parents[arrayIdx--];
-                var parentModelSpaceTransform = parentSpaceTransforms[parentIdx];
-                for (; arrayIdx >= 0; arrayIdx--)
-                {
-                    var nextIdx = parents[arrayIdx];
-                    var nextTransform = parentSpaceTransforms[nextIdx];
-                    parentModelSpaceTransform = Compose(nextTransform, parentModelSpaceTransform);
-                }
-
-                // Calculate global transform of bone
-                boneModelSpaceTransform = Compose(boneModelSpaceTransform, parentModelSpaceTransform);
-            }
-
-            return boneModelSpaceTransform;
+            return ModelSpaceTransforms[boneIdx];
         }
 
         public Transform GetTransform(int boneIdx)
         {
-            return parentSpaceTransforms[boneIdx];
+            return ParentSpaceTransforms[boneIdx];
         }
 
         // Helper to compose two transforms (returns a Transform representing a * b)
@@ -217,7 +115,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     struct GraphPoseNodeResult
     {
-        public Transform[] Pose;
+        public FrameBone[] Pose;
         public Matrix4x4 RootMotionDelta;
         // SampledEventRange
     }
@@ -229,7 +127,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public float CurrentTime; /* Percent */
         public float PreviousTime;  /* Percent */
 
-        public Transform[] ModelSpaceTransforms = [];
+        public FrameBone[] ModelSpaceTransforms = [];
 
         public override void Initialize(GraphContext ctx)
         {
@@ -238,7 +136,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             CurrentTime = 1f;
             PreviousTime = 1f;
 
-            ModelSpaceTransforms = new Transform[ctx.Controller.BindPose.Length];
+            ModelSpaceTransforms = new FrameBone[ctx.Controller.BindPose.Length];
         }
 
         public virtual bool IsValid => true;
@@ -270,7 +168,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var result = base.Update(ctx);
             for (var i = 0; i < result.Pose.Length; i++)
             {
-                result.Pose[i] = Transform.Identity;
+                result.Pose[i] = FrameBone.Identity;
             }
             return result;
         }
