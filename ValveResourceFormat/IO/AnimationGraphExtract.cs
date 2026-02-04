@@ -3402,7 +3402,8 @@ public class AnimationGraphExtract
                 or "CFootStepTrigger" or "CHitReact" or "CInputStream" or "CJiggleBone" or "CLookAt" or "CMotionMatching" or "CMover"
                 or "CPathHelper" or "CRagdoll" or "CRoot" or "CSelector" or "CSequence" or "CSetFacing" or "CSingleFrame" or "CSkeletalInput"
                 or "CSlowDownonSlopes" or "CSolveIKChain" or "CSpeedScale" or "CStateMachine" or "CStopatGoal" or "CSubtract" or "CTurnHelper"
-                or "CTwoBoneIK" or "CWayPointHelper" or "CZeroPose" or "CFootPinning")
+                or "CTwoBoneIK" or "CWayPointHelper" or "CZeroPose" or "CFootPinning" or "CAimCamera" or "CTargetWarp" or "COrientationWarp"
+                or "CPairedSequence" or "CFollowTarget")
             {
                 newKey = "m_sName";
             }
@@ -5878,7 +5879,96 @@ public class AnimationGraphExtract
                             metric.AddProperty("m_bAutoTargetSpeed", compiledMetric.GetIntegerProperty("m_bAutoTargetSpeed") > 0);
                             metric.AddProperty("m_flManualTargetSpeed", compiledMetric.GetFloatProperty("m_flManualTargetSpeed"));
                         }
+                        else if (metricClassName == "CDistanceRemainingMetricEvaluator")
+                        {
+                            metric.AddProperty("m_flMaxDistance", compiledMetric.GetFloatProperty("m_flMaxDistance"));
+                            metric.AddProperty("m_flMinDistance", compiledMetric.GetFloatProperty("m_flMinDistance"));
+                            metric.AddProperty("m_flStartGoalFilterDistance", compiledMetric.GetFloatProperty("m_flStartGoalFilterDistance"));
+                            metric.AddProperty("m_flMaxGoalOvershootScale", compiledMetric.GetFloatProperty("m_flMaxGoalOvershootScale"));
+                            metric.AddProperty("m_bFilterFixedMinDistance", compiledMetric.GetIntegerProperty("m_bFilterFixedMinDistance") > 0);
+                            metric.AddProperty("m_bFilterGoalDistance", compiledMetric.GetIntegerProperty("m_bFilterGoalDistance") > 0);
+                            metric.AddProperty("m_bFilterGoalOvershoot", compiledMetric.GetIntegerProperty("m_bFilterGoalOvershoot") > 0);
+                        }
+                        else if (metricClassName == "CTimeRemainingMetricEvaluator")
+                        {
+                            metric.AddProperty("m_bMatchByTimeRemaining", compiledMetric.GetIntegerProperty("m_bMatchByTimeRemaining") > 0);
+                            metric.AddProperty("m_flMaxTimeRemaining", compiledMetric.GetFloatProperty("m_flMaxTimeRemaining"));
+                            metric.AddProperty("m_bFilterByTimeRemaining", compiledMetric.GetIntegerProperty("m_bFilterByTimeRemaining") > 0);
+                            metric.AddProperty("m_flMinTimeRemaining", compiledMetric.GetFloatProperty("m_flMinTimeRemaining"));
+                        }
+                        else if (metricClassName == "CPathMetricEvaluator")
+                        {
+                            metric.AddProperty("m_flDistance", compiledMetric.GetFloatProperty("m_flDistance"));
 
+                            if (compiledMetric.ContainsKey("m_pathTimeSamples"))
+                            {
+                                var timeSamples = compiledMetric.GetFloatArray("m_pathTimeSamples");
+                                var pathSamplesArray = new KVObject(null, isArray: true, timeSamples.Length);
+                                foreach (var sample in timeSamples)
+                                {
+                                    pathSamplesArray.AddItem(new KVValue(ValveKeyValue.KVValueType.FloatingPoint, sample));
+                                }
+                                metric.AddProperty("m_pathSamples", pathSamplesArray);
+                            }
+                            metric.AddProperty("m_bExtrapolateMovement", compiledMetric.GetIntegerProperty("m_bExtrapolateMovement") > 0);
+                            metric.AddProperty("m_flMinExtrapolationSpeed", compiledMetric.GetFloatProperty("m_flMinExtrapolationSpeed"));
+                        }
+                        else if (metricClassName == "CStepsRemainingMetricEvaluator")
+                        {
+                            metric.AddProperty("m_flMinStepsRemaining", compiledMetric.GetFloatProperty("m_flMinStepsRemaining"));
+
+                            if (compiledMetric.ContainsKey("m_footIndices"))
+                            {
+                                var footIndices = compiledMetric.GetIntegerArray("m_footIndices");
+                                var feetArray = new KVObject(null, isArray: true, footIndices.Length);
+                                foreach (var footIndex in footIndices)
+                                {
+                                    var footName = GetFootName((int)footIndex);
+                                    feetArray.AddItem(new KVValue(ValveKeyValue.KVValueType.String, footName));
+                                }
+                                metric.AddProperty("m_feet", feetArray);
+                            }
+                        }
+                        else if (metricClassName == "CFootPositionMetricEvaluator")
+                        {
+                            metric.AddProperty("m_bIgnoreSlope", compiledMetric.GetIntegerProperty("m_bIgnoreSlope") > 0);
+
+                            if (compiledMetric.ContainsKey("m_footIndices"))
+                            {
+                                var footIndices = compiledMetric.GetIntegerArray("m_footIndices");
+                                var feetArray = new KVObject(null, isArray: true, footIndices.Length);
+                                foreach (var footIndex in footIndices)
+                                {
+                                    var footName = GetFootName((int)footIndex);
+                                    feetArray.AddItem(new KVValue(ValveKeyValue.KVValueType.String, footName));
+                                }
+                                metric.AddProperty("m_feet", feetArray);
+                            }
+                        }
+                        else if (metricClassName == "CFutureFacingMetricEvaluator")
+                        {
+                            metric.AddProperty("m_flDistance", compiledMetric.GetFloatProperty("m_flDistance"));
+                            metric.AddProperty("m_flTime", compiledMetric.GetFloatProperty("m_flTime"));
+                        }
+                        else if (metricClassName == "CFootCycleMetricEvaluator")
+                        {
+                            if (compiledMetric.ContainsKey("m_footIndices"))
+                            {
+                                var footIndices = compiledMetric.GetIntegerArray("m_footIndices");
+                                var feetArray = new KVObject(null, isArray: true, footIndices.Length);
+                                foreach (var footIndex in footIndices)
+                                {
+                                    var footName = GetFootName((int)footIndex);
+                                    feetArray.AddItem(new KVValue(ValveKeyValue.KVValueType.String, footName));
+                                }
+                                metric.AddProperty("m_feet", feetArray);
+                            }
+                        }
+                        else if (metricClassName == "CCurrentRotationVelocityMetricEvaluator"
+                        || metricClassName == "CCurrentVelocityMetricEvaluator"
+                        || metricClassName == "CBlockSelectionMetricEvaluator")
+                        {
+                        }
                         metrics.Add(metric);
                     }
 
@@ -5907,6 +5997,501 @@ public class AnimationGraphExtract
                     or "m_flGoalAssistTolerance" or "m_bEnableDistanceScaling" or "m_flDistanceScale_OuterRadius"
                     or "m_flDistanceScale_InnerRadius" or "m_flDistanceScale_MaxScale" or "m_flDistanceScale_MinScale"
                     or "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+            }
+            else if (className == "CAimCamera")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_opFixedSettings")
+                {
+                    var opFixedSettings = subCollection.Value;
+
+                    if (opFixedSettings.ContainsKey("m_nChainIndex"))
+                    {
+                        var chainIndex = (int)opFixedSettings.GetIntegerProperty("m_nChainIndex");
+                        var chainName = GetIKChainName(chainIndex);
+                        node.AddProperty("m_ikChain", chainName);
+                    }
+
+                    var boneProperties = new[]
+                    {
+                        ("m_nCameraJointIndex", "m_cameraJointName"),
+                        ("m_nPelvisJointIndex", "m_pelvisJointName"),
+                        ("m_nClavicleLeftJointIndex", "m_clavicleLeftJointName"),
+                        ("m_nClavicleRightJointIndex", "m_clavicleRightJointName"),
+                        ("m_nDepenetrationJointIndex", "m_depenetrationJointName")
+                    };
+
+                    foreach (var (compiledKey, sourceKey) in boneProperties)
+                    {
+                        if (opFixedSettings.ContainsKey(compiledKey))
+                        {
+                            var boneIndex = (int)opFixedSettings.GetIntegerProperty(compiledKey);
+                            var boneName = GetBoneName(boneIndex);
+                            node.AddProperty(sourceKey, boneName);
+                        }
+                    }
+
+                    if (opFixedSettings.ContainsKey("m_propJoints"))
+                    {
+                        var propJointIndices = opFixedSettings.GetIntegerArray("m_propJoints");
+                        var propJoints = new List<KVObject>();
+
+                        foreach (var jointIndex in propJointIndices)
+                        {
+                            var propJoint = new KVObject(null, 1);
+                            var boneName = GetBoneName((int)jointIndex);
+                            propJoint.AddProperty("m_jointName", boneName);
+                            propJoints.Add(propJoint);
+                        }
+                        node.AddProperty("m_propJoints", KVValue.MakeArray(propJoints.ToArray()));
+                    }
+                    continue;
+                }
+                else if (key == "m_hParameterPosition")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_parameterNamePosition", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hParameterOrientation")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_parameterNameOrientation", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hParameterPelvisOffset")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_parameterNamePelvisOffset", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hParameterCameraOnly")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_parameterCameraOnly", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hParameterCameraClearanceDistance")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_parameterCameraClearanceDistance", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hParameterWeaponDepenetrationDistance")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_parameterWeaponDepenetrationDistance", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hParameterWeaponDepenetrationDelta")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_parameterWeaponDepenetrationDelta", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+            }
+            else if (className == "CTargetWarp")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_eAngleMode")
+                {
+                    node.AddProperty("m_eAngleMode", value);
+                    continue;
+                }
+                else if (key == "m_hTargetPositionParameter")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_targetPositionParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hTargetUpVectorParameter")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_targetUpVectorParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hTargetFacePositionParameter")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_targetFacePositionParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hMoveHeadingParameter")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_moveHeadingParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hDesiredMoveHeadingParameter")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_desiredMoveHeadingParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_eCorrectionMethod")
+                {
+                    node.AddProperty("m_eCorrectionMethod", value);
+                    continue;
+                }
+                else if (key == "m_eTargetWarpTimingMethod")
+                {
+                    node.AddProperty("m_eTargetWarpTimingMethod", value);
+                    continue;
+                }
+                else if (key == "m_bTargetFacePositionIsWorldSpace")
+                {
+                    node.AddProperty("m_bTargetFacePositionIsWorldSpace", value);
+                    continue;
+                }
+                else if (key == "m_bTargetPositionIsWorldSpace")
+                {
+                    node.AddProperty("m_bTargetPositionIsWorldSpace", value);
+                    continue;
+                }
+                else if (key == "m_bOnlyWarpWhenTagIsFound")
+                {
+                    node.AddProperty("m_bOnlyWarpWhenTagIsFound", value);
+                    continue;
+                }
+                else if (key == "m_bWarpOrientationDuringTranslation")
+                {
+                    node.AddProperty("m_bWarpOrientationDuringTranslation", value);
+                    continue;
+                }
+                else if (key == "m_bWarpAroundCenter")
+                {
+                    node.AddProperty("m_bWarpAroundCenter", value);
+                    continue;
+                }
+                else if (key == "m_flMaxAngle")
+                {
+                    node.AddProperty("m_flMaxAngle", value);
+                    continue;
+                }
+                else if (key == "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                if (!node.Properties.ContainsKey("m_eLinearRootMotionMode"))
+                {
+                    node.AddProperty("m_eLinearRootMotionMode", "TargetWarpLinearRootMotionMode_Default");
+                }
+            }
+            else if (className == "COrientationWarp")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_eMode")
+                {
+                    node.AddProperty("m_eMode", value);
+                    continue;
+                }
+                else if (key == "m_hTargetParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_targetParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hTargetPositionParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_targetPositionParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_hFallbackTargetPositionParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_fallbackTargetPositionParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_eTargetOffsetMode")
+                {
+                    node.AddProperty("m_eTargetOffsetMode", value);
+                    continue;
+                }
+                else if (key == "m_flTargetOffset")
+                {
+                    node.AddProperty("m_flTargetOffset", value);
+                    continue;
+                }
+                else if (key == "m_hTargetOffsetParam")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty("m_targetOffsetParamID", ParameterIDFromIndex(paramType, paramIndex));
+                    continue;
+                }
+                else if (key == "m_damping")
+                {
+                    node.AddProperty("m_damping", value);
+                    continue;
+                }
+                else if (key == "m_eRootMotionSource")
+                {
+                    node.AddProperty("m_eRootMotionSource", value);
+                    continue;
+                }
+                else if (key == "m_flMaxRootMotionScale")
+                {
+                    node.AddProperty("m_flMaxRootMotionScale", value);
+                    continue;
+                }
+                else if (key == "m_bEnablePreferredRotationDirection")
+                {
+                    node.AddProperty("m_bEnablePreferredRotationDirection", value);
+                    continue;
+                }
+                else if (key == "m_ePreferredRotationDirection")
+                {
+                    node.AddProperty("m_ePreferredRotationDirection", value);
+                    continue;
+                }
+                else if (key == "m_flPreferredRotationThreshold")
+                {
+                    node.AddProperty("m_flPreferredRotationThreshold", value);
+                    continue;
+                }
+                else if (key == "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+            }
+            else if (className == "CPairedSequence")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_sPairedSequenceRole")
+                {
+                    node.AddProperty("m_sPairedRole", value);
+                    continue;
+                }
+                else if (key == "m_playbackSpeed")
+                {
+                    node.AddProperty("m_flPlaybackSpeed", value);
+                    continue;
+                }
+                else if (key == "m_bLoop")
+                {
+                    node.AddProperty("m_bLoop", value);
+                    continue;
+                }
+                else if (key == "m_networkMode")
+                {
+                    node.AddProperty(key, value);
+                    continue;
+                }
+                if (!node.Properties.ContainsKey("m_previewSequenceName"))
+                {
+                    node.AddProperty("m_previewSequenceName", "");
+                }
+            }
+            else if (className == "CFollowTarget")
+            {
+                if (key == "m_name")
+                {
+                    var nameValue = value.Value?.ToString() ?? "Unnamed";
+                    node.AddProperty("m_sName", nameValue);
+                    continue;
+                }
+                else if (key == "m_pChildNode")
+                {
+                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
+                    {
+                        var connection = MakeInputConnection(childNodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    continue;
+                }
+                else if (key == "m_opFixedData")
+                {
+                    var opFixedData = subCollection.Value;
+
+                    if (opFixedData.ContainsKey("m_boneIndex"))
+                    {
+                        var boneIndex = (int)opFixedData.GetIntegerProperty("m_boneIndex");
+                        var boneName = GetBoneName(boneIndex);
+                        node.AddProperty("m_boneName", boneName);
+                    }
+
+                    var targetSettings = new KVObject(null, 5);
+
+                    string targetSource;
+                    if (opFixedData.ContainsKey("m_bBoneTarget") && opFixedData.GetIntegerProperty("m_bBoneTarget") > 0)
+                    {
+                        targetSource = "Bone";
+                    }
+                    else
+                    {
+                        targetSource = "AnimgraphParameter";
+                    }
+                    targetSettings.AddProperty("m_TargetSource", targetSource);
+
+                    var boneNameAndIndex = new KVObject(null, 1);
+                    if (opFixedData.ContainsKey("m_boneTargetIndex"))
+                    {
+                        var boneTargetIndex = (int)opFixedData.GetIntegerProperty("m_boneTargetIndex");
+                        if (boneTargetIndex != -1)
+                        {
+                            var targetBoneName = GetBoneName(boneTargetIndex);
+                            boneNameAndIndex.AddProperty("m_Name", targetBoneName);
+                        }
+                    }
+                    targetSettings.AddProperty("m_Bone", boneNameAndIndex);
+
+                    string targetCoordSystem;
+                    if (opFixedData.ContainsKey("m_bWorldCoodinateTarget") && opFixedData.GetIntegerProperty("m_bWorldCoodinateTarget") > 0)
+                    {
+                        targetCoordSystem = "World";
+                    }
+                    else
+                    {
+                        targetCoordSystem = "Model";
+                    }
+                    targetSettings.AddProperty("m_TargetCoordSystem", targetCoordSystem);
+
+                    node.AddProperty("m_TargetSettings", targetSettings);
+
+                    if (opFixedData.ContainsKey("m_bMatchTargetOrientation"))
+                    {
+                        node.AddProperty("m_bMatchTargetOrientation", opFixedData.GetIntegerProperty("m_bMatchTargetOrientation") > 0);
+                    }
+
+                    continue;
+                }
+                else if (key == "m_hParameterPosition")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+
+                    if (!node.Properties.ContainsKey("m_TargetSettings"))
+                    {
+                        var targetSettings = new KVObject(null, 5);
+                        targetSettings.AddProperty("m_TargetSource", "AnimgraphParameter");
+                        targetSettings.AddProperty("m_Bone", new KVObject(null, 1));
+                        targetSettings.AddProperty("m_TargetCoordSystem", "Model");
+                        node.AddProperty("m_TargetSettings", targetSettings);
+                    }
+
+                    var targetSettingsObj = node.GetSubCollection("m_TargetSettings");
+                    targetSettingsObj.AddProperty("m_AnimgraphParameterNamePosition", paramIdValue);
+
+                    continue;
+                }
+                else if (key == "m_hParameterOrientation")
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
+
+                    if (!node.Properties.ContainsKey("m_TargetSettings"))
+                    {
+                        var targetSettings = new KVObject(null, 5);
+                        targetSettings.AddProperty("m_TargetSource", "AnimgraphParameter");
+                        targetSettings.AddProperty("m_Bone", new KVObject(null, 1));
+                        targetSettings.AddProperty("m_TargetCoordSystem", "Model");
+                        node.AddProperty("m_TargetSettings", targetSettings);
+                    }
+
+                    var targetSettingsObj = node.GetSubCollection("m_TargetSettings");
+                    targetSettingsObj.AddProperty("m_AnimgraphParameterNameOrientation", paramIdValue);
+
+                    continue;
+                }
+                else if (key == "m_networkMode")
                 {
                     node.AddProperty(key, value);
                     continue;
