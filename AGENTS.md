@@ -47,9 +47,12 @@ Follow standard Microsoft C# conventions. Key rules:
 - MathF operations instead of (float)Math
 - C# implementation of GetValue returns the value directly, instead of updating an instance member.
 - Prefer early returns.
-- TODO later:
-  - Events
-  - BoneMask, BoneMaskTaskList
+- We don't use tasks / tasklist. Pose is computed synchronously on each node.
+- C++ has on demand initialize and shutdown of nodes. In C# we initialize all nodes at once when creating the graph.
+- Don't bother writing tests.
+- We are ignoring SyncTrack, SampledEventRange for now.
+- No, we do not initialize and shutdown nodes.
+
 
 ### Expression Bodies
 - **Prefer expression bodies** for properties, indexers, accessors

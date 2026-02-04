@@ -12,6 +12,7 @@ launchSettings.json
 *.userprefs
 
 .vscode/
+Renderer/Animation
 
 # Build results
 [Dd]ebug/

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography.X509Certificates;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
@@ -54,9 +53,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             Transition = TransitionState.TransitioningOut;
 
-            // some event code
-            // ...
+            // Since we update states before we register transitions, we need to ignore all previously sampled state events for this frame
+            // This would require sampled events buffer - for now just resample
 
+            // Resample state events with new transition state
             SampleStateEvents(ctx);
         }
 
@@ -292,7 +292,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             // Update transition ( to get initial pose from source )
-            return Update(ctx);
+            //return Update(ctx);
+            return sourceNodeResult;
         }
 
         public bool IsComplete(GraphContext ctx)
@@ -309,33 +310,84 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             var result = base.Update(ctx);
 
-            //Debug.Assert(TransitionDuration > 0f);
-
-            if (IsSourceTransition && GetSourceTransitionNode().IsComplete(ctx))
+            if (TransitionDuration <= 0f)
             {
-                //EndSourceTransition(ctx);
+                // Instant transition - just return target
+                result = TargetStateNode.Update(ctx);
+                TransitionProgress = 1f;
+                BlendWeight = 1f;
+                return result;
             }
 
+            // Check if source transition is complete
+            if (IsSourceTransition && GetSourceTransitionNode().IsComplete(ctx))
+            {
+                EndSourceTransition(ctx);
+            }
+
+            // Update transition progress
             TransitionProgress += ctx.DeltaTime / TransitionDuration;
             TransitionProgress = MathUtils.Saturate(TransitionProgress);
 
+            // Calculate blend weight with easing
             CalculateBlendWeight();
 
-            // Update the source state
-            //-------------------------------------------------------------------------
-            //GraphPoseNodeResult sourceNodeResult;
-            
+            // Update source and target states
+            GraphPoseNodeResult sourceNodeResult;
+            if (IsSourceACachedPose)
+            {
+                // TODO: Read from cached pose
+                sourceNodeResult = base.Update(ctx);
+            }
+            else
+            {
+                Debug.Assert(SourceNode != null);
+                sourceNodeResult = SourceNode.Update(ctx);
+            }
+
             var targetNodeResult = TargetStateNode.Update(ctx);
 
-            // we are supposed to blend from source, but skipping for now
-            targetNodeResult.Pose.CopyTo(result.Pose, 0);
+            // Blend poses
+            Blender.Blend(
+                sourceNodeResult.Pose,
+                targetNodeResult.Pose,
+                BlendWeight,
+                result.Pose);
+
+            // Blend root motion
+            result.RootMotionDelta = Blender.BlendRootMotion(
+                sourceNodeResult.RootMotionDelta,
+                targetNodeResult.RootMotionDelta,
+                BlendWeight,
+                RootMotionBlend);
+
+            // Calculate blended duration
+            BlendedDuration = MathUtils.Lerp(SourceNode?.Duration ?? 0f, TargetStateNode.Duration, BlendWeight);
+
             return result;
         }
 
-        private void CalculateBlendWeight()
+        void CalculateBlendWeight()
         {
-            // Simple linear blend for now
-            BlendWeight = TransitionProgress;
+            if (TransitionDuration == 0f)
+            {
+                BlendWeight = 1f;
+            }
+            else
+            {
+                BlendWeight = Easing.Evaluate(BlendWeightEasing, TransitionProgress);
+                BlendWeight = MathUtils.Saturate(BlendWeight);
+            }
+        }
+
+        void EndSourceTransition(GraphContext ctx)
+        {
+            Debug.Assert(IsSourceTransition);
+            var sourceTransition = GetSourceTransitionNode();
+
+            // Replace source with the source transition's target
+            SourceNode = sourceTransition.TargetStateNode;
+            Type = SourceType.State;
         }
     }
 }

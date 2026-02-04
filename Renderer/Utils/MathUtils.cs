@@ -61,6 +61,15 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Linearly interpolates between two values.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Lerp(float a, float b, float t)
+        {
+            return a + (b - a) * t;
+        }
+
+        /// <summary>
         /// Returns the fractional part of a value (x - floor(x)).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

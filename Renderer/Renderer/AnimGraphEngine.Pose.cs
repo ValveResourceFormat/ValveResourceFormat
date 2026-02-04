@@ -17,6 +17,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public Skeleton Skeleton { get; private set; }
         readonly FrameBone[] ParentSpaceTransforms = [];
         readonly FrameBone[] ModelSpaceTransforms = [];
+        bool CalculatedModelSpace;
         PoseType Type = PoseType.Unset;
 
         public int NumBones => Skeleton.ParentSpaceReferencePose.Length;
@@ -40,6 +41,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 default: Type = PoseType.Unset; break;
             }
 
+            CalculatedModelSpace = false;
             if (calculateModelSpacePose)
             {
                 CalculateModelSpaceTransforms(NumBones);
@@ -77,8 +79,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 var parentIdx = Skeleton.ParentIndices[boneIdx];
                 Debug.Assert(parentIdx < boneIdx);
 
-                ModelSpaceTransforms[boneIdx] *= ParentSpaceTransforms[boneIdx];
+                // ModelSpace[bone] = ParentSpace[bone] * ModelSpace[parent]
+                ModelSpaceTransforms[boneIdx] = ParentSpaceTransforms[boneIdx] * ModelSpaceTransforms[parentIdx];
             }
+
+            CalculatedModelSpace = true;
         }
 
         public Transform GetModelSpaceTransform(int boneIdx)
@@ -86,12 +91,66 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Debug.Assert(Skeleton != null);
             Debug.Assert(boneIdx < Skeleton.ParentSpaceReferencePose.Length);
 
-            return ModelSpaceTransforms[boneIdx];
+            if (CalculatedModelSpace)
+            {
+                return ModelSpaceTransforms[boneIdx];
+            }
+
+            // Otherwise calculate on-demand (matching C++ fallback)
+            Span<int> boneParents = stackalloc int[Skeleton.ParentSpaceReferencePose.Length];
+            var nextEntry = 0;
+
+            // Get parent list
+            var parentIdx = Skeleton.ParentIndices[boneIdx];
+            while (parentIdx != -1)
+            {
+                boneParents[nextEntry++] = parentIdx;
+                parentIdx = Skeleton.ParentIndices[parentIdx];
+            }
+
+            // Start with bone's parent-space transform
+            var boneModelSpaceTransform = ParentSpaceTransforms[boneIdx];
+
+            // If we have parents, accumulate them from root down
+            if (nextEntry > 0)
+            {
+                // Calculate model-space transform of parent
+                var arrayIdx = nextEntry - 1;
+                parentIdx = boneParents[arrayIdx--];
+                var parentModelSpaceTransform = ParentSpaceTransforms[parentIdx];
+
+                for (; arrayIdx >= 0; arrayIdx--)
+                {
+                    var nextIdx = boneParents[arrayIdx];
+                    var nextTransform = ParentSpaceTransforms[nextIdx];
+                    parentModelSpaceTransform = nextTransform * parentModelSpaceTransform;
+                }
+
+                // Calculate model-space transform of bone
+                boneModelSpaceTransform *= parentModelSpaceTransform;
+            }
+
+            return boneModelSpaceTransform;
         }
 
         public Transform GetTransform(int boneIdx)
         {
             return ParentSpaceTransforms[boneIdx];
+        }
+
+        public void SetTransform(int boneIdx, Transform transform)
+        {
+            Debug.Assert(boneIdx >= 0 && boneIdx < NumBones);
+            ParentSpaceTransforms[boneIdx] = transform;
+            MarkAsValidPose();
+        }
+
+        void MarkAsValidPose()
+        {
+            if (Type != PoseType.Pose && Type != PoseType.AdditivePose)
+            {
+                Type = PoseType.Pose;
+            }
         }
 
         // Helper to compose two transforms (returns a Transform representing a * b)
@@ -233,7 +292,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             PreviousTime = CurrentTime;
             CurrentTime += deltaPercentage;
 
-            if (true /* temp IsLooping*/ )
+            if (IsLooping)
             {
                 if (CurrentTime > 1f)
                 {

@@ -70,13 +70,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Duration = activeState.Duration;
             PreviousTime = activeState.PreviousTime;
             CurrentTime = activeState.CurrentTime;
-
-            // InitializeTransitionConditions(ctx);
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
             var result = base.Update(ctx);
+
+            // Check active transition
+            if (ActiveTransition != null && ActiveTransition.IsComplete(ctx))
+            {
+                ActiveTransition = null;
+            }
 
             // If we are fully in a state, update the state directly
             if (ActiveTransition == null)
@@ -97,7 +101,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             if (ctx.BranchState is BranchState.Active)
             {
-                // EvaluateTransitions( context, pUpdateRange, result, taskIndexMarker );
                 EvaluateTransitions(ctx, result);
             }
 
