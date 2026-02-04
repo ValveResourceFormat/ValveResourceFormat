@@ -37,13 +37,12 @@ partial class MainForm
 
     protected override void WndProc(ref Message m)
     {
-        var padding = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXPADDEDBORDER, (uint)DeviceDpi);
-
-        var frameX = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXFRAME, (uint)DeviceDpi);
-        var frameY = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYFRAME, (uint)DeviceDpi);
-
         if (m.Msg == PInvoke.WM_NCCALCSIZE && (int)m.WParam == 1)
         {
+            var padding = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXPADDEDBORDER, (uint)DeviceDpi);
+            var frameX = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXFRAME, (uint)DeviceDpi);
+            var frameY = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYFRAME, (uint)DeviceDpi);
+
             var nccsp = Marshal.PtrToStructure<NCCALCSIZE_PARAMS>(m.LParam);
             nccsp.rgrc._0.bottom -= frameY;
             nccsp.rgrc._0.right -= frameX;
@@ -85,6 +84,9 @@ partial class MainForm
             // Only run top scaling logic when not fullscreened so the window can be dragged even if the cursor is at the very top of the screen.
             if (!IsWindowMaximised())
             {
+                var padding = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXPADDEDBORDER, (uint)DeviceDpi);
+                var frameX = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXFRAME, (uint)DeviceDpi);
+
                 if (point.Y - padding <= menuStrip.Top)
                 {
                     controlsBoxPanel.CurrentHoveredButton = ControlsBoxPanel.CustomTitleBarHoveredButton.None;
