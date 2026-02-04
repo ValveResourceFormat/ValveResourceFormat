@@ -53,7 +53,7 @@ public class NmSkeletonExtract
         {
             Data = Encoding.UTF8.GetBytes(new KV3File(kv).ToString())
         };
-        contentFile.AddSubFile(dmxFile ?? "skeleton.dmx", () =>
+        contentFile.AddSubFile(Path.GetFileName(dmxFile) ?? "skeleton.dmx", () =>
         {
             // Empty animation data
             var anim = new Animation(new AnimationClip() { Resource = null! });
