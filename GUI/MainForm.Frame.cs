@@ -275,20 +275,21 @@ partial class MainForm
 
     private static readonly Lazy<bool> IsRunningOnWine = new(GetIsRunningOnWine);
 
-    [LibraryImport("ntdll.dll", EntryPoint = "wine_get_version")]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    private static partial nint WineGetVersion();
-
+    // Detect Wine by checking for the `wine_get_version` export on ntdll.dll.
     private static bool GetIsRunningOnWine()
     {
-        try
-        {
-            WineGetVersion();
-            return true;
-        }
-        catch (EntryPointNotFoundException)
+        if (!NativeLibrary.TryLoad("ntdll.dll", out var lib))
         {
             return false;
+        }
+
+        try
+        {
+            return NativeLibrary.TryGetExport(lib, "wine_get_version", out _);
+        }
+        finally
+        {
+            NativeLibrary.Free(lib);
         }
     }
 }
