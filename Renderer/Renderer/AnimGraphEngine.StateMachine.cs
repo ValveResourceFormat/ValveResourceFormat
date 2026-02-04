@@ -79,6 +79,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Check active transition
             if (ActiveTransition != null && ActiveTransition.IsComplete(ctx))
             {
+                // Clear transition flags from target
+                ActiveTransition.Stop(ctx);
                 ActiveTransition = null;
             }
 

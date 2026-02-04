@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 {
     sealed partial class StateNode
     {
-        enum TransitionState : byte
+        public enum TransitionState : byte
         {
             None,
             TransitioningIn,
@@ -24,6 +24,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public bool TransitioningOut => Transition == TransitionState.TransitioningOut;
         public bool IsTransitioning => Transition != TransitionState.None;
 
+        public void SetTransitioningState(TransitionState s) => Transition = s;
 
         public override void Initialize(GraphContext ctx)
         {
@@ -31,6 +32,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetOptionalNodeFromIndex(LayerBoneMaskNodeIdx, ref BoneMaskValueNode);
             ctx.SetOptionalNodeFromIndex(LayerWeightNodeIdx, ref LayerWeightNode);
             ctx.SetOptionalNodeFromIndex(LayerRootMotionWeightNodeIdx, ref LayerRootMotionWeightNode);
+
+            Start(ctx);
+        }
+
+        public void Start(GraphContext ctx)
+        {
+            ElapsedTimeInState = TimeSpan.Zero;
+            Transition = TransitionState.None;
 
             if (ChildNode is not null)
             {
@@ -41,6 +50,18 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             // Flag this as the first update for this state, this will cause state entry events to be sampled for at least one update
             IsFirstStateUpdate = true;
+        }
+
+        public void Stop(GraphContext ctx)
+        {
+            Transition = TransitionState.None;
+            CurrentTime = 1f;
+
+            if (ChildNode != null)
+            {
+                //ChildNode.Stop();
+                //ChildNode = null;
+            }
         }
 
 
@@ -195,6 +216,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return TransitionOptions.IsFlagSet((uint)option);
         }
 
+
+        public StateNode GetSourceStateNode()
+        {
+            Debug.Assert(IsSourceAState && SourceNode is StateNode);
+            return (StateNode)SourceNode!;
+        }
+
         public TransitionNode GetSourceTransitionNode()
         {
             Debug.Assert(IsSourceTransition && SourceNode is TransitionNode);
@@ -210,9 +238,56 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetOptionalNodeFromIndex(TimeOffsetOverrideNodeIdx, ref EventOffsetOverrideNode);
             ctx.SetOptionalNodeFromIndex(StartBoneMaskNodeIdx, ref StartBoneMaskNode);
             ctx.SetOptionalNodeFromIndex(TargetSyncIDNodeIdx, ref TargetSyncIDNode);
+
+            Start(ctx);
         }
 
-        public GraphPoseNodeResult InitializeTargetStateAndUpdateTransition(GraphContext ctx, StartOptions options)
+        public void Start(GraphContext ctx)
+        {
+            // Reset transition state
+            TransitionProgress = 0f;
+            BlendWeight = 0f;
+            SyncEventOffset = 0f;
+
+            // Get transition duration from override or definition
+            if (DurationOverrideNode != null)
+            {
+                TransitionDuration = Math.Clamp(DurationOverrideNode.GetValue(ctx), 0f, 10f);
+            }
+            else
+            {
+                TransitionDuration = DurationSeconds; // From definition (parsed from file)
+            }
+        }
+
+        // Shutdown
+        public void Stop(GraphContext ctx)
+        {
+            TargetStateNode.SetTransitioningState(StateNode.TransitionState.None);
+            CurrentTime = 1f;
+
+            // Shutdown source node
+            if (SourceNode != null)
+            {
+                if (IsSourceTransition)
+                {
+                    EndSourceTransition(ctx);
+                }
+
+                (SourceNode as StateNode)?.Stop(ctx);
+                (SourceNode as TransitionNode)?.Stop(ctx);
+                SourceNode = null;
+            }
+            else
+            {
+                if (TransitionDuration != 0.0f)
+                {
+                    Debug.Assert(IsSourceACachedPose);
+                }
+            }
+        }
+
+        public void InitializeTargetStateAndUpdateTransition(GraphContext ctx, StartOptions options)
         {
             Debug.Assert(options.SourceNode != null);
             Debug.Assert(SourceNode == null);
@@ -226,15 +301,38 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 // ...
             }
 
-            GraphPoseNodeResult result;
-
             // Copy the source node result as we are gonna potentially modify both the sampled event indices and the task idx
             GraphPoseNodeResult sourceNodeResult = options.SourceNodeResult;
-            GraphPoseNodeResult targetNodeResult;
+
+            void StartTransitionOutForSource()
+            {
+                var isInstantTransition = TransitionDuration == 0f;
+
+                if (Type == SourceType.State)
+                {
+                    GetSourceStateNode().StartTransitionOut(ctx);
+                }
+                else
+                {
+                    GetSourceTransitionNode().TargetStateNode.StartTransitionOut(ctx);
+                }
+
+                if (isInstantTransition)
+                {
+                    if (IsSourceTransition)
+                    {
+                        EndSourceTransition(ctx);
+                    }
+
+                    // Shutdown the source node
+                    //SourceNode?.Shutdown(ctx);
+                    SourceNode = null;
+                }
+            }
 
             // Starting a transition out may generate additional graph events so we need to update the sampled event range
             //...
-            
+
             /*
             GraphLayerContext targetLayerContext;
             GraphLayerContext* pSourceLayerCtx = nullptr;
@@ -267,33 +365,33 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Regular time update (not matched or has sync offset)
             {
                 // Transition out - this will resample any source state events so that the target state machine has all the correct state events
-                //StartTransitionOutForSource();
+                StartTransitionOutForSource();
 
-                //TargetNode->Initialize( context, SyncTrackTime() );
+                TargetStateNode.Start(ctx);
 
                 // Start transition in and update target
                 TargetStateNode.StartTransitionIn(ctx);
-                targetNodeResult = TargetStateNode.Update(ctx);
             }
 
             // Calculate the blend weight, register pose task and update layer weights
             //-------------------------------------------------------------------------
 
             CalculateBlendWeight();
-            //RegisterPoseTasksAndUpdateRootMotion( context, sourceNodeResult, targetNodeResult, result );
 
             if (ctx.IsInLayer)
             {
                 // Calculate the new layer weights based on the transition progress
-                //UpdateLayerContext( pSourceLayerCtx, &targetLayerContext );
+                // UpdateLayerContext would go here
 
                 // Restore original context
-                //context.m_pLayerContext = pSourceLayerCtx;
             }
 
-            // Update transition ( to get initial pose from source )
-            //return Update(ctx);
-            return sourceNodeResult;
+            // Update internal state
+            Duration = TargetStateNode.Duration;
+            PreviousTime = TargetStateNode.PreviousTime;
+            CurrentTime = TargetStateNode.CurrentTime;
+
+            return;
         }
 
         public bool IsComplete(GraphContext ctx)
@@ -314,8 +412,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
             {
                 // Instant transition - just return target
                 result = TargetStateNode.Update(ctx);
-                TransitionProgress = 1f;
-                BlendWeight = 1f;
+                Duration = TargetStateNode.Duration;
+                PreviousTime = TargetStateNode.PreviousTime;
+                CurrentTime = TargetStateNode.CurrentTime;
                 return result;
             }
 
@@ -342,7 +441,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
             else
             {
                 Debug.Assert(SourceNode != null);
+
+                // Set branch state to inactive for source
+                var previousBranchState = ctx.BranchState;
+                ctx.BranchState = BranchState.Inactive;
+
                 sourceNodeResult = SourceNode.Update(ctx);
+
+                ctx.BranchState = previousBranchState;
             }
 
             var targetNodeResult = TargetStateNode.Update(ctx);
@@ -360,6 +466,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 targetNodeResult.RootMotionDelta,
                 BlendWeight,
                 RootMotionBlend);
+
+            // Calculate blended duration
+            BlendedDuration = (1f - BlendWeight) * (SourceNode?.Duration ?? 0f) + BlendWeight * TargetStateNode.Duration;
+            Duration = TargetStateNode.Duration;
+
+            // Blend times
+            PreviousTime = (1f - BlendWeight) * (SourceNode?.PreviousTime ?? 0f) + BlendWeight * TargetStateNode.PreviousTime;
+            CurrentTime = (1f - BlendWeight) * (SourceNode?.CurrentTime ?? 0f) + BlendWeight * TargetStateNode.CurrentTime;
 
             // Calculate blended duration
             BlendedDuration = MathUtils.Lerp(SourceNode?.Duration ?? 0f, TargetStateNode.Duration, BlendWeight);
@@ -388,6 +502,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Replace source with the source transition's target
             SourceNode = sourceTransition.TargetStateNode;
             Type = SourceType.State;
+
+            // We need to explicitly set the transition state of the completed transition's target state as 
+            // the shutdown of the transition will set it none. This will cause the state machine to potentially
+            // transition to that state erroneously!
+            GetSourceStateNode().SetTransitioningState(StateNode.TransitionState.TransitioningOut);
         }
     }
 }

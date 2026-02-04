@@ -7,7 +7,7 @@ partial class TransitionNode : PoseNode
     public short DurationOverrideNodeIdx { get; }
     public short TimeOffsetOverrideNodeIdx { get; }
     public short StartBoneMaskNodeIdx { get; }
-    public float Duration { get; }
+    public float DurationSeconds { get; } // Definition duration from file
     public Percent BoneMaskBlendInTimePercentage { get; }
     public float TimeOffset { get; }
     public BitFlags TransitionOptions { get; }
@@ -21,7 +21,7 @@ partial class TransitionNode : PoseNode
         DurationOverrideNodeIdx = data.GetInt16Property("m_nDurationOverrideNodeIdx");
         TimeOffsetOverrideNodeIdx = data.GetInt16Property("m_timeOffsetOverrideNodeIdx");
         StartBoneMaskNodeIdx = data.GetInt16Property("m_startBoneMaskNodeIdx");
-        Duration = data.GetFloatProperty("m_flDuration");
+        DurationSeconds = data.GetFloatProperty("m_flDuration");
         BoneMaskBlendInTimePercentage = new(data.GetProperty<KVObject>("m_boneMaskBlendInTimePercentage"));
         TimeOffset = data.GetFloatProperty("m_flTimeOffset");
         TransitionOptions = new(data.GetProperty<KVObject>("m_transitionOptions"));

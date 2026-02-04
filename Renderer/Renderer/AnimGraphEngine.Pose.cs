@@ -192,10 +192,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             LoopCount = 0;
             Duration = 0f;
-            CurrentTime = 1f;
-            PreviousTime = 1f;
+            RestartTime();
 
             ModelSpaceTransforms = new FrameBone[ctx.Controller.BindPose.Length];
+        }
+
+        public void RestartTime()
+        {
+            CurrentTime = 0f;
+            PreviousTime = 0f;
         }
 
         public virtual bool IsValid => true;

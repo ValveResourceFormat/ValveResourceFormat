@@ -52,6 +52,9 @@ Follow standard Microsoft C# conventions. Key rules:
 - Don't bother writing tests.
 - We are ignoring SyncTrack, SampledEventRange for now.
 - No, we do not initialize and shutdown nodes.
+- Maybe we should do Start and Stop that replaces the shutdown/initialize pattern.
+- Get***() functions are just properties in C#.
+- MathUtils.Saturate() instead of clamp between 0 and 1.
 
 
 ### Expression Bodies
