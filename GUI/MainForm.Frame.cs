@@ -39,6 +39,12 @@ partial class MainForm
     {
         if (m.Msg == PInvoke.WM_NCCALCSIZE && (int)m.WParam == 1)
         {
+            if (IsRunningOnWine.Value)
+            {
+                base.WndProc(ref m);
+                return;
+            }
+
             var padding = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXPADDEDBORDER, (uint)DeviceDpi);
             var frameX = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CXFRAME, (uint)DeviceDpi);
             var frameY = PInvoke.GetSystemMetricsForDpi(SYSTEM_METRICS_INDEX.SM_CYFRAME, (uint)DeviceDpi);
@@ -264,6 +270,25 @@ partial class MainForm
         fixed (char* p = "About")
         {
             PInvoke.AppendMenu(menu, MENU_ITEM_FLAGS.MF_STRING, SC_ABOUT, p);
+        }
+    }
+
+    private static readonly Lazy<bool> IsRunningOnWine = new(GetIsRunningOnWine);
+
+    [LibraryImport("ntdll.dll", EntryPoint = "wine_get_version")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static partial nint WineGetVersion();
+
+    private static bool GetIsRunningOnWine()
+    {
+        try
+        {
+            WineGetVersion();
+            return true;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
         }
     }
 }
