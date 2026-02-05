@@ -125,6 +125,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 var secondaryAnim = new AnimationClip()
                 {
                     Resource = Resource,
+                    Name = $"{Name}.secondary_{j}"
                 };
                 secondaryAnim.ReadClip(secondaryAnims[j]);
                 SecondaryAnimations[j] = secondaryAnim;

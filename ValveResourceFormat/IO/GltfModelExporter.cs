@@ -560,22 +560,32 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
-            var skeletonResource = FileLoader.LoadFileCompiled(animationClip.SkeletonName)
-                ?? throw new InvalidOperationException($"Unable to load skeleton data '{animationClip.SkeletonName}'.");
-
-            var skeletonData = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
-
-            var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, animationClip.SkeletonName);
-            if (joints == null)
+            void ExportAnimationClip(VAnimationClip clip)
             {
-                throw new InvalidDataException($"Failure creating glTF skeleton for '{animationClip.SkeletonName}'.");
+                var skeletonResource = FileLoader.LoadFileCompiled(clip.SkeletonName)
+                ?? throw new InvalidOperationException($"Unable to load skeleton data '{clip.SkeletonName}'.");
+
+                var skeletonData = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
+
+                var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, clip.SkeletonName);
+                if (joints == null)
+                {
+                    throw new InvalidDataException($"Failure creating glTF skeleton for '{clip.SkeletonName}'.");
+                }
+
+                //if (ExportAnimations)
+                {
+                    var animation = new ResourceTypes.ModelAnimation.Animation(clip);
+                    var animationWriter = new AnimationWriter(skeletonData, []);
+                    animationWriter.WriteAnimation(exportedModel, joints, animation);
+                }
             }
 
-            //if (ExportAnimations)
+            ExportAnimationClip(animationClip);
+
+            foreach (var secondaryClip in animationClip.SecondaryAnimations)
             {
-                var animation = new ResourceTypes.ModelAnimation.Animation(animationClip);
-                var animationWriter = new AnimationWriter(skeletonData, []);
-                animationWriter.WriteAnimation(exportedModel, joints, animation);
+                ExportAnimationClip(secondaryClip);
             }
 
             WriteModelFile(exportedModel, fileName);
