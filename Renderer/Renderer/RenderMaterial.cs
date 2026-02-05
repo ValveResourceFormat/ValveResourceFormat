@@ -148,7 +148,6 @@ namespace ValveResourceFormat.Renderer
             "vr_energy_field.vfx",
             "csgo_glass.vfx",
             "csgo_effects.vfx",
-            "tools_sprite.vfx",
         ];
 
         RenderMaterial(Material material)
@@ -188,7 +187,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1)
+            if (material.IntParams.GetValueOrDefault("F_ALPHA_TEST") > 0)
             {
                 blendMode = BlendMode.AlphaTest;
             }
@@ -297,7 +296,7 @@ namespace ValveResourceFormat.Renderer
 
             if (blendMode == BlendMode.AlphaTest)
             {
-                GL.Enable(EnableCap.SampleAlphaToCoverage);
+                GL.Enable(EnableCap.SampleAlphaToCoverage); // todo: only if msaa samples > 1
             }
             else if (blendMode >= BlendMode.Translucent)
             {

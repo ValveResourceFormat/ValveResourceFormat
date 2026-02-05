@@ -152,10 +152,6 @@ uniform sampler2D g_tTintMask;
     #endif
 #endif
 
-#if (alphatest)
-    uniform float g_flAlphaTestReference = 0.5;
-#endif
-
 #if (translucent)
     uniform float g_flOpacityScale = 1.0;
 #endif
@@ -434,11 +430,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     // Alpha test
 #if (alphatest)
     mat.Opacity = AlphaTestAntiAliasing(mat.Opacity, texCoord);
-
-    if (mat.Opacity - 0.001 < g_flAlphaTestReference)
-    {
-        discard;
-    }
 #endif
 
     // Tinting

@@ -179,10 +179,6 @@ uniform float g_flHeightMapZeroPoint1 = 0.5;
     }
 #endif
 
-#if (F_ALPHA_TEST == 1)
-    uniform float g_flAlphaTestReference = 0.5;
-#endif
-
 uniform float g_flModelTintAmount = 1.0;
 
 #include "common/ViewConstants.slang"
@@ -384,8 +380,6 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     #if (F_ALPHA_TEST == 1)
         mat.AmbientOcclusion = height.b;
         mat.Opacity = AlphaTestAntiAliasing(color.a, vTexCoord.xy);
-
-        if (mat.Opacity - 0.001 < g_flAlphaTestReference)   discard;
     #endif
 
     mat.AmbientOcclusion = mix(aoLevels.x, aoLevels.z, pow(max(mat.AmbientOcclusion, 0.0), max(aoLevels.y, 0.001)));

@@ -228,16 +228,39 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 //                              ALPHA TEST
 //-------------------------------------------------------------------------
 
-#if (F_ALPHA_TEST == 1) || (alphatest)
+#if (F_ALPHA_TEST > 0) || (alphatest)
 
+    uniform float g_flAlphaTestReference = 0.5;
     uniform float g_flAntiAliasedEdgeStrength = 1.0;
 
     float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
     {
-        float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
-        float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
-        float flAntiAliasAlphaBlend = mix(1.0, flAlphaTestAA_Amount, g_flAntiAliasedEdgeStrength);
-        return mix( flAlphaTestAA, flOpacity, flAntiAliasAlphaBlend );
+        const bool isMsaa = true;
+
+        const float epsilon = 1 / 255.0;
+        float flTestValue = isMsaa
+            ? 0.0
+            : g_flAlphaTestReference;
+        
+        if (flOpacity - epsilon < flTestValue)
+        {
+            discard;
+        }
+        
+        if (isMsaa)
+        {
+            // Sharp anti-aliased edge using shader derivatives
+            float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
+            float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
+
+            // todo: lower this based on distance
+            float flAntiAliasAlphaBlend = mix(flAlphaTestAA_Amount, 1.0, g_flAntiAliasedEdgeStrength);
+
+            // this value will determine the number of msaa samples covered by this fragment
+            flOpacity = mix(flOpacity, flAlphaTestAA, flAntiAliasAlphaBlend);
+        }
+
+        return flOpacity;
     }
 #endif
 
