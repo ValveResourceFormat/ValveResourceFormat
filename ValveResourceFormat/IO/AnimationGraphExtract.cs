@@ -2946,6 +2946,101 @@ public class AnimationGraphExtract
             return component;
         }
 
+        if (className == "CRemapValueComponentUpdater")
+        {
+            component.AddProperty("m_name", compiledComponent.GetProperty<string>("m_name"));
+
+            if (compiledComponent.ContainsKey("m_items"))
+            {
+                var items = compiledComponent.GetArray("m_items");
+                var convertedItems = new List<KVObject>();
+
+                foreach (var item in items)
+                {
+                    var newItem = new KVObject(null, 12);
+
+                    var paramInHandle = item.GetSubCollection("m_hParamIn");
+                    var paramOutHandle = item.GetSubCollection("m_hParamOut");
+
+                    var paramInType = paramInHandle.GetStringProperty("m_type");
+                    var paramInIndex = paramInHandle.GetIntegerProperty("m_index");
+
+                    var paramOutType = paramOutHandle.GetStringProperty("m_type");
+                    var paramOutIndex = paramOutHandle.GetIntegerProperty("m_index");
+
+                    string valueType;
+
+                    if (paramInType == "ANIMPARAM_VECTOR" || paramOutType == "ANIMPARAM_VECTOR")
+                    {
+                        valueType = "VectorParameter";
+                    }
+                    else
+                    {
+                        valueType = "FloatParameter";
+                    }
+                    newItem.AddProperty("m_valueType", valueType);
+
+                    if (valueType == "FloatParameter")
+                    {
+                        newItem.AddProperty("m_floatParamIn", ParameterIDFromIndex(paramInType, paramInIndex));
+                        newItem.AddProperty("m_floatParamOut", ParameterIDFromIndex(paramOutType, paramOutIndex));
+                        newItem.AddProperty("m_vectorParamIn", MakeNodeIdObjectValue(-1));
+                        newItem.AddProperty("m_vectorParamOut", MakeNodeIdObjectValue(-1));
+                    }
+                    else
+                    {
+                        newItem.AddProperty("m_floatParamIn", MakeNodeIdObjectValue(-1));
+                        newItem.AddProperty("m_floatParamOut", MakeNodeIdObjectValue(-1));
+                        newItem.AddProperty("m_vectorParamIn", ParameterIDFromIndex(paramInType, paramInIndex));
+                        newItem.AddProperty("m_vectorParamOut", ParameterIDFromIndex(paramOutType, paramOutIndex));
+                    }
+
+                    newItem.AddProperty("m_flMinInputValue", item.GetFloatProperty("m_flMinInputValue"));
+                    newItem.AddProperty("m_flMaxInputValue", item.GetFloatProperty("m_flMaxInputValue"));
+                    newItem.AddProperty("m_flMinOutputValue", item.GetFloatProperty("m_flMinOutputValue"));
+                    newItem.AddProperty("m_flMaxOutputValue", item.GetFloatProperty("m_flMaxOutputValue"));
+
+                    newItem.AddProperty("m_floatParamNameIn", "");
+                    newItem.AddProperty("m_floatParamNameOut", "");
+                    newItem.AddProperty("m_vectorParamNameIn", "");
+                    newItem.AddProperty("m_vectorParamNameOut", "");
+
+                    convertedItems.Add(newItem);
+                }
+                component.AddProperty("m_items", KVValue.MakeArray(convertedItems.ToArray()));
+            }
+            return component;
+        }
+
+        if (className == "CAnimScriptComponentUpdater")
+        {
+            component.AddProperty("m_sName", compiledComponent.GetProperty<string>("m_name"));
+            component.AddProperty("m_scriptFilename", "");
+
+            return component;
+        }
+
+        if (className == "CCPPScriptComponentUpdater")
+        {
+            component.AddProperty("m_sName", compiledComponent.GetProperty<string>("m_name"));
+            if (compiledComponent.ContainsKey("m_scriptsToRun"))
+            {
+                var scriptsArray = compiledComponent.GetArray("m_scriptsToRun");
+                var convertedScripts = new List<KVValue>();
+                foreach (var script in scriptsArray)
+                {
+                    var scriptName = script.GetStringProperty("") ?? string.Empty;
+                    convertedScripts.Add(new KVValue(ValveKeyValue.KVValueType.String, scriptName));
+                }
+                component.AddProperty("m_scriptsToRun", KVValue.MakeArray(convertedScripts.ToArray()));
+            }
+            else
+            {
+                component.AddProperty("m_scriptsToRun", KVValue.MakeArray(Array.Empty<KVValue>()));
+            }
+            return component;
+        }
+
         if (className == "CStateMachineComponentUpdater")
         {
             component.AddProperty("m_sName", compiledComponent.GetProperty<string>("m_name"));
@@ -6681,6 +6776,7 @@ public class AnimationGraphExtract
                 "CVectorAnimParameter" => "VECTOR",
                 "CQuaternionAnimParameter" => "QUATERNION",
                 "CSymbolAnimParameter" => "SYMBOL",
+                "CVirtualAnimParameter" => "VIRTUAL",
                 _ => paramClass.Replace("C", "").Replace("AnimParameter", "").ToUpper(System.Globalization.CultureInfo.CurrentCulture),
             };
 
