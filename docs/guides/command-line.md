@@ -28,6 +28,7 @@ Option                        | Description
 `--gltf_export_format`        | Exports meshes/models in given glTF format. Must be either 'gltf' or 'glb'.
 `--gltf_export_materials`     | Whether to export materials during glTF exports.
 `--gltf_export_animations`    | Whether to export animations during glTF exports.
+`--gltf_mesh_list`            | Comma-separated list of meshes to include in glTF export. By default includes all meshes in a model.
 `--gltf_animation_list`       | Comma-separated list of animations to include in glTF export, example: "idle,dropped". Requires `--gltf_export_animations`. By default includes all animations.
 `--gltf_textures_adapt`       | Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).
 `--gltf_export_extras`        | Export additional Mesh properties into glTF extras

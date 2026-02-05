@@ -74,6 +74,12 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public HashSet<string> AnimationFilter { get; } = [];
 
+        /// <summary>
+        /// Gets the set of mesh names to filter during export.
+        /// The filter does not apply when exporting a vmesh resource.
+        /// </summary>
+        public HashSet<string> MeshFilter { get; } = [];
+
         private string DstDir = string.Empty;
         private CancellationToken CancellationToken;
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
@@ -649,6 +655,13 @@ namespace ValveResourceFormat.IO
             foreach (var m in LoadModelMeshes(model, name))
             {
                 var meshName = m.Name;
+
+                // Apply mesh filter if specified
+                if (MeshFilter.Count > 0 && !MeshFilter.Contains(name.Split('.')[^1]))
+                {
+                    continue;
+                }
+
                 if (skinName != null)
                 {
                     meshName = string.Concat(meshName, ".", skinName);

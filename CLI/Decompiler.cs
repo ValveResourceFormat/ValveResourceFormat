@@ -56,6 +56,7 @@ namespace CLI
         private string? GltfExportFormat;
         private bool GltfExportAnimations;
         private string[] GltfAnimationFilter = [];
+        private string[] GltfMeshFilter = [];
         private bool GltfExportMaterials;
         private bool GltfExportAdaptTextures;
         private bool GltfExportExtras;
@@ -110,6 +111,7 @@ namespace CLI
         /// <param name="gltf_export_format">Exports meshes/models in given glTF format. Must be either "gltf" or "glb".</param>
         /// <param name="gltf_export_animations">Whether to export model animations during glTF exports.</param>
         /// <param name="gltf_animation_list">Animations to include in the glTF, example "idle,dropped". By default will include all animations.</param>
+        /// <param name="gltf_mesh_list">Meshes to include in the glTF, example "mesh1,mesh2". By default will include all meshes.</param>
         /// <param name="gltf_export_materials">Whether to export materials during glTF exports.</param>
         /// <param name="gltf_textures_adapt">Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).</param>
         /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
@@ -142,6 +144,7 @@ namespace CLI
             string? gltf_export_format = default,
             bool gltf_export_animations = false,
             string? gltf_animation_list = default,
+            string? gltf_mesh_list = default,
             bool gltf_export_materials = false,
             bool gltf_textures_adapt = false,
             bool gltf_export_extras = false,
@@ -177,6 +180,7 @@ namespace CLI
             GltfExportMaterials = gltf_export_materials;
             GltfExportAnimations = gltf_export_animations;
             GltfAnimationFilter = gltf_animation_list?.Split(',') ?? [];
+            GltfMeshFilter = gltf_mesh_list?.Split(',') ?? [];
             GltfExportAdaptTextures = gltf_textures_adapt;
             GltfExportExtras = gltf_export_extras;
             ToolsAssetInfoShort = tools_asset_info_short;
@@ -1370,6 +1374,8 @@ namespace CLI
             };
 
             gltfModelExporter.AnimationFilter.UnionWith(GltfAnimationFilter);
+            gltfModelExporter.MeshFilter.UnionWith(GltfMeshFilter);
+
             return gltfModelExporter;
         }
 
