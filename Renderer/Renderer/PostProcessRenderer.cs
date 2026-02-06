@@ -13,6 +13,7 @@ namespace ValveResourceFormat.Renderer
         private Shader? shaderPostProcess;
         private Shader? shaderPostProcessBloom;
         private Framebuffer? MsaaResolveFramebuffer;
+        private readonly OutlineRenderer Outline;
 
         public RenderTexture? BlueNoise { get; set; }
         private readonly Random random = new();
@@ -21,6 +22,7 @@ namespace ValveResourceFormat.Renderer
         public PostProcessState State { get; set; }
         public bool Enabled { get; set; } = true;
         public bool ColorCorrectionEnabled { get; set; } = true;
+        public bool HasOutlineObjects { get; set; }
 
         public List<float> ExposureHistory { get; } = new(10);
         public float CustomExposure { get; set; } = -1;
@@ -37,6 +39,7 @@ namespace ValveResourceFormat.Renderer
             RendererContext = rendererContext;
             Bloom = new BloomRenderer(rendererContext, this);
             DOF = new DOFRenderer(rendererContext);
+            Outline = new OutlineRenderer(rendererContext);
         }
 
         public void Load()
@@ -50,6 +53,7 @@ namespace ValveResourceFormat.Renderer
             MsaaResolveFramebuffer.Color!.SetWrapMode(TextureWrapMode.ClampToEdge);
 
             Bloom.Load();
+            Outline.Load();
         }
 
         private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
@@ -137,7 +141,6 @@ namespace ValveResourceFormat.Renderer
                 postProcessShader.SetTexture(0, "g_tColorBuffer", resolvedScene.Color);
                 postProcessShader.SetTexture(1, "g_tColorCorrectionLUT", State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
                 postProcessShader.SetTexture(2, "g_tBlueNoise", BlueNoise);
-                postProcessShader.SetTexture(3, "g_tStencilBuffer", colorBufferRead.Stencil!);
 
                 if (State.HasBloom)
                 {
@@ -152,7 +155,6 @@ namespace ValveResourceFormat.Renderer
                 postProcessShader.SetUniform1("g_bFlipY", flipY);
 
                 postProcessShader.SetUniform1("g_bPostProcessEnabled", Enabled);
-                postProcessShader.SetUniform1("g_nNumSamplesMSAA", colorBufferRead.NumSamples);
 
                 postProcessShader.SetUniform1("g_flToneMapScalarLinear", TonemapScalar);
                 SetPostProcessUniforms(postProcessShader, State.TonemapSettings);
@@ -164,6 +166,13 @@ namespace ValveResourceFormat.Renderer
 
                 GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            }
+
+            if (HasOutlineObjects)
+            {
+                using var _ = new GLDebugGroup("Outline Edge");
+                Debug.Assert(colorBufferRead.Stencil != null);
+                Outline.Render(colorBufferRead.Stencil, colorBufferRead.NumSamples, flipY);
             }
 
             GL.UseProgram(0);

@@ -36,7 +36,6 @@ public class Renderer
     public PostProcessRenderer Postprocess { get; set; }
     public Frustum? LockedCullFrustum { get; set; }
 
-
     // options
     public int ShadowTextureSize { get; set; } = 1024;
     public bool IsWireframe { get; set; }
@@ -297,6 +296,7 @@ public class Renderer
             var skyboxScene = SkyboxScene;
             var render3DSkybox = ShowSkybox && skyboxScene != null;
             var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
+            Postprocess.HasOutlineObjects = Scene.HasOutlineObjects;
 
             if (render3DSkybox)
             {
@@ -307,6 +307,7 @@ public class Renderer
 
                 copyColor |= skyboxScene.WantsSceneColor;
                 copyDepth |= skyboxScene.WantsSceneDepth;
+                Postprocess.HasOutlineObjects |= skyboxScene.HasOutlineObjects;
 
                 using var _ = new GLDebugGroup("3D Sky Scene");
                 skyboxScene.RenderOpaqueLayer(renderContext);
@@ -362,8 +363,9 @@ public class Renderer
                 ComputeAverageLuminance(renderContext);
             }
 
-            using (new GLDebugGroup("Outline Render"))
+            if (Postprocess.HasOutlineObjects)
             {
+                using var _ = new GLDebugGroup("Outline Stencil Write");
                 RenderOutlineLayer(renderContext);
             }
         }

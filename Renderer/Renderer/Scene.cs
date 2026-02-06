@@ -246,6 +246,7 @@ namespace ValveResourceFormat.Renderer
 
         public bool WantsSceneColor { get; set; }
         public bool WantsSceneDepth { get; set; }
+        public bool HasOutlineObjects => renderLists[RenderPass.Outline].Count > 0;
 
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
         {
