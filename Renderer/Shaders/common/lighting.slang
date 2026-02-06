@@ -2,7 +2,7 @@
 #version 460
 
 import features;
-
+import attributes;
 
 
 
@@ -195,8 +195,8 @@ public void CalculateDirectLighting(inout LightingTerms_t lighting, inout Materi
 
 #define UseLightmapDirectionality true
 const float g_flSceneDirectionalLightmapStrength = 0.8;
-uniform float g_flDirectionalLightmapStrength = 1.0;
-uniform float g_flDirectionalLightmapMinZ = 0.05;
+[Default(1)] uniform float g_flDirectionalLightmapStrength = 1.0;
+[Default(0.05)] uniform float g_flDirectionalLightmapMinZ = 0.05;
 
 const float colorSpaceMul = 254 / 255;
 
@@ -215,7 +215,8 @@ public vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirectio
         vTangentSpaceLightVector *= (colorSpaceMul / max(colorSpaceMul, length(vTangentSpaceLightVector.xy)));
         vTangentSpaceLightVector.z = cosTheta;
 
-        float flDirectionality = mix(irradianceDirection.z, 1.0, g_flDirectionalLightmapStrength) - g_flSceneDirectionalLightmapStrength;
+        float flDirectionality = mix(0, irradianceDirection.z, g_flDirectionalLightmapStrength);
+
         vec3 vNonDirectionalLightmap = irradianceColor * saturate(flDirectionality);
 
         float NoL = ClampToPositive(dot(vTangentSpaceLightVector, normalMap));
@@ -241,7 +242,7 @@ public void CalculateIndirectLighting(inout LightingTerms_t lighting, inout Mate
         else
             vAHDData = g_tDirectionalIrradiance.Sample(mat.LightmapUv);
 
-        //vAHDData = vec4(0);
+        // vAHDData = vec4(0);
         lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat.NormalMap);
 
         lighting.SpecularOcclusion = vAHDData.a;

@@ -1,6 +1,6 @@
 #version 460
 
-#include "common/utils.slang"
+#include "common/utils.glSlang"
 
 uniform int g_nNumSamplesMSAA = 1;
 

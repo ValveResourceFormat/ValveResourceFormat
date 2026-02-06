@@ -438,8 +438,6 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     {
         float _20589 = mix(60.0, 120.0, ditheredNormal.z);
 
-        //return vec4(_20589 / 100);
-
         vec3 edgeLimitFactor = vec3((clamp(fma(-sceneDepthChangeMagnitude, 1000.0, clamp(((1.0 / _20589) - finalWaterColumnDepthForRefract) * _20589, 0.0, 1.0) + saturate((0.025 - finalWaterColumnDepthForRefract) * 8.0)), 0.0, 1.0) / fma(distanceToFrag, 0.002, 1.0)) * 0.6);
 
         
@@ -696,11 +694,9 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     //float finalShadowingEffect = mix(finalShadowCoverage * lightmapShadowMulti, lightmapShadowMulti, waterOpacity * 0.5);
 
     vec3 _22686 = (lighting.DiffuseDirect + lighting.DiffuseIndirect) * mat.Albedo;
-
     vec3 returnColor = mix(_22686, combinedRefractedColor * waterDecayColorFactor, vec3(waterOpacity));
     returnColor = mix( returnColor, (baseFogColor * 4.0) * lighting.DiffuseIndirect, vec3((waterFogAlpha * saturate((1.0 - surfaceCoverageAlpha) + noClue)) * (1.0 - g_flWaterFogShadowStrength)));
     mat.SpecularColor = vec3(1);
-
     
 
     float roughnessForCubemap = dot(mix(g_vRoughness,vec2(1),vec2(clamp(reflectionsLodFactor, 0.0 ,0.35))), vec2(0.5) );
@@ -831,7 +827,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
         finalReflectionColor = mix(finalReflectionColor, SsrReflectionResult, vec3(saturate(1.0 - pow(fracOfTotalSteps, 4.0)) * saturate((1.0 - finalSsrUVCoords.y) * 8) ));
     }
-
+    
     float localReflectance = mix(g_flReflectance, g_flDebrisReflectance, finalDebrisFactor);
     float reflectionModulation = (fma(fresnel, 1.0 - localReflectance, localReflectance) * fma(-combinedfinalFoamIntensity, 2.0, fma(-surfaceCoverageAlpha, 0.75, 1.0))) * 1.5;
     lighting.SpecularDirect = (lighting.DiffuseDirect * (fma(ClampToPositive(specularFactor - (1.0 - g_flSpecularBloomBoostThreshold)), g_flSpecularBloomBoostStrength, specularFactor) * mix(1.0, g_flDebrisReflectance * 0.05, debrisEdgeFactor))) * reflectionModulation;
@@ -843,10 +839,13 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
     returnColor.xyz *= mix(vec3(1.0), lighting.DiffuseIndirect * 0.75, vec3(saturate(causticsDebrisTotal.w * 4.0) * inverseWaterFogAlpha));
 
+    
+
     vec3 returnColorMixFac = vec3(saturate(reflectionModulation));
     vec3 oilSpecularFactor = vec3(((saturate(noClue * 20.0) * g_flDebrisOilyness) / fma(distanceToFrag, 0.005, 1.0)) * saturate(fma(-refractedVerticalFactor, 5.0, 1.0)));
 
     returnColor = mix(returnColor, mix(finalReflectionColor, finalReflectionColor * oilIridescence, oilSpecularFactor), returnColorMixFac);
+    
     ApplyFog(returnColor, finalSurfacePos);
 
     // --- DITHER INTO SKYBOX ---
@@ -860,6 +859,8 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     }
 
     float flEdgeBlend = saturate(fma(g_flEdgeHardness, effectiveWaterDepthForFog, saturate(combinedfinalFoamIntensity)) + fma(debrisHeightVal, 2.0, -0.5));
+
+    
 
     // --- PERFORM EDGE BLEND ---
     if (F_REFRACTION == 1 && !g_bIsSkybox)

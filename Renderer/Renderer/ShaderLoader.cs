@@ -661,7 +661,7 @@ namespace ValveResourceFormat.Renderer
                     File.WriteAllBytes(filename, bytes);
                 }
 
-                DumpToFile(sources[SlangStage.eFragment].getBufferPointer(), (int)sources[SlangStage.eFragment].getBufferSize(), shaderName + ".spv");
+                //DumpToFile(sources[SlangStage.eFragment].getBufferPointer(), (int)sources[SlangStage.eFragment].getBufferSize(), shaderName + ".spv");
 
                 for (var i = 0; i < shaderObjects.Length; i++)
                 {

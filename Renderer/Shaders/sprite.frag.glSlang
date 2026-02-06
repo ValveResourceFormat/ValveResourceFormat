@@ -2,7 +2,7 @@
 
 #define F_ALPHA_TEST 0
 
-#include "common/texturing.slang"
+#include "common/texturing.glSlang"
 
 in vec2 vTexCoordOut;
 

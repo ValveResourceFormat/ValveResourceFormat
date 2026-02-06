@@ -1,7 +1,7 @@
 #version 460
 
-#include "common/utils.slang"
-#include "common/ViewConstants.slang"
+#include "common/utils.glSlang"
+#include "common/ViewConstants.glSlang"
 
 #define D_DOF 0
 
