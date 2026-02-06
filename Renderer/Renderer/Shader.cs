@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer
         public Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)> FloatParams { get; init; } = [];
         public Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)> VectorParams { get; init; } = [];
         //SLANG
-        public Dictionary<string, (int Binding, bool isTexture)> ResourceBindings { get; set; } = [];
+        public Dictionary<string, (int Binding, bool isTexture, bool SrgbRead)> ResourceBindings { get; set; } = [];
         public required HashSet<string> SrgbUniforms { get; init; }
         public HashSet<string> ReservedTexuresUsed { get; init; } = [];
 
@@ -184,10 +184,26 @@ namespace ValveResourceFormat.Renderer
                 {
                     if (UniformBuffer == -1)
                     {
+                        //SLANG: Set all of the uniforms in the cpu buffer!
+
+                        foreach (var (key, uniform) in IntParams)
+                        {
+                            SetUniformAtLocation(uniform.Location, uniform.DefaultValue);
+                        }
+                        foreach (var (key, uniform) in FloatParams)
+                        {
+                            SetUniformAtLocation(uniform.Location, uniform.DefaultValue);
+                        }
+                        foreach (var (key, uniform) in VectorParams)
+                        {
+                            SetUniformAtLocation(uniform.Location, uniform.DefaultValue, uniform.size);
+                        }
+
+
                         int[] buffer = new int[1];
                         GL.CreateBuffers(1, buffer);
                         UniformBuffer = buffer[0];
-                        GL.NamedBufferData(UniformBuffer, UniformBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+                        GL.NamedBufferData(UniformBuffer, UniformBufferSize, CpuUniformBuffer, BufferUsageHint.DynamicDraw);
                     }
 
                     GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
@@ -260,6 +276,12 @@ namespace ValveResourceFormat.Renderer
                 {
                     return offset;
                 }
+                else if (name.StartsWith("g_t"))
+                {
+                    //SLANG HACK, I pray to god this won't be in here in 5 years time
+                    ResourceBindings.TryGetValue(name, out var value);
+                    return value.Binding;
+                }
                 return -1;
             }
             if (Uniforms.TryGetValue(name, out var locationType))
@@ -281,13 +303,13 @@ namespace ValveResourceFormat.Renderer
                 //SLANG: size is supposed to be in elements. An element is 4 bytes.
                 int byteSize = Convert.ToInt32(size == 0) * (Marshal.SizeOf<T>()) + size * 4;
 
-
-
                 if (location + Marshal.SizeOf<T>() > UniformBufferSize)
                 {
                     throw new Exception($"Buffer overflow: offset={location}, size={byteSize}, bufferSize={UniformBufferSize}");
                 }
-                MemoryMarshal.Write(CpuUniformBuffer.AsSpan(location), in value);
+                MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref value, 1))
+                .Slice(0, byteSize)
+                .CopyTo(CpuUniformBuffer.AsSpan(location));
 
                 //GL.NamedBufferSubData(UniformBuffer, (IntPtr)location, byteSize, ref value);
 
@@ -349,8 +371,16 @@ namespace ValveResourceFormat.Renderer
             {
                 uvec4 hackVec = new uvec4 { u1 = u1, u2 = u2, u3 = u3, u4 = u4 };
 
-                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                GL.NamedBufferSubData(UniformBufferBinding, (IntPtr)location, (IntPtr)Marshal.SizeOf<uvec4>(), ref hackVec);
+                //GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                int byteSize = 16;
+
+                if (location + 16 > UniformBufferSize)
+                {
+                    throw new Exception($"Buffer overflow: offset={location}, size={byteSize}, bufferSize={UniformBufferSize}");
+                }
+                MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref hackVec, 1))
+                .Slice(0, byteSize)
+                .CopyTo(CpuUniformBuffer.AsSpan(location));
             }
             else
             {
@@ -370,7 +400,8 @@ namespace ValveResourceFormat.Renderer
 
         public void UpdateUniformBuffer()
         {
-            GL.NamedBufferData(UniformBuffer, CpuUniformBuffer.Length, CpuUniformBuffer, BufferUsageHint.DynamicDraw);
+            if(IsSlang)
+                GL.NamedBufferData(UniformBuffer, CpuUniformBuffer.Length, CpuUniformBuffer, BufferUsageHint.DynamicDraw);
         }
 
         public int GetUniformBlockIndex(string name)

@@ -30,6 +30,10 @@ public partial class SlangBindings
     {
         public IModule(IModulePtr modulePointer) : base(new IComponentTypePtr(modulePointer.ptr)) { }
 
+        public bool IsValid()
+        {
+            return Ptr.ptr != 0;
+        }
         public IModulePtr GetPointer()
         {
             return new IModulePtr(Ptr.ptr);
@@ -48,7 +52,10 @@ public partial class SlangBindings
         public int getDefinedEntryPointCount()
         {
             IModulePtr selfPointer = GetPointer();
+            try { 
             return IModule_getDefinedEntryPointCount(ref selfPointer);
+            }
+            catch { throw new Exception(); }
         }
 
         //CAREFUL: You can not get target code for the returned entry point, you must first use IComponentType.link!

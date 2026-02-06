@@ -88,7 +88,9 @@ public class Renderer
 
         FramebufferCopy.Initialize();
         FramebufferCopy.ClearColor = new(0, 0, 0, 255);
+        
         Debug.Assert(FramebufferCopy.Color != null && FramebufferCopy.Depth != null);
+        FramebufferCopy.Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.None);
 
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));

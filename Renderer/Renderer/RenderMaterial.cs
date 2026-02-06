@@ -271,8 +271,12 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var param in shader.VectorParams)
                 {
-                    var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value.DefaultValue);
-                    shader.SetUniformAtLocation(param.Value.Location, value, param.Value.size);
+                    //SLANG HACK: A better solution isn't exactly difficult, but I came to test shit
+                    if (!param.Key.StartsWith("g_n"))
+                    {
+                        var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value.DefaultValue);
+                        shader.SetUniformAtLocation(param.Value.Location, value, param.Value.size);
+                    }
                 }
 
                 shader.UpdateUniformBuffer();

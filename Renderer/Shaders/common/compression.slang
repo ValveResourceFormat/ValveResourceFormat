@@ -4,19 +4,23 @@ extern static const int D_COMPRESSED_NORMALS_AND_TANGENTS = 0;
 
 
 
-#include "utils.glSlang"
+import common.utils;
 
 // File containing vertex inputs and functions to deal with compressed normals and tangents.
 
 
-#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0 || D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
-    in vec4 vNORMAL; // OptionallyCompressedTangentFrame
-    #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-        in vec4 vTANGENT; // TangentU_SignV
-    #endif
-#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
-    in uint vNORMAL; // CompressedTangentFrame
-#endif
+//#if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0 || D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
+//    in vec4 vNORMAL; // OptionallyCompressedTangentFrame
+//    #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
+//        in vec4 vTANGENT; // TangentU_SignV
+//    #endif
+//#elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
+//    in uint vNORMAL; // CompressedTangentFrame
+//#end
+
+public static float4 inNormal;
+public static float4 inTangent;
+public static uint inCompressedNormal;
 
 mat3 adjoint(in mat4 m)
 {
@@ -120,17 +124,20 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     tangent.w = (SignBit == 0u) ? -1.0 : 1.0; // Bitangent sign bit... inverted (0 = negative)
 }
 
-void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
+public void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
 {
-    #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-        normal = vNORMAL.xyz;
-        tangent = vTANGENT.xyzw;
-    #elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
-        normal = DecompressNormal(vNORMAL * 255.0);
-        tangent = DecompressTangent(vNORMAL * 255.0);
-    #elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
-        DecompressNormalTangent2(vNORMAL, normal, tangent);
-    #endif
+    if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
+    {
+        normal = inNormal.xyz;
+        tangent = inTangent.xyzw;
+    }
+    else if (D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
+    {
+        normal = DecompressNormal(inNormal * 255.0);
+        tangent = DecompressTangent(inNormal * 255.0);
+    }
+    else if (D_COMPRESSED_NORMALS_AND_TANGENTS == 2) {}
+        DecompressNormalTangent2(inCompressedNormal, normal, tangent);
 }
 
 

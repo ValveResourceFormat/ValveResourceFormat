@@ -1,6 +1,7 @@
 #version 460
-#include "common/utils.glSlang"
+import common.utils;
 import "common/instancing.slang";
+
 
 [__AttributeUsage(_AttributeTargets.Var)]
 struct DefaultAttribute
@@ -70,7 +71,7 @@ struct SrgbReadAttribute {};
 [Default(0.4)] uniform float g_flWavesPhaseOffset;
 [Default(10.0)] uniform float g_flEdgeHardness;
 [Default(1.0)] uniform float g_flEdgeShapeEffect;
-[Default(3)] int g_nWaveIterations;
+[Default(3)] uniform int g_nWaveIterations;
 [Default3(0.5, 0.5, 0.5)] [SrgbRead] uniform float3 g_vWaterFogColor;
 [Default(0.1)] uniform float g_flRefractionLimit;
 [Default(0.5)] uniform float g_flWaterFogStrength;
@@ -115,7 +116,9 @@ float4 g_vViewportExtentsTs;
 
 Sampler2D g_tBlueNoise;
 Sampler2D g_tFoam;
-[SrgbRead] uniform sampler2D g_tDebris;
+
+[SrgbRead] Sampler2D g_tDebris;
+
 Sampler2D g_tDebrisNormal;
 
 // uniform sampler2D g_tWaterEffectsMap;
@@ -123,10 +126,14 @@ Sampler2D g_tWavesNormalHeight;
 
 float4 g_vSimpleSkyReflectionColor = vec4(1.0);
 
+//[vk::index(191)] Conditional<Sampler2D, true> g_tSceneColor1;
+
 Sampler2D g_tSceneColor;
+
+
 Sampler2D g_tSceneDepth;
 
-#include "common/compression.glSlang"
+import common.compression;
 
 struct VertexOutput
 {
@@ -137,40 +144,46 @@ struct VertexOutput
     vec3 vTangentOut;
     vec3 vBitangentOut;
     vec4 vColorBlendValues;
-}
 
-#include "common/features.glSlang"
+    FeatureData sFeatureData;
 
-import "common/LightingConstants.slang";
+    Conditional<float3, D_BAKED_LIGHTING_FROM_LIGHTMAP == 1> vLightmapUVScaled;
+};
 
-#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    in vec2 vLightmapUV;
-    out vec3 vLightmapUVScaled;
-#elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    in vec4 vPerVertexLighting;
-    out vec3 vPerVertexLightingOut;
-#endif
+import common.features;
 
-import "common/ViewConstants.slang";
+import common.LightingConstants;
 
+//SLANG TODO
+//#if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+//    in vec2 vLightmapUV;
+//    out vec3 vLightmapUVScaled;
+//#elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
+//    in vec4 vPerVertexLighting;
+//    out vec3 vPerVertexLightingOut;
+//#endif
 
-float4 rasterPos : SV_Position;
+import common.ViewConstants;
 
 [shader("vertex")]
 VertexOutput vertexMain(
     vec3 vPOSITION,
     vec2 vTEXCOORD,
-    vec4 vNORMAL,
+    uint vNORMAL,
     vec4 vTANGENT,
     vec4 vCOLOR,
-    vec4 vTEXCOORD4
+    vec4 vTEXCOORD4,
+    Conditional<float2, D_BAKED_LIGHTING_FROM_LIGHTMAP == 1> vLightmapUV
+    //Conditional<float4, D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1> vPerVertexLighting,
 )
 {
+    inCompressedNormal = vNORMAL;
+
     VertexOutput vOut;
-    vec4 tangent;
-    vOut.vNormalOut = vNORMAL.xyz;
+    float4 tangent;
+    GetOptionallyCompressedNormalTangent(vOut.vNormalOut, tangent);
     vOut.vTangentOut = tangent.xyz;
-    vOut.vBitangentOut = tangent.w * cross(vOut.vNormalOut, vOut.vTangentOut);
+    vOut.vBitangentOut = vTANGENT.w * cross(vOut.vNormalOut, vOut.vTangentOut);
 
     vec4 vPositionWs = CalculateObjectToWorldMatrix() * vec4(vPOSITION, 1.0);
 
@@ -180,16 +193,19 @@ VertexOutput vertexMain(
     //vPositionWs.xyz += (vOut.vNormalOut.xyz * g_flWaterPlaneOffset);
     //vPositionWs.xy += ((-(normalize(parallaxOffset) * clamp(length(parallaxOffset), 0.0, 20.0))) * g_flWaterPlaneOffset);
 
-    vOut.vRasterPosition = float4(vPOSITION, 1.0) * g_matWorldToProjection;
+    vOut.vRasterPosition = g_matWorldToProjection * float4(vPOSITION, 1.0);
     vOut.vFragPosition = vPositionWs.xyz;
-    return vOut;
 
-    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-        vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
-    #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-        vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
-        vPerVertexLightingOut = pow2(Light);
-    #endif
+    if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+        vOut.vLightmapUVScaled.set(vec3(vLightmapUV.get().value * g_vLightmapUvScale.xy, 0));
+    else if (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+    {
+        //SLANG TODO
+        //vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
+        //vPerVertexLightingOut = pow2(Light);
+    }
+
+    vOut.sFeatureData.vLightmapUVScaled.set(vOut.vLightmapUVScaled.get().value);
 
     vOut.vTexCoordOut = vTEXCOORD;
     vOut.vColorBlendValues = vTEXCOORD4;

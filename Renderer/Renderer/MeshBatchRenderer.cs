@@ -254,11 +254,14 @@ namespace ValveResourceFormat.Renderer
                     SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap.EnvMapTexture);
                 }
 
-                GL.ProgramUniform4(
-                    (uint)shader.Program,
-                    uniforms.CubeMapBitmaskVisiblity,
-                    v.Item1, v.Item2, v.Item3, v.Item4
-                );
+                shader.SetUniformAtLocation(uniforms.CubeMapBitmaskVisiblity, v.Item1, v.Item2, v.Item3, v.Item4);
+
+
+                //GL.ProgramUniform4(
+                //    (uint)shader.Program,
+                //    uniforms.CubeMapBitmaskVisiblity,
+                //    v.Item1, v.Item2, v.Item3, v.Item4
+                //);
             }
 
             if (uniforms.VisibleLightProbeVolume != -1 && request.Node.LightProbeBinding is { } lightProbe)
@@ -356,6 +359,9 @@ namespace ValveResourceFormat.Renderer
                 shader.SetUniformAtLocation(uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
                 //GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
+
+            shader.UpdateUniformBuffer();
+
 
             GL.DrawElementsInstancedBaseVertex(
                 request.Call.PrimitiveType,

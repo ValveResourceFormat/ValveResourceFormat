@@ -1,4 +1,6 @@
-import "common/ViewConstants.slang";
+//#language slang 2025
+
+import common.ViewConstants;
 
 // https://github.com/BabylonJS/Babylon.js/blob/bd7351cfc97884d3293d5858b8a0190cda640b2f/packages/dev/materials/src/grid/grid.fragment.fx
 // https://asliceofrendering.com/scene%20helper/2020/01/05/InfiniteGrid/

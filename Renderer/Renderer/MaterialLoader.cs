@@ -122,7 +122,11 @@ namespace ValveResourceFormat.Renderer
 
             bool TryBindTexture(RenderMaterial mat, string name, string path)
             {
-                if (mat.Shader.UniformNames.Contains(name))
+                if (mat.Shader.IsSlang && mat.Shader.ResourceBindings.TryGetValue(name, out var texBinding))
+                {
+                    mat.Textures[name] = GetTexture(path, texBinding.SrgbRead, anisotropicFiltering: true);
+                }
+                else if (mat.Shader.UniformNames.Contains(name))
                 {
                     var srgbRead = mat.Shader.SrgbUniforms.Contains(name);
                     mat.Textures[name] = GetTexture(path, srgbRead, anisotropicFiltering: true);

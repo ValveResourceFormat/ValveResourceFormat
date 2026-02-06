@@ -1,33 +1,48 @@
 #version 460
 
-#include "common/utils.glSlang"
+import common.utils;
+
+
 #include "water_csgo.vert.slang"
-#define VRF_VIEWCONSTANTS_INCLUDE
-#define VRF_LIGHTINGCONSTANTS_INCLUDE
 
-#include "common/features.glSlang"
-import "common/ViewConstants.slang";
-import "common/LightingConstants.slang";
+import common.features;
+import common.ViewConstants;
+import common.LightingConstants;
 
-#include "common/lighting_common.glSlang"
-#include "common/fullbright.glSlang"
-#include "common/texturing.glSlang"
-#include "common/fog.glSlang"
-#include "common/lighting.glSlang"
+import common.lighting_common;
+import common.fullbright;
+import common.texturing;
+import common.fog;
+import common.lighting;
+import common.environment;
 
-#define F_REFLECTION_TYPE 0 // (0="Sky Color Only", 1="Environment Cube Map", 2="SSR over Environment Cube Map")
-#define F_REFRACTION 0
-#define F_CAUSTICS 0
-#define F_BLUR_REFRACTION 0
+//#define F_REFLECTION_TYPE 0 // (0="Sky Color Only", 1="Environment Cube Map", 2="SSR over Environment Cube Map")
+//#define F_REFRACTION 0
+//#define F_CAUSTICS 0
+//#define F_BLUR_REFRACTION 0
 
-
+extern static const int F_REFLECTION_TYPE = 0;
+extern static const int F_REFRACTION = 0;
+extern static const int F_CAUSTICS = 0;
+extern static const int F_BLUR_REFRACTION = 0;
 
 [shader("fragment")]
 float4 fragmentMain( VertexOutput vOut) : SV_Target
 {
+
+    vOut.sFeatureData.MakeGlobal();
+    vec3 vLightmapUVScaled = globalFragFeatureData.vLightmapUVScaled.get().value;
+
+    vFragPosition = vOut.vFragPosition;
+
+    //return getMeMaLighting();
     float4 outputColor = float4(1);
+    // return outputColor;
+    // return vOut.vLightmapUVScaled.get().value.xyxy;
+
     vec2 gbufferUV = gl_FragCoord.xy / textureSize(g_tSceneColor, 0);
-    
+
+    //return g_tDebris.Sample(gbufferUV);
 
     MaterialProperties_t mat;
     InitProperties(mat,vOut.vNormalOut, vOut.vFragPosition,vOut.vTangentOut,vOut.vBitangentOut);
@@ -74,8 +89,6 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     if (!g_bIsSkybox)
     {
         float sceneDepth = g_tSceneDepth.SampleLevel(gbufferUV, 0).r;
-        return float4(1 / sceneDepth / 50);
-
 
         sceneNormalizedDepth = LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, sceneDepth);
 
@@ -84,7 +97,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
         float refractionLuminance = clamp(GetLuma(refractionColorSample.rgb), 0.0, 0.4);
         refractionDistortionFactor = refractionLuminance * -0.03;
-
+        
         float invProjTerm = fma(sceneNormalizedDepth, g_vInvProjRow3.z, g_vInvProjRow3.w);
         float perspectiveCorrection = dot(g_vCameraDirWs, viewDir);
         float sceneViewDistance = (1.0 / (invProjTerm * perspectiveCorrection));
@@ -94,10 +107,11 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
         float waterSurfaceViewZ = -(g_matWorldToView * vec4(mat.PositionWS, 1.0)).z;
         waterColumnOpticalDepthFactor = (refractionDistortionFactor * 1.0 + ClampToPositive((1.0 / sceneNormalizedDepth) - waterSurfaceViewZ) * 0.01);
 
-        
+
+
     }
 
-    float waterSurfaceViewZ = -(g_matWorldToView * vec4(mat.PositionWS, 1.0) ).z;
+    float waterSurfaceViewZ = -(g_matWorldToView * vec4(mat.PositionWS, 1.0)).z;
 
     float adjustedWaterColumnDepth = ClampToPositive(waterColumnOpticalDepthFactor - 0.02);
     float refractedVerticalFactor = waterColumnOpticalDepthFactor * viewDirInv.z;
@@ -116,6 +130,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     float currentDebrisVisibility = g_bIsSkybox
         ? 0.0
         : ClampToPositive(mix(g_flDebrisMin, g_flDebrisMax,vOut.vColorBlendValues.z));
+
 
     vec2 baseWaveUV = (mat.PositionWS.xy * flSkyboxScale + viewDepOffsetFactor.xy * (0.5 - g_flWaterPlaneOffset)) / 30.0; // Another arbitrary scale
 
@@ -164,6 +179,8 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
     float currentWaveAngle = g_flWaterInitialDirection;
 
+    
+
     for (uint i = 0; i < g_nWaveIterations; ++i)
     {
         float iterProgress = float(i) / (float(g_nWaveIterations) - 1.0);
@@ -195,6 +212,8 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
         //vec3 sampledWaveNormalHeight1 = texture(g_tWavesNormalHeight, waveSampleUV1, -clampedLodFactor).xyz - vec3(0.5);
 
         vec3 sampledWaveNormalHeight1 = g_tWavesNormalHeight.SampleBias(waveSampleUV1, -clampedLodFactor).xyz - vec3(0.5);
+
+        
 
         float waveHeightComponent1 = sampledWaveNormalHeight1.z * freqWeight * length(currentWaveTexScale) * 0.01; // Height contribution
         vec2 waveNormalXYComponent1 = sampledWaveNormalHeight1.xy * 2.0; // Unpack normal
@@ -239,8 +258,6 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     vec3 roughedWaveNormal = accumulatedWaveNormal * currentWaterRoughness;
     float scaledAccumulatedWaveHeight = accumulatedWaveHeight * currentWaterRoughness * 60.0; // For stronger visual effect
 
-    
-
     vec3 ditheredNormal = vec3(0.0, 0.0, 1.0);
     float edgeFactorQ = g_flEdgeShapeEffect;
 
@@ -252,6 +269,9 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
         ditheredNormal.y = ditheredRefractShiftNormalXY.y;
         edgeFactorQ = g_flEdgeShapeEffect * saturate(fma(-reconstructedWorldNormal.z, 1.0 - saturate(refractedVerticalFactor * 8.0), 1.2));
     }
+
+    
+
     vec3 waveDisplacedWorldPos = mat.PositionWS + viewDepOffsetFactor.xyz * (mix(0.5, scaledAccumulatedWaveHeight, g_flEdgeShapeEffect) - g_flWaterPlaneOffset) * 1;
 
     float finalFoamHeightContrib = scaledAccumulatedWaveHeight;
@@ -343,7 +363,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     vec4 foamSample2 = g_tFoam.Sample(mix(sample2Mix1, sample2Mix2, depthFactorFine)); // Second sample with different UVs/anim for variation
 
     float combinedFoamTextureValue = (sin(blueNoiseZeroToOne.x) * 0.125 + max(foamSample1.z, foamSample2.z));
-
+    
     float finalFoamIntensity = fma(    currentFoamAmount * fma(finalFoamHeightContrib, 0.008, 1.0),       1.0 - saturate(debrisDisturbanceForWaves * 2.0),       foamFromEffects   );
     finalFoamIntensity = saturate(finalFoamIntensity);
 
@@ -362,9 +382,13 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     debrisDistortedUV -=  dominantFoamSiltNorm;
     vec2 debrisFinalUV = mix(debrisBaseUV, debrisDistortedUV, depthFactorCoarse).xy;
     vec4 debrisColorHeightSample = g_tDebris.SampleBias(debrisFinalUV, finalFoamPow1_5 * 3.0); // RGB=color, A=height/mask
+
     float debrisHeightVal = debrisColorHeightSample.a - 0.5; // Signed height
     float finalDebrisVisibility = fma(-currentDebrisVisibility, clamp(1.4 - (finalFoam / mix(1.0, 0.4, debrisColorHeightSample.w)), 0.0, 1.0), 1.0);
+
     float debrisEdgeFactor = saturate((debrisColorHeightSample.a - finalDebrisVisibility) * g_flDebrisEdgeSharpness);
+
+
     float noClue = max(0.0, fma(2.0, finalFoamPow1_5, debrisHeightVal * (-2.0)));
     float debrisVisibilityMask = saturate(fma(-noClue, 10.0, 1.0));
     float finalDebrisFactor = debrisVisibilityMask * debrisEdgeFactor; // Final alpha for debris layer
@@ -376,11 +400,13 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     float weirdDebHeight = max(0.0, debrisHeightVal * (-2.0));
     float weirdMixVal = debrisEdgeFactor * saturate(fma(weirdDebHeight, 10.0, 1.0));
 
+
     mat.Height = mix(scaledAccumulatedWaveHeight, fma(scaledAccumulatedWaveHeight, 0.5, debrisHeightVal * 2.0), weirdMixVal);
 
     vec3 finalSurfacePos = mat.PositionWS.xyz + (viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) -g_flWavesHeightOffset));
 
     float finalWaterColumnDepthForRefract = waterColumnOpticalDepthFactor;
+
 
     if(!g_bIsSkybox)
     {
@@ -403,6 +429,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
     mat.NormalMap = vec3(finalWaveNormalXY, sqrt(1.0 - saturate(dot(finalWaveNormalXY, finalWaveNormalXY))));
 
+
     vec2 perturbedNormalXY = mat.NormalMap.xy * 3.0; // Stronger perturbation
     vec3 perturbedSurfaceNormal = vec3(perturbedNormalXY, sqrt(1.0 - saturate(dot(perturbedNormalXY, perturbedNormalXY))));
     vec3 finalPerturbedSurfaceNormal = perturbedSurfaceNormal;
@@ -410,10 +437,20 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     if (F_REFRACTION == 1 && !g_bIsSkybox)
     {
         float _20589 = mix(60.0, 120.0, ditheredNormal.z);
+
+        //return vec4(_20589 / 100);
+
         vec3 edgeLimitFactor = vec3((clamp(fma(-sceneDepthChangeMagnitude, 1000.0, clamp(((1.0 / _20589) - finalWaterColumnDepthForRefract) * _20589, 0.0, 1.0) + saturate((0.025 - finalWaterColumnDepthForRefract) * 8.0)), 0.0, 1.0) / fma(distanceToFrag, 0.002, 1.0)) * 0.6);
+
+        
+
         mat.NormalMap = normalize(mix(mat.NormalMap, ditheredNormal, edgeLimitFactor));
         finalPerturbedSurfaceNormal = normalize(mix(perturbedSurfaceNormal, ditheredNormal, edgeLimitFactor));
+
+        
     }
+
+    
 
     vec3 sunColor = GetLightColor(0);
     vec3 sunDir = GetEnvLightDirection(0);
@@ -432,6 +469,9 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     if(!g_bIsSkybox)
     {
         vec2 refractionUVOffsetRaw = (vec2(dot(finalPerturbedSurfaceNormal.xy, cross(viewDirInv, vec3(0.0, 0.0, -1.0)).xy), dot(finalPerturbedSurfaceNormal.xy, viewDirInv.xy)) + ((blueNoiseNegHalfToHalf * 0.002) * g_flWaterFogStrength)).xy * min(g_flRefractionLimit, finalWaterColumnDepthForRefract);
+
+        
+
         float depthBufferRange = g_flViewportMaxZ - g_flViewportMinZ;
         float surfaceDepth = -(g_matWorldToView * vec4(finalSurfacePos, 1.0)).z;
 
@@ -449,38 +489,38 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
         float finalRefractedNormalizedDepth = (textureLod(g_tSceneDepth, gbufferUV + finalRefractionUVOffset, 0).x - g_flViewportMinZ) / depthBufferRange;
         finalRefractedNormalizedDepth = max(finalRefractedNormalizedDepth, 0.0000001);
-
-
-        #if F_BLUR_REFRACTION == 1
+        vec4 finalRefractedColor;
+        if (F_BLUR_REFRACTION == 1)
+        {
             float smallOffset = 0.001 * ClampToPositive(waterExtent) * 0.01;
             vec4 sample1 = textureLod(g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 0.0)) + vec2(0.0, smallOffset), vec2(0.0), vec2(1.0)), 0);
-            vec4 sample2 = textureLod(g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 1.0)), vec2(0.0), vec2(1.0)), 0);
+            vec4 sample2 = textureLod( g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 1.0)), vec2(0.0), vec2(1.0)), 0);
             vec4 sample3 = textureLod(g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 2.0)) - vec2(0.0, smallOffset), vec2(0.0), vec2(1.0)), 0);
             vec4 sample4 = textureLod(g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 3.0)) + vec2(smallOffset, 0.0), vec2(0.0), vec2(1.0)), 0);
             vec4 sample5 = textureLod(g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 4.0)) - vec2(smallOffset, 0.0), vec2(0.0), vec2(1.0)), 0);
-
 
             // 4. Mix the color channels from different samples to create the aberration
             // This is a direct translation of the fma chain in the original shader
             vec4 mixedColor =
             (sample5 * mix(vec4(1.0), vec4(2.0, 0.0, 0.0, 1.0), g_flRefractChromaticSeparation)) +
-            (sample4 * mix(vec4(1.0), vec4(2.0, 2.0, 0.0, 1.0), g_flRefractChromaticSeparation)) +
-            (sample3 * mix(vec4(1.0), vec4(0.0, 3.0, 0.0, 1.0), g_flRefractChromaticSeparation)) +
-            (sample2 * mix(vec4(1.0), vec4(1.0, 0.0, 2.0, 1.0), g_flRefractChromaticSeparation)) +
-            (sample1 * mix(vec4(1.0), vec4(0.0, 0.0, 3.0, 1.0), g_flRefractChromaticSeparation));
+                              (sample4 * mix(vec4(1.0), vec4(2.0, 2.0, 0.0, 1.0), g_flRefractChromaticSeparation)) +
+                              (sample3 * mix(vec4(1.0), vec4(0.0, 3.0, 0.0, 1.0), g_flRefractChromaticSeparation)) +
+                              (sample2 * mix(vec4(1.0), vec4(1.0, 0.0, 2.0, 1.0), g_flRefractChromaticSeparation)) +
+                              (sample1 * mix(vec4(1.0), vec4(0.0, 0.0, 3.0, 1.0), g_flRefractChromaticSeparation));
 
-            vec4 finalRefractedColor = mixedColor * 0.2; // Average the 5 samples
-        #else
-            vec4 finalRefractedColor = textureLod(g_tSceneColor, saturate(gbufferUV + finalRefractionUVOffset), 0);
-        #endif // F_BLUR_REFRACTION == 1
-
+            finalRefractedColor = mixedColor * 0.2; // Average the 5 samples
+        }
+        else
+        {
+            finalRefractedColor = textureLod(g_tSceneColor, saturate(gbufferUV + finalRefractionUVOffset), 0);
+        }
 
         vec3 darkenedRefractedColor = pow(finalRefractedColor.rgb, vec3(1.1)) * g_flUnderwaterDarkening;
+
 
         foamSiltStrength += foamSiltFactor * 2.0;
 
         float causticVisibility = clamp((GetLuma(darkenedRefractedColor.xyz) - g_flCausticShadowCutOff) * (2.0 + g_flCausticShadowCutOff), 0.0, 1.0);
-
         //VALIDATE: foamSiltStrength and causticVisibility. Make sure they match original!
         combinedRefractedColor = darkenedRefractedColor;
 
@@ -603,6 +643,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
 
         postCausticsWaterColumnDepth = fma(ClampToPositive( ( 1.0 / finalRefractedNormalizedDepth) - surfaceDepth), 0.01, refractionDistortionFactor);
     }
+    
 
     float effectiveWaterDepthForFog = min(g_flWaterMaxDepth, postCausticsWaterColumnDepth);
     vec3 waterDecayColorFactor = exp(((g_vWaterDecayColor.rgb - vec3(1.0)) * vec3(g_flWaterDecayStrength)) * effectiveWaterDepthForFog);
@@ -620,9 +661,14 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     float waterOpacity = (saturate((1.0 - debrisEdgeFactor) + noClue) * saturate(fma(-combinedfinalFoamIntensity, 4.0, 1.0))) * inverseWaterFogAlpha;
 
     mat.Albedo = mix(mix((baseFogColor * waterFogAlpha) * g_flWaterFogShadowStrength, finalFoamColor.xyz, vec3(combinedfinalFoamIntensity)), vec4(debrisColorHeightSample.xyz * fma(finalDebrisFactor, 0.5, 0.5), debrisEdgeFactor).xyz * g_vDebrisTint.xyz, vec3(saturate(debrisEdgeFactor - noClue))).xyz;
-    mat.Tangent =vOut.vTangentOut;
-    mat.Bitangent =vOut.vBitangentOut;
+
+
+
+    mat.Tangent = vOut.vTangentOut;
+    mat.Bitangent = vOut.vBitangentOut;
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+
+   
 
     vec3 vDynamicShadowsPositionOffset = (vec3(-finalDebrisFoamHeightContrib) + (((mix(blueNoiseZeroToOne.xxx, vec3(blueNoiseZeroToOne.xy, 0.0), vec3(0.1)) * 90.0) * pow(waterOpacity, 2.0)) + vec3(g_flWaterPlaneOffset)));
     vDynamicShadowsPositionOffset *= -viewDepOffsetFactor;
@@ -633,11 +679,12 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     float squaredWaterOpacity = pow(waterOpacity, 2.0);
     float _12400 = mix(1.0, effectiveWaterDepthForFog * 2.0, 0.75);
 
-    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    {
         vec2 vLightmapDither = (((((((fwidth(vLightmapUVScaled.xy) * 1200.0) / vec2(distanceToFrag)) * cosNormAngle) * (-viewParallaxFactor)) * vec2(-1.0, 1.0)) * (vec2(finalDebrisFoamHeightContrib * (-2.0)) + ((mix(blueNoiseZeroToOne.yy, blueNoiseZeroToOne.yx, vec2(0.1)) * 20.0) * squaredWaterOpacity))) * _12400);
         mat.LightmapUv = vLightmapUVScaled;
         mat.LightmapUv.xy += vLightmapDither;
-    #endif
+    }
 
     LightingTerms_t lighting = InitLighting();
     CalculateDirectLighting(lighting, mat);
@@ -651,9 +698,10 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     vec3 _22686 = (lighting.DiffuseDirect + lighting.DiffuseIndirect) * mat.Albedo;
 
     vec3 returnColor = mix(_22686, combinedRefractedColor * waterDecayColorFactor, vec3(waterOpacity));
-    returnColor = mix(returnColor, (baseFogColor * 4.0) * lighting.DiffuseIndirect, vec3((waterFogAlpha * saturate((1.0 - surfaceCoverageAlpha) + noClue)) * (1.0 - g_flWaterFogShadowStrength)));
-
+    returnColor = mix( returnColor, (baseFogColor * 4.0) * lighting.DiffuseIndirect, vec3((waterFogAlpha * saturate((1.0 - surfaceCoverageAlpha) + noClue)) * (1.0 - g_flWaterFogShadowStrength)));
     mat.SpecularColor = vec3(1);
+
+    
 
     float roughnessForCubemap = dot(mix(g_vRoughness,vec2(1),vec2(clamp(reflectionsLodFactor, 0.0 ,0.35))), vec2(0.5) );
     mat.Roughness = vec2(sqrt(roughnessForCubemap));
@@ -684,6 +732,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     vec3 finalReflectionColor = F_REFLECTION_TYPE > 0
         ? GetEnvironmentNoBRDF(mat, 0.0) * g_flEnvironmentMapBrightness
         : SrgbGammaToLinear(g_vSimpleSkyReflectionColor.rgb);
+
 
     float SSRStepCountMultiplier = saturate((g_vCameraDirWs.z + 0.75) * 4.0) * (0.5 + 0.5 * float(!g_bIsSkybox));
     int SSRStepCount = int(g_nSSRMaxForwardSteps * SSRStepCountMultiplier);
@@ -788,7 +837,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     lighting.SpecularDirect = (lighting.DiffuseDirect * (fma(ClampToPositive(specularFactor - (1.0 - g_flSpecularBloomBoostThreshold)), g_flSpecularBloomBoostStrength, specularFactor) * mix(1.0, g_flDebrisReflectance * 0.05, debrisEdgeFactor))) * reflectionModulation;
     lighting.SpecularDirect *= sunColor;
     returnColor += lighting.SpecularDirect;
-
+    
     float oilIridHue = fract(fma(g_flTime, 0.1, fma(fresnel, 20.0, debrisHeightVal * 8.0)));
     vec3 oilIridescence = calculateIridescence(oilIridHue, 0.75);
 
@@ -798,7 +847,6 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     vec3 oilSpecularFactor = vec3(((saturate(noClue * 20.0) * g_flDebrisOilyness) / fma(distanceToFrag, 0.005, 1.0)) * saturate(fma(-refractedVerticalFactor, 5.0, 1.0)));
 
     returnColor = mix(returnColor, mix(finalReflectionColor, finalReflectionColor * oilIridescence, oilSpecularFactor), returnColorMixFac);
-
     ApplyFog(returnColor, finalSurfacePos);
 
     // --- DITHER INTO SKYBOX ---
@@ -820,7 +868,7 @@ float4 fragmentMain( VertexOutput vOut) : SV_Target
     }
 
     outputColor.rgb = returnColor;
-
+    
     if (g_iRenderMode != 0)
     {
         // for debug vis

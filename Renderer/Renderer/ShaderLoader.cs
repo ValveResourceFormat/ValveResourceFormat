@@ -128,8 +128,19 @@ namespace ValveResourceFormat.Renderer
                 slangSessionDesc.targets = &targetDesc;
             }
             slangSessionDesc.targetCount = 1;
-            slangSessionDesc.defaultMatrixLayoutMode = SlangMatrixLayoutMode.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
+            slangSessionDesc.defaultMatrixLayoutMode = SlangMatrixLayoutMode.SLANG_MATRIX_LAYOUT_ROW_MAJOR;
 
+            CompilerOptionEntry debugInfoNonePls = new CompilerOptionEntry();
+
+            debugInfoNonePls.name = CompilerOptionName.DebugInformation;
+            debugInfoNonePls.value.kind = CompilerOptionValueKind.Int;
+            debugInfoNonePls.value.intValue0 = 0;
+
+            unsafe
+            {
+                slangSessionDesc.compilerOptionEntries = &debugInfoNonePls;
+                slangSessionDesc.compilerOptionEntryCount = 1;
+            }
             globalSlangSession.createSession(slangSessionDesc, out slangSession);
         }
 
@@ -239,23 +250,46 @@ namespace ValveResourceFormat.Renderer
 
             IModule module = slangSession.loadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out ISlangBlob diagnostics);
             string diagnosticsOut = "";
-            if (shaderFileName == "water_csgo")
+            if (module.IsValid())
             {
-                diagnosticsOut = diagnostics.getString();
+                for (int i = 0; i < module.getDefinedEntryPointCount(); i++)
+                {
+                    module.getDefinedEntryPoint(i, out IEntryPoint entryPoint);
+                    parsedData.EntryPoints.Add(entryPoint);
+                }
+                module.link(out IComponentType linkedModule, out ISlangBlob linkDiag);
+                parsedData.SlangComponentType = linkedModule;
             }
-            for (int i = 0; i < module.getDefinedEntryPointCount(); i++)
+            else
             {
-                module.getDefinedEntryPoint(i, out IEntryPoint entryPoint);
-                parsedData.EntryPoints.Add(entryPoint);
+                throw new ShaderCompilerException($"Failed to load shader: {shaderFileName}: \n {diagnostics.getString()}");
             }
-
-            module.link(out IComponentType linkedModule, out ISlangBlob linkDiag);
-            parsedData.SlangComponentType = linkedModule;
 
 
             ParsedCache[shaderFileName] = parsedData;
             return parsedData;
         }
+
+        //SLANG: false = not a bound resource. This happens when it is a disabled conditional.
+        static bool ReflectResource(in VariableLayoutReflection variable, out bool IsTexture, out int BindingIndex)
+        {
+            IsTexture = false;
+            BindingIndex = (int)variable.getBindingIndex();
+            var varType = variable.getTypeLayout();
+
+            //var conditionalArray = varType.getFieldByIndex(0).getTypeLayout().getElementTypeLayout();
+
+            var shape = variable.getTypeLayout().getType().getResourceShape();
+
+            if (Convert.ToBoolean(shape & SlangResourceShape.SLANG_TEXTURE_2D) || Convert.ToBoolean(shape & SlangResourceShape.SLANG_TEXTURE_2D_ARRAY))
+            {
+                IsTexture = true;
+            }
+
+
+            return true;
+        }
+
 
         private Shader CompileAndLinkGlslShader(string shaderName, ParsedShaderData parsedData, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
         {
@@ -380,7 +414,9 @@ namespace ValveResourceFormat.Renderer
                 IModule configMod = slangSession.loadModuleFromSourceString("config", "config", configModuleSource, out ISlangBlob diagnosticBlob);
 
                 //apply the config right away!
-                slangSession.createCompositeComponentType(new IComponentType[] { configMod, parsedData.SlangComponentType }, out IComponentType specialisedProgram, out diagnosticBlob);
+                slangSession.createCompositeComponentType(new IComponentType[] { configMod, parsedData.SlangComponentType }, out IComponentType specialisedProgram1, out diagnosticBlob);
+
+                specialisedProgram1.link(out IComponentType specialisedProgram, out diagnosticBlob);
 
                 //time to reflect on things!
                 int ReflectedUniformBufferBinding = -1;
@@ -392,7 +428,7 @@ namespace ValveResourceFormat.Renderer
                 Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)> ReflectedVectorParams = new Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)>();
 
 
-                Dictionary<string, (int Binding, bool isTexture)> ReflectedResourceBindings = new Dictionary<string, (int Binding, bool isTexture)>();
+                Dictionary<string, (int Binding, bool isTexture, bool SrgbRead)> ReflectedResourceBindings = new Dictionary<string, (int Binding, bool isTexture, bool SrgbRead)>();
                 Dictionary<string, int> ReflectedAttributes = new Dictionary<string, int>();
 
                 HashSet<string> ReflectedReservedTextures = [];
@@ -410,9 +446,36 @@ namespace ValveResourceFormat.Renderer
                     //SLANG: Any field in here is therefore a bound resource!
                     for (uint i = 0; i < globalTypeLayout.getFieldCount(); i++)
                     {
-                        var resource = globalTypeLayout.getFieldByIndex(i);
+                        var field = globalTypeLayout.getFieldByIndex(i);
 
-                        ReflectedResourceBindings.Add(resource.getName(), ((int)resource.getBindingIndex(), false));
+                        var fieldType = field.getTypeLayout();
+                        var fieldVar = field.getVariable();
+                        var kind = fieldType.getKind();
+                        string name = field.getName();
+
+                        bool SrgbRead = false;
+
+                        for (uint attributeIndex = 0; attributeIndex < fieldVar.getUserAttributeCount(); attributeIndex++)
+                        {
+                            var userAttribute = fieldVar.getUserAttributeByIndex(attributeIndex);
+                            if (userAttribute.getName() == "SrgbRead")
+                            {
+                                SrgbRead = true;
+                            }
+                        }
+
+                        SlangResourceShape shape = fieldType.getType().getResourceShape();
+                        if (Convert.ToBoolean(shape & SlangResourceShape.SLANG_TEXTURE_2D))
+                        {
+                            ReflectedResourceBindings.Add(field.getName(), ((int)field.getBindingIndex(), true, SrgbRead));
+                            foreach (var resTex in MaterialLoader.ReservedTextures)
+                                if (name.Contains(resTex))
+                                {
+                                    ReflectedReservedTextures.Add(name);
+                                }
+                        }
+                        else
+                            ReflectedResourceBindings.Add(field.getName(), ((int)field.getBindingIndex(), false, false));
                     }
                 }
                 else if (globalVarLayout.getCategory() == ParameterCategory.eDescriptorTableSlot)
@@ -518,18 +581,33 @@ namespace ValveResourceFormat.Renderer
                             var fieldVar = field.getVariable();
                             var kind = fieldType.getKind();
                             string name = field.getName();
+
+                            bool SrgbRead = false;
+
+                            for (uint attributeIndex = 0; attributeIndex < fieldVar.getUserAttributeCount(); attributeIndex++)
+                            {
+                                var userAttribute = fieldVar.getUserAttributeByIndex(attributeIndex);
+                                if (userAttribute.getName() == "SrgbRead")
+                                {
+                                    SrgbRead = true;
+                                }
+                            }
+
+                            if (ReflectResource(field, out bool isTexture, out int BindingIndex))
+                            {
+                                ReflectedResourceBindings.Add(field.getName(), (BindingIndex, isTexture, isTexture && SrgbRead));
+                            }
+
+
                             SlangResourceShape shape = fieldType.getType().getResourceShape();
                             if (Convert.ToBoolean(shape & SlangResourceShape.SLANG_TEXTURE_2D))
                             {
-                                ReflectedResourceBindings.Add(field.getName(), ((int)field.getBindingIndex(), true));
                                 foreach(var resTex in MaterialLoader.ReservedTextures)
                                     if (name.Contains(resTex))
                                     {
                                         ReflectedReservedTextures.Add(name);
                                     }
                             }
-                            else
-                                ReflectedResourceBindings.Add(field.getName(), ((int)field.getBindingIndex(), false));
                         }
                     }
                 }
@@ -568,6 +646,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 var shaderObjects = new int[sources.Count];
                 var shaderSources = new ISlangBlob[sources.Count];
+
                 var s = 0;
                 foreach (var (stage, source) in sources)
                 {
@@ -575,6 +654,14 @@ namespace ValveResourceFormat.Renderer
                     shaderSources[s] = source!;
                     s++;
                 }
+                unsafe void DumpToFile(IntPtr ptr, int sizeInBytes, string filename)
+                {
+                    byte[] bytes = new byte[sizeInBytes];
+                    Marshal.Copy(ptr, bytes, 0, sizeInBytes);
+                    File.WriteAllBytes(filename, bytes);
+                }
+
+                DumpToFile(sources[SlangStage.eFragment].getBufferPointer(), (int)sources[SlangStage.eFragment].getBufferSize(), shaderName + ".spv");
 
                 for (var i = 0; i < shaderObjects.Length; i++)
                 {
