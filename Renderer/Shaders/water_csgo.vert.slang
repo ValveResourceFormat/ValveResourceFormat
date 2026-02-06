@@ -169,7 +169,7 @@ import common.ViewConstants;
 VertexOutput vertexMain(
     vec3 vPOSITION,
     vec2 vTEXCOORD,
-    uint vNORMAL,
+    vec4 vNORMAL,
     vec4 vTANGENT,
     vec4 vCOLOR,
     vec4 vTEXCOORD4,
@@ -177,7 +177,7 @@ VertexOutput vertexMain(
     //Conditional<float4, D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1> vPerVertexLighting,
 )
 {
-    inCompressedNormal = vNORMAL;
+    inCompressedNormal = reinterpret<uint, float4>(vNORMAL);
 
     VertexOutput vOut;
     float4 tangent;
@@ -190,10 +190,10 @@ VertexOutput vertexMain(
     //Here comes some of the greatest fucking bullshit I have ever seen
     vec3 vertDir = normalize(vPositionWs.xyz - g_vCameraPositionWs);
     vec2 parallaxOffset = vertDir.xy / -vertDir.z * 0.7;   // like ???? what the fuck
-    //vPositionWs.xyz += (vOut.vNormalOut.xyz * g_flWaterPlaneOffset);
-    //vPositionWs.xy += ((-(normalize(parallaxOffset) * clamp(length(parallaxOffset), 0.0, 20.0))) * g_flWaterPlaneOffset);
+    vPositionWs.xyz += (vOut.vNormalOut.xyz * g_flWaterPlaneOffset);
+    vPositionWs.xy += ((-(normalize(parallaxOffset) * clamp(length(parallaxOffset), 0.0, 20.0))) * g_flWaterPlaneOffset);
 
-    vOut.vRasterPosition = g_matWorldToProjection * float4(vPOSITION, 1.0);
+    vOut.vRasterPosition = g_matWorldToProjection * float4(vPositionWs);
     vOut.vFragPosition = vPositionWs.xyz;
 
     if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
