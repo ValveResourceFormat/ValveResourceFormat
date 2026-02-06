@@ -61,6 +61,7 @@ Not all formats are 100% supported, some parameters are still unknown and not fu
 Ext           | Name                              | Support
 ------------- | --------------------------------- | -------
 vagrp         | Animation Group                   | 👍
+valst         | Action List                       | 👍
 vanim         | Animation                         | 👍
 vanmgrph      | Animation Graph                   | 👍
 vcd           | Choreo                            | 👍
@@ -75,13 +76,15 @@ vmat          | Material                          | 👍
 vmdl          | Model                             | 👍
 vmesh         | Mesh                              | 👍
 vmix          | VMix                              | 👍
+vmks          | Sheet                             | 👍
 vmorf         | MorphSet                          | 👍
 vnmclip       | NmClip                            | 👍
 vnmgrph       | NmGraph                           | 👍
+vnmikrig      | NmIKRig                           | 👍
 vnmskel       | NmSkeleton                        | 👍
 vnmvar        | NmGraph Variation                 | 👍
 vpcf          | Particle System                   | 👍
-vpdi          | Panorama Dynamic Images           | No
+vpdi          | Panorama Dynamic Images           | 👍
 vphys         | Physics Collision Mesh            | 👍
 vpost         | Postprocessing Settings           | 👍
 vpram         | Processing Graph Instance         | 👍
@@ -91,7 +94,7 @@ vrman         | ResourceManifest                  | 👍
 vrmap         | Resource Remap Table              | No
 vrr           | Response Rules                    | 👍
 vseq          | Sequence Group                    | No
-vsmart        | Smart Prop                        | Partially
+vsmart        | Smart Prop                        | 👍
 vsnap         | Particle Snapshot                 | 👍
 vsnd          | Sound                             | 👍
 vsndevts      | Sound Event Script                | 👍
@@ -105,8 +108,7 @@ vwnod         | World Node                        | 👍
 vwrld         | World                             | 👍
 vxml          | Panorama Layout                   | 👍
 &nbsp;        | &nbsp;                            | &nbsp;
-csgoitem      | CSGO Item                         | 👍
-econitem      | CSGO Economy Item                 | 👍
+econitem      | Economy Item                      | 👍
 herolist      | Dota Hero List                    | 👍
 item          | Artifact Item                     | 👍
 vdpn          | Dota Patch Notes                  | 👍
@@ -135,6 +137,10 @@ Magic        | Description
 `0xC4CCACE8` | tools asset info
 `0xC4CCACE9` | tools asset info (newer version)
 `0x32736376` | vcs2 - compiled shader
+`0x414D5A4C` | LZMA compression marker
+`0x64637662` | bvcd - binary choreo scene
+`0xFEEDFACE` | navigation mesh
+`0xFADEBEAD` | grid navigation
 `0x31415926` | murmurhash2 seed used by StringToken
 `0xEDABCDEF` | murmurhash64 seed used to encode resource IDs
 `VFONT1`     | "encrypted" font file
