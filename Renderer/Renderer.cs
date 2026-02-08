@@ -415,7 +415,7 @@ public class Renderer
             shader.SetTexture(0, "inputImage", texture);
             shader.SetUniform1("logMinLuminance", logMin);
             shader.SetUniform1("logLuminanceRange", logRange);
-
+            shader.UpdateUniformBuffer();
             GL.DispatchCompute(x, y, 1);
         }
 

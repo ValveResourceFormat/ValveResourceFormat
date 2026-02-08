@@ -48,6 +48,10 @@ public partial class SlangBindings
 
         public string getString()
         {
+            if (isNull())
+            {
+                return "";
+            }
             return Marshal.PtrToStringUTF8(getBufferPointer(), (int)getBufferSize());
         }
     }

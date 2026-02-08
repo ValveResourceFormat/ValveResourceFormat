@@ -1,3 +1,4 @@
+#language slang 2025
 #version 460
 
 import common.utils;

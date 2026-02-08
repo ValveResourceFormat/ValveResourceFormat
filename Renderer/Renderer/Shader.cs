@@ -445,8 +445,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (UniformOffsets.TryGetValue(name, out int offset))
                 {
-                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                    GL.BufferSubData(BufferTarget.UniformBuffer, offset, sizeof(float), ref value);
+                    SetUniformAtLocation(offset, value);
                 }
             }
             else
@@ -465,8 +464,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (UniformOffsets.TryGetValue(name, out int offset))
                 {
-                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                    GL.BufferSubData(BufferTarget.UniformBuffer, offset, sizeof(int), value);
+                    SetUniformAtLocation(offset, value);
                 }
             }
             else
@@ -487,8 +485,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (UniformOffsets.TryGetValue(name, out int offset))
                 {
-                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                    GL.NamedBufferSubData(UniformBuffer, (IntPtr)offset, (IntPtr)sizeof(uint), ref value);
+                    SetUniformAtLocation(offset, value);
                 }
             }
             else
@@ -507,10 +504,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (UniformOffsets.TryGetValue(name, out int offset))
                 {
-                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-
-
-                    GL.NamedBufferSubData(UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector2>(), ref value);
+                    SetUniformAtLocation(offset, value);
                 }
             }
             else
@@ -529,10 +523,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (UniformOffsets.TryGetValue(name, out int offset))
                 {
-                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-
-
-                    GL.NamedBufferSubData(UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector3>(), ref value);
+                    SetUniformAtLocation(offset, value);
                 }
             }
             else
@@ -551,8 +542,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (UniformOffsets.TryGetValue(name, out int offset))
                 {
-                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
-                    GL.NamedBufferSubData(UniformBuffer, (IntPtr)offset, (IntPtr)Marshal.SizeOf<Vector4>(), ref value);
+                    SetUniformAtLocation(offset, value);
                 }
             }
             else

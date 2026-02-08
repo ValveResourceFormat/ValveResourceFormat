@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Hashing;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -411,12 +412,17 @@ namespace ValveResourceFormat.Renderer
                 {
                     configModuleSource += "export static const int " + argument.Key + "=" + argument.Value + ";\n";
                 }
-                IModule configMod = slangSession.loadModuleFromSourceString("config", "config", configModuleSource, out ISlangBlob diagnosticBlob);
+
+                string confName = (new Guid(MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(configModuleSource)))).ToString();
+
+                IModule configMod = slangSession.loadModuleFromSourceString(confName, null, configModuleSource, out ISlangBlob diagnosticBlob);
+
+                string diagnosticString = diagnosticBlob.getString();
 
                 //apply the config right away!
-                slangSession.createCompositeComponentType(new IComponentType[] { configMod, parsedData.SlangComponentType }, out IComponentType specialisedProgram1, out diagnosticBlob);
+                slangSession.createCompositeComponentType(new IComponentType[] { configMod, parsedData.SlangComponentType }, out IComponentType specialisedProgram, out diagnosticBlob);
 
-                specialisedProgram1.link(out IComponentType specialisedProgram, out diagnosticBlob);
+                //specialisedProgram1.link(out IComponentType specialisedProgram, out diagnosticBlob);
 
                 //time to reflect on things!
                 int ReflectedUniformBufferBinding = -1;
@@ -612,8 +618,6 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-
-
                 static ShaderType ToShaderType(SlangStage type) => type switch
                 {
                     SlangStage.eVertex => ShaderType.VertexShader,
@@ -628,6 +632,7 @@ namespace ValveResourceFormat.Renderer
                     slangSession.createCompositeComponentType(new IComponentType[] { specialisedProgram, entryPoint }, out IComponentType shaderStageProgram, out diagnosticBlob);
                     shaderStageProgram.link(out IComponentType linkedShaderStageProgram, out diagnosticBlob);
                     linkedShaderStageProgram.getTargetCode(0, out ISlangBlob stageCode);
+                    int testSize = (int)stageCode.getBufferSize();
                     var entryPointReflection = linkedShaderStageProgram.getLayout().getEntryPointByIndex(0);
                     var stage = entryPointReflection.getStage();
                     if (stage == SlangStage.eVertex)
@@ -661,7 +666,7 @@ namespace ValveResourceFormat.Renderer
                     File.WriteAllBytes(filename, bytes);
                 }
 
-                //DumpToFile(sources[SlangStage.eFragment].getBufferPointer(), (int)sources[SlangStage.eFragment].getBufferSize(), shaderName + ".spv");
+                DumpToFile(shaderSources[0].getBufferPointer(), (int)shaderSources[0].getBufferSize(), shaderName + ".spv");
 
                 for (var i = 0; i < shaderObjects.Length; i++)
                 {
@@ -949,7 +954,7 @@ namespace ValveResourceFormat.Renderer
             var defines = ShaderDefines[shaderName];
 
             return arguments
-                .Where(p => defines.ContainsKey(p.Key))
+                //SLANG: This doesn't work when we can't reflect on externs and why would the define have to be known? .Where(p => defines.ContainsKey(p.Key))
                 .Where(static p => p.Value != 0) // Shader defines should already default to zero
                 .OrderBy(static p => p.Key);
         }
