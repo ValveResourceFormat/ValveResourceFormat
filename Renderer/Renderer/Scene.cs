@@ -387,7 +387,8 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
-                    if (!EnableIndirectDraws || (fragment.Parent as SceneAggregate)!.HasTransforms)
+                    var agg = (fragment.Parent as SceneAggregate)!;
+                    if (!EnableIndirectDraws || agg.HasTransforms || agg.DrawCallsGpu == null)
                     {
                         Add(new MeshBatchRenderer.Request
                         {

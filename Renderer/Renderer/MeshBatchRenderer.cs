@@ -341,8 +341,7 @@ namespace ValveResourceFormat.Renderer
 
             if (config.IndirectDraw)
             {
-                //  && agg.RenderMesh.DrawCallsOpaque.Count > 1
-                if (request.Node is SceneAggregate agg)
+                if (request.Node is SceneAggregate agg && agg.DrawCallsGpu != null)
                 {
                     GL.BindBuffer(BufferTarget.DrawIndirectBuffer, agg.DrawCallsGpu.Handle);
                     GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, IntPtr.Zero, agg.RenderMesh.DrawCallsOpaque.Count, 0);

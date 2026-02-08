@@ -17,5 +17,6 @@ public enum ReservedBufferSlots
     AggregateDrawBounds = 14,
     AggregateDrawCount = 15,
     FrustumPlanes = 16,
+    AggregateDrawsCulled = 17,
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }

@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
 
-        public static StorageBuffer? DrawCallsGpu { get; private set; }
+        public StorageBuffer? DrawCallsGpu { get; private set; }
         public StorageBuffer? DrawBoundsGpu { get; private set; }
         public bool HasTransforms { get; private set; }
 
@@ -83,8 +83,14 @@ namespace ValveResourceFormat.Renderer
 
             LocalBoundingBox = RenderMesh.BoundingBox;
 
-            DrawCallsGpu ??= new StorageBuffer(ReservedBufferSlots.AggregateDraws);
+            if (!CreatedOneDrawBuffer && Scene.LightingInfo.LightingData.IsSkybox == 0u)
+            {
+                DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
+                CreatedOneDrawBuffer = true;
+            }
         }
+
+        public static bool CreatedOneDrawBuffer { get; private set; }
 
         public void SetInfiniteBoundingBox()
         {
