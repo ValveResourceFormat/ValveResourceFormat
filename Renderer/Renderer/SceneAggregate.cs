@@ -19,10 +19,8 @@ namespace ValveResourceFormat.Renderer
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
 
-        public StorageBuffer DrawCallsGpu { get; private set; }
-        public StorageBuffer DrawCallsCulledGpu { get; private set; }
+        public static StorageBuffer? DrawCallsGpu { get; private set; }
         public StorageBuffer? DrawBoundsGpu { get; private set; }
-        public StorageBuffer? DrawCountGpu { get; private set; }
         public bool HasTransforms { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
@@ -85,8 +83,7 @@ namespace ValveResourceFormat.Renderer
 
             LocalBoundingBox = RenderMesh.BoundingBox;
 
-            DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
-            DrawCallsCulledGpu = new StorageBuffer((ReservedBufferSlots)17);
+            DrawCallsGpu ??= new StorageBuffer(ReservedBufferSlots.AggregateDraws);
         }
 
         public void SetInfiniteBoundingBox()
@@ -222,33 +219,21 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 DrawCallsGpu.Create(gpuCalls);
-                DrawCallsCulledGpu.Create(gpuCalls);
 
                 DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
                 DrawBoundsGpu.Create(bounds);
-
-                DrawCountGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.AggregateDrawCount, 1, BufferUsageHint.StaticDraw);
-
-                // Initialize count to total draws (will be updated by compute shader)
-                var initialCount = (uint)RenderMesh.DrawCallsOpaque.Count;
-                DrawCountGpu.Update([initialCount], 0, sizeof(uint));
             }
         }
 
         public void PerformGpuFrustumCulling()
         {
-            if (DrawCountGpu == null || DrawBoundsGpu == null)
+            if (DrawBoundsGpu == null)
             {
                 return;
             }
 
-            // Clear visible count on GPU
-            //DrawCountGpu.Clear();
-
             DrawBoundsGpu.BindBufferBase();
-            DrawCountGpu.BindBufferBase();
             DrawCallsGpu.BindBufferBase();
-            DrawCallsCulledGpu.BindBufferBase();
 
             var workGroups = (RenderMesh.DrawCallsOpaque.Count + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);

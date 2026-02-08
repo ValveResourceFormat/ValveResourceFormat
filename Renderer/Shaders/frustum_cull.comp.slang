@@ -10,7 +10,7 @@ layout(binding = 16, std140) uniform FrustumPlanes
     vec4 planes[6];
 };
 
-// Input: All draw commands
+// Draw commands (read-write to modify instanceCount)
 struct DrawCommand
 {
     uint indexCount;
@@ -20,9 +20,9 @@ struct DrawCommand
     uint baseInstance;
 };
 
-layout(binding = 13, std430) readonly buffer InputCommands
+layout(binding = 13, std430) buffer DrawCommands
 {
-    DrawCommand inputCommands[];
+    DrawCommand drawCommands[];
 };
 
 // Input: Draw bounds (min.xyz, max.xyz)
@@ -37,18 +37,6 @@ struct DrawBounds
 layout(binding = 14, std430) readonly buffer DrawBoundsBuffer
 {
     DrawBounds drawBounds[];
-};
-
-// Output: Visible draw commands
-layout(binding = 17, std430) writeonly buffer OutputCommands
-{
-    DrawCommand outputCommands[];
-};
-
-// Output: Count of visible draws
-layout(binding = 15, std430) buffer DrawCount
-{
-    uint visibleCount;
 };
 
 bool testAABBFrustum(vec3 bmin, vec3 bmax)
@@ -79,22 +67,13 @@ void main()
 {
     uint drawId = gl_GlobalInvocationID.x;
     
-    // First thread clears the counter atomically
-    if (drawId == 0u)
-    {
-        atomicExchange(visibleCount, 0u);
-    }
-    
-    if (drawId >= inputCommands.length())
+    if (drawId >= drawCommands.length())
     {
         return;
     }
     
     DrawBounds bounds = drawBounds[drawId];
+    bool isMeshInFrustum = testAABBFrustum(bounds.min, bounds.max);
     
-    if (testAABBFrustum(bounds.min, bounds.max))
-    {
-        uint outputIndex = atomicAdd(visibleCount, 1u);
-        outputCommands[outputIndex] = inputCommands[drawId];
-    }
+    drawCommands[drawId].instanceCount = isMeshInFrustum ? 1u : 0u;
 }

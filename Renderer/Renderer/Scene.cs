@@ -322,7 +322,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in AllNodes)
             {
-                if (node is SceneAggregate agg && agg.DrawCountGpu != null)
+                if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
                 {
                     agg.PerformGpuFrustumCulling();
                 }
