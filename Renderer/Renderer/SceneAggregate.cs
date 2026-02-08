@@ -23,6 +23,7 @@ namespace ValveResourceFormat.Renderer
         public StorageBuffer DrawCallsCulledGpu { get; private set; }
         public StorageBuffer? DrawBoundsGpu { get; private set; }
         public StorageBuffer? DrawCountGpu { get; private set; }
+        public StorageBuffer MeshletInfoGpu { get; private set; }
         public bool HasTransforms { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
@@ -162,6 +163,31 @@ namespace ValveResourceFormat.Renderer
                 yield return fragment;
             }
         }
+        [StructLayout(LayoutKind.Sequential)]
+        readonly struct MeshletInfo
+        {
+            [StructLayout(LayoutKind.Sequential)]
+            public struct PackedAABB
+            {
+                public int m_nMin;
+                public int m_nMax;
+            }
+            public PackedAABB m_PackedAABB { get; init; }
+
+            public struct CullingData
+            {
+                public sbyte m_ConeAxis0;
+                public sbyte m_ConeAxis1;
+                public sbyte m_ConeAxis2;
+                public sbyte m_ConeCutoff;
+            }
+            public CullingData m_CullingData { get; init; }
+            public uint m_nVertexOffset { get; init; }
+            public uint m_nTriangleOffset { get; init; }
+            public int m_nVertexCount { get; init; }
+            public uint m_nTriangleCount { get; init; }
+        };
+
 
         [StructLayout(LayoutKind.Sequential)]
         readonly struct DrawElementsIndirectCommand
@@ -192,10 +218,10 @@ namespace ValveResourceFormat.Renderer
 
             if (DrawCallsGpu != null && DrawCallsGpu.Size == 0)
             {
-                var gpuCalls = new List<DrawElementsIndirectCommand>(RenderMesh.DrawCallsOpaque.Count);
-                var bounds = new List<DrawBounds>(RenderMesh.DrawCallsOpaque.Count);
+                var gpuCalls = new List<DrawElementsIndirectCommand>(RenderMesh.TestMeshletCalls.Count);
+                var bounds = new List<DrawBounds>(RenderMesh.TestMeshletCalls.Count);
 
-                foreach (var drawCall in RenderMesh.DrawCallsOpaque)
+                foreach (var drawCall in RenderMesh.TestMeshletCalls)
                 {
                     var indexSize = drawCall.IndexType switch
                     {

@@ -19,6 +19,7 @@ namespace ValveResourceFormat.Renderer
         public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
 
         private readonly RendererContext renderContext;
+        public List<DrawCall> TestMeshletCalls { get; } = [];
         public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
@@ -118,6 +119,7 @@ namespace ValveResourceFormat.Renderer
         {
             var oldDrawCalls = DrawCalls.ToList();
 
+            TestMeshletCalls.Clear();
             DrawCallsOpaque.Clear();
             DrawCallsOverlay.Clear();
             DrawCallsBlended.Clear();
@@ -159,6 +161,9 @@ namespace ValveResourceFormat.Renderer
             {
                 var i = 0;
                 var objectDrawCalls = sceneObject.GetArray("m_drawCalls");
+
+                var meshletCalls = sceneObject.GetArray("m_meshlets");
+
                 var objectDrawBounds = sceneObject.ContainsKey("m_drawBounds")
                     ? sceneObject.GetArray("m_drawBounds")
                     : [];
@@ -239,11 +244,49 @@ namespace ValveResourceFormat.Renderer
                     drawCall.VertexIdOffset = vertexOffset;
                     vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
 
+
+                    //MESHLET TEST
+                    var firstMeshlet = objectDrawCall.GetInt32Property("m_nFirstMeshlet");
+                    var numMeshlets = objectDrawCall.GetInt32Property("m_nNumMeshlets");
+
+                    // Create meshlet draw calls for this draw call's range
+                    for (int m = firstMeshlet; m < firstMeshlet + numMeshlets; m++)
+                    {
+                        var meshletCall = meshletCalls[m];
+
+                        var meshletDrawCall = new DrawCall()
+                        {
+                            DrawBounds = drawCall.DrawBounds,
+                            MeshBuffers = drawCall.MeshBuffers,      // Inherit from parent
+                            VertexBuffers = drawCall.VertexBuffers,  // Inherit from parent
+                            IndexBuffer = drawCall.IndexBuffer,      // Inherit from parent
+                            Material = material,                     // Same material
+
+                            VertexIdOffset = meshletCall.GetInt32Property("m_nVertexOffset"),
+                            VertexCount = meshletCall.GetUInt32Property("m_nVertexCount"),
+                            StartIndex = (nint)(meshletCall.GetInt32Property("m_nTriangleOffset") * 3 * 2),
+                            IndexCount = meshletCall.GetInt32Property("m_nTriangleCount") * 3,
+
+                            PrimitiveType = drawCall.PrimitiveType,
+                            IndexType = drawCall.IndexType
+                        };
+
+                        AddMeshletCall(meshletDrawCall, isAggregate);
+                    }
+
+
                     i++;
                 }
             }
         }
-
+        private void AddMeshletCall(DrawCall drawCall, bool isAggregate)
+        {
+            if (isAggregate)
+            {
+                TestMeshletCalls.Add(drawCall);
+                return;
+            }
+        }
         private void AddDrawCall(DrawCall drawCall, bool isAggregate)
         {
             if (isAggregate)
