@@ -262,6 +262,8 @@ namespace ValveResourceFormat.Renderer
                             IndexBuffer = drawCall.IndexBuffer,      // Inherit from parent
                             Material = material,                     // Same material
 
+                            BaseVertex = drawCall.BaseVertex,          // Inherit base vertex
+
                             VertexIdOffset = meshletCall.GetInt32Property("m_nVertexOffset"),
                             VertexCount = meshletCall.GetUInt32Property("m_nVertexCount"),
                             StartIndex = (nint)(meshletCall.GetInt32Property("m_nTriangleOffset") * 3 * 2),
@@ -273,7 +275,6 @@ namespace ValveResourceFormat.Renderer
 
                         AddMeshletCall(meshletDrawCall, isAggregate);
                     }
-
 
                     i++;
                 }

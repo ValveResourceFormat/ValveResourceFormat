@@ -256,7 +256,7 @@ namespace ValveResourceFormat.Renderer
                 DrawCountGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.AggregateDrawCount, 1, BufferUsageHint.StaticDraw);
 
                 // Initialize count to total draws (will be updated by compute shader)
-                var initialCount = (uint)RenderMesh.DrawCallsOpaque.Count;
+                var initialCount = (uint)RenderMesh.TestMeshletCalls.Count;
                 DrawCountGpu.Update([initialCount], 0, sizeof(uint));
             }
         }
@@ -276,7 +276,7 @@ namespace ValveResourceFormat.Renderer
             DrawCallsGpu.BindBufferBase();
             DrawCallsCulledGpu.BindBufferBase();
 
-            var workGroups = (RenderMesh.DrawCallsOpaque.Count + 63) / 64;
+            var workGroups = (RenderMesh.TestMeshletCalls.Count + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
         }
 

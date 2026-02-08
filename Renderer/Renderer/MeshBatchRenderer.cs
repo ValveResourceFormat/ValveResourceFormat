@@ -346,7 +346,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     GL.BindBuffer(BufferTarget.DrawIndirectBuffer, agg.DrawCallsCulledGpu.Handle);
                     GL.BindBuffer(BufferTarget.ParameterBuffer, agg.DrawCountGpu.Handle);
-                    GL.MultiDrawElementsIndirectCount(request.Call.PrimitiveType, request.Call.IndexType, IntPtr.Zero, IntPtr.Zero, agg.RenderMesh.DrawCallsOpaque.Count, 0);
+                    GL.MultiDrawElementsIndirectCount(request.Call.PrimitiveType, request.Call.IndexType, IntPtr.Zero, IntPtr.Zero, agg.RenderMesh.TestMeshletCalls.Count, 0);
                     UnbindInstanceTextures();
                     return;
                 }
