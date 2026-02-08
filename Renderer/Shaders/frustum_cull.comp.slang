@@ -79,6 +79,12 @@ void main()
 {
     uint drawId = gl_GlobalInvocationID.x;
     
+    // First thread clears the counter atomically
+    if (drawId == 0u)
+    {
+        atomicExchange(visibleCount, 0u);
+    }
+    
     if (drawId >= inputCommands.length())
     {
         return;

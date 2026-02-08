@@ -20,8 +20,13 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         public void Create<T>(T[] data, int totalSizeInBytes) where T : struct
         {
+            Create(data, totalSizeInBytes, BufferUsageHint.StaticDraw);
+        }
+
+        public void Create<T>(T[] data, int totalSizeInBytes, BufferUsageHint usage) where T : struct
+        {
             Size = totalSizeInBytes;
-            GL.NamedBufferData(Handle, totalSizeInBytes, data, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(Handle, totalSizeInBytes, data, usage);
         }
 
         public void Bind()

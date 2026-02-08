@@ -344,7 +344,7 @@ namespace ValveResourceFormat.Renderer
                 //  && agg.RenderMesh.DrawCallsOpaque.Count > 1
                 if (request.Node is SceneAggregate agg && agg.DrawCountGpu != null)
                 {
-                    agg.DrawCallsCulledGpu.Bind();
+                    GL.BindBuffer(BufferTarget.DrawIndirectBuffer, agg.DrawCallsCulledGpu.Handle);
                     GL.BindBuffer(BufferTarget.ParameterBuffer, agg.DrawCountGpu.Handle);
                     GL.MultiDrawElementsIndirectCount(request.Call.PrimitiveType, request.Call.IndexType, IntPtr.Zero, IntPtr.Zero, agg.RenderMesh.DrawCallsOpaque.Count, 0);
                     UnbindInstanceTextures();

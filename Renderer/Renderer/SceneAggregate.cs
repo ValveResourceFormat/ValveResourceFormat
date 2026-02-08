@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -18,8 +19,8 @@ namespace ValveResourceFormat.Renderer
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
 
-        public IndirectBuffer DrawCallsGpu { get; private set; }
-        public IndirectBuffer DrawCallsCulledGpu { get; private set; }
+        public StorageBuffer DrawCallsGpu { get; private set; }
+        public StorageBuffer DrawCallsCulledGpu { get; private set; }
         public StorageBuffer? DrawBoundsGpu { get; private set; }
         public StorageBuffer? DrawCountGpu { get; private set; }
         public bool HasTransforms { get; private set; }
@@ -84,8 +85,8 @@ namespace ValveResourceFormat.Renderer
 
             LocalBoundingBox = RenderMesh.BoundingBox;
 
-            DrawCallsGpu = new IndirectBuffer("AggregateDraws");
-            DrawCallsCulledGpu = new IndirectBuffer("AggregateCulledDraws");
+            DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
+            DrawCallsCulledGpu = new StorageBuffer((ReservedBufferSlots)17);
         }
 
         public void SetInfiniteBoundingBox()
@@ -221,20 +222,20 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 DrawCallsGpu.Create(gpuCalls);
-                DrawCallsCulledGpu.Create(gpuCalls); // Allocate same size and copy for initial state
+                DrawCallsCulledGpu.Create(gpuCalls);
 
                 DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
                 DrawBoundsGpu.Create(bounds);
 
-                DrawCountGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.AggregateDrawCount, 1, BufferUsageHint.DynamicDraw);
-                
+                DrawCountGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.AggregateDrawCount, 1, BufferUsageHint.StaticDraw);
+
                 // Initialize count to total draws (will be updated by compute shader)
                 var initialCount = (uint)RenderMesh.DrawCallsOpaque.Count;
                 DrawCountGpu.Update([initialCount], 0, sizeof(uint));
             }
         }
 
-        public void PerformGpuFrustumCulling(Shader cullShader, UniformBuffer<FrustumPlanes> frustumBuffer)
+        public void PerformGpuFrustumCulling()
         {
             if (DrawCountGpu == null || DrawBoundsGpu == null)
             {
@@ -242,15 +243,12 @@ namespace ValveResourceFormat.Renderer
             }
 
             // Clear visible count on GPU
-            DrawCountGpu.Clear();
+            //DrawCountGpu.Clear();
 
-            cullShader.Use();
-
-            frustumBuffer.BindBufferBase();
             DrawBoundsGpu.BindBufferBase();
             DrawCountGpu.BindBufferBase();
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, (int)ReservedBufferSlots.AggregateDraws, DrawCallsGpu.Handle);
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 17, DrawCallsCulledGpu.Handle);
+            DrawCallsGpu.BindBufferBase();
+            DrawCallsCulledGpu.BindBufferBase();
 
             var workGroups = (RenderMesh.DrawCallsOpaque.Count + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);

@@ -37,7 +37,7 @@ namespace GUI.Types.GLViewers
         {
             this.world = world;
             mapExternalReferences = externalReferences;
-            Scene.EnableOcclusionCulling = externalReferences != null;
+            Scene.EnableOcclusionCulling = false;
         }
 
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, WorldNode worldNode, ResourceExtRefList? externalReferences = null)

@@ -314,18 +314,21 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
+            frustumBuffer.BindBufferBase();
             frustumBuffer.Data = new SceneAggregate.FrustumPlanes(frustum.GetPlanes());
-            frustumBuffer.Update();
+
+            FrustumCullShader.Use();
+
 
             foreach (var node in AllNodes)
             {
                 if (node is SceneAggregate agg && agg.DrawCountGpu != null)
                 {
-                    agg.PerformGpuFrustumCulling(FrustumCullShader, frustumBuffer);
+                    agg.PerformGpuFrustumCulling();
                 }
             }
 
-            // Single barrier after all compute dispatches
+            // Memory barrier to ensure compute shader writes are visible to indirect draw commands
             GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
         }
 
