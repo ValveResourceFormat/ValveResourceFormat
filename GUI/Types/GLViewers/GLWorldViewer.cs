@@ -330,6 +330,8 @@ namespace GUI.Types.GLViewers
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
                 }
 
+                UiControl.AddCheckBox("Indirect Draw", Scene.EnableIndirectDraws, (v) => Scene.EnableIndirectDraws = v);
+
                 if (Renderer.SkyboxScene != null)
                 {
                     UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);

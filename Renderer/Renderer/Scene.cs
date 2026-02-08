@@ -53,6 +53,7 @@ namespace ValveResourceFormat.Renderer
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
         public bool EnableOcclusionCulling { get; set; }
+        public bool EnableIndirectDraws { get; set; }
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -351,7 +352,7 @@ namespace ValveResourceFormat.Renderer
                         }
                     }
                 }
-                else if (node is SceneAggregate.Fragment fragment)
+                else if (node is SceneAggregate.Fragment fragment && !EnableIndirectDraws)
                 {
                     Add(new MeshBatchRenderer.Request
                     {
@@ -363,6 +364,15 @@ namespace ValveResourceFormat.Renderer
                 else if (node is SceneAggregate aggregate)
                 {
                     if (aggregate.InstanceTransforms.Count > 0)
+                    {
+                        Add(new MeshBatchRenderer.Request
+                        {
+                            Mesh = aggregate.RenderMesh,
+                            Call = aggregate.RenderMesh.DrawCallsOpaque[0],
+                            Node = node,
+                        }, RenderPass.Opaque);
+                    }
+                    else if (EnableIndirectDraws && aggregate.RenderMesh.DrawCallsOpaque.Count > 0)
                     {
                         Add(new MeshBatchRenderer.Request
                         {
