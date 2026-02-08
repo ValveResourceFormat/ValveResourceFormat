@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -17,7 +18,8 @@ namespace ValveResourceFormat.Renderer
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
 
-        public StorageBuffer DrawCallsGpu { get; private set; }
+        public IndirectBuffer DrawCallsGpu { get; private set; }
+        public bool HasTransforms { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
@@ -79,7 +81,7 @@ namespace ValveResourceFormat.Renderer
 
             LocalBoundingBox = RenderMesh.BoundingBox;
 
-            DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
+            DrawCallsGpu = new IndirectBuffer("AggregateDraws");
         }
 
         public void SetInfiniteBoundingBox()
@@ -148,6 +150,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
                 {
+                    HasTransforms = true; // skip indirect draw path for instanced draws
                     fragment.Transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
                 }
 
@@ -179,11 +182,18 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var drawCall in RenderMesh.DrawCallsOpaque)
                 {
+                    var indexSize = drawCall.IndexType switch
+                    {
+                        DrawElementsType.UnsignedShort => sizeof(ushort),
+                        DrawElementsType.UnsignedInt => sizeof(uint),
+                        _ => sizeof(ushort)
+                    };
+
                     gpuCalls.Add(new DrawElementsIndirectCommand
                     {
                         Count = (uint)drawCall.IndexCount,
                         InstanceCount = 1,
-                        FirstIndex = (uint)drawCall.StartIndex,
+                        FirstIndex = (uint)drawCall.StartIndex / (uint)indexSize,
                         BaseVertex = drawCall.BaseVertex,
                         BaseInstance = 0,
                     });

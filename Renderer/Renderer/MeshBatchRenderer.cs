@@ -95,6 +95,7 @@ namespace ValveResourceFormat.Renderer
         {
             public bool NeedsCubemapBinding;
             public int LightmapGameVersionNumber;
+            public bool IndirectDraw;
             public LightProbeType LightProbeType;
         }
 
@@ -126,6 +127,7 @@ namespace ValveResourceFormat.Renderer
                 NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps,
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
+                IndirectDraw = context.Scene.EnableIndirectDraws,
             };
 
             foreach (var request in requests)
@@ -335,6 +337,17 @@ namespace ValveResourceFormat.Renderer
                 var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
 
                 GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
+            }
+
+            if (config.IndirectDraw)
+            {
+                if (request.Node is SceneAggregate agg)
+                {
+                    agg.DrawCallsGpu.Bind();
+                    GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, IntPtr.Zero, agg.RenderMesh.DrawCallsOpaque.Count, 0);
+                    UnbindInstanceTextures();
+                    return;
+                }
             }
 
             var instanceCount = 1;

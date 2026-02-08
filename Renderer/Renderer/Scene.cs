@@ -352,7 +352,7 @@ namespace ValveResourceFormat.Renderer
                         }
                     }
                 }
-                else if (node is SceneAggregate.Fragment fragment && !EnableIndirectDraws)
+                else if (node is SceneAggregate.Fragment fragment && ((fragment.Parent as SceneAggregate)!.HasTransforms || !EnableIndirectDraws))
                 {
                     Add(new MeshBatchRenderer.Request
                     {
@@ -372,7 +372,7 @@ namespace ValveResourceFormat.Renderer
                             Node = node,
                         }, RenderPass.Opaque);
                     }
-                    else if (EnableIndirectDraws && aggregate.RenderMesh.DrawCallsOpaque.Count > 0)
+                    else if (EnableIndirectDraws && !aggregate.HasTransforms && aggregate.RenderMesh.DrawCallsOpaque.Count > 0)
                     {
                         Add(new MeshBatchRenderer.Request
                         {
