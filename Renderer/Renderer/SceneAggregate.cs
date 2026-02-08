@@ -241,9 +241,8 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            // Clear visible count
-            var zero = 0u;
-            DrawCountGpu.Update([zero], 0, sizeof(uint));
+            // Clear visible count on GPU
+            DrawCountGpu.Clear();
 
             cullShader.Use();
 
@@ -255,8 +254,6 @@ namespace ValveResourceFormat.Renderer
 
             var workGroups = (RenderMesh.DrawCallsOpaque.Count + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
-
-            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
         }
 
         [StructLayout(LayoutKind.Sequential)]

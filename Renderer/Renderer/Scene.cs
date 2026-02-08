@@ -324,6 +324,9 @@ namespace ValveResourceFormat.Renderer
                     agg.PerformGpuFrustumCulling(FrustumCullShader, frustumBuffer);
                 }
             }
+
+            // Single barrier after all compute dispatches
+            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
@@ -379,14 +382,17 @@ namespace ValveResourceFormat.Renderer
                         }
                     }
                 }
-                else if (node is SceneAggregate.Fragment fragment && ((fragment.Parent as SceneAggregate)!.HasTransforms || !EnableIndirectDraws))
+                else if (node is SceneAggregate.Fragment fragment)
                 {
-                    Add(new MeshBatchRenderer.Request
+                    if (!EnableIndirectDraws || (fragment.Parent as SceneAggregate)!.HasTransforms)
                     {
-                        Mesh = fragment.RenderMesh,
-                        Call = fragment.DrawCall,
-                        Node = node,
-                    }, RenderPass.Opaque);
+                        Add(new MeshBatchRenderer.Request
+                        {
+                            Mesh = fragment.RenderMesh,
+                            Call = fragment.DrawCall,
+                            Node = node,
+                        }, RenderPass.Opaque);
+                    }
                 }
                 else if (node is SceneAggregate aggregate)
                 {

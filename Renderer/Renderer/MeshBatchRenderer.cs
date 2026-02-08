@@ -341,6 +341,7 @@ namespace ValveResourceFormat.Renderer
 
             if (config.IndirectDraw)
             {
+                //  && agg.RenderMesh.DrawCallsOpaque.Count > 1
                 if (request.Node is SceneAggregate agg && agg.DrawCountGpu != null)
                 {
                     agg.DrawCallsCulledGpu.Bind();
