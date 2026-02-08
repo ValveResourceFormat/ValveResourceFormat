@@ -13,5 +13,6 @@ public enum ReservedBufferSlots
     Transforms = 10,
     Histogram = 11,
     AverageLuminance = 12,
+    AggregateDraws = 13,
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -15,6 +16,8 @@ namespace ValveResourceFormat.Renderer
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
+
+        public StorageBuffer DrawCallsGpu { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
@@ -75,6 +78,8 @@ namespace ValveResourceFormat.Renderer
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;
+
+            DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
         }
 
         public void SetInfiniteBoundingBox()
@@ -150,12 +155,41 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        readonly struct DrawElementsIndirectCommand
+        {
+            public uint Count { get; init; }
+            public uint InstanceCount { get; init; }
+            public uint FirstIndex { get; init; }
+            public int BaseVertex { get; init; }
+            public uint BaseInstance { get; init; }
+        };
+
         public override void Update(Scene.UpdateContext context)
         {
             if (InstanceTransforms.Count > 0 && InstanceTransformsGpu == null)
             {
                 InstanceTransformsGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
                 InstanceTransformsGpu.Create(InstanceTransforms);
+            }
+
+            if (DrawCallsGpu != null && DrawCallsGpu.Size == 0)
+            {
+                var gpuCalls = new List<DrawElementsIndirectCommand>(RenderMesh.DrawCallsOpaque.Count);
+
+                foreach (var drawCall in RenderMesh.DrawCallsOpaque)
+                {
+                    gpuCalls.Add(new DrawElementsIndirectCommand
+                    {
+                        Count = (uint)drawCall.IndexCount,
+                        InstanceCount = 1,
+                        FirstIndex = (uint)drawCall.StartIndex,
+                        BaseVertex = drawCall.BaseVertex,
+                        BaseInstance = 0,
+                    });
+                }
+
+                DrawCallsGpu.Create(gpuCalls);
             }
         }
 
