@@ -178,6 +178,8 @@ public class Renderer
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
 
+        scene.FrustumCullGpu(LockedCullFrustum ?? camera.ViewFrustum);
+
         if (Postprocess != null)
         {
             Postprocess.State = scene.PostProcessInfo.CurrentState;

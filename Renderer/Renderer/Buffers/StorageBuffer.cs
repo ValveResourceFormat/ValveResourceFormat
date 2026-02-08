@@ -58,6 +58,18 @@ namespace ValveResourceFormat.Renderer.Buffers
                 throw new InvalidOperationException("Trying to update an unitialized buffer.");
             }
 
+            if (PersistentPtr != IntPtr.Zero)
+            {
+                Debug.Assert(offset + size <= Size);
+                unsafe
+                {
+                    var dest = (void*)(PersistentPtr + offset);
+                    Unsafe.CopyBlock(dest, Unsafe.AsPointer(ref data[0]), (uint)size);
+                }
+                return;
+            }
+
+
             GL.NamedBufferSubData(Handle, offset, size, data);
         }
 

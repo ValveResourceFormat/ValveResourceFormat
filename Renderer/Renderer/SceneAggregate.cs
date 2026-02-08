@@ -19,6 +19,9 @@ namespace ValveResourceFormat.Renderer
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
 
         public IndirectBuffer DrawCallsGpu { get; private set; }
+        public IndirectBuffer DrawCallsCulledGpu { get; private set; }
+        public StorageBuffer? DrawBoundsGpu { get; private set; }
+        public StorageBuffer? DrawCountGpu { get; private set; }
         public bool HasTransforms { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
@@ -82,6 +85,7 @@ namespace ValveResourceFormat.Renderer
             LocalBoundingBox = RenderMesh.BoundingBox;
 
             DrawCallsGpu = new IndirectBuffer("AggregateDraws");
+            DrawCallsCulledGpu = new IndirectBuffer("AggregateCulledDraws");
         }
 
         public void SetInfiniteBoundingBox()
@@ -168,6 +172,15 @@ namespace ValveResourceFormat.Renderer
             public uint BaseInstance { get; init; }
         };
 
+        [StructLayout(LayoutKind.Sequential)]
+        struct DrawBounds
+        {
+            public Vector3 Min;
+            public float Padding1;
+            public Vector3 Max;
+            public float Padding2;
+        };
+
         public override void Update(Scene.UpdateContext context)
         {
             if (InstanceTransforms.Count > 0 && InstanceTransformsGpu == null)
@@ -179,6 +192,7 @@ namespace ValveResourceFormat.Renderer
             if (DrawCallsGpu != null && DrawCallsGpu.Size == 0)
             {
                 var gpuCalls = new List<DrawElementsIndirectCommand>(RenderMesh.DrawCallsOpaque.Count);
+                var bounds = new List<DrawBounds>(RenderMesh.DrawCallsOpaque.Count);
 
                 foreach (var drawCall in RenderMesh.DrawCallsOpaque)
                 {
@@ -197,9 +211,68 @@ namespace ValveResourceFormat.Renderer
                         BaseVertex = drawCall.BaseVertex,
                         BaseInstance = 0,
                     });
+
+                    var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
+                    bounds.Add(new DrawBounds
+                    {
+                        Min = drawBounds.Min,
+                        Max = drawBounds.Max,
+                    });
                 }
 
                 DrawCallsGpu.Create(gpuCalls);
+                DrawCallsCulledGpu.Create(gpuCalls); // Allocate same size and copy for initial state
+
+                DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
+                DrawBoundsGpu.Create(bounds);
+
+                DrawCountGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.AggregateDrawCount, 1, BufferUsageHint.DynamicDraw);
+                
+                // Initialize count to total draws (will be updated by compute shader)
+                var initialCount = (uint)RenderMesh.DrawCallsOpaque.Count;
+                DrawCountGpu.Update([initialCount], 0, sizeof(uint));
+            }
+        }
+
+        public void PerformGpuFrustumCulling(Shader cullShader, UniformBuffer<FrustumPlanes> frustumBuffer)
+        {
+            if (DrawCountGpu == null || DrawBoundsGpu == null)
+            {
+                return;
+            }
+
+            // Clear visible count
+            var zero = 0u;
+            DrawCountGpu.Update([zero], 0, sizeof(uint));
+
+            cullShader.Use();
+
+            frustumBuffer.BindBufferBase();
+            DrawBoundsGpu.BindBufferBase();
+            DrawCountGpu.BindBufferBase();
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, (int)ReservedBufferSlots.AggregateDraws, DrawCallsGpu.Handle);
+            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 17, DrawCallsCulledGpu.Handle);
+
+            var workGroups = (RenderMesh.DrawCallsOpaque.Count + 63) / 64;
+            GL.DispatchCompute(workGroups, 1, 1);
+
+            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct FrustumPlanes
+        {
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+            public Vector4[] Planes;
+
+            public FrustumPlanes()
+            {
+                Planes = new Vector4[6];
+            }
+
+            public FrustumPlanes(Vector4[] planes)
+            {
+                Planes = planes;
             }
         }
 

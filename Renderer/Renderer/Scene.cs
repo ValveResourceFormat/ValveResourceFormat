@@ -45,6 +45,9 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
+        private UniformBuffer<SceneAggregate.FrustumPlanes>? frustumBuffer;
+
+        private Shader? FrustumCullShader;
 
         public RendererContext RendererContext { get; }
         public Octree StaticOctree { get; }
@@ -81,6 +84,7 @@ namespace ValveResourceFormat.Renderer
             UpdateBuffers();
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
+            FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -194,6 +198,10 @@ namespace ValveResourceFormat.Renderer
 
             envMapBuffer = new(ReservedBufferSlots.EnvironmentMap);
             lpvBuffer = new(ReservedBufferSlots.LightProbe);
+            frustumBuffer = new(ReservedBufferSlots.FrustumPlanes)
+            {
+                Data = new SceneAggregate.FrustumPlanes()
+            };
         }
 
         public void UpdateBuffers()
@@ -297,6 +305,25 @@ namespace ValveResourceFormat.Renderer
         static float GetCameraDistance(Camera camera, SceneNode node)
         {
             return (node.BoundingBox.Center - camera.Location).LengthSquared();
+        }
+
+        public void FrustumCullGpu(Frustum frustum)
+        {
+            if (FrustumCullShader == null || frustumBuffer == null || !EnableIndirectDraws)
+            {
+                return;
+            }
+
+            frustumBuffer.Data = new SceneAggregate.FrustumPlanes(frustum.GetPlanes());
+            frustumBuffer.Update();
+
+            foreach (var node in AllNodes)
+            {
+                if (node is SceneAggregate agg && agg.DrawCountGpu != null)
+                {
+                    agg.PerformGpuFrustumCulling(FrustumCullShader, frustumBuffer);
+                }
+            }
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)

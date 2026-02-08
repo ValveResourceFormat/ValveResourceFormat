@@ -70,6 +70,12 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Gets the frustum planes as a Vector4 array.
+        /// </summary>
+        /// <returns>Array of 6 frustum planes.</returns>
+        public Vector4[] GetPlanes() => Planes;
+
+        /// <summary>
         /// Tests if an axis-aligned bounding box intersects this frustum.
         /// </summary>
         /// <param name="box">The bounding box to test.</param>
