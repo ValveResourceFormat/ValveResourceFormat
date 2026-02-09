@@ -83,9 +83,11 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
+                    var skin = sceneObject.GetProperty<string>("m_skin");
+
                     var model = (Model?)newResource.DataBlock;
                     Debug.Assert(model != null);
-                    var modelNode = new ModelSceneNode(scene, model, null)
+                    var modelNode = new ModelSceneNode(scene, model, skin)
                     {
                         Transform = matrix,
                         Tint = tintColor,
