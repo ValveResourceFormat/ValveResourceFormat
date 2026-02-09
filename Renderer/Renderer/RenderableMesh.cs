@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Buffers;
@@ -20,6 +21,36 @@ namespace ValveResourceFormat.Renderer
 
         private readonly RendererContext renderContext;
         public List<DrawCall> TestMeshletCalls { get; } = [];
+
+        [StructLayout(LayoutKind.Sequential, Pack = 16)]
+        public struct MeshletInfo
+        {
+            [StructLayout(LayoutKind.Sequential)]
+            public struct PackedAABB
+            {
+                //HACK HACK HACK
+                public uint m_nMin;
+                public uint m_nMax;
+            }
+            public PackedAABB m_PackedAABB { get; init; }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct CullingData
+            {
+                public sbyte m_ConeAxis0;
+                public sbyte m_ConeAxis1;
+                public sbyte m_ConeAxis2;
+                public sbyte m_ConeCutoff;
+            }
+            public CullingData m_CullingData { get; init; }
+            public int m_nVertexOffset { get; init; }
+            public int m_nTriangleOffset { get; init; }
+            public uint m_nVertexCount { get; init; }
+            public uint m_nTriangleCount { get; init; }
+            public uint m_nParentBoundIndex { get; init; }
+        };
+
+        public List<MeshletInfo> MeshletData { get; } = [];
         public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
@@ -273,12 +304,42 @@ namespace ValveResourceFormat.Renderer
                             IndexType = drawCall.IndexType
                         };
 
+                        uint packedMin = meshletCall.GetSubCollection("m_PackedAABB").GetUInt32Property("m_nMin");
+                        uint packedMax = meshletCall.GetSubCollection("m_PackedAABB").GetUInt32Property("m_nMax");
+
+                        var meshletInfo = new MeshletInfo()
+                        {
+                            m_PackedAABB = new MeshletInfo.PackedAABB()
+                            {
+                                m_nMin = packedMin,
+                                m_nMax = packedMax
+                            },
+                            m_CullingData = new MeshletInfo.CullingData()
+                            {
+                                m_ConeAxis0 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeAxis0"),
+                                m_ConeAxis1 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeAxis1"),
+                                m_ConeAxis2 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeAxis2"),
+                                m_ConeCutoff = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeCutoff"),
+                            },
+                            m_nVertexOffset = meshletCall.GetInt32Property("m_nVertexOffset"),
+                            m_nTriangleOffset = meshletCall.GetInt32Property("m_nTriangleOffset"),
+                            m_nVertexCount = meshletCall.GetUInt32Property("m_nVertexCount"),
+                            m_nTriangleCount = meshletCall.GetUInt32Property("m_nTriangleCount"),
+                            m_nParentBoundIndex = (uint)i
+                        };
+                        AddMeshletInfo(meshletInfo, isAggregate);
                         AddMeshletCall(meshletDrawCall, isAggregate);
                     }
 
                     i++;
                 }
             }
+        }
+
+        private void AddMeshletInfo(MeshletInfo info, bool isAggregate)
+        {
+            if(isAggregate)
+                MeshletData.Add(info);
         }
         private void AddMeshletCall(DrawCall drawCall, bool isAggregate)
         {
