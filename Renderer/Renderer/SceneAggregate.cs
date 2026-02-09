@@ -83,7 +83,7 @@ namespace ValveResourceFormat.Renderer
 
             LocalBoundingBox = RenderMesh.BoundingBox;
 
-            if (!CreatedOneDrawBuffer && Scene.LightingInfo.LightingData.IsSkybox == 0u)
+            if (/*!CreatedOneDrawBuffer && */Scene.LightingInfo.LightingData.IsSkybox == 0u)
             {
                 DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
                 CreatedOneDrawBuffer = true;

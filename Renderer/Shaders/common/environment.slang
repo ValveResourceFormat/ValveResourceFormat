@@ -181,7 +181,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
 
     vec3 envMap = vec3(0.0);
 
-    #if (S_SCENE_CUBEMAP_TYPE == 0)
+    #if (S_SCENE_CUBEMAP_TYPE == 2)
         envMap = vec3(0.3, 0.3, 0.3);
     #elif (S_SCENE_CUBEMAP_TYPE == 1)
         int envMapIndex = int(g_nEnvMapVisibility.x);
