@@ -178,7 +178,10 @@ public class Renderer
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
 
-        scene.FrustumCullGpu(LockedCullFrustum ?? camera.ViewFrustum);
+        if (LockedCullFrustum == null)
+        {
+            scene.FrustumCullGpu(camera.ViewFrustum);
+        }
 
         if (Postprocess != null)
         {

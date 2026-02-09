@@ -10,7 +10,7 @@ layout(binding = 16, std140) uniform FrustumPlanes
     vec4 planes[6];
 };
 
-// Input: All draw commands
+// Draw commands (read-write to modify instanceCount)
 struct DrawCommand
 {
     uint indexCount;
@@ -20,9 +20,9 @@ struct DrawCommand
     uint baseInstance;
 };
 
-layout(binding = 13, std430) readonly buffer InputCommands
+layout(binding = 13, std430) buffer DrawCommands
 {
-    DrawCommand inputCommands[];
+    DrawCommand drawCommands[];
 };
 
 // Input: Draw bounds (min.xyz, max.xyz)
@@ -54,11 +54,6 @@ struct MeshletInfo
     uint m_nParentBoundIndex;
 };
 
-//layout(binding = 14, std430) readonly buffer DrawBoundsBuffer
-//{
-//    DrawBounds drawBounds[];
-//};
-
 layout(binding = 14, std430) readonly buffer DrawCallBounds
 {
     DrawBounds drawBounds[];
@@ -67,19 +62,6 @@ layout(binding = 14, std430) readonly buffer DrawCallBounds
 layout(binding = 18, std430) readonly buffer MeshletInfoBuffer
 {
     MeshletInfo meshlets[];
-};
-
-
-// Output: Visible draw commands
-layout(binding = 17, std430) writeonly buffer OutputCommands
-{
-    DrawCommand outputCommands[];
-};
-
-// Output: Count of visible draws
-layout(binding = 15, std430) buffer DrawCount
-{
-    uint visibleCount;
 };
 
 bool testAABBFrustum(vec3 bmin, vec3 bmax)
@@ -108,9 +90,9 @@ bool testAABBFrustum(vec3 bmin, vec3 bmax)
 
 vec3 unpackAABB(vec3 min, vec3 max, uint packedVec)
 {
-    float x = (packedVec & 0x3FF) / 1023.f;
-    float y = ((packedVec >> 10) & 0x3FF) / 1023.f;
-    float z = ((packedVec >> 20) & 0x3FF) / 1023.f;
+    float x = float(packedVec & 0x3FF) / 1023.f;
+    float y = float((packedVec >> 10) & 0x3FF) / 1023.f;
+    float z = float((packedVec >> 20) & 0x3FF) / 1023.f;
 
     return min + vec3(x, y, z) * (max - min);
 }
@@ -137,35 +119,26 @@ void main()
 {
     uint drawId = gl_GlobalInvocationID.x;
     
-    // First thread clears the counter atomically
-    if (drawId == 0u)
-    {
-        atomicExchange(visibleCount, 0u);
-    }
-    memoryBarrierBuffer();
-    barrier();
-    if (drawId >= inputCommands.length())
+    if (drawId >= drawCommands.length())
     {
         return;
     }
 
     MeshletInfo meshlet = meshlets[drawId];
 
-    vec3 min = unpackAABB(drawBounds[meshlet.m_nParentBoundIndex].min, drawBounds[meshlet.m_nParentBoundIndex].max, meshlet.m_PackedAABB.m_nMin);
-    vec3 max = unpackAABB(drawBounds[meshlet.m_nParentBoundIndex].min, drawBounds[meshlet.m_nParentBoundIndex].max, meshlet.m_PackedAABB.m_nMax);
-    vec3 center = min + (max - min) / 2;
+    uint boundIndex = meshlet.m_nParentBoundIndex;
 
-    vec4 coneVector = unpackSByteVector(meshlet.packedCullingInfo);
+    vec3 minBound = unpackAABB(drawBounds[boundIndex].min, drawBounds[boundIndex].max, meshlet.m_PackedAABB.m_nMin);
+    vec3 maxBound = unpackAABB(drawBounds[boundIndex].min, drawBounds[boundIndex].max, meshlet.m_PackedAABB.m_nMax);
 
-    vec3 dir = center - g_vCameraPositionWs;
+    vec4 coneCullInfo = unpackSByteVector(meshlet.packedCullingInfo);
 
+    vec3 CamToMeshlet = (minBound + maxBound) / 2 - g_vCameraPositionWs;
 
+    float boundingSphereRadius = length(maxBound - minBound) * 0.5;
 
-    if (!testAABBFrustum(min, max) || dot(dir, coneVector.xyz) > coneVector.w)
-    {
-        return;
-    }
-
-    uint outputIndex = atomicAdd(visibleCount, 1u);
-    outputCommands[outputIndex] = inputCommands[drawId];
+    bool culled = dot(CamToMeshlet, coneCullInfo.xyz) > (coneCullInfo.w * length(CamToMeshlet) + boundingSphereRadius);
+    culled = culled || !testAABBFrustum(drawBounds[boundIndex].min, drawBounds[boundIndex].max);
+    
+    drawCommands[drawId].instanceCount = !culled ? 1u : 0u;
 }

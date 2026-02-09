@@ -6,6 +6,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using static ValveResourceFormat.Renderer.RenderableMesh.MeshletInfo;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -42,7 +43,8 @@ namespace ValveResourceFormat.Renderer
                 public sbyte m_ConeAxis2;
                 public sbyte m_ConeCutoff;
             }
-            public CullingData m_CullingData { get; init; }
+            //public CullingData m_CullingData { get; init; }
+            public int packedCullData;
             public int m_nVertexOffset { get; init; }
             public int m_nTriangleOffset { get; init; }
             public uint m_nVertexCount { get; init; }
@@ -307,6 +309,17 @@ namespace ValveResourceFormat.Renderer
                         uint packedMin = meshletCall.GetSubCollection("m_PackedAABB").GetUInt32Property("m_nMin");
                         uint packedMax = meshletCall.GetSubCollection("m_PackedAABB").GetUInt32Property("m_nMax");
 
+                        var m_CullingData = new MeshletInfo.CullingData()
+                        {
+                            m_ConeAxis0 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetIntegerArray("m_ConeAxis")[0],
+                            m_ConeAxis1 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetIntegerArray("m_ConeAxis")[1],
+                            m_ConeAxis2 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetIntegerArray("m_ConeAxis")[2],
+                            m_ConeCutoff = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeCutoff"),
+                        };
+
+                        byte[] bytes = new byte[] { (byte)m_CullingData.m_ConeAxis0, (byte)m_CullingData.m_ConeAxis1, (byte)m_CullingData.m_ConeAxis2, (byte)m_CullingData.m_ConeCutoff };
+                        int packedValue = BitConverter.ToInt32(bytes, 0);
+
                         var meshletInfo = new MeshletInfo()
                         {
                             m_PackedAABB = new MeshletInfo.PackedAABB()
@@ -314,19 +327,17 @@ namespace ValveResourceFormat.Renderer
                                 m_nMin = packedMin,
                                 m_nMax = packedMax
                             },
-                            m_CullingData = new MeshletInfo.CullingData()
-                            {
-                                m_ConeAxis0 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeAxis0"),
-                                m_ConeAxis1 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeAxis1"),
-                                m_ConeAxis2 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeAxis2"),
-                                m_ConeCutoff = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeCutoff"),
-                            },
+                            packedCullData = packedValue,
                             m_nVertexOffset = meshletCall.GetInt32Property("m_nVertexOffset"),
                             m_nTriangleOffset = meshletCall.GetInt32Property("m_nTriangleOffset"),
                             m_nVertexCount = meshletCall.GetUInt32Property("m_nVertexCount"),
                             m_nTriangleCount = meshletCall.GetUInt32Property("m_nTriangleCount"),
                             m_nParentBoundIndex = (uint)i
                         };
+                        var test = 0;
+                        if (numMeshlets == 181)
+                            test = (int)Marshal.OffsetOf<MeshletInfo>("packedCullData");
+
                         AddMeshletInfo(meshletInfo, isAggregate);
                         AddMeshletCall(meshletDrawCall, isAggregate);
                     }

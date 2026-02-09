@@ -88,9 +88,14 @@ namespace ValveResourceFormat.Renderer
 
             LocalBoundingBox = RenderMesh.BoundingBox;
 
-            DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
-            DrawCallsCulledGpu = new StorageBuffer((ReservedBufferSlots)17);
+            if (/*!CreatedOneDrawBuffer && */Scene.LightingInfo.LightingData.IsSkybox == 0u)
+            {
+                DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
+                CreatedOneDrawBuffer = true;
+            }
         }
+
+        public static bool CreatedOneDrawBuffer { get; private set; }
 
         public void SetInfiniteBoundingBox()
         {
@@ -246,25 +251,18 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 DrawCallsGpu.Create(gpuCalls);
-                DrawCallsCulledGpu.Create(gpuCalls);
 
                 MeshletInfoGpu = new StorageBuffer(ReservedBufferSlots.MeshletInfo);
                 MeshletInfoGpu.Create(RenderMesh.MeshletData);
 
                 DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
                 DrawBoundsGpu.Create(bounds);
-
-                DrawCountGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.AggregateDrawCount, 1, BufferUsageHint.StaticDraw);
-
-                // Initialize count to total draws (will be updated by compute shader)
-                var initialCount = (uint)RenderMesh.TestMeshletCalls.Count;
-                DrawCountGpu.Update([initialCount], 0, sizeof(uint));
             }
         }
 
         public void PerformGpuFrustumCulling()
         {
-            if (DrawCountGpu == null || DrawBoundsGpu == null || MeshletInfoGpu == null)
+            if (DrawBoundsGpu == null)
             {
                 return;
             }
@@ -273,9 +271,7 @@ namespace ValveResourceFormat.Renderer
             //DrawCountGpu.Clear();
             MeshletInfoGpu.BindBufferBase();
             DrawBoundsGpu.BindBufferBase();
-            DrawCountGpu.BindBufferBase();
             DrawCallsGpu.BindBufferBase();
-            DrawCallsCulledGpu.BindBufferBase();
 
             var workGroups = (RenderMesh.TestMeshletCalls.Count + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);

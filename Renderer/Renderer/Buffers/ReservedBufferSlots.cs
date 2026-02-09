@@ -17,7 +17,8 @@ public enum ReservedBufferSlots
     AggregateDrawBounds = 14,
     AggregateDrawCount = 15,
     FrustumPlanes = 16,
-    //17 is bound by output commands?
-    MeshletInfo = 18,
+    AggregateDrawsCulled = 17,
+    MeshletInfo = 18
+    
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }
