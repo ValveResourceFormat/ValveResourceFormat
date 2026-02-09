@@ -115,8 +115,9 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     vec2 sampleUV = (minXY + maxXY) * 0.5;
     float occluderDepth = textureLod(g_tDepthPyramid, sampleUV, mipLevel).r;
 
-    closestDepth = RemapValClamped(closestDepth, 0.0, 0.05, 0.0, 1.0);
-    
+    closestDepth = closestDepth * 0.5 + 0.5;
+    closestDepth = LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, closestDepth);
+
     return closestDepth < occluderDepth;
 }
 
@@ -149,6 +150,6 @@ void main()
     // Set instance count to 0 if occluded
     if (isOccluded && blink())
     {
-        //drawCommands[drawId].instanceCount = 0u;
+        drawCommands[drawId].instanceCount = 0u;
     }
 }

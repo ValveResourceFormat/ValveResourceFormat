@@ -1,5 +1,9 @@
 #version 460
 
+#include "common/ViewConstants.slang"
+#include "common/utils.slang"
+
+
 layout (local_size_x = 8, local_size_y = 8) in;
 
 #define D_MSAA_INPUT 0
@@ -20,28 +24,29 @@ void main()
     {
         return;
     }
-    
-    ivec2 sourceCoord = destCoord * 2;
-    
+       
 #if D_MSAA_INPUT == 1
     // Resolve MSAA samples at same coordinate (reverse Z: furthest)
     int numSamples = textureSamples(g_tSourceDepthMS);
-    float closestDepth = 0.0;
+    float furthestDepth = 1.0;
     
     for (int s = 0; s < numSamples; s++)
     {
         float depth = texelFetch(g_tSourceDepthMS, destCoord, s).r;
-        closestDepth = max(closestDepth, depth);
+        furthestDepth = min(furthestDepth, depth);
     }
+
+    furthestDepth = LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, furthestDepth);
 #else
+    ivec2 sourceCoord = destCoord * 2;
+
     // Regular 2x2 downsample - take min (reverse Z: furthest point)
     float depth0 = imageLoad(g_tSourceDepth, sourceCoord + ivec2(0, 0)).r;
     float depth1 = imageLoad(g_tSourceDepth, sourceCoord + ivec2(1, 0)).r;
     float depth2 = imageLoad(g_tSourceDepth, sourceCoord + ivec2(0, 1)).r;
     float depth3 = imageLoad(g_tSourceDepth, sourceCoord + ivec2(1, 1)).r;
     
-    float closestDepth = max(max(depth0, depth1), max(depth2, depth3));
-#endif
-    
-    imageStore(g_tDestDepth, destCoord, vec4(closestDepth, 0.0, 0.0, 0.0));
+    float furthestDepth = min(min(depth0, depth1), min(depth2, depth3));
+#endif    
+    imageStore(g_tDestDepth, destCoord, vec4(furthestDepth, 0.0, 0.0, 0.0));
 }
