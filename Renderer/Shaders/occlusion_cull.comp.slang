@@ -66,7 +66,8 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     
     vec2 minXY = vec2(1.0);
     vec2 maxXY = vec2(0.0);
-    float minZ = 1.0; // track closest point
+    float closestDepth = 0; // track closest point
+    bool behindCamera = false;
     
     // Project all corners to clip space
     for (int i = 0; i < 8; i++)
@@ -76,7 +77,7 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         // Skip corners behind camera
         if (clip.w <= 0.0)
         {
-            minZ = 0.0; // If any point is behind the camera, treat as fully visible (not occluded)
+            behindCamera = true;
             continue;
         }
         
@@ -88,10 +89,15 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         
         minXY = min(minXY, uv);
         maxXY = max(maxXY, uv);
-        minZ = min(minZ, ndc.z); // Track closest point
+        
+        closestDepth = min(closestDepth, ndc.z);
     }
     
-    // Remap depth from viewport range to [0, 1]
+    // If any point is behind the camera, treat as visible
+    if (behindCamera)
+    {
+        return false;
+    }
     
     // Clamp to screen bounds
     minXY = clamp(minXY, vec2(0.0), vec2(1.0));
@@ -105,12 +111,13 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     float mipLevel = max(0.0, ceil(log2(maxSize)));
     mipLevel = min(mipLevel, float(textureQueryLevels(g_tDepthPyramid) - 1));
     
-    // Sample depth pyramid at the chosen mip level (contains furthest/min depth)
+    // Sample depth pyramid at the chosen mip level (contains furthest/max depth of occluders)
     vec2 sampleUV = (minXY + maxXY) * 0.5;
     float occluderDepth = textureLod(g_tDepthPyramid, sampleUV, mipLevel).r;
+
+    closestDepth = RemapValClamped(closestDepth, 0.0, 0.05, 0.0, 1.0);
     
-    // Reverse Z: occluded if object's closest point (minZ) is further than occluder closest point (occluderDepth)
-    return minZ > occluderDepth;
+    return closestDepth < occluderDepth;
 }
 
 void main()
@@ -142,6 +149,6 @@ void main()
     // Set instance count to 0 if occluded
     if (isOccluded && blink())
     {
-        drawCommands[drawId].instanceCount = 0u;
+        //drawCommands[drawId].instanceCount = 0u;
     }
 }

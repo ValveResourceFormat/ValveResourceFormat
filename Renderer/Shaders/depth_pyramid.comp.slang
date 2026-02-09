@@ -2,13 +2,14 @@
 
 layout (local_size_x = 8, local_size_y = 8) in;
 
-#ifdef D_MSAA_INPUT
+#define D_MSAA_INPUT 0
+
+#if D_MSAA_INPUT == 1
 layout(binding = 0) uniform sampler2DMS g_tSourceDepthMS;
-#else
-layout(binding = 0) uniform sampler2D g_tSourceDepth;
 #endif
 
-layout(binding = 0, r32f) uniform writeonly image2D g_tDestDepth;
+layout(binding = 1, r32f) uniform readonly image2D g_tSourceDepth;
+layout(binding = 2, r32f) uniform writeonly image2D g_tDestDepth;
 
 void main()
 {
@@ -22,32 +23,25 @@ void main()
     
     ivec2 sourceCoord = destCoord * 2;
     
-#ifdef D_MSAA_INPUT
-    // Resolve MSAA samples - take min across all samples in 2x2 quad (reverse Z: furthest)
+#if D_MSAA_INPUT == 1
+    // Resolve MSAA samples at same coordinate (reverse Z: furthest)
     int numSamples = textureSamples(g_tSourceDepthMS);
-    float minDepth = 1.0;
+    float closestDepth = 0.0;
     
-    for (int y = 0; y < 2; y++)
+    for (int s = 0; s < numSamples; s++)
     {
-        for (int x = 0; x < 2; x++)
-        {
-            ivec2 coord = sourceCoord + ivec2(x, y);
-            for (int s = 0; s < numSamples; s++)
-            {
-                float depth = texelFetch(g_tSourceDepthMS, coord, s).r;
-                minDepth = min(minDepth, depth);
-            }
-        }
+        float depth = texelFetch(g_tSourceDepthMS, destCoord, s).r;
+        closestDepth = max(closestDepth, depth);
     }
 #else
     // Regular 2x2 downsample - take min (reverse Z: furthest point)
-    float depth0 = texelFetch(g_tSourceDepth, sourceCoord + ivec2(0, 0), 0).r;
-    float depth1 = texelFetch(g_tSourceDepth, sourceCoord + ivec2(1, 0), 0).r;
-    float depth2 = texelFetch(g_tSourceDepth, sourceCoord + ivec2(0, 1), 0).r;
-    float depth3 = texelFetch(g_tSourceDepth, sourceCoord + ivec2(1, 1), 0).r;
+    float depth0 = imageLoad(g_tSourceDepth, sourceCoord + ivec2(0, 0)).r;
+    float depth1 = imageLoad(g_tSourceDepth, sourceCoord + ivec2(1, 0)).r;
+    float depth2 = imageLoad(g_tSourceDepth, sourceCoord + ivec2(0, 1)).r;
+    float depth3 = imageLoad(g_tSourceDepth, sourceCoord + ivec2(1, 1)).r;
     
-    float minDepth = min(min(depth0, depth1), min(depth2, depth3));
+    float closestDepth = max(max(depth0, depth1), max(depth2, depth3));
 #endif
     
-    imageStore(g_tDestDepth, destCoord, vec4(minDepth, 0.0, 0.0, 0.0));
+    imageStore(g_tDestDepth, destCoord, vec4(closestDepth, 0.0, 0.0, 0.0));
 }

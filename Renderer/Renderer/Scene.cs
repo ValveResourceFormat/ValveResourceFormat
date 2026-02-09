@@ -360,52 +360,59 @@ namespace ValveResourceFormat.Renderer
 
         public void GenerateDepthPyramid(RenderTexture depthSource)
         {
-            if (DepthPyramid == null)
+            if (DepthPyramid == null || DepthPyramidShader == null)
             {
                 return;
             }
 
             using var _ = new GLDebugGroup("Generate Depth Pyramid");
 
-            // Generate each mip level
-            for (var mipLevel = 1; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
+            var isMsaaSource = depthSource.Target == TextureTarget.Texture2DMultisample;
+            var startMipLevel = 1;
+
+            // Resolve MSAA to mip 0 at full resolution
+            if (isMsaaSource)
             {
-                var sourceMip = mipLevel - 1;
-                var sourceTexture = sourceMip == 0 ? depthSource : DepthPyramid;
-
-                // Use MSAA shader for first mip if source is MSAA, otherwise use regular shader
-                var shader = (sourceMip == 0 && sourceTexture.Target == TextureTarget.Texture2DMultisample)
-                    ? DepthPyramidMsaaShader
-                    : DepthPyramidShader;
-
-                if (shader == null)
+                if (DepthPyramidMsaaShader == null)
                 {
                     return;
                 }
 
-                shader.Use();
+                DepthPyramidMsaaShader.Use();
+                DepthPyramidMsaaShader.SetTexture(0, "g_tSourceDepthMS", depthSource);
+
+                GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+
+                var groupsX = (DepthPyramid.Width + 7) / 8;
+                var groupsY = (DepthPyramid.Height + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            }
+
+            // Generate remaining mip levels from pyramid texture
+            DepthPyramidShader.Use();
+
+            for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
+            {
+                var sourceMip = mipLevel - 1;
 
                 var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
                 var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
 
-                // Bind source texture
-                GL.ActiveTexture(TextureUnit.Texture0);
-                GL.BindTexture(sourceTexture.Target, sourceTexture.Handle);
-                sourceTexture.SetBaseMaxLevel(sourceMip, sourceMip);
+                // Bind source mip level as read-only image
+                GL.BindImageTexture(1, DepthPyramid.Handle, sourceMip, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);
 
-                // Bind destination image
-                GL.BindImageTexture(0, DepthPyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+                // Bind destination mip level as write-only image
+                GL.BindImageTexture(2, DepthPyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
 
                 // Dispatch compute shader
                 var groupsX = (destWidth + 7) / 8;
                 var groupsY = (destHeight + 7) / 8;
                 GL.DispatchCompute(groupsX, groupsY, 1);
 
-                GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit | MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             }
-
-            // Reset base/max level for normal usage
-            DepthPyramid.SetBaseMaxLevel(0, DepthPyramid.NumMipLevels - 1);
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
@@ -1159,6 +1166,7 @@ namespace ValveResourceFormat.Renderer
                 lightingBuffer?.Dispose();
                 lpvBuffer?.Dispose();
                 envMapBuffer?.Dispose();
+                frustumBuffer?.Dispose();
             }
         }
     }
