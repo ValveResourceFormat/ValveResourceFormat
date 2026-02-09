@@ -48,6 +48,10 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<SceneAggregate.FrustumPlanes>? frustumBuffer;
 
         private Shader? FrustumCullShader;
+        private Shader? OcclusionCullShader;
+        private Shader? DepthPyramidShader;
+        private Shader? DepthPyramidMsaaShader;
+        public RenderTexture? DepthPyramid { get; internal set; }
 
         public RendererContext RendererContext { get; }
         public Octree StaticOctree { get; }
@@ -85,6 +89,9 @@ namespace ValveResourceFormat.Renderer
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
+            OcclusionCullShader = RendererContext.ShaderLoader.LoadShader("vrf.occlusion_cull");
+            DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
+            DepthPyramidMsaaShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_MSAA_INPUT", 1));
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -319,17 +326,86 @@ namespace ValveResourceFormat.Renderer
 
             FrustumCullShader.Use();
 
+            foreach (var node in AllNodes)
+            {
+                if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
+                {
+                    agg.DispatchDrawCullJobs();
+                }
+            }
+
+            // Memory barrier after frustum culling
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+
+            Debug.Assert(OcclusionCullShader != null);
+            Debug.Assert(DepthPyramid != null);
+
+            OcclusionCullShader.Use();
+
+            // Bind depth pyramid as texture for sampling
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
 
             foreach (var node in AllNodes)
             {
                 if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
                 {
-                    agg.PerformGpuFrustumCulling();
+                    agg.DispatchDrawCullJobs();
                 }
             }
 
             // Memory barrier to ensure compute shader writes are visible to indirect draw commands
             GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
+        }
+
+        public void GenerateDepthPyramid(RenderTexture depthSource)
+        {
+            if (DepthPyramid == null)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Generate Depth Pyramid");
+
+            // Generate each mip level
+            for (var mipLevel = 1; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
+            {
+                var sourceMip = mipLevel - 1;
+                var sourceTexture = sourceMip == 0 ? depthSource : DepthPyramid;
+
+                // Use MSAA shader for first mip if source is MSAA, otherwise use regular shader
+                var shader = (sourceMip == 0 && sourceTexture.Target == TextureTarget.Texture2DMultisample)
+                    ? DepthPyramidMsaaShader
+                    : DepthPyramidShader;
+
+                if (shader == null)
+                {
+                    return;
+                }
+
+                shader.Use();
+
+                var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
+                var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
+
+                // Bind source texture
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(sourceTexture.Target, sourceTexture.Handle);
+                sourceTexture.SetBaseMaxLevel(sourceMip, sourceMip);
+
+                // Bind destination image
+                GL.BindImageTexture(0, DepthPyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+
+                // Dispatch compute shader
+                var groupsX = (destWidth + 7) / 8;
+                var groupsY = (destHeight + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+
+                GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit | MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            }
+
+            // Reset base/max level for normal usage
+            DepthPyramid.SetBaseMaxLevel(0, DepthPyramid.NumMipLevels - 1);
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)

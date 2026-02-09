@@ -231,9 +231,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public void PerformGpuFrustumCulling()
+        public void DispatchDrawCullJobs()
         {
-            if (DrawBoundsGpu == null)
+            if (DrawBoundsGpu == null || DrawCallsGpu == null)
             {
                 return;
             }
