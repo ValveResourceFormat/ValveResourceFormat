@@ -391,6 +391,8 @@ namespace ValveResourceFormat.Renderer
             {
                 DepthPyramidMsaaShader!.Use();
                 DepthPyramidMsaaShader.SetTexture(0, "g_tSourceDepthMS", depthSource);
+                DepthPyramidMsaaShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
+                DepthPyramidMsaaShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
 
                 GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
 

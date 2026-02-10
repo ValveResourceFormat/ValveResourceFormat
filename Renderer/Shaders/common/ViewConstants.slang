@@ -33,10 +33,13 @@ layout(std140, binding = 0) uniform ViewConstants {
     vec4 g_vCubeFogCullingParams_ExposureBias_MaxOpacity;
 };
 
-bool blink()
+bool blink(float frequency)
 {
     const float phase = 0;
-    return fract((fract(g_flTime * 0.5) + phase)) < 0.5;
+    float f = 1 / frequency;
+    return fract((fract(g_flTime * f) + phase)) < 0.5;
 }
+
+bool blink() { return blink(2); }
 
 #endif

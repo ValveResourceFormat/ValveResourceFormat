@@ -94,7 +94,7 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
         // Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
 
-        InitializeDepthPyramid(4, 4);
+        EnsureDepthPyramidSize(256, 256);
     }
 
     public void LoadRendererResources()
@@ -559,23 +559,14 @@ public class Renderer
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
     }
 
-    void InitializeDepthPyramid(int width, int height)
-    {
-        // Calculate exact number of mips needed to reach 4x4
-        var maxMipLevel = Math.Max(
-            (int)Math.Ceiling(Math.Log2(width / 4.0f)),
-            (int)Math.Ceiling(Math.Log2(height / 4.0f))
-        );
-
-        Scene.DepthPyramid = RenderTexture.Create(width, height, SizedInternalFormat.R32f, maxMipLevel + 1);
-        Scene.DepthPyramid.SetLabel("DepthPyramid");
-
-        Scene.DepthPyramid.SetBaseMaxLevel(0, maxMipLevel);
-    }
-
     void EnsureDepthPyramidSize(int width, int height)
     {
-        if (Scene.DepthPyramid != null && Scene.DepthPyramid.Width == width && Scene.DepthPyramid.Height == height)
+        // Get the target pyramid size
+        var maxDim = Math.Max(width, height);
+        var cappedDim = Math.Min(maxDim, 256);
+        var targetSize = 1 << (int)Math.Floor(Math.Log2(cappedDim));
+
+        if (Scene.DepthPyramid != null && Scene.DepthPyramid.Width == targetSize && Scene.DepthPyramid.Height == targetSize)
         {
             return;
         }
@@ -583,8 +574,13 @@ public class Renderer
         // Delete old texture
         Scene.DepthPyramid?.Delete();
 
-        // Create new one
-        InitializeDepthPyramid(width, height);
+        // Calculate mips needed to go from targetSize down to 1x1
+        var maxMipLevel = (int)Math.Log2(targetSize);
+
+        Scene.DepthPyramid = RenderTexture.Create(targetSize, targetSize, SizedInternalFormat.R32f, maxMipLevel + 1);
+        Scene.DepthPyramid.SetLabel("DepthPyramid");
+
+        Scene.DepthPyramid.SetBaseMaxLevel(0, maxMipLevel);
     }
 }
 

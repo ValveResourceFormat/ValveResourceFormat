@@ -103,13 +103,6 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     float minW = min(min(min(corners[0].w, corners[1].w), min(corners[2].w, corners[3].w)),
                      min(min(corners[4].w, corners[5].w), min(corners[6].w, corners[7].w)));
 
-    // If any corner is behind the camera, the perspective divide produces
-    // reflected NDC values making the screen-space bounds unreliable.
-    // Conservatively mark as not occluded.
-    if (minW <= 0.0)
-    {
-        return false;
-    }
     
     vec3 ndc[8];
     for (int i = 0; i < 8; i++)
@@ -133,12 +126,6 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     vec2 uvMin = ndcMin.xy * 0.5 + 0.5;
     vec2 uvMax = ndcMax.xy * 0.5 + 0.5;
     vec2 uvSize = uvMax - uvMin;
-    
-    // Early out: degenerate rect, or beyond far plane
-    if (uvSize.x * uvSize.y <= 0.0 || ndcMax.z >= 1.0)
-    {
-        return false;
-    }
     
     // Convert to pixel coordinates
     vec2 pixelMin = uvMin * vec2(g_nDepthPyramidWidth, g_nDepthPyramidHeight);
@@ -188,6 +175,108 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     return aabbDepth < (occluderDepth - 1e-5);
 }
 
+// Source 2 style occlusion test with camera offset
+bool testAABBOcclusion2(vec3 bmin, vec3 bmax)
+{
+    // Apply camera offset directly as vector addition (from GLSL line 186)
+    const vec3 g_vDepthPyramidCameraOffset = g_vCameraDirWs * g_flDepthPyramidCameraOffset;
+
+    vec3 offsetMin = bmin + g_vDepthPyramidCameraOffset;
+    vec3 aabbSize = (bmax + g_vDepthPyramidCameraOffset) - offsetMin;
+    
+    // Build basis vectors for AABB edges (X, Y, Z axes)
+    vec4 basisY = vec4(0.0, aabbSize.y, 0.0, 0.0) * g_matWorldToProjection;
+    vec4 basisZ = vec4(0.0, 0.0, aabbSize.z, 0.0) * g_matWorldToProjection;
+    vec4 basisX = vec4(aabbSize.x, 0.0, 0.0, 0.0) * g_matWorldToProjection;
+    
+    // Project base corner
+    vec4 corners[8];
+    corners[0] = g_matWorldToProjection * vec4(offsetMin, 1.0);
+    corners[1] = corners[0] + basisZ;
+    corners[2] = corners[0] + basisY;
+    corners[3] = corners[2] + basisZ;
+    corners[4] = corners[0] + basisX;
+    corners[5] = corners[4] + basisZ;
+    corners[6] = corners[4] + basisY;
+    corners[7] = corners[6] + basisZ;
+    
+    // Find minimum W (check if behind camera)
+    float minW = min(min(min(corners[0].w, corners[1].w), min(corners[2].w, corners[3].w)),
+                     min(min(corners[4].w, corners[5].w), min(corners[6].w, corners[7].w)));
+    
+    vec3 ndc[8];
+    for (int i = 0; i < 8; i++)
+    {
+        vec3 divided = corners[i].xyz / corners[i].w;
+        ndc[i] = vec3(divided.x, divided.y, divided.z);
+    }
+    
+    // Compute NDC bounds
+    vec3 ndcMin = min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])), 
+                      min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7])));
+    vec3 ndcMax = max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])), 
+                      max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7])));
+    
+    // Clamp to NDC space
+    vec2 ndcMinClamped = max(ndcMin.xy, vec2(-1.0));
+    vec2 ndcMaxClamped = min(ndcMax.xy, vec2(1.0));
+    
+    // Early rejection checks (GLSL lines 240-248)
+    vec2 ndcSize = ndcMaxClamped - ndcMinClamped;
+    if (minW < g_flDepthRangeMin || ndcMax.z >= 1.0 || ndcSize.x * ndcSize.y <= 0.0)
+    {
+        return false;
+    }
+    
+    // Convert NDC to UV space [0,1]
+    vec2 uvMin = ndcMinClamped * 0.5 + 0.5;
+    vec2 uvMax = ndcMaxClamped * 0.5 + 0.5;
+    
+    // Convert to pixel coordinates using actual pyramid dimensions
+    vec2 pixelMin = uvMin * vec2(g_nDepthPyramidWidth, g_nDepthPyramidHeight);
+    vec2 pixelMax = uvMax * vec2(g_nDepthPyramidWidth, g_nDepthPyramidHeight);
+    vec2 pixelSize = ceil(pixelMax) - floor(pixelMin);
+    
+    // Calculate mip level
+    int mipLevel = min(g_nDepthPyramidMaxMip, int(ceil(log2(max(max(pixelSize.x, pixelSize.y), 1.0)))));
+    
+    // Convert to texel coordinates at selected mip
+    ivec2 texelMin = ivec2(pixelMin) >> mipLevel;
+    ivec2 texelMax = ivec2(pixelMax) >> mipLevel;
+    
+    // If single texel, drop one mip for accuracy
+    if (all(equal(texelMin, texelMax)) && mipLevel > 0)
+    {
+        mipLevel--;
+        texelMin = ivec2(pixelMin) >> mipLevel;
+        texelMax = ivec2(pixelMax) >> mipLevel;
+    }
+    
+    // Clamp to valid texel range at this mip level
+    ivec2 mipSize = ivec2(max(1, g_nDepthPyramidWidth >> mipLevel), max(1, g_nDepthPyramidHeight >> mipLevel));
+    ivec2 maxTexel = mipSize - ivec2(1);
+    
+    // If AABB projects outside the viewport, it can't be occluded
+    if (any(lessThan(texelMin, ivec2(0))) || any(greaterThan(texelMax, maxTexel)))
+    {
+        return false;
+    }
+    
+    // Sample 4 corner texels
+    float depth0 = texelFetch(g_tDepthPyramid, texelMin, mipLevel).r;
+    float depth1 = texelFetch(g_tDepthPyramid, ivec2(texelMax.x, texelMin.y), mipLevel).r;
+    float depth2 = texelFetch(g_tDepthPyramid, ivec2(texelMin.x, texelMax.y), mipLevel).r;
+    float depth3 = texelFetch(g_tDepthPyramid, texelMax, mipLevel).r;
+    
+    // Find minimum depth (furthest in reverse-Z)
+    float occluderDepth = min(min(depth0, depth1), min(depth2, depth3));
+    
+    // Apply depth range transformation (same as testAABBOcclusion)
+    float aabbDepth = ndcMax.z * (g_flDepthRangeMax - g_flDepthRangeMin) + g_flDepthRangeMin;
+    
+    return aabbDepth < (occluderDepth - 1e-5);
+}
+
 void main()
 {
     uint drawId = gl_GlobalInvocationID.x;
@@ -212,7 +301,9 @@ void main()
     // If occlusion culling is enabled, test it
     if (g_bOcclusionCullEnabled)
     {
-        bool isOccluded = testAABBOcclusion(bounds.min, bounds.max);
+        bool isOccluded = false // blink() 
+            ? testAABBOcclusion2(bounds.min, bounds.max)
+            : testAABBOcclusion(bounds.min, bounds.max);
         if (isOccluded)
         {
             drawCommands[drawId].instanceCount = 0u;

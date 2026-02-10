@@ -9,6 +9,8 @@ layout (local_size_x = 8, local_size_y = 8) in;
 
 #if D_MSAA_INPUT == 1
     layout(binding = 0) uniform sampler2DMS g_tSourceDepthMS;
+    uniform int g_nSourceDepthWidth;
+    uniform int g_nSourceDepthHeight;
 #else
     layout(binding = 1, r32f) uniform readonly image2D g_tSourceDepth;
 #endif
@@ -26,17 +28,28 @@ void main()
     }
        
 #if D_MSAA_INPUT == 1
-    // Resolve MSAA samples at same coordinate (reverse Z: furthest)
+    // Downsample from full MSAA resolution to pyramid size
+    // Calculate scale factor (e.g., 1024 -> 256 = 4x downscale)
+    ivec2 vSourceDepthSize = ivec2(g_nSourceDepthWidth, g_nSourceDepthHeight);
+    ivec2 scale = (vSourceDepthSize + destSize - ivec2(1)) / destSize;
+    ivec2 sourceMin = destCoord * scale;
+    ivec2 sourceMax = min(sourceMin + scale, vSourceDepthSize);
+
     int numSamples = textureSamples(g_tSourceDepthMS);
     float furthestDepth = 1.0;
     
-    for (int s = 0; s < numSamples; s++)
+    // Sample all MSAA samples across the region
+    for (int y = sourceMin.y; y < sourceMax.y; y++)
     {
-        float depth = texelFetch(g_tSourceDepthMS, destCoord, s).r;
-        furthestDepth = min(furthestDepth, depth);
+        for (int x = sourceMin.x; x < sourceMax.x; x++)
+        {
+            for (int s = 0; s < numSamples; s++)
+            {
+                float depth = texelFetch(g_tSourceDepthMS, ivec2(x, y), s).r;
+                furthestDepth = min(furthestDepth, depth);
+            }
+        }
     }
-
-    // furthestDepth = LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, furthestDepth);
 #else
     ivec2 sourceCoord = destCoord * 2;
 
