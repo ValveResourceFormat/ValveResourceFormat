@@ -55,7 +55,7 @@ namespace GUI
 
         private readonly string[] Args;
 
-        private SearchForm searchForm = new();
+        private SearchForm? searchForm;
 
         static MainForm()
         {
@@ -1087,6 +1087,7 @@ namespace GUI
             var package = mainTabs.SelectedTab.Controls.OfType<TreeViewWithSearchResults>().FirstOrDefault();
             if (package != null)
             {
+                searchForm ??= new();
                 var result = searchForm.ShowDialog();
                 if (result == DialogResult.OK)
                 {
