@@ -58,6 +58,7 @@ namespace ValveResourceFormat.Renderer
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
+        public bool EnableDepthPrepass { get; set; } = true;
         public bool EnableOcclusionCulling { get; set; } = true;
         public bool EnableOcclusionCullingCpu { get; set; }
         public bool EnableIndirectDraws
@@ -290,6 +291,14 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.Outline] = [],
         };
 
+        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> depthOnlyDraws { get; } = new()
+        {
+            [DepthOnlyProgram.Static] = [],
+            [DepthOnlyProgram.Animated] = [],
+            [DepthOnlyProgram.AnimatedEightBones] = [],
+            [DepthOnlyProgram.Unspecified] = [],
+        };
+
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
         {
             Debug.Assert(request.Call is not null);
@@ -306,6 +315,13 @@ namespace ValveResourceFormat.Renderer
                 RenderPass.Translucent => renderLists[RenderPass.Translucent],
                 _ => throw new ArgumentOutOfRangeException(nameof(renderPass), renderPass, "Unhandled render pass")
             };
+
+            if (renderPass == RenderPass.Opaque)
+            {
+                // todo: check for no Z prepass
+                var bucket = GetSpecializedDepthOnlyShader(request.Node is ModelSceneNode model && model.IsAnimated, request.Mesh, request.Call);
+                depthOnlyDraws[bucket].Add(request);
+            }
 
             if (renderPass == RenderPass.Translucent)
             {
@@ -438,6 +454,11 @@ namespace ValveResourceFormat.Renderer
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
         {
             foreach (var bucket in renderLists.Values)
+            {
+                bucket.Clear();
+            }
+
+            foreach (var bucket in depthOnlyDraws.Values)
             {
                 bucket.Clear();
             }
@@ -604,19 +625,7 @@ namespace ValveResourceFormat.Renderer
                         }
 
                         // todo: create depth only variants for these shader types
-                        var renderWithUnoptimizedShader = opaqueCall.Material.VertexAnimation || opaqueCall.Material.IsAlphaTest;
-
-                        var bucket = (renderWithUnoptimizedShader, animated) switch
-                        {
-                            (true, _) => DepthOnlyProgram.Unspecified, // shader will be null
-                            (false, false) => DepthOnlyProgram.Static,
-                            (false, true) => DepthOnlyProgram.Animated,
-                        };
-
-                        if (mesh.BoneWeightCount > 4)
-                        {
-                            bucket = DepthOnlyProgram.AnimatedEightBones;
-                        }
+                        var bucket = GetSpecializedDepthOnlyShader(animated, mesh, opaqueCall);
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
                         {
@@ -629,6 +638,25 @@ namespace ValveResourceFormat.Renderer
             }
 
             CulledShadowNodes.Clear();
+        }
+
+        private static DepthOnlyProgram GetSpecializedDepthOnlyShader(bool animated, RenderableMesh mesh, DrawCall opaqueCall)
+        {
+            var renderWithUnoptimizedShader = opaqueCall.Material.VertexAnimation || opaqueCall.Material.IsAlphaTest;
+
+            var bucket = (renderWithUnoptimizedShader, animated) switch
+            {
+                (true, _) => DepthOnlyProgram.Unspecified, // shader will be null
+                (false, false) => DepthOnlyProgram.Static,
+                (false, true) => DepthOnlyProgram.Animated,
+            };
+
+            if (mesh.BoneWeightCount > 4)
+            {
+                bucket = DepthOnlyProgram.AnimatedEightBones;
+            }
+
+            return bucket;
         }
 
         public void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders)
@@ -645,14 +673,38 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public void RenderOpaqueLayer(RenderContext renderContext)
+        public void RenderOpaqueLayer(RenderContext renderContext, Span<Shader> depthOnlyShaders = default)
         {
             var camera = renderContext.Camera;
 
+            var depthPrepass = !depthOnlyShaders.IsEmpty && EnableDepthPrepass;
+
+            if (depthPrepass)
+            {
+                using var _ = new GLDebugGroup("Depth Prepass");
+                renderContext.RenderPass = RenderPass.DepthOnly;
+
+                GL.ColorMask(false, false, false, false);
+
+                foreach (var (program, calls) in depthOnlyDraws)
+                {
+                    renderContext.ReplacementShader = depthOnlyShaders[(int)program];
+                    MeshBatchRenderer.Render(calls, renderContext);
+                }
+
+                GL.ColorMask(true, true, true, true);
+            }
+
             using (new GLDebugGroup("Opaque Render"))
             {
+                GL.DepthFunc(depthPrepass ? DepthFunction.Equal : DepthFunction.Greater);
+                GL.DepthMask(!depthPrepass);
+
                 renderContext.RenderPass = RenderPass.Opaque;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
+
+                GL.DepthFunc(DepthFunction.Greater);
+                GL.DepthMask(!depthPrepass);
             }
 
             using (new GLDebugGroup("StaticOverlay Render"))

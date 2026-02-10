@@ -337,6 +337,7 @@ namespace GUI.Types.GLViewers
                 });
                 UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
                 UiControl.AddCheckBox("Occlusion Culling CPU", Scene.EnableOcclusionCullingCpu, (v) => Scene.EnableOcclusionCullingCpu = v);
+                UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
                 UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
                 {
                     Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
