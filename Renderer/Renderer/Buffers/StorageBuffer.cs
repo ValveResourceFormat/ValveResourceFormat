@@ -11,6 +11,9 @@ namespace ValveResourceFormat.Renderer.Buffers
     {
         private IntPtr PersistentPtr;
 
+        public int ElementSize { get; private set; }
+        public int NumElements => Size / ElementSize;
+
         public StorageBuffer(ReservedBufferSlots bindingPoint)
             : base(BufferTarget.ShaderStorageBuffer, (int)bindingPoint, bindingPoint.ToString())
         {
@@ -21,7 +24,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         ///  </remarks>
         public static StorageBuffer Allocate<T>(ReservedBufferSlots bindingPoint, int elements, BufferUsageHint usage)
         {
-            var buffer = new StorageBuffer(bindingPoint) { Size = elements * Unsafe.SizeOf<T>() };
+            var elementSize = Unsafe.SizeOf<T>();
+            var buffer = new StorageBuffer(bindingPoint) { Size = elements * elementSize, ElementSize = elementSize };
             if (usage == BufferUsageHint.DynamicRead)
             {
                 GL.NamedBufferStorage(buffer.Handle, buffer.Size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapCoherentBit);
@@ -36,12 +40,14 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         public void Create<T>(List<T> data) where T : struct
         {
-            Create(ListAccessors<T>.GetBackingArray(data), data.Count * Unsafe.SizeOf<T>());
+            ElementSize = Unsafe.SizeOf<T>();
+            Create(ListAccessors<T>.GetBackingArray(data), data.Count * ElementSize);
         }
 
         public void Create<T>(T[] data, int totalSizeInBytes) where T : struct
         {
             Size = totalSizeInBytes;
+            ElementSize = totalSizeInBytes / data.Length;
             GL.NamedBufferData(Handle, totalSizeInBytes, data, BufferUsageHint.StreamDraw);
         }
 

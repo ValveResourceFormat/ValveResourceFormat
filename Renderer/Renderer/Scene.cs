@@ -60,6 +60,7 @@ namespace ValveResourceFormat.Renderer
         public bool FogEnabled { get; set; } = true;
         public bool EnableOcclusionCulling { get; set; } = true;
         public bool EnableOcclusionCullingCpu { get; set; }
+        public bool EnableCompactDraws { get; set; }
         public bool EnableIndirectDraws
         {
             get;
