@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer
         public int Width { get; }
         public int Height { get; }
         public int Depth { get; }
-        public int NumMipLevels { get; }
+        public int NumMipLevels { get; private set; }
 
         RenderTexture(TextureTarget target)
         {
@@ -124,6 +124,11 @@ namespace ValveResourceFormat.Renderer
             }
 
             GL.NamedFramebufferTexture(framebuffer.FboHandle, attachment, Handle, mipLevel);
+        }
+
+        internal void SetNumMipLevels(int maxMipLevels)
+        {
+            NumMipLevels = maxMipLevels;
         }
     }
 }

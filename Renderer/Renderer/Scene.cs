@@ -342,11 +342,9 @@ namespace ValveResourceFormat.Renderer
 
             OcclusionCullShader.Use();
 
-            // Set depth pyramid uniforms
             OcclusionCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
             OcclusionCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
             OcclusionCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
-            OcclusionCullShader.SetUniform1("g_flDepthPyramidCameraOffset", 0.0f);
             OcclusionCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
             OcclusionCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
 
@@ -398,15 +396,22 @@ namespace ValveResourceFormat.Renderer
                 GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             }
 
-            // Generate remaining mip levels from pyramid texture
+            // Generate mip levels down to 1x1 for better occlusion culling precision
             DepthPyramidShader.Use();
 
-            for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
-            {
-                var sourceMip = mipLevel - 1;
+            // Calculate exact number of mips needed to reach 1x1
+            var maxMipLevel = Math.Max(
+                (int)Math.Ceiling(Math.Log2(DepthPyramid.Width)),
+                (int)Math.Ceiling(Math.Log2(DepthPyramid.Height))
+            );
 
+            DepthPyramid.SetNumMipLevels(maxMipLevel + 1);
+
+            for (var mipLevel = startMipLevel; mipLevel <= maxMipLevel; mipLevel++)
+            {
                 var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
                 var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
+                var sourceMip = mipLevel - 1;
 
                 // Bind source mip level as read-only image
                 GL.BindImageTexture(1, DepthPyramid.Handle, sourceMip, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);
@@ -421,6 +426,8 @@ namespace ValveResourceFormat.Renderer
 
                 GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             }
+
+            GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
