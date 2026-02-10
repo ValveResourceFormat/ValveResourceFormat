@@ -84,6 +84,7 @@ namespace GUI.Types.GLViewers
             Scene.ShowToolsMaterials = true;
             renderMat = Renderer.RendererContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
             renderMat.Shader.EnsureLoaded();
+            renderMat.IsOverlay = false; // render without trying to overlay on empty space
 
             {
                 var planeMesh = MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));

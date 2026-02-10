@@ -58,7 +58,7 @@ namespace ValveResourceFormat.Renderer
         public required Shader Shader { get; init; }
         public Material Material { get; }
         public Dictionary<string, RenderTexture> Textures { get; } = [];
-        public bool IsOverlay { get; private set; }
+        public bool IsOverlay { get; set; }
         public bool IsToolsMaterial { get; private set; }
         public bool IsCs2Water { get; private set; }
         public bool VertexAnimation { get; private set; }
