@@ -94,8 +94,7 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
         // Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
 
-        // Create depth pyramid (start with small size, will be resized on first use)
-        InitializeDepthPyramid(256, 256);
+        InitializeDepthPyramid(4, 4);
     }
 
     public void LoadRendererResources()
@@ -292,10 +291,12 @@ public class Renderer
         }
 
         // Generate depth pyramid from current depth buffer for next frame's occlusion culling
-        if (isStandardPass && renderContext.Framebuffer.Depth != null)
+        if (isStandardPass && Scene.EnableOcclusionCulling && renderContext.Framebuffer.Depth != null)
         {
+            renderContext.Framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
             EnsureDepthPyramidSize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
             Scene.GenerateDepthPyramid(renderContext.Framebuffer.Depth);
+            renderContext.Framebuffer.Bind(FramebufferTarget.Framebuffer);
         }
 
         if (isStandardPass && Scene.EnableOcclusionCullingCpu)
@@ -560,13 +561,16 @@ public class Renderer
 
     void InitializeDepthPyramid(int width, int height)
     {
-        var mipLevels = RenderTexture.MaxMipCount(width, height);
-        Scene.DepthPyramid = RenderTexture.Create(width, height, SizedInternalFormat.R32f, mips: true);
-        Scene.DepthPyramid.SetLabel("DepthPyramid");
-        Scene.DepthPyramid.SetWrapMode(TextureWrapMode.ClampToEdge);
-        Scene.DepthPyramid.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
+        // Calculate exact number of mips needed to reach 4x4
+        var maxMipLevel = Math.Max(
+            (int)Math.Ceiling(Math.Log2(width / 4.0f)),
+            (int)Math.Ceiling(Math.Log2(height / 4.0f))
+        );
 
-        Textures.Add(new(ReservedTextureSlots.DepthPyramid, "g_tDepthPyramid", Scene.DepthPyramid));
+        Scene.DepthPyramid = RenderTexture.Create(width, height, SizedInternalFormat.R32f, maxMipLevel + 1);
+        Scene.DepthPyramid.SetLabel("DepthPyramid");
+
+        Scene.DepthPyramid.SetBaseMaxLevel(0, maxMipLevel);
     }
 
     void EnsureDepthPyramidSize(int width, int height)
@@ -575,9 +579,6 @@ public class Renderer
         {
             return;
         }
-
-        // Remove old texture from list
-        Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.DepthPyramid);
 
         // Delete old texture
         Scene.DepthPyramid?.Delete();

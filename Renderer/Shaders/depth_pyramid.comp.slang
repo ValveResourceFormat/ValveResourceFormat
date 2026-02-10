@@ -3,16 +3,16 @@
 #include "common/ViewConstants.slang"
 #include "common/utils.slang"
 
-
 layout (local_size_x = 8, local_size_y = 8) in;
 
 #define D_MSAA_INPUT 0
 
 #if D_MSAA_INPUT == 1
-layout(binding = 0) uniform sampler2DMS g_tSourceDepthMS;
+    layout(binding = 0) uniform sampler2DMS g_tSourceDepthMS;
+#else
+    layout(binding = 1, r32f) uniform readonly image2D g_tSourceDepth;
 #endif
 
-layout(binding = 1, r32f) uniform readonly image2D g_tSourceDepth;
 layout(binding = 2, r32f) uniform writeonly image2D g_tDestDepth;
 
 void main()

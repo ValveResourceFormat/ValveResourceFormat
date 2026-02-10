@@ -389,12 +389,7 @@ namespace ValveResourceFormat.Renderer
             // Resolve MSAA to mip 0 at full resolution
             if (isMsaaSource)
             {
-                if (DepthPyramidMsaaShader == null)
-                {
-                    return;
-                }
-
-                DepthPyramidMsaaShader.Use();
+                DepthPyramidMsaaShader!.Use();
                 DepthPyramidMsaaShader.SetTexture(0, "g_tSourceDepthMS", depthSource);
 
                 GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
@@ -409,15 +404,7 @@ namespace ValveResourceFormat.Renderer
             // Generate mip levels down to 1x1 for better occlusion culling precision
             DepthPyramidShader.Use();
 
-            // Calculate exact number of mips needed to reach 1x1
-            var maxMipLevel = Math.Max(
-                (int)Math.Ceiling(Math.Log2(DepthPyramid.Width)),
-                (int)Math.Ceiling(Math.Log2(DepthPyramid.Height))
-            );
-
-            DepthPyramid.SetNumMipLevels(maxMipLevel + 1);
-
-            for (var mipLevel = startMipLevel; mipLevel <= maxMipLevel; mipLevel++)
+            for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
             {
                 var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
                 var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);

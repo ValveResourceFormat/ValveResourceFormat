@@ -63,6 +63,13 @@ namespace ValveResourceFormat.Renderer
             return texture;
         }
 
+        public static RenderTexture Create(int width, int height, SizedInternalFormat format, int mipCount)
+        {
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount);
+            GL.TextureStorage2D(texture.Handle, mipCount, format, width, height);
+            return texture;
+        }
+
         public RenderTexture CreateView(PixelInternalFormat internalFormat, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
         {
             var view = new RenderTexture(GL.GenTexture(), Target);
