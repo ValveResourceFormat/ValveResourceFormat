@@ -8,12 +8,15 @@
 #define renderMode_MeshId 0
 #define renderMode_ShaderId 0
 #define renderMode_ShaderProgramId 0
+#define renderMode_MeshletId 0
 
 uniform uint sceneObjectId;
 uniform uint meshId;
 uniform uint shaderId;
 uniform uint shaderProgramId;
 uniform uint isSkybox;
+
+flat in uint meshletId;
 
 #if F_DEBUG_PICKER == 1
     out vec4 outputColor;
@@ -46,6 +49,10 @@ uniform uint isSkybox;
         else if (g_iRenderMode == renderMode_ShaderProgramId)
         {
             outputColor = ColorFromId(shaderProgramId, 29u);
+        }
+        else if (g_iRenderMode == renderMode_MeshletId)
+        {
+            outputColor = ColorFromId(meshletId, 39u);
         }
     }
 #else
