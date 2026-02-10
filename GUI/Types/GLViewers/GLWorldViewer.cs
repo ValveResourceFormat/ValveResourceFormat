@@ -335,11 +335,6 @@ namespace GUI.Types.GLViewers
                     using var lockedGl = MakeCurrent();
                     Scene.EnableIndirectDraws = v;
                 });
-                UiControl.AddCheckBox("Compact Draws", Scene.EnableCompactDraws, (v) =>
-                {
-                    using var lockedGl = MakeCurrent();
-                    Scene.EnableCompactDraws = v;
-                });
                 UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
                 UiControl.AddCheckBox("Occlusion Culling CPU", Scene.EnableOcclusionCullingCpu, (v) => Scene.EnableOcclusionCullingCpu = v);
                 UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>

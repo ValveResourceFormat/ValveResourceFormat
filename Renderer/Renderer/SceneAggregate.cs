@@ -21,8 +21,6 @@ namespace ValveResourceFormat.Renderer
 
         public StorageBuffer? DrawCallsGpu { get; private set; }
         public StorageBuffer? DrawBoundsGpu { get; private set; }
-        public StorageBuffer? CompactedDrawsGpu { get; private set; }
-        public StorageBuffer? DrawCounterGpu { get; private set; }
         public bool HasTransforms { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
@@ -245,33 +243,6 @@ namespace ValveResourceFormat.Renderer
 
             var workGroups = (RenderMesh.DrawCallsOpaque.Count + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
-        }
-
-        public void CompactDrawBuffer()
-        {
-            if (DrawCallsGpu == null)
-            {
-                return;
-            }
-
-            // Lazy initialize compacted buffers
-            CompactedDrawsGpu ??= StorageBuffer.Allocate<DrawElementsIndirectCommand>(ReservedBufferSlots.AggregateDrawsCulled, DrawCallsGpu.NumElements, BufferUsageHint.DynamicDraw);
-            DrawCounterGpu ??= StorageBuffer.Allocate<uint>(ReservedBufferSlots.AggregateDrawCount, 1, BufferUsageHint.DynamicDraw);
-
-            var shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.compact_draws");
-            shader.Use();
-
-            // Bind input and output buffers
-            DrawCallsGpu.BindBufferBase();
-            CompactedDrawsGpu.BindBufferBase();
-            DrawCounterGpu.BindBufferBase();
-
-            // Dispatch one thread per draw call
-            var workGroups = (RenderMesh.DrawCallsOpaque.Count + 63) / 64;
-            GL.DispatchCompute(workGroups, 1, 1);
-
-            // Ensure writes are visible before indirect draws
-            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit | MemoryBarrierFlags.CommandBarrierBit);
         }
 
         [StructLayout(LayoutKind.Sequential)]

@@ -96,7 +96,6 @@ namespace ValveResourceFormat.Renderer
             public bool NeedsCubemapBinding;
             public int LightmapGameVersionNumber;
             public bool IndirectDraw;
-            public bool CompactDraws;
             public LightProbeType LightProbeType;
         }
 
@@ -129,7 +128,6 @@ namespace ValveResourceFormat.Renderer
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
                 IndirectDraw = context.Scene.EnableIndirectDraws,
-                CompactDraws = context.Scene.EnableCompactDraws,
             };
 
             foreach (var request in requests)
@@ -345,24 +343,8 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Node is SceneAggregate agg && agg.DrawCallsGpu != null)
                 {
-                    var drawBuffer = agg.DrawCallsGpu;
-
-                    // Use compacted draws if enabled
-                    if (config.CompactDraws)
-                    {
-                        agg.CompactDrawBuffer();
-                        drawBuffer = agg.CompactedDrawsGpu;
-
-                        GL.BindBuffer(BufferTarget.DrawIndirectBuffer, drawBuffer.Handle);
-                        GL.BindBuffer(BufferTarget.ParameterBuffer, agg.DrawCounterGpu.Handle);
-                        GL.MultiDrawElementsIndirectCount(request.Call.PrimitiveType, request.Call.IndexType, IntPtr.Zero, IntPtr.Zero, agg.RenderMesh.DrawCallsOpaque.Count, 0);
-                    }
-                    else
-                    {
-                        GL.BindBuffer(BufferTarget.DrawIndirectBuffer, drawBuffer.Handle);
-                        GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, IntPtr.Zero, agg.RenderMesh.DrawCallsOpaque.Count, 0);
-                    }
-                    
+                    GL.BindBuffer(BufferTarget.DrawIndirectBuffer, agg.DrawCallsGpu.Handle);
+                    GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, IntPtr.Zero, agg.RenderMesh.DrawCallsOpaque.Count, 0);
                     UnbindInstanceTextures();
                     return;
                 }
