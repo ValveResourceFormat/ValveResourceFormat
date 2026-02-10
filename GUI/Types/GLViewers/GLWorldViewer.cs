@@ -331,6 +331,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 UiControl.AddCheckBox("Indirect Draw", Scene.EnableIndirectDraws, (v) => Scene.EnableIndirectDraws = v);
+                UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
 
                 if (Renderer.SkyboxScene != null)
                 {
