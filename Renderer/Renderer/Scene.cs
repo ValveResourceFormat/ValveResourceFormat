@@ -342,6 +342,14 @@ namespace ValveResourceFormat.Renderer
 
             OcclusionCullShader.Use();
 
+            // Set depth pyramid uniforms
+            OcclusionCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
+            OcclusionCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
+            OcclusionCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
+            OcclusionCullShader.SetUniform1("g_flDepthPyramidCameraOffset", 0.0f);
+            OcclusionCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
+            OcclusionCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
+
             // Bind depth pyramid as texture for sampling
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
