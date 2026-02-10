@@ -293,6 +293,7 @@ public class Renderer
         // Generate depth pyramid from current depth buffer for next frame's occlusion culling
         if (isStandardPass && Scene.EnableOcclusionCulling && renderContext.Framebuffer.Depth != null)
         {
+            GL.MemoryBarrier(MemoryBarrierFlags.FramebufferBarrierBit);
             renderContext.Framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
             EnsureDepthPyramidSize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
             Scene.GenerateDepthPyramid(renderContext.Framebuffer.Depth);

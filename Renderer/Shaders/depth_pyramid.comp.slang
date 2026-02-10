@@ -16,11 +16,13 @@ layout (local_size_x = 8, local_size_y = 8) in;
 #endif
 
 layout(binding = 2, r32f) uniform writeonly image2D g_tDestDepth;
+uniform int g_nDestDepthWidth;
+uniform int g_nDestDepthHeight;
 
 void main()
 {
     ivec2 destCoord = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 destSize = imageSize(g_tDestDepth);
+    ivec2 destSize = ivec2(g_nDestDepthWidth, g_nDestDepthHeight);
     
     if (destCoord.x >= destSize.x || destCoord.y >= destSize.y)
     {

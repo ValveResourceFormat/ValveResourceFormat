@@ -394,6 +394,9 @@ namespace ValveResourceFormat.Renderer
                 DepthPyramidMsaaShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
                 DepthPyramidMsaaShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
 
+                DepthPyramidMsaaShader.SetUniform1("g_nDestDepthWidth", DepthPyramid.Width);
+                DepthPyramidMsaaShader.SetUniform1("g_nDestDepthHeight", DepthPyramid.Height);
+
                 GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
 
                 var groupsX = (DepthPyramid.Width + 7) / 8;
@@ -411,6 +414,9 @@ namespace ValveResourceFormat.Renderer
                 var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
                 var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
                 var sourceMip = mipLevel - 1;
+
+                DepthPyramidShader.SetUniform1("g_nDestDepthWidth", destWidth);
+                DepthPyramidShader.SetUniform1("g_nDestDepthHeight", destHeight);
 
                 // Bind source mip level as read-only image
                 GL.BindImageTexture(1, DepthPyramid.Handle, sourceMip, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);

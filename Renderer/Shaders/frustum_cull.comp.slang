@@ -99,10 +99,16 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         corners[i] = g_matWorldToProjection * vec4(corner, 1.0);
     }
     
-    // Check if any corner is behind camera and perspective divide
     float minW = min(min(min(corners[0].w, corners[1].w), min(corners[2].w, corners[3].w)),
                      min(min(corners[4].w, corners[5].w), min(corners[6].w, corners[7].w)));
 
+    // If any corner is behind the camera, the perspective divide produces
+    // reflected NDC values making the screen-space bounds unreliable.
+    // Conservatively mark as not occluded.
+    if (minW <= 0.0)
+    {
+        return false;
+    }
     
     vec3 ndc[8];
     for (int i = 0; i < 8; i++)
@@ -126,6 +132,12 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     vec2 uvMin = ndcMin.xy * 0.5 + 0.5;
     vec2 uvMax = ndcMax.xy * 0.5 + 0.5;
     vec2 uvSize = uvMax - uvMin;
+
+     // Early out: degenerate rect, or beyond far plane
+    if (uvSize.x * uvSize.y <= 0.0 || ndcMax.z >= 1.0)
+    {
+        return false;
+    }
     
     // Convert to pixel coordinates
     vec2 pixelMin = uvMin * vec2(g_nDepthPyramidWidth, g_nDepthPyramidHeight);
