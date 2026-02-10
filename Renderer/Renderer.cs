@@ -548,7 +548,11 @@ public class Renderer
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera);
 
         Scene.SetupSceneShadows(updateContext.Camera, ShadowDepthBuffer.Width);
-        Scene.GetOcclusionTestResults();
+
+        if (LockedCullFrustum == null)
+        {
+            Scene.GetOcclusionTestResults();
+        }
 
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);

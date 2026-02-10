@@ -364,7 +364,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             // Memory barrier to ensure compute shader writes are visible to indirect draw commands
-            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
         }
 
         public void GenerateDepthPyramid(RenderTexture depthSource)
