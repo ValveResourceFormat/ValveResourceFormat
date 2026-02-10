@@ -145,8 +145,12 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     // Clamp to valid texel range at this mip level
     ivec2 mipSize = ivec2(max(1, g_nDepthPyramidWidth >> mipLevel), max(1, g_nDepthPyramidHeight >> mipLevel));
     ivec2 maxTexel = mipSize - ivec2(1);
-    texelMin = clamp(texelMin, ivec2(0), maxTexel);
-    texelMax = clamp(texelMax, ivec2(0), maxTexel);
+    
+    // If the AABB projects outside the viewport, it can't be occluded
+    if (any(lessThan(texelMin, ivec2(0))) || any(greaterThan(texelMax, maxTexel)))
+    {
+        return false;
+    }
     
     // Sample 4 corners using texelFetch
     float depth0 = texelFetch(g_tDepthPyramid, texelMin, mipLevel).r;
@@ -193,7 +197,7 @@ void main()
     bool isOccluded = testAABBOcclusion(bounds.min, bounds.max);
     
     // Set instance count to 0 if occluded
-    if (isOccluded && blink())
+    if (isOccluded)
     {
         drawCommands[drawId].instanceCount = 0u;
     }

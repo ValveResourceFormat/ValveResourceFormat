@@ -86,10 +86,6 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
-            {
-                Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
-            });
             UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
                 showStaticOctree = v;

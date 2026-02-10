@@ -37,7 +37,7 @@ namespace GUI.Types.GLViewers
         {
             this.world = world;
             mapExternalReferences = externalReferences;
-            Scene.EnableOcclusionCulling = false;
+            Scene.EnableOcclusionCulling = true;
         }
 
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, WorldNode worldNode, ResourceExtRefList? externalReferences = null)
@@ -331,6 +331,12 @@ namespace GUI.Types.GLViewers
                 }
 
                 UiControl.AddCheckBox("Indirect Draw", Scene.EnableIndirectDraws, (v) => Scene.EnableIndirectDraws = v);
+                UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+                UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
+                {
+                    Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
+                });
+
 
                 if (Renderer.SkyboxScene != null)
                 {
@@ -340,7 +346,6 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                 UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
                 UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
-                UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
 
                 AddSceneExposureSlider();
                 AddDOFControls();

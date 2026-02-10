@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Renderer
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
-        public bool EnableOcclusionCulling { get; set; }
+        public bool EnableOcclusionCulling { get; set; } = true;
         public bool EnableIndirectDraws { get; set; }
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
@@ -337,26 +337,29 @@ namespace ValveResourceFormat.Renderer
             // Memory barrier after frustum culling
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
 
-            Debug.Assert(OcclusionCullShader != null);
-            Debug.Assert(DepthPyramid != null);
-
-            OcclusionCullShader.Use();
-
-            OcclusionCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
-            OcclusionCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
-            OcclusionCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
-            OcclusionCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
-            OcclusionCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
-
-            // Bind depth pyramid as texture for sampling
-            GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
-
-            foreach (var node in AllNodes)
+            if (EnableOcclusionCulling)
             {
-                if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
+                Debug.Assert(OcclusionCullShader != null);
+                Debug.Assert(DepthPyramid != null);
+
+                OcclusionCullShader.Use();
+
+                OcclusionCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
+                OcclusionCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
+                OcclusionCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
+                OcclusionCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
+                OcclusionCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
+
+                // Bind depth pyramid as texture for sampling
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
+
+                foreach (var node in AllNodes)
                 {
-                    agg.DispatchDrawCullJobs();
+                    if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
+                    {
+                        agg.DispatchDrawCullJobs();
+                    }
                 }
             }
 
