@@ -183,15 +183,19 @@ namespace ValveResourceFormat.IO
 
                         // Completely assuming that workshop files are always packed as /appid/ugcid/ugcid.vpk
                         var workshopRoot = Path.GetDirectoryName(Path.GetDirectoryName(CurrentFileName.AsSpan()));
+                        var dependencies = addonInfo["Dependencies"];
 
-                        foreach (var dependency in (IEnumerable<KVObject>)addonInfo["Dependencies"])
+                        if (dependencies != null)
                         {
-                            var dependencyId = (uint)dependency.Value;
-                            var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
-
-                            if (File.Exists(dependencyVpkPath))
+                            foreach (var dependency in (IEnumerable<KVObject>)dependencies)
                             {
-                                AddPackageToSearch(dependencyVpkPath);
+                                var dependencyId = (uint)dependency.Value;
+                                var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
+
+                                if (File.Exists(dependencyVpkPath))
+                                {
+                                    AddPackageToSearch(dependencyVpkPath);
+                                }
                             }
                         }
                     }
