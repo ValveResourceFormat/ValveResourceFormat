@@ -362,9 +362,9 @@ namespace ValveResourceFormat.Renderer
                 GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
             }
 
-            foreach (var node in AllNodes)
+            foreach (var culledRender in renderLists[RenderPass.Opaque])
             {
-                if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
+                if (culledRender.Node is SceneAggregate agg && agg.DrawCallsGpu != null)
                 {
                     agg.DispatchDrawCullJobs();
                 }
