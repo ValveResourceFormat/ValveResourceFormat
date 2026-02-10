@@ -18,14 +18,6 @@ namespace ValveResourceFormat.Renderer
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
-
-        public StorageBuffer DrawCallsGpu { get; private set; }
-        public StorageBuffer DrawCallsCulledGpu { get; private set; }
-
-        public StorageBuffer? MeshletInfoGpu { get; private set; }
-        public StorageBuffer? DrawBoundsGpu { get; private set; }
-        public StorageBuffer? DrawCountGpu { get; private set; }
-        
         public bool HasTransforms { get; private set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
@@ -87,15 +79,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             LocalBoundingBox = RenderMesh.BoundingBox;
-
-            if (/*!CreatedOneDrawBuffer && */Scene.LightingInfo.LightingData.IsSkybox == 0u)
-            {
-                DrawCallsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
-                CreatedOneDrawBuffer = true;
-            }
         }
-
-        public static bool CreatedOneDrawBuffer { get; private set; }
 
         public void SetInfiniteBoundingBox()
         {
@@ -170,27 +154,6 @@ namespace ValveResourceFormat.Renderer
                 yield return fragment;
             }
         }
-        
-
-
-        [StructLayout(LayoutKind.Sequential)]
-        readonly struct DrawElementsIndirectCommand
-        {
-            public uint Count { get; init; }
-            public uint InstanceCount { get; init; }
-            public uint FirstIndex { get; init; }
-            public int BaseVertex { get; init; }
-            public uint BaseInstance { get; init; }
-        };
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct DrawBounds
-        {
-            public Vector3 Min;
-            public float Padding1;
-            public Vector3 Max;
-            public float Padding2;
-        };
 
         public override void Update(Scene.UpdateContext context)
         {
@@ -199,82 +162,6 @@ namespace ValveResourceFormat.Renderer
                 InstanceTransformsGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
                 InstanceTransformsGpu.Create(InstanceTransforms);
             }
-
-            if (DrawCallsGpu != null && DrawCallsGpu.Size == 0)
-            {
-                var gpuCalls = new List<DrawElementsIndirectCommand>(RenderMesh.TestMeshletCalls.Count);
-                var bounds = new List<DrawBounds>(RenderMesh.TestMeshletCalls.Count);
-
-                int meshletOffset = 0;
-                foreach (var drawCallBlock in RenderMesh.DrawCallsOpaque)
-                {
-                    var indexSize = drawCallBlock.IndexType switch
-                    {
-                        DrawElementsType.UnsignedShort => sizeof(ushort),
-                        DrawElementsType.UnsignedInt => sizeof(uint),
-                        _ => sizeof(ushort)
-                    };
-
-                    for (int i = 0; i < drawCallBlock.NumMeshlets; i++)
-                    {
-                        int ind = i + meshletOffset;
-
-                        var drawCall = RenderMesh.TestMeshletCalls[ind];
-
-                        gpuCalls.Add(new DrawElementsIndirectCommand
-                        {
-                            Count = (uint)drawCall.IndexCount,
-                            InstanceCount = 1,
-                            FirstIndex = (uint)drawCall.StartIndex / (uint)indexSize,
-                            BaseVertex = drawCall.BaseVertex,
-                            BaseInstance = 0,
-                        });
-                    }
-                    var drawBounds = drawCallBlock.DrawBounds ?? RenderMesh.BoundingBox;
-                    bounds.Add(new DrawBounds
-                    {
-                        Min = drawBounds.Min,
-                        Max = drawBounds.Max,
-                    });
-                    meshletOffset += drawCallBlock.NumMeshlets;
-                }
-
-
-                foreach (var drawCall in RenderMesh.TestMeshletCalls)
-                {
-                    var indexSize = drawCall.IndexType switch
-                    {
-                        DrawElementsType.UnsignedShort => sizeof(ushort),
-                        DrawElementsType.UnsignedInt => sizeof(uint),
-                        _ => sizeof(ushort)
-                    };
-                }
-
-                DrawCallsGpu.Create(gpuCalls);
-
-                MeshletInfoGpu = new StorageBuffer(ReservedBufferSlots.MeshletInfo);
-                MeshletInfoGpu.Create(RenderMesh.MeshletData);
-
-                DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
-                DrawBoundsGpu.Create(bounds);
-            }
-        }
-
-        public void PerformGpuFrustumCulling()
-        {
-            if (DrawBoundsGpu == null)
-            {
-                return;
-            }
-
-            // Clear visible count on GPU
-            //DrawCountGpu.Clear();
-            MeshletInfoGpu.BindBufferBase();
-            DrawBoundsGpu.BindBufferBase();
-            DrawCallsGpu.BindBufferBase();
-
-            var workGroups = (RenderMesh.TestMeshletCalls.Count + 63) / 64;
-            GL.DispatchCompute(workGroups, 1, 1);
         }
 
         [StructLayout(LayoutKind.Sequential)]

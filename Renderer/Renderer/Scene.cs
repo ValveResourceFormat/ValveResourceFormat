@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
+using static ValveResourceFormat.Renderer.RenderableMesh;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -46,6 +48,33 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
         private UniformBuffer<SceneAggregate.FrustumPlanes>? frustumBuffer;
+
+        //WIP
+        public List<MeshletInfo> MeshletDataCollection { get; } = [];
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DrawElementsIndirectCommand
+        {
+            public uint Count { get; init; }
+            public uint InstanceCount { get; init; }
+            public uint FirstIndex { get; init; }
+            public int BaseVertex { get; init; }
+            public uint BaseInstance { get; init; }
+        };
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DrawBounds
+        {
+            public Vector3 Min;
+            public float Padding1;
+            public Vector3 Max;
+            public float Padding2;
+        };
+        public List<DrawElementsIndirectCommand> MeshletDrawCommands { get; } = [];
+        public StorageBuffer? CommandBuffer { get; set; }
+
+        public List<DrawBounds> DrawBoundsCollection { get; } = [];
+        public StorageBuffer? DrawBoundsGpu { get; set; }
+        public StorageBuffer? MeshletData { get; set; }
 
         private Shader? FrustumCullShader;
 
@@ -320,13 +349,17 @@ namespace ValveResourceFormat.Renderer
             FrustumCullShader.Use();
 
 
-            foreach (var node in AllNodes)
+            if (DrawBoundsGpu == null)
             {
-                if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
-                {
-                    agg.PerformGpuFrustumCulling();
-                }
+                return;
             }
+
+            MeshletData?.BindBufferBase();
+            DrawBoundsGpu?.BindBufferBase();
+            CommandBuffer?.BindBufferBase();
+
+            var workGroups = (MeshletDataCollection.Count + 63) / 64;
+            GL.DispatchCompute(workGroups, 1, 1);
 
             // Memory barrier to ensure compute shader writes are visible to indirect draw commands
             GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
@@ -388,7 +421,7 @@ namespace ValveResourceFormat.Renderer
                 else if (node is SceneAggregate.Fragment fragment)
                 {
                     var agg = (fragment.Parent as SceneAggregate)!;
-                    if (!EnableIndirectDraws || agg.HasTransforms || agg.DrawCallsGpu == null)
+                    if (!EnableIndirectDraws || agg.HasTransforms || agg.Scene.CommandBuffer == null)
                     {
                         Add(new MeshBatchRenderer.Request
                         {
@@ -545,7 +578,6 @@ namespace ValveResourceFormat.Renderer
         public void RenderOpaqueLayer(RenderContext renderContext)
         {
             var camera = renderContext.Camera;
-
             using (new GLDebugGroup("Opaque Render"))
             {
                 renderContext.RenderPass = RenderPass.Opaque;
@@ -1080,6 +1112,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (disposing)
             {
+                frustumBuffer?.Dispose();
                 lightingBuffer?.Dispose();
                 lpvBuffer?.Dispose();
                 envMapBuffer?.Dispose();

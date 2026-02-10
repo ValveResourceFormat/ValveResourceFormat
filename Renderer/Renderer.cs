@@ -251,6 +251,8 @@ public class Renderer
 
     public void RenderScenesWithView(Scene.RenderContext renderContext)
     {
+        GL.BindBuffer(BufferTarget.DrawIndirectBuffer, Scene.CommandBuffer!.Handle);
+
         if (ViewBuffer == null)
         {
             throw new InvalidOperationException("Initialize() must be called before rendering");
