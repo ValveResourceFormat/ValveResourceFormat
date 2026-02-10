@@ -36,7 +36,7 @@ void main()
         furthestDepth = min(furthestDepth, depth);
     }
 
-    furthestDepth = LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, furthestDepth);
+    // furthestDepth = LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, furthestDepth);
 #else
     ivec2 sourceCoord = destCoord * 2;
 

@@ -66,7 +66,7 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     
     vec2 minXY = vec2(1.0);
     vec2 maxXY = vec2(0.0);
-    float closestDepth = 0; // track closest point
+    float furthestDepth = 1.0; // Reverse Z: track furthest point (lowest value)
     bool behindCamera = false;
     
     // Project all corners to clip space
@@ -90,7 +90,8 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
         minXY = min(minXY, uv);
         maxXY = max(maxXY, uv);
         
-        closestDepth = min(closestDepth, ndc.z);
+        // Reverse Z: furthest = min (far = 0, near = 1)
+        furthestDepth = min(furthestDepth, ndc.z);
     }
     
     // If any point is behind the camera, treat as visible
@@ -111,14 +112,19 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     float mipLevel = max(0.0, ceil(log2(maxSize)));
     mipLevel = min(mipLevel, float(textureQueryLevels(g_tDepthPyramid) - 1));
     
-    // Sample depth pyramid at the chosen mip level (contains furthest/max depth of occluders)
-    vec2 sampleUV = (minXY + maxXY) * 0.5;
-    float occluderDepth = textureLod(g_tDepthPyramid, sampleUV, mipLevel).r;
-
-    closestDepth = closestDepth * 0.5 + 0.5;
-    closestDepth = LinearRamp(g_flViewportMinZ, g_flViewportMaxZ, closestDepth);
-
-    return closestDepth < occluderDepth;
+    // Sample depth pyramid at 4 corners
+    // Pyramid built with min(): contains furthest/minimum depth values
+    float depth0 = textureLod(g_tDepthPyramid, minXY, mipLevel).r;
+    float depth1 = textureLod(g_tDepthPyramid, vec2(maxXY.x, minXY.y), mipLevel).r;
+    float depth2 = textureLod(g_tDepthPyramid, vec2(minXY.x, maxXY.y), mipLevel).r;
+    float depth3 = textureLod(g_tDepthPyramid, maxXY, mipLevel).r;
+    
+    // Find the furthest occluder depth (minimum value with reverse Z and min() pyramid)
+    float occluderDepth = min(min(depth0, depth1), min(depth2, depth3));
+    
+    // Object is occluded if its furthest point is behind (less than) the occluder
+    // Reverse Z: behind = lower value
+    return furthestDepth <= occluderDepth;
 }
 
 void main()
