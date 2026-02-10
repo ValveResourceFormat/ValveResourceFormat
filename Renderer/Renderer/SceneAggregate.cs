@@ -31,13 +31,13 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public sealed class Fragment : SceneNode
         {
-            public required SceneNode Parent { get; init; }
+            public required SceneAggregate Parent { get; init; }
             public required RenderableMesh RenderMesh { get; init; }
             public required DrawCall DrawCall { get; init; }
 
             public Vector4 Tint { get; set; } = Vector4.One;
 
-            public Fragment(Scene scene, SceneNode parent, AABB bounds) : base(scene)
+            public Fragment(Scene scene, SceneAggregate parent, AABB bounds) : base(scene)
             {
                 Parent = parent;
                 LocalBoundingBox = bounds;

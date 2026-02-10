@@ -48,7 +48,6 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<SceneAggregate.FrustumPlanes>? frustumBuffer;
 
         private Shader? FrustumCullShader;
-        private Shader? OcclusionCullShader;
         private Shader? DepthPyramidShader;
         private Shader? DepthPyramidMsaaShader;
         public RenderTexture? DepthPyramid { get; internal set; }
@@ -60,7 +59,26 @@ namespace ValveResourceFormat.Renderer
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
         public bool EnableOcclusionCulling { get; set; } = true;
-        public bool EnableIndirectDraws { get; set; }
+        public bool EnableOcclusionCullingCpu { get; set; }
+        public bool EnableIndirectDraws
+        {
+            get;
+            set
+            {
+                field = value;
+
+                // if indirect draws are enabled, remove aggregate fragments from octree
+                foreach (var node in AllNodes)
+                {
+                    if (node is SceneAggregate.Fragment fragment && !fragment.Parent.HasTransforms)
+                    {
+                        node.LayerEnabled = !value;
+                    }
+                }
+
+                UpdateOctrees();
+            }
+        }
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -89,7 +107,6 @@ namespace ValveResourceFormat.Renderer
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
-            OcclusionCullShader = RendererContext.ShaderLoader.LoadShader("vrf.occlusion_cull");
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
             DepthPyramidMsaaShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_MSAA_INPUT", 1));
         }
@@ -326,6 +343,25 @@ namespace ValveResourceFormat.Renderer
 
             FrustumCullShader.Use();
 
+            // Set occlusion culling enabled flag
+            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", EnableOcclusionCulling ? 1 : 0);
+
+            // If occlusion culling is enabled, setup depth pyramid and bind texture
+            if (EnableOcclusionCulling)
+            {
+                Debug.Assert(DepthPyramid != null);
+
+                FrustumCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
+                FrustumCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
+                FrustumCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
+
+                // Bind depth pyramid as texture for sampling
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
+            }
+
             foreach (var node in AllNodes)
             {
                 if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
@@ -334,37 +370,8 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            // Memory barrier after frustum culling
-            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
-
-            if (EnableOcclusionCulling)
-            {
-                Debug.Assert(OcclusionCullShader != null);
-                Debug.Assert(DepthPyramid != null);
-
-                OcclusionCullShader.Use();
-
-                OcclusionCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
-                OcclusionCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
-                OcclusionCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
-                OcclusionCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
-                OcclusionCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
-
-                // Bind depth pyramid as texture for sampling
-                GL.ActiveTexture(TextureUnit.Texture0);
-                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
-
-                foreach (var node in AllNodes)
-                {
-                    if (node is SceneAggregate agg && agg.DrawCallsGpu != null)
-                    {
-                        agg.DispatchDrawCullJobs();
-                    }
-                }
-            }
-
             // Memory barrier to ensure compute shader writes are visible to indirect draw commands
-            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
         }
 
         public void GenerateDepthPyramid(RenderTexture depthSource)
@@ -797,7 +804,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (!EnableOcclusionCulling)
+            if (!EnableOcclusionCullingCpu)
             {
                 ClearOccludedStateRecursive(StaticOctree.Root);
                 occlusionDirty = false;

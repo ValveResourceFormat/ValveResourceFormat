@@ -298,7 +298,7 @@ public class Renderer
             Scene.GenerateDepthPyramid(renderContext.Framebuffer.Depth);
         }
 
-        if (isStandardPass && Scene.EnableOcclusionCulling)
+        if (isStandardPass && Scene.EnableOcclusionCullingCpu)
         {
             Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
         }

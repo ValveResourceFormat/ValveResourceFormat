@@ -187,12 +187,6 @@ void main()
     
     DrawBounds bounds = drawBounds[drawId];
     
-    // Skip occlusion test if camera is inside the AABB
-    if (isCameraInsideAABB(bounds.min, bounds.max))
-    {
-        //return; // Keep visible
-    }
-    
     // Test occlusion
     bool isOccluded = testAABBOcclusion(bounds.min, bounds.max);
     

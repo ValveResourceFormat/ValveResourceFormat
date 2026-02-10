@@ -330,8 +330,13 @@ namespace GUI.Types.GLViewers
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
                 }
 
-                UiControl.AddCheckBox("Indirect Draw", Scene.EnableIndirectDraws, (v) => Scene.EnableIndirectDraws = v);
+                UiControl.AddCheckBox("Indirect Draw", Scene.EnableIndirectDraws, (v) =>
+                {
+                    using var lockedGl = MakeCurrent();
+                    Scene.EnableIndirectDraws = v;
+                });
                 UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+                UiControl.AddCheckBox("Occlusion Culling CPU", Scene.EnableOcclusionCullingCpu, (v) => Scene.EnableOcclusionCullingCpu = v);
                 UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
                 {
                     Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
