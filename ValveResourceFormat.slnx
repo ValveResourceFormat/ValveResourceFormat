@@ -7,7 +7,6 @@
   <Project Path="CLI/CLI.csproj" />
   <Project Path="GUI/GUI.csproj" />
   <Project Path="Renderer/Renderer.csproj" />
-  <Project Path="SlangApi/SlangApi.vcxproj" Id="6b218a2e-9b54-42df-9a13-f91315f453a7" />
   <Project Path="Tests/Tests.csproj" />
   <Project Path="ValveResourceFormat/ValveResourceFormat.csproj" />
 </Solution>

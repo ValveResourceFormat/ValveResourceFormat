@@ -35,10 +35,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
     <PackageReference Include="OpenTK.Graphics" Version="4.9.4" />
+    <PackageReference Include="SlangShaderSharp" Version="2026.2.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SlangApi\SlangApi.vcxproj" />
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
   </ItemGroup>
 
