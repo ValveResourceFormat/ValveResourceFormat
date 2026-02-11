@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
@@ -54,6 +55,10 @@ namespace ValveResourceFormat.Renderer
             if (context.RenderPass == RenderPass.Opaque)
             {
                 requests.Sort(CompareCustomPipeline);
+            }
+            else if (context.RenderPass == RenderPass.DepthOnly)
+            {
+                requests.Sort(CompareCameraDistance);
             }
             else if (context.RenderPass == RenderPass.StaticOverlay)
             {

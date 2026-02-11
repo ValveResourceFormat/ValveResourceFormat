@@ -269,7 +269,7 @@ public class Renderer
             && ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
-        var computeFramebufferLuminance = false && Postprocess.State.ExposureSettings.AutoExposureEnabled;
+        var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
 
 
         // TODO: check if renderpass allows wireframe mode

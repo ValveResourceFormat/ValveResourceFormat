@@ -15,6 +15,7 @@ namespace ValveResourceFormat.Renderer
     public class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
+        public List<Fragment> Fragments { get; private set; }
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
@@ -28,13 +29,13 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public sealed class Fragment : SceneNode
         {
-            public required SceneNode Parent { get; init; }
+            public required SceneAggregate Parent { get; init; }
             public required RenderableMesh RenderMesh { get; init; }
             public required DrawCall DrawCall { get; init; }
 
             public Vector4 Tint { get; set; } = Vector4.One;
 
-            public Fragment(Scene scene, SceneNode parent, AABB bounds) : base(scene)
+            public Fragment(Scene scene, SceneAggregate parent, AABB bounds) : base(scene)
             {
                 Parent = parent;
                 LocalBoundingBox = bounds;
@@ -86,7 +87,16 @@ namespace ValveResourceFormat.Renderer
             LocalBoundingBox = new AABB(Vector3.NegativeInfinity, Vector3.PositiveInfinity);
         }
 
-        public IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
+        public void LoadFragments(KVObject aggregateSceneObject)
+        {
+            Fragments = CreateFragments(aggregateSceneObject).ToList();
+            foreach (var fragment in Fragments)
+            {
+                Scene.Add(fragment, false);
+            }
+        }
+
+        private IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
         {
             var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 
@@ -169,5 +179,78 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
         public override void UpdateVertexArrayObjects() => RenderMesh.UpdateVertexArrayObjects();
 #endif
+
+        public float GetProjectedSizeWeight(Camera camera)
+        {
+            // Calculate total projected screen-space area of all fragments
+            var viewProjection = camera.ViewProjectionMatrix;
+            var totalProjectedArea = 0f;
+
+            foreach (var fragment in Fragments)
+            {
+                var bbox = fragment.BoundingBox;
+
+                // Get 8 corners of the bounding box
+                Span<Vector3> corners =
+                [
+                    new Vector3(bbox.Min.X, bbox.Min.Y, bbox.Min.Z),
+                    new Vector3(bbox.Max.X, bbox.Min.Y, bbox.Min.Z),
+                    new Vector3(bbox.Min.X, bbox.Max.Y, bbox.Min.Z),
+                    new Vector3(bbox.Max.X, bbox.Max.Y, bbox.Min.Z),
+                    new Vector3(bbox.Min.X, bbox.Min.Y, bbox.Max.Z),
+                    new Vector3(bbox.Max.X, bbox.Min.Y, bbox.Max.Z),
+                    new Vector3(bbox.Min.X, bbox.Max.Y, bbox.Max.Z),
+                    new Vector3(bbox.Max.X, bbox.Max.Y, bbox.Max.Z),
+                ];
+
+                // Project corners to screen space and find min/max
+                var minX = float.PositiveInfinity;
+                var maxX = float.NegativeInfinity;
+                var minY = float.PositiveInfinity;
+                var maxY = float.NegativeInfinity;
+                var anyBehindCamera = false;
+
+                for (var i = 0; i < 8; i++)
+                {
+                    var projected = Vector4.Transform(corners[i], viewProjection);
+
+                    // Check if behind camera
+                    if (projected.W <= 0)
+                    {
+                        anyBehindCamera = true;
+                        continue;
+                    }
+
+                    // Perspective divide to get NDC coordinates [-1, 1]
+                    var ndcX = projected.X / projected.W;
+                    var ndcY = projected.Y / projected.W;
+
+                    minX = MathF.Min(minX, ndcX);
+                    maxX = MathF.Max(maxX, ndcX);
+                    minY = MathF.Min(minY, ndcY);
+                    maxY = MathF.Max(maxY, ndcY);
+                }
+
+                // If entirely behind camera, skip this fragment
+                if (anyBehindCamera && float.IsInfinity(minX))
+                {
+                    continue;
+                }
+
+                // Clamp to screen bounds [-1, 1] in NDC
+                minX = Math.Clamp(minX, -1f, 1f);
+                maxX = Math.Clamp(maxX, -1f, 1f);
+                minY = Math.Clamp(minY, -1f, 1f);
+                maxY = Math.Clamp(maxY, -1f, 1f);
+
+                // Calculate screen-space area in NDC units (0-4 range, where 4 = full screen)
+                var width = maxX - minX;
+                var height = maxY - minY;
+                totalProjectedArea += width * height;
+            }
+
+            // larger area = render first
+            return totalProjectedArea;
+        }
     }
 }

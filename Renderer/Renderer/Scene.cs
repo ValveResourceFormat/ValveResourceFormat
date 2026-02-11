@@ -297,6 +297,7 @@ namespace ValveResourceFormat.Renderer
 
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
         {
+            [RenderPass.OpaqueMeshlets] = [],
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
             [RenderPass.Water] = [],
@@ -321,20 +322,17 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            var queueList = renderPass switch
+            if (EnableDepthPrepass && renderPass == RenderPass.Opaque)
             {
-                RenderPass.Opaque => renderLists[RenderPass.Opaque],
-                RenderPass.StaticOverlay => renderLists[RenderPass.StaticOverlay],
-                RenderPass.Translucent => renderLists[RenderPass.Translucent],
-                _ => throw new ArgumentOutOfRangeException(nameof(renderPass), renderPass, "Unhandled render pass")
-            };
-
-            if (renderPass == RenderPass.Opaque)
-            {
-                // todo: check for no Z prepass
-                var bucket = GetSpecializedDepthOnlyShader(request.Node is ModelSceneNode model && model.IsAnimated, request.Mesh, request.Call);
-                depthOnlyDraws[bucket].Add(request);
+                if (request.Node is SceneAggregate { HasTransforms: false })
+                {
+                    var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
+                    depthOnlyDraws[bucket].Add(request);
+                    renderPass = RenderPass.OpaqueMeshlets;
+                }
             }
+
+            var queueList = renderLists[renderPass];
 
             if (renderPass == RenderPass.Translucent)
             {
@@ -353,11 +351,6 @@ namespace ValveResourceFormat.Renderer
             }
 
             queueList.Add(request);
-        }
-
-        static float GetCameraDistance(Camera camera, SceneNode node)
-        {
-            return (node.BoundingBox.Center - camera.Location).LengthSquared();
         }
 
         public void FrustumCullGpu(Frustum frustum)
@@ -445,7 +438,7 @@ namespace ValveResourceFormat.Renderer
                             {
                                 Mesh = mesh,
                                 Call = call,
-                                DistanceFromCamera = GetCameraDistance(camera, node),
+                                DistanceFromCamera = node.GetCameraDistance(camera),
                                 Node = node,
                             }, RenderPass.Translucent);
                         }
@@ -453,8 +446,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
-                    var agg = (fragment.Parent as SceneAggregate)!;
-                    if (!EnableIndirectDraws || agg.HasTransforms || agg.Scene.CommandBuffer == null)
+                    if (!EnableIndirectDraws || fragment.Parent.HasTransforms || CommandBuffer == null)
                     {
                         Add(new MeshBatchRenderer.Request
                         {
@@ -481,6 +473,7 @@ namespace ValveResourceFormat.Renderer
                         {
                             Mesh = aggregate.RenderMesh,
                             Call = aggregate.RenderMesh.DrawCallsOpaque[0],
+                            DistanceFromCamera = aggregate.GetProjectedSizeWeight(camera),
                             Node = node,
                         }, RenderPass.Opaque);
                     }
@@ -491,7 +484,7 @@ namespace ValveResourceFormat.Renderer
                     {
                         DistanceFromCamera = node is PhysSceneNode
                             ? 100000f - node.OverlayRenderOrder * 10f
-                            : GetCameraDistance(camera, node),
+                            : node.GetCameraDistance(camera),
                         Node = node,
                     };
 
@@ -623,30 +616,45 @@ namespace ValveResourceFormat.Renderer
 
             if (depthPrepass)
             {
-                using var _ = new GLDebugGroup("Depth Prepass");
-                renderContext.RenderPass = RenderPass.DepthOnly;
-
-                GL.ColorMask(false, false, false, false);
-
-                foreach (var (program, calls) in depthOnlyDraws)
+                using (new GLDebugGroup("Depth Prepass"))
                 {
-                    renderContext.ReplacementShader = depthOnlyShaders[(int)program];
-                    MeshBatchRenderer.Render(calls, renderContext);
+                    GL.ColorMask(false, false, false, false);
+                    GL.NamedFramebufferDrawBuffer(renderContext.Framebuffer.FboHandle, DrawBufferMode.None);
+
+                    renderContext.RenderPass = RenderPass.DepthOnly;
+                    foreach (var (program, calls) in depthOnlyDraws)
+                    {
+                        renderContext.ReplacementShader = depthOnlyShaders[(int)program];
+                        MeshBatchRenderer.Render(calls, renderContext);
+                    }
+
+                    GL.ColorMask(true, true, true, true);
+                    GL.NamedFramebufferDrawBuffer(renderContext.Framebuffer.FboHandle, DrawBufferMode.ColorAttachment0);
                 }
 
-                GL.ColorMask(true, true, true, true);
+                using (new GLDebugGroup("Opaque Prepassed"))
+                {
+                    GL.DepthMask(false);
+                    GL.DepthFunc(DepthFunction.Equal);
+
+                    renderContext.RenderPass = RenderPass.OpaqueMeshlets;
+                    MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
+
+                    GL.DepthMask(true);
+                    GL.DepthFunc(DepthFunction.Greater);
+                }
             }
 
             using (new GLDebugGroup("Opaque Render"))
             {
-                GL.DepthFunc(depthPrepass ? DepthFunction.Equal : DepthFunction.Greater);
-                GL.DepthMask(!depthPrepass);
-
                 renderContext.RenderPass = RenderPass.Opaque;
-                MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
 
-                GL.DepthFunc(DepthFunction.Greater);
-                GL.DepthMask(!depthPrepass);
+                if (!depthPrepass)
+                {
+                    MeshBatchRenderer.Render(renderLists[RenderPass.OpaqueMeshlets], renderContext);
+                }
+
+                MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
 
             using (new GLDebugGroup("StaticOverlay Render"))
