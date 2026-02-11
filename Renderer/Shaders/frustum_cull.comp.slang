@@ -127,17 +127,34 @@ void main()
 
     uint boundIndex = meshlet.m_nParentBoundIndex;
 
-    vec3 minBound = unpackAABB(drawBounds[boundIndex].min, drawBounds[boundIndex].max, meshlet.m_PackedAABB.m_nMin);
-    vec3 maxBound = unpackAABB(drawBounds[boundIndex].min, drawBounds[boundIndex].max, meshlet.m_PackedAABB.m_nMax);
+    vec3 objectMin = drawBounds[boundIndex].min;
+    vec3 objectMax = drawBounds[boundIndex].max;
 
-    vec4 coneCullInfo = unpackSByteVector(meshlet.packedCullingInfo);
+    vec3 meshletMin = unpackAABB(objectMin, objectMax, meshlet.m_PackedAABB.m_nMin);
+    vec3 meshletMax = unpackAABB(objectMin, objectMax, meshlet.m_PackedAABB.m_nMax);
 
-    vec3 CamToMeshlet = (minBound + maxBound) / 2 - g_vCameraPositionWs;
+    const bool FrustumCull = true;
+    const bool BackfaceCull = true;
 
-    float boundingSphereRadius = length(maxBound - minBound) * 0.5;
+    bool visible = true;
 
-    bool culled = dot(CamToMeshlet, coneCullInfo.xyz) > (coneCullInfo.w * length(CamToMeshlet) + boundingSphereRadius);
-    culled = culled || !testAABBFrustum(drawBounds[boundIndex].min, drawBounds[boundIndex].max);
-    
-    drawCommands[drawId].instanceCount = !culled ? 1u : 0u;
+    if (FrustumCull)
+    {
+        visible = testAABBFrustum(meshletMin, meshletMax);
+    }
+
+    if (visible && BackfaceCull)
+    {
+        vec4 coneCullInfo = unpackSByteVector(meshlet.packedCullingInfo);
+
+        vec3 meshletCenter = (meshletMin + meshletMax) * 0.5;
+        vec3 meshletSize = meshletMax - meshletMin;
+
+        vec3 camToMeshlet = meshletCenter - g_vCameraPositionWs;
+        float boundingSphereRadius = length(meshletSize) * 0.5;
+
+        visible = dot(camToMeshlet, coneCullInfo.xyz) < (coneCullInfo.w * length(camToMeshlet) + boundingSphereRadius);
+    }
+
+    drawCommands[drawId].instanceCount = visible ? 1u : 0u;
 }
