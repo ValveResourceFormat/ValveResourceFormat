@@ -10,15 +10,15 @@ public enum ReservedBufferSlots
     Lighting = 1,
     EnvironmentMap = 2,
     LightProbe = 3,
+    FrustumPlanes = 8,
     Transforms = 10,
     Histogram = 11,
     AverageLuminance = 12,
     AggregateDraws = 13,
     AggregateDrawBounds = 14,
-    AggregateDrawCount = 15,
-    FrustumPlanes = 16,
-    AggregateDrawsCulled = 17,
-    MeshletInfo = 18
-    
+    MeshletInfo = 15,
+
+    // do not exceed 16
+
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }

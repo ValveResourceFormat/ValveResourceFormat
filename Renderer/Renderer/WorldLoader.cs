@@ -208,15 +208,6 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
             }
-            scene.MeshletData = new StorageBuffer(ReservedBufferSlots.MeshletInfo);
-            scene.MeshletData.Create(scene.MeshletDataCollection);
-
-            scene.DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
-            scene.DrawBoundsGpu.Create(scene.DrawBoundsCollection);
-
-            scene.CommandBuffer = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
-            scene.CommandBuffer.Create(scene.MeshletDrawCommands);
-
         }
 
         public void LoadWorldPhysics()

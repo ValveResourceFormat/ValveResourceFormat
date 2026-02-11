@@ -47,20 +47,21 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
-        private UniformBuffer<SceneAggregate.FrustumPlanes>? frustumBuffer;
+        private UniformBuffer<Frustum>? frustumBuffer;
 
         //WIP
         public List<MeshletInfo> MeshletDataCollection { get; } = [];
 
         [StructLayout(LayoutKind.Sequential)]
-        public struct DrawElementsIndirectCommand
+        public readonly struct DrawElementsIndirectCommand
         {
-            public uint Count { get; init; }
-            public uint InstanceCount { get; init; }
-            public uint FirstIndex { get; init; }
-            public int BaseVertex { get; init; }
-            public uint BaseInstance { get; init; }
+            public readonly uint Count { get; init; }
+            public readonly uint InstanceCount { get; init; }
+            public readonly uint FirstIndex { get; init; }
+            public readonly int BaseVertex { get; init; }
+            public readonly uint BaseInstance { get; init; }
         };
+
         [StructLayout(LayoutKind.Sequential)]
         public struct DrawBounds
         {
@@ -69,6 +70,7 @@ namespace ValveResourceFormat.Renderer
             public Vector3 Max;
             public float Padding2;
         };
+
         public List<DrawElementsIndirectCommand> MeshletDrawCommands { get; } = [];
         public StorageBuffer? CommandBuffer { get; set; }
 
@@ -228,10 +230,16 @@ namespace ValveResourceFormat.Renderer
 
             envMapBuffer = new(ReservedBufferSlots.EnvironmentMap);
             lpvBuffer = new(ReservedBufferSlots.LightProbe);
-            frustumBuffer = new(ReservedBufferSlots.FrustumPlanes)
-            {
-                Data = new SceneAggregate.FrustumPlanes()
-            };
+            frustumBuffer = new(ReservedBufferSlots.FrustumPlanes);
+
+            MeshletData = new StorageBuffer(ReservedBufferSlots.MeshletInfo);
+            MeshletData.Create(MeshletDataCollection);
+
+            DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
+            DrawBoundsGpu.Create(DrawBoundsCollection);
+
+            CommandBuffer = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
+            CommandBuffer.Create(MeshletDrawCommands);
         }
 
         public void UpdateBuffers()
@@ -354,25 +362,29 @@ namespace ValveResourceFormat.Renderer
 
         public void FrustumCullGpu(Frustum frustum)
         {
-            if (FrustumCullShader == null || frustumBuffer == null || !EnableIndirectDraws)
+            if (!EnableIndirectDraws)
             {
                 return;
             }
 
+            Debug.Assert(frustumBuffer is not null);
+            Debug.Assert(FrustumCullShader is not null);
+            Debug.Assert(MeshletData is not null);
+            Debug.Assert(CommandBuffer is not null);
+
             frustumBuffer.BindBufferBase();
-            frustumBuffer.Data = new SceneAggregate.FrustumPlanes(frustum.GetPlanes());
+            frustumBuffer.Data = frustum;
 
             FrustumCullShader.Use();
-
 
             if (DrawBoundsGpu == null)
             {
                 return;
             }
 
-            MeshletData?.BindBufferBase();
-            DrawBoundsGpu?.BindBufferBase();
-            CommandBuffer?.BindBufferBase();
+            MeshletData.BindBufferBase();
+            DrawBoundsGpu.BindBufferBase();
+            CommandBuffer.BindBufferBase();
 
             var workGroups = (MeshletDataCollection.Count + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
@@ -397,7 +409,7 @@ namespace ValveResourceFormat.Renderer
             WantsSceneDepth = false;
 
             cullFrustum ??= camera.ViewFrustum;
-            var cullResults = GetFrustumCullResults(cullFrustum);
+            var cullResults = GetFrustumCullResults(cullFrustum.Value);
 
             // Collect mesh calls
             foreach (var node in cullResults)

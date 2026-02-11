@@ -4,12 +4,6 @@
 
 layout (local_size_x = 64) in;
 
-// Frustum planes (6 planes: left, right, top, bottom, near, far)
-layout(binding = 16, std140) uniform FrustumPlanes
-{
-    vec4 planes[6];
-};
-
 // Draw commands (read-write to modify instanceCount)
 struct DrawCommand
 {
@@ -18,11 +12,6 @@ struct DrawCommand
     uint firstIndex;
     int baseVertex;
     uint baseInstance;
-};
-
-layout(binding = 13, std430) buffer DrawCommands
-{
-    DrawCommand drawCommands[];
 };
 
 // Input: Draw bounds (min.xyz, max.xyz)
@@ -54,12 +43,22 @@ struct MeshletInfo
     uint m_nParentBoundIndex;
 };
 
+layout(binding = 8, std140) uniform FrustumPlanes
+{
+    vec4 planes[6]; // left, right, top, bottom, near, far
+};
+
+layout(binding = 13, std430) buffer DrawCommands
+{
+    DrawCommand drawCommands[];
+};
+
 layout(binding = 14, std430) readonly buffer DrawCallBounds
 {
     DrawBounds drawBounds[];
 };
 
-layout(binding = 18, std430) readonly buffer MeshletInfoBuffer
+layout(binding = 15, std430) readonly buffer MeshletInfoBuffer
 {
     MeshletInfo meshlets[];
 };

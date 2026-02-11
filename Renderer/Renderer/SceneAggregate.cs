@@ -164,23 +164,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct FrustumPlanes
-        {
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-            public Vector4[] Planes;
-
-            public FrustumPlanes()
-            {
-                Planes = new Vector4[6];
-            }
-
-            public FrustumPlanes(Vector4[] planes)
-            {
-                Planes = planes;
-            }
-        }
-
         public override IEnumerable<string> GetSupportedRenderModes() => RenderMesh.GetSupportedRenderModes();
 
 #if DEBUG

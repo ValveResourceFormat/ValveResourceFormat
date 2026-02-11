@@ -1,11 +1,22 @@
+using System.Runtime.InteropServices;
+
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
     /// View frustum for culling objects outside the camera's visible area.
     /// </summary>
-    public class Frustum
+    [StructLayout(LayoutKind.Sequential)]
+    public readonly struct Frustum
     {
-        private Vector4[] Planes = new Vector4[6];
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+        public readonly Vector4[] Planes;
+
+        public Frustum() : this(empty: false) { }
+
+        public Frustum(bool empty = false)
+        {
+            Planes = empty ? [] : new Vector4[6];
+        }
 
         /// <summary>
         /// Creates an empty frustum with no planes.
@@ -13,11 +24,7 @@ namespace ValveResourceFormat.Renderer
         /// <returns>A new empty frustum.</returns>
         public static Frustum CreateEmpty()
         {
-            var rv = new Frustum
-            {
-                Planes = [],
-            };
-            return rv;
+            return new Frustum(empty: true);
         }
 
         /// <summary>
@@ -68,12 +75,6 @@ namespace ValveResourceFormat.Renderer
             Planes.CopyTo(rv.Planes, 0);
             return rv;
         }
-
-        /// <summary>
-        /// Gets the frustum planes as a Vector4 array.
-        /// </summary>
-        /// <returns>Array of 6 frustum planes.</returns>
-        public Vector4[] GetPlanes() => Planes;
 
         /// <summary>
         /// Tests if an axis-aligned bounding box intersects this frustum.
