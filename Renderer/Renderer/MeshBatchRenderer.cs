@@ -58,7 +58,7 @@ namespace ValveResourceFormat.Renderer
             }
             else if (context.RenderPass == RenderPass.DepthOnly)
             {
-                requests.Sort(CompareCameraDistance);
+                //requests.Sort(CompareCameraDistance);
             }
             else if (context.RenderPass == RenderPass.StaticOverlay)
             {

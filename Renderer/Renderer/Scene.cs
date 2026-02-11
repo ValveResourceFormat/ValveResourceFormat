@@ -473,7 +473,7 @@ namespace ValveResourceFormat.Renderer
                         {
                             Mesh = aggregate.RenderMesh,
                             Call = aggregate.RenderMesh.DrawCallsOpaque[0],
-                            DistanceFromCamera = aggregate.GetAverageCameraDistanceFragments(camera),
+                            //DistanceFromCamera = aggregate.GetAverageCameraDistanceFragments(camera),
                             Node = node,
                         }, RenderPass.Opaque);
                     }
