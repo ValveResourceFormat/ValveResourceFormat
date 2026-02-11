@@ -116,6 +116,29 @@ namespace ValveResourceFormat.Renderer
             return true;
         }
 
+        /// <summary>
+        /// Tests if a sphere intersects this frustum.
+        /// </summary>
+        /// <param name="center">Sphere center in world space.</param>
+        /// <param name="radius">Sphere radius.</param>
+        /// <returns><see langword="true"/> if the sphere is at least partially inside the frustum.</returns>
+        public bool Intersects(in Vector3 center, float radius)
+        {
+            // Sphere-plane test: if sphere is fully on the negative side of any plane -> outside
+            for (var i = 0; i < Planes.Length; ++i)
+            {
+                var plane = Planes[i];
+                var distance = Vector3.Dot(new Vector3(plane.X, plane.Y, plane.Z), center) + plane.W;
+
+                if (distance < -radius)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         /// <inheritdoc/>
         public override int GetHashCode()
         {

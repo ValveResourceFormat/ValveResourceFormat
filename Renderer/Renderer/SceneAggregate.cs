@@ -180,73 +180,72 @@ namespace ValveResourceFormat.Renderer
         public override void UpdateVertexArrayObjects() => RenderMesh.UpdateVertexArrayObjects();
 #endif
 
+        public float GetAverageCameraDistanceFragments(Camera camera)
+        {
+            var totalDistance = 0f;
+            var count = 0;
+
+            foreach (var fragment in Fragments)
+            {
+                var center = fragment.BoundingBox.Center;
+                var distance = Vector3.Distance(center, camera.Location);
+                totalDistance += distance;
+                count++;
+            }
+
+            return count > 0 ? totalDistance / count : 0f;
+        }
+
         public float GetProjectedSizeWeight(Camera camera)
         {
-            // Calculate total projected screen-space area of all fragments
-            var viewProjection = camera.ViewProjectionMatrix;
+            // Sphere-approximation fast path:
+            // - single transform per fragment (sphere center)
+            // - avoid 8 corner matmuls and per-corner perspective divide
+            // - only skip the fragment when its bounding sphere is entirely outside the view frustum
+
+            var view = camera.CameraViewMatrix;
+            var proj = camera.ProjectionMatrix;
             var totalProjectedArea = 0f;
 
             foreach (var fragment in Fragments)
             {
                 var bbox = fragment.BoundingBox;
 
-                // Get 8 corners of the bounding box
-                Span<Vector3> corners =
-                [
-                    new Vector3(bbox.Min.X, bbox.Min.Y, bbox.Min.Z),
-                    new Vector3(bbox.Max.X, bbox.Min.Y, bbox.Min.Z),
-                    new Vector3(bbox.Min.X, bbox.Max.Y, bbox.Min.Z),
-                    new Vector3(bbox.Max.X, bbox.Max.Y, bbox.Min.Z),
-                    new Vector3(bbox.Min.X, bbox.Min.Y, bbox.Max.Z),
-                    new Vector3(bbox.Max.X, bbox.Min.Y, bbox.Max.Z),
-                    new Vector3(bbox.Min.X, bbox.Max.Y, bbox.Max.Z),
-                    new Vector3(bbox.Max.X, bbox.Max.Y, bbox.Max.Z),
-                ];
+                // bounding sphere from AABB (center in world space)
+                var center = bbox.Center;
+                var extents = bbox.Max - center;
+                var radius = MathF.Sqrt(extents.X * extents.X + extents.Y * extents.Y + extents.Z * extents.Z);
 
-                // Project corners to screen space and find min/max
-                var minX = float.PositiveInfinity;
-                var maxX = float.NegativeInfinity;
-                var minY = float.PositiveInfinity;
-                var maxY = float.NegativeInfinity;
-                var anyBehindCamera = false;
-
-                for (var i = 0; i < 8; i++)
-                {
-                    var projected = Vector4.Transform(corners[i], viewProjection);
-
-                    // Check if behind camera
-                    if (projected.W <= 0)
-                    {
-                        anyBehindCamera = true;
-                        continue;
-                    }
-
-                    // Perspective divide to get NDC coordinates [-1, 1]
-                    var ndcX = projected.X / projected.W;
-                    var ndcY = projected.Y / projected.W;
-
-                    minX = MathF.Min(minX, ndcX);
-                    maxX = MathF.Max(maxX, ndcX);
-                    minY = MathF.Min(minY, ndcY);
-                    maxY = MathF.Max(maxY, ndcY);
-                }
-
-                // If entirely behind camera, skip this fragment
-                if (anyBehindCamera && float.IsInfinity(minX))
+                // Cull if sphere is fully outside frustum
+                if (!camera.ViewFrustum.Intersects(center, radius))
                 {
                     continue;
                 }
 
-                // Clamp to screen bounds [-1, 1] in NDC
-                minX = Math.Clamp(minX, -1f, 1f);
-                maxX = Math.Clamp(maxX, -1f, 1f);
-                minY = Math.Clamp(minY, -1f, 1f);
-                maxY = Math.Clamp(maxY, -1f, 1f);
+                // Handle case where sphere center may be behind the camera by projecting the
+                // point on the sphere that is closest to the camera. This ensures we never
+                // fall back to an AABB while keeping a single inexpensive path.
+                var toCamera = camera.Location - center;
+                var toCameraLenSq = toCamera.X * toCamera.X + toCamera.Y * toCamera.Y + toCamera.Z * toCamera.Z;
+                var dirToCamera = toCameraLenSq > 1e-8f
+                    ? toCamera / MathF.Sqrt(toCameraLenSq)
+                    : new Vector3(0f, 0f, 1f);
 
-                // Calculate screen-space area in NDC units (0-4 range, where 4 = full screen)
-                var width = maxX - minX;
-                var height = maxY - minY;
-                totalProjectedArea += width * height;
+                var closest = center + dirToCamera * radius;
+
+                // Transform nearest point to view space to get distance along camera forward
+                var viewClosest = Vector3.Transform(closest, view);
+                var zClosest = -viewClosest.Z; // positive in front of camera
+                var distance = MathF.Max(1e-4f, zClosest);
+
+                // Projected radius in NDC (use the larger of X/Y to be conservative)
+                var rNdcX = radius * proj.M11 / distance;
+                var rNdcY = radius * proj.M22 / distance;
+                var rNdc = MathF.Min(1f, MathF.Max(rNdcX, rNdcY));
+
+                // Use axis-aligned bounding-box of the projected sphere (consistent with previous metric)
+                var area = 4f * rNdc * rNdc; // (2*rNdc)^2
+                totalProjectedArea += Math.Clamp(area, 0f, 4f);
             }
 
             // larger area = render first
