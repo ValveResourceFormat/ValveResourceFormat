@@ -367,13 +367,14 @@ namespace ValveResourceFormat.Renderer
                 GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
 
-            GL.DrawElementsInstancedBaseVertex(
+            GL.DrawElementsInstancedBaseVertexBaseInstance(
                 request.Call.PrimitiveType,
                 request.Call.IndexCount,
                 request.Call.IndexType,
                 request.Call.StartIndex,
                 instanceCount,
-                request.Call.BaseVertex
+                request.Call.BaseVertex,
+                request.Node.Id
             );
 
             UnbindInstanceTextures();

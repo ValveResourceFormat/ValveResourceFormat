@@ -1,8 +1,5 @@
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -15,7 +12,7 @@ namespace ValveResourceFormat.Renderer
     public class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
-        public List<Fragment> Fragments { get; private set; }
+        public List<Fragment> Fragments { get; private set; } = [];
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
@@ -89,7 +86,7 @@ namespace ValveResourceFormat.Renderer
 
         public void LoadFragments(KVObject aggregateSceneObject)
         {
-            Fragments = CreateFragments(aggregateSceneObject).ToList();
+            Fragments.AddRange(CreateFragments(aggregateSceneObject));
             foreach (var fragment in Fragments)
             {
                 Scene.Add(fragment, false);

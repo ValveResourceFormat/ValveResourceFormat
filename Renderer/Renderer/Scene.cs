@@ -71,8 +71,19 @@ namespace ValveResourceFormat.Renderer
             public float Padding2;
         };
 
+        [StructLayout(LayoutKind.Sequential, Size = 32)]
+        public struct ObjectDataStandard
+        {
+            public uint TintAlpha; // 4
+            public uint TransformIndex; // 8
+            public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility; // 24
+            public uint VisibleLPV; // 28
+            public uint Identification; // 32
+        };
+
         public List<DrawElementsIndirectCommand> MeshletDrawCommands { get; } = [];
         public StorageBuffer? CommandBuffer { get; set; }
+        public StorageBuffer? ObjectDataBuffer { get; set; }
 
         public List<DrawBounds> DrawBoundsCollection { get; } = [];
         public StorageBuffer? DrawBoundsGpu { get; set; }
@@ -619,7 +630,6 @@ namespace ValveResourceFormat.Renderer
                 using (new GLDebugGroup("Depth Prepass"))
                 {
                     GL.ColorMask(false, false, false, false);
-                    GL.NamedFramebufferDrawBuffer(renderContext.Framebuffer.FboHandle, DrawBufferMode.None);
 
                     renderContext.RenderPass = RenderPass.DepthOnly;
                     foreach (var (program, calls) in depthOnlyDraws)
@@ -629,7 +639,6 @@ namespace ValveResourceFormat.Renderer
                     }
 
                     GL.ColorMask(true, true, true, true);
-                    GL.NamedFramebufferDrawBuffer(renderContext.Framebuffer.FboHandle, DrawBufferMode.ColorAttachment0);
                 }
 
                 using (new GLDebugGroup("Opaque Prepassed"))

@@ -7,6 +7,23 @@ uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
 
+struct PackedObjectData
+{
+    uint packed0;
+    uint packed1;
+    uint packed2;
+    uint packed3;
+    uint packed4;
+    uint packed5;
+    uint packed6;
+    uint packed7;
+};
+
+layout(std140, binding = 9) readonly buffer g_objectBuffer
+{
+    PackedObjectData object[];
+};
+
 layout(std140, binding = 10) readonly buffer g_transformBuffer
 {
     mat3x4 transforms[];
