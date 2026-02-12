@@ -236,10 +236,14 @@ namespace ValveResourceFormat.Renderer
         {
             if (uniforms.ObjectId != -1)
             {
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, request.Call.Material.Shader.NameHash);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
+                shader.SetUniformAtLocation(uniforms.ObjectId, request.Node.Id);
+                shader.SetUniformAtLocation(uniforms.MeshId, (uint)request.Mesh.MeshIndex);
+                shader.SetUniformAtLocation(uniforms.ShaderId, request.Call.Material.Shader.NameHash);
+                shader.SetUniformAtLocation(uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, request.Call.Material.Shader.NameHash);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
             }
 
             if (uniforms.CubeMapBitmaskVisiblity != -1)
@@ -293,7 +297,8 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-                GL.ProgramUniform1((uint)shader.Program, uniforms.VisibleLightProbeVolume, lightProbe.ShaderIndex);
+                shader.SetUniformAtLocation(uniforms.VisibleLightProbeVolume, lightProbe.ShaderIndex);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.VisibleLightProbeVolume, lightProbe.ShaderIndex);
             }
 
             if (uniforms.AnimationData != -1)
@@ -322,10 +327,12 @@ namespace ValveResourceFormat.Renderer
                 if (morphComposite != null)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
-                    GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height);
+                    shader.SetUniformAtLocation(uniforms.MorphCompositeTextureSize, new System.Numerics.Vector2(morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height));
+                    //GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height);
                 }
 
-                GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
+                shader.SetUniformAtLocation(uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
+                //GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
             }
 
             if (uniforms.Transform > -1)

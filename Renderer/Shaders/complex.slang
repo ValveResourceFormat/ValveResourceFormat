@@ -611,7 +611,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals, VertexOutput
 
     if (csgo_character_vfx != 0 && F_EYEBALLS != 0)
     {
-        ApplyEye(vOut.eyeInterpolator.get().value, texCoord, mat);
+        ApplyEye(vOut.eyeInterpolator, texCoord, mat);
     }
 
     if (F_USE_BENT_NORMALS == 1)

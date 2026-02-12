@@ -74,9 +74,9 @@ namespace ValveResourceFormat.Renderer
             //SLANG. This is necessary for specialisation. We aren't parsing a GLSL source anymore.
             public IComponentType? SlangComponentType { get; set; }
             //SLANG
-            public List<IEntryPoint> EntryPoints { get; } = new List<IEntryPoint>();
+            public List<IEntryPoint> EntryPoints { get; } = [];
             //SLANG
-            public bool IsSlang { get; set; } = false;
+            public bool IsSlang { get; set; }
 
 #if DEBUG
             public HashSet<string> ShaderVariants { get; } = [];
@@ -86,24 +86,14 @@ namespace ValveResourceFormat.Renderer
         static ShaderLoader()
         {
             if (slangSession == null)
-                setupSlangCompiler();
-
-            Task.Run(() =>
             {
-                foreach (var shader in Parser.AvailableShaders.Keys)
-                {
-                    GetOrParseShader(shader);
-                }
-            });
+                setupSlangCompiler();
+            }
         }
 
         public ShaderLoader(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
-
-            if(slangSession == null)
-                setupSlangCompiler();
-
         }
 
         static void setupSlangCompiler()
@@ -169,7 +159,7 @@ namespace ValveResourceFormat.Renderer
             return shader;
         }
 
-        private static ParsedShaderData GetOrParseShader(string shaderFileName)
+        private ParsedShaderData GetOrParseShader(string shaderFileName)
         {
             if (File.Exists(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang")))
             {
@@ -218,7 +208,7 @@ namespace ValveResourceFormat.Renderer
             return parsedData;
         }
 
-        private static ParsedShaderData GetOrParseSlangShader(string shaderFileName)
+        private ParsedShaderData GetOrParseSlangShader(string shaderFileName)
         {
             using var _ = ParserLock.EnterScope();
             if (ParsedCache.TryGetValue(shaderFileName, out var cached))
@@ -242,19 +232,22 @@ namespace ValveResourceFormat.Renderer
             //only loading one file. Shaders with split vert and frag shaders must import the vertex shader.
             var nameWithExtension = $"{shaderFileName}.slang";
 
-            IModule? module = slangSession!.LoadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out var diagnostics);
+            var module = slangSession!.LoadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out var diagnostics);
 
             if (module != null)
             {
-                for (int i = 0; i < module.GetDefinedEntryPointCount(); i++)
+                for (var i = 0; i < module.GetDefinedEntryPointCount(); i++)
                 {
-                    module.GetDefinedEntryPoint(i, out IEntryPoint entryPoint);
+                    module.GetDefinedEntryPoint(i, out var entryPoint);
                     parsedData.EntryPoints.Add(entryPoint);
                 }
-                module.Link(out IComponentType linkedModule, out ISlangBlob linkDiag);
+                module.Link(out var linkedModule, out var linkDiag);
                 parsedData.SlangComponentType = linkedModule;
 
-                // TODO: Log diagnostics even if build succeeds in debug mode
+                if (diagnostics != null)
+                {
+                    RendererContext.Logger.LogInformation("Shader '{ShaderFileName}': {Log}'", shaderFileName, diagnostics.AsString);
+                }
             }
             else
             {
@@ -290,7 +283,7 @@ namespace ValveResourceFormat.Renderer
         {
             var shaderProgram = -1;
             //SLANG: this is a test to check if this is as easy as it feels
-            string configModuleSource = "";
+            var configModuleSource = "";
             foreach (var argument in arguments)
             {
                 configModuleSource += "export static const int " + argument.Key + "=" + argument.Value + ";\n";
@@ -401,7 +394,7 @@ namespace ValveResourceFormat.Renderer
                 var sources = new Dictionary<SlangStage, ISlangBlob>();
 
                 //SLANG: we must build an argument config!
-                string configModuleSource = "";
+                var configModuleSource = "";
                 foreach (var argument in arguments)
                 {
                     configModuleSource += "export static const int " + argument.Key + "=" + argument.Value + ";\n";
@@ -410,31 +403,33 @@ namespace ValveResourceFormat.Renderer
                 // Inject shader variant name (same as GLSL path does with #define)
                 configModuleSource += "export static const int " + Path.GetFileNameWithoutExtension(shaderName).Replace('.', '_') + "_vfx=1;\n";
 
-                string confName = (new Guid(MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(configModuleSource)))).ToString();
-                IModule configMod = slangSession.LoadModuleFromSourceString(confName, null, configModuleSource, out ISlangBlob diagnosticBlob);
+                var confName = (new Guid(MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(configModuleSource)))).ToString();
+                var configMod = slangSession.LoadModuleFromSourceString(confName, null, configModuleSource, out var diagnosticBlob);
 
-                string diagnosticString = "";
+                var diagnosticString = "";
 
-                if(diagnosticBlob != null)
+                if (diagnosticBlob != null)
+                {
                     diagnosticString = diagnosticBlob!.AsString;
+                }
 
                 //apply the config right away!
-                slangSession.CreateCompositeComponentType(new IComponentType[] { configMod, parsedData.SlangComponentType }, out IComponentType specialisedProgram, out diagnosticBlob);
+                slangSession.CreateCompositeComponentType([configMod, parsedData.SlangComponentType], out var specialisedProgram, out diagnosticBlob);
 
                 //specialisedProgram1.link(out IComponentType specialisedProgram, out diagnosticBlob);
 
                 //time to reflect on things!
-                int ReflectedUniformBufferBinding = -1;
-                int ReflectedUniformBufferSize = 0;
-                Dictionary<string, int> ReflectedUniformOffsets = new Dictionary<string, int>();
+                var ReflectedUniformBufferBinding = -1;
+                var ReflectedUniformBufferSize = 0;
+                var ReflectedUniformOffsets = new Dictionary<string, int>();
 
-                Dictionary<string, (ActiveUniformType Type, int Location, int DefaultValue, bool SrgbRead)> ReflectedIntParams = new Dictionary<string, (ActiveUniformType Type, int Location, int DefaultValue, bool SrgbRead)>();
-                Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)> ReflectedFloatParams = new Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)>();
-                Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)> ReflectedVectorParams = new Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)>();
+                var ReflectedIntParams = new Dictionary<string, (ActiveUniformType Type, int Location, int DefaultValue, bool SrgbRead)>();
+                var ReflectedFloatParams = new Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)>();
+                var ReflectedVectorParams = new Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)>();
 
 
-                Dictionary<string, (int Binding, bool isTexture, bool SrgbRead)> ReflectedResourceBindings = new Dictionary<string, (int Binding, bool isTexture, bool SrgbRead)>();
-                Dictionary<string, int> ReflectedAttributes = new Dictionary<string, int>();
+                var ReflectedResourceBindings = new Dictionary<string, (int Binding, bool isTexture, bool SrgbRead)>();
+                var ReflectedAttributes = new Dictionary<string, int>();
 
                 HashSet<string> ReflectedReservedTextures = [];
 
@@ -456,9 +451,9 @@ namespace ValveResourceFormat.Renderer
                         var fieldType = field.TypeLayout;
                         var fieldVar = field.Variable;
                         var kind = fieldType.Kind;
-                        string name = field.Name;
+                        var name = field.Name;
 
-                        bool SrgbRead = false;
+                        var SrgbRead = false;
 
                         for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
                         {
@@ -469,7 +464,7 @@ namespace ValveResourceFormat.Renderer
                             }
                         }
 
-                        SlangResourceShape shape = fieldType.Type.ResourceShape;
+                        var shape = fieldType.Type.ResourceShape;
                         if (Convert.ToBoolean(shape & SlangResourceShape.Texture2D))
                         {
                             ReflectedResourceBindings.Add(field.Name, ((int)field.BindingIndex, true, SrgbRead));
@@ -496,7 +491,7 @@ namespace ValveResourceFormat.Renderer
 
                         if (field.TypeLayout.ParameterCategory == SlangParameterCategory.Uniform)
                         {
-                            string uniformName = field.Name;
+                            var uniformName = field.Name;
 
                             ReflectedUniformOffsets.Add(uniformName, (int)field.GetOffset());
                             var fieldType = field.TypeLayout;
@@ -512,7 +507,7 @@ namespace ValveResourceFormat.Renderer
                                         var scalarType = fieldType.Type.ScalarType;
                                         if (scalarType == SlangScalarType.Int32)
                                         {
-                                            bool SrgbRead = false;
+                                            var SrgbRead = false;
                                             float defValue = 0;
                                             for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
                                             {
@@ -531,7 +526,7 @@ namespace ValveResourceFormat.Renderer
                                         }
                                         if (scalarType == SlangScalarType.Float32)
                                         {
-                                            bool SrgbRead = false;
+                                            var SrgbRead = false;
                                             float defValue = 0;
                                             for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
                                             {
@@ -553,8 +548,8 @@ namespace ValveResourceFormat.Renderer
                                 //Assumption: All vectors are float vectors. If we also want to support int vectors here, we need to handle it differently.
                                 case SlangTypeKind.Vector:
                                     {
-                                        bool SrgbRead = false;
-                                        Vector4 defValue = new Vector4(0);
+                                        var SrgbRead = false;
+                                        var defValue = new Vector4(0);
                                         for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
                                         {
                                             var userAttribute = fieldVar.GetAttribute(attributeIndex);
@@ -566,7 +561,7 @@ namespace ValveResourceFormat.Renderer
                                             {
                                                 for (uint argIndex = 0; argIndex < userAttribute.ArgumentCount; argIndex++)
                                                 {
-                                                    float defSlotValue = userAttribute.GetArgumentValueFloat(argIndex)!.Value;
+                                                    var defSlotValue = userAttribute.GetArgumentValueFloat(argIndex)!.Value;
 
                                                     defValue[(int)argIndex] = defSlotValue;
                                                 }
@@ -585,9 +580,9 @@ namespace ValveResourceFormat.Renderer
                             var fieldType = field.TypeLayout;
                             var fieldVar = field.Variable;
                             var kind = fieldType.Kind;
-                            string name = field.Name;
+                            var name = field.Name;
 
-                            bool SrgbRead = false;
+                            var SrgbRead = false;
 
                             for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
                             {
@@ -598,20 +593,22 @@ namespace ValveResourceFormat.Renderer
                                 }
                             }
 
-                            if (ReflectResource(field, out bool isTexture, out int BindingIndex))
+                            if (ReflectResource(field, out var isTexture, out var BindingIndex))
                             {
                                 ReflectedResourceBindings.Add(field.Name, (BindingIndex, isTexture, isTexture && SrgbRead));
                             }
 
 
-                            SlangResourceShape shape = fieldType.Type.ResourceShape;
+                            var shape = fieldType.Type.ResourceShape;
                             if (Convert.ToBoolean(shape & SlangResourceShape.Texture2D))
                             {
-                                foreach(var resTex in MaterialLoader.ReservedTextures)
+                                foreach (var resTex in MaterialLoader.ReservedTextures)
+                                {
                                     if (name.Contains(resTex))
                                     {
                                         ReflectedReservedTextures.Add(name);
                                     }
+                                }
                             }
                         }
                     }
@@ -626,12 +623,24 @@ namespace ValveResourceFormat.Renderer
                 };
 
                 //time to get the stage output code and also reflect input, if we have a vertex stage!
-                foreach (IEntryPoint entryPoint in parsedData.EntryPoints)
+                foreach (var entryPoint in parsedData.EntryPoints)
                 {
-                    slangSession.CreateCompositeComponentType(new IComponentType[] { specialisedProgram, entryPoint }, out IComponentType shaderStageProgram, out diagnosticBlob);
-                    shaderStageProgram.Link(out IComponentType linkedShaderStageProgram, out diagnosticBlob);
-                    linkedShaderStageProgram.GetTargetCode(0, out ISlangBlob stageCode, out _);
-                    int testSize = (int)stageCode.GetBufferSize();
+                    slangSession.CreateCompositeComponentType(new IComponentType[] { specialisedProgram, entryPoint }, out var shaderStageProgram, out diagnosticBlob);
+
+                    if (shaderStageProgram == null)
+                    {
+                        throw new ShaderCompilerException($"Failed to create composite for shader '{shaderName}':\n{diagnosticBlob?.AsString}");
+                    }
+
+                    shaderStageProgram.Link(out var linkedShaderStageProgram, out diagnosticBlob);
+
+                    if (linkedShaderStageProgram == null)
+                    {
+                        throw new ShaderCompilerException($"Failed to link shader stage for '{shaderName}':\n{diagnosticBlob?.AsString}");
+                    }
+
+                    linkedShaderStageProgram.GetTargetCode(0, out var stageCode, out var codeGenDiag);
+                    var testSize = (int)stageCode.GetBufferSize();
                     var entryPointReflection = linkedShaderStageProgram.GetLayout(0, out _).GetEntryPointByIndex(0);
                     var stage = entryPointReflection.Stage;
                     if (stage == SlangStage.Vertex)
@@ -660,7 +669,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 unsafe void DumpToFile(IntPtr ptr, int sizeInBytes, string filename)
                 {
-                    byte[] bytes = new byte[sizeInBytes];
+                    var bytes = new byte[sizeInBytes];
                     Marshal.Copy(ptr, bytes, 0, sizeInBytes);
                     File.WriteAllBytes(filename, bytes);
                 }
@@ -672,7 +681,7 @@ namespace ValveResourceFormat.Renderer
                     //SLANG: I forgot why I made a copy of it. too lazy to investigate rn
                     //CompileSlangShaderObject(shaderObjects[i], shaderName, shaderName, arguments, "", shaderSources[i]);
 
-                    string soCalledNotSpirv = shaderSources[i].AsString;
+                    var soCalledNotSpirv = shaderSources[i].AsString;
                     unsafe
                     {
                         GL.ShaderBinary(1, ref shaderObjects[i], ShaderBinaryFormat.ShaderBinaryFormatSpirV, (IntPtr)shaderSources[i].GetBufferPointer()

@@ -15,8 +15,6 @@ public struct AnimationInput
     public vec4 blendWeight;
 };
 
-public static AnimationInput animInput;
-
 public mat4 getMatrix(uint boneIndex)
 {
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
@@ -29,7 +27,7 @@ public mat4 getMatrix(uint boneIndex)
     return UnpackMatrix4(GetTransform(boneIndex));
 }
 
-public mat4 getSkinMatrix()
+public mat4 getSkinMatrix(AnimationInput input)
 {
     if (!bAnimated)
     {
@@ -38,15 +36,15 @@ public mat4 getSkinMatrix()
 
     if (numWeights == 1u)
     {
-        return getMatrix(animInput.blendIndices.x);
+        return getMatrix(input.blendIndices.x);
     }
 
     mat4 skinMatrix = mat4(0.0);
 
-    skinMatrix += animInput.blendWeight.x * getMatrix(animInput.blendIndices.x);
-    skinMatrix += animInput.blendWeight.y * getMatrix(animInput.blendIndices.y);
-    skinMatrix += animInput.blendWeight.z * getMatrix(animInput.blendIndices.z);
-    skinMatrix += animInput.blendWeight.w * getMatrix(animInput.blendIndices.w);
+    skinMatrix += input.blendWeight.x * getMatrix(input.blendIndices.x);
+    skinMatrix += input.blendWeight.y * getMatrix(input.blendIndices.y);
+    skinMatrix += input.blendWeight.z * getMatrix(input.blendIndices.z);
+    skinMatrix += input.blendWeight.w * getMatrix(input.blendIndices.w);
 
     return skinMatrix;
 }

@@ -148,14 +148,16 @@ uniform vec2 g_vDetailTexCoordOffset;
 [Default2(1.0, 1.0)] uniform vec2 g_vDetailTexCoordScale;
 uniform bool g_bUseSecondaryUvForDetailTexture;
 
-// Intermediate booleans for Conditional template arguments
+// Intermediate booleans for Conditional template arguments (must be derived directly from externs to be compile-time constant)
+public static const bool hasFoliage = (csgo_foliage_vfx != 0) || (vr_complex_vfx != 0 && F_FOLIAGE_ANIMATION > 0);
 public static const bool hasSecondaryUV = (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1);
-public static const bool hasBlendInputs = (F_LAYERS > 0) || simple_2way_blend_vfx || vr_blend_vfx_common || vr_standard_vfx_blend || (environment_blend_vfx != 0);
+public static const bool hasBlendInputs = (F_LAYERS > 0) || (vr_simple_2way_blend_vfx != 0) || (csgo_simple_2way_blend_vfx != 0) || (vr_simple_2way_parallax_vfx != 0) || (vr_simple_3way_parallax_vfx != 0) || (vr_simple_blend_to_triplanar_vfx != 0) || (vr_simple_blend_to_xen_membrane_vfx != 0) || (vr_standard_vfx != 0 && F_BLEND > 0) || (environment_blend_vfx != 0);
 public static const bool hasDetailTexture = (F_DETAIL_TEXTURE > 0);
 public static const bool hasAnisoBitangent = (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1);
 public static const bool hasEyeballs = (csgo_character_vfx != 0) && (F_EYEBALLS != 0);
-public static const bool hasNonFoliageVertexColor = !foliage_vfx_common && ((F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1));
+public static const bool hasNonFoliageVertexColor = (csgo_foliage_vfx == 0) && (vr_complex_vfx == 0 || F_FOLIAGE_ANIMATION == 0) && ((F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1));
 public static const bool hasVrStandardVertexStream = (vr_standard_vfx != 0) && (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1);
+public static const bool hasVrBlend = (vr_simple_2way_blend_vfx != 0) || (vr_simple_2way_parallax_vfx != 0) || (vr_simple_3way_parallax_vfx != 0) || (vr_simple_blend_to_triplanar_vfx != 0) || (vr_simple_blend_to_xen_membrane_vfx != 0);
 
 // VertexOutput struct shared between vertex and fragment shaders
 public struct VertexOutput
@@ -173,12 +175,12 @@ public struct VertexOutput
 
     Conditional<float3, D_BAKED_LIGHTING_FROM_LIGHTMAP == 1> vLightmapUVScaled;
     Conditional<float3, D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1> vPerVertexLightingOut;
-    Conditional<float4, foliage_vfx_common> vFoliageParamsOut;
+    Conditional<float4, hasFoliage> vFoliageParamsOut;
     Conditional<float2, hasSecondaryUV> vTexCoord2;
     Conditional<float4, hasBlendInputs> vColorBlendValues;
     Conditional<float2, hasDetailTexture> vDetailTexCoords;
     Conditional<float3, hasAnisoBitangent> vAnisoBitangentOut;
-    Conditional<EyePixelInput, hasEyeballs> eyeInterpolator;
+    EyePixelInput eyeInterpolator;
 };
 
 [shader("vertex")]
@@ -191,16 +193,17 @@ VertexOutput vertexMain(
     vec4 vBLENDWEIGHT,
     Conditional<float2, D_BAKED_LIGHTING_FROM_LIGHTMAP == 1> vLightmapUV,
     Conditional<float4, D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1> vPerVertexLighting,
-    Conditional<float4, foliage_vfx_common> vFoliageParams,
+    Conditional<float4, hasFoliage> vFoliageParams,
     Conditional<float4, hasSecondaryUV> vTEXCOORD1,
     Conditional<float4, hasNonFoliageVertexColor> vCOLOR,
     Conditional<float4, hasBlendInputs> vBLEND_COLOR,
-    Conditional<float4, vr_blend_vfx_common> vBLEND_ALPHA,
+    Conditional<float4, hasVrBlend> vBLEND_ALPHA,
     Conditional<float4, hasVrStandardVertexStream> vCOLOR1,
     uint vVertexID : SV_VertexID
 )
 {
     // Set up animation inputs
+    AnimationInput animInput;
     animInput.blendIndices = vBLENDINDICES;
     animInput.blendWeight = vBLENDWEIGHT;
 
@@ -216,7 +219,7 @@ VertexOutput vertexMain(
     VertexOutput vOut;
 
     ObjectData_t object = GetObjectData();
-    mat4 skinTransform = object.transform * getSkinMatrix();
+    mat4 skinTransform = object.transform * getSkinMatrix(animInput);
     vOut.vFragPosition = (skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0)).xyz;
 
     vec3 normal;
@@ -228,7 +231,7 @@ VertexOutput vertexMain(
     vOut.vTangentOut = normalize(normalTransform * tangent.xyz);
     vOut.vBitangentOut = tangent.w * cross(vOut.vNormalOut, vOut.vTangentOut);
 
-    if (foliage_vfx_common)
+    if (hasFoliage)
     {
         vec4 foliageParamsVal = vFoliageParams.get().value;
         vOut.vFoliageParamsOut.set(foliageParamsVal);
@@ -259,7 +262,7 @@ VertexOutput vertexMain(
 
     if (hasEyeballs)
     {
-        vOut.eyeInterpolator.set(GetCharacterEyeInterpolator(vPOSITION));
+        vOut.eyeInterpolator = GetCharacterEyeInterpolator(vPOSITION);
     }
 
     vOut.vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
@@ -309,7 +312,7 @@ VertexOutput vertexMain(
     {
         vec4 blendColor = vBLEND_COLOR.get().value;
 
-        if (vr_blend_vfx_common)
+        if (hasVrBlend)
         {
             blendColor.y = max(0.5 * vBLEND_ALPHA.get().value.x, 0.1);
         }
