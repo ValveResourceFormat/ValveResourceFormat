@@ -230,9 +230,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             //only loading one file. Shaders with split vert and frag shaders must import the vertex shader.
-            var nameWithExtension = $"{shaderFileName}.slang";
-
-            var module = slangSession!.LoadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out var diagnostics);
+            var module = slangSession!.LoadModule(shaderFileName, out var diagnostics);
 
             if (module != null)
             {
@@ -241,8 +239,7 @@ namespace ValveResourceFormat.Renderer
                     module.GetDefinedEntryPoint(i, out var entryPoint);
                     parsedData.EntryPoints.Add(entryPoint);
                 }
-                module.Link(out var linkedModule, out var linkDiag);
-                parsedData.SlangComponentType = linkedModule;
+                parsedData.SlangComponentType = module;
 
                 if (diagnostics != null)
                 {
@@ -282,14 +279,6 @@ namespace ValveResourceFormat.Renderer
         private Shader CompileAndLinkGlslShader(string shaderName, ParsedShaderData parsedData, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
         {
             var shaderProgram = -1;
-            //SLANG: this is a test to check if this is as easy as it feels
-            var configModuleSource = "";
-            foreach (var argument in arguments)
-            {
-                configModuleSource += "export static const int " + argument.Key + "=" + argument.Value + ";\n";
-            }
-
-
             try
             {
                 var shaderFileName = GetShaderFileByName(shaderName);
@@ -391,9 +380,8 @@ namespace ValveResourceFormat.Renderer
             try
             {
                 var shaderFileName = GetShaderFileByName(shaderName);
-                var sources = new Dictionary<SlangStage, ISlangBlob>();
 
-                //SLANG: we must build an argument config!
+                // Build specialization config module with arguments
                 var configModuleSource = "";
                 foreach (var argument in arguments)
                 {
@@ -403,22 +391,36 @@ namespace ValveResourceFormat.Renderer
                 // Inject shader variant name (same as GLSL path does with #define)
                 configModuleSource += "export static const int " + Path.GetFileNameWithoutExtension(shaderName).Replace('.', '_') + "_vfx=1;\n";
 
-                var confName = (new Guid(MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(configModuleSource)))).ToString();
+                var confName = (new Guid(MD5.HashData(Encoding.UTF8.GetBytes(configModuleSource)))).ToString();
                 var configMod = slangSession.LoadModuleFromSourceString(confName, null, configModuleSource, out var diagnosticBlob);
 
-                var diagnosticString = "";
-
-                if (diagnosticBlob != null)
+                // Compose config + module + all entry points, then link once
+                var components = new IComponentType[2 + parsedData.EntryPoints.Count];
+                components[0] = configMod;
+                components[1] = parsedData.SlangComponentType;
+                for (var i = 0; i < parsedData.EntryPoints.Count; i++)
                 {
-                    diagnosticString = diagnosticBlob!.AsString;
+                    components[2 + i] = parsedData.EntryPoints[i];
                 }
 
-                //apply the config right away!
-                slangSession.CreateCompositeComponentType([configMod, parsedData.SlangComponentType], out var specialisedProgram, out diagnosticBlob);
+                slangSession.CreateCompositeComponentType(components, out var composedProgram, out diagnosticBlob);
 
-                //specialisedProgram1.link(out IComponentType specialisedProgram, out diagnosticBlob);
+                if (composedProgram == null)
+                {
+                    throw new ShaderCompilerException($"Failed to create composite for shader '{shaderName}':\n{diagnosticBlob?.AsString}");
+                }
 
-                //time to reflect on things!
+                composedProgram.Link(out var linkedProgram, out diagnosticBlob);
+
+                if (linkedProgram == null)
+                {
+                    throw new ShaderCompilerException($"Failed to link shader '{shaderName}':\n{diagnosticBlob?.AsString}");
+                }
+
+                // Single GetTargetCode call for unified SPIR-V containing all entry points
+                linkedProgram.GetTargetCode(0, out var spirvBlob, out var codeGenDiag);
+
+                // Reflect on the fully linked program
                 var ReflectedUniformBufferBinding = -1;
                 var ReflectedUniformBufferSize = 0;
                 var ReflectedUniformOffsets = new Dictionary<string, int>();
@@ -433,7 +435,7 @@ namespace ValveResourceFormat.Renderer
 
                 HashSet<string> ReflectedReservedTextures = [];
 
-                var programLayout = specialisedProgram.GetLayout(0, out _);
+                var programLayout = linkedProgram.GetLayout(0, out _);
                 var globalVarLayout = programLayout.GetGlobalParamsVarLayout();
 
 
@@ -622,74 +624,40 @@ namespace ValveResourceFormat.Renderer
                     _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
                 };
 
-                //time to get the stage output code and also reflect input, if we have a vertex stage!
-                foreach (var entryPoint in parsedData.EntryPoints)
+                // Reflect entry points and create GL shader objects
+                var entryPointCount = parsedData.EntryPoints.Count;
+                var shaderObjects = new int[entryPointCount];
+                var entryPointNames = new string[entryPointCount];
+
+                for (uint i = 0; i < entryPointCount; i++)
                 {
-                    slangSession.CreateCompositeComponentType(new IComponentType[] { specialisedProgram, entryPoint }, out var shaderStageProgram, out diagnosticBlob);
+                    var epReflection = programLayout.GetEntryPointByIndex(i);
+                    var stage = epReflection.Stage;
+                    entryPointNames[i] = epReflection.Name;
+                    shaderObjects[i] = GL.CreateShader(ToShaderType(stage));
 
-                    if (shaderStageProgram == null)
-                    {
-                        throw new ShaderCompilerException($"Failed to create composite for shader '{shaderName}':\n{diagnosticBlob?.AsString}");
-                    }
-
-                    shaderStageProgram.Link(out var linkedShaderStageProgram, out diagnosticBlob);
-
-                    if (linkedShaderStageProgram == null)
-                    {
-                        throw new ShaderCompilerException($"Failed to link shader stage for '{shaderName}':\n{diagnosticBlob?.AsString}");
-                    }
-
-                    linkedShaderStageProgram.GetTargetCode(0, out var stageCode, out var codeGenDiag);
-                    var testSize = (int)stageCode.GetBufferSize();
-                    var entryPointReflection = linkedShaderStageProgram.GetLayout(0, out _).GetEntryPointByIndex(0);
-                    var stage = entryPointReflection.Stage;
                     if (stage == SlangStage.Vertex)
                     {
-                        var inputLayout = entryPointReflection.VarLayout;
+                        var inputLayout = epReflection.VarLayout;
                         var inputCount = inputLayout.TypeLayout.FieldCount;
-                        for (uint i = 0; i < inputCount; i++)
+                        for (uint j = 0; j < inputCount; j++)
                         {
-                            var inputElementLayout = inputLayout.TypeLayout.GetFieldByIndex(i);
-
+                            var inputElementLayout = inputLayout.TypeLayout.GetFieldByIndex(j);
                             ReflectedAttributes.Add(inputElementLayout.Name, (int)inputElementLayout.BindingIndex);
                         }
-
                     }
-                    sources.Add(stage, stageCode);
-                }
-                var shaderObjects = new int[sources.Count];
-                var shaderSources = new ISlangBlob[sources.Count];
-
-                var s = 0;
-                foreach (var (stage, source) in sources)
-                {
-                    shaderObjects[s] = GL.CreateShader(ToShaderType(stage));
-                    shaderSources[s] = source!;
-                    s++;
-                }
-                unsafe void DumpToFile(IntPtr ptr, int sizeInBytes, string filename)
-                {
-                    var bytes = new byte[sizeInBytes];
-                    Marshal.Copy(ptr, bytes, 0, sizeInBytes);
-                    File.WriteAllBytes(filename, bytes);
                 }
 
-                //DumpToFile(shaderSources[0].GetBufferPointer(), (int)shaderSources[0].GetBufferSize(), shaderName + ".spv");
+                // Single glShaderBinary call with all shader objects sharing one SPIR-V blob
+                unsafe
+                {
+                    GL.ShaderBinary(shaderObjects.Length, shaderObjects, ShaderBinaryFormat.ShaderBinaryFormatSpirV,
+                        (IntPtr)spirvBlob.GetBufferPointer(), (int)spirvBlob.GetBufferSize());
+                }
 
                 for (var i = 0; i < shaderObjects.Length; i++)
                 {
-                    //SLANG: I forgot why I made a copy of it. too lazy to investigate rn
-                    //CompileSlangShaderObject(shaderObjects[i], shaderName, shaderName, arguments, "", shaderSources[i]);
-
-                    var soCalledNotSpirv = shaderSources[i].AsString;
-                    unsafe
-                    {
-                        GL.ShaderBinary(1, ref shaderObjects[i], ShaderBinaryFormat.ShaderBinaryFormatSpirV, (IntPtr)shaderSources[i].GetBufferPointer()
-                        , (int)shaderSources[i].GetBufferSize());
-                    }
-
-                    GL.SpecializeShader(shaderObjects[i], "main", 0, (int[])null, (int[])null);
-
+                    GL.SpecializeShader(shaderObjects[i], entryPointNames[i], 0, (int[])null, (int[])null);
                 }
 
                 shaderProgram = GL.CreateProgram();
@@ -753,7 +721,7 @@ namespace ValveResourceFormat.Renderer
 #endif
 
                 var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
-                RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled {CompiledStatus} successfully", shaderName, shaderFileName, argsDescription, blocking ? "and linked" : string.Empty);
+                RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled{CompiledStatus} successfully", shaderName, shaderFileName, argsDescription, blocking ? " and linked" : string.Empty);
 
                 return shader;
             }
@@ -820,24 +788,6 @@ namespace ValveResourceFormat.Renderer
         }
 
         private static void CompileShaderObject(int shader, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, string headerText, string shaderText)
-        {
-            string[] sources = [headerText, shaderText];
-            int[] lengths = [sources[0].Length, sources[1].Length];
-
-            GL.ShaderSource(shader, sources.Length, sources, lengths);
-
-            GL.CompileShader(shader);
-            GL.GetShader(shader, ShaderParameter.CompileStatus, out var shaderStatus);
-
-            if (shaderStatus != 1)
-            {
-                GL.GetShaderInfoLog(shader, out var log);
-
-                ThrowShaderError(log, string.Concat(shaderFile, GetArgumentDescription(arguments)), originalShaderName, "Failed to set up shader");
-            }
-        }
-
-        private static void CompileSlangShaderObject(int shader, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, string headerText, string shaderText)
         {
             string[] sources = [headerText, shaderText];
             int[] lengths = [sources[0].Length, sources[1].Length];
