@@ -4,7 +4,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Group of small triangles on a mesh used for low level culling
+    /// Small group of triangles on a mesh used for low level culling
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 16)]
     public readonly struct Meshlet

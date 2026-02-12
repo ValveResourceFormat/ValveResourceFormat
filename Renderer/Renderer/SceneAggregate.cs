@@ -35,6 +35,8 @@ namespace ValveResourceFormat.Renderer
 
             public Vector4 Tint { get; set; } = Vector4.One;
 
+            public override bool IsSelected { get => base.IsSelected; set { base.IsSelected = value; Parent.IsSelected = value; } }
+
             public Fragment(Scene scene, SceneAggregate parent, AABB bounds) : base(scene)
             {
                 Parent = parent;

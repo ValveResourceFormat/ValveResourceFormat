@@ -10,7 +10,7 @@
 #define renderMode_ShaderProgramId 0
 #define renderMode_MeshletId 0
 
-uniform uint sceneObjectId;
+flat in uint sceneObjectId;
 uniform uint meshId;
 uniform uint shaderId;
 uniform uint shaderProgramId;
