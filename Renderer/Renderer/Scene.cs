@@ -67,6 +67,10 @@ namespace ValveResourceFormat.Renderer
         public bool EnableOcclusionCulling { get; set; }
         public bool EnableIndirectDraws { get; set; }
 
+        public Matrix4x4[] Transforms { get; set; } = [Matrix4x4.Identity];
+
+        public ref Matrix4x4 RootTransform => ref Transforms[0];
+
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
         private readonly List<SceneNode> staticNodes = [];
@@ -94,6 +98,8 @@ namespace ValveResourceFormat.Renderer
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
+
+            RootTransform.Translation = new Vector3(0, 5, 0);
         }
 
         public void Add(SceneNode node, bool dynamic)
