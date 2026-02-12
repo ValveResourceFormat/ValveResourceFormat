@@ -14,9 +14,12 @@ namespace ValveResourceFormat.Renderer
         public RenderableMesh RenderMesh { get; }
         public List<Fragment> Fragments { get; private set; } = [];
 
+        public int IndirectDrawByteOffset { get; set; }
+        public int IndirectDrawCount { get; set; }
+
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
-        public bool HasTransforms { get; private set; }
+        public bool HasTransforms { get; set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
@@ -132,7 +135,7 @@ namespace ValveResourceFormat.Renderer
                 var lightProbeVolumePrecomputedHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
                 var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
-                var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
+                var drawBounds = drawCall.DrawBounds ?? throw new InvalidDataException("Draw call bounds must exist for all new format fragments");
                 var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
                 var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
                 var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");

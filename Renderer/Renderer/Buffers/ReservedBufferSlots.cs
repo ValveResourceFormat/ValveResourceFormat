@@ -20,7 +20,7 @@ public enum ReservedBufferSlots
     AverageLuminance = 12,
     AggregateDraws = 13,
     AggregateDrawBounds = 14,
-    MeshletInfo = 15,
+    AggregateMeshlets = 15,
 
     // do not exceed 16 (8 is the guaranteed minimum in 4.6)
     // todo: separate ssbo and ubo into different sets of slots

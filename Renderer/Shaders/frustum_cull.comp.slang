@@ -40,7 +40,7 @@ struct MeshletInfo
     int m_nTriangleOffset;
     uint m_nVertexCount;
     uint m_nTriangleCount;
-    uint m_nParentBoundIndex;
+    uint m_nParentDrawBoundsIndex;
 };
 
 layout(binding = 8, std140) uniform FrustumPlanes
@@ -89,9 +89,9 @@ bool testAABBFrustum(vec3 bmin, vec3 bmax)
 
 vec3 unpackAABB(vec3 min, vec3 max, uint packedVec)
 {
-    float x = float(packedVec & 0x3FF) / 1023.f;
-    float y = float((packedVec >> 10) & 0x3FF) / 1023.f;
-    float z = float((packedVec >> 20) & 0x3FF) / 1023.f;
+    float x = float(packedVec & 0x3FF) / 1023.0;
+    float y = float((packedVec >> 10) & 0x3FF) / 1023.0;
+    float z = float((packedVec >> 20) & 0x3FF) / 1023.0;
 
     return min + vec3(x, y, z) * (max - min);
 }
@@ -125,7 +125,7 @@ void main()
 
     MeshletInfo meshlet = meshlets[drawId];
 
-    uint boundIndex = meshlet.m_nParentBoundIndex;
+    uint boundIndex = meshlet.m_nParentDrawBoundsIndex;
 
     vec3 objectMin = drawBounds[boundIndex].min;
     vec3 objectMax = drawBounds[boundIndex].max;

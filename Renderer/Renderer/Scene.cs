@@ -1,11 +1,10 @@
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
-using static ValveResourceFormat.Renderer.RenderableMesh;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -49,45 +48,12 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
         private UniformBuffer<Frustum>? frustumBuffer;
 
-        //WIP
-        public List<MeshletInfo> MeshletDataCollection { get; } = [];
-
-        [StructLayout(LayoutKind.Sequential)]
-        public readonly struct DrawElementsIndirectCommand
-        {
-            public readonly uint Count { get; init; }
-            public readonly uint InstanceCount { get; init; }
-            public readonly uint FirstIndex { get; init; }
-            public readonly int BaseVertex { get; init; }
-            public readonly uint BaseInstance { get; init; }
-        };
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct DrawBounds
-        {
-            public Vector3 Min;
-            public float Padding1;
-            public Vector3 Max;
-            public float Padding2;
-        };
-
-        [StructLayout(LayoutKind.Sequential, Size = 32)]
-        public struct ObjectDataStandard
-        {
-            public uint TintAlpha; // 4
-            public uint TransformIndex; // 8
-            public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility; // 24
-            public uint VisibleLPV; // 28
-            public uint Identification; // 32
-        };
-
-        public List<DrawElementsIndirectCommand> MeshletDrawCommands { get; } = [];
-        public StorageBuffer? CommandBuffer { get; set; }
         public StorageBuffer? ObjectDataBuffer { get; set; }
 
-        public List<DrawBounds> DrawBoundsCollection { get; } = [];
         public StorageBuffer? DrawBoundsGpu { get; set; }
-        public StorageBuffer? MeshletData { get; set; }
+        public StorageBuffer? MeshletDataGpu { get; set; }
+        public StorageBuffer? IndirectDrawsGpu { get; set; }
+        private int SceneMeshletCount { get; set; }
 
         private Shader? FrustumCullShader;
 
@@ -243,14 +209,91 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer = new(ReservedBufferSlots.LightProbe);
             frustumBuffer = new(ReservedBufferSlots.FrustumPlanes);
 
-            MeshletData = new StorageBuffer(ReservedBufferSlots.MeshletInfo);
-            MeshletData.Create(MeshletDataCollection);
+            CreateIndirectDrawBuffers();
+        }
 
-            DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
-            DrawBoundsGpu.Create(DrawBoundsCollection);
+        private void CreateIndirectDrawBuffers()
+        {
+            var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => !agg.HasTransforms).ToList();
+            var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.DrawCallsOpaque.Count);
+            var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
 
-            CommandBuffer = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
-            CommandBuffer.Create(MeshletDrawCommands);
+            // draw bounds
+            {
+                var drawBounds = new DrawBounds[aggregateDrawCallCount];
+                var index = 0;
+                foreach (var agg in aggregateSceneNodes)
+                {
+                    foreach (var drawCall in agg.RenderMesh.DrawCallsOpaque)
+                    {
+                        Debug.Assert(drawCall.DrawBounds != null);
+                        drawBounds[index].Min = drawCall.DrawBounds.Value.Min;
+                        drawBounds[index].Max = drawCall.DrawBounds.Value.Max;
+                        index++;
+                    }
+                }
+
+                DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
+                DrawBoundsGpu.Create(drawBounds, BufferUsageHint.StaticDraw);
+            }
+
+            // meshlets
+            {
+                var meshletDataGpu = new MeshletInfo[aggregateMeshletCount];
+                var indirectDrawsGpu = new DrawElementsIndirectCommand[aggregateMeshletCount];
+
+                var sceneDrawCount = 0;
+                var sceneMeshletCount = 0;
+                foreach (var agg in aggregateSceneNodes)
+                {
+                    agg.IndirectDrawByteOffset = sceneMeshletCount * Unsafe.SizeOf<DrawElementsIndirectCommand>();
+                    agg.IndirectDrawCount = agg.RenderMesh.Meshlets.Count;
+
+                    var drawIndex = 0;
+                    foreach (var fragment in agg.Fragments)
+                    {
+                        var fragmentInstanceId = fragment.Id;
+                        var drawCall = fragment.DrawCall;
+
+                        var start = drawCall.FirstMeshlet;
+                        var stop = start + drawCall.NumMeshlets;
+
+                        for (var drawMeshletIndex = start; drawMeshletIndex < stop; drawMeshletIndex++)
+                        {
+                            var meshlet = agg.RenderMesh.Meshlets[drawMeshletIndex];
+                            meshletDataGpu[sceneMeshletCount] = new MeshletInfo
+                            {
+                                Meshlet = meshlet,
+                                ParentDrawBoundsIndex = (uint)(sceneDrawCount + drawIndex),
+                            };
+
+                            // what is meshlet.VertexOffset used for?
+                            indirectDrawsGpu[sceneMeshletCount] = new DrawElementsIndirectCommand
+                            {
+                                Count = meshlet.TriangleCount * 3,
+                                InstanceCount = 1,
+                                FirstIndex = (uint)meshlet.TriangleOffset * 3,
+                                BaseVertex = drawCall.BaseVertex,
+                                BaseInstance = fragmentInstanceId,
+                            };
+
+                            sceneMeshletCount++;
+                        }
+
+                        drawIndex++;
+                    }
+
+                    sceneDrawCount += agg.RenderMesh.DrawCallsOpaque.Count;
+                }
+
+                SceneMeshletCount = sceneMeshletCount;
+
+                MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets);
+                IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
+
+                MeshletDataGpu.Create(meshletDataGpu, BufferUsageHint.StaticDraw);
+                IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.StaticDraw);
+            }
         }
 
         public void UpdateBuffers()
@@ -269,6 +312,12 @@ namespace ValveResourceFormat.Renderer
             lightingBuffer.BindBufferBase();
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
+
+            if (EnableIndirectDraws)
+            {
+                Debug.Assert(IndirectDrawsGpu is not null);
+                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, IndirectDrawsGpu.Handle);
+            }
         }
 
         private readonly List<SceneNode> CullResults = [];
@@ -373,24 +422,21 @@ namespace ValveResourceFormat.Renderer
 
             Debug.Assert(frustumBuffer is not null);
             Debug.Assert(FrustumCullShader is not null);
-            Debug.Assert(MeshletData is not null);
-            Debug.Assert(CommandBuffer is not null);
+
+            Debug.Assert(DrawBoundsGpu is not null);
+            Debug.Assert(MeshletDataGpu is not null);
+            Debug.Assert(IndirectDrawsGpu is not null);
 
             frustumBuffer.BindBufferBase();
             frustumBuffer.Data = frustum;
 
             FrustumCullShader.Use();
 
-            if (DrawBoundsGpu == null)
-            {
-                return;
-            }
-
-            MeshletData.BindBufferBase();
+            MeshletDataGpu.BindBufferBase();
             DrawBoundsGpu.BindBufferBase();
-            CommandBuffer.BindBufferBase();
+            IndirectDrawsGpu.BindBufferBase();
 
-            var workGroups = (MeshletDataCollection.Count + 63) / 64;
+            var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
 
             // Memory barrier to ensure compute shader writes are visible to indirect draw commands
@@ -457,7 +503,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
-                    if (!EnableIndirectDraws || fragment.Parent.HasTransforms || CommandBuffer == null)
+                    if (!EnableIndirectDraws || fragment.Parent.HasTransforms || IndirectDrawsGpu == null)
                     {
                         Add(new MeshBatchRenderer.Request
                         {

@@ -1,12 +1,10 @@
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.Renderer.RenderableMesh.MeshletInfo;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -21,39 +19,8 @@ namespace ValveResourceFormat.Renderer
         public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
 
         private readonly RendererContext renderContext;
-        public List<DrawCall> TestMeshletCalls { get; } = [];
 
-        [StructLayout(LayoutKind.Sequential, Pack = 16)]
-        public struct MeshletInfo
-        {
-            [StructLayout(LayoutKind.Sequential)]
-            public struct PackedAABB
-            {
-                //HACK HACK HACK
-                public uint m_nMin;
-                public uint m_nMax;
-            }
-            public PackedAABB m_PackedAABB { get; init; }
-
-            [StructLayout(LayoutKind.Sequential)]
-            public struct CullingData
-            {
-                public sbyte m_ConeAxis0;
-                public sbyte m_ConeAxis1;
-                public sbyte m_ConeAxis2;
-                public sbyte m_ConeCutoff;
-            }
-            public CullingData m_CullingData { get; init; }
-            public int m_nVertexOffset { get; init; }
-            public int m_nTriangleOffset { get; init; }
-            public uint m_nVertexCount { get; init; }
-            public uint m_nTriangleCount { get; init; }
-            public uint m_nParentBoundIndex { get; init; }
-        };
-
-        public nint FirstMeshletOffset { get; set; }
-        public uint MeshletCount { get; set; }
-        public List<MeshletInfo> MeshletData { get; } = [];
+        public List<Meshlet> Meshlets { get; } = [];
         public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
@@ -98,9 +65,6 @@ namespace ValveResourceFormat.Renderer
             mesh.GetBounds();
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
             MeshIndex = meshIndex;
-
-            FirstMeshletOffset = 0;
-            MeshletCount = 0;
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
             ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable, isAggregate);
@@ -156,7 +120,6 @@ namespace ValveResourceFormat.Renderer
         {
             var oldDrawCalls = DrawCalls.ToList();
 
-            TestMeshletCalls.Clear();
             DrawCallsOpaque.Clear();
             DrawCallsOverlay.Clear();
             DrawCallsBlended.Clear();
@@ -193,15 +156,15 @@ namespace ValveResourceFormat.Renderer
 
             var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
 
-            FirstMeshletOffset = (nint)scene.MeshletDrawCommands.Count;
             var vertexOffset = 0;
+
+            // note: we are flattening the scene objects into one mesh
+            // we are not sure when there can be more than one scene object here.
+
             foreach (var sceneObject in sceneObjects)
             {
-                var preDrawBoundsCount = scene.DrawBoundsCollection.Count;
                 var i = 0;
                 var objectDrawCalls = sceneObject.GetArray("m_drawCalls");
-
-                var meshletCalls = sceneObject.GetArray("m_meshlets");
 
                 var objectDrawBounds = sceneObject.ContainsKey("m_drawBounds")
                     ? sceneObject.GetArray("m_drawBounds")
@@ -282,65 +245,20 @@ namespace ValveResourceFormat.Renderer
 
                     drawCall.VertexIdOffset = vertexOffset;
                     vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
-                    //MESHLET TEST
-                    var firstMeshlet = objectDrawCall.GetInt32Property("m_nFirstMeshlet");
-                    var numMeshlets = objectDrawCall.GetInt32Property("m_nNumMeshlets");
-
-                    if (isAggregate)
-                    {
-                        scene.DrawBoundsCollection.Add(new Scene.DrawBounds() { Min = drawCall.DrawBounds!.Value.Min, Max = drawCall.DrawBounds.Value!.Max });
-                    }
-                    // Create meshlet draw calls for this fragment draw call's range
-                    for (int m = firstMeshlet; m < firstMeshlet + numMeshlets; m++)
-                    {
-                        var meshletCall = meshletCalls[m];
-
-                        var meshletDrawCommand = new Scene.DrawElementsIndirectCommand()
-                        {
-                            Count = (uint)meshletCall.GetInt32Property("m_nTriangleCount") * 3,
-                            InstanceCount = 1,
-                            FirstIndex = (meshletCall.GetUInt32Property("m_nTriangleOffset") * 3),
-                            BaseVertex = drawCall.BaseVertex,
-                            BaseInstance = 0
-                        };
-
-                        uint packedMin = meshletCall.GetSubCollection("m_PackedAABB").GetUInt32Property("m_nMin");
-                        uint packedMax = meshletCall.GetSubCollection("m_PackedAABB").GetUInt32Property("m_nMax");
-
-                        var m_CullingData = new MeshletInfo.CullingData()
-                        {
-                            m_ConeAxis0 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetIntegerArray("m_ConeAxis")[0],
-                            m_ConeAxis1 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetIntegerArray("m_ConeAxis")[1],
-                            m_ConeAxis2 = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetIntegerArray("m_ConeAxis")[2],
-                            m_ConeCutoff = (sbyte)meshletCall.GetSubCollection("m_CullingData").GetInt32Property("m_ConeCutoff"),
-                        };
-                        var meshletInfo = new MeshletInfo()
-                        {
-                            m_PackedAABB = new MeshletInfo.PackedAABB()
-                            {
-                                m_nMin = packedMin,
-                                m_nMax = packedMax
-                            },
-                            m_CullingData = m_CullingData,
-                            m_nVertexOffset = meshletCall.GetInt32Property("m_nVertexOffset"),
-                            m_nTriangleOffset = meshletCall.GetInt32Property("m_nTriangleOffset"),
-                            m_nVertexCount = meshletCall.GetUInt32Property("m_nVertexCount"),
-                            m_nTriangleCount = meshletCall.GetUInt32Property("m_nTriangleCount"),
-                            m_nParentBoundIndex = (uint)i + (uint)preDrawBoundsCount
-                        };
-                        if (isAggregate)
-                        {
-                            scene.MeshletDataCollection.Add(meshletInfo);
-                            scene.MeshletDrawCommands.Add(meshletDrawCommand);
-                        }
-                    }
-
                     i++;
                 }
-            }
-            MeshletCount = (uint)scene.MeshletDrawCommands.Count - (uint)FirstMeshletOffset;
 
-            FirstMeshletOffset *= Marshal.SizeOf<Scene.DrawElementsIndirectCommand>();
+                var meshlets = sceneObject.GetArray("m_meshlets");
+                if (meshlets != null)
+                {
+                    Meshlets.EnsureCapacity(Meshlets.Count + meshlets.Length);
+
+                    foreach (var meshletData in meshlets)
+                    {
+                        Meshlets.Add(new Meshlet(meshletData));
+                    }
+                }
+            }
         }
         private void AddDrawCall(DrawCall drawCall, bool isAggregate)
         {

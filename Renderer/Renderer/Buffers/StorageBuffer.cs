@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.Buffers
@@ -43,6 +44,12 @@ namespace ValveResourceFormat.Renderer.Buffers
         {
             Size = totalSizeInBytes;
             GL.NamedBufferData(Handle, totalSizeInBytes, data, BufferUsageHint.StreamDraw);
+        }
+
+        public void Create<T>(ReadOnlySpan<T> data, BufferUsageHint usageHint) where T : struct
+        {
+            Size = data.Length * Unsafe.SizeOf<T>();
+            GL.NamedBufferData(Handle, Size, ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(data)), usageHint);
         }
 
         public void Update<T>(T[] data, int offset, int size) where T : struct

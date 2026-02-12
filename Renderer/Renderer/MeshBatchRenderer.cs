@@ -346,9 +346,9 @@ namespace ValveResourceFormat.Renderer
 
             if (config.IndirectDraw)
             {
-                if (request.Node is SceneAggregate agg && agg.Scene.CommandBuffer != null)
+                if (request.Node is SceneAggregate agg && agg.Scene.IndirectDrawsGpu != null)
                 {
-                    GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, (nint)agg.RenderMesh.FirstMeshletOffset, (int)agg.RenderMesh.MeshletCount, 0);
+                    GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, agg.IndirectDrawByteOffset, agg.IndirectDrawCount, 0);
                     UnbindInstanceTextures();
                     return;
                 }
