@@ -380,6 +380,7 @@ namespace ValveResourceFormat.Renderer
             "tools_sprite.vfx" => "sprite",
             "global_lit_simple.vfx" => "global_lit_simple",
             "vr_black_unlit.vfx" or "csgo_black_unlit.vfx" => "vr_black_unlit",
+            "vr_standard.vfx" => "vr_standard",
             "water_dota.vfx" => "water",
             "csgo_water_fancy.vfx" => "water_csgo",
             "hero.vfx" or "hero_underlords.vfx" => "dota_hero",

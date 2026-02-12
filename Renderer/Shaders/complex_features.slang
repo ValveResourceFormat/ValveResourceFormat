@@ -11,8 +11,4 @@
 
 #if (defined(csgo_foliage_vfx) || (defined(vr_complex_vfx) && (F_FOLIAGE_ANIMATION > 0)))
     #define foliage_vfx_common
-#endif 
-
-#if defined(vr_standard_vfx) && (F_BLEND > 0)
-    #define vr_standard_vfx_blend
 #endif

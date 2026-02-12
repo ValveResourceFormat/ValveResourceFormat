@@ -57,10 +57,6 @@ uniform int F_NO_SPECULAR_AT_FULL_ROUGHNESS;
 //#define F_USE_PER_VERTEX_CURVATURE 0 // todo
 //#define F_SSS_MASK 0 // todo
 
-// vr_standard
-#define F_HIGH_QUALITY_GLOSS 0
-#define F_BLEND_NORMALS 0
-
 //End of feature defines
 
 in vec3 vFragPosition;
@@ -107,7 +103,7 @@ uniform sampler2D g_tTintMask;
     #define csgo_generic_blend
 #endif
 
-#if (defined(simple_blend_common) || defined(csgo_generic_blend) || defined(vr_standard_vfx_blend) || defined(environment_blend_vfx))
+#if (defined(simple_blend_common) || defined(csgo_generic_blend) || defined(environment_blend_vfx))
     #if !defined(steampal_2way_blend_mask_vfx) // blending without vertex paint
         in vec4 vColorBlendValues;
     #endif
@@ -221,35 +217,6 @@ uniform sampler2D g_tTintMask;
     #endif
 #endif
 
-#if defined(vr_standard_vfx)
-    #if (F_HIGH_QUALITY_GLOSS == 1)
-        #define ANISO_ROUGHNESS
-        uniform sampler2D g_tNormal2;
-        uniform sampler2D g_tGloss;
-    #endif
-
-    #if defined(vr_standard_vfx_blend)
-
-        #if (F_SPECULAR == 1)
-            // uniform sampler2D g_tColor1;
-            uniform sampler2D g_tLayer1Color; // SrgbRead(true)
-            #define VR_STANDARD_Color2 g_tLayer1Color
-        #else
-            uniform sampler2D g_tLayer1Color2; // SrgbRead(true)
-            uniform sampler2D g_tLayer2Color2; // SrgbRead(true)
-            #define VR_STANDARD_Color2 g_tLayer1Color2
-        #endif
-
-        uniform sampler2D g_tLayer1RevealMask;
-        uniform float g_flLayer1BlendSoftness = 0.5;
-
-        #if (F_BLEND_NORMALS == 1)
-            uniform sampler2D g_tLayer1Normal;
-        #endif
-    #endif
-
-#endif
-
 #if defined(vr_complex_vfx) && (F_METALNESS_TEXTURE == 0)
     uniform float g_flRetroReflectivity = 1.0;
 #endif
@@ -293,16 +260,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #if defined(terrain_blend_common)
     vec2 texCoordB = texCoord * g_vTexCoordScale2.xy;
 
-    #if defined(vr_standard_vfx_blend)
-        vec4 color2 = texture(VR_STANDARD_Color2, texCoordB);
-        vec4 normalTexture2 = normalTexture;
-        #if (F_BLEND_NORMALS == 1)
-            normalTexture2 = texture(g_tLayer1Normal, texCoordB);
-        #endif
-    #else
-        vec4 color2 = texture(g_tLayer2Color, texCoordB);
-        vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoordB);
-    #endif
+    vec4 color2 = texture(g_tLayer2Color, texCoordB);
+    vec4 normalTexture2 = texture(g_tLayer2NormalRoughness, texCoordB);
 
     // 0: VertexBlend 1: BlendModulateTexture,rg 2: NewLayerBlending,g 3: NewLayerBlending,a
     #if (defined(csgo_generic_vfx_common) && F_FANCY_BLENDING > 0)
@@ -332,11 +291,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #endif
 
         blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
-    #elif (defined(vr_standard_vfx_blend))
-        float blendFactor = vColorBlendValues.r;
-        vec4 blendModTexel = texture(g_tLayer1RevealMask, texCoordB);
-
-        blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.g, blendModTexel.r * g_flLayer1BlendSoftness);
     #elif defined(environment_blend_vfx)
         float blendFactor = vColorBlendValues.r;
         float revealMask = texture(g_tRevealMask2, texCoordB).r;
@@ -470,12 +424,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         return mat;
     #endif
 
-    #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
-        normalTexture = texture(g_tNormal2, texCoord);
-    #endif
-
     // Normals and Roughness
-    #if defined(generic_vfx) || defined(crystal_vfx) || defined(vr_standard_vfx) || defined(vr_eyeball_vfx)
+    #if defined(generic_vfx) || defined(crystal_vfx) || defined(vr_eyeball_vfx)
         mat.NormalMap = DecodeDxt5Normal(normalTexture);
     #else
         mat.NormalMap = DecodeHemiOctahedronNormal(normalTexture.rg);
@@ -484,9 +434,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #if defined(ANISO_ROUGHNESS)
     #if (F_ANISOTROPIC_GLOSS == 1)
         mat.RoughnessTex.xy = texture(g_tAnisoGloss, texCoord).rg;
-    #endif
-    #if defined(vr_standard_vfx) && (F_HIGH_QUALITY_GLOSS == 1)
-        mat.RoughnessTex.xy = texture(g_tGloss, texCoord).ag;
     #endif
 #else
     mat.RoughnessTex.xy = normalTexture.bb;
@@ -532,8 +479,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Metalness = color.a;
 #elif defined(simple_blend_common)
     mat.Metalness = mix(g_flMetalnessA, g_flMetalnessB, blendFactor);
-#elif defined(vr_standard_vfx) && (F_METALNESS_TEXTURE == 1)
-    mat.Metalness = texture(g_tMetalnessReflectance, texCoord).r;
 #endif
 
     // Ambient Occlusion
