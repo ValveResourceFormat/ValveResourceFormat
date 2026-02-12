@@ -8,25 +8,34 @@
 #define renderMode_MeshId 0
 #define renderMode_ShaderId 0
 #define renderMode_ShaderProgramId 0
-#define renderMode_MeshletId 0
+#define renderMode_Meshlets 0
 
 flat in uint sceneObjectId;
+flat in uint meshletId;
+
 uniform uint meshId;
 uniform uint shaderId;
 uniform uint shaderProgramId;
 uniform uint isSkybox;
-
-flat in uint meshletId;
 
 #if F_DEBUG_PICKER == 1
     out vec4 outputColor;
 
     vec4 ColorFromId(uint id, uint offset)
     {
+        uint hash = id + offset;
+        hash = hash * 1664525u + 1013904223u; // LCG constants
+        
+        uint r = hash;
+        hash = hash * 1664525u + 1013904223u;
+        uint g = hash;
+        hash = hash * 1664525u + 1013904223u;
+        uint b = hash;
+        
         return vec4(
-            fract(float(id + offset) / 7.0),
-            fract(float(id + offset) / 11.0),
-            fract(float(id + offset) / 13.0),
+            float(r & 0xFFu) / 255.0,
+            float(g & 0xFFu) / 255.0,
+            float(b & 0xFFu) / 255.0,
             1.0
         );
     }
@@ -50,9 +59,12 @@ flat in uint meshletId;
         {
             outputColor = ColorFromId(shaderProgramId, 29u);
         }
-        else if (g_iRenderMode == renderMode_MeshletId)
+        else if (g_iRenderMode == renderMode_Meshlets)
         {
-            outputColor = ColorFromId(meshletId, 39u);
+            uint combined = meshletId | (sceneObjectId << 8);
+            outputColor = meshletId == 0
+                ? vec4(0.9)
+                : mix(ColorFromId(combined, 39u), vec4(1.0), 0.1);
         }
     }
 #else
