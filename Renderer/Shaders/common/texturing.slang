@@ -7,6 +7,8 @@ import features;
 import utils;
 import fullbright;
 
+public extern static const int ANISO_ROUGHNESS = 0;
+
 #if defined(NEED_CURVATURE) && (F_USE_PER_VERTEX_CURVATURE == 0)
     // Expensive, only used in skin shaders
     float GetCurvature(vec3 vNormal, vec3 vPositionWS)
@@ -73,10 +75,8 @@ public struct MaterialProperties_t
     float Curvature;
 #endif
 
-#if defined(ANISO_ROUGHNESS)
-    vec3 AnisotropicTangent;
-    vec3 AnisotropicBitangent;
-#endif
+    public vec3 AnisotropicTangent;
+    public vec3 AnisotropicBitangent;
 };
 
 public void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 PositionWS, vec3 Tangent, vec3 Bitangent)
@@ -122,10 +122,8 @@ public void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, v
     #endif
 #endif
 
-#if defined(ANISO_ROUGHNESS)
     mat.AnisotropicTangent = vec3(0.0);
     mat.AnisotropicBitangent = vec3(0.0);
-#endif
 
     if (F_RENDER_BACKFACES == 1 && F_DONT_FLIP_BACKFACE_NORMALS == 0)
     {
@@ -483,11 +481,10 @@ public bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties
         }
         else if (g_iRenderMode == renderMode_Roughness)
         {
-            #if defined(ANISO_ROUGHNESS)
+            if (ANISO_ROUGHNESS != 0)
                 outputColor.rgb = vec3(mat.Roughness.xy, 0.0);
-            #else
+            else
                 outputColor.rgb = mat.IsometricRoughness.xxx;
-            #endif
             return true;
         }
         else if (g_iRenderMode == renderMode_Metalness)

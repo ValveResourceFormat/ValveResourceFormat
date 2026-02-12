@@ -301,11 +301,10 @@ public LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
 {
     LightingTerms_t lighting = InitLighting();
 
-    #if defined(ANISO_ROUGHNESS)
+    if (ANISO_ROUGHNESS != 0)
         mat.IsometricRoughness = dot(mat.Roughness, vec2(0.5));
-    #else
+    else
         mat.IsometricRoughness = max(mat.Roughness.x, mat.Roughness.y);
-    #endif
 
     if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
         mat.LightmapUv = mat.ScaledLightmapUv;

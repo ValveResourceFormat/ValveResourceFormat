@@ -43,22 +43,21 @@ public float D_GGX(float NoH, float roughness)
 	return d;
 }
 
-#if defined(ANISO_ROUGHNESS)
-
-#if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
-in vec3 vAnisoBitangentOut;
-#endif
+public static vec3 pbrAnisoBitangent;
 
 public void CalculateAnisotropicTangents(inout MaterialProperties_t mat)
 {
-#if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
-    mat.AnisotropicTangent = normalize(cross(vAnisoBitangentOut, mat.Normal));
-    mat.AnisotropicBitangent = normalize(cross(mat.Normal, mat.AnisotropicTangent));
-#else
-    // Recalculate Tangent/Bitangent based on normal map
-    mat.AnisotropicTangent = normalize(cross(mat.Bitangent, mat.Normal));
-    mat.AnisotropicBitangent = normalize(cross(mat.Normal, mat.Tangent));
-#endif
+    if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
+    {
+        mat.AnisotropicTangent = normalize(cross(pbrAnisoBitangent, mat.Normal));
+        mat.AnisotropicBitangent = normalize(cross(mat.Normal, mat.AnisotropicTangent));
+    }
+    else
+    {
+        // Recalculate Tangent/Bitangent based on normal map
+        mat.AnisotropicTangent = normalize(cross(mat.Bitangent, mat.Normal));
+        mat.AnisotropicBitangent = normalize(cross(mat.Normal, mat.Tangent));
+    }
 }
 
 public float D_AnisoGGX(vec2 roughness, vec3 halfVector, vec3 normal, vec3 tangent, vec3 bitangent)
@@ -74,7 +73,6 @@ public float D_AnisoGGX(vec2 roughness, vec3 halfVector, vec3 normal, vec3 tange
     float ndf = pow2(dot(Dots, Dots)) * alpha.x * alpha.y;
     return 1.0 / (PI * ndf);
 }
-#endif
 
 // Geometric Shadowing visibility function --------------------------------------
 	// G = Geometric shadowing term (Microfacets shadowing)
@@ -136,14 +134,19 @@ public vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t
 	float VoH = ClampToPositive(dot(lightVector, halfVector));
 	float roughness = pow2(mat.IsometricRoughness); // linear
 
-#if defined(ANISO_ROUGHNESS)
-    // Anisotropic shading
-    float NDF = D_AnisoGGX(mat.Roughness, halfVector, normal, mat.AnisotropicTangent, mat.AnisotropicBitangent);
-	float Vis = G_SchlickSmithGGX(NoL, NoV, max(mat.Roughness.x, mat.Roughness.y));
-#else
-    float NDF = D_GGX(NoH, roughness);
-	float Vis = G_SchlickSmithGGX(NoL, NoV, mat.IsometricRoughness);
-#endif
+    float NDF;
+    float Vis;
+    if (ANISO_ROUGHNESS != 0)
+    {
+        // Anisotropic shading
+        NDF = D_AnisoGGX(mat.Roughness, halfVector, normal, mat.AnisotropicTangent, mat.AnisotropicBitangent);
+        Vis = G_SchlickSmithGGX(NoL, NoV, max(mat.Roughness.x, mat.Roughness.y));
+    }
+    else
+    {
+        NDF = D_GGX(NoH, roughness);
+        Vis = G_SchlickSmithGGX(NoL, NoV, mat.IsometricRoughness);
+    }
 	vec3 F = F_Schlick(VoH, mat.SpecularColor);
     float ndfVis = NDF * Vis;
 

@@ -125,19 +125,17 @@ float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
 }
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
-#if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
-    vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
-    {
-        // is this like part of the material struct in the og code? it's calculated at the start
-        vec2 roughnessOverRoughness = mat.Roughness.xy / mat.Roughness.yx;
-        vec3 warpDirection = mix(mat.AnisotropicBitangent, mat.AnisotropicTangent, vec3(step(roughnessOverRoughness.y, roughnessOverRoughness.x))); // in HLA this just uses vertex tangent
+vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
+{
+    // is this like part of the material struct in the og code? it's calculated at the start
+    vec2 roughnessOverRoughness = mat.Roughness.xy / mat.Roughness.yx;
+    vec3 warpDirection = mix(mat.AnisotropicBitangent, mat.AnisotropicTangent, vec3(step(roughnessOverRoughness.y, roughnessOverRoughness.x))); // in HLA this just uses vertex tangent
 
-        float warpAmount = (1.0 - min(roughnessOverRoughness.x, roughnessOverRoughness.y)) * 0.5;
-        vec3 warpedVector = normalize(cross(cross(mat.ViewDir, warpDirection), warpDirection));
+    float warpAmount = (1.0 - min(roughnessOverRoughness.x, roughnessOverRoughness.y)) * 0.5;
+    vec3 warpedVector = normalize(cross(cross(mat.ViewDir, warpDirection), warpDirection));
 
-        return normalize(mix(mat.AmbientNormal, warpedVector, warpAmount));
-    }
-#endif
+    return normalize(mix(mat.AmbientNormal, warpedVector, warpAmount));
+}
 
 public vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLocalPos, bool isBoxProjection, vec3 envMapBoxMin, vec3 envMapBoxMax)
 {
@@ -149,11 +147,11 @@ public vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 env
 
 public vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
 {
-    #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
-        vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
-    #else
-        vec3 reflectionNormal = mat.AmbientNormal;
-    #endif
+    vec3 reflectionNormal;
+    if (ANISO_ROUGHNESS != 0 && (F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1 || vr_complex_vfx == 0))
+        reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
+    else
+        reflectionNormal = mat.AmbientNormal;
 
 
     if (g_iRenderMode == renderMode_Cubemaps)

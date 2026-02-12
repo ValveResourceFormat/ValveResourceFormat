@@ -22,7 +22,7 @@ public static float4 inNormal;
 public static float4 inTangent;
 public static uint inCompressedNormal;
 
-mat3 adjoint(in mat4 m)
+public mat3 adjoint(in mat4 m)
 {
     return mat3(cross(m[1].xyz, m[2].xyz),
                 cross(m[2].xyz, m[0].xyz),
