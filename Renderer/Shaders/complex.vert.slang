@@ -11,7 +11,6 @@
 #define GameVfx_vr_simple_3way_parallax 0
 #define GameVfx_vr_simple_blend_to_triplanar 0
 #define GameVfx_vr_simple_blend_to_xen_membrane 0
-#define GameVfx_vr_standard 0
 
 #include "common/utils.slang"
 #include "common/features.slang"
@@ -43,23 +42,12 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
     in vec2 vLightmapUV;
     centroid out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    #if (GameVfx_vr_standard != 0)
-        #undef F_VERTEX_COLOR
-        #undef F_PAINT_VERTEX_COLORS
-        in vec4 vCOLOR1;
-    #else
-        in vec4 vPerVertexLighting;
-    #endif
+    in vec4 vPerVertexLighting;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common) || defined(vr_standard_vfx_blend) || (GameVfx_environment_blend != 0)
-    #if defined(vr_standard_vfx_blend)
-        #define vBLEND_COLOR vTEXCOORD2
-    #else
-        #define vBLEND_COLOR vTEXCOORD4
-    #endif
-
+#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common) || (GameVfx_environment_blend != 0)
+    #define vBLEND_COLOR vTEXCOORD4
     #if defined(vr_blend_vfx_common)
         #define vBLEND_ALPHA vTEXCOORD5
         in vec4 vBLEND_ALPHA;
@@ -312,9 +300,6 @@ void main()
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-    #if (GameVfx_vr_standard != 0)
-        vec4 vPerVertexLighting = vCOLOR1;
-    #endif
     vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
     vPerVertexLightingOut = pow2(Light);
 #endif
