@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -205,7 +206,7 @@ namespace ValveResourceFormat.IO
 
             var baseVertex = Builder.Vertices.Count;
             var indexCount = CurrentFace.Indices.Count;
-            Span<int> newIndices = indexCount < 32 ? stackalloc int[indexCount] : new int[indexCount];
+            var newIndices = indexCount < 32 ? stackalloc int[indexCount] : new int[indexCount];
 
             for (var i = 0; i < CurrentFace.Indices.Count; i++)
             {
@@ -286,13 +287,13 @@ namespace ValveResourceFormat.IO
                 Triangles = mesh.Shape.GetTriangles().ToArray();
                 PhysicsTree = mesh.Shape.ParseNodes().ToArray();
 
-                DeletedVertexIndices = new HashSet<int>();
+                DeletedVertexIndices = [];
                 DeletedVertexIndices.EnsureCapacity(VertexPositions.Length / 4);
             }
         }
 
         /// <summary>Gets the list of physics meshes.</summary>
-        public List<PhysMeshData> PhysicsMeshes { get; } = new();
+        public List<PhysMeshData> PhysicsMeshes { get; } = [];
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysicsVertexMatcher"/> class.
@@ -328,13 +329,13 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions, IProgress<string>? progressReporter)
         {
+            Span<int> triangleIndices = [0, 0, 0];
+
             for (var i = 0; i < PhysicsMeshes.Count; i++)
             {
                 var meshData = PhysicsMeshes[i];
 
                 var localMatches = new HashSet<int>(capacity: renderMeshPositions.Length);
-
-                Span<int> triangleIndices = [0, 0, 0];
 
                 var stack = new Stack<RnMeshNodeWithIndex>(64); // TODO: Make this a property for reuse?
 
@@ -376,7 +377,9 @@ namespace ValveResourceFormat.IO
                         {
                             var triangle = meshData.Triangles[triangleOffset + k];
 
-                            triangleIndices = [triangle.X, triangle.Y, triangle.Z];
+                            triangleIndices[0] = triangle.X;
+                            triangleIndices[1] = triangle.Y;
+                            triangleIndices[2] = triangle.Z;
 
                             for (var t = 0; t < 3; t++)
                             {
@@ -1258,7 +1261,7 @@ namespace ValveResourceFormat.IO
             if (PhysicsVertexMatcher != null && PhysicsVertexMatcher.LastPositions != positions)
             {
                 PhysicsVertexMatcher.LastPositions = positions;
-                PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches(positions.ToArray().AsSpan(), ProgressReporter);
+                PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches([.. positions], ProgressReporter);
             }
 
             foreach (var faceset in facesets.Cast<DmeFaceSet>())
@@ -1482,7 +1485,7 @@ namespace ValveResourceFormat.IO
                 Name = name,
                 StandardAttributeName = string.IsNullOrEmpty(standardAttributeName) ? name[..^2] : standardAttributeName,
                 SemanticName = name[..^2],
-                SemanticIndex = int.Parse(name[^1].ToString()),
+                SemanticIndex = int.Parse(name[^1].ToString(), CultureInfo.InvariantCulture),
                 VertexBufferLocation = 0,
                 DataStateFlags = dataStateFlags,
                 SubdivisionBinding = null,
