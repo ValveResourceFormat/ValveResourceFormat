@@ -331,13 +331,15 @@ namespace ValveResourceFormat.IO
         {
             Span<int> triangleIndices = [0, 0, 0];
 
+            var localMatches = new HashSet<int>(capacity: renderMeshPositions.Length);
+            var stack = new Stack<RnMeshNodeWithIndex>(64);
+
             for (var i = 0; i < PhysicsMeshes.Count; i++)
             {
                 var meshData = PhysicsMeshes[i];
 
-                var localMatches = new HashSet<int>(capacity: renderMeshPositions.Length);
-
-                var stack = new Stack<RnMeshNodeWithIndex>(64); // TODO: Make this a property for reuse?
+                localMatches.Clear();
+                stack.Clear();
 
                 for (var j = 0; j < renderMeshPositions.Length; ++j)
                 {
@@ -735,7 +737,7 @@ namespace ValveResourceFormat.IO
             var firstHalfEdgeId = -1;
             var previousHalfEdgeId = -1;
 
-            Span<Vertex> currentVertices = new Vertex[2];
+            Span<Vertex> currentVertices = [null!, null!];
 
             for (var i = 0; i < indices.Length; i++)
             {
@@ -1264,11 +1266,11 @@ namespace ValveResourceFormat.IO
                 PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches([.. positions], ProgressReporter);
             }
 
+            List<int> inds = new(capacity: 3);
+
             foreach (var faceset in facesets.Cast<DmeFaceSet>())
             {
                 var facesetIndices = faceset.Faces;
-
-                List<int> inds = new(capacity: 3);
 
                 var newIndexCounter = -1;
                 foreach (var index in facesetIndices)
