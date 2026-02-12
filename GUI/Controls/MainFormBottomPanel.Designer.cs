@@ -1,5 +1,4 @@
 using System.Windows.Forms;
-using GUI.Properties;
 
 namespace GUI.Controls;
 
