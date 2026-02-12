@@ -1,18 +1,15 @@
 #version 460
 
-#ifndef VRF_ENVIRONMENT_INCLUDE
-#define VRF_ENVIRONMENT_INCLUDE
+import ViewConstants;
+import features;
+import utils;
+import texturing;
+import LightingConstants;
+import lighting_common;
+import pbr;
 
-#include "ViewConstants.slang"
-#include "features.slang"
-#include "utils.slang"
-#include "texturing.slang"
-#include "LightingConstants.slang"
-#include "lighting_common.slang"
-#include "pbr.slang"
-
-#define S_SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
-#define renderMode_Cubemaps 0
+public extern static const int S_SCENE_CUBEMAP_TYPE = 0; // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
+public extern static const int renderMode_Cubemaps  = 1337;
 
 struct EnvMapData
 {
@@ -37,15 +34,19 @@ layout(std140, binding = 2) uniform EnvMapArray
     EnvMapData envMaps[MAX_ENVMAPS];
 };
 
-#if (S_SCENE_CUBEMAP_TYPE == 0)
+//SLANG TODO
+//#if (S_SCENE_CUBEMAP_TYPE == 0)
     // ...
-#elif (S_SCENE_CUBEMAP_TYPE == 1)
-    uniform samplerCube g_tEnvironmentMap;
-    uniform uvec4 g_nEnvMapVisibility;
-#elif (S_SCENE_CUBEMAP_TYPE == 2)
-    uniform samplerCubeArray g_tEnvironmentMap;
-    uniform uvec4 g_nEnvMapVisibility;
-#endif
+//#elif (S_SCENE_CUBEMAP_TYPE == 1)
+//uniform samplerCube g_tEnvironmentMap;
+public uniform uvec4 g_nEnvMapVisibility;
+//#elif (S_SCENE_CUBEMAP_TYPE == 2)
+public uniform samplerCubeArray g_tEnvironmentMap;
+    //uniform uvec4 g_nEnvMapVisibility;
+//#endif
+
+public static float3 vFragPosition;
+
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
 {
@@ -78,7 +79,7 @@ float GetEnvMapLOD(float roughness, vec3 R)
 
 
 // Cubemap Normalization
-#define bUseCubemapNormalization 1
+#define bUseCubemapNormalization 0
 const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445); // Normalization value in Alyx. Haven't checked the other games
 
 float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
@@ -89,18 +90,14 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
     }
 
     #if (bUseCubemapNormalization == 1)
-        float NormalizationTerm = pow(GetLuma(irradiance), 1.5) * 4;
+        // Cancel out lighting
+        // SH is currently fully 1.0, for temporary reasons.
+        // We don't know how to get the greyscale SH that they use here, because the radiance coefficients in the cubemap texture are rgb.
+        float NormalizationTerm = GetLuma(irradiance);// / dot(vec4(N, 1.0), g_vEnvironmentMapNormalizationSH[EnvMapIndex]);
 
-        const float lowestNormalization = 0.1; 
-        const float rmin = -0.1;
-        const float rmax = 0.9;
-
-        float center = 0.5 * (rmin + rmax);
-        float range = 0.5 * (rmax - rmin);
-        float dist = saturate(abs(rough - center) / range);
-        float smoothdist = smoothstep(lowestNormalization, 1.0, dist);
-
-        return clamp(NormalizationTerm, max(lowestNormalization, dist), 1.0);
+        // Reduce cancellation on glossier surfaces
+        float NormalizationClamp = max(1.0, rough * CubemapNormalizationParams.x + CubemapNormalizationParams.y);
+        return min(NormalizationTerm, NormalizationClamp);
     #else
         return 1.0;
     #endif
@@ -123,27 +120,24 @@ vec3 EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
 
 float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
 {
-    float NoV = dot(N, V);
     float NoH = dot(normalize(N + V), N);
-    return D_Charlie(pow2(perceptualRoughness), NoV) * V_Neubelt(NoH, NoH);
+    return D_Charlie(pow2(perceptualRoughness), NoH) * V_Neubelt(NoH, NoH);
 }
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
-#if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
-    vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
-    {
-        // is this like part of the material struct in the og code? it's calculated at the start
-        vec2 roughnessOverRoughness = mat.Roughness.xy / mat.Roughness.yx;
-        vec3 warpDirection = mix(mat.AnisotropicBitangent, mat.AnisotropicTangent, vec3(step(roughnessOverRoughness.y, roughnessOverRoughness.x))); // in HLA this just uses vertex tangent
+vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
+{
+    // is this like part of the material struct in the og code? it's calculated at the start
+    vec2 roughnessOverRoughness = mat.Roughness.xy / mat.Roughness.yx;
+    vec3 warpDirection = mix(mat.AnisotropicBitangent, mat.AnisotropicTangent, vec3(step(roughnessOverRoughness.y, roughnessOverRoughness.x))); // in HLA this just uses vertex tangent
 
-        float warpAmount = (1.0 - min(roughnessOverRoughness.x, roughnessOverRoughness.y)) * 0.5;
-        vec3 warpedVector = normalize(cross(cross(mat.ViewDir, warpDirection), warpDirection));
+    float warpAmount = (1.0 - min(roughnessOverRoughness.x, roughnessOverRoughness.y)) * 0.5;
+    vec3 warpedVector = normalize(cross(cross(mat.ViewDir, warpDirection), warpDirection));
 
-        return normalize(mix(mat.AmbientNormal, warpedVector, warpAmount));
-    }
-#endif
+    return normalize(mix(mat.AmbientNormal, warpedVector, warpAmount));
+}
 
-vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLocalPos, bool isBoxProjection, vec3 envMapBoxMin, vec3 envMapBoxMax)
+public vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLocalPos, bool isBoxProjection, vec3 envMapBoxMin, vec3 envMapBoxMax)
 {
     vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
     return isBoxProjection
@@ -151,13 +145,14 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
         : localReflectionVector;
 }
 
-vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
+public vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
 {
-    #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
-        vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
-    #else
-        vec3 reflectionNormal = mat.AmbientNormal;
-    #endif
+    vec3 reflectionNormal;
+    if (ANISO_ROUGHNESS != 0 && (F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1 || vr_complex_vfx == 0))
+        reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
+    else
+        reflectionNormal = mat.AmbientNormal;
+
 
     if (g_iRenderMode == renderMode_Cubemaps)
     {
@@ -174,16 +169,16 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
 
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
-
     // Blend to fully corrected
     float flAmbientNormalMix = roughnessReflectionCorrectionAmount * perceptualRoughness;
     float lod = GetEnvMapLOD(sqrt(perceptualRoughness), R);
 
     vec3 envMap = vec3(0.0);
 
-    #if (S_SCENE_CUBEMAP_TYPE == 0)
-        envMap = vec3(0.3, 0.3, 0.3);
-    #elif (S_SCENE_CUBEMAP_TYPE == 1)
+    if(S_SCENE_CUBEMAP_TYPE == 0)
+        envMap = vec3(0.3, 0.1, 0.1);
+    else if (S_SCENE_CUBEMAP_TYPE == 1)
+    {
         int envMapIndex = int(g_nEnvMapVisibility.x);
         EnvMapData envData = envMaps[envMapIndex];
         bool isBoxProjection = envData.ProjectionType == 1u;
@@ -195,15 +190,21 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
         coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix);
 
-        envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
-    #elif (S_SCENE_CUBEMAP_TYPE == 2)
-
+        envMap = vec3(0); //textureLod(g_tEnvironmentMap, coords, lod).rgb;
+    }
+    else if (S_SCENE_CUBEMAP_TYPE == 2)
+    {
     float flTotalWeight = 0.01;
     bool bContinueLoop = true;
+
+
 
     for (uint visBucket = 0; visBucket < 4 && bContinueLoop; visBucket++)
     {
         uint mask = g_nEnvMapVisibility[visBucket];
+
+        
+
         int baseIndex = int(visBucket * 32);
 
         while (mask != 0 && bContinueLoop)
@@ -248,14 +249,15 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
 
             envMap += textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod).rgb * weight;
 
+            
+
             if (flTotalWeight > 0.99)
             {
                 bContinueLoop = false;
             }
         }
     }
-
-    #endif // S_SCENE_CUBEMAP_TYPE == 2
+    } // S_SCENE_CUBEMAP_TYPE == 2
 
     return envMap;
 }
@@ -284,4 +286,3 @@ vec3 GetEnvironment(MaterialProperties_t mat)
     return GetEnvironment(mat, 0.2);
 }
 
-#endif

@@ -1,5 +1,11 @@
+using System.Diagnostics;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using static ValveResourceFormat.Blocks.ResourceIntrospectionManifest.ResourceDiskEnum;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -12,21 +18,41 @@ namespace ValveResourceFormat.Renderer
         public uint NameHash { get; }
         public int Program { get; set; }
 
+        //SLANG
+        public int UniformBuffer { get; set; } = -1;
+
+        public byte[] CpuUniformBuffer { get; set; } = [];
+        public int UniformBufferSize { get; set; }
+        //SLANG
+        public int UniformBufferBinding { get; set; }
+
         public bool IsLoaded { get; private set; }
         public bool IsValid { get; private set; }
+
+        //SLANG
+        public bool IsSlang { get; set; }
 
         public required int[] ShaderObjects { get; init; }
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
         public required HashSet<string> RenderModes { get; init; }
         public required HashSet<string> UniformNames { get; init; }
+
+        //SLANG
+        public Dictionary<string, int> UniformOffsets { get; set; } = [];
+        //SLANG
+        public Dictionary<string, (ActiveUniformType Type, int Location, int DefaultValue, bool SrgbRead)> IntParams { get; init; } = [];
+        public Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)> FloatParams { get; init; } = [];
+        public Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)> VectorParams { get; init; } = [];
+        //SLANG
+        public Dictionary<string, (int Binding, bool isTexture, bool SrgbRead)> ResourceBindings { get; set; } = [];
         public required HashSet<string> SrgbUniforms { get; init; }
-        public HashSet<string> ReservedTexuresUsed { get; } = [];
+        public HashSet<string> ReservedTexuresUsed { get; init; } = [];
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
         public RenderMaterial Default { get; init; }
         protected MaterialLoader MaterialLoader { get; init; }
 
-        public Dictionary<string, int> Attributes { get; } = [];
+        public Dictionary<string, int> Attributes { get; set; } = [];
 
 #if DEBUG
         public required string FileName { get; init; }
@@ -40,6 +66,10 @@ namespace ValveResourceFormat.Renderer
             MaterialLoader = rendererContext.MaterialLoader;
         }
 
+        ~Shader()
+        {
+            //GL.DeleteBuffer(UniformBuffer);
+        }
         public bool EnsureLoaded()
         {
             if (!IsLoaded)
@@ -55,7 +85,8 @@ namespace ValveResourceFormat.Renderer
                     GL.DeleteShader(obj);
                 }
 
-                if (IsValid)
+                //SLANG: this job will have already been done in a different place. For uniform locations, that extra register becomes completely obsolete
+                if (IsValid && !IsSlang)
                 {
                     StoreAttributeLocations();
                     StoreUniformLocations();
@@ -145,6 +176,40 @@ namespace ValveResourceFormat.Renderer
         public void Use()
         {
             EnsureLoaded();
+
+            if (IsSlang)
+            {
+                //SLANG: This is where we create our UBO
+                if (UniformBufferBinding >= 0)
+                {
+                    if (UniformBuffer == -1)
+                    {
+                        //SLANG: Set all of the uniforms in the cpu buffer!
+
+                        foreach (var (key, uniform) in IntParams)
+                        {
+                            SetUniformAtLocation(uniform.Location, uniform.DefaultValue);
+                        }
+                        foreach (var (key, uniform) in FloatParams)
+                        {
+                            SetUniformAtLocation(uniform.Location, uniform.DefaultValue);
+                        }
+                        foreach (var (key, uniform) in VectorParams)
+                        {
+                            SetUniformAtLocation(uniform.Location, uniform.DefaultValue, uniform.size);
+                        }
+
+
+                        int[] buffer = new int[1];
+                        GL.CreateBuffers(1, buffer);
+                        UniformBuffer = buffer[0];
+                        GL.NamedBufferData(UniformBuffer, UniformBufferSize, CpuUniformBuffer, BufferUsageHint.DynamicDraw);
+                    }
+
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                }
+            }
+
             GL.UseProgram(Program);
         }
 
@@ -203,6 +268,22 @@ namespace ValveResourceFormat.Renderer
 
         public int GetUniformLocation(string name)
         {
+            //SLANG: this will take different meaning depending on whether it is a slang shader or not. This is a bit scuffed and hides the meaning of "uniform location", but whatever for now
+
+            if (IsSlang)
+            {
+                if (UniformOffsets.TryGetValue(name, out var offset))
+                {
+                    return offset;
+                }
+                else if (name.StartsWith("g_t"))
+                {
+                    //SLANG HACK, I pray to god this won't be in here in 5 years time
+                    ResourceBindings.TryGetValue(name, out var value);
+                    return value.Binding;
+                }
+                return -1;
+            }
             if (Uniforms.TryGetValue(name, out var locationType))
             {
                 return locationType.Location;
@@ -213,6 +294,114 @@ namespace ValveResourceFormat.Renderer
             Uniforms[name] = (0, location, SrgbUniforms.Contains(name));
 
             return location;
+        }
+
+        public void SetUniformAtLocation<T>(int location, T value, int size = 0) where T : struct
+        {
+            if (IsSlang)
+            {
+                //SLANG: size is supposed to be in elements. An element is 4 bytes.
+                int byteSize = Convert.ToInt32(size == 0) * (Marshal.SizeOf<T>()) + size * 4;
+
+                if (location + Marshal.SizeOf<T>() > UniformBufferSize)
+                {
+                    throw new Exception($"Buffer overflow: offset={location}, size={byteSize}, bufferSize={UniformBufferSize}");
+                }
+                MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref value, 1))
+                .Slice(0, byteSize)
+                .CopyTo(CpuUniformBuffer.AsSpan(location));
+
+                //GL.NamedBufferSubData(UniformBuffer, (IntPtr)location, byteSize, ref value);
+
+            }
+            else
+            {
+                if (location > -1)
+                {
+                    switch (value)
+                    {
+                        case int i:
+                            GL.ProgramUniform1((uint)Program, location, i);
+                            break;
+                        case uint u:
+                            GL.ProgramUniform1((uint)Program, location, u);
+                            break;
+                        case float f:
+                            GL.ProgramUniform1((uint)Program, location, f);
+                            break;
+                        case Vector2 v2:
+                            GL.ProgramUniform2((uint)Program, location, v2.X, v2.Y);
+                            break;
+                        case Vector3 v3:
+                            GL.ProgramUniform3((uint)Program, location, v3.X, v3.Y, v3.Z);
+                            break;
+                        case Vector4 v4:
+                            GL.ProgramUniform4((uint)Program, location, v4.X, v4.Y, v4.Z, v4.W);
+                            break;
+                        case Matrix4x4 m4:
+                            {
+                                var mat4 = m4.ToOpenTK();
+                                GL.ProgramUniformMatrix4(Program, location, false, ref mat4);
+                                break;
+                            }
+                        case OpenTK.Mathematics.Matrix3x4 m3x4:
+                            {
+                                GL.ProgramUniformMatrix3x4(Program, location, false, ref m3x4);
+                                break;
+                            }
+                        default:
+                            throw new NotSupportedException($"Type {typeof(T)} not supported for uniforms");
+                    }
+
+
+                }
+            }
+        }
+        struct uvec4
+        {
+            public uint u1;
+            public uint u2;
+            public uint u3;
+            public uint u4;
+            public uvec4() { }
+        }
+        public void SetUniformAtLocation(int location, uint u1, uint u2, uint u3, uint u4)
+        {
+            if (IsSlang)
+            {
+                uvec4 hackVec = new uvec4 { u1 = u1, u2 = u2, u3 = u3, u4 = u4 };
+
+                //GL.BindBufferBase(BufferRangeTarget.UniformBuffer, UniformBufferBinding, UniformBuffer);
+                int byteSize = 16;
+
+                if (location + 16 > UniformBufferSize)
+                {
+                    throw new Exception($"Buffer overflow: offset={location}, size={byteSize}, bufferSize={UniformBufferSize}");
+                }
+                MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref hackVec, 1))
+                .Slice(0, byteSize)
+                .CopyTo(CpuUniformBuffer.AsSpan(location));
+            }
+            else
+            {
+                GL.ProgramUniform4((uint)Program, location, u1, u2, u3, u4);
+            }
+        }
+
+        //SLANG
+        public int GetResourceBinding(string name)
+        {
+            if (ResourceBindings.TryGetValue(name, out var value))
+            {
+                return value.Binding;
+            }
+            return 0;
+        }
+
+        public void UpdateUniformBuffer()
+        {
+            if(IsSlang)
+                GL.NamedBufferData(UniformBuffer, CpuUniformBuffer.Length, CpuUniformBuffer, BufferUsageHint.DynamicDraw);
         }
 
         public int GetUniformBlockIndex(string name)
@@ -252,19 +441,39 @@ namespace ValveResourceFormat.Renderer
 
         public void SetUniform1(string name, float value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform1(Program, uniformLocation, value);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    SetUniformAtLocation(offset, value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform1(Program, uniformLocation, value);
+                }
             }
         }
 
         public void SetUniform1(string name, int value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform1(Program, uniformLocation, value);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    SetUniformAtLocation(offset, value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform1(Program, uniformLocation, value);
+                }
             }
         }
 
@@ -272,37 +481,77 @@ namespace ValveResourceFormat.Renderer
 
         public void SetUniform1(string name, uint value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform1((uint)Program, uniformLocation, value);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    SetUniformAtLocation(offset, value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform1((uint)Program, uniformLocation, value);
+                }
             }
         }
 
         public void SetUniform2(string name, Vector2 value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform2(Program, uniformLocation, value.X, value.Y);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    SetUniformAtLocation(offset, value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform2(Program, uniformLocation, value.X, value.Y);
+                }
             }
         }
 
         public void SetUniform3(string name, Vector3 value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform3(Program, uniformLocation, value.X, value.Y, value.Z);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    SetUniformAtLocation(offset, value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform3(Program, uniformLocation, value.X, value.Y, value.Z);
+                }
             }
         }
 
         public void SetUniform4(string name, Vector4 value)
         {
-            var uniformLocation = GetUniformLocation(name);
-            if (uniformLocation > -1)
+            if (IsSlang)
             {
-                GL.ProgramUniform4(Program, uniformLocation, value.X, value.Y, value.Z, value.W);
+                if (UniformOffsets.TryGetValue(name, out int offset))
+                {
+                    SetUniformAtLocation(offset, value);
+                }
+            }
+            else
+            {
+                var uniformLocation = GetUniformLocation(name);
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform4(Program, uniformLocation, value.X, value.Y, value.Z, value.W);
+                }
             }
         }
 
@@ -383,6 +632,13 @@ namespace ValveResourceFormat.Renderer
 
         public bool SetTexture(int slot, string name, RenderTexture? texture)
         {
+            //SLANG: Just making the assumption that isTexture is true for the entry
+            if (IsSlang && ResourceBindings.TryGetValue(name, out var val))
+            {
+                SetTexture(val.Binding, 0, texture);
+                return true;
+            }
+
             if (texture == null)
             {
                 return false;
@@ -405,7 +661,8 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
             GL.BindTextureUnit(slot, texture.Handle);
-            GL.ProgramUniform1(Program, uniformLocation, slot);
+            if(!IsSlang)
+                GL.ProgramUniform1(Program, uniformLocation, slot);
         }
 
 #if DEBUG
@@ -427,7 +684,14 @@ namespace ValveResourceFormat.Renderer
             RenderModes.UnionWith(shader.RenderModes);
 
             Uniforms.Clear();
-            Attributes.Clear();
+
+            //SLANG: Is Attributes.Clear(); necessary? Seems saner to just do this little trick here? Ooooh its necessary because the attributes get set again after this....okie dokie. I shall use my method for slang!
+
+            if(IsSlang)
+                Attributes = shader.Attributes;
+            else
+                Attributes.Clear();
+
         }
 #endif
     }

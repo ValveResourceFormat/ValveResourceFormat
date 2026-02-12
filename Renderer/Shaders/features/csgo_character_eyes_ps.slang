@@ -1,26 +1,26 @@
 #version 460
 
-#ifndef VRF_CSGO_CHARACTER_EYES_PS_INCLUDE
-#define VRF_CSGO_CHARACTER_EYES_PS_INCLUDE
+import common.attributes;
+import common.utils;
+import common.ViewConstants;
+import common.texturing;
+import features.csgo_character_eyes_common;
 
-#include "csgo_character_eyes_common.slang"
-
-#if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
-uniform sampler2D g_tEyeAlbedo1; // SrgbRead(true)
+[SrgbRead] uniform sampler2D g_tEyeAlbedo1;
 uniform sampler2D g_tEyeMask1;
 
 uniform float g_flEyeBallRadius1;
 uniform float g_flEyeHueShift1;
-uniform float g_flEyeIrisSize1 = 1.0;
+[Default(1.0)] uniform float g_flEyeIrisSize1;
 uniform float g_flEyePupilSize1;
-uniform float g_flEyeSaturation1 = 1.0;
+[Default(1.0)] uniform float g_flEyeSaturation1;
 
-in EyePixelInput eyeInterpolator;
-
-void ApplyEye(EyePixelInput i, vec2 texCoord, inout MaterialProperties_t mat)
+public void ApplyEye(EyePixelInput i, vec2 texCoord, inout MaterialProperties_t mat)
 {
+    if (F_EYEBALLS == 0) return;
+
     const float lodBias = -0.5;
-    const float flEyeMask = texture(g_tEyeMask1, vTexCoordOut.xy, lodBias).r;
+    const float flEyeMask = texture(g_tEyeMask1, texCoord.xy, lodBias).r;
 
     if (flEyeMask > 0.0)
     {
@@ -32,8 +32,6 @@ void ApplyEye(EyePixelInput i, vec2 texCoord, inout MaterialProperties_t mat)
         float _11278 = dot(vEyeBallViewSpace, viewDirInv);
         float _15588 = fma(_11278, _11278, -fma(-g_flEyeBallRadius1, g_flEyeBallRadius1, dot(vEyeBallViewSpace, vEyeBallViewSpace)));
         float flWithinEyeBallSphere = (_15588 > 0.0) ? ((-_11278) - sqrt(_15588)) : 0.0;
-
-        //mat.Albedo = _11278.xxx;
 
         if (flWithinEyeBallSphere > 0.0)
         {
@@ -86,6 +84,3 @@ void ApplyEye(EyePixelInput i, vec2 texCoord, inout MaterialProperties_t mat)
         }
     }
 }
-#endif // defined(csgo_character_vfx) && (F_EYEBALLS == 1)
-
-#endif

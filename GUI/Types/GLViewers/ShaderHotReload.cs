@@ -74,6 +74,9 @@ internal class ShaderHotReload : IDisposable
 
     public void ReloadShaders(string? name = null)
     {
+
+        ShaderLoader.RecreateSlangSession();
+
         using var lockedGl = ViewerControl.MakeCurrent();
         ShaderLoader.ReloadAllShaders(name);
         ShadersReloaded?.Invoke(this, name);

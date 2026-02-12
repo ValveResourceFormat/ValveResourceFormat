@@ -1,12 +1,8 @@
 #version 460
 
-#ifndef VRF_CSGO_CHARACTER_EYES_VS_INCLUDE
-#define VRF_CSGO_CHARACTER_EYES_VS_INCLUDE
+import common.animation;
+import features.csgo_character_eyes_common;
 
-#include "../common/animation.slang"
-#include "csgo_character_eyes_common.slang"
-
-#if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
 // Left eye
 uniform vec3 g_vEyeLBindFwd;
 uniform vec3 g_vEyeLBindUp;
@@ -33,17 +29,8 @@ struct EyeData
 uniform vec3 g_vEyeTargetBindPos;
 uniform int g_nEyeTargetBindIdx;
 
-out EyePixelInput eyeInterpolator;
-
 mat3 rotationMatrix(vec3 axis, float angle)
 {
-    // original
-    // return mat3(
-    //     vec3(fma(axis.x, axis.x, fma(-axis.x, axis.x, 1.0) * c), fma(axis.x * axis.y, oc, axis.z * (-s)), fma(axis.z * axis.x, oc, axis.y * s)),
-    //     vec3(fma(axis.x * axis.y, oc, axis.z * s), fma(axis.y, axis.y, fma(-axis.y, axis.y, 1.0) * c), fma(axis.y * axis.z, oc, axis.x * (-s))),
-    //     vec3(fma(axis.z * axis.x, oc, axis.y * (-s)), fma(axis.y * axis.z, oc, axis.x * s), fma(axis.z, axis.z, fma(-axis.z, axis.z, 1.0) * c))
-    // );
-
     float s = sin(angle);
     float c = cos(angle);
     float oc = 1.0 - c;
@@ -53,7 +40,7 @@ mat3 rotationMatrix(vec3 axis, float angle)
                 oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c);
 }
 
-EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
+public EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
 {
     EyeData leftEyeOs;
     leftEyeOs.Forward = g_vEyeLBindFwd.xyz;
@@ -72,14 +59,14 @@ EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
     EyeData currentEye = bIsRightEye ? rightEyeOs : leftEyeOs;
     float flExotropia = bIsRightEye ? (g_flEyeBallWalleyeR1 * -1.0) : g_flEyeBallWalleyeL1;
 
-    mat4 eyeAnimationMatrix = getMatrix(currentEye.BoneIndex);
+    mat4 eyeAnimationMatrix = getMatrix(uint(currentEye.BoneIndex));
     mat3 eyeRotationMatrix = mat3(eyeAnimationMatrix);
 
     currentEye.Forward =    eyeRotationMatrix * currentEye.Forward;
     currentEye.Up =         eyeRotationMatrix * currentEye.Up;
     currentEye.Position =   (eyeAnimationMatrix * vec4(currentEye.Position, 1.0)).xyz;
 
-    vec3 targetPosition = (getMatrix(g_nEyeTargetBindIdx) * vec4(g_vEyeTargetBindPos.xyz, 1.0)).xyz;
+    vec3 targetPosition = (getMatrix(uint(g_nEyeTargetBindIdx)) * vec4(g_vEyeTargetBindPos.xyz, 1.0)).xyz;
     vec3 viewDir = normalize(targetPosition - currentEye.Position);
 
     if (flExotropia != 0.0)
@@ -119,6 +106,3 @@ EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
     o.vEyeUpDir_PosZ =    vec4(cross(viewDir, o.vEyeRightDir_PosY.xyz), currentEye.Position.z);
     return o;
 }
-#endif // defined(csgo_character_vfx) && (F_EYEBALLS == 1)
-
-#endif

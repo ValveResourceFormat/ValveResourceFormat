@@ -1,13 +1,13 @@
 #version 460
 
-#ifndef VRF_TEXTURING_INCLUDE
-#define VRF_TEXTURING_INCLUDE
+import ViewConstants;
+import LightingConstants;
+import features;
 
-#include "ViewConstants.slang"
-#include "LightingConstants.slang"
-#include "features.slang"
-#include "utils.slang"
-#include "fullbright.slang"
+import utils;
+import fullbright;
+
+public extern static const int ANISO_ROUGHNESS = 0;
 
 #if defined(NEED_CURVATURE) && (F_USE_PER_VERTEX_CURVATURE == 0)
     // Expensive, only used in skin shaders
@@ -18,7 +18,7 @@
 #endif
 
 // Geometric roughness. Essentially just Specular Anti-Aliasing
-float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
+public float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
 {
     vec3 normalDerivX = dFdx(geometricNormal);
     vec3 normalDerivY = dFdy(geometricNormal);
@@ -26,7 +26,7 @@ float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
     return geometricRoughnessFactor;
 }
 
-float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
+public float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
 {
     float minb = max(0.0, blendMask - blendSoftness);
     float maxb = min(1.0, blendMask + blendSoftness);
@@ -36,51 +36,50 @@ float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftne
 
 // Struct full of everything needed for lighting, for easy access around the shader.
 
-struct MaterialProperties_t
+public struct MaterialProperties_t
 {
-    vec3 PositionWS;
-    vec3 GeometricNormal;
-    vec3 Tangent;
-    vec3 Bitangent;
-    vec3 ViewDir;
+    public vec3 PositionWS;
+    public vec3 GeometricNormal;
+    public vec3 Tangent;
+    public vec3 Bitangent;
+    public vec3 ViewDir;
 
-    vec3 Albedo;
-    float Opacity;
-    float Metalness;
-    vec3 Normal;
-    vec3 NormalMap;
-    vec2 Roughness;
-    float IsometricRoughness;
-    vec2 RoughnessTex;
-    float AmbientOcclusion;
-    float Height;
-    vec3 DiffuseAO; // vec3 because Diffuse AO can be tinted
-    float SpecularAO;
-    vec4 ExtraParams;
-    float ClothMask;
-    float SSSMask;
+    public vec3 Albedo;
+    public float Opacity;
+    public float Metalness;
+    public vec3 Normal;
+    public vec3 NormalMap;
+    public vec2 Roughness;
+    public float IsometricRoughness;
+    public vec2 RoughnessTex;
+    public float AmbientOcclusion;
+    public float Height;
+    public vec3 DiffuseAO; // vec3 because Diffuse AO can be tinted
+    public float SpecularAO;
+    public vec4 ExtraParams;
+    public float ClothMask;
+    public float SSSMask;
 
-    vec3 DiffuseColor;
-    vec3 SpecularColor;
-    vec3 TransmissiveColor;
-    vec3 IllumColor;
+    public vec3 DiffuseColor;
+    public vec3 SpecularColor;
+    public vec3 TransmissiveColor;
+    public vec3 IllumColor;
 
-    vec3 LightmapUv;
+    public vec3 LightmapUv;
+    public vec3 ScaledLightmapUv;
 
-    vec3 AmbientGeometricNormal; // Indirect geometric normal
-    vec3 AmbientNormal; // Indirect normal
+    public vec3 AmbientGeometricNormal; // Indirect geometric normal
+    public vec3 AmbientNormal; // Indirect normal
 
 #if defined(NEED_CURVATURE)
     float Curvature;
 #endif
 
-#if defined(ANISO_ROUGHNESS)
-    vec3 AnisotropicTangent;
-    vec3 AnisotropicBitangent;
-#endif
+    public vec3 AnisotropicTangent;
+    public vec3 AnisotropicBitangent;
 };
 
-void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 PositionWS, vec3 Tangent, vec3 Bitangent)
+public void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 PositionWS, vec3 Tangent, vec3 Bitangent)
 {
     mat.PositionWS = PositionWS;
     mat.ViewDir = normalize(g_vCameraPositionWs - PositionWS);
@@ -123,10 +122,8 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     #endif
 #endif
 
-#if defined(ANISO_ROUGHNESS)
     mat.AnisotropicTangent = vec3(0.0);
     mat.AnisotropicBitangent = vec3(0.0);
-#endif
 
     if (F_RENDER_BACKFACES == 1 && F_DONT_FLIP_BACKFACE_NORMALS == 0)
     {
@@ -135,9 +132,9 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     }
 }
 
-const float MIN_ROUGHNESS = 0.0525;
+public const float MIN_ROUGHNESS = 0.0525;
 
-void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
+public void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
 {
     float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(mat.GeometricNormal);
     geometricRoughnessFactor = max(geometricRoughnessFactor, MIN_ROUGHNESS);
@@ -147,7 +144,7 @@ void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
     mat.Roughness = geometricAdjusted;
 }
 
-vec3 calculateIridescence(float hueAngle, float intensity)
+public vec3 calculateIridescence(float hueAngle, float intensity)
 {
     float segmentIndex = floor(hueAngle * 6.0);
     float segmentPhase = fract(hueAngle * 6.0);
@@ -179,7 +176,7 @@ vec3 calculateIridescence(float hueAngle, float intensity)
 
 uniform vec3 g_vAmbientOcclusionColorBleed = vec3(0.4, 0.14902, 0.129412); // SrgbRead(true)
 
-void SetDiffuseColorBleed(inout MaterialProperties_t mat)
+public void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 {
     vec3 vAmbientOcclusionExponent = vec3(1.0) - g_vAmbientOcclusionColorBleed.rgb;
 #if (F_SSS_MASK == 1)
@@ -195,13 +192,13 @@ void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 //-------------------------------------------------------------------------
 
 // Prevent over-interpolation of vertex normals. Introduced in The Lab renderer
-vec3 SwitchCentroidNormal(vec3 vNormalWs, vec3 vCentroidNormalWs)
+public vec3 SwitchCentroidNormal(vec3 vNormalWs, vec3 vCentroidNormalWs)
 {
     return ( dot(vNormalWs, vNormalWs) >= 1.01 ) ? vCentroidNormalWs : vNormalWs;
 }
 
 //Calculate the normal of this fragment in world space
-vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitangent)
+public vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitangent)
 {
     //Make the tangent space matrix
     mat3 tangentSpace = mat3(tangent, bitangent, normal);
@@ -228,39 +225,16 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 //                              ALPHA TEST
 //-------------------------------------------------------------------------
 
-#if (F_ALPHA_TEST > 0) || (alphatest)
+#if (F_ALPHA_TEST == 1) || (alphatest)
 
-    uniform float g_flAlphaTestReference = 0.5;
     uniform float g_flAntiAliasedEdgeStrength = 1.0;
 
-    float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
+    public float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
     {
-        const bool isMsaa = true;
-
-        const float epsilon = 1 / 255.0;
-        float flTestValue = isMsaa
-            ? 0.0
-            : g_flAlphaTestReference;
-        
-        if (flOpacity - epsilon < flTestValue)
-        {
-            discard;
-        }
-        
-        if (isMsaa)
-        {
-            // Sharp anti-aliased edge using shader derivatives
-            float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
-            float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
-
-            // todo: lower this based on distance
-            float flAntiAliasAlphaBlend = mix(flAlphaTestAA_Amount, 1.0, g_flAntiAliasedEdgeStrength);
-
-            // this value will determine the number of msaa samples covered by this fragment
-            flOpacity = mix(flOpacity, flAlphaTestAA, flAntiAliasAlphaBlend);
-        }
-
-        return flOpacity;
+        float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
+        float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
+        float flAntiAliasAlphaBlend = mix(1.0, flAlphaTestAA_Amount, g_flAntiAliasedEdgeStrength);
+        return mix( flAlphaTestAA, flOpacity, flAntiAliasAlphaBlend );
     }
 #endif
 
@@ -278,7 +252,7 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 uniform float g_flDetailBlendFactor = 1.0;
 uniform float g_flDetailBlendToFull = 0.0;
 uniform float g_flDetailNormalStrength = 1.0;
-in vec2 vDetailTexCoords;
+vec2 vDetailTexCoords;
 
 uniform sampler2D g_tDetailMask;
 #if DETAIL_COLOR_MOD2X || DETAIL_COLOR_OVERLAY
@@ -291,7 +265,7 @@ uniform sampler2D g_tDetailMask;
 #define MOD2X_MUL 1.9922
 #define DETAIL_CONST 0.9961
 
-void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMaskCoords)
+public void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMaskCoords)
 {
     float detailMask = texture(g_tDetailMask, detailMaskCoords).x;
     detailMask = g_flDetailBlendFactor * max(detailMask, g_flDetailBlendToFull);
@@ -388,74 +362,153 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 
 // Render modes
-#define renderMode_FullBright 0
-#define renderMode_Color 0
-#define renderMode_BumpMap 0
-#define renderMode_Tangents 0
-#define renderMode_Normals 0
-#define renderMode_BumpNormals 0
-#define renderMode_Roughness 0
-#define renderMode_Metalness 0
-#define renderMode_Height 0
-#define renderMode_ExtraParams 0
+public extern static const int renderMode_FullBright = 0;
+public extern static const int renderMode_Color = 1;
+public extern static const int renderMode_BumpMap = 2;
+public extern static const int renderMode_Tangents = 3;
+public extern static const int renderMode_Normals = 4;
+public extern static const int renderMode_BumpNormals = 5;
+public extern static const int renderMode_Roughness = 6;
+public extern static const int renderMode_Metalness = 7;
+public extern static const int renderMode_Height = 8;
+public extern static const int renderMode_ExtraParams = 9;
+public extern static const int renderMode_Tint = 10;
+public extern static const int renderMode_FoliageParams = 11;
+public extern static const int renderMode_VertexColor = 12;
+public extern static const int renderMode_TerrainBlend = 13;
+public extern static const int renderMode_UvDensity = 14;
+public extern static const int renderMode_LightmapUvDensity = 15;
+public extern static const int renderMode_MipmapUsage = 16;
 
-#define renderMode_Tint 0
-#define renderMode_FoliageParams 0
-#define renderMode_VertexColor 0
-#define renderMode_TerrainBlend 0
+//public bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
+//{
+//    switch (g_iRenderMode)
+//    {
+//        if (g_iRenderMode == renderMode_FullBright)
+//        {
+//            outputColor.rgb = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
+//            outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_Color)
+//        {
+//            outputColor = vec4(SrgbLinearToGamma(mat.Albedo), 1.0);
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_BumpMap)
+//        {
+//            outputColor = vec4(PackToColor(mat.NormalMap), 1.0);
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_Tangents)
+//        {
+//            outputColor = vec4(PackToColor(mat.Tangent), 1.0);
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_Normals)
+//        {
+//            outputColor = vec4(PackToColor(mat.GeometricNormal), 1.0);
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_BumpNormals)
+//        {
+//            outputColor = vec4(PackToColor(mat.Normal), 1.0);
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_Roughness)
+//        {
+//            #if defined(ANISO_ROUGHNESS)
+//                outputColor.rgb = vec3(mat.Roughness.xy, 0.0);
+//            #else
+//                outputColor.rgb = mat.IsometricRoughness.xxx;
+//            #endif
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_Metalness)
+//        {
+//            outputColor.rgb = mat.Metalness.xxx;
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_Height)
+//        {
+//            outputColor.rgb = mat.Height.xxx;
+//            return true;
+//        }
+//        else if (g_iRenderMode == renderMode_ExtraParams)
+//        {
+//            outputColor.rgb = mat.ExtraParams.rgb;
+//            return true;
+//        }
+//        else
+//        {
+//            return false;
+//        }
+//    }
+//}
 
-#define renderMode_UvDensity 0
-#define renderMode_LightmapUvDensity 0
-#define renderMode_MipmapUsage 0
-
-bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
+public bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
 {
-    switch (g_iRenderMode)
-    {
-        case renderMode_FullBright:
+        if (g_iRenderMode == renderMode_FullBright)
+        {
             outputColor.rgb = CalculateFullbrightLighting(mat.Albedo, mat.Normal, mat.ViewDir);
             outputColor.rgb = SrgbLinearToGamma(outputColor.rgb);
             return true;
-        case renderMode_Color:
+        }
+        else if (g_iRenderMode == renderMode_Color)
+        {
             outputColor = vec4(SrgbLinearToGamma(mat.Albedo), 1.0);
             return true;
-        case renderMode_BumpMap:
+        }
+        else if (g_iRenderMode == renderMode_BumpMap)
+        {
             outputColor = vec4(PackToColor(mat.NormalMap), 1.0);
             return true;
-        case renderMode_Tangents:
+        }
+        else if (g_iRenderMode == renderMode_Tangents)
+        {
             outputColor = vec4(PackToColor(mat.Tangent), 1.0);
             return true;
-        case renderMode_Normals:
+        }
+        else if (g_iRenderMode == renderMode_Normals)
+        {
             outputColor = vec4(PackToColor(mat.GeometricNormal), 1.0);
             return true;
-        case renderMode_BumpNormals:
+        }
+        else if (g_iRenderMode == renderMode_BumpNormals)
+        {
             outputColor = vec4(PackToColor(mat.Normal), 1.0);
             return true;
-        case renderMode_Roughness:
-            {
-                #if defined(ANISO_ROUGHNESS)
-                    outputColor.rgb = vec3(mat.Roughness.xy, 0.0);
-                #else
-                    outputColor.rgb = mat.IsometricRoughness.xxx;
-                #endif
-
-                return true;
-            }
-        case renderMode_Metalness:
+        }
+        else if (g_iRenderMode == renderMode_Roughness)
+        {
+            if (ANISO_ROUGHNESS != 0)
+                outputColor.rgb = vec3(mat.Roughness.xy, 0.0);
+            else
+                outputColor.rgb = mat.IsometricRoughness.xxx;
+            return true;
+        }
+        else if (g_iRenderMode == renderMode_Metalness)
+        {
             outputColor.rgb = mat.Metalness.xxx;
             return true;
-        case renderMode_Height:
+        }
+        else if (g_iRenderMode == renderMode_Height)
+        {
             outputColor.rgb = mat.Height.xxx;
             return true;
-        case renderMode_ExtraParams:
+        }
+        else if (g_iRenderMode == renderMode_ExtraParams)
+        {
             outputColor.rgb = mat.ExtraParams.rgb;
             return true;
-        default:
+        }
+        else
+        {
             return false;
-    }
+        }
 }
 
-bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampler2D representativeTexture, vec2 flUVs)
+public bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampler2D representativeTexture, vec2 flUVs)
 {
     if (g_iRenderMode == renderMode_UvDensity || g_iRenderMode == renderMode_LightmapUvDensity)
     {
@@ -501,4 +554,3 @@ bool HandleUVRenderModes(inout vec4 outputColor, MaterialProperties_t mat, sampl
     return false;
 }
 
-#endif

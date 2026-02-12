@@ -1,0 +1,22 @@
+#pragma once
+
+#include "slang.h"
+
+extern "C"
+{
+#include "Attribute.h"
+#include "IGlobalSession.h"
+#include "ISession.h"
+#include "IComponentType.h"
+#include "IModule.h"
+#include "ISlangBlob.h"
+#include "ShaderReflection.h"
+#include "EntryPointReflection.h"
+#include "TypeReflection.h"
+#include "TypeLayoutReflection.h"
+#include "VariableReflection.h"
+#include "VariableLayoutReflection.h"
+#include "IEntryPoint.h"
+}
+
+

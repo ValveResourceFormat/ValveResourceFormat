@@ -1,4 +1,9 @@
 <Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
   <Project Path="CLI/CLI.csproj" />
   <Project Path="GUI/GUI.csproj" />
   <Project Path="Renderer/Renderer.csproj" />

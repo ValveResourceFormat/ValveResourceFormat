@@ -1,15 +1,10 @@
 #version 460
 
-#ifndef VRF_CSGO_CHARACTER_EYES_COMMON_INCLUDE
-#define VRF_CSGO_CHARACTER_EYES_COMMON_INCLUDE
+public extern static const int F_EYEBALLS = 0;
 
-#define F_EYEBALLS 0
-
-struct EyePixelInput
+public struct EyePixelInput
 {
-    vec4 vEyeViewDir_PosX;
-    vec4 vEyeRightDir_PosY;
-    vec4 vEyeUpDir_PosZ;
+    public vec4 vEyeViewDir_PosX;
+    public vec4 vEyeRightDir_PosY;
+    public vec4 vEyeUpDir_PosZ;
 };
-
-#endif

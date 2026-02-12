@@ -236,10 +236,14 @@ namespace ValveResourceFormat.Renderer
         {
             if (uniforms.ObjectId != -1)
             {
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, request.Call.Material.Shader.NameHash);
-                GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
+                shader.SetUniformAtLocation(uniforms.ObjectId, request.Node.Id);
+                shader.SetUniformAtLocation(uniforms.MeshId, (uint)request.Mesh.MeshIndex);
+                shader.SetUniformAtLocation(uniforms.ShaderId, request.Call.Material.Shader.NameHash);
+                shader.SetUniformAtLocation(uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.ObjectId, request.Node.Id);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, request.Call.Material.Shader.NameHash);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
             }
 
             if (uniforms.CubeMapBitmaskVisiblity != -1)
@@ -254,11 +258,14 @@ namespace ValveResourceFormat.Renderer
                     SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap.EnvMapTexture);
                 }
 
-                GL.ProgramUniform4(
-                    (uint)shader.Program,
-                    uniforms.CubeMapBitmaskVisiblity,
-                    v.Item1, v.Item2, v.Item3, v.Item4
-                );
+                shader.SetUniformAtLocation(uniforms.CubeMapBitmaskVisiblity, v.Item1, v.Item2, v.Item3, v.Item4);
+
+
+                //GL.ProgramUniform4(
+                //    (uint)shader.Program,
+                //    uniforms.CubeMapBitmaskVisiblity,
+                //    v.Item1, v.Item2, v.Item3, v.Item4
+                //);
             }
 
             if (uniforms.VisibleLightProbeVolume != -1 && request.Node.LightProbeBinding is { } lightProbe)
@@ -290,7 +297,8 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-                GL.ProgramUniform1((uint)shader.Program, uniforms.VisibleLightProbeVolume, lightProbe.ShaderIndex);
+                shader.SetUniformAtLocation(uniforms.VisibleLightProbeVolume, lightProbe.ShaderIndex);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.VisibleLightProbeVolume, lightProbe.ShaderIndex);
             }
 
             if (uniforms.AnimationData != -1)
@@ -308,7 +316,9 @@ namespace ValveResourceFormat.Renderer
                     numWeights = (uint)request.Mesh.BoneWeightCount;
                 }
 
-                GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
+
+                shader.SetUniformAtLocation(uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
+                //GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
             }
 
             if (uniforms.MorphVertexIdOffset != -1)
@@ -317,16 +327,19 @@ namespace ValveResourceFormat.Renderer
                 if (morphComposite != null)
                 {
                     SetInstanceTexture(shader, ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
-                    GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height);
+                    shader.SetUniformAtLocation(uniforms.MorphCompositeTextureSize, new System.Numerics.Vector2(morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height));
+                    //GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height);
                 }
 
-                GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
+                shader.SetUniformAtLocation(uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
+                //GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
             }
 
             if (uniforms.Transform > -1)
             {
                 var transform = request.Node.Transform.To3x4();
-                GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
+                shader.SetUniformAtLocation(uniforms.Transform, transform);
+                //GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
             }
 
             if (uniforms.Tint > -1)
@@ -334,7 +347,10 @@ namespace ValveResourceFormat.Renderer
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
                 var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
 
-                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
+                //if(shader.IsSlang)
+                shader.SetUniformAtLocation(uniforms.Tint, Color32.FromVector4(tint).PackedValue);
+                //else
+                 //   GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
             }
 
             var instanceCount = 1;
@@ -347,8 +363,12 @@ namespace ValveResourceFormat.Renderer
 
             if (uniforms.IsInstancing > -1)
             {
-                GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
+                shader.SetUniformAtLocation(uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
+                //GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
+
+            shader.UpdateUniformBuffer();
+
 
             GL.DrawElementsInstancedBaseVertex(
                 request.Call.PrimitiveType,

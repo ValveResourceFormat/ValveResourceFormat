@@ -1,13 +1,10 @@
 #version 460
 
-#ifndef VRF_SHADOWMAPPING_INCLUDE
-#define VRF_SHADOWMAPPING_INCLUDE
+import ViewConstants;
 
-#include "ViewConstants.slang"
+public uniform sampler2DShadow g_tShadowDepthBufferDepth;
 
-uniform sampler2DShadow g_tShadowDepthBufferDepth;
-
-float CalculateSunShadowMapVisibility(vec3 vPosition)
+public float CalculateSunShadowMapVisibility(vec3 vPosition)
 {
     vec4 projCoords = g_matWorldToShadow * vec4(vPosition, 1.0);
     projCoords.xyz /= projCoords.w;
@@ -41,5 +38,3 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
 
     return 1.0 - shadow;
 }
-
-#endif

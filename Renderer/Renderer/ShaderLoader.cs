@@ -3,12 +3,14 @@ using System.IO;
 using System.IO.Hashing;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using SlangShaderSharp;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -69,6 +71,13 @@ namespace ValveResourceFormat.Renderer
             public HashSet<string> SrgbUniforms { get; } = [];
             public Dictionary<ShaderProgramType, string> Sources { get; } = [];
 
+            //SLANG. This is necessary for specialisation. We aren't parsing a GLSL source anymore.
+            public IComponentType? SlangComponentType { get; set; }
+            //SLANG
+            public List<IEntryPoint> EntryPoints { get; } = [];
+            //SLANG
+            public bool IsSlang { get; set; }
+
 #if DEBUG
             public HashSet<string> ShaderVariants { get; } = [];
 #endif
@@ -76,19 +85,53 @@ namespace ValveResourceFormat.Renderer
 
         static ShaderLoader()
         {
-            Task.Run(() =>
+            if (slangSession == null)
             {
-                foreach (var shader in Parser.AvailableShaders.Keys)
-                {
-                    GetOrParseShader(shader);
-                }
-            });
+                setupSlangCompiler();
+            }
         }
 
         public ShaderLoader(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
         }
+
+        static void setupSlangCompiler()
+        {
+            var desc = new SlangGlobalSessionDesc { EnableGLSL = true };
+            Slang.CreateGlobalSession2(desc, out globalSlangSession);
+            RecreateSlangSession();
+        }
+
+        static public void RecreateSlangSession()
+        {
+            (slangSession as IDisposable)?.Dispose();
+
+            var targetDesc = new TargetDesc
+            {
+                Format = SlangCompileTarget.Spirv,
+                Profile = globalSlangSession!.FindProfile("spirv_1_0"),
+            };
+
+            var sessionDesc = new SessionDesc
+            {
+                Targets = [targetDesc],
+                AllowGLSLSyntax = true,
+                DefaultMatrixLayoutMode = SlangMatrixLayoutMode.RowMajor,
+                SearchPaths = [ShaderParser.GetShaderDiskPath(string.Empty)],
+                CompilerOptionEntries =
+                [
+                    new CompilerOptionEntry(CompilerOptionName.DebugInformation, CompilerOptionValue.FromInt(0)),
+                ],
+            };
+
+            globalSlangSession.CreateSession(sessionDesc, out slangSession);
+        }
+
+        static IGlobalSession? globalSlangSession;
+        static ISession? slangSession;
+
+
 
         public Shader LoadShader(string shaderName, params (string ComboName, byte ComboValue)[] combos)
         {
@@ -116,7 +159,19 @@ namespace ValveResourceFormat.Renderer
             return shader;
         }
 
-        private static ParsedShaderData GetOrParseShader(string shaderFileName)
+        private ParsedShaderData GetOrParseShader(string shaderFileName)
+        {
+            if (File.Exists(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang")))
+            {
+                return GetOrParseSlangShader(shaderFileName);
+            }
+            else
+            {
+                return GetOrParseGlslShader(shaderFileName);
+            }
+        }
+
+        private static ParsedShaderData GetOrParseGlslShader(string shaderFileName)
         {
             using var _ = ParserLock.EnterScope();
             if (ParsedCache.TryGetValue(shaderFileName, out var cached))
@@ -142,7 +197,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                var nameWithExtension = $"{shaderFileName}.{extension}.slang";
+                var nameWithExtension = $"{shaderFileName}.{extension}.glSlang";
 
                 var shaderSource = Parser.PreprocessShader(nameWithExtension, parsedData);
                 parsedData.Sources[@type] = shaderSource;
@@ -153,15 +208,80 @@ namespace ValveResourceFormat.Renderer
             return parsedData;
         }
 
-        private Shader CompileAndLinkShader(string shaderName, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
+        private ParsedShaderData GetOrParseSlangShader(string shaderFileName)
+        {
+            using var _ = ParserLock.EnterScope();
+            if (ParsedCache.TryGetValue(shaderFileName, out var cached))
+            {
+                return cached;
+            }
+
+            var parsedData = new ParsedShaderData();
+
+            parsedData.IsSlang = true;
+
+            var availableStages = Parser.AvailableShaders.GetValueOrDefault(shaderFileName)
+                ?? throw new FileNotFoundException($"Shader '{shaderFileName}' does not exist.");
+
+            if (availableStages.Length == 0
+            || availableStages[(int)ShaderProgramType.Vertex] == false && availableStages[(int)ShaderProgramType.Compute] == false)
+            {
+                throw new InvalidDataException($"Shader '{shaderFileName}' does not have a vertex or compute stage.");
+            }
+
+            //only loading one file. Shaders with split vert and frag shaders must import the vertex shader.
+            var module = slangSession!.LoadModule(shaderFileName, out var diagnostics);
+
+            if (module != null)
+            {
+                for (var i = 0; i < module.GetDefinedEntryPointCount(); i++)
+                {
+                    module.GetDefinedEntryPoint(i, out var entryPoint);
+                    parsedData.EntryPoints.Add(entryPoint);
+                }
+                parsedData.SlangComponentType = module;
+
+                if (diagnostics != null)
+                {
+                    RendererContext.Logger.LogInformation("Shader '{ShaderFileName}': {Log}'", shaderFileName, diagnostics.AsString);
+                }
+            }
+            else
+            {
+                throw new ShaderCompilerException($"Failed to load shader: {shaderFileName}:\n{(diagnostics?.AsString ?? "Diagnostics unavailable")}");
+            }
+
+            ParsedCache[shaderFileName] = parsedData;
+            return parsedData;
+        }
+
+        //SLANG: false = not a bound resource. This happens when it is a disabled conditional.
+        static bool ReflectResource(in VariableLayoutReflection variable, out bool IsTexture, out int BindingIndex)
+        {
+            IsTexture = false;
+            BindingIndex = (int)variable.BindingIndex;
+            var varType = variable.TypeLayout;
+
+            //var conditionalArray = varType.getFieldByIndex(0).TypeLayout.getElementTypeLayout();
+
+            var shape = variable.TypeLayout.Type.ResourceShape;
+
+            if (Convert.ToBoolean(shape & SlangResourceShape.Texture2D) || Convert.ToBoolean(shape & SlangResourceShape.Texture2DArray))
+            {
+                IsTexture = true;
+            }
+
+
+            return true;
+        }
+
+
+        private Shader CompileAndLinkGlslShader(string shaderName, ParsedShaderData parsedData, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
         {
             var shaderProgram = -1;
-
             try
             {
                 var shaderFileName = GetShaderFileByName(shaderName);
-                var parsedData = GetOrParseShader(shaderFileName);
-
                 var sources = parsedData.Sources;
 
                 static ShaderType ToShaderType(ShaderProgramType type) => type switch
@@ -205,7 +325,8 @@ namespace ValveResourceFormat.Renderer
                     ShaderObjects = shaderObjects,
                     RenderModes = parsedData.RenderModes,
                     UniformNames = parsedData.Uniforms,
-                    SrgbUniforms = parsedData.SrgbUniforms
+                    SrgbUniforms = parsedData.SrgbUniforms,
+                    IsSlang = parsedData.IsSlang
                 };
 
                 foreach (var shaderObj in shaderObjects)
@@ -253,26 +374,409 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        private Shader CompileAndLinkSlangShader(string shaderName, ParsedShaderData parsedData, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
+        {
+            var shaderProgram = -1;
+            try
+            {
+                var shaderFileName = GetShaderFileByName(shaderName);
+
+                // Build specialization config module with arguments
+                var configModuleSource = "";
+                foreach (var argument in arguments)
+                {
+                    configModuleSource += "export static const int " + argument.Key + "=" + argument.Value + ";\n";
+                }
+
+                // Inject shader variant name (same as GLSL path does with #define)
+                configModuleSource += "export static const int " + Path.GetFileNameWithoutExtension(shaderName).Replace('.', '_') + "_vfx=1;\n";
+
+                var confName = (new Guid(MD5.HashData(Encoding.UTF8.GetBytes(configModuleSource)))).ToString();
+                var configMod = slangSession.LoadModuleFromSourceString(confName, null, configModuleSource, out var diagnosticBlob);
+
+                // Compose config + module + all entry points, then link once
+                var components = new IComponentType[2 + parsedData.EntryPoints.Count];
+                components[0] = configMod;
+                components[1] = parsedData.SlangComponentType;
+                for (var i = 0; i < parsedData.EntryPoints.Count; i++)
+                {
+                    components[2 + i] = parsedData.EntryPoints[i];
+                }
+
+                slangSession.CreateCompositeComponentType(components, out var composedProgram, out diagnosticBlob);
+
+                if (composedProgram == null)
+                {
+                    throw new ShaderCompilerException($"Failed to create composite for shader '{shaderName}':\n{diagnosticBlob?.AsString}");
+                }
+
+                composedProgram.Link(out var linkedProgram, out diagnosticBlob);
+
+                if (linkedProgram == null)
+                {
+                    throw new ShaderCompilerException($"Failed to link shader '{shaderName}':\n{diagnosticBlob?.AsString}");
+                }
+
+                // Single GetTargetCode call for unified SPIR-V containing all entry points
+                linkedProgram.GetTargetCode(0, out var spirvBlob, out var codeGenDiag);
+
+                // Reflect on the fully linked program
+                var ReflectedUniformBufferBinding = -1;
+                var ReflectedUniformBufferSize = 0;
+                var ReflectedUniformOffsets = new Dictionary<string, int>();
+
+                var ReflectedIntParams = new Dictionary<string, (ActiveUniformType Type, int Location, int DefaultValue, bool SrgbRead)>();
+                var ReflectedFloatParams = new Dictionary<string, (ActiveUniformType Type, int Location, float DefaultValue, bool SrgbRead)>();
+                var ReflectedVectorParams = new Dictionary<string, (ActiveUniformType Type, int Location, int size, Vector4 DefaultValue, bool SrgbRead)>();
+
+
+                var ReflectedResourceBindings = new Dictionary<string, (int Binding, bool isTexture, bool SrgbRead)>();
+                var ReflectedAttributes = new Dictionary<string, int>();
+
+                HashSet<string> ReflectedReservedTextures = [];
+
+                var programLayout = linkedProgram.GetLayout(0, out _);
+                var globalVarLayout = programLayout.GetGlobalParamsVarLayout();
+
+
+                //Reflect parameters
+                if (globalVarLayout is { } gvl && gvl.TypeLayout.ParameterCategory == SlangParameterCategory.None)
+                {
+                    //SLANG: Wonderful! That means we don't have a uniform buffer because we have no lose uniforms!
+                    var globalTypeLayout = gvl.TypeLayout;
+
+                    //SLANG: Any field in here is therefore a bound resource!
+                    for (uint i = 0; i < globalTypeLayout.FieldCount; i++)
+                    {
+                        var field = globalTypeLayout.GetFieldByIndex(i);
+
+                        var fieldType = field.TypeLayout;
+                        var fieldVar = field.Variable;
+                        var kind = fieldType.Kind;
+                        var name = field.Name;
+
+                        var SrgbRead = false;
+
+                        for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
+                        {
+                            var userAttribute = fieldVar.GetAttribute(attributeIndex);
+                            if (userAttribute.Name == "SrgbRead")
+                            {
+                                SrgbRead = true;
+                            }
+                        }
+
+                        var shape = fieldType.Type.ResourceShape;
+                        if (Convert.ToBoolean(shape & SlangResourceShape.Texture2D))
+                        {
+                            ReflectedResourceBindings.Add(field.Name, ((int)field.BindingIndex, true, SrgbRead));
+                            foreach (var resTex in MaterialLoader.ReservedTextures)
+                                if (name.Contains(resTex))
+                                {
+                                    ReflectedReservedTextures.Add(name);
+                                }
+                        }
+                        else
+                            ReflectedResourceBindings.Add(field.Name, ((int)field.BindingIndex, false, false));
+                    }
+                }
+                else if (globalVarLayout is { } gvl2 && gvl2.TypeLayout.ParameterCategory == SlangParameterCategory.DescriptorTableSlot)
+                {
+                    ReflectedUniformBufferBinding = (int)gvl2.BindingIndex;
+                    //SLANG: globallayout(a variable)->buffer->containing a variable -> of type struct (or so we hope)
+                    var bufferType = gvl2.TypeLayout.ElementVarLayout.TypeLayout;
+                    ReflectedUniformBufferSize = (int)bufferType.GetSize(SlangParameterCategory.Uniform);
+
+                    for (uint i = 0; i < bufferType.FieldCount; i++)
+                    {
+                        var field = bufferType.GetFieldByIndex(i);
+
+                        if (field.TypeLayout.ParameterCategory == SlangParameterCategory.Uniform)
+                        {
+                            var uniformName = field.Name;
+
+                            ReflectedUniformOffsets.Add(uniformName, (int)field.GetOffset());
+                            var fieldType = field.TypeLayout;
+                            var fieldVar = field.Variable;
+                            var kind = fieldType.Kind;
+
+
+
+                            switch (kind)
+                            {
+                                case SlangTypeKind.Scalar:
+                                    {
+                                        var scalarType = fieldType.Type.ScalarType;
+                                        if (scalarType == SlangScalarType.Int32)
+                                        {
+                                            var SrgbRead = false;
+                                            float defValue = 0;
+                                            for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
+                                            {
+                                                var userAttribute = fieldVar.GetAttribute(attributeIndex);
+                                                if (userAttribute.Name == "SrgbRead")
+                                                {
+                                                    SrgbRead = true;
+                                                }
+                                                if (userAttribute.Name == "Default")
+                                                {
+                                                    defValue = userAttribute.GetArgumentValueFloat(0)!.Value;
+                                                }
+                                            }
+
+                                            ReflectedIntParams.Add(uniformName, (ActiveUniformType.Int, (int)field.GetOffset(), (int)defValue, SrgbRead));
+                                        }
+                                        if (scalarType == SlangScalarType.Float32)
+                                        {
+                                            var SrgbRead = false;
+                                            float defValue = 0;
+                                            for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
+                                            {
+                                                var userAttribute = fieldVar.GetAttribute(attributeIndex);
+                                                if (userAttribute.Name == "SrgbRead")
+                                                {
+                                                    SrgbRead = true;
+                                                }
+                                                if (userAttribute.Name == "Default")
+                                                {
+                                                    defValue = userAttribute.GetArgumentValueFloat(0)!.Value;
+                                                }
+                                            }
+
+                                            ReflectedFloatParams.Add(uniformName, (ActiveUniformType.Int, (int)field.GetOffset(), defValue, SrgbRead));
+                                        }
+                                        break;
+                                    }
+                                //Assumption: All vectors are float vectors. If we also want to support int vectors here, we need to handle it differently.
+                                case SlangTypeKind.Vector:
+                                    {
+                                        var SrgbRead = false;
+                                        var defValue = new Vector4(0);
+                                        for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
+                                        {
+                                            var userAttribute = fieldVar.GetAttribute(attributeIndex);
+                                            if (userAttribute.Name == "SrgbRead")
+                                            {
+                                                SrgbRead = true;
+                                            }
+                                            if (userAttribute.Name.StartsWith("Default"))
+                                            {
+                                                for (uint argIndex = 0; argIndex < userAttribute.ArgumentCount; argIndex++)
+                                                {
+                                                    var defSlotValue = userAttribute.GetArgumentValueFloat(argIndex)!.Value;
+
+                                                    defValue[(int)argIndex] = defSlotValue;
+                                                }
+                                            }
+                                        }
+                                        //SLANG: HACK: Getting the size from argument count is flawed, as we might have a mismatch between the default size and the vector type.
+                                        ReflectedVectorParams.Add(uniformName, (ActiveUniformType.FloatVec4, (int)field.GetOffset(), (int)field.TypeLayout.Type.ElementCount, defValue, SrgbRead));
+
+
+                                        break;
+                                    }
+                            }
+                        }
+                        else
+                        {
+                            var fieldType = field.TypeLayout;
+                            var fieldVar = field.Variable;
+                            var kind = fieldType.Kind;
+                            var name = field.Name;
+
+                            var SrgbRead = false;
+
+                            for (uint attributeIndex = 0; attributeIndex < fieldVar.AttributeCount; attributeIndex++)
+                            {
+                                var userAttribute = fieldVar.GetAttribute(attributeIndex);
+                                if (userAttribute.Name == "SrgbRead")
+                                {
+                                    SrgbRead = true;
+                                }
+                            }
+
+                            if (ReflectResource(field, out var isTexture, out var BindingIndex))
+                            {
+                                ReflectedResourceBindings.Add(field.Name, (BindingIndex, isTexture, isTexture && SrgbRead));
+                            }
+
+
+                            var shape = fieldType.Type.ResourceShape;
+                            if (Convert.ToBoolean(shape & SlangResourceShape.Texture2D))
+                            {
+                                foreach (var resTex in MaterialLoader.ReservedTextures)
+                                {
+                                    if (name.Contains(resTex))
+                                    {
+                                        ReflectedReservedTextures.Add(name);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                static ShaderType ToShaderType(SlangStage type) => type switch
+                {
+                    SlangStage.Vertex => ShaderType.VertexShader,
+                    SlangStage.Fragment => ShaderType.FragmentShader,
+                    SlangStage.Compute => ShaderType.ComputeShader,
+                    _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+                };
+
+                // Reflect entry points and create GL shader objects
+                var entryPointCount = parsedData.EntryPoints.Count;
+                var shaderObjects = new int[entryPointCount];
+                var entryPointNames = new string[entryPointCount];
+
+                for (uint i = 0; i < entryPointCount; i++)
+                {
+                    var epReflection = programLayout.GetEntryPointByIndex(i);
+                    var stage = epReflection.Stage;
+                    entryPointNames[i] = epReflection.Name;
+                    shaderObjects[i] = GL.CreateShader(ToShaderType(stage));
+
+                    if (stage == SlangStage.Vertex)
+                    {
+                        var inputLayout = epReflection.VarLayout;
+                        var inputCount = inputLayout.TypeLayout.FieldCount;
+                        for (uint j = 0; j < inputCount; j++)
+                        {
+                            var inputElementLayout = inputLayout.TypeLayout.GetFieldByIndex(j);
+                            ReflectedAttributes.Add(inputElementLayout.Name, (int)inputElementLayout.BindingIndex);
+                        }
+                    }
+                }
+
+                // Single glShaderBinary call with all shader objects sharing one SPIR-V blob
+                unsafe
+                {
+                    GL.ShaderBinary(shaderObjects.Length, shaderObjects, ShaderBinaryFormat.ShaderBinaryFormatSpirV,
+                        (IntPtr)spirvBlob.GetBufferPointer(), (int)spirvBlob.GetBufferSize());
+                }
+
+                for (var i = 0; i < shaderObjects.Length; i++)
+                {
+                    GL.SpecializeShader(shaderObjects[i], entryPointNames[i], 0, (int[])null, (int[])null);
+                }
+
+                shaderProgram = GL.CreateProgram();
+
+#if DEBUG
+                GL.ObjectLabel(ObjectLabelIdentifier.Program, shaderProgram, shaderFileName.Length, shaderFileName);
+                for (var i = 0; i < shaderObjects.Length; i++)
+                {
+                    GL.ObjectLabel(ObjectLabelIdentifier.Shader, shaderObjects[i], shaderFileName.Length, shaderFileName);
+                }
+#endif
+
+
+                var shader = new Shader(shaderName, RendererContext)
+                {
+#if DEBUG
+                    FileName = shaderFileName,
+#endif
+
+                    Parameters = arguments,
+                    Program = shaderProgram,
+                    ShaderObjects = shaderObjects,
+                    UniformBufferBinding = ReflectedUniformBufferBinding,
+                    CpuUniformBuffer = new byte[ReflectedUniformBufferSize],
+                    IntParams = ReflectedIntParams,
+                    FloatParams = ReflectedFloatParams,
+                    VectorParams = ReflectedVectorParams,
+                    UniformBufferSize = ReflectedUniformBufferSize,
+                    UniformOffsets = ReflectedUniformOffsets,
+                    ResourceBindings = ReflectedResourceBindings,
+                    ReservedTexuresUsed = ReflectedReservedTextures,
+                    Attributes = ReflectedAttributes,
+                    RenderModes = parsedData.RenderModes,
+                    UniformNames = parsedData.Uniforms,
+                    SrgbUniforms = parsedData.SrgbUniforms,
+                    IsSlang = parsedData.IsSlang
+                };
+
+                foreach (var shaderObj in shaderObjects)
+                {
+                    GL.AttachShader(shader.Program, shaderObj);
+                }
+
+                GL.LinkProgram(shader.Program);
+
+                //SLANG: setting this to true causes openGL errors? possible threading fuckery?
+                if (blocking)
+                {
+                    if (!shader.EnsureLoaded())
+                    {
+                        GL.GetProgramInfoLog(shader.Program, out var log);
+                        ThrowShaderError(log, string.Concat(shaderFileName, GetArgumentDescription(arguments)), shaderName, "Failed to link shader");
+                    }
+                }
+
+                ShaderDefines[shaderName] = parsedData.Defines;
+
+#if DEBUG
+                LastShaderVariantNames = parsedData.ShaderVariants;
+                LastShaderSourceLines = [.. Parser.SourceFileLines];
+#endif
+
+                var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
+                RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled{CompiledStatus} successfully", shaderName, shaderFileName, argsDescription, blocking ? " and linked" : string.Empty);
+
+                return shader;
+            }
+            catch (ShaderCompilerException)
+            {
+                if (shaderProgram > -1)
+                {
+                    GL.DeleteProgram(shaderProgram);
+                }
+
+                throw;
+            }
+            finally
+            {
+                Parser.ClearBuilder();
+            }
+        }
+
+        private Shader CompileAndLinkShader(string shaderName, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
+        {
+            var shaderFileName = GetShaderFileByName(shaderName);
+            var parsedData = GetOrParseShader(shaderFileName);
+            if (parsedData.IsSlang)
+            {
+                return CompileAndLinkSlangShader(shaderName, parsedData, arguments, blocking);
+            }
+            else
+            {
+                return CompileAndLinkGlslShader(shaderName, parsedData, arguments, blocking);
+            }
+        }
+
         private static void CompileShaderObjects(int[] shaderObjects, string[] shaderSources, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
             var header = new StringBuilder();
-            header.Append(ShaderParser.ExpectedShaderVersion);
-            header.Append('\n');
 
-            // Append original shader name as a define
-            header.Append("#define ");
-            header.Append(Path.GetFileNameWithoutExtension(originalShaderName));
-            header.Append("_vfx 1\n");
-
-            // Add all defines (with argument overrides or defaults)
-            foreach (var (defineName, defaultValue) in parsedData.Defines)
+            if (!(shaderSources[0].Split("\n")[0] == "#version 460"))
             {
-                var value = arguments.TryGetValue(defineName, out var argValue) ? argValue : defaultValue;
-                header.Append("#define ");
-                header.Append(defineName);
-                header.Append(' ');
-                header.Append(value.ToString(CultureInfo.InvariantCulture));
+                header.Append(ShaderParser.ExpectedShaderVersion);
                 header.Append('\n');
+                // Append original shader name as a define
+                header.Append("#define ");
+                header.Append(Path.GetFileNameWithoutExtension(originalShaderName));
+                header.Append("_vfx 1\n");
+
+                // Add all defines (with argument overrides or defaults)
+                foreach (var (defineName, defaultValue) in parsedData.Defines)
+                {
+                    var value = arguments.TryGetValue(defineName, out var argValue) ? argValue : defaultValue;
+                    header.Append("#define ");
+                    header.Append(defineName);
+                    header.Append(' ');
+                    header.Append(value.ToString(CultureInfo.InvariantCulture));
+                    header.Append('\n');
+                }
             }
 
             var headerText = header.ToString();
@@ -366,11 +870,12 @@ namespace ValveResourceFormat.Renderer
 
         public static string ShaderNameFromPath(string shaderFilePath)
         {
-            return Path.GetFileName(shaderFilePath[..^ShaderFileExtension.Length]);
+            //return Path.GetFileName(shaderFilePath[..^ShaderFileExtension.Length]);
+            return Path.GetFileName(shaderFilePath.Split(".")[0]);
         }
 
-        public const string SlangExtension = ".slang";
-        public const string ShaderFileExtension = ".vert.slang";
+        public const string SlangExtension = ".glSlang";
+        public const string ShaderFileExtension = ".vert.glSlang";
         const string VrfInternalShaderPrefix = "vrf.";
 
         // Map Valve's shader names to shader files VRF has
@@ -408,7 +913,7 @@ namespace ValveResourceFormat.Renderer
             var defines = ShaderDefines[shaderName];
 
             return arguments
-                .Where(p => defines.ContainsKey(p.Key))
+                //SLANG: This doesn't work when we can't reflect on externs and why would the define have to be known? .Where(p => defines.ContainsKey(p.Key))
                 .Where(static p => p.Value != 0) // Shader defines should already default to zero
                 .OrderBy(static p => p.Key);
         }
@@ -475,7 +980,7 @@ namespace ValveResourceFormat.Renderer
         {
             Parser.Reset();
 
-            if (name != null && ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".{ext}.slang", StringComparison.Ordinal)))
+            if (name != null && (ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".{ext}.glSlang", StringComparison.Ordinal)) || ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".slang", StringComparison.Ordinal))))
             {
                 // If a named shader changed (not an include), then we can only reload this shader
                 name = ShaderNameFromPath(name!);

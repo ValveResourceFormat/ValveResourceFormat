@@ -1,20 +1,20 @@
 #version 460
 
-#ifndef VRF_FOG_INCLUDE
-#define VRF_FOG_INCLUDE
 
-#include "ViewConstants.slang"
-#include "utils.slang"
+
+
+import ViewConstants;
+import utils;
 
 // Fog pixel shaders.
 
 // Per-material
 uniform bool g_bFogEnabled = true;
 
-#define USE_VOLUMETRIC_FOG 0
-#define USE_SPHERICAL_VIGNETTE_TERRIBLEIDEA 0
+extern static const int USE_VOLUMETRIC_FOG = 0;
+extern static const int USE_SPHERICAL_VIGNETTE_TERRIBLEIDEA = 0;
 
-void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCenteredPixelPos)
+public void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCenteredPixelPos)
 {
     vec2 gradientFogComponents; // x for View Space depth, y for height in World Space
     gradientFogComponents.x = length(cameraCenteredPixelPos);
@@ -31,7 +31,7 @@ void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCentere
 
 uniform samplerCube g_tFogCubeTexture;
 
-void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
+public void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
 {
     vec2 cubeFogComponents;
     cubeFogComponents.x = pow(ClampToPositive(length(posRelativeToCamera.xy) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
@@ -50,31 +50,42 @@ void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToC
 }
 
 
-#if (USE_VOLUMETRIC_FOG == 1) && 0
-// I have all the shader code for volumetric fog, but it would be HARD to implement. Disabled for now.
 uniform vec4 g_vVolFog_VolumeScale_Shift_Near_Range;
+
 uniform vec4 g_vVolFogDitherScaleBias;
 uniform vec4 g_vVolFogPostWorldToFrustumScale;
 uniform vec4 g_vVolFogPostWorldToFrustumBias;
 uniform mat4 g_mVolFogFromWorld; // original code is an array of length 2, and the code uses address [1]
-uniform sampler3D g_tFogVolume;
-uniform sampler2D g_tBlueNoise;
+uniform Sampler3D  g_tFogVolume;
 
-void ApplyVolumetricFog( inout vec3 PixelColor, vec3 positionWS )
-{
-    vec3 blueNoise = texture(g_tBlueNoise, gl_FragCoord.xy * g_vScreenSpaceDitherParams.zz + g_vScreenSpaceDitherParams.xy ) );
-	vec3 volFogWorldPosJittered = positionWS + (blueNoise * g_vVolFogDitherScaleBias.xxx + g_vVolFogDitherScaleBias.yyy);
 
-	vec4 projectedWorldPos = vec4(volFogWorldPosJittered, 1.0 ) * g_mVolFogFromWorld[0];
+//SLANG TODO
+//uniform Conditional<vec4, USE_VOLUMETRIC_FOG != 0> g_vVolFog_VolumeScale_Shift_Near_Range;
 
-	vec3 frustumProjection = vec3(projectedWorldPos.xy / projectedWorldPos.ww, projectedWorldPos.w );
-    frustumProjection = frustumProjection * g_vVolFogPostWorldToFrustumScale.xyz + g_vVolFogPostWorldToFrustumBias.xyz;
-	vec4 volFogCoords = vec4( frustumProjection.xy, sqrt(ClampToPositive(frustumProjection.z)), ProjectedWorldPos.w ); //coords for the volfog sample are xyw in asm and xyz in vulkan
+//uniform Conditional<vec4, USE_VOLUMETRIC_FOG != 0> g_vVolFogDitherScaleBias;
+//uniform Conditional<vec4, USE_VOLUMETRIC_FOG != 0> g_vVolFogPostWorldToFrustumScale;
+//uniform Conditional<vec4, USE_VOLUMETRIC_FOG != 0> g_vVolFogPostWorldToFrustumBias;
+//uniform Conditional<mat4, USE_VOLUMETRIC_FOG != 0> g_mVolFogFromWorld; // original code is an array of length 2, and the code uses address [1]
+//uniform Conditional<Sampler3D, USE_VOLUMETRIC_FOG != 0>  g_tFogVolume;
+//uniform Conditional<Sampler2D, USE_VOLUMETRIC_FOG != 0>  g_tBlueNoise;
 
-	vec4 volumetricFogColor = texture( g_tFogVolume, volFogCoords);
-	PixelColor = ( PixelColor * volumetricFogColor.a ) + volumetricFogColor.rgb;
-}
-#endif
+
+//void ApplyVolumetricFog( inout vec3 PixelColor, vec3 positionWS )
+//{
+//    vec3 blueNoise = texture(g_tBlueNoise, gl_FragCoord.xy * g_vScreenSpaceDitherParams.zz + g_vScreenSpaceDitherParams.xy ) );
+//	vec3 volFogWorldPosJittered = positionWS + (blueNoise * g_vVolFogDitherScaleBias.xxx + g_vVolFogDitherScaleBias.yyy);
+
+//	vec4 projectedWorldPos = vec4(volFogWorldPosJittered, 1.0 ) * g_mVolFogFromWorld[0];
+
+//	vec3 frustumProjection = vec3(projectedWorldPos.xy / projectedWorldPos.ww, projectedWorldPos.w );
+//    frustumProjection = frustumProjection * g_vVolFogPostWorldToFrustumScale.xyz + g_vVolFogPostWorldToFrustumBias.xyz;
+//	vec4 volFogCoords = vec4( frustumProjection.xy, sqrt(ClampToPositive(frustumProjection.z)), ProjectedWorldPos.w ); //coords for the volfog sample are xyw in asm and xyz in vulkan
+
+//	vec4 volumetricFogColor = texture( g_tFogVolume, volFogCoords);
+//	PixelColor = ( PixelColor * volumetricFogColor.a ) + volumetricFogColor.rgb;
+//}
+
+
 
 #if (USE_SPHERICAL_VIGNETTE_TERRIBLEIDEA == 42069)
 // Spherical vignette is a bad idea, plain and simple. Would destroy visibility on maps that use it, since it's usually controlled by code.
@@ -82,7 +93,7 @@ vec4 g_vSphericalVignetteBiasAndScale;
 vec4 g_vSphericalVignetteOrigin_Exponent;
 vec4 g_vSphericalVignetteColor_Opacity;
 
-void ApplySphericalVignette( inout vec3 pixelColor, vec3 worldPositionLightingOffset)
+public void ApplySphericalVignette( inout vec3 pixelColor, vec3 worldPositionLightingOffset)
 {
 	float sphericalVignetteLinear = saturate(g_vSphericalVignetteBiasAndScale.y * distance(worldPositionLightingOffset, g_vSphericalVignetteOrigin_Exponent.xyz) + g_vSphericalVignetteBiasAndScale.x);
 	float sphericalVignetteBlend = pow(sphericalVignetteLinear, g_vSphericalVignetteOrigin_Exponent.w);
@@ -90,17 +101,17 @@ void ApplySphericalVignette( inout vec3 pixelColor, vec3 worldPositionLightingOf
 }
 #endif
 
-void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
+public void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 {
     if (g_bFogEnabled)
     {
 
-#if (USE_VOLUMETRIC_FOG == 1)
-		if (g_bFogTypeEnabled.x)
-		{
-    	    ApplyVolumetricFog(pixelColor, LightingPos);
-		}
-#endif
+        if(USE_VOLUMETRIC_FOG == 1)
+		    if (g_bFogTypeEnabled.x)
+		    {
+                //Slang: not used rn so we can just ignore it anyway
+    	        //ApplyVolumetricFog(pixelColor, LightingPos);
+		    }
 
         vec3 cameraCenteredPixelPos = positionWS - g_vCameraPositionWs;
 
@@ -137,4 +148,3 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
     }
 }
 
-#endif

@@ -7,15 +7,17 @@ uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
 
+uint instanceID : SV_InstanceID;
+
 layout(std140, binding = 10) readonly buffer g_transformBuffer
 {
     mat3x4 transforms[];
 };
 
-struct ObjectData_t
+public struct ObjectData_t
 {
-    mat4 transform;
-    vec4 vTint;
+    public mat4 transform;
+    public vec4 vTint;
 };
 
 vec4 UnpackColor32(uint nColor)
@@ -29,7 +31,12 @@ vec4 UnpackColor32(uint nColor)
     return vResult;
 }
 
-mat4 UnpackMatrix4(mat3x4 m)
+public mat3x4 GetTransform(uint index)
+{
+    return transforms[index];
+}
+
+public mat4 UnpackMatrix4(mat3x4 m)
 {
     return mat4(
         m[0][0], m[1][0], m[2][0], 0,
@@ -39,9 +46,9 @@ mat4 UnpackMatrix4(mat3x4 m)
     );
 }
 
-mat4 CalculateObjectToWorldMatrix()
+public mat4 CalculateObjectToWorldMatrix()
 {
-    return UnpackMatrix4(bIsInstancing ? transforms[gl_InstanceID] : transform);
+    return UnpackMatrix4(bIsInstancing ? transforms[instanceID] : transform);
 }
 
 vec4 GetObjectTintSrgb()
@@ -49,7 +56,7 @@ vec4 GetObjectTintSrgb()
     return UnpackColor32(vTint);
 }
 
-ObjectData_t GetObjectData()
+public ObjectData_t GetObjectData()
 {
     ObjectData_t object;
     object.transform = CalculateObjectToWorldMatrix();
@@ -58,3 +65,4 @@ ObjectData_t GetObjectData()
 }
 
 #endif
+

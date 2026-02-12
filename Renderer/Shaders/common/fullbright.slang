@@ -1,17 +1,14 @@
 #version 460
 
-#ifndef VRF_FULLBRIGHT_INCLUDE
-#define VRF_FULLBRIGHT_INCLUDE
+import utils;
 
-#include "utils.slang"
-
-vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
+public vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
 {
     float flFakeDiffuseLighting = saturate(dot(normal, viewVector)) * 0.7 + 0.3;
 
     vec3 vReflectionDirWs = reflect(viewVector, normal);
 
-    float flFakeSpecularLighting = pow2(pow2(saturate(dot(viewVector, vReflectionDirWs)))) * 0.05;
+    float flFakeSpecularLighting = pow2( pow2(saturate(dot(viewVector, vReflectionDirWs))) ) * 0.05;
 
     float XtraLight1 = dot(vec3(0.6, 0.4, 1.0), pow2(saturate(normal)));
     float XtraLight2 = dot(vec3(0.6, 0.4, 0.2), pow2(saturate(-normal)));
@@ -21,4 +18,3 @@ vec3 CalculateFullbrightLighting(vec3 albedo, vec3 normal, vec3 viewVector)
     return xtraLight * albedo * flFakeDiffuseLighting + flFakeSpecularLighting;
 }
 
-#endif
