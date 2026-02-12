@@ -242,9 +242,8 @@ namespace ValveResourceFormat.Renderer
             //only loading one file. Shaders with split vert and frag shaders must import the vertex shader.
             var nameWithExtension = $"{shaderFileName}.slang";
 
-            IModule? module = slangSession!.LoadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out ISlangBlob diagnostics);
+            IModule? module = slangSession!.LoadModule(ShaderParser.GetShaderDiskPath($"{shaderFileName}.slang"), out var diagnostics);
 
-            string diagnosticsOut = "";
             if (module != null)
             {
                 for (int i = 0; i < module.GetDefinedEntryPointCount(); i++)
@@ -254,12 +253,13 @@ namespace ValveResourceFormat.Renderer
                 }
                 module.Link(out IComponentType linkedModule, out ISlangBlob linkDiag);
                 parsedData.SlangComponentType = linkedModule;
+
+                // TODO: Log diagnostics even if build succeeds in debug mode
             }
             else
             {
-                throw new ShaderCompilerException($"Failed to load shader: {shaderFileName}: \n {diagnostics!.ToString()}");
+                throw new ShaderCompilerException($"Failed to load shader: {shaderFileName}:\n{(diagnostics?.AsString ?? "Diagnostics unavailable")}");
             }
-
 
             ParsedCache[shaderFileName] = parsedData;
             return parsedData;
@@ -406,6 +406,9 @@ namespace ValveResourceFormat.Renderer
                 {
                     configModuleSource += "export static const int " + argument.Key + "=" + argument.Value + ";\n";
                 }
+
+                // Inject shader variant name (same as GLSL path does with #define)
+                configModuleSource += "export static const int " + Path.GetFileNameWithoutExtension(shaderName).Replace('.', '_') + "_vfx=1;\n";
 
                 string confName = (new Guid(MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(configModuleSource)))).ToString();
                 IModule configMod = slangSession.LoadModuleFromSourceString(confName, null, configModuleSource, out ISlangBlob diagnosticBlob);

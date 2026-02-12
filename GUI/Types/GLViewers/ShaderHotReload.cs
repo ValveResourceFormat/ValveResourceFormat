@@ -5,9 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
-using SlangCompiler;
 using ValveResourceFormat.Renderer;
-using static SlangCompiler.SlangBindings;
 
 namespace GUI.Types.GLViewers;
 
