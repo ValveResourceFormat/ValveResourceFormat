@@ -93,6 +93,8 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
         // Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
+
+        EnsureDepthPyramidSize(256, 256);
     }
 
     public void LoadRendererResources()
@@ -288,9 +290,20 @@ public class Renderer
             Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShaders : Span<Shader>.Empty);
         }
 
-        if (isStandardPass && Scene.EnableOcclusionCulling)
+        if (isStandardPass && Scene.EnableOcclusionCullingCpu)
         {
             Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
+        }
+
+        // Generate depth pyramid from current depth buffer for next frame's occlusion culling
+        if (isStandardPass && Scene.EnableOcclusionCulling)
+        {
+            Debug.Assert(renderContext.Framebuffer.Depth != null);
+            GL.MemoryBarrier(MemoryBarrierFlags.FramebufferBarrierBit);
+            renderContext.Framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
+            EnsureDepthPyramidSize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+            Scene.GenerateDepthPyramid(renderContext.Framebuffer.Depth);
+            renderContext.Framebuffer.Bind(FramebufferTarget.Framebuffer);
         }
 
         using (new GLDebugGroup("Sky Render"))
@@ -538,9 +551,37 @@ public class Renderer
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera);
 
         Scene.SetupSceneShadows(updateContext.Camera, ShadowDepthBuffer.Width);
-        Scene.GetOcclusionTestResults();
+
+        if (LockedCullFrustum == null)
+        {
+            Scene.GetOcclusionTestResults();
+        }
 
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
+    }
+
+    void EnsureDepthPyramidSize(int width, int height)
+    {
+        // Get the target pyramid size
+        var maxDim = Math.Max(width, height);
+        var cappedDim = Math.Min(maxDim, 256);
+        var targetSize = 1 << (int)Math.Floor(Math.Log2(cappedDim));
+
+        if (Scene.DepthPyramid != null && Scene.DepthPyramid.Width == targetSize && Scene.DepthPyramid.Height == targetSize)
+        {
+            return;
+        }
+
+        // Delete old texture
+        Scene.DepthPyramid?.Delete();
+
+        // Calculate mips needed to go from targetSize down to 1x1
+        var maxMipLevel = (int)Math.Log2(targetSize);
+
+        Scene.DepthPyramid = RenderTexture.Create(targetSize, targetSize, SizedInternalFormat.R32f, maxMipLevel + 1);
+        Scene.DepthPyramid.SetLabel("DepthPyramid");
+
+        Scene.DepthPyramid.SetBaseMaxLevel(0, maxMipLevel);
     }
 }

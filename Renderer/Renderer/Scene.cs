@@ -59,15 +59,38 @@ namespace ValveResourceFormat.Renderer
 
         private Shader? FrustumCullShader;
 
+        private Shader? DepthPyramidShader;
+        private Shader? DepthPyramidMsaaShader;
+        public RenderTexture? DepthPyramid { get; internal set; }
+
         public RendererContext RendererContext { get; }
         public Octree StaticOctree { get; }
         public Octree DynamicOctree { get; }
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
-        public bool EnableDepthPrepass { get; set; } = true;
+        public bool EnableDepthPrepass { get; set; }
         public bool EnableOcclusionCulling { get; set; }
-        public bool EnableIndirectDraws { get; set; }
+        public bool EnableOcclusionCullingCpu { get; set; }
+        public bool EnableIndirectDraws
+        {
+            get;
+            set
+            {
+                field = value;
+
+                // if indirect draws are enabled, remove aggregate fragments from octree
+                foreach (var node in AllNodes)
+                {
+                    if (node is SceneAggregate.Fragment fragment && !fragment.Parent.HasTransforms)
+                    {
+                        node.LayerEnabled = !value;
+                    }
+                }
+
+                UpdateOctrees();
+            }
+        }
 
         public Matrix4x4[] Transforms { get; set; } = [Matrix4x4.Identity];
 
@@ -101,6 +124,8 @@ namespace ValveResourceFormat.Renderer
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
+            DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
+            DepthPyramidMsaaShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_MSAA_INPUT", 1));
 
             RootTransform.Translation = new Vector3(0, 5, 0);
         }
@@ -475,12 +500,92 @@ namespace ValveResourceFormat.Renderer
 
             FrustumCullShader.Use();
 
+            // Set occlusion culling enabled flag
+            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", EnableOcclusionCulling ? 1 : 0);
+
+            // If occlusion culling is enabled, setup depth pyramid and bind texture
+            if (EnableOcclusionCulling)
+            {
+                Debug.Assert(DepthPyramid != null);
+
+                FrustumCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
+                FrustumCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
+                FrustumCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
+
+                // Bind depth pyramid as texture for sampling
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
+            }
+
             MeshletDataGpu.BindBufferBase();
             DrawBoundsGpu.BindBufferBase();
             IndirectDrawsGpu.BindBufferBase();
 
             var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
+        }
+
+        public void GenerateDepthPyramid(RenderTexture depthSource)
+        {
+            if (DepthPyramid == null || DepthPyramidShader == null)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Generate Depth Pyramid");
+
+            var isMsaaSource = depthSource.Target == TextureTarget.Texture2DMultisample;
+            var startMipLevel = 1;
+
+            // Resolve MSAA to mip 0 at full resolution
+            if (isMsaaSource)
+            {
+                DepthPyramidMsaaShader!.Use();
+                DepthPyramidMsaaShader.SetTexture(0, "g_tSourceDepthMS", depthSource);
+                DepthPyramidMsaaShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
+                DepthPyramidMsaaShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
+
+                DepthPyramidMsaaShader.SetUniform1("g_nDestDepthWidth", DepthPyramid.Width);
+                DepthPyramidMsaaShader.SetUniform1("g_nDestDepthHeight", DepthPyramid.Height);
+
+                GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+
+                var groupsX = (DepthPyramid.Width + 7) / 8;
+                var groupsY = (DepthPyramid.Height + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            }
+
+            // Generate mip levels down to 1x1 for better occlusion culling precision
+            DepthPyramidShader.Use();
+
+            for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
+            {
+                var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
+                var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
+                var sourceMip = mipLevel - 1;
+
+                DepthPyramidShader.SetUniform1("g_nDestDepthWidth", destWidth);
+                DepthPyramidShader.SetUniform1("g_nDestDepthHeight", destHeight);
+
+                // Bind source mip level as read-only image
+                GL.BindImageTexture(1, DepthPyramid.Handle, sourceMip, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);
+
+                // Bind destination mip level as write-only image
+                GL.BindImageTexture(2, DepthPyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+
+                // Dispatch compute shader
+                var groupsX = (destWidth + 7) / 8;
+                var groupsY = (destHeight + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            }
+
+            GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
@@ -902,7 +1007,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (!EnableOcclusionCulling)
+            if (!EnableOcclusionCullingCpu)
             {
                 ClearOccludedStateRecursive(StaticOctree.Root);
                 occlusionDirty = false;
