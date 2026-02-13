@@ -48,7 +48,9 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
         private UniformBuffer<Frustum>? frustumBuffer;
 
-        public StorageBuffer? ObjectDataBuffer { get; set; }
+        public StorageBuffer? InstanceBufferGpu { get; set; }
+        public StorageBuffer? TransformBufferGpu { get; set; }
+
 
         public StorageBuffer? DrawBoundsGpu { get; set; }
         public StorageBuffer? MeshletDataGpu { get; set; }
@@ -93,6 +95,7 @@ namespace ValveResourceFormat.Renderer
             CreateBuffers();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
+            CreateInstanceTransformBuffers(); // after calculating envmap and lpv
 
             UpdateBuffers();
 
@@ -216,6 +219,40 @@ namespace ValveResourceFormat.Renderer
             frustumBuffer = new(ReservedBufferSlots.FrustumPlanes);
 
             CreateIndirectDrawBuffers();
+        }
+
+        private void CreateInstanceTransformBuffers()
+        {
+            var nodes = AllNodes.ToList();
+            var maxId = nodes.Max(n => n.Id);
+
+            var instanceData = new ObjectDataStandard[maxId + 1];
+            var transformData = new OpenTK.Mathematics.Matrix3x4[maxId + 1];
+
+            var i = 0;
+            foreach (var node in nodes)
+            {
+                var instanceTint = (node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
+                // var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
+
+                instanceData[node.Id] = new ObjectDataStandard
+                {
+                    TintAlpha = Color32.FromVector4(instanceTint).PackedValue,
+                    TransformIndex = (uint)i,
+                    EnvMapVisibility = node.ShaderEnvMapVisibility,
+                    VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0),
+                    Identification = node.Id,
+                };
+
+                transformData[i] = node.Transform.To3x4();
+                i++;
+            }
+
+            InstanceBufferGpu = new StorageBuffer(ReservedBufferSlots.Objects);
+            TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
+
+            InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
+            TransformBufferGpu.Create(transformData, BufferUsageHint.StaticDraw); // .AsSpan(0, i)
         }
 
         private void CreateIndirectDrawBuffers()
@@ -444,9 +481,6 @@ namespace ValveResourceFormat.Renderer
 
             var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
-
-            // Memory barrier to ensure compute shader writes are visible to indirect draw commands
-            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
@@ -676,6 +710,12 @@ namespace ValveResourceFormat.Renderer
             var camera = renderContext.Camera;
 
             var depthPrepass = !depthOnlyShaders.IsEmpty && EnableDepthPrepass;
+
+            if (EnableIndirectDraws)
+            {
+                // Memory barrier to ensure compute shader writes are visible to indirect draw commands
+                GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
+            }
 
             if (depthPrepass)
             {

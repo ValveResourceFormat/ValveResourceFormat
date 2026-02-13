@@ -19,7 +19,7 @@ public struct DrawBounds
     public float _Padding2;
 };
 
-[StructLayout(LayoutKind.Sequential, Size = 32)]
+[StructLayout(LayoutKind.Sequential)]
 public struct ObjectDataStandard
 {
     public uint TintAlpha; // 4
