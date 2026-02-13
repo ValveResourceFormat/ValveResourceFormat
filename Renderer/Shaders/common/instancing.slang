@@ -66,9 +66,6 @@ ObjectData_t GetObjectData()
     if (bIsInstancing)
     {
         objectData = objects[gl_BaseInstance];
-        {
-            //objectData.TintAlpha = 0xFF0000FF;
-        }
     }
 
     ObjectData_t object;
@@ -78,6 +75,7 @@ ObjectData_t GetObjectData()
     #if (S_SCENE_CUBEMAP_TYPE > 0)
         nEnvMapVisibility = bIsInstancing ? objectData.EnvMapVisibility : g_nEnvMapVisibility;
     #endif
+
     return object;
 }
 
