@@ -7,13 +7,19 @@ uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
 
+#define S_SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
+#if (S_SCENE_CUBEMAP_TYPE > 0)
+    uniform uvec4 g_nEnvMapVisibility;
+    flat out uvec4 nEnvMapVisibility;
+#endif
+
 struct ObjectDataStandard
 {
     uint TintAlpha;
     uint TransformIndex;
-    uvec4 EnvMapVisibility;
     uint VisibleLPV;
     uint Identification;
+    uvec4 EnvMapVisibility;
 };
 
 layout(std430, binding = 9) readonly buffer g_objectBuffer
@@ -68,6 +74,10 @@ ObjectData_t GetObjectData()
     ObjectData_t object;
     object.transform = UnpackMatrix4(bIsInstancing ? transforms[objectData.TransformIndex] : transform);
     object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
+
+    #if (S_SCENE_CUBEMAP_TYPE > 0)
+        nEnvMapVisibility = bIsInstancing ? objectData.EnvMapVisibility : g_nEnvMapVisibility;
+    #endif
     return object;
 }
 

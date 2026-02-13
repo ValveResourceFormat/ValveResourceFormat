@@ -22,11 +22,11 @@ public struct DrawBounds
 [StructLayout(LayoutKind.Sequential)]
 public struct ObjectDataStandard
 {
-    public uint TintAlpha; // 4
-    public uint TransformIndex; // 8
-    public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility; // 24
-    public uint VisibleLPV; // 28
-    public uint Identification; // 32
+    public uint TintAlpha;
+    public uint TransformIndex;
+    public uint VisibleLPV;
+    public uint Identification;
+    public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility;
 };
 
 
