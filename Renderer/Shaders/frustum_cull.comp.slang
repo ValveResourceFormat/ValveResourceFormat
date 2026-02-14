@@ -63,6 +63,24 @@ layout(binding = 15, std430) readonly buffer MeshletInfoBuffer
     MeshletInfo meshlets[];
 };
 
+// Debug output for occluded bounds
+struct OccludedBoundDebug
+{
+    vec3 min;
+    float padding1;
+    vec3 max;
+    float padding2;
+};
+
+layout(binding = 16, std430) buffer OccludedBoundsDebugBuffer
+{
+    uint occludedCount;
+    uint padding[3];
+    OccludedBoundDebug occludedBounds[];
+};
+
+uniform bool g_bOcclusionDebugEnabled;
+
 // Depth pyramid (hierarchical depth buffer)
 layout(binding = 0) uniform sampler2D g_tDepthPyramid;
 
@@ -383,9 +401,17 @@ void main()
     if (visible && g_bOcclusionCullEnabled)
     {
         bool isOccluded = true // blink() 
-            ? testAABBOcclusion2(meshletMin, meshletMax)
+            ? testAABBOcclusion(meshletMin, meshletMax)
             : testAABBOcclusion(meshletMin, meshletMax);
         visible = !isOccluded;
+
+        // Store occluded bounds for debug visualization
+        if (isOccluded && g_bOcclusionDebugEnabled)
+        {
+            uint index = atomicAdd(occludedCount, 1u);
+            occludedBounds[index].min = meshletMin;
+            occludedBounds[index].max = meshletMax;
+        }
     }
 
     drawCommands[drawId].instanceCount = visible ? 1u : 0u;

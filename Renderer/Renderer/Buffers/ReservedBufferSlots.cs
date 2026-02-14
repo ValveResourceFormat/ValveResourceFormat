@@ -21,6 +21,7 @@ public enum ReservedBufferSlots
     AggregateDraws = 13,
     AggregateDrawBounds = 14,
     AggregateMeshlets = 15,
+    OccludedBoundsDebug = 16,
 
     // do not exceed 16 (8 is the guaranteed minimum in 4.6)
     // todo: separate ssbo and ubo into different sets of slots

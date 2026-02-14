@@ -339,6 +339,7 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
                 UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
                 UiControl.AddCheckBox("Occlusion Culling CPU", Scene.EnableOcclusionCullingCpu, (v) => Scene.EnableOcclusionCullingCpu = v);
+                UiControl.AddCheckBox("Show Occluded Bounds", Scene.ShowOcclusionCullingDebug, (v) => Scene.ShowOcclusionCullingDebug = v);
 
                 UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
                 {

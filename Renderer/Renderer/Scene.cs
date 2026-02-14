@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -55,7 +56,8 @@ namespace ValveResourceFormat.Renderer
         public StorageBuffer? DrawBoundsGpu { get; set; }
         public StorageBuffer? MeshletDataGpu { get; set; }
         public StorageBuffer? IndirectDrawsGpu { get; set; }
-        private int SceneMeshletCount { get; set; }
+        public StorageBuffer? OccludedBoundsDebugGpu { get; set; }
+        public int SceneMeshletCount { get; private set; }
 
         private Shader? FrustumCullShader;
 
@@ -72,6 +74,7 @@ namespace ValveResourceFormat.Renderer
         public bool EnableDepthPrepass { get; set; }
         public bool EnableOcclusionCulling { get; set; }
         public bool EnableOcclusionCullingCpu { get; set; }
+        public bool ShowOcclusionCullingDebug { get; set; }
         public bool EnableIndirectDraws
         {
             get;
@@ -361,6 +364,12 @@ namespace ValveResourceFormat.Renderer
 
                 MeshletDataGpu.Create(meshletDataGpu, BufferUsageHint.StaticDraw);
                 IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.StaticDraw);
+
+                // Create debug buffer for occluded bounds (4 uints for header + bounds array)
+                var headerSize = 4; // uint count + 3 padding uints
+                var totalSize = (headerSize + sceneMeshletCount) * Marshal.SizeOf<Vector4>();
+                OccludedBoundsDebugGpu = new StorageBuffer(ReservedBufferSlots.OccludedBoundsDebug);
+                GL.NamedBufferData(OccludedBoundsDebugGpu.Handle, totalSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
             }
         }
 
@@ -522,6 +531,16 @@ namespace ValveResourceFormat.Renderer
             MeshletDataGpu.BindBufferBase();
             DrawBoundsGpu.BindBufferBase();
             IndirectDrawsGpu.BindBufferBase();
+
+            // Bind debug buffer for occluded bounds visualization
+            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", ShowOcclusionCullingDebug ? 1 : 0);
+            if (ShowOcclusionCullingDebug && OccludedBoundsDebugGpu != null)
+            {
+                // Clear the atomic counter before dispatching
+                var zero = 0u;
+                GL.ClearNamedBufferSubData(OccludedBoundsDebugGpu.Handle, PixelInternalFormat.R32ui, IntPtr.Zero, sizeof(uint), PixelFormat.RedInteger, PixelType.UnsignedInt, ref zero);
+                OccludedBoundsDebugGpu.BindBufferBase();
+            }
 
             var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);

@@ -20,6 +20,15 @@ public struct DrawBounds
 };
 
 [StructLayout(LayoutKind.Sequential)]
+public struct OccludedBoundDebug
+{
+    public Vector3 Min;
+    public float _Padding1;
+    public Vector3 Max;
+    public float _Padding2;
+};
+
+[StructLayout(LayoutKind.Sequential)]
 public struct ObjectDataStandard
 {
     public uint TintAlpha;
