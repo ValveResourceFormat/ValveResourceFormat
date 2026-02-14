@@ -16,7 +16,7 @@ float diffuseLobe(float NoL, float roughness)
     return pow(NoL, diffuseExponent) * ((diffuseExponent + 1.0) / 2.0);
 }
 
-#if (F_DIFFUSE_WRAP == 1) || defined(vr_xen_foliage_vfx)
+#if (F_DIFFUSE_WRAP == 1) || (GameVfx_vr_xen_foliage != 0)
 // idea: what if we included individual features in tiny files per feature. they would all be used in #includes
 #define S_DIFFUSE_WRAP
 

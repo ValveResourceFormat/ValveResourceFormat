@@ -1,5 +1,7 @@
 #version 460
 
+#define GameVfx_csgo_environment_blend 0
+
 #include "common/utils.slang"
 #include "common/features.slang"
 #include "csgo_environment_features.slang"
@@ -50,7 +52,7 @@ uniform float g_flHeightMapScale1 = 1.0;
 uniform float g_flHeightMapZeroPoint1 = 0.5;
 
 // Material 2
-#if defined(csgo_environment_blend_vfx)
+#if (GameVfx_csgo_environment_blend != 0)
     in vec4 vColorBlendValues;
 
     uniform sampler2D g_tColor2; // SrgbRead(true)
@@ -262,7 +264,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         color.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer1 ? tintMask1 : 1.0) * float(g_bColorOverlayLayer1)));
     #endif
 
-    #if defined(csgo_environment_blend_vfx)
+    #if (GameVfx_csgo_environment_blend != 0)
         float flVertexColorMask = float(g_nVertexColorMode1 != 2) * mix(height.g, 1.0, g_nVertexColorMode1 == 0);
         color.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask);
     #else
@@ -271,7 +273,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     #endif
 
     // Blending
-#if defined(csgo_environment_blend_vfx)
+#if (GameVfx_csgo_environment_blend != 0)
     vec4 color2 = texture(g_tColor2, vTexCoord2.xy);
     vec4 height2 = texture(g_tHeight2, vTexCoord2.xy);
     vec4 normal2 = texture(g_tNormal2, vTexCoord2.xy);
@@ -459,7 +461,7 @@ void main()
     {
         outputColor.rgb = vVertexColor_Alpha.rgb;
     }
-#if defined(csgo_environment_blend_vfx)
+#if (GameVfx_csgo_environment_blend != 0)
     else if (g_iRenderMode == renderMode_TerrainBlend)
     {
         outputColor.rgb = vColorBlendValues.rgb;

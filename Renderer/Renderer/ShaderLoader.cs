@@ -41,7 +41,6 @@ namespace ValveResourceFormat.Renderer
 
         private readonly Dictionary<ulong, Shader> CachedShaders = [];
         public int ShaderCount => CachedShaders.Count;
-        private readonly Dictionary<string, Dictionary<string, byte>> ShaderDefines = [];
 
         private static readonly Dictionary<string, byte> EmptyArgs = [];
         private static readonly Lock ParserLock = new();
@@ -50,13 +49,6 @@ namespace ValveResourceFormat.Renderer
         private static readonly ShaderParser Parser = new();
 
         private readonly RendererContext RendererContext;
-
-#if DEBUG
-        private HashSet<string> LastShaderVariantNames = [];
-
-        // TODO: This probably should be ParsedShaderData so we can access it for non-blocking linking
-        private List<List<string>> LastShaderSourceLines = [];
-#endif
 
         /// <summary>
         /// Preprocessed shader source with defines, uniforms, and compiled stage code.
@@ -68,19 +60,27 @@ namespace ValveResourceFormat.Renderer
             public HashSet<string> Uniforms { get; } = [];
             public HashSet<string> SrgbUniforms { get; } = [];
             public Dictionary<ShaderProgramType, string> Sources { get; } = [];
-
-#if DEBUG
-            public HashSet<string> ShaderVariants { get; } = [];
-#endif
         }
 
         static ShaderLoader()
         {
             Task.Run(() =>
             {
-                foreach (var shader in Parser.AvailableShaders.Keys)
+                try
                 {
-                    GetOrParseShader(shader);
+                    foreach (var shader in Parser.AvailableShaders.Keys)
+                    {
+                        GetOrParseShader(shader);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e.ToString());
+                    Parser.ClearBuilder();
+
+#if DEBUG
+                    System.Diagnostics.Debugger.Break();
+#endif
                 }
             });
         }
@@ -100,25 +100,24 @@ namespace ValveResourceFormat.Renderer
         {
             arguments ??= EmptyArgs;
 
-            if (ShaderDefines.ContainsKey(shaderName))
-            {
-                var shaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
+            var shaderFileName = GetShaderFileByName(shaderName);
+            var parsedData = GetOrParseShader(shaderFileName);
+            var shaderCacheHash = CalculateShaderCacheHash(shaderName, parsedData.Defines, arguments);
 
-                if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
-                {
-                    return cachedShader;
-                }
+            if (CachedShaders.TryGetValue(shaderCacheHash, out var cachedShader))
+            {
+                return cachedShader;
             }
 
-            var shader = CompileAndLinkShader(shaderName, arguments, blocking: blocking);
-            var newShaderCacheHash = CalculateShaderCacheHash(shaderName, arguments);
-            CachedShaders[newShaderCacheHash] = shader;
+            var shader = CompileAndLinkShader(shaderName, shaderFileName, parsedData, arguments, blocking: blocking);
+            CachedShaders[shaderCacheHash] = shader;
             return shader;
         }
 
         private static ParsedShaderData GetOrParseShader(string shaderFileName)
         {
             using var _ = ParserLock.EnterScope();
+
             if (ParsedCache.TryGetValue(shaderFileName, out var cached))
             {
                 return cached;
@@ -153,15 +152,12 @@ namespace ValveResourceFormat.Renderer
             return parsedData;
         }
 
-        private Shader CompileAndLinkShader(string shaderName, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
+        private Shader CompileAndLinkShader(string shaderName, string shaderFileName, ParsedShaderData parsedData, IReadOnlyDictionary<string, byte> arguments, bool blocking = true)
         {
             var shaderProgram = -1;
 
             try
             {
-                var shaderFileName = GetShaderFileByName(shaderName);
-                var parsedData = GetOrParseShader(shaderFileName);
-
                 var sources = parsedData.Sources;
 
                 static ShaderType ToShaderType(ShaderProgramType type) => type switch
@@ -226,14 +222,7 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-                ShaderDefines[shaderName] = parsedData.Defines;
-
-#if DEBUG
-                LastShaderVariantNames = parsedData.ShaderVariants;
-                LastShaderSourceLines = [.. Parser.SourceFileLines];
-#endif
-
-                var argsDescription = GetArgumentDescription(SortAndFilterArguments(shaderName, arguments));
+                var argsDescription = GetArgumentDescription(SortAndFilterArguments(parsedData.Defines, arguments));
                 RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled{CompiledStatus} successfully (program={Program})", shaderName, shaderFileName, argsDescription, blocking ? " and linked" : string.Empty, shader.Program);
 
                 return shader;
@@ -259,15 +248,22 @@ namespace ValveResourceFormat.Renderer
             header.Append(ShaderParser.ExpectedShaderVersion);
             header.Append('\n');
 
-            // Append original shader name as a define
-            header.Append("#define ");
-            header.Append(Path.GetFileNameWithoutExtension(originalShaderName));
-            header.Append("_vfx 1\n");
+            var variantName = $"GameVfx_{Path.GetFileNameWithoutExtension(originalShaderName)}";
 
             // Add all defines (with argument overrides or defaults)
             foreach (var (defineName, defaultValue) in parsedData.Defines)
             {
-                var value = arguments.TryGetValue(defineName, out var argValue) ? argValue : defaultValue;
+                var value = defaultValue;
+
+                if (defineName == variantName)
+                {
+                    value = 1;
+                }
+                else if (arguments.TryGetValue(defineName, out var argValue))
+                {
+                    value = argValue;
+                }
+
                 header.Append("#define ");
                 header.Append(defineName);
                 header.Append(' ');
@@ -399,14 +395,11 @@ namespace ValveResourceFormat.Renderer
 
         protected virtual void Dispose(bool disposing)
         {
-            ShaderDefines.Clear();
             CachedShaders.Clear();
         }
 
-        private IEnumerable<KeyValuePair<string, byte>> SortAndFilterArguments(string shaderName, IReadOnlyDictionary<string, byte> arguments)
+        private static IEnumerable<KeyValuePair<string, byte>> SortAndFilterArguments(Dictionary<string, byte> defines, IReadOnlyDictionary<string, byte> arguments)
         {
-            var defines = ShaderDefines[shaderName];
-
             return arguments
                 .Where(p => defines.ContainsKey(p.Key))
                 .Where(static p => p.Value != 0) // Shader defines should already default to zero
@@ -449,12 +442,12 @@ namespace ValveResourceFormat.Renderer
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
-        private ulong CalculateShaderCacheHash(string shaderName, IReadOnlyDictionary<string, byte> arguments)
+        private static ulong CalculateShaderCacheHash(string shaderName, Dictionary<string, byte> defines, IReadOnlyDictionary<string, byte> arguments)
         {
             var hash = new XxHash3(StringToken.MURMUR2SEED);
             hash.Append(MemoryMarshal.AsBytes(shaderName.AsSpan()));
 
-            var argsOrdered = SortAndFilterArguments(shaderName, arguments);
+            var argsOrdered = SortAndFilterArguments(defines, arguments);
             Span<byte> valueSpan = stackalloc byte[1];
 
             foreach (var (key, value) in argsOrdered)
@@ -495,7 +488,9 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                var newShader = CompileAndLinkShader(shader.Name, shader.Parameters, blocking: false);
+                var fileName = GetShaderFileByName(shader.Name);
+                var parsed = GetOrParseShader(fileName);
+                var newShader = CompileAndLinkShader(shader.Name, fileName, parsed, shader.Parameters, blocking: false);
                 shader.ReplaceWith(newShader);
             }
         }
@@ -516,11 +511,9 @@ namespace ValveResourceFormat.Renderer
                 allShaders = [.. allShaders.Where(s => Path.GetFileName(s).Contains(filter, StringComparison.OrdinalIgnoreCase))];
             }
 
-            var shaders = allShaders;
-
             GLEnvironment.Initialize(renderContext.Logger);
 
-            foreach (var shader in shaders)
+            foreach (var shader in allShaders)
             {
                 var shaderName = ShaderNameFromPath(shader);
                 var vrfFileName = string.Concat(VrfInternalShaderPrefix, shaderName);
@@ -544,9 +537,10 @@ namespace ValveResourceFormat.Renderer
                 loader.LoadShader(vrfFileName);
 
                 // Test all defines one by one
-                var defines = loader.ShaderDefines[vrfFileName];
-                var variants = loader.LastShaderVariantNames;
-                var sourceLines = loader.LastShaderSourceLines;
+                var allDefines = GetOrParseShader(GetShaderFileByName(vrfFileName)).Defines;
+                var defines = allDefines.Where(static x => !x.Key.StartsWith("GameVfx_", StringComparison.Ordinal)).ToDictionary();
+                var variants = allDefines.Keys.Where(static x => x.StartsWith("GameVfx_", StringComparison.Ordinal));
+                var sourceLines = Parser.SourceFileLines;
                 var maxValues = ExtractMaxDefineValues(defines, sourceLines);
 
                 foreach (var define in defines.Keys)
@@ -564,16 +558,15 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-                // Test all define(xxx_vfx) names
+                // Test all variants
                 foreach (var name in variants)
                 {
-                    var vfxName = string.Concat(name, ".vfx");
+                    var vfxName = string.Concat(name.AsSpan()["GameVfx_".Length..], ".vfx");
                     progressReporter.Report($"Compiling variant {vfxName}");
 
                     loader.LoadShader(vfxName);
 
                     // Test all defines one by one in combination with the shader variant name
-                    defines = loader.ShaderDefines[vfxName];
                     foreach (var define in defines.Keys)
                     {
                         var maxValue = maxValues.GetValueOrDefault(define, 1);

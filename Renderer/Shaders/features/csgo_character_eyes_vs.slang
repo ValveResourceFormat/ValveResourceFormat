@@ -6,7 +6,7 @@
 #include "../common/animation.slang"
 #include "csgo_character_eyes_common.slang"
 
-#if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
+#if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)
 // Left eye
 uniform vec3 g_vEyeLBindFwd;
 uniform vec3 g_vEyeLBindUp;
@@ -119,6 +119,6 @@ EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
     o.vEyeUpDir_PosZ =    vec4(cross(viewDir, o.vEyeRightDir_PosY.xyz), currentEye.Position.z);
     return o;
 }
-#endif // defined(csgo_character_vfx) && (F_EYEBALLS == 1)
+#endif // (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)
 
 #endif

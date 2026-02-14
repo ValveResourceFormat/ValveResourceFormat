@@ -3,7 +3,7 @@
 #define F_SECONDARY_AO 0
 
 // Blend specific features
-#if defined(csgo_environment_blend_vfx)
+#if (GameVfx_csgo_environment_blend != 0)
 
     // Blend Effects
     #define F_BLEND_EFFECTS 0
