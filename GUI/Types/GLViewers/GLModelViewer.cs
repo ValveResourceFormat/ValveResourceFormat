@@ -70,6 +70,8 @@ namespace GUI.Types.GLViewers
             Debug.Assert(UiControl != null);
             Debug.Assert(animationController != null);
 
+            using var _ = UiControl.BeginGroup("Animation");
+
             animationComboBox = UiControl.AddSelection("Animation", (animation, i) =>
             {
                 // Initialize on first call
@@ -255,6 +257,8 @@ namespace GUI.Types.GLViewers
 
                 if (model.Skeleton.Bones.Length > 0)
                 {
+                    using var _ = UiControl.BeginGroup("Model");
+
                     showSkeletonCheckbox = UiControl.AddCheckBox("Show skeleton", false, isChecked =>
                     {
                         if (skeletonSceneNode != null)
@@ -267,6 +271,8 @@ namespace GUI.Types.GLViewers
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
                     Debug.Assert(hitboxSetSceneNode != null);
+
+                    using var _ = UiControl.BeginGroup("Model");
 
                     var hitboxSets = model.HitboxSets;
                     hitboxComboBox = UiControl.AddSelection("Hitbox Set", (hitboxSet, i) =>
@@ -288,6 +294,8 @@ namespace GUI.Types.GLViewers
 
                 if (meshGroups.Length > 1)
                 {
+                    using var _ = UiControl.BeginGroup("Model");
+
                     meshGroupListBox = UiControl.AddMultiSelection("Mesh Group", listBox =>
                     {
                         listBox.Items.AddRange(meshGroups);
@@ -303,6 +311,8 @@ namespace GUI.Types.GLViewers
 
                 if (materialGroupNames.Length > 1)
                 {
+                    using var _ = UiControl.BeginGroup("Model");
+
                     materialGroupListBox = UiControl.AddSelection("Material Group", (selectedGroup, _) =>
                     {
                         using var lockedGl = MakeCurrent();

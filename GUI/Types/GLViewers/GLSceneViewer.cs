@@ -86,30 +86,31 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
+            using (UiControl.BeginGroup("Debug"))
             {
-                Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
-            });
-            UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
-            {
-                showStaticOctree = v;
-
-                if (showStaticOctree && staticOctreeRenderer != null)
+                UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
                 {
-                    using var lockedGl = MakeCurrent();
+                    Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
+                });
+                UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
+                {
+                    showStaticOctree = v;
 
-                    staticOctreeRenderer.StaticBuild();
-                }
-            });
-            UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
-            UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
-            {
-                Scene.ShowToolsMaterials = v;
+                    if (showStaticOctree && staticOctreeRenderer != null)
+                    {
+                        using var lockedGl = MakeCurrent();
 
-                SkyboxScene?.ShowToolsMaterials = v;
-            });
+                        staticOctreeRenderer.StaticBuild();
+                    }
+                });
+                UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
+                UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
+                {
+                    Scene.ShowToolsMaterials = v;
 
-            AddWireframeToggleControl();
+                    SkyboxScene?.ShowToolsMaterials = v;
+                });
+            }
 
             base.AddUiControls();
         }
@@ -531,7 +532,8 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            UiControl.AddDivider();
+            using var _ = UiControl.BeginGroup("Display");
+
             var lightBackgroundCheckbox = UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
@@ -545,7 +547,6 @@ namespace GUI.Types.GLViewers
                 ShowSolidBackground = v;
                 Renderer.BaseBackground!.SetSolidBackground(ShowSolidBackground);
             });
-            UiControl.AddDivider();
 
             if (this is not GLMaterialViewer)
             {

@@ -232,7 +232,11 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            AddRenderModeSelectionControl();
+            using (UiControl.BeginGroup("Render"))
+            {
+                AddRenderModeSelectionControl();
+                AddWireframeToggleControl();
+            }
 
             worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
             {
@@ -253,30 +257,31 @@ namespace GUI.Types.GLViewers
                 SetEnabledPhysicsGroups([.. physicsGroups]);
             });
 
-            savedCameraPositionsControl = new SavedCameraPositionsControl();
-            savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
-            savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
-            savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
-            UiControl.AddControl(savedCameraPositionsControl);
-
-            if (LoadedWorld != null && LoadedWorld.CameraMatrices.Count > 0)
+            using (UiControl.BeginGroup("Camera"))
             {
-                cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
-                {
-                    if (index > 0)
-                    {
-                        Input.SaveCameraForTransition();
-                        Input.Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
-                    }
-                });
-                cameraComboBox.BeginUpdate();
-                cameraComboBox.Items.Add("Set view to camera…");
-                cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
-                cameraComboBox.SelectedIndex = 0;
-                cameraComboBox.EndUpdate();
-            }
+                savedCameraPositionsControl = new SavedCameraPositionsControl();
+                savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
+                savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
+                savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
+                UiControl.AddControl(savedCameraPositionsControl);
 
-            UiControl.AddDivider();
+                if (LoadedWorld != null && LoadedWorld.CameraMatrices.Count > 0)
+                {
+                    cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
+                    {
+                        if (index > 0)
+                        {
+                            Input.SaveCameraForTransition();
+                            Input.Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
+                        }
+                    });
+                    cameraComboBox.BeginUpdate();
+                    cameraComboBox.Items.Add("Set view to camera…");
+                    cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
+                    cameraComboBox.SelectedIndex = 0;
+                    cameraComboBox.EndUpdate();
+                }
+            }
 
             if (world != null)
             {
@@ -330,18 +335,20 @@ namespace GUI.Types.GLViewers
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
                 }
 
-                if (Renderer.SkyboxScene != null)
+                using (UiControl.BeginGroup("World"))
                 {
-                    UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
+                    if (Renderer.SkyboxScene != null)
+                    {
+                        UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
+                    }
+
+                    UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
+                    UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
+                    UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
+                    UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+
+                    AddSceneExposureSlider();
                 }
-
-                UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
-                UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
-                UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
-                UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
-
-                AddSceneExposureSlider();
-                AddDOFControls();
             }
 
             if (worldNode != null && worldLayersComboBox != null)
@@ -364,6 +371,11 @@ namespace GUI.Types.GLViewers
             ignoreLayersChangeEvents = false;
 
             base.AddUiControls();
+
+            if (world != null)
+            {
+                AddDOFControls();
+            }
         }
 
         public void AddDOFControls()
@@ -373,14 +385,14 @@ namespace GUI.Types.GLViewers
             var groupBoxPanel = new Panel
             {
                 Height = UiControl.AdjustForDPI(230),
-                Padding = new(4),
+                Padding = new(0, 2, 0, 2),
             };
 
             var groupBox = new ThemedGroupBox
             {
                 Text = "Depth Of Field",
                 Dock = DockStyle.Fill,
-                Padding = new(4)
+                Padding = new(4, 8, 4, 4),
             };
 
             var controlsContainer = new Panel

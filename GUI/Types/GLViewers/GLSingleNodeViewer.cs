@@ -22,10 +22,26 @@ namespace GUI.Types.GLViewers
 
         protected override void AddUiControls()
         {
-            AddRenderModeSelectionControl();
+            AddRenderModeAndWireframeControls();
             AddBaseGridControl();
 
             base.AddUiControls();
+        }
+
+        private void AddRenderModeAndWireframeControls()
+        {
+            if (this is GLMaterialViewer)
+            {
+                return;
+            }
+
+            Debug.Assert(UiControl != null);
+
+            using (UiControl.BeginGroup("Render"))
+            {
+                AddRenderModeSelectionControl();
+                AddWireframeToggleControl();
+            }
         }
 
         public override void PreSceneLoad()

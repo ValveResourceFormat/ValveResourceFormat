@@ -7,12 +7,17 @@ namespace GUI.Controls;
 
 partial class RendererControl : UserControl
 {
-    private Control ControlsPanel => controlsPanel;
+#pragma warning disable CA2213 // Disposable fields should be disposed
+    private Control? currentControlsTarget;
+#pragma warning restore CA2213 // Disposable fields should be disposed
+    private Control ControlsPanel => currentControlsTarget ?? controlsPanel;
     public Control GLControlContainer => glControlContainer;
+    private readonly Dictionary<string, Panel> namedGroups = [];
 
     public RendererControl(bool isPreview = false)
     {
         InitializeComponent();
+        currentControlsTarget = controlsPanel;
 
         if (isPreview)
         {
@@ -161,6 +166,41 @@ partial class RendererControl : UserControl
         panel.Height = panel.AdjustForDPI(22);
 
         return panel;
+    }
+
+    public ControlGroup BeginGroup(string title)
+    {
+        if (!namedGroups.TryGetValue(title, out var content))
+        {
+            var groupPanel = new Panel { AutoSize = true, Padding = new(0, 2, 0, 2) };
+            var groupBox = new ThemedGroupBox
+            {
+                Text = title,
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                Padding = new(4, 8, 4, 4),
+            };
+            content = new Panel { Dock = DockStyle.Top, AutoSize = true };
+
+            groupBox.Controls.Add(content);
+            groupPanel.Controls.Add(groupBox);
+            controlsPanel.Controls.Add(groupPanel);
+            SetControlLocation(groupPanel);
+
+            namedGroups[title] = content;
+        }
+
+        currentControlsTarget = content;
+        return new ControlGroup(this);
+    }
+
+    public ref struct ControlGroup(RendererControl? owner)
+    {
+        public void Dispose()
+        {
+            owner?.currentControlsTarget = null;
+            owner = null;
+        }
     }
 
     public void AddDivider()

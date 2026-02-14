@@ -43,9 +43,7 @@ namespace GUI.Controls
             btnSetPos = new ThemedButton();
             btnGetPos = new ThemedButton();
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            themedGroupBox1 = new ThemedGroupBox();
             tableLayoutPanel1.SuspendLayout();
-            themedGroupBox1.SuspendLayout();
             SuspendLayout();
             // 
             // label2
@@ -71,10 +69,11 @@ namespace GUI.Controls
             cmbPositions.ForeColor = System.Drawing.Color.Black;
             cmbPositions.HeaderColor = System.Drawing.Color.FromArgb(230, 230, 230);
             cmbPositions.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
-            cmbPositions.Location = new System.Drawing.Point(4, 19);
+            cmbPositions.Dock = System.Windows.Forms.DockStyle.Top;
+            cmbPositions.Location = new System.Drawing.Point(0, 0);
             cmbPositions.Margin = new System.Windows.Forms.Padding(0);
             cmbPositions.Name = "cmbPositions";
-            cmbPositions.Size = new System.Drawing.Size(277, 24);
+            cmbPositions.Size = new System.Drawing.Size(285, 24);
             cmbPositions.TabIndex = 0;
             // 
             // btnSave
@@ -185,7 +184,7 @@ namespace GUI.Controls
             tableLayoutPanel1.Controls.Add(label2, 0, 1);
             tableLayoutPanel1.Controls.Add(btnSetPos, 1, 1);
             tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Top;
-            tableLayoutPanel1.Location = new System.Drawing.Point(4, 43);
+            tableLayoutPanel1.Location = new System.Drawing.Point(0, 24);
             tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.Padding = new System.Windows.Forms.Padding(0, 6, 0, 0);
@@ -194,37 +193,19 @@ namespace GUI.Controls
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
             tableLayoutPanel1.Size = new System.Drawing.Size(277, 60);
             tableLayoutPanel1.TabIndex = 8;
-            // 
-            // themedGroupBox1
-            // 
-            themedGroupBox1.BackColor = System.Drawing.SystemColors.Control;
-            themedGroupBox1.BorderColor = System.Drawing.Color.FromArgb(230, 230, 230);
-            themedGroupBox1.BorderWidth = 2;
-            themedGroupBox1.Controls.Add(tableLayoutPanel1);
-            themedGroupBox1.Controls.Add(cmbPositions);
-            themedGroupBox1.CornerRadius = 5;
-            themedGroupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
-            themedGroupBox1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            themedGroupBox1.ForeColor = System.Drawing.Color.Black;
-            themedGroupBox1.Location = new System.Drawing.Point(3, 3);
-            themedGroupBox1.Name = "themedGroupBox1";
-            themedGroupBox1.Padding = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            themedGroupBox1.Size = new System.Drawing.Size(285, 114);
-            themedGroupBox1.TabIndex = 0;
-            themedGroupBox1.TabStop = false;
-            themedGroupBox1.Text = "Saved Camera";
-            // 
+            //
             // SavedCameraPositionsControl
-            // 
+            //
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            Controls.Add(themedGroupBox1);
+            AutoSize = true;
+            Controls.Add(tableLayoutPanel1);
+            Controls.Add(cmbPositions);
             Name = "SavedCameraPositionsControl";
-            Padding = new System.Windows.Forms.Padding(3);
-            Size = new System.Drawing.Size(291, 120);
+            Padding = new System.Windows.Forms.Padding(0);
+            Size = new System.Drawing.Size(285, 90);
             tableLayoutPanel1.ResumeLayout(false);
             tableLayoutPanel1.PerformLayout();
-            themedGroupBox1.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -238,6 +219,5 @@ namespace GUI.Controls
         private ThemedButton btnRestore;
         private ThemedButton btnSetPos;
         private ThemedButton btnGetPos;
-        private ThemedGroupBox themedGroupBox1;
     }
 }

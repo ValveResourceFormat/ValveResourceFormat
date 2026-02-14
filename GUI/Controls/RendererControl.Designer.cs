@@ -2,12 +2,12 @@ namespace GUI.Controls;
 
 partial class RendererControl
 {
-    /// <summary> 
+    /// <summary>
     /// Required designer variable.
     /// </summary>
     private System.ComponentModel.IContainer components = null;
 
-    /// <summary> 
+    /// <summary>
     /// Clean up any resources being used.
     /// </summary>
     /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
@@ -16,14 +16,15 @@ partial class RendererControl
         if (disposing && (components != null))
         {
             components.Dispose();
+            namedGroups.Clear();
         }
         base.Dispose(disposing);
     }
 
     #region Component Designer generated code
 
-    /// <summary> 
-    /// Required method for Designer support - do not modify 
+    /// <summary>
+    /// Required method for Designer support - do not modify
     /// the contents of this method with the code editor.
     /// </summary>
     private void InitializeComponent()
@@ -40,9 +41,9 @@ partial class RendererControl
         splitContainer.Panel2.SuspendLayout();
         splitContainer.SuspendLayout();
         SuspendLayout();
-        // 
+        //
         // glControlContainer
-        // 
+        //
         glControlContainer.BackColor = System.Drawing.Color.Black;
         glControlContainer.Dock = System.Windows.Forms.DockStyle.Fill;
         glControlContainer.Location = new System.Drawing.Point(0, 0);
@@ -50,9 +51,9 @@ partial class RendererControl
         glControlContainer.Name = "glControlContainer";
         glControlContainer.Size = new System.Drawing.Size(618, 716);
         glControlContainer.TabIndex = 0;
-        // 
+        //
         // controlsPanel
-        // 
+        //
         controlsPanel.AutoScroll = true;
         controlsPanel.Controls.Add(bottomPanel);
         controlsPanel.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -63,9 +64,9 @@ partial class RendererControl
         controlsPanel.Padding = new System.Windows.Forms.Padding(5, 5, 5, 0);
         controlsPanel.Size = new System.Drawing.Size(220, 716);
         controlsPanel.TabIndex = 4;
-        // 
+        //
         // bottomPanel
-        // 
+        //
         bottomPanel.Controls.Add(moveSpeed);
         bottomPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
         bottomPanel.Location = new System.Drawing.Point(5, 676);
@@ -74,37 +75,37 @@ partial class RendererControl
         bottomPanel.Padding = new System.Windows.Forms.Padding(5);
         bottomPanel.Size = new System.Drawing.Size(210, 40);
         bottomPanel.TabIndex = 7;
-        // 
+        //
         // moveSpeed
-        // 
+        //
         moveSpeed.Dock = System.Windows.Forms.DockStyle.Bottom;
         moveSpeed.Location = new System.Drawing.Point(5, 20);
         moveSpeed.Name = "moveSpeed";
         moveSpeed.Size = new System.Drawing.Size(200, 15);
         moveSpeed.TabIndex = 5;
         moveSpeed.Text = "Move speed: 1.0x (scroll to change)";
-        // 
+        //
         // splitContainer
-        // 
+        //
         splitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
         splitContainer.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
         splitContainer.Location = new System.Drawing.Point(0, 0);
         splitContainer.Name = "splitContainer";
-        // 
+        //
         // splitContainer.Panel1
-        // 
+        //
         splitContainer.Panel1.Controls.Add(controlsPanel);
         splitContainer.Panel1MinSize = 0;
-        // 
+        //
         // splitContainer.Panel2
-        // 
+        //
         splitContainer.Panel2.Controls.Add(glControlContainer);
         splitContainer.Size = new System.Drawing.Size(842, 716);
         splitContainer.SplitterDistance = 220;
         splitContainer.TabIndex = 6;
-        // 
+        //
         // RendererControl
-        // 
+        //
         AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         Controls.Add(splitContainer);
