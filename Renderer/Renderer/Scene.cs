@@ -338,12 +338,27 @@ namespace ValveResourceFormat.Renderer
                                 ParentDrawBoundsIndex = (uint)(sceneDrawCount + drawIndex),
                             };
 
+                            var count = meshlet.TriangleCount * 3;
+                            var firstIndex = (uint)meshlet.TriangleOffset * 3;
+
+                            if (count == 0 && firstIndex == 0)
+                            {
+                                // older meshlets   
+                                var tris = drawCall.IndexCount / 3;
+                                var clusters = drawCall.NumMeshlets;
+                                var trisPerCluster = tris / clusters;
+
+                                count = (uint)trisPerCluster * 3;
+                                firstIndex = (uint)(drawMeshletIndex * count);
+                            }
+
                             // what is meshlet.VertexOffset used for?
+
                             indirectDrawsGpu[sceneMeshletCount] = new DrawElementsIndirectCommand
                             {
-                                Count = meshlet.TriangleCount * 3,
+                                Count = count,
                                 InstanceCount = 1,
-                                FirstIndex = (uint)meshlet.TriangleOffset * 3,
+                                FirstIndex = firstIndex,
                                 BaseVertex = drawCall.BaseVertex,
                                 BaseInstance = fragmentInstanceId,
                             };
