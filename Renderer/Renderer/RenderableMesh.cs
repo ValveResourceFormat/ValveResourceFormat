@@ -19,6 +19,8 @@ namespace ValveResourceFormat.Renderer
         public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
 
         private readonly RendererContext renderContext;
+
+        public List<Meshlet> Meshlets { get; } = [];
         public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
@@ -155,10 +157,15 @@ namespace ValveResourceFormat.Renderer
             var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
 
             var vertexOffset = 0;
+
+            // note: we are flattening the scene objects into one mesh
+            // we are not sure when there can be more than one scene object here.
+
             foreach (var sceneObject in sceneObjects)
             {
                 var i = 0;
                 var objectDrawCalls = sceneObject.GetArray("m_drawCalls");
+
                 var objectDrawBounds = sceneObject.ContainsKey("m_drawBounds")
                     ? sceneObject.GetArray("m_drawBounds")
                     : [];
@@ -238,12 +245,21 @@ namespace ValveResourceFormat.Renderer
 
                     drawCall.VertexIdOffset = vertexOffset;
                     vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
-
                     i++;
+                }
+
+                var meshlets = sceneObject.GetArray("m_meshlets");
+                if (meshlets != null)
+                {
+                    Meshlets.EnsureCapacity(Meshlets.Count + meshlets.Length);
+
+                    foreach (var meshletData in meshlets)
+                    {
+                        Meshlets.Add(new Meshlet(meshletData));
+                    }
                 }
             }
         }
-
         private void AddDrawCall(DrawCall drawCall, bool isAggregate)
         {
             if (isAggregate)

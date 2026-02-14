@@ -12,9 +12,14 @@ namespace ValveResourceFormat.Renderer
     public class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
+        public List<Fragment> Fragments { get; private set; } = [];
+
+        public int IndirectDrawByteOffset { get; set; }
+        public int IndirectDrawCount { get; set; }
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
+        public bool HasTransforms { get; set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
@@ -24,13 +29,15 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public sealed class Fragment : SceneNode
         {
-            public required SceneNode Parent { get; init; }
+            public required SceneAggregate Parent { get; init; }
             public required RenderableMesh RenderMesh { get; init; }
             public required DrawCall DrawCall { get; init; }
 
             public Vector4 Tint { get; set; } = Vector4.One;
 
-            public Fragment(Scene scene, SceneNode parent, AABB bounds) : base(scene)
+            public override bool IsSelected { get => base.IsSelected; set { base.IsSelected = value; Parent.IsSelected = value; } }
+
+            public Fragment(Scene scene, SceneAggregate parent, AABB bounds) : base(scene)
             {
                 Parent = parent;
                 LocalBoundingBox = bounds;
@@ -82,7 +89,16 @@ namespace ValveResourceFormat.Renderer
             LocalBoundingBox = new AABB(Vector3.NegativeInfinity, Vector3.PositiveInfinity);
         }
 
-        public IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
+        public void LoadFragments(KVObject aggregateSceneObject)
+        {
+            Fragments.AddRange(CreateFragments(aggregateSceneObject));
+            foreach (var fragment in Fragments)
+            {
+                Scene.Add(fragment, false);
+            }
+        }
+
+        private IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
         {
             var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 
@@ -121,7 +137,7 @@ namespace ValveResourceFormat.Renderer
                 var lightProbeVolumePrecomputedHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
                 var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
-                var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
+                var drawBounds = drawCall.DrawBounds ?? throw new InvalidDataException("Draw call bounds must exist for all new format fragments");
                 var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
                 var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
                 var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
@@ -143,6 +159,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
                 {
+                    HasTransforms = true; // skip indirect draw path for instanced draws
                     fragment.Transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
                 }
 
@@ -164,5 +181,77 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
         public override void UpdateVertexArrayObjects() => RenderMesh.UpdateVertexArrayObjects();
 #endif
+
+        public float GetAverageCameraDistanceFragments(Camera camera)
+        {
+            var totalDistance = 0f;
+            var count = 0;
+
+            foreach (var fragment in Fragments)
+            {
+                var center = fragment.BoundingBox.Center;
+                var distance = Vector3.Distance(center, camera.Location);
+                totalDistance += distance;
+                count++;
+            }
+
+            return count > 0 ? totalDistance / count : 0f;
+        }
+
+        public float GetProjectedSizeWeight(Camera camera)
+        {
+            // Sphere-approximation fast path:
+            // - single transform per fragment (sphere center)
+            // - avoid 8 corner matmuls and per-corner perspective divide
+            // - only skip the fragment when its bounding sphere is entirely outside the view frustum
+
+            var view = camera.CameraViewMatrix;
+            var proj = camera.ProjectionMatrix;
+            var totalProjectedArea = 0f;
+
+            foreach (var fragment in Fragments)
+            {
+                var bbox = fragment.BoundingBox;
+
+                // bounding sphere from AABB (center in world space)
+                var center = bbox.Center;
+                var extents = bbox.Max - center;
+                var radius = MathF.Sqrt(extents.X * extents.X + extents.Y * extents.Y + extents.Z * extents.Z);
+
+                // Cull if sphere is fully outside frustum
+                if (!camera.ViewFrustum.Intersects(center, radius))
+                {
+                    continue;
+                }
+
+                // Handle case where sphere center may be behind the camera by projecting the
+                // point on the sphere that is closest to the camera. This ensures we never
+                // fall back to an AABB while keeping a single inexpensive path.
+                var toCamera = camera.Location - center;
+                var toCameraLenSq = toCamera.X * toCamera.X + toCamera.Y * toCamera.Y + toCamera.Z * toCamera.Z;
+                var dirToCamera = toCameraLenSq > 1e-8f
+                    ? toCamera / MathF.Sqrt(toCameraLenSq)
+                    : new Vector3(0f, 0f, 1f);
+
+                var closest = center + dirToCamera * radius;
+
+                // Transform nearest point to view space to get distance along camera forward
+                var viewClosest = Vector3.Transform(closest, view);
+                var zClosest = -viewClosest.Z; // positive in front of camera
+                var distance = MathF.Max(1e-4f, zClosest);
+
+                // Projected radius in NDC (use the larger of X/Y to be conservative)
+                var rNdcX = radius * proj.M11 / distance;
+                var rNdcY = radius * proj.M22 / distance;
+                var rNdc = MathF.Min(1f, MathF.Max(rNdcX, rNdcY));
+
+                // Use axis-aligned bounding-box of the projected sphere (consistent with previous metric)
+                var area = 4f * rNdc * rNdc; // (2*rNdc)^2
+                totalProjectedArea += Math.Clamp(area, 0f, 4f);
+            }
+
+            // larger area = render first
+            return totalProjectedArea;
+        }
     }
 }

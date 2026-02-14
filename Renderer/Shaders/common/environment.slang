@@ -41,10 +41,10 @@ layout(std140, binding = 2) uniform EnvMapArray
     // ...
 #elif (S_SCENE_CUBEMAP_TYPE == 1)
     uniform samplerCube g_tEnvironmentMap;
-    uniform uvec4 g_nEnvMapVisibility;
+    flat in uvec4 nEnvMapVisibility;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap;
-    uniform uvec4 g_nEnvMapVisibility;
+    flat in uvec4 nEnvMapVisibility;
 #endif
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
@@ -184,7 +184,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     #if (S_SCENE_CUBEMAP_TYPE == 0)
         envMap = vec3(0.3, 0.3, 0.3);
     #elif (S_SCENE_CUBEMAP_TYPE == 1)
-        int envMapIndex = int(g_nEnvMapVisibility.x);
+        int envMapIndex = int(nEnvMapVisibility.x);
         EnvMapData envData = envMaps[envMapIndex];
         bool isBoxProjection = envData.ProjectionType == 1u;
         vec3 envMapBoxMin = envData.BoxMins;
@@ -203,7 +203,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
 
     for (uint visBucket = 0; visBucket < 4 && bContinueLoop; visBucket++)
     {
-        uint mask = g_nEnvMapVisibility[visBucket];
+        uint mask = nEnvMapVisibility[visBucket];
         int baseIndex = int(visBucket * 32);
 
         while (mask != 0 && bContinueLoop)

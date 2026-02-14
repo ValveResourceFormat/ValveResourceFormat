@@ -1,11 +1,22 @@
+using System.Runtime.InteropServices;
+
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
     /// View frustum for culling objects outside the camera's visible area.
     /// </summary>
-    public class Frustum
+    [StructLayout(LayoutKind.Sequential)]
+    public readonly struct Frustum
     {
-        private Vector4[] Planes = new Vector4[6];
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
+        public readonly Vector4[] Planes;
+
+        public Frustum() : this(empty: false) { }
+
+        public Frustum(bool empty = false)
+        {
+            Planes = empty ? [] : new Vector4[6];
+        }
 
         /// <summary>
         /// Creates an empty frustum with no planes.
@@ -13,11 +24,7 @@ namespace ValveResourceFormat.Renderer
         /// <returns>A new empty frustum.</returns>
         public static Frustum CreateEmpty()
         {
-            var rv = new Frustum
-            {
-                Planes = [],
-            };
-            return rv;
+            return new Frustum(empty: true);
         }
 
         /// <summary>
@@ -106,6 +113,29 @@ namespace ValveResourceFormat.Renderer
                     return false;
                 }
             }
+            return true;
+        }
+
+        /// <summary>
+        /// Tests if a sphere intersects this frustum.
+        /// </summary>
+        /// <param name="center">Sphere center in world space.</param>
+        /// <param name="radius">Sphere radius.</param>
+        /// <returns><see langword="true"/> if the sphere is at least partially inside the frustum.</returns>
+        public bool Intersects(in Vector3 center, float radius)
+        {
+            // Sphere-plane test: if sphere is fully on the negative side of any plane -> outside
+            for (var i = 0; i < Planes.Length; ++i)
+            {
+                var plane = Planes[i];
+                var distance = Vector3.Dot(new Vector3(plane.X, plane.Y, plane.Z), center) + plane.W;
+
+                if (distance < -radius)
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
 

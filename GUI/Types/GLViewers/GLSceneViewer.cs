@@ -36,6 +36,7 @@ namespace GUI.Types.GLViewers
         private InfiniteGrid? baseGrid;
         private OctreeDebugRenderer? staticOctreeRenderer;
         private OctreeDebugRenderer? dynamicOctreeRenderer;
+        private OcclusionDebugRenderer? occlusionDebugRenderer;
         protected SelectedNodeRenderer? SelectedNodeRenderer;
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
@@ -86,10 +87,6 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
-            {
-                Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
-            });
             UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
             {
                 showStaticOctree = v;
@@ -218,6 +215,7 @@ namespace GUI.Types.GLViewers
 
             staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.RendererContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.RendererContext, true);
+            occlusionDebugRenderer = new OcclusionDebugRenderer(Scene, Scene.RendererContext);
         }
 
         protected abstract void LoadScene();
@@ -457,6 +455,11 @@ namespace GUI.Types.GLViewers
                 if (showDynamicOctree && dynamicOctreeRenderer != null)
                 {
                     dynamicOctreeRenderer.Render();
+                }
+
+                if (Scene.ShowOcclusionCullingDebug && occlusionDebugRenderer != null)
+                {
+                    occlusionDebugRenderer.Render();
                 }
 
                 if (ShowBaseGrid && baseGrid != null)
