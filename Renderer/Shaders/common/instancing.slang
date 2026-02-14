@@ -8,7 +8,7 @@ uniform uint vTint;
 uniform bool bIsInstancing = false;
 
 #if (S_SCENE_CUBEMAP_TYPE > 0)
-    flat out uvec4 nEnvMapVisibility;
+    flat out uvec4 g_nEnvMapVisibility;
 #endif
 
 #if (D_BAKED_LIGHTING_FROM_PROBE > 0)
@@ -70,7 +70,7 @@ ObjectData_t GetObjectData()
     object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
 
     #if (S_SCENE_CUBEMAP_TYPE > 0)
-        nEnvMapVisibility = objectData.EnvMapVisibility;
+        g_nEnvMapVisibility = objectData.EnvMapVisibility;
     #endif
 
     #if (D_BAKED_LIGHTING_FROM_PROBE > 0)

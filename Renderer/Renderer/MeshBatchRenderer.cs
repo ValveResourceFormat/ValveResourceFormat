@@ -55,10 +55,6 @@ namespace ValveResourceFormat.Renderer
             {
                 requests.Sort(CompareCustomPipeline);
             }
-            else if (context.RenderPass == RenderPass.DepthOnly)
-            {
-                //requests.Sort(CompareCameraDistance);
-            }
             else if (context.RenderPass == RenderPass.StaticOverlay)
             {
                 requests.Sort(CompareRenderOrderThenPipeline);
@@ -75,7 +71,6 @@ namespace ValveResourceFormat.Renderer
         {
             public int AnimationData = -1;
             public int EnvmapTexture = -1;
-            public int VisibleLightProbeVolume = -1;
             public int LPVIrradianceTexture = -1;
             public int LPVIndicesTexture = -1;
             public int LPVScalarsTexture = -1;
@@ -182,7 +177,6 @@ namespace ValveResourceFormat.Renderer
 
                         if (shader.Parameters.ContainsKey("D_BAKED_LIGHTING_FROM_PROBE"))
                         {
-                            uniforms.VisibleLightProbeVolume = shader.GetUniformLocation("g_nVisibleLPV");
                             uniforms.LPVIrradianceTexture = shader.GetUniformLocation("g_tLPV_Irradiance");
                             uniforms.LPVIndicesTexture = shader.GetUniformLocation("g_tLPV_Indices");
                             uniforms.LPVScalarsTexture = shader.GetUniformLocation("g_tLPV_Scalars");
@@ -205,12 +199,12 @@ namespace ValveResourceFormat.Renderer
 
                         context.Scene.LightingInfo.SetLightmapTextures(shader);
 
+                        Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
+                        context.Scene.TransformBufferGpu.BindBufferBase();
+                        context.Scene.InstanceBufferGpu.BindBufferBase();
+
                         if (config.IndirectDraw)
                         {
-                            Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
-
-                            context.Scene.TransformBufferGpu.BindBufferBase();
-                            context.Scene.InstanceBufferGpu.BindBufferBase();
                             GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, 1);
                         }
                     }
@@ -229,16 +223,6 @@ namespace ValveResourceFormat.Renderer
                 {
                     vao = request.Call.VertexArrayObject;
                     GL.BindVertexArray(vao);
-                }
-
-                if (config.IndirectDraw)
-                {
-                    Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
-
-                    context.Scene.InstanceBufferGpu.BindBufferBase();
-                    context.Scene.TransformBufferGpu.BindBufferBase();
-
-                    GL.ProgramUniform1((uint)shader!.Program, uniforms.IsInstancing, 1);
                 }
 
                 Draw(shader!, ref uniforms, ref config, new(request.Mesh, request.Call, request.Node));
@@ -267,7 +251,6 @@ namespace ValveResourceFormat.Renderer
                 if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0)
                 {
                     GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, agg.IndirectDrawByteOffset, agg.IndirectDrawCount, 0);
-                    UnbindInstanceTextures();
                     return;
                 }
             }
@@ -283,7 +266,7 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            if (uniforms.VisibleLightProbeVolume != -1 && request.Node.LightProbeBinding is { } lightProbe)
+            if (uniforms.LPVIrradianceTexture != -1 && request.Node.LightProbeBinding is { } lightProbe)
             {
                 if (config.LightProbeType == LightProbeType.IndividualProbes)
                 {
@@ -311,8 +294,6 @@ namespace ValveResourceFormat.Renderer
                         }
                     }
                 }
-
-                GL.ProgramUniform1((uint)shader.Program, uniforms.VisibleLightProbeVolume, lightProbe.ShaderIndex);
             }
 
             if (uniforms.AnimationData != -1)

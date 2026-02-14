@@ -255,32 +255,47 @@ namespace ValveResourceFormat.Renderer
             var maxId = nodes.Max(n => n.Id);
 
             var instanceData = new ObjectDataStandard[maxId + 1];
-            var transformData = new OpenTK.Mathematics.Matrix3x4[maxId + 1];
+            var transformData = new OpenTK.Mathematics.Matrix3x4[maxId + 2];
 
-            var i = 0;
+            // Reserve index 0 for identity transform
+            var i = 1;
+            transformData[0] = Matrix4x4.Identity.To3x4();
+
             foreach (var node in nodes)
             {
-                var instanceTint = (node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
-                // var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
+                var instanceTint = Vector4.One;
+                if (node is SceneAggregate.Fragment fragment)
+                {
+                    instanceTint = fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint;
+                }
+
+                uint transformIndex;
+                if (node.Transform.IsIdentity)
+                {
+                    transformIndex = 0; // Reuse identity transform at index 0
+                }
+                else
+                {
+                    transformIndex = (uint)i;
+                    transformData[i] = node.Transform.To3x4();
+                    i++;
+                }
 
                 instanceData[node.Id] = new ObjectDataStandard
                 {
                     TintAlpha = Color32.FromVector4(instanceTint).PackedValue,
-                    TransformIndex = (uint)i,
+                    TransformIndex = transformIndex,
                     EnvMapVisibility = node.ShaderEnvMapVisibility,
                     VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0),
                     Identification = node.Id,
                 };
-
-                transformData[i] = node.Transform.To3x4();
-                i++;
             }
 
             InstanceBufferGpu = new StorageBuffer(ReservedBufferSlots.Objects);
             TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
 
             InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
-            TransformBufferGpu.Create(transformData, BufferUsageHint.StaticDraw); // .AsSpan(0, i)
+            TransformBufferGpu.Create(transformData.AsSpan(0, i), BufferUsageHint.StaticDraw);
         }
 
         private void CreateIndirectDrawBuffers()
@@ -288,6 +303,11 @@ namespace ValveResourceFormat.Renderer
             var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => !agg.HasTransforms).ToList();
             var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.DrawCallsOpaque.Count);
             var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
+
+            if (aggregateMeshletCount == 0)
+            {
+                return;
+            }
 
             // draw bounds
             {
@@ -474,13 +494,17 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (EnableDepthPrepass && renderPass == RenderPass.Opaque)
+            if (renderPass == RenderPass.Opaque)
             {
                 if (request.Node is SceneAggregate { HasTransforms: false })
                 {
-                    var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
-                    depthOnlyDraws[bucket].Add(request);
                     renderPass = RenderPass.OpaqueMeshlets;
+
+                    if (EnableDepthPrepass)
+                    {
+                        var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
+                        depthOnlyDraws[bucket].Add(request);
+                    }
                 }
             }
 
@@ -887,13 +911,13 @@ namespace ValveResourceFormat.Renderer
 
             using (new GLDebugGroup("Opaque Render"))
             {
-                renderContext.RenderPass = RenderPass.Opaque;
-
                 if (!depthPrepass)
                 {
-                    MeshBatchRenderer.Render(renderLists[RenderPass.OpaqueMeshlets], renderContext);
+                    renderContext.RenderPass = RenderPass.OpaqueMeshlets;
+                    MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
                 }
 
+                renderContext.RenderPass = RenderPass.Opaque;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
 

@@ -54,13 +54,13 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public int VertexOffset { get; init; }
 
+        /// <summary>Number of vertices contained in this meshlet.</summary>
+        public uint VertexCount { get; init; }
+
         /// <summary>
         /// Offset (in triangles) into the global index/triangle list for this meshlet.
         /// </summary>
         public int TriangleOffset { get; init; }
-
-        /// <summary>Number of vertices contained in this meshlet.</summary>
-        public uint VertexCount { get; init; }
 
         /// <summary>Number of triangles contained in this meshlet. Typically maxes out at 48.</summary>
         public uint TriangleCount { get; init; }
@@ -88,6 +88,7 @@ namespace ValveResourceFormat.Renderer
                 ConeCutoff = (sbyte)coneData.GetInt32Property("m_ConeCutoff"),
             };
 
+            // note: these properties are not present in some old resources
             VertexOffset = data.GetInt32Property("m_nVertexOffset");
             VertexCount = data.GetUInt32Property("m_nVertexCount");
             TriangleOffset = data.GetInt32Property("m_nTriangleOffset");

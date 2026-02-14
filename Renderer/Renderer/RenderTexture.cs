@@ -70,11 +70,6 @@ namespace ValveResourceFormat.Renderer
             return texture;
         }
 
-        internal void SetNumMipLevels(int maxMipLevels)
-        {
-            NumMipLevels = maxMipLevels;
-        }
-
         public RenderTexture CreateView(PixelInternalFormat internalFormat, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
         {
             var view = new RenderTexture(GL.GenTexture(), Target);
