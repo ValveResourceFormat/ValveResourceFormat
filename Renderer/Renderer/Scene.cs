@@ -72,7 +72,7 @@ namespace ValveResourceFormat.Renderer
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
         public bool EnableDepthPrepass { get; set; }
-        public bool EnableOcclusionCulling { get; set; }
+        public bool EnableOcclusionCulling { get; set; } = true;
         public bool EnableOcclusionCullingCpu { get; set; }
         public bool ShowOcclusionCullingDebug { get; set; }
         public bool EnableIndirectDraws
