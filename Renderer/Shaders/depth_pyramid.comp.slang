@@ -30,12 +30,12 @@ void main()
     }
 
 #if D_MSAA_INPUT == 1
-    // Downsample from full MSAA resolution to pyramid size
-    // Calculate scale factor (e.g., 1024 -> 256 = 4x downscale)
+    // Downsample from full MSAA resolution to pyramid size (conservative)
     ivec2 vSourceDepthSize = ivec2(g_nSourceDepthWidth, g_nSourceDepthHeight);
-    ivec2 scale = (vSourceDepthSize + destSize - ivec2(1)) / destSize;
-    ivec2 sourceMin = destCoord * scale;
-    ivec2 sourceMax = min(sourceMin + scale, vSourceDepthSize);
+    
+    // Conservative mapping: round down for min, round up for max
+    ivec2 sourceMin = (destCoord * vSourceDepthSize) / destSize;
+    ivec2 sourceMax = min(((destCoord + ivec2(1)) * vSourceDepthSize + destSize - ivec2(1)) / destSize, vSourceDepthSize);
 
     int numSamples = textureSamples(g_tSourceDepthMS);
     float furthestDepth = 1.0;
