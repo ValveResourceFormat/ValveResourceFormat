@@ -16,7 +16,7 @@ struct LightProbeVolume
     vec4 AtlasOffset;
 };
 
-uniform int g_nVisibleLPV;
+flat in uint g_nVisibleLPV;
 
 layout(std140, binding = 3) uniform LightProbeVolumeArray
 {

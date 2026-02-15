@@ -24,6 +24,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         {
             Size = Marshal.SizeOf<T>();
             Debug.Assert(Size % 16 == 0);
+            Debug.Assert(Size <= 65536);
 
             cpuBuffer = new float[Size / 4];
             cpuBufferHandle = GCHandle.Alloc(cpuBuffer, GCHandleType.Pinned);

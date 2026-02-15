@@ -78,6 +78,7 @@ public class SceneLightProbe : SceneNode
             LightProbeBinding = this,
             LayerName = "LightProbeGrid" + Id,
             LayerEnabled = true,
+            HasTransforms = true,
         };
 
         DebugGridSpheres.SetInfiniteBoundingBox();

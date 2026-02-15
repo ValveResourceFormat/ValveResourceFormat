@@ -37,7 +37,7 @@ namespace GUI.Types.GLViewers
         {
             this.world = world;
             mapExternalReferences = externalReferences;
-            Scene.EnableOcclusionCulling = externalReferences != null;
+            Scene.EnableOcclusionCullingCpu = externalReferences != null;
         }
 
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, WorldNode worldNode, ResourceExtRefList? externalReferences = null)
@@ -222,6 +222,7 @@ namespace GUI.Types.GLViewers
 
         protected override void OnFirstPaint()
         {
+            Scene.EnableIndirectDraws = true;
             base.OnFirstPaint();
 
             Input.MoveCamera(new Vector3(0, -150f, 0));
@@ -335,6 +336,19 @@ namespace GUI.Types.GLViewers
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
                 }
 
+                using (UiControl.BeginGroup("Occlusion"))
+                {
+                    UiControl.AddCheckBox("Indirect Draw", true, (v) =>
+                    {
+                        using var lockedGl = MakeCurrent();
+                        Scene.EnableIndirectDraws = v;
+                    });
+                    UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
+                    UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+                    UiControl.AddCheckBox("Occlusion Culling CPU", Scene.EnableOcclusionCullingCpu, (v) => Scene.EnableOcclusionCullingCpu = v);
+                    UiControl.AddCheckBox("Show Occluded Bounds", Scene.ShowOcclusionCullingDebug, (v) => Scene.ShowOcclusionCullingDebug = v);
+                }
+
                 using (UiControl.BeginGroup("World"))
                 {
                     if (Renderer.SkyboxScene != null)
@@ -345,7 +359,6 @@ namespace GUI.Types.GLViewers
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
                     UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
-                    UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
 
                     AddSceneExposureSlider();
                 }
