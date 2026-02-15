@@ -442,6 +442,9 @@ namespace GUI.Types.GLViewers
 
                 var vertexTotal = 0;
                 var triangleTotal = 0;
+                var vertexBufferSize = 0;
+                var indexBufferSize = 0;
+
                 var coloredMaterialNames = new List<string>();
 
                 void AddColoredMaterialName(DrawCall call)
@@ -450,41 +453,56 @@ namespace GUI.Types.GLViewers
                     coloredMaterialNames.Add($"\\{tintHex}{Path.GetFileNameWithoutExtension(call.Material.Material.Name)}");
                 }
 
-                foreach (var opaqueDraw in mesh.DrawCallsOpaque)
+                foreach (var draw in mesh.DrawCalls)
                 {
-                    AddColoredMaterialName(opaqueDraw);
-                    vertexTotal += (int)opaqueDraw.VertexCount;
-                    triangleTotal += opaqueDraw.IndexCount / 3;
-                }
-
-                foreach (var blendedDraw in mesh.DrawCallsBlended)
-                {
-                    AddColoredMaterialName(blendedDraw);
-                    vertexTotal += (int)blendedDraw.VertexCount;
-                    triangleTotal += blendedDraw.IndexCount / 3;
-                }
-
-                foreach (var overlayDraw in mesh.DrawCallsOverlay)
-                {
-                    AddColoredMaterialName(overlayDraw);
-                    vertexTotal += (int)overlayDraw.VertexCount;
-                    triangleTotal += overlayDraw.IndexCount / 3;
+                    AddColoredMaterialName(draw);
+                    vertexTotal += (int)draw.VertexCount;
+                    triangleTotal += draw.IndexCount / 3;
+                    vertexBufferSize += (int)(draw.VertexCount * draw.VertexBuffers.Sum(vb => vb.ElementSizeInBytes));
+                    indexBufferSize += draw.IndexCount * draw.IndexSizeInBytes;
                 }
 
                 var moreThanSixEllipsis = coloredMaterialNames.Count > 6 ? "..." : string.Empty;
                 var allColoredMaterials = string.Join("\\#FFFFFFFF, ", coloredMaterialNames.Take(6)) + "\\#FFFFFFFF" + moreThanSixEllipsis;
 
+                static string FormatSize(int bytes)
+                {
+                    if (bytes >= 1024)
+                    {
+                        return $"{bytes / 1024.0 / 1024.0:N4} MiB";
+                    }
+                    else
+                    {
+                        return $"{bytes / 1024.0:N4} KiB";
+                    }
+                }
+
                 sb.Append(CultureInfo.InvariantCulture,
                     $"""
 
                     Mesh '{meshName}':
-                        DrawCalls : {coloredMaterialNames.Count} ({allColoredMaterials})
-                        Vertices  : {triangleTotal:N0}
-                        Triangles : {vertexTotal:N0}
-                        Size      : X: {size.X:0.##} | Y: {size.Y:0.##} | Z: {size.Z:0.##}
+                        Vertices  : {vertexTotal:N0} | {FormatSize(vertexBufferSize)}
+                        Triangles : {triangleTotal:N0} | {FormatSize(indexBufferSize)}
 
                     """
                 );
+
+                if (mesh.Meshlets.Count > 0)
+                {
+                    var trianglesPerMeshlet = mesh.Meshlets[0].TriangleCount == 0
+                        ? (uint)triangleTotal / mesh.Meshlets.Count
+                        : mesh.Meshlets[0].TriangleCount;
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"    Meshlets  : {mesh.Meshlets.Count:N0} | {trianglesPerMeshlet:N0} triangles each");
+                }
+
+                if (mesh.MeshBoneCount > 0)
+                {
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"    Skinning  : {mesh.MeshBoneCount} bones, {mesh.BoneWeightCount} per vertex");
+                }
+
+                sb.AppendLine(CultureInfo.InvariantCulture, $"    Drawcalls : {coloredMaterialNames.Count} ({allColoredMaterials})");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"    Size      : X: {size.X:0.##} | Y: {size.Y:0.##} | Z: {size.Z:0.##}");
+                sb.AppendLine();
             }
 
             return sb.ToString();

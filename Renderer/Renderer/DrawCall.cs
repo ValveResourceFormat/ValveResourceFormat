@@ -34,6 +34,14 @@ namespace ValveResourceFormat.Renderer
         public IndexDrawBuffer IndexBuffer { get; set; }
         public int VertexIdOffset { get; set; }
 
+        public int IndexSizeInBytes => IndexType switch
+        {
+            DrawElementsType.UnsignedByte => 1,
+            DrawElementsType.UnsignedShort => 2,
+            DrawElementsType.UnsignedInt => 4,
+            _ => throw new UnreachableException(nameof(IndexType))
+        };
+
 
         public void SetNewMaterial(RenderMaterial newMaterial)
         {

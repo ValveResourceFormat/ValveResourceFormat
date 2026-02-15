@@ -19,6 +19,7 @@ namespace ValveResourceFormat.Renderer
         public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
 
         private readonly RendererContext renderContext;
+        public List<Meshlet> Meshlets { get; } = [];
         public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
@@ -154,6 +155,9 @@ namespace ValveResourceFormat.Renderer
 
             var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
 
+            // note: we are flattening the scene objects into one mesh
+            // we are not sure when there can be more than one scene object here.
+
             var vertexOffset = 0;
             foreach (var sceneObject in sceneObjects)
             {
@@ -240,6 +244,17 @@ namespace ValveResourceFormat.Renderer
                     vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
 
                     i++;
+                }
+
+                var meshlets = sceneObject.GetArray("m_meshlets");
+                if (meshlets != null)
+                {
+                    Meshlets.EnsureCapacity(Meshlets.Count + meshlets.Length);
+
+                    foreach (var meshletData in meshlets)
+                    {
+                        Meshlets.Add(new Meshlet(meshletData));
+                    }
                 }
             }
         }
