@@ -31,6 +31,7 @@ namespace ValveResourceFormat.Renderer
         SceneColor,
         SceneDepth,
         SceneStencil,
+        DepthPyramid,
         MorphCompositeTexture,
         Last = MorphCompositeTexture,
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member

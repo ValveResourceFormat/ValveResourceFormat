@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Buffers
     /// <summary>
     /// Uniform buffer containing camera transforms, fog, and per-frame view state.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 16)]
     public class ViewConstants
     {
         public Matrix4x4 WorldToProjection = Matrix4x4.Identity;
@@ -37,6 +37,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector4 CubeFog_Height_Offset_Scale_Exponent_Log2Mip;
         public Matrix4x4 CubeFogSkyWsToOs;
         public Vector4 CubeFogCullingParams_ExposureBias_MaxOpacity;
+
+        public Matrix4x4 WorldToProjectionPrev = Matrix4x4.Identity;
 
         public ViewConstants()
         {

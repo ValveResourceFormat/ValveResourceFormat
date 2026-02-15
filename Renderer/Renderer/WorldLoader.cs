@@ -8,6 +8,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -29,7 +30,7 @@ namespace ValveResourceFormat.Renderer
         public List<Entity> Entities { get; } = [];
         public WorldNode? MainWorldNode { get; private set; }
 
-        public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
+        public HashSet<string> DefaultEnabledLayers { get; } = [];
 
         public List<string> CameraNames { get; } = [];
         public List<Matrix4x4> CameraMatrices { get; } = [];

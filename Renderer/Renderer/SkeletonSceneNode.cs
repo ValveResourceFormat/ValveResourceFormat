@@ -125,10 +125,9 @@ namespace ValveResourceFormat.Renderer
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
-            renderShader.SetUniform1("sceneObjectId", Id);
 
             GL.BindVertexArray(vaoHandle);
-            GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
+            GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, vertexCount, 1, Id);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);

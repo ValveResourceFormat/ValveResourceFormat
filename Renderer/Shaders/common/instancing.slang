@@ -7,7 +7,29 @@ uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
 
-layout(std140, binding = 10) readonly buffer g_transformBuffer
+#if (S_SCENE_CUBEMAP_TYPE > 0)
+    flat out uvec4 g_nEnvMapVisibility;
+#endif
+
+#if (D_BAKED_LIGHTING_FROM_PROBE > 0)
+    flat out uint g_nVisibleLPV;
+#endif
+
+struct ObjectDataStandard
+{
+    uint TintAlpha;
+    uint TransformIndex;
+    uint VisibleLPV;
+    uint Identification;
+    uvec4 EnvMapVisibility;
+};
+
+layout(std430, binding = 0) readonly buffer g_objectBuffer
+{
+    ObjectDataStandard objects[];
+};
+
+layout(std430, binding = 1) readonly buffer g_transformBuffer
 {
     mat3x4 transforms[];
 };
@@ -39,22 +61,33 @@ mat4 UnpackMatrix4(mat3x4 m)
     );
 }
 
+ObjectData_t GetObjectData()
+{
+    ObjectDataStandard objectData = objects[gl_BaseInstance];
+
+    ObjectData_t object;
+    object.transform = UnpackMatrix4(bIsInstancing ? transforms[objectData.TransformIndex] : transform);
+    object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
+
+    #if (S_SCENE_CUBEMAP_TYPE > 0)
+        g_nEnvMapVisibility = objectData.EnvMapVisibility;
+    #endif
+
+    #if (D_BAKED_LIGHTING_FROM_PROBE > 0)
+        g_nVisibleLPV = objectData.VisibleLPV;
+    #endif
+
+    return object;
+}
+
 mat4 CalculateObjectToWorldMatrix()
 {
-    return UnpackMatrix4(bIsInstancing ? transforms[gl_InstanceID] : transform);
+    return GetObjectData().transform;
 }
 
 vec4 GetObjectTintSrgb()
 {
-    return UnpackColor32(vTint);
-}
-
-ObjectData_t GetObjectData()
-{
-    ObjectData_t object;
-    object.transform = CalculateObjectToWorldMatrix();
-    object.vTint = GetObjectTintSrgb();
-    return object;
+    return GetObjectData().vTint;
 }
 
 #endif

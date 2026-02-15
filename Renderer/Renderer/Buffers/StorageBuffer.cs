@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.Buffers
@@ -45,6 +46,12 @@ namespace ValveResourceFormat.Renderer.Buffers
             GL.NamedBufferData(Handle, totalSizeInBytes, data, BufferUsageHint.StreamDraw);
         }
 
+        public void Create<T>(ReadOnlySpan<T> data, BufferUsageHint usageHint) where T : struct
+        {
+            Size = data.Length * Unsafe.SizeOf<T>();
+            GL.NamedBufferData(Handle, Size, ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(data)), usageHint);
+        }
+
         public void Update<T>(T[] data, int offset, int size) where T : struct
         {
             if (Size == 0)
@@ -57,6 +64,18 @@ namespace ValveResourceFormat.Renderer.Buffers
 
                 throw new InvalidOperationException("Trying to update an unitialized buffer.");
             }
+
+            if (PersistentPtr != IntPtr.Zero)
+            {
+                Debug.Assert(offset + size <= Size);
+                unsafe
+                {
+                    var dest = (void*)(PersistentPtr + offset);
+                    Unsafe.CopyBlock(dest, Unsafe.AsPointer(ref data[0]), (uint)size);
+                }
+                return;
+            }
+
 
             GL.NamedBufferSubData(Handle, offset, size, data);
         }

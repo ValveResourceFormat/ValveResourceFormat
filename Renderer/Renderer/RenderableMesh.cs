@@ -159,6 +159,10 @@ namespace ValveResourceFormat.Renderer
             // we are not sure when there can be more than one scene object here.
 
             var vertexOffset = 0;
+
+            // note: we are flattening the scene objects into one mesh
+            // we are not sure when there can be more than one scene object here.
+
             foreach (var sceneObject in sceneObjects)
             {
                 var i = 0;

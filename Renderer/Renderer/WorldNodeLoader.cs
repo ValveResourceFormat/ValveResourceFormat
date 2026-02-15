@@ -156,10 +156,7 @@ namespace ValveResourceFormat.Renderer
                     };
 
                     scene.Add(aggregate, false);
-                    foreach (var fragment in aggregate.CreateFragments(sceneObject))
-                    {
-                        scene.Add(fragment, false);
-                    }
+                    aggregate.LoadFragments(sceneObject);
                 }
             }
         }
