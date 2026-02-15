@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -444,7 +443,18 @@ internal abstract class GLBaseControl : IDisposable
 
     private void OnGlControlPaint(object? sender, EventArgs e)
     {
-        RenderLoopThread.SetCurrentGLControl(this);
+        if (RenderLoopThread.SetCurrentGLControl(this))
+        {
+            using var lockedGl = MakeCurrent();
+
+            GLNativeWindow?.Context.SwapInterval = Settings.Config.Vsync;
+
+            if (this is GLSceneViewer viewer)
+            {
+                RendererContext.FieldOfView = Settings.Config.FieldOfView;
+                viewer.Renderer.Camera.CreateProjectionMatrix();
+            }
+        }
     }
 
     protected bool ShouldResize;

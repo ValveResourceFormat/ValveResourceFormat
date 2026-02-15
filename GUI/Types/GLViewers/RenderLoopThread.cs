@@ -59,7 +59,7 @@ namespace GUI.Types.GLViewers
 #endif
         }
 
-        public static void SetCurrentGLControl(GLBaseControl glControl)
+        public static bool SetCurrentGLControl(GLBaseControl glControl)
         {
             var originalGlControl = Interlocked.Exchange(ref currentGLControl, glControl);
 
@@ -75,6 +75,8 @@ namespace GUI.Types.GLViewers
             */
 
             renderSignal.Set();
+
+            return originalGlControl != glControl;
         }
 
         public static void UnsetCurrentGLControl(GLBaseControl glControl)
