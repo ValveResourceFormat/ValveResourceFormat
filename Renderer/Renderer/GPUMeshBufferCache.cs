@@ -29,6 +29,20 @@ namespace ValveResourceFormat.Renderer
             {
                 gpuVbib = new GPUMeshBuffers(vbib);
                 gpuBuffers.Add(meshName, gpuVbib);
+
+#if DEBUG
+                for (var i = 0; i < gpuVbib.VertexBuffers.Length; i++)
+                {
+                    var bufferLabel = $"{meshName} VB {i}";
+                    GL.ObjectLabel(ObjectLabelIdentifier.Buffer, gpuVbib.VertexBuffers[i], Math.Min(GLEnvironment.MaxLabelLength, bufferLabel.Length), bufferLabel);
+                }
+
+                for (var i = 0; i < gpuVbib.IndexBuffers.Length; i++)
+                {
+                    var bufferLabel = $"{meshName} IB {i}";
+                    GL.ObjectLabel(ObjectLabelIdentifier.Buffer, gpuVbib.IndexBuffers[i], Math.Min(GLEnvironment.MaxLabelLength, bufferLabel.Length), bufferLabel);
+                }
+#endif
             }
 
             return gpuVbib;
@@ -128,6 +142,11 @@ namespace ValveResourceFormat.Renderer
             }
 
             GL.BindVertexArray(0);
+
+#if DEBUG
+            var vaoLabel = meshName;
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, newVaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+#endif
 
             vertexArrayObjects.Add(vaoKey, newVaoHandle);
             return newVaoHandle;

@@ -31,7 +31,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
 
             // The same quad is reused for all particles
-            vaoHandle = SetupQuadBuffer();
+            var (quadVao, quadBuffer) = SetupQuadBuffer();
+            vaoHandle = quadVao;
 
             string? textureName = null;
 
@@ -61,6 +62,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 #if DEBUG
             var vaoLabel = $"{nameof(RenderTrails)}: {System.IO.Path.GetFileName(textureName)}";
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, quadBuffer, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
@@ -80,7 +82,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
         }
 
-        private int SetupQuadBuffer()
+        private (int Vao, int Buffer) SetupQuadBuffer()
         {
             var vertices = new[]
             {
@@ -100,7 +102,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.VertexArrayAttribFormat(vao, attributeLocation, 3, VertexAttribType.Float, false, 0);
             GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
 
-            return vao;
+            return (vao, buffer);
         }
 
         public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)

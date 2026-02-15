@@ -27,6 +27,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = nameof(LineSceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
 #endif
         }
 

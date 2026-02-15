@@ -105,6 +105,8 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = nameof(PhysSceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
 #endif
         }
 

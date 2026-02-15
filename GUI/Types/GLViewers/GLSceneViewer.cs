@@ -297,6 +297,12 @@ namespace GUI.Types.GLViewers
             GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery1);
             GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery2);
 
+#if DEBUG
+            const string queryLabel = "Frame Time Query";
+            GL.ObjectLabel(ObjectLabelIdentifier.Query, frametimeQuery1, queryLabel.Length, queryLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Query, frametimeQuery2, queryLabel.Length, queryLabel);
+#endif
+
             // Needed to fix crash on certain drivers
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
             GL.EndQuery(QueryTarget.TimeElapsed);

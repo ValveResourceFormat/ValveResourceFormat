@@ -38,6 +38,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = nameof(InfiniteGrid);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, buffer, vaoLabel.Length, vaoLabel);
 #endif
         }
 

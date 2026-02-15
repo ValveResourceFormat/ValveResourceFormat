@@ -16,6 +16,11 @@ namespace ValveResourceFormat.Renderer
         {
             Material = material;
             GL.CreateVertexArrays(1, out vao);
+
+#if DEBUG
+            var vaoLabel = nameof(SceneSkybox2D);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, vaoLabel.Length, vaoLabel);
+#endif
         }
 
         public void Render()

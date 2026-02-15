@@ -63,6 +63,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
             var spriteSize = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);

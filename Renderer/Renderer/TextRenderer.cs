@@ -94,6 +94,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var objectLabel = nameof(TextRenderer);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, objectLabel.Length, objectLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, bufferHandle, objectLabel.Length, objectLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, fontTexture.Handle, objectLabel.Length, objectLabel);
 #endif
         }

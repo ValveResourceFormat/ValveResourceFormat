@@ -77,6 +77,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 #if DEBUG
             var vaoLabel = $"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}";
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vertexBufferHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
