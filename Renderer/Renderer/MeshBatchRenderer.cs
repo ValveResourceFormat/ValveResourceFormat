@@ -261,11 +261,8 @@ namespace ValveResourceFormat.Renderer
                 if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0 && agg.CompactionIndex >= 0)
                 {
                     var scene = agg.Scene;
-                    if (scene.EnableCompaction && scene.CompactedDrawsGpu != null && scene.CompactedCountsGpu != null)
+                    if (scene.EnableCompaction)
                     {
-                        // Use compacted draws with count buffer
-                        GL.BindBuffer(BufferTarget.DrawIndirectBuffer, scene.CompactedDrawsGpu.Handle);
-                        GL.BindBuffer(BufferTarget.ParameterBuffer, scene.CompactedCountsGpu.Handle);
                         GL.MultiDrawElementsIndirectCount(
                             request.Call.PrimitiveType,
                             request.Call.IndexType,
@@ -276,8 +273,6 @@ namespace ValveResourceFormat.Renderer
                         return;
                     }
 
-                    // Fallback to non-compacted
-                    GL.BindBuffer(BufferTarget.DrawIndirectBuffer, scene.IndirectDrawsGpu!.Handle);
                     GL.MultiDrawElementsIndirect(request.Call.PrimitiveType, request.Call.IndexType, agg.IndirectDrawByteOffset, agg.IndirectDrawCount, 0);
                     return;
                 }

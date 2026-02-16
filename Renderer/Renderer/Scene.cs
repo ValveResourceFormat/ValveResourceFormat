@@ -463,7 +463,13 @@ namespace ValveResourceFormat.Renderer
             if (EnableIndirectDraws)
             {
                 Debug.Assert(IndirectDrawsGpu is not null);
-                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, IndirectDrawsGpu.Handle);
+                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, EnableCompaction ? CompactedDrawsGpu!.Handle : IndirectDrawsGpu.Handle);
+
+                if (EnableCompaction)
+                {
+                    Debug.Assert(CompactedCountsGpu is not null);
+                    GL.BindBuffer(BufferTarget.ParameterBuffer, CompactedCountsGpu.Handle);
+                }
             }
         }
 
@@ -644,7 +650,6 @@ namespace ValveResourceFormat.Renderer
             var workGroups = (aggregateCount + 3) / 4; // 4 requests per workgroup (local_size_x = 4)
             GL.DispatchCompute(workGroups, 1, 1);
 
-            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit);
         }
 
         public void GenerateDepthPyramid(RenderTexture depthSource)
