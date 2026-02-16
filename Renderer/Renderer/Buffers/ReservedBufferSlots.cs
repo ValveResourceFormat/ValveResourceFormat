@@ -24,6 +24,9 @@ public enum ReservedBufferSlots
     AggregateDrawBounds = 5,
     AggregateMeshlets = 6,
     OccludedBoundsDebug = 7,
+    CompactedDraws = 8,
+    CompactedCounts = 9,
+    CompactionRequests = 10,
 
     Max = 8, // guaranteed minimum in 4.6
 }

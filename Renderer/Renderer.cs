@@ -188,6 +188,7 @@ public class Renderer
         if (LockedCullFrustum == null)
         {
             scene.FrustumCullGpu(camera.ViewFrustum);
+            scene.CompactIndirectDraws();
         }
 
         if (Postprocess != null)
