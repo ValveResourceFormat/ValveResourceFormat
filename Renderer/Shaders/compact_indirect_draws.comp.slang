@@ -38,7 +38,10 @@ layout(std430, binding = 10) readonly buffer CompactionRequests
     uint compactRequests[];
 };
 
-layout (local_size_x = 4, local_size_y = 1, local_size_z = 1) in;
+const uint STRIDE = 128;
+shared uint g_GroupValidCounts[4]; // one counter per X lane
+
+layout (local_size_x = 4, local_size_y = STRIDE, local_size_z = 1) in;
 void main()
 {
     uint requestIndex = gl_GlobalInvocationID.x;
@@ -52,69 +55,59 @@ void main()
 
     if (REMOVE_CULLED_MESHLETS == false)
     {
-        // Passthrough mode: copy all commands without filtering
-        for (uint i = 0; i < drawCount; i++)
+        // Fast path: Just copy draws without compaction
+        for (uint i = gl_LocalInvocationID.y; i < drawCount; i += STRIDE)
         {
-            compactDraws[outputOffset + i] = draws[startIndex + i];
+            uint drawIndex = startIndex + i;
+            if (drawIndex >= startIndex + drawCount)
+                break;
+
+            compactDraws[outputOffset + i] = draws[drawIndex];
         }
-        compactDrawCounts[requestIndex] = drawCount;
+
+        if (gl_LocalInvocationID.y == 0)
+        {
+            compactDrawCounts[requestIndex] = drawCount;
+        }
         return;
     }
 
-    // Process draws sequentially, compacting and merging in one pass
-    DrawCommand mergedCmd;
-    bool buildingMergedCmd = false;
-    uint outputCount = 0;
-
-    for (uint i = 0; i < drawCount; i++)
+     // One counter per X thread
+    if (gl_LocalInvocationID.y == 0)
     {
-        DrawCommand cmd = draws[startIndex + i];
+        g_GroupValidCounts[gl_LocalInvocationID.x] = 0;
+    }
 
-        // Skip invalid draws
-        if (cmd.indexCount == 0 || cmd.instanceCount == 0)
-            continue;
+    barrier();
 
-        if (MERGE_MESHLETS && buildingMergedCmd)
-        {
-            // Try to merge with previous command
-            uint expectedFirstIndex = mergedCmd.firstIndex + mergedCmd.indexCount;
-            if (cmd.baseInstance == mergedCmd.baseInstance &&
-                cmd.baseVertex == mergedCmd.baseVertex &&
-                cmd.instanceCount == mergedCmd.instanceCount &&
-                cmd.firstIndex == expectedFirstIndex)
-            {
-                // Merge by extending the index count
-                mergedCmd.indexCount += cmd.indexCount;
-                continue;
-            }
-            else
-            {
-                // Can't merge, write out the previous command
-                compactDraws[outputOffset + outputCount] = mergedCmd;
-                outputCount++;
-                buildingMergedCmd = false;
-            }
-        }
+    // Step 1: Compact by removing invalid draws
+    // Each Y thread processes draws in a strided fashion
 
-        // Start building a new command (or just pass through if not merging)
-        if (MERGE_MESHLETS)
+    for (uint i = gl_LocalInvocationID.y; i < drawCount; i += STRIDE)
+    {
+        uint drawIndex = startIndex + i;
+        
+        if (drawIndex >= startIndex + drawCount)
+            break;
+
+        DrawCommand cmd = draws[drawIndex];
+
+        // Valid draw = indexCount * instanceCount != 0
+        if (cmd.indexCount != 0 && cmd.instanceCount != 0)
         {
-            mergedCmd = cmd;
-            buildingMergedCmd = true;
-        }
-        else
-        {
-            compactDraws[outputOffset + outputCount] = cmd;
-            outputCount++;
+            uint localOffset = atomicAdd(g_GroupValidCounts[gl_LocalInvocationID.x], 1);
+            uint dstIndex = outputOffset + localOffset;
+            compactDraws[dstIndex] = cmd;
         }
     }
 
-    // Write out any remaining merged command
-    if (buildingMergedCmd)
-    {
-        compactDraws[outputOffset + outputCount] = mergedCmd;
-        outputCount++;
-    }
+    barrier();
+    memoryBarrierBuffer();
 
-    compactDrawCounts[requestIndex] = outputCount;
+    // One thread sums per-X-lane counts and writes final compacted count
+    if (gl_LocalInvocationID.y == 0 && drawCount != 0)
+    {
+        uint sum = g_GroupValidCounts[0] + g_GroupValidCounts[1] + g_GroupValidCounts[2] + g_GroupValidCounts[3];
+        compactDrawCounts[requestIndex] = sum;
+    }
 }
