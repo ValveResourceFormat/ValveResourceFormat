@@ -618,11 +618,6 @@ namespace ValveResourceFormat.Renderer
             if (octreeNode.OcclusionQueryHandle == -1)
             {
                 octreeNode.OcclusionQueryHandle = GL.GenQuery();
-
-#if DEBUG
-                var queryLabel = "Scene Occlusion Query";
-                GL.ObjectLabel(ObjectLabelIdentifier.Query, octreeNode.OcclusionQueryHandle, queryLabel.Length, queryLabel);
-#endif
             }
 
             octreeNode.OcculsionQuerySubmitted = true;
