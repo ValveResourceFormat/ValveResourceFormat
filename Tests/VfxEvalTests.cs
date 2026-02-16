@@ -365,7 +365,7 @@ namespace Tests
                 "return v0;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
-        
+
         /*
          * a = 0;
          * _27 = TextureSize(g_tColor);
@@ -399,7 +399,7 @@ namespace Tests
 
             var expectedResult = "v0 = 0;\n" +
                 "v1 = TextureSize(g_tColor);\n" +
-                "v2 = TextureAverageColor(g_tColor);\n" + 
+                "v2 = TextureAverageColor(g_tColor);\n" +
                 "v3 = MatrixIdentity();\n" +
                 "v4 = MatrixScale(float3(.5,.3,.2));\n" +
                 "v5 = MatrixTranslate(float3(1,2,3));\n" +

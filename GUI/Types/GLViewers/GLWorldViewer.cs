@@ -93,8 +93,8 @@ namespace GUI.Types.GLViewers
             if (!isSetRequest)
             {
                 var loc = Renderer.Camera.Location;
-                pitch = -1.0f * MathUtils.ToDegrees(Renderer.Camera.Pitch);
-                yaw = MathUtils.ToDegrees(Renderer.Camera.Yaw);
+                pitch = -1.0f * float.RadiansToDegrees(Renderer.Camera.Pitch);
+                yaw = float.RadiansToDegrees(Renderer.Camera.Yaw);
 
                 Clipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
 
@@ -117,8 +117,8 @@ namespace GUI.Types.GLViewers
 
             if (ang.Success)
             {
-                pitch = -1f * MathUtils.ToRadians(float.Parse(ang.Groups["pitch"].Value, CultureInfo.InvariantCulture));
-                yaw = MathUtils.ToRadians(float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture));
+                pitch = -1f * float.DegreesToRadians(float.Parse(ang.Groups["pitch"].Value, CultureInfo.InvariantCulture));
+                yaw = float.DegreesToRadians(float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture));
             }
 
             Input.SaveCameraForTransition();

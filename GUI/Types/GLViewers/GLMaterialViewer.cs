@@ -88,12 +88,12 @@ namespace GUI.Types.GLViewers
 
             {
                 var planeMesh = MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
-                planeMesh.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f));
+                planeMesh.Transform = Matrix4x4.CreateRotationZ(float.DegreesToRadians(90f));
 
                 var isHorizontalPlaneMaterial = renderMat.IsCs2Water;
                 if (!isHorizontalPlaneMaterial)
                 {
-                    planeMesh.Transform *= Matrix4x4.CreateRotationY(MathUtils.ToRadians(90f));
+                    planeMesh.Transform *= Matrix4x4.CreateRotationY(float.DegreesToRadians(90f));
                 }
 
                 Scene.Add(planeMesh, false);
@@ -706,10 +706,10 @@ namespace GUI.Types.GLViewers
 
         protected override void OnFirstPaint()
         {
-            Input.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
+            Input.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, float.DegreesToRadians(180f), 0);
             if (renderMat != null && renderMat.IsCs2Water)
             {
-                Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, MathUtils.ToRadians(-90f));
+                Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, float.DegreesToRadians(-90f));
             }
 
             if (previewNode != null)

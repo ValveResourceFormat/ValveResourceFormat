@@ -171,12 +171,12 @@ namespace ValveResourceFormat.Renderer
             // generate vertices
             for (var band = 0; band < SphereBands; band++)
             {
-                var angleUp = -MathUtils.ToRadians(band * (90.0f / SphereBands));
+                var angleUp = -float.DegreesToRadians(band * (90.0f / SphereBands));
                 var quatUp = Quaternion.CreateFromAxisAngle(axisAround, angleUp);
 
                 for (var segment = 0; segment < SphereSegments; segment++)
                 {
-                    var angleAround = MathUtils.ToRadians(segment * (360.0f / SphereSegments));
+                    var angleAround = float.DegreesToRadians(segment * (360.0f / SphereSegments));
                     var quatAround = Quaternion.CreateFromAxisAngle(axisUp, angleAround);
 
                     var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));

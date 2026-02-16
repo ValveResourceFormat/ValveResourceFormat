@@ -343,9 +343,9 @@ namespace ValveResourceFormat.IO
                         }
 
                         var pitchYawRoll = entity.GetVector3Property("angles");
-                        var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * MathF.PI / 180f);
-                        var pitchMatrix = Matrix4x4.CreateRotationY((pitchYawRoll.X - 90) * MathF.PI / 180f); // copypasta because of this
-                        var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * MathF.PI / 180f);
+                        var rollMatrix = Matrix4x4.CreateRotationX(float.DegreesToRadians(pitchYawRoll.Z));
+                        var pitchMatrix = Matrix4x4.CreateRotationY(float.DegreesToRadians(pitchYawRoll.X - 90)); // copypasta because of this
+                        var yawMatrix = Matrix4x4.CreateRotationZ(float.DegreesToRadians(pitchYawRoll.Y));
                         var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
 
                         var scaleMatrix = Matrix4x4.CreateScale(scale);

@@ -148,7 +148,7 @@ namespace GUI.Controls
 
         private void OnSetFovTo4by3ButtonClick(object sender, EventArgs e)
         {
-            Settings.Config.FieldOfView = 2f * MathF.Atan(3f / 4f) / MathF.PI * 180f;
+            Settings.Config.FieldOfView = float.RadiansToDegrees(2f * MathF.Atan(3f / 4f));
             fovInput.Value = Settings.Config.FieldOfView;
         }
 

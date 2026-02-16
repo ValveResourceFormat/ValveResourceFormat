@@ -41,12 +41,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
                 orbitCount = (orbitCount + 1) % particlesPerOrbit;
 
-                return offset * 2 * MathF.PI;
+                return offset * MathF.Tau;
             }
             else
             {
                 // Return a random angle between 0 and 2pi
-                return 2 * MathF.PI * Random.Shared.NextSingle();
+                return MathF.Tau * Random.Shared.NextSingle();
             }
         }
     }

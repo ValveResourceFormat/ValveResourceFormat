@@ -246,7 +246,7 @@ partial class ModelExtract
         var cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
         angles.Z = MathF.Atan2(sinr_cosp, cosr_cosp);
 
-        return angles * (180 / MathF.PI);
+        return Vector3.RadiansToDegrees(angles);
     }
 
     static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)

@@ -255,7 +255,7 @@ public partial class GltfModelExporter
 
             for (var lon = 0; lon <= longitudeSegments; lon++)
             {
-                var phi = lon * 2 * MathF.PI / longitudeSegments;
+                var phi = lon * MathF.Tau / longitudeSegments;
                 var sinPhi = MathF.Sin(phi);
                 var cosPhi = MathF.Cos(phi);
 
@@ -340,7 +340,7 @@ public partial class GltfModelExporter
 
             for (var seg = 0; seg <= segments; seg++)
             {
-                var angle = seg * 2.0f * MathF.PI / segments;
+                var angle = seg * MathF.Tau / segments;
                 var x = MathF.Cos(angle) * radius;
                 var z = MathF.Sin(angle) * radius;
 

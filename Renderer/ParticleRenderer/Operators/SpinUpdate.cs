@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var rotationRadians = particle.RotationSpeed * MathF.PI / 180f;
+                var rotationRadians = Vector3.DegreesToRadians(particle.RotationSpeed);
                 particle.Rotation += rotationRadians * frameTime;
             }
         }
