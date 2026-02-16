@@ -49,11 +49,21 @@ namespace ValveResourceFormat.Renderer
             return -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera);
         }
 
+        public static int CompareAlphaTest(Request a, Request b)
+        {
+            Debug.Assert(a.Call != null && b.Call != null);
+            return a.Call.Material.IsAlphaTest.CompareTo(b.Call.Material.IsAlphaTest);
+        }
+
         public static void Render(List<Request> requests, Scene.RenderContext context)
         {
             if (context.RenderPass == RenderPass.Opaque)
             {
                 requests.Sort(CompareCustomPipeline);
+            }
+            if (context.RenderPass == RenderPass.OpaqueMeshlets)
+            {
+                requests.Sort(CompareAlphaTest);
             }
             else if (context.RenderPass == RenderPass.StaticOverlay)
             {
