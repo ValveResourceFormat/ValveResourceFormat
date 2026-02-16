@@ -2,7 +2,8 @@
 
 // Compacts indirect draw requests
 
-layout (local_size_x = 4, local_size_y = 16, local_size_z = 1) in;
+const bool PASSTHROUGH = false;
+const bool MERGE_MESHLETS = true;
 
 // Draw commands
 struct DrawCommand
@@ -14,31 +15,32 @@ struct DrawCommand
     uint baseInstance;
 };
 
+layout(std430, binding = 4) readonly buffer DrawCommands
+{
+    DrawCommand draws[];
+};
+
+layout(std430, binding = 8) buffer CompactDrawCommands
+{
+    DrawCommand compactDraws[];
+};
+
+layout(std430, binding = 9) buffer DrawCommandCounts
+{
+    uint compactDrawCounts[];
+};
+
 // Each request packs:
 // low 8 bits  = drawCount
 // high 24 bits = startIndex into input draw array
-layout(std430, binding = 30) readonly buffer CompactionRequests
+layout(std430, binding = 10) readonly buffer CompactionRequests
 {
-    uint data[];
-} g_CompactionRequests;
-
-layout(std430, binding = 31) readonly buffer InputDraws
-{
-    DrawCommand draws[];
-} g_InputDraws;
-
-layout(std430, binding = 158) buffer OutputDraws
-{
-    DrawCommand draws[];
-} g_OutputDraws;
-
-layout(std430, binding = 159) buffer OutputCounts
-{
-    uint counts[];
-} g_OutputCounts;
+    uint compactRequests[];
+};
 
 shared uint g_GroupValidCounts[4]; // one counter per X lane
 
+layout (local_size_x = 4, local_size_y = 16, local_size_z = 1) in;
 void main()
 {
     uvec3 groupThreadID = gl_LocalInvocationID;
@@ -46,14 +48,14 @@ void main()
 
     uint requestIndex = dispatchThreadID.x;
 
-    // Each request is 8 bytes (2 uints)
-    uint packed = g_CompactionRequests.data[requestIndex * 2 + 0];
-    uint outputOffset = g_CompactionRequests.data[requestIndex * 2 + 1];
+    if (requestIndex >= compactRequests.length() / 2)
+        return;
 
-    uint drawCount  = packed & 0xFF;      // low 8 bits
-    uint startIndex = packed >> 8;        // high bits
+    uint drawCount = compactRequests[requestIndex * 2 + 0];
+    uint startIndex = compactRequests[requestIndex * 2 + 1];
+    uint outputOffset = startIndex;
 
-    // One counter per X thread
+     // One counter per X thread
     if (groupThreadID.y == 0)
     {
         g_GroupValidCounts[groupThreadID.x] = 0;
@@ -62,19 +64,60 @@ void main()
     barrier();
 
     // Each Y thread processes draws in a strided fashion (stride = 16)
+    DrawCommand mergedCmd;
+    bool hasMergedCmd = false;
+    uint mergedDstIndex = 0;
+
     for (uint i = groupThreadID.y; i < drawCount; i += 16)
     {
         uint drawIndex = startIndex + i;
-        DrawCommand cmd = g_InputDraws.draws[drawIndex];
+        DrawCommand cmd = draws[drawIndex];
 
-        // Valid draw = indexCount * instanceCount != 0
-        if (cmd.indexCount != 0 && cmd.instanceCount != 0)
+        if (PASSTHROUGH)
         {
-            uint localOffset = atomicAdd(g_GroupValidCounts[groupThreadID.x], 1);
-
-            uint dstIndex = outputOffset + localOffset;
-            g_OutputDraws.draws[dstIndex] = cmd;
+            // Passthrough mode: copy all commands without filtering
+            uint dstIndex = outputOffset + i;
+            compactDraws[dstIndex] = cmd;
         }
+        else
+        {
+            // Valid draw = indexCount * instanceCount != 0
+            if (cmd.indexCount != 0 && cmd.instanceCount != 0)
+            {
+                if (MERGE_MESHLETS && hasMergedCmd)
+                {
+                    // Check if we can merge with previous draw
+                    uint expectedFirstIndex = mergedCmd.firstIndex + mergedCmd.indexCount;
+                    if (cmd.baseInstance == mergedCmd.baseInstance &&
+                        cmd.baseVertex == mergedCmd.baseVertex &&
+                        cmd.instanceCount == mergedCmd.instanceCount &&
+                        cmd.firstIndex == expectedFirstIndex)
+                    {
+                        // Merge by extending the index count
+                        mergedCmd.indexCount += cmd.indexCount;
+                        continue;
+                    }
+                    else
+                    {
+                        // Write out the previous merged command
+                        compactDraws[mergedDstIndex] = mergedCmd;
+                        hasMergedCmd = false;
+                    }
+                }
+
+                // Start a new merged command
+                uint localOffset = atomicAdd(g_GroupValidCounts[groupThreadID.x], 1);
+                mergedDstIndex = outputOffset + localOffset;
+                mergedCmd = cmd;
+                hasMergedCmd = true;
+            }
+        }
+    }
+
+    // Write out any remaining merged command
+    if (hasMergedCmd)
+    {
+        compactDraws[mergedDstIndex] = mergedCmd;
     }
 
     barrier();
@@ -82,6 +125,6 @@ void main()
     // One thread per X lane writes final compacted count
     if (groupThreadID.y == 0 && drawCount != 0)
     {
-        g_OutputCounts.counts[outputOffset] = g_GroupValidCounts[groupThreadID.x];
+        compactDrawCounts[requestIndex] = PASSTHROUGH ? drawCount : g_GroupValidCounts[groupThreadID.x];
     }
 }

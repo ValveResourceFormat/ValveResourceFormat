@@ -56,10 +56,14 @@ namespace ValveResourceFormat.Renderer
         public StorageBuffer? DrawBoundsGpu { get; set; }
         public StorageBuffer? MeshletDataGpu { get; set; }
         public StorageBuffer? IndirectDrawsGpu { get; set; }
+        public StorageBuffer? CompactedDrawsGpu { get; set; }
+        public StorageBuffer? CompactedCountsGpu { get; set; }
+        public StorageBuffer? CompactionRequestsGpu { get; set; }
         public StorageBuffer? OccludedBoundsDebugGpu { get; set; }
         public int SceneMeshletCount { get; private set; }
 
         private Shader? FrustumCullShader;
+        private Shader? CompactionShader;
 
         private Shader? DepthPyramidShader;
         private Shader? DepthPyramidMsaaShader;
@@ -76,6 +80,7 @@ namespace ValveResourceFormat.Renderer
         public bool EnableOcclusionCulling { get; set; } = true;
         public bool EnableOcclusionCullingCpu { get; set; }
         public bool ShowOcclusionCullingDebug { get; set; }
+        public bool EnableCompaction { get; set; } = true;
         public bool EnableIndirectDraws
         {
             get;
@@ -128,6 +133,7 @@ namespace ValveResourceFormat.Renderer
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
+            CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
             DepthPyramidMsaaShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_MSAA_INPUT", 1));
 
@@ -340,10 +346,12 @@ namespace ValveResourceFormat.Renderer
 
                 var sceneDrawCount = 0;
                 var sceneMeshletCount = 0;
+                var aggregateIndex = 0;
                 foreach (var agg in aggregateSceneNodes)
                 {
                     agg.IndirectDrawByteOffset = sceneMeshletCount * Unsafe.SizeOf<DrawElementsIndirectCommand>();
                     agg.IndirectDrawCount = agg.RenderMesh.Meshlets.Count;
+                    agg.CompactionIndex = aggregateIndex++;
 
                     var drawIndex = 0;
                     foreach (var fragment in agg.Fragments)
@@ -404,7 +412,28 @@ namespace ValveResourceFormat.Renderer
                 IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
 
                 MeshletDataGpu.Create(meshletDataGpu, BufferUsageHint.StaticDraw);
-                IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.StaticDraw);
+                IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
+
+                // Create compaction buffers
+                CompactedDrawsGpu = new StorageBuffer(ReservedBufferSlots.CompactedDraws);
+                CompactedDrawsGpu.Create<DrawElementsIndirectCommand>(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
+
+                CompactedCountsGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.CompactedCounts, aggregateSceneNodes.Count, BufferUsageHint.DynamicDraw);
+
+                // Create compaction requests (one per aggregate)
+                var compactionRequests = new uint[aggregateSceneNodes.Count * 2];
+                for (var i = 0; i < aggregateSceneNodes.Count; i++)
+                {
+                    var agg = aggregateSceneNodes[i];
+                    var startIndex = agg.IndirectDrawByteOffset / Unsafe.SizeOf<DrawElementsIndirectCommand>();
+                    var drawCount = agg.IndirectDrawCount;
+
+                    compactionRequests[i * 2 + 0] = (uint)drawCount;
+                    compactionRequests[i * 2 + 1] = (uint)startIndex;
+                }
+
+                CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.CompactionRequests);
+                CompactionRequestsGpu.Create(compactionRequests, BufferUsageHint.StaticDraw);
 
                 // Create debug buffer for occluded bounds (4 uints for header + bounds array)
                 var headerSize = 4; // uint count + 3 padding uints
@@ -591,6 +620,31 @@ namespace ValveResourceFormat.Renderer
 
             var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
+
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+        }
+
+        public void CompactIndirectDraws()
+        {
+            if (CompactionShader == null || CompactedDrawsGpu == null || CompactedCountsGpu == null || CompactionRequestsGpu == null)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Compact Indirect Draws");
+
+            CompactionShader.Use();
+
+            IndirectDrawsGpu!.BindBufferBase();
+            CompactedDrawsGpu.BindBufferBase();
+            CompactedCountsGpu.BindBufferBase();
+            CompactionRequestsGpu.BindBufferBase();
+
+            var aggregateCount = CompactionRequestsGpu.Size / sizeof(uint) / 2; // 2 uints per aggregate
+            var workGroups = (aggregateCount + 3) / 4; // 4 requests per workgroup (local_size_x = 4)
+            GL.DispatchCompute(workGroups, 1, 1);
+
+            GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit);
         }
 
         public void GenerateDepthPyramid(RenderTexture depthSource)
