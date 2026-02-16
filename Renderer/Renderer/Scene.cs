@@ -564,7 +564,7 @@ namespace ValveResourceFormat.Renderer
             queueList.Add(request);
         }
 
-        public void FrustumCullGpu(Frustum frustum)
+        public void MeshletCullGpu(Frustum frustum)
         {
             if (!EnableIndirectDraws)
             {
@@ -578,7 +578,7 @@ namespace ValveResourceFormat.Renderer
             Debug.Assert(MeshletDataGpu is not null);
             Debug.Assert(IndirectDrawsGpu is not null);
 
-            using var _ = new GLDebugGroup("Frustum Cull");
+            using var _ = new GLDebugGroup("Cull Meshlet Draws");
 
             frustumBuffer.BindBufferBase();
             frustumBuffer.Data = frustum;
@@ -631,7 +631,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            using var _ = new GLDebugGroup("Compact Indirect Draws");
+            using var _ = new GLDebugGroup("Compact Meshlet Draws");
 
             CompactionShader.Use();
 
