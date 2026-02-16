@@ -48,16 +48,6 @@
 #include "pbr.slang"
 #include "environment.slang"
 
-// https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
-float attenuate_cusp(float s, float falloff)
-{
-    if (s >= 1.0)
-        return 0.0;
-
-    float s2 = pow2(s);
-    return pow2(1 - s2) / (1 + falloff * s);
-}
-
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
     const float MIN_ALPHA = 0.0001;
@@ -94,6 +84,9 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
                 bLightmapBakedDirectDiffuse = false;
                 visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
             }
+
+            // Note: distance/spot attenuation is NOT applied here because the baked
+            // lightmap visibility already includes falloff
 
             if (visibility > MIN_ALPHA)
             {
@@ -147,14 +140,16 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
                         continue;
                     }
 
-                    float flInvRange = g_vLightDirection_InvRange[uLightIndex].a * 0.5;
-                    vec3 vLightPosition = g_vLightPosition_Type[uLightIndex].xyz;
+                    vec3 vLightPosition = GetLightPositionWs(uLightIndex);
                     float flDistance = length(vLightPosition - mat.PositionWS);
-                    float flFallOff = g_vLightFallOff[uLightIndex].x;
+                    visibility *= GetDistanceAttenuation(flDistance, uLightIndex);
 
-                    // 0.0 near the light, 1.0 at the light maximum range
-                    float flDistanceOverRange = flDistance * flInvRange;
-                    visibility *= attenuate_cusp(flDistanceOverRange, flFallOff);
+                    // Spotlight cone attenuation
+                    if (IsSpotLight(uLightIndex))
+                    {
+                        vec3 posToLightDir = normalize(vLightPosition - mat.PositionWS);
+                        visibility *= GetSpotAttenuation(posToLightDir, uLightIndex);
+                    }
                 }
 
                 if (visibility > MIN_ALPHA)

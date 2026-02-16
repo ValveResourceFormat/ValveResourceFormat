@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Matrix4x4 WorldToShadow = Matrix4x4.Identity;
         public Vector2 _ViewPadding1;
         public float SunLightShadowBias = 0.001f;
-        public bool ExperimentalLightsEnabled;
+        public bool ExperimentalLightsEnabled = true;
 
         public bool VolumetricFogActive;
         public bool GradientFogActive;

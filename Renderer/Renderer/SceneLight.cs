@@ -45,7 +45,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public float Brightness { get; set; } = 1.0f;
     public float FallOff { get; set; } = 1.0f;
     public float SpotInnerAngle { get; set; }
-    public float SpotOuterAngle { get; set; } = 45.0f;
+    public float SpotOuterAngle { get; set; } = 60.0f;
     public float AttenuationLinear { get; set; }
     public float AttenuationQuadratic { get; set; }
     public LightType Type { get; set; }
@@ -97,11 +97,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         };
 
         var isNewLightType = type is EntityType.Omni2 or EntityType.Barn or EntityType.Rect;
-
-        if (isNewLightType && light.Brightness > 6f)
-        {
-            light.Brightness = 1f; // todo: findout the correct brightness value
-        }
 
         if (!isNewLightType)
         {

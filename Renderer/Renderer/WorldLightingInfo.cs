@@ -204,7 +204,9 @@ namespace ValveResourceFormat.Renderer
                 LightingData.LightToWorld[index] = light.Transform;
 
                 LightingData.LightColor_Brightness[index] = new Vector4(ColorSpace.SrgbGammaToLinear(light.Color), light.Brightness);
-                LightingData.LightSpotInnerOuterCosines[index] = new Vector4(MathF.Cos(light.SpotInnerAngle), MathF.Cos(light.SpotOuterAngle), 0.0f, 0.0f);
+                var cosInner = MathF.Cos(float.DegreesToRadians(light.SpotInnerAngle));
+                var cosOuter = MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle));
+                LightingData.LightSpotInnerOuterCosines[index] = new Vector4(cosInner, cosOuter, 1.0f / MathF.Max(cosInner - cosOuter, 0.001f), 0.0f);
                 LightingData.LightFallOff[index] = new Vector4(light.FallOff, light.Range, light.AttenuationLinear, light.AttenuationQuadratic);
             }
 
@@ -270,6 +272,9 @@ namespace ValveResourceFormat.Renderer
 
                 LightingData.LightColor_Brightness[totalCount] = new Vector4(ColorSpace.SrgbGammaToLinear(light.Color), light.Brightness);
 
+                var cosInner = MathF.Cos(float.DegreesToRadians(light.SpotInnerAngle));
+                var cosOuter = MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle));
+                LightingData.LightSpotInnerOuterCosines[totalCount] = new Vector4(cosInner, cosOuter, 1.0f / MathF.Max(cosInner - cosOuter, 0.001f), 0.0f);
                 LightingData.LightFallOff[totalCount] = new Vector4(light.FallOff, light.Range, 0.0f, 0.0f);
 
                 totalCount++;
