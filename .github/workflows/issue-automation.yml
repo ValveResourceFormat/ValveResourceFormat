@@ -23,12 +23,12 @@ jobs:
           LABELS=""
 
           # Detect Exporting issues
-          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.IO\.([A-Za-z]+Extract|GltfModelExporter|ContentFile)'; then
+          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.IO\.([A-Za-z]+Extract|GltfModelExporter|ContentFile)|GUI\.Types\.Exporter'; then
             LABELS="$LABELS,Exporting"
           fi
 
           # Detect Renderer issues
-          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.Renderer|RendererContext|RenderLoop'; then
+          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.Renderer|GUI\.Types\.GLViewers|RendererContext|RenderLoop'; then
             LABELS="$LABELS,Renderer"
           fi
 
