@@ -271,8 +271,8 @@ public class Renderer
 
         renderContext.Framebuffer.BindAndClear();
 
-        var isStandardPass = renderContext.ReplacementShader == null
-            && ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
+        var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
+        var isStandardPass = renderContext.ReplacementShader == null && isMainFramebuffer;
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
         var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
@@ -302,7 +302,7 @@ public class Renderer
         }
 
         // Generate depth pyramid from current depth buffer for next frame's occlusion culling
-        if (isStandardPass && Scene.EnableOcclusionCulling)
+        if (isMainFramebuffer && Scene.EnableOcclusionCulling && LockedCullFrustum == null)
         {
             Debug.Assert(renderContext.Framebuffer.Depth != null);
             GL.MemoryBarrier(MemoryBarrierFlags.FramebufferBarrierBit);
