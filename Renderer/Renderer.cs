@@ -187,8 +187,11 @@ public class Renderer
 
         if (LockedCullFrustum == null)
         {
-            scene.FrustumCullGpu(camera.ViewFrustum);
-            scene.CompactIndirectDraws();
+            scene.MeshletCullGpu(camera.ViewFrustum);
+            if (scene.EnableCompaction)
+            {
+                scene.CompactIndirectDraws();
+            }
         }
 
         if (Postprocess != null)
