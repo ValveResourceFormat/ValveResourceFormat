@@ -169,11 +169,14 @@ namespace GUI.Types.GLViewers
                     var mesh = modelSceneNode.RenderableMeshes[0];
 
                     // check if this is a static overlay world model
-                    if (mesh.DrawCallsOverlay.Count == 1
+                    if (mesh.DrawCallsOverlay.Count > 0
                         && mesh.DrawCallsOpaque.Count == 0
                         && mesh.DrawCallsBlended.Count == 0)
                     {
-                        mesh.DrawCallsOverlay[0].Material.IsOverlay = false; // render without trying to overlay on empty space
+                        foreach (var drawCall in mesh.DrawCallsOverlay)
+                        {
+                            drawCall.Material.IsOverlay = false; // render without trying to overlay on empty space
+                        }
                     }
                 }
 
