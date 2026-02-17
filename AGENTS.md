@@ -14,8 +14,14 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
 
 **Target:** Latest released .NET. Use modern C# features. Nullable reference types enabled.
 
-## Code Style
+### Shader Pipeline
+- Each Source 2 `.vfx` shader name is mapped via `GetShaderFileByName()` to one of our shader files (e.g. `vr_complex.vfx` → `complex`, `csgo_environment_blend.vfx` → `csgo_environment`). Unmapped shaders fall back to `complex`.
+- During compilation, a `GameVfx_{vfxName}` define is set to 1 (e.g. `GameVfx_vr_complex`), activating shader-specific code paths via `#if` blocks. All other `GameVfx_` defines remain 0.
+- Texture names from materials are matched to shader uniforms. An alias system maps Source 2 texture names to our uniform names when they differ.
+- Material float/int/vector params are set as uniforms by iterating the shader's default values and overriding with material values.
+- Render mode defines (e.g. `renderMode_Illumination`) default to 0 and are overridden via static combos at compile time.
 
+## Code Style
 Follow standard Microsoft C# conventions. Key rules:
 
 ### Formatting
@@ -54,13 +60,11 @@ Follow standard Microsoft C# conventions. Key rules:
 - Prefer early returns in methods
 
 ### Imports and Usings
-
 - **Sort usings:** System namespaces first, then others alphabetically
 - **No unnecessary imports:** Remove unused
 - **Global usings:** `System`, `System.Numerics`, `System.Collections.Generic` are global (defined in Directory.Build.props)
 
 ### Comments and Documentation
-
 - **Use `//` comments** instead of `/* */` block comments
 - **Avoid obvious/redundant comments** - Code should be self-documenting
 - **Only write comments for:** Non-obvious logic, workarounds, TODOs, or explaining "why" not "what"
