@@ -226,12 +226,16 @@ uniform sampler2D g_tTintMask;
     #define g_tColor1 g_tColor
     #define g_tNormalRoughness1 g_tNormal
     uniform sampler2D g_tPacked1;
+    uniform float g_fLayerSelfIllumScale1;
+    uniform vec3 g_vLayerSelfIllumTint1 = vec3(1.0);
 
     #define g_tColor2 g_tLayer2Color
     #define g_tNormalRoughness2 g_tLayer2NormalRoughness
     uniform sampler2D g_tPacked2;
     uniform sampler2D g_tRevealMask2;
     uniform float g_flRevealSoftness2;
+    uniform float g_fLayerSelfIllumScale2;
+    uniform vec3 g_vLayerSelfIllumTint2 = vec3(1.0);
 
     // todo: layer 3
     // todo: overlay
@@ -387,17 +391,23 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         color2.rgb *= tintFactorB;
     #endif
 
+    #if (GameVfx_environment_blend != 0)
+        vec2 packed1 = texture(g_tPacked1, texCoord).rg;
+        vec2 packed2 = texture(g_tPacked2, texCoordB).rg;
+        vec3 envBlendIllumColor = mix(
+            color.rgb * (packed1.r * g_fLayerSelfIllumScale1) * g_vLayerSelfIllumTint1,
+            color2.rgb * (packed2.r * g_fLayerSelfIllumScale2) * g_vLayerSelfIllumTint2,
+            blendFactor
+        );
+    #endif
+
     color = mix(color, color2, blendFactor);
     // It's more correct to blend normals after decoding, but it's not actually how S2 does it
     normalTexture = mix(normalTexture, normalTexture2, blendFactor);
 
     #if (GameVfx_environment_blend != 0)
-        vec3 packed1 = texture(g_tPacked1, texCoord).rgb;
-        vec3 packed2 = texture(g_tPacked2, texCoord).rgb;
-        vec3 packedBlended = mix(packed1, packed2, blendFactor);
-        mat.AmbientOcclusion = packedBlended.r;
+        vec2 packedBlended = mix(packed1, packed2, blendFactor);
         mat.Metalness = packedBlended.g;
-        mat.Height = packedBlended.b;
     #endif
 #endif
 
@@ -495,6 +505,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #endif
 
         mat.IllumColor = GetStandardSelfIllumination(flSelfIllumMask, mat.Albedo);
+    #elif (GameVfx_environment_blend != 0)
+        mat.IllumColor = envBlendIllumColor;
     #endif
 
     #if (unlit)
