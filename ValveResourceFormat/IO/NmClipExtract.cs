@@ -37,6 +37,14 @@ public class NmClipExtract
         kv.AddProperty("m_sourceFilename", sourceFileName);
         kv.AddProperty("m_animationSkeletonName", clip.SkeletonName);
         // TODO: figure out additive type.
+        var isAdditive = clip.Data.GetProperty<bool>("m_bIsAdditive");
+        if (isAdditive)
+        {
+            kv.AddProperty("m_additiveType", "RelativeToFrame");
+            kv.AddProperty("m_additiveBaseFilename", "");
+            kv.AddProperty("m_additiveBaseFrame", "FirstFrame");
+            kv.AddProperty("m_nAdditiveBaseFrameIdx", 0L);
+        }
 
         var animation = new ModelAnimation.Animation(clip);
         var skeletonResource = fileLoader.LoadFileCompiled(clip.SkeletonName);
