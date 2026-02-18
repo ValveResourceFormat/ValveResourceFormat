@@ -110,6 +110,8 @@ namespace GUI.Types.GLViewers
 
                     SkyboxScene?.ShowToolsMaterials = v;
                 });
+
+                UiControl.AddCheckBox("Show Render Timings", Renderer.Timings.Capture, (v) => Renderer.Timings.Capture = v);
             }
 
             base.AddUiControls();
@@ -409,6 +411,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
+            Renderer.Timings.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
             var renderContext = new Scene.RenderContext
@@ -530,8 +533,15 @@ namespace GUI.Types.GLViewers
                 }, Renderer.Camera);
             }
 
+            if (Renderer.Timings.Capture)
+            {
+                Renderer.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
+            }
+
             TextRenderer.Render(Renderer.Camera);
             Picker?.TriggerEventIfAny();
+
+            Renderer.Timings.MarkFrameEnd();
         }
 
         protected void AddBaseGridControl()

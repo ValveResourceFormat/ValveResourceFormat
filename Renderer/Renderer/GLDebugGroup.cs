@@ -11,12 +11,16 @@ namespace ValveResourceFormat.Renderer;
 /// </remarks>
 public ref struct GLDebugGroup
 {
+    internal static Timings? Timings { get; set; }
+    internal int TimeQueryId { get; }
+
     /// <summary>
     /// Initializes a new debug group and pushes it onto the OpenGL debug stack.
     /// </summary>
     /// <param name="name">Name of the debug group to display in profiling tools.</param>
     public GLDebugGroup(string name)
     {
+        TimeQueryId = Timings?.BeginQuery(name) ?? 0;
 #if DEBUG
         GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 0, name.Length, name);
 #endif
@@ -32,5 +36,6 @@ public ref struct GLDebugGroup
 #if DEBUG
         GL.PopDebugGroup();
 #endif
+        Timings?.EndQuery(TimeQueryId);
     }
 }

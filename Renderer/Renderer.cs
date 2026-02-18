@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 
@@ -15,6 +16,8 @@ public class Renderer
     public float DeltaTime { get; set; }
     public RendererContext RendererContext { get; }
     public Camera Camera { get; set; }
+
+    public Timings Timings { get; } = new();
 
     public Scene Scene { get; set; }
     public Scene? SkyboxScene { get; set; }
@@ -365,7 +368,6 @@ public class Renderer
 
             if (Postprocess.HasOutlineObjects)
             {
-                using var _ = new GLDebugGroup("Outline Stencil Write");
                 RenderOutlineLayer(renderContext);
             }
         }
@@ -398,6 +400,8 @@ public class Renderer
     private void ComputeAverageLuminance(Scene.RenderContext renderContext)
     {
         Debug.Assert(FramebufferCopy != null);
+
+        using var _ = new GLDebugGroup("Compute Average Luminance");
 
         var width = FramebufferCopy.Width;
         var height = FramebufferCopy.Height;
@@ -442,6 +446,8 @@ public class Renderer
 
     private void RenderOutlineLayer(Scene.RenderContext renderContext)
     {
+        using var _ = new GLDebugGroup("Outline Stencil Write");
+
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
         GL.Disable(EnableCap.CullFace);
@@ -512,6 +518,7 @@ public class Renderer
         ViewBuffer?.Dispose();
         Scene?.Dispose();
         SkyboxScene?.Dispose();
+        Timings?.Dispose();
     }
 
     public void Update(Scene.UpdateContext updateContext)
