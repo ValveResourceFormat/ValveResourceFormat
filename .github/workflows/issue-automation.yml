@@ -44,7 +44,7 @@ jobs:
       - name: Check reported version
         run: |
           VERSION_TEXT=$(echo "$ISSUE_BODY" | grep -A 2 '### What version of S2V are you using' | tail -1 || true)
-          BUILD_NUMBER=$(echo "$VERSION_TEXT" | grep -oP -m1 '\d{1,3}\.\d{1,3}\.\K\d+' || true)
+          BUILD_NUMBER=$(echo "$VERSION_TEXT" | grep -oP '\d{1,3}\.\d{1,3}\.\K\d+' | head -1 || true)
           echo "Detected version text: $VERSION_TEXT"
           echo "Detected build number: $BUILD_NUMBER"
 
