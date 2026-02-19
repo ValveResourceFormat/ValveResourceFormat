@@ -378,20 +378,6 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected void DrawLowerCornerText(string text, Color32 color)
-        {
-            Debug.Assert(MainFramebuffer != null);
-
-            TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-            {
-                X = 2f,
-                Y = MainFramebuffer.Height - 4f,
-                Scale = 14f,
-                Color = color,
-                Text = text
-            });
-        }
-
         protected override void BlitFramebufferToScreen()
         {
             if (MainFramebuffer == GLDefaultFramebuffer)
@@ -479,7 +465,14 @@ namespace GUI.Types.GLViewers
 
             if (Paused)
             {
-                DrawLowerCornerText("Paused", new(255, 100, 0));
+                TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 2f,
+                    Y = MainFramebuffer.Height - 4f,
+                    Scale = 14f,
+                    Color = new(255, 100, 0),
+                    Text = "Paused"
+                });
             }
             else if (Settings.Config.DisplayFps != 0)
             {
@@ -489,7 +482,7 @@ namespace GUI.Types.GLViewers
                 frameTimes[frameTimeNextId++] = frameTime;
                 frameTimeNextId %= frameTimes.Length;
 
-                if (fpsElapsed >= FpsUpdateTimeSpan)
+                //if (fpsElapsed >= FpsUpdateTimeSpan)
                 {
                     var frametimeQuery = frametimeQuery2;
                     frametimeQuery2 = frametimeQuery1;
@@ -502,10 +495,17 @@ namespace GUI.Types.GLViewers
                     var cpuFrameTime = Stopwatch.GetElapsedTime(LastUpdate, currentTime).TotalMilliseconds;
 
                     lastFpsUpdate = currentTime;
-                    fpsText = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
+
+                    TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                    {
+                        X = 2f,
+                        Y = MainFramebuffer.Height - 4f,
+                        Scale = 14f,
+                        Color = Color32.White,
+                        Text = string.Empty,
+                    }, $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms");
                 }
 
-                DrawLowerCornerText(fpsText, Color32.White);
             }
 
             BlitFramebufferToScreen();
