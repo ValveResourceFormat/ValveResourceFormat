@@ -412,9 +412,11 @@ namespace GUI.Types.GLViewers
                     var previousSize = ActualTextureSizeScaled;
 
                     VisualizeTiling = state;
-                    SetTextureFilteringFromUi();
 
                     TextureDimensionsChanged(previousSize);
+
+                    SetTextureFilteringFromUi();
+
                 });
 
                 if (forceSoftwareDecode)
