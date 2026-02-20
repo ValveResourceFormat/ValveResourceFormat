@@ -102,12 +102,10 @@ void main()
     }
 
     barrier();
-    memoryBarrierBuffer();
 
     // One thread sums per-X-lane counts and writes final compacted count
     if (gl_LocalInvocationID.y == 0 && drawCount != 0)
     {
-        uint sum = g_GroupValidCounts[0] + g_GroupValidCounts[1] + g_GroupValidCounts[2] + g_GroupValidCounts[3];
-        compactDrawCounts[requestIndex] = sum;
+        compactDrawCounts[requestIndex] = g_GroupValidCounts[gl_LocalInvocationID.x];
     }
 }
