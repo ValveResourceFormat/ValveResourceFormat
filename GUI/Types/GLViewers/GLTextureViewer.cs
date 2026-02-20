@@ -366,6 +366,7 @@ namespace GUI.Types.GLViewers
 
                     cubemapProjectionComboBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
                     cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
+                    SelectedFiltering = Filtering.Linear;
                 }
 
                 decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
@@ -501,7 +502,7 @@ namespace GUI.Types.GLViewers
             });
 
             samplingComboBox.Items.AddRange(Enum.GetNames<Filtering>());
-            samplingComboBox.SelectedIndex = 0;
+            samplingComboBox.SelectedIndex = (int)SelectedFiltering;
         }
 
         private void SetTextureFiltering()
@@ -685,6 +686,10 @@ namespace GUI.Types.GLViewers
 
         protected SKBitmap ReadPixelsToBitmap(bool hdr = false)
         {
+            var removeFlags = hdr
+                ? (TextureCodec.ColorSpaceLinear | TextureCodec.ColorSpaceSrgb)
+                : TextureCodec.None;
+
             var size = ActualTextureSize;
 
             if (SelectedMip > 0)
@@ -727,7 +732,7 @@ namespace GUI.Types.GLViewers
 
                 SaveAsFbo.BindAndClear(FramebufferTarget.DrawFramebuffer);
 
-                Draw(SaveAsFbo, captureFullSizeImage: true);
+                Draw(SaveAsFbo, captureFullSizeImage: true, removeFlags);
 
                 GL.Flush();
                 GL.Finish();
@@ -1355,7 +1360,7 @@ namespace GUI.Types.GLViewers
             GLControl?.Invalidate();
         }
 
-        protected void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
+        protected void Draw(Framebuffer fbo, bool captureFullSizeImage = false, TextureCodec removeFlags = TextureCodec.None)
         {
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
@@ -1391,7 +1396,7 @@ namespace GUI.Types.GLViewers
             shader.SetUniform1("g_bVisualizeTiling", VisualizeTiling);
             shader.SetUniform1("g_nChannelSplitMode", (int)ChannelSplitMode);
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
-            shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
+            shader.SetUniform1("g_nDecodeFlags", (int)(decodeFlags & ~removeFlags));
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
