@@ -496,6 +496,8 @@ public class Renderer
             return;
         }
 
+        using var _ = new GLDebugGroup("Framebuffer Copy");
+
         if (FramebufferCopy is null)
         {
             throw new InvalidOperationException("Initialize() must be called before rendering");
