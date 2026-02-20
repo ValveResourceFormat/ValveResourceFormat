@@ -304,16 +304,6 @@ public class Renderer
             Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
         }
 
-        // Generate depth pyramid from current depth buffer for next frame's occlusion culling
-        if (isMainFramebuffer && Scene.EnableOcclusionCulling && LockedCullFrustum == null)
-        {
-            Debug.Assert(renderContext.Framebuffer.Depth != null);
-            GL.MemoryBarrier(MemoryBarrierFlags.FramebufferBarrierBit);
-            EnsureDepthPyramidSize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
-            Scene.GenerateDepthPyramid(renderContext.Framebuffer.Depth);
-            Scene.DepthPyramidViewProjection = Camera.ViewProjectionMatrix;
-        }
-
         using (new GLDebugGroup("Sky Render"))
         {
             GL.DepthRange(0, 0.05);
@@ -349,9 +339,20 @@ public class Renderer
 
             copyColor |= computeFramebufferLuminance;
 
-            if (isStandardPass)
+            if (isMainFramebuffer)
             {
+                var generateDepthPyramid = Scene.EnableOcclusionCulling && LockedCullFrustum == null;
+                copyDepth |= generateDepthPyramid;
+
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
+
+                if (generateDepthPyramid)
+                {
+                    Debug.Assert(FramebufferCopy != null && FramebufferCopy.Depth != null);
+                    EnsureDepthPyramidSize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+                    Scene.GenerateDepthPyramid(FramebufferCopy.Depth);
+                    Scene.DepthPyramidViewProjection = Camera.ViewProjectionMatrix;
+                }
             }
 
             if (render3DSkybox)

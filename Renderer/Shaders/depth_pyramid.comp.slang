@@ -5,10 +5,10 @@
 
 layout (local_size_x = 8, local_size_y = 8) in;
 
-#define D_MSAA_INPUT 0
+#define D_NPOT_DOWNSAMPLE 0
 
-#if D_MSAA_INPUT == 1
-    layout(binding = 0) uniform sampler2DMS g_tSourceDepthMS;
+#if D_NPOT_DOWNSAMPLE == 1
+    layout(binding = 0) uniform sampler2D g_tSourceDepthNpot;
     uniform int g_nSourceDepthWidth;
     uniform int g_nSourceDepthHeight;
 #else
@@ -29,27 +29,22 @@ void main()
         return;
     }
 
-#if D_MSAA_INPUT == 1
-    // Downsample from full MSAA resolution to pyramid size (conservative)
+#if D_NPOT_DOWNSAMPLE == 1
+    // Downsample from non power of two depth source
     ivec2 vSourceDepthSize = ivec2(g_nSourceDepthWidth, g_nSourceDepthHeight);
     
     // Conservative mapping: round down for min, round up for max
     ivec2 sourceMin = (destCoord * vSourceDepthSize) / destSize;
     ivec2 sourceMax = min(((destCoord + ivec2(1)) * vSourceDepthSize + destSize - ivec2(1)) / destSize, vSourceDepthSize);
 
-    int numSamples = textureSamples(g_tSourceDepthMS);
     float furthestDepth = 1.0;
 
-    // Sample all MSAA samples across the region
     for (int y = sourceMin.y; y < sourceMax.y; y++)
     {
         for (int x = sourceMin.x; x < sourceMax.x; x++)
         {
-            for (int s = 0; s < numSamples; s++)
-            {
-                float depth = texelFetch(g_tSourceDepthMS, ivec2(x, y), s).r;
-                furthestDepth = min(furthestDepth, depth);
-            }
+            float depth = texelFetch(g_tSourceDepthNpot, ivec2(x, y), 0).r;
+            furthestDepth = min(furthestDepth, depth);
         }
     }
 #else

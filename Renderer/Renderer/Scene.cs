@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Renderer
         private Shader? CompactionShader;
 
         private Shader? DepthPyramidShader;
-        private Shader? DepthPyramidMsaaShader;
+        private Shader? DepthPyramidNpotShader;
         public RenderTexture? DepthPyramid { get; internal set; }
         public Matrix4x4 DepthPyramidViewProjection { get; internal set; }
 
@@ -135,7 +135,7 @@ namespace ValveResourceFormat.Renderer
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
             CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
-            DepthPyramidMsaaShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_MSAA_INPUT", 1));
+            DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
 
             // set render lists to their max capacity
             CollectSceneDrawCalls(new Camera(RendererContext), Frustum.CreateEmpty());
@@ -661,19 +661,19 @@ namespace ValveResourceFormat.Renderer
 
             using var _ = new GLDebugGroup("Generate Depth Pyramid");
 
-            var isMsaaSource = depthSource.Target == TextureTarget.Texture2DMultisample;
+            Debug.Assert(depthSource.Target == TextureTarget.Texture2D);
             var startMipLevel = 1;
 
-            // Resolve MSAA to mip 0 at full resolution
-            if (isMsaaSource)
+            // Downsample from non power of two depth source
             {
-                DepthPyramidMsaaShader!.Use();
-                DepthPyramidMsaaShader.SetTexture(0, "g_tSourceDepthMS", depthSource);
-                DepthPyramidMsaaShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
-                DepthPyramidMsaaShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
+                Debug.Assert(DepthPyramidNpotShader != null);
+                DepthPyramidNpotShader.Use();
+                DepthPyramidNpotShader.SetTexture(0, "g_tSourceDepthNpot", depthSource);
+                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
+                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
 
-                DepthPyramidMsaaShader.SetUniform1("g_nDestDepthWidth", DepthPyramid.Width);
-                DepthPyramidMsaaShader.SetUniform1("g_nDestDepthHeight", DepthPyramid.Height);
+                DepthPyramidNpotShader.SetUniform1("g_nDestDepthWidth", DepthPyramid.Width);
+                DepthPyramidNpotShader.SetUniform1("g_nDestDepthHeight", DepthPyramid.Height);
 
                 GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
 
