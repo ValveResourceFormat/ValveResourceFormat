@@ -31,7 +31,7 @@ public static class GLEnvironment
     }
 
     private static ParallelShaderCompileType ParallelShaderCompileSupport = ParallelShaderCompileType.None;
-    public static bool InidrectCountSupported { get; private set; }
+    public static bool IndirectCountSupported { get; private set; }
 
     /// <summary>
     /// Gets the GPU renderer name and driver version string.
@@ -74,7 +74,7 @@ public static class GLEnvironment
             extensions.Add(extension);
         }
 
-        InidrectCountSupported = extensions.Contains("GL_ARB_indirect_parameters");
+        IndirectCountSupported = extensions.Contains("GL_ARB_indirect_parameters");
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
         {

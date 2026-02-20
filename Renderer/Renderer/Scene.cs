@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer
         public bool EnableOcclusionCulling { get; set; } = true;
         public bool EnableOcclusionCullingCpu { get; set; }
         public bool ShowOcclusionCullingDebug { get; set; }
-        public bool EnableCompaction { get; set; } = GLEnvironment.InidrectCountSupported;
+        public bool EnableCompaction { get; set; } = GLEnvironment.IndirectCountSupported; // todo: fix, glenvironment initializes much later
         public bool EnableIndirectDraws
         {
             get;
@@ -684,7 +684,7 @@ namespace ValveResourceFormat.Renderer
                 GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
             }
 
-            // Generate mip levels down to 1x1 for better occlusion culling precision
+            // Generate mip levels down to 1x1
             DepthPyramidShader.Use();
 
             for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
@@ -981,14 +981,15 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            if (!depthPrepass && EnableIndirectDraws)
+            {
+                using var _ = new GLDebugGroup("Meshlet Render");
+                renderContext.RenderPass = RenderPass.OpaqueMeshlets;
+                MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
+            }
+
             using (new GLDebugGroup("Opaque Render"))
             {
-                if (!depthPrepass)
-                {
-                    renderContext.RenderPass = RenderPass.OpaqueMeshlets;
-                    MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
-                }
-
                 renderContext.RenderPass = RenderPass.Opaque;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
