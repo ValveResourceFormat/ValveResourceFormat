@@ -621,11 +621,16 @@ namespace ValveResourceFormat.ResourceTypes
                     return SKBitmap.Decode(Reader.ReadBytes(CalculateWebpSize()));
             }
 
+            var isHdrBitmap = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR);
+            var removeDecodeFlags = isHdrBitmap
+                ? (TextureCodec.ColorSpaceLinear | TextureCodec.ColorSpaceSrgb)
+                : TextureCodec.None;
+
             decodeFlags = decodeFlags == TextureCodec.Auto
-                ? RetrieveCodecFromResourceEditInfo()
+                ? RetrieveCodecFromResourceEditInfo() & ~removeDecodeFlags
                 : decodeFlags;
 
-            var colorType = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR)
+            var colorType = isHdrBitmap
                 ? HdrBitmapColorType
                 : DefaultBitmapColorType;
 
