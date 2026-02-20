@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer
         public bool EnableOcclusionCulling { get; set; } = true;
         public bool EnableOcclusionCullingCpu { get; set; }
         public bool ShowOcclusionCullingDebug { get; set; }
-        public bool EnableCompaction { get; set; } = true;
+        public bool EnableCompaction { get; set; } = GLEnvironment.InidrectCountSupported;
         public bool EnableIndirectDraws
         {
             get;
