@@ -226,7 +226,9 @@ public sealed class MaterialExtract
         var originalTextures = new KVObject("Compiled Textures", []);
         foreach (var (key, value) in material.TextureParams)
         {
-            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, null, false, true))
+            using var textureResource = fileLoader?.LoadFileCompiled(value);
+            var textureData = textureResource?.DataBlock as Texture;
+            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, textureData, false, true))
             {
                 root.Add(new KVObject(unpackInfo.TextureType, unpackInfo.FileName));
             }
@@ -305,7 +307,7 @@ public sealed class MaterialExtract
         }
 
         var subrectDefinition = editInfo?.SearchableUserData
-            .Where(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault().Value;
+            .FirstOrDefault(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).Value;
 
         if (subrectDefinition is string def)
         {

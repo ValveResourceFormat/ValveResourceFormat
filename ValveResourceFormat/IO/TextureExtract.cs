@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using SkiaSharp;
@@ -95,6 +96,11 @@ public sealed class TextureExtract
     public TextureDecoders.TextureCodec DecodeFlags { get; set; } = TextureDecoders.TextureCodec.Auto;
 
     /// <summary>
+    /// Whether to combine cubemap faces into a single latlong image.
+    /// </summary>
+    public bool LatLongCombineCubemap { get; set; } = true;
+
+    /// <summary>
     /// Should the vtex file be ignored. Defaults to true for files flagged as child resources.
     /// </summary>
     public bool IgnoreVtexFile { get; set; }
@@ -166,16 +172,45 @@ public sealed class TextureExtract
                     continue;
                 }
 
-                for (var face = 0; face < 6; face++)
+                if (LatLongCombineCubemap && texture.IsHighDynamicRange)
                 {
                     var currentDepth = depth;
-                    var currentFace = face;
-
-                    contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
+                    contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () =>
                     {
-                        using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: DecodeFlags);
-                        return ImageEncode(bitmap);
+                        var faces = new SKBitmap[6];
+                        try
+                        {
+                            for (var face = 0; face < 6; face++)
+                            {
+                                faces[face] = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
+                            }
+
+                            using var latLongBitmap = CreateLatLongFromCubemapFaces(faces);
+                            return ImageEncode(latLongBitmap);
+                        }
+                        finally
+                        {
+                            foreach (var faceBitmap in faces)
+                            {
+                                faceBitmap.Dispose();
+                            }
+                        }
                     });
+
+                }
+                else
+                {
+                    for (var face = 0; face < 6; face++)
+                    {
+                        var currentDepth = depth;
+                        var currentFace = face;
+
+                        contentFile.AddSubFile($"{outTextureName}_{CubemapNames[face]}{ImageOutputExtension}", () =>
+                        {
+                            using var bitmap = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)currentFace, decodeFlags: DecodeFlags);
+                            return ImageEncode(bitmap);
+                        });
+                    }
                 }
             }
 
@@ -215,8 +250,15 @@ public sealed class TextureExtract
         // unpacking not supported in these scenarios
         if (isCubeMap || isArray || ExportExr)
         {
-            // TODO: for cubemaps we should export one image with 'equirecangular' or 'cube' projection
-            return ToContentFile();
+            var vtexContent = ToContentFile();
+
+            if (isCubeMap && LatLongCombineCubemap && ExportExr)
+            {
+                // use the file name set in material properties
+                vtexContent.SubFiles[0].FileName = Path.GetFileName(mapsToUnpack.First().FileName);
+            }
+
+            return vtexContent;
         }
 
         var bitmap = texture.GenerateBitmap(decodeFlags: DecodeFlags);
@@ -670,6 +712,165 @@ public sealed class TextureExtract
         using var stream = new MemoryStream();
         datamodel.Save(stream, "keyvalues2_noids", 1);
         return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    /// <summary>
+    /// Creates a latlong layout bitmap from 6 projected cubemap faces.
+    /// </summary>
+    public static SKBitmap CreateLatLongFromCubemapFaces(SKBitmap[] faces)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(faces.Length, 6, nameof(faces));
+
+        var colorType = faces[0].Info.ColorType;
+        if (colorType != SKColorType.RgbaF16 && colorType != SKColorType.RgbaF32)
+        {
+            throw new InvalidOperationException($"Cubemap faces must be HDR format (RgbaF16 or RgbaF32), got {colorType}");
+        }
+
+        var faceWidth = faces[0].Width;
+        var faceHeight = faces[0].Height;
+
+        var latLongInfo = new SKImageInfo(faceWidth * 4, faceHeight * 2, colorType, faces[0].Info.AlphaType);
+        var latLongBitmap = new SKBitmap(latLongInfo);
+        using var latLongPixels = latLongBitmap.PeekPixels();
+        var latLongSpan = latLongPixels.GetPixelSpan<SKColorF>();
+
+        // project faces to latlong layout with bilinear sampling
+        for (var y = 0; y < latLongInfo.Height; y++)
+        {
+            var v = (y + 0.5f) / latLongInfo.Height * (float)Math.PI;
+            for (var x = 0; x < latLongInfo.Width; x++)
+            {
+                var u = (x + 0.5f) / latLongInfo.Width * 2 * (float)Math.PI;
+
+                // direction vector
+                var dir = new Vector3(
+                    (float)(Math.Sin(v) * Math.Cos(u)),
+                    (float)Math.Cos(v),
+                    (float)(Math.Sin(v) * Math.Sin(u))
+                );
+
+                var color = SampleCubemapDirection(faces, dir);
+                latLongSpan[y * latLongInfo.Width + x] = color;
+            }
+        }
+
+        return latLongBitmap;
+    }
+
+    private static SKColorF SampleCubemapDirection(SKBitmap[] faces, Vector3 dir)
+    {
+        var faceWidth = faces[0].Width;
+        var faceHeight = faces[0].Height;
+
+        // determine which face the direction vector intersects and get the corresponding UV coordinates
+        var absDir = new Vector3(Math.Abs(dir.X), Math.Abs(dir.Y), Math.Abs(dir.Z));
+        var maxAxis = Math.Max(absDir.X, Math.Max(absDir.Y, absDir.Z));
+
+        int faceIndex;
+        float uc, vc;
+
+        if (maxAxis == absDir.X)
+        {
+            if (dir.X > 0)
+            {
+                faceIndex = 0; // right
+                uc = -dir.Z / absDir.X;
+                vc = -dir.Y / absDir.X;
+            }
+            else
+            {
+                faceIndex = 1; // left
+                uc = dir.Z / absDir.X;
+                vc = -dir.Y / absDir.X;
+            }
+        }
+        else if (maxAxis == absDir.Y)
+        {
+            if (dir.Y > 0)
+            {
+                faceIndex = 4; // up
+                uc = dir.X / absDir.Y;
+                vc = dir.Z / absDir.Y;
+            }
+            else
+            {
+                faceIndex = 5; // down
+                uc = dir.X / absDir.Y;
+                vc = -dir.Z / absDir.Y;
+            }
+        }
+        else
+        {
+            if (dir.Z > 0)
+            {
+                faceIndex = 3; // front
+                uc = dir.X / absDir.Z;
+                vc = -dir.Y / absDir.Z;
+            }
+            else
+            {
+                faceIndex = 2; // back
+                uc = -dir.X / absDir.Z;
+                vc = -dir.Y / absDir.Z;
+            }
+        }
+
+        // convert from [-1,1] to [0,1]
+        uc = (uc + 1) / 2;
+        vc = (vc + 1) / 2;
+
+        // adjust UVs for pre-rotated faces from GPU
+        (uc, vc) = faceIndex switch
+        {
+            0 => (vc, 1 - uc), // right face: rotated 90 deg clockwise
+            1 => (1 - vc, uc), // left face: rotated -90 deg (counterclockwise)
+            2 => (1 - uc, 1 - vc), // back face: rotated 180 deg
+            _ => (uc, vc)
+        };
+
+        // sample from face with bilinear filtering
+        var fx = uc * faceWidth - 0.5f;
+        var fy = vc * faceHeight - 0.5f;
+
+        var x0 = (int)MathF.Floor(fx);
+        var y0 = (int)MathF.Floor(fy);
+        var x1 = x0 + 1;
+        var y1 = y0 + 1;
+
+        var tx = fx - x0;
+        var ty = fy - y0;
+
+        // get the four neighboring pixels
+        var c00 = SampleCubemapSeamless(faces, faceIndex, x0, y0, faceWidth, faceHeight);
+        var c10 = SampleCubemapSeamless(faces, faceIndex, x1, y0, faceWidth, faceHeight);
+        var c01 = SampleCubemapSeamless(faces, faceIndex, x0, y1, faceWidth, faceHeight);
+        var c11 = SampleCubemapSeamless(faces, faceIndex, x1, y1, faceWidth, faceHeight);
+
+        // bilinear interpolation
+        var r = c00.Red * (1 - tx) * (1 - ty) + c10.Red * tx * (1 - ty) + c01.Red * (1 - tx) * ty + c11.Red * tx * ty;
+        var g = c00.Green * (1 - tx) * (1 - ty) + c10.Green * tx * (1 - ty) + c01.Green * (1 - tx) * ty + c11.Green * tx * ty;
+        var b = c00.Blue * (1 - tx) * (1 - ty) + c10.Blue * tx * (1 - ty) + c01.Blue * (1 - tx) * ty + c11.Blue * tx * ty;
+        var a = c00.Alpha * (1 - tx) * (1 - ty) + c10.Alpha * tx * (1 - ty) + c01.Alpha * (1 - tx) * ty + c11.Alpha * tx * ty;
+
+        return new SKColorF(r, g, b, a);
+    }
+
+    private static SKColorF SampleCubemapSeamless(SKBitmap[] faces, int faceIndex, int x, int y, int faceWidth, int faceHeight)
+    {
+        // if within bounds, sample directly
+        if (x >= 0 && x < faceWidth && y >= 0 && y < faceHeight)
+        {
+            using var pixels = faces[faceIndex].PeekPixels();
+            return pixels.GetPixelSpan<SKColorF>()[y * faceWidth + x];
+        }
+
+        // clamp out of bounds samples
+        var clampedX = Math.Clamp(x, 0, faceWidth - 1);
+        var clampedY = Math.Clamp(y, 0, faceHeight - 1);
+
+        using var facePixels = faces[faceIndex].PeekPixels();
+        return facePixels.GetPixelSpan<SKColorF>()[clampedY * faceWidth + clampedX];
     }
 }
 
