@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 using SkiaSharp;
 using TinyEXR;
 using ValveResourceFormat.IO.ContentFormats.ValveTexture;
@@ -177,12 +178,14 @@ public sealed class TextureExtract
                     var currentDepth = depth;
                     contentFile.AddSubFile($"{outTextureName}{ImageOutputExtension}", () =>
                     {
-                        var faces = new SKBitmap[6];
+                        var bitmaps = new SKBitmap[6];
+                        var faces = new SKPixmap[6];
                         try
                         {
                             for (var face = 0; face < 6; face++)
                             {
-                                faces[face] = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
+                                bitmaps[face] = texture.GenerateBitmap(depth: currentDepth, face: (Texture.CubemapFace)face, decodeFlags: DecodeFlags);
+                                faces[face] = bitmaps[face].PeekPixels();
                             }
 
                             using var latLongBitmap = CreateLatLongFromCubemapFaces(faces);
@@ -190,9 +193,10 @@ public sealed class TextureExtract
                         }
                         finally
                         {
-                            foreach (var faceBitmap in faces)
+                            for (var face = 0; face < 6; face++)
                             {
-                                faceBitmap.Dispose();
+                                faces[face]?.Dispose();
+                                bitmaps[face]?.Dispose();
                             }
                         }
                     });
@@ -717,7 +721,7 @@ public sealed class TextureExtract
     /// <summary>
     /// Creates a latlong layout bitmap from 6 projected cubemap faces.
     /// </summary>
-    public static SKBitmap CreateLatLongFromCubemapFaces(SKBitmap[] faces)
+    public static SKBitmap CreateLatLongFromCubemapFaces(SKPixmap[] faces)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(faces.Length, 6, nameof(faces));
 
@@ -733,15 +737,19 @@ public sealed class TextureExtract
         var latLongInfo = new SKImageInfo(faceWidth * 4, faceHeight * 2, colorType, faces[0].Info.AlphaType);
         var latLongBitmap = new SKBitmap(latLongInfo);
         using var latLongPixels = latLongBitmap.PeekPixels();
-        var latLongSpan = latLongPixels.GetPixelSpan<SKColorF>();
 
         // project faces to latlong layout with bilinear sampling
-        for (var y = 0; y < latLongInfo.Height; y++)
+        // Each row is independent, so we can parallelize over y.
+        var width = latLongInfo.Width;
+        var height = latLongInfo.Height;
+
+        Parallel.For(0, height, y =>
         {
-            var v = (y + 0.5f) / latLongInfo.Height * (float)Math.PI;
-            for (var x = 0; x < latLongInfo.Width; x++)
+            var latLongSpan = latLongPixels.GetPixelSpan<SKColorF>();
+            var v = (y + 0.5f) / height * (float)Math.PI;
+            for (var x = 0; x < width; x++)
             {
-                var u = (x + 0.5f) / latLongInfo.Width * 2 * (float)Math.PI;
+                var u = (x + 0.5f) / width * 2 * (float)Math.PI;
 
                 // direction vector
                 var dir = new Vector3(
@@ -751,14 +759,14 @@ public sealed class TextureExtract
                 );
 
                 var color = SampleCubemapDirection(faces, dir);
-                latLongSpan[y * latLongInfo.Width + x] = color;
+                latLongSpan[y * width + x] = color;
             }
-        }
+        });
 
         return latLongBitmap;
     }
 
-    private static SKColorF SampleCubemapDirection(SKBitmap[] faces, Vector3 dir)
+    private static SKColorF SampleCubemapDirection(SKPixmap[] faces, Vector3 dir)
     {
         var faceWidth = faces[0].Width;
         var faceHeight = faces[0].Height;
@@ -825,7 +833,7 @@ public sealed class TextureExtract
         {
             0 => (vc, 1 - uc), // right face: rotated 90 deg clockwise
             1 => (1 - vc, uc), // left face: rotated -90 deg (counterclockwise)
-            2 => (1 - uc, 1 - vc), // back face: rotated 180 deg
+            2 or 5 => (1 - uc, 1 - vc), // back and down face: rotated 180 deg
             _ => (uc, vc)
         };
 
@@ -841,11 +849,13 @@ public sealed class TextureExtract
         var tx = fx - x0;
         var ty = fy - y0;
 
+        var colorSpan = faces[faceIndex].GetPixelSpan<SKColorF>();
+
         // get the four neighboring pixels
-        var c00 = SampleCubemapSeamless(faces, faceIndex, x0, y0, faceWidth, faceHeight);
-        var c10 = SampleCubemapSeamless(faces, faceIndex, x1, y0, faceWidth, faceHeight);
-        var c01 = SampleCubemapSeamless(faces, faceIndex, x0, y1, faceWidth, faceHeight);
-        var c11 = SampleCubemapSeamless(faces, faceIndex, x1, y1, faceWidth, faceHeight);
+        var c00 = SampleCubemapSeamless(colorSpan, x0, y0, faceWidth, faceHeight);
+        var c10 = SampleCubemapSeamless(colorSpan, x1, y0, faceWidth, faceHeight);
+        var c01 = SampleCubemapSeamless(colorSpan, x0, y1, faceWidth, faceHeight);
+        var c11 = SampleCubemapSeamless(colorSpan, x1, y1, faceWidth, faceHeight);
 
         // bilinear interpolation
         var r = c00.Red * (1 - tx) * (1 - ty) + c10.Red * tx * (1 - ty) + c01.Red * (1 - tx) * ty + c11.Red * tx * ty;
@@ -856,21 +866,19 @@ public sealed class TextureExtract
         return new SKColorF(r, g, b, a);
     }
 
-    private static SKColorF SampleCubemapSeamless(SKBitmap[] faces, int faceIndex, int x, int y, int faceWidth, int faceHeight)
+    private static SKColorF SampleCubemapSeamless(ReadOnlySpan<SKColorF> colorSpan, int x, int y, int faceWidth, int faceHeight)
     {
         // if within bounds, sample directly
         if (x >= 0 && x < faceWidth && y >= 0 && y < faceHeight)
         {
-            using var pixels = faces[faceIndex].PeekPixels();
-            return pixels.GetPixelSpan<SKColorF>()[y * faceWidth + x];
+            return colorSpan[y * faceWidth + x];
         }
 
         // clamp out of bounds samples
         var clampedX = Math.Clamp(x, 0, faceWidth - 1);
         var clampedY = Math.Clamp(y, 0, faceHeight - 1);
 
-        using var facePixels = faces[faceIndex].PeekPixels();
-        return facePixels.GetPixelSpan<SKColorF>()[clampedY * faceWidth + clampedX];
+        return colorSpan[clampedY * faceWidth + clampedX];
     }
 }
 
