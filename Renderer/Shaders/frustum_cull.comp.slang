@@ -162,11 +162,10 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     ivec2 mipSize = ivec2(max(1, g_nDepthPyramidWidth >> mipLevel), max(1, g_nDepthPyramidHeight >> mipLevel));
     ivec2 maxTexel = mipSize - ivec2(1);
 
-    // If the AABB projects outside the viewport, it can't be occluded
-    if (any(lessThan(texelMin, ivec2(0))) || any(greaterThan(texelMax, maxTexel)))
-    {
-        return false;
-    }
+    // Clamp texel coords so that AABBs straddling the screen edge still get tested
+    // against the nearest valid depth samples
+    texelMin = clamp(texelMin, ivec2(0), maxTexel);
+    texelMax = clamp(texelMax, ivec2(0), maxTexel);
 
     // Sample 4 corners using texelFetch
     float depth0 = texelFetch(g_tDepthPyramid, texelMin, mipLevel).r;
