@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -45,6 +47,28 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
+        private UniformBuffer<Frustum>? frustumBuffer;
+
+        public StorageBuffer? InstanceBufferGpu { get; set; }
+        public StorageBuffer? TransformBufferGpu { get; set; }
+
+
+        public StorageBuffer? DrawBoundsGpu { get; set; }
+        public StorageBuffer? MeshletDataGpu { get; set; }
+        public StorageBuffer? IndirectDrawsGpu { get; set; }
+        public StorageBuffer? CompactedDrawsGpu { get; set; }
+        public StorageBuffer? CompactedCountsGpu { get; set; }
+        public StorageBuffer? CompactionRequestsGpu { get; set; }
+        public StorageBuffer? OccludedBoundsDebugGpu { get; set; }
+        public int SceneMeshletCount { get; private set; }
+
+        private Shader? FrustumCullShader;
+        private Shader? CompactionShader;
+
+        private Shader? DepthPyramidShader;
+        private Shader? DepthPyramidNpotShader;
+        public RenderTexture? DepthPyramid { get; internal set; }
+        public Matrix4x4 DepthPyramidViewProjection { get; internal set; }
 
         public RendererContext RendererContext { get; }
         public Octree StaticOctree { get; }
@@ -52,7 +76,34 @@ namespace ValveResourceFormat.Renderer
 
         public bool ShowToolsMaterials { get; set; }
         public bool FogEnabled { get; set; } = true;
-        public bool EnableOcclusionCulling { get; set; }
+        public bool EnableDepthPrepass { get; set; }
+        public bool EnableOcclusionCulling { get; set; } = true;
+        public bool EnableOcclusionCullingCpu { get; set; }
+        public bool ShowOcclusionCullingDebug { get; set; }
+        public bool EnableCompaction { get; set; } = GLEnvironment.IndirectCountSupported; // todo: fix, glenvironment initializes much later
+        public bool EnableIndirectDraws
+        {
+            get;
+            set
+            {
+                field = value;
+
+                // if indirect draws are enabled, remove aggregate fragments from octree
+                foreach (var node in AllNodes)
+                {
+                    if (node is SceneAggregate.Fragment fragment && !fragment.Parent.HasTransforms)
+                    {
+                        node.LayerEnabled = !value;
+                    }
+                }
+
+                UpdateOctrees();
+            }
+        }
+
+        public Matrix4x4[] Transforms { get; set; } = [Matrix4x4.Identity];
+
+        public ref Matrix4x4 RootTransform => ref Transforms[0];
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -76,10 +127,17 @@ namespace ValveResourceFormat.Renderer
             CreateBuffers();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
+            CreateInstanceTransformBuffers(); // after calculating envmap and lpv
 
             UpdateBuffers();
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
+            FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
+            CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
+            DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
+            DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
+
+            RootTransform.Translation = new Vector3(0, 5, 0);
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -193,6 +251,192 @@ namespace ValveResourceFormat.Renderer
 
             envMapBuffer = new(ReservedBufferSlots.EnvironmentMap);
             lpvBuffer = new(ReservedBufferSlots.LightProbe);
+            frustumBuffer = new(ReservedBufferSlots.FrustumPlanes);
+
+            CreateIndirectDrawBuffers();
+        }
+
+        private void CreateInstanceTransformBuffers()
+        {
+            var nodes = AllNodes.ToList();
+            var maxId = nodes.Max(n => n.Id);
+
+            var instanceData = new ObjectDataStandard[maxId + 1];
+            var transformData = new OpenTK.Mathematics.Matrix3x4[maxId + 2];
+
+            // Reserve index 0 for identity transform
+            var i = 1;
+            transformData[0] = Matrix4x4.Identity.To3x4();
+
+            foreach (var node in nodes)
+            {
+                var instanceTint = Vector4.One;
+                if (node is SceneAggregate.Fragment fragment)
+                {
+                    instanceTint = fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint;
+                }
+
+                uint transformIndex;
+                if (node.Transform.IsIdentity)
+                {
+                    transformIndex = 0; // Reuse identity transform at index 0
+                }
+                else
+                {
+                    transformIndex = (uint)i;
+                    transformData[i] = node.Transform.To3x4();
+                    i++;
+                }
+
+                instanceData[node.Id] = new ObjectDataStandard
+                {
+                    TintAlpha = Color32.FromVector4(instanceTint).PackedValue,
+                    TransformIndex = transformIndex,
+                    EnvMapVisibility = node.ShaderEnvMapVisibility,
+                    VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0),
+                    Identification = node.Id,
+                };
+            }
+
+            InstanceBufferGpu = new StorageBuffer(ReservedBufferSlots.Objects);
+            TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
+
+            InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
+            TransformBufferGpu.Create(transformData.AsSpan(0, i), BufferUsageHint.StaticDraw);
+        }
+
+        private void CreateIndirectDrawBuffers()
+        {
+            var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => !agg.HasTransforms).ToList();
+            var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.DrawCallsOpaque.Count);
+            var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
+
+            if (aggregateMeshletCount == 0)
+            {
+                return;
+            }
+
+            // draw bounds
+            {
+                var drawBounds = new DrawBounds[aggregateDrawCallCount];
+                var index = 0;
+                foreach (var agg in aggregateSceneNodes)
+                {
+                    foreach (var drawCall in agg.RenderMesh.DrawCallsOpaque)
+                    {
+                        Debug.Assert(drawCall.DrawBounds != null);
+                        drawBounds[index].Min = drawCall.DrawBounds.Value.Min;
+                        drawBounds[index].Max = drawCall.DrawBounds.Value.Max;
+                        index++;
+                    }
+                }
+
+                DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds);
+                DrawBoundsGpu.Create(drawBounds, BufferUsageHint.StaticDraw);
+            }
+
+            // meshlets
+            {
+                var meshletDataGpu = new MeshletCullInfo[aggregateMeshletCount];
+                var indirectDrawsGpu = new DrawElementsIndirectCommand[aggregateMeshletCount];
+
+                var sceneDrawCount = 0;
+                var sceneMeshletCount = 0;
+                var aggregateIndex = 0;
+                foreach (var agg in aggregateSceneNodes)
+                {
+                    agg.IndirectDrawByteOffset = sceneMeshletCount * Unsafe.SizeOf<DrawElementsIndirectCommand>();
+                    agg.IndirectDrawCount = agg.RenderMesh.Meshlets.Count;
+                    agg.CompactionIndex = aggregateIndex++;
+
+                    var drawIndex = 0;
+                    foreach (var fragment in agg.Fragments)
+                    {
+                        var fragmentInstanceId = fragment.Id;
+                        var drawCall = fragment.DrawCall;
+
+                        var start = drawCall.FirstMeshlet;
+                        var stop = start + drawCall.NumMeshlets;
+
+                        for (var drawMeshletIndex = start; drawMeshletIndex < stop; drawMeshletIndex++)
+                        {
+                            var meshlet = agg.RenderMesh.Meshlets[drawMeshletIndex];
+                            meshletDataGpu[sceneMeshletCount] = new MeshletCullInfo
+                            {
+                                Bounds = meshlet.PackedAABB,
+                                Cone = meshlet.CullingData,
+                                ParentDrawBoundsIndex = (uint)(sceneDrawCount + drawIndex),
+                            };
+
+                            var count = meshlet.TriangleCount * 3;
+                            var firstIndex = (uint)meshlet.TriangleOffset * 3;
+
+                            if (count == 0 && firstIndex == 0)
+                            {
+                                // older meshlets   
+                                var tris = drawCall.IndexCount / 3;
+                                var clusters = drawCall.NumMeshlets;
+                                var trisPerCluster = tris / clusters;
+
+                                count = (uint)trisPerCluster * 3;
+                                firstIndex = (uint)(drawMeshletIndex * count);
+                            }
+
+                            // what is meshlet.VertexOffset used for?
+
+                            indirectDrawsGpu[sceneMeshletCount] = new DrawElementsIndirectCommand
+                            {
+                                Count = count,
+                                InstanceCount = 1,
+                                FirstIndex = firstIndex,
+                                BaseVertex = drawCall.BaseVertex,
+                                BaseInstance = fragmentInstanceId,
+                            };
+
+                            sceneMeshletCount++;
+                        }
+
+                        drawIndex++;
+                    }
+
+                    sceneDrawCount += agg.RenderMesh.DrawCallsOpaque.Count;
+                }
+
+                SceneMeshletCount = sceneMeshletCount;
+
+                MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets);
+                IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
+
+                MeshletDataGpu.Create(meshletDataGpu, BufferUsageHint.StaticDraw);
+                IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
+
+                // Create compaction buffers
+                CompactedDrawsGpu = new StorageBuffer(ReservedBufferSlots.CompactedDraws);
+                CompactedDrawsGpu.Create<DrawElementsIndirectCommand>(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
+
+                CompactedCountsGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.CompactedCounts, aggregateSceneNodes.Count, BufferUsageHint.DynamicDraw);
+
+                // Create compaction requests (one per aggregate)
+                var compactionRequests = new uint[aggregateSceneNodes.Count * 2];
+                for (var i = 0; i < aggregateSceneNodes.Count; i++)
+                {
+                    var agg = aggregateSceneNodes[i];
+                    var startIndex = agg.IndirectDrawByteOffset / Unsafe.SizeOf<DrawElementsIndirectCommand>();
+                    var drawCount = agg.IndirectDrawCount;
+
+                    compactionRequests[i * 2 + 0] = (uint)drawCount;
+                    compactionRequests[i * 2 + 1] = (uint)startIndex;
+                }
+
+                CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.CompactionRequests);
+                CompactionRequestsGpu.Create(compactionRequests, BufferUsageHint.StaticDraw);
+
+                // Create debug buffer for occluded bounds (4 uints for header + bounds array)
+                var headerSize = 4; // uint count + 3 padding uints
+                var totalSize = (headerSize + sceneMeshletCount) * Marshal.SizeOf<Vector4>();
+                OccludedBoundsDebugGpu = new StorageBuffer(ReservedBufferSlots.OccludedBoundsDebug);
+                GL.NamedBufferData(OccludedBoundsDebugGpu.Handle, totalSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+            }
         }
 
         public void UpdateBuffers()
@@ -211,6 +455,18 @@ namespace ValveResourceFormat.Renderer
             lightingBuffer.BindBufferBase();
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
+
+            if (EnableIndirectDraws)
+            {
+                Debug.Assert(IndirectDrawsGpu is not null);
+                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, EnableCompaction ? CompactedDrawsGpu!.Handle : IndirectDrawsGpu.Handle);
+
+                if (EnableCompaction)
+                {
+                    Debug.Assert(CompactedCountsGpu is not null);
+                    GL.BindBuffer(BufferTarget.ParameterBuffer, CompactedCountsGpu.Handle);
+                }
+            }
         }
 
         private readonly List<SceneNode> CullResults = [];
@@ -250,11 +506,20 @@ namespace ValveResourceFormat.Renderer
 
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
         {
+            [RenderPass.OpaqueMeshlets] = [],
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
             [RenderPass.Water] = [],
             [RenderPass.Translucent] = [],
             [RenderPass.Outline] = [],
+        };
+
+        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> depthOnlyDraws { get; } = new()
+        {
+            [DepthOnlyProgram.Static] = [],
+            [DepthOnlyProgram.Animated] = [],
+            [DepthOnlyProgram.AnimatedEightBones] = [],
+            [DepthOnlyProgram.Unspecified] = [],
         };
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
@@ -266,13 +531,21 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            var queueList = renderPass switch
+            if (renderPass == RenderPass.Opaque)
             {
-                RenderPass.Opaque => renderLists[RenderPass.Opaque],
-                RenderPass.StaticOverlay => renderLists[RenderPass.StaticOverlay],
-                RenderPass.Translucent => renderLists[RenderPass.Translucent],
-                _ => throw new ArgumentOutOfRangeException(nameof(renderPass), renderPass, "Unhandled render pass")
-            };
+                if (request.Node is SceneAggregate { HasTransforms: false })
+                {
+                    renderPass = RenderPass.OpaqueMeshlets;
+
+                    if (EnableDepthPrepass)
+                    {
+                        var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
+                        depthOnlyDraws[bucket].Add(request);
+                    }
+                }
+            }
+
+            var queueList = renderLists[renderPass];
 
             if (renderPass == RenderPass.Translucent)
             {
@@ -293,9 +566,147 @@ namespace ValveResourceFormat.Renderer
             queueList.Add(request);
         }
 
-        static float GetCameraDistance(Camera camera, SceneNode node)
+        public void MeshletCullGpu(Frustum frustum)
         {
-            return (node.BoundingBox.Center - camera.Location).LengthSquared();
+            if (!EnableIndirectDraws)
+            {
+                return;
+            }
+
+            Debug.Assert(frustumBuffer is not null);
+            Debug.Assert(FrustumCullShader is not null);
+
+            Debug.Assert(DrawBoundsGpu is not null);
+            Debug.Assert(MeshletDataGpu is not null);
+            Debug.Assert(IndirectDrawsGpu is not null);
+
+            using var _ = new GLDebugGroup("Cull Meshlet Draws");
+
+            frustumBuffer.BindBufferBase();
+            frustumBuffer.Data = frustum;
+
+            FrustumCullShader.Use();
+
+            // Set occlusion culling enabled flag
+            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", EnableOcclusionCulling ? 1 : 0);
+
+            // If occlusion culling is enabled, setup depth pyramid and bind texture
+            if (EnableOcclusionCulling)
+            {
+                Debug.Assert(DepthPyramid != null);
+
+                FrustumCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
+                FrustumCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
+                FrustumCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
+
+                // Bind depth pyramid as texture for sampling
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
+            }
+
+            MeshletDataGpu.BindBufferBase();
+            DrawBoundsGpu.BindBufferBase();
+            IndirectDrawsGpu.BindBufferBase();
+
+            // Bind debug buffer for occluded bounds visualization
+            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", ShowOcclusionCullingDebug ? 1 : 0);
+            if (ShowOcclusionCullingDebug && OccludedBoundsDebugGpu != null)
+            {
+                // Clear the atomic counter before dispatching
+                var zero = 0u;
+                GL.ClearNamedBufferSubData(OccludedBoundsDebugGpu.Handle, PixelInternalFormat.R32ui, IntPtr.Zero, sizeof(uint), PixelFormat.RedInteger, PixelType.UnsignedInt, ref zero);
+                OccludedBoundsDebugGpu.BindBufferBase();
+            }
+
+            var workGroups = (SceneMeshletCount + 63) / 64;
+            GL.DispatchCompute(workGroups, 1, 1);
+
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+        }
+
+        public void CompactIndirectDraws()
+        {
+            if (CompactionShader == null || CompactedDrawsGpu == null || CompactedCountsGpu == null || CompactionRequestsGpu == null)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Compact Meshlet Draws");
+
+            CompactionShader.Use();
+
+            IndirectDrawsGpu!.BindBufferBase();
+            CompactedDrawsGpu.BindBufferBase();
+            CompactedCountsGpu.BindBufferBase();
+            CompactionRequestsGpu.BindBufferBase();
+
+            var aggregateCount = CompactionRequestsGpu.Size / sizeof(uint) / 2; // 2 uints per aggregate
+            var workGroups = (aggregateCount + 3) / 4; // 4 requests per workgroup (local_size_x = 4)
+            GL.DispatchCompute(workGroups, 1, 1);
+
+        }
+
+        public void GenerateDepthPyramid(RenderTexture depthSource)
+        {
+            if (DepthPyramid == null || DepthPyramidShader == null)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Generate Depth Pyramid");
+
+            Debug.Assert(depthSource.Target == TextureTarget.Texture2D);
+            var startMipLevel = 1;
+
+            // Downsample from non power of two depth source
+            {
+                Debug.Assert(DepthPyramidNpotShader != null);
+                DepthPyramidNpotShader.Use();
+                DepthPyramidNpotShader.SetTexture(0, "g_tSourceDepthNpot", depthSource);
+                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
+                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
+
+                DepthPyramidNpotShader.SetUniform1("g_nDestDepthWidth", DepthPyramid.Width);
+                DepthPyramidNpotShader.SetUniform1("g_nDestDepthHeight", DepthPyramid.Height);
+
+                GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+
+                var groupsX = (DepthPyramid.Width + 7) / 8;
+                var groupsY = (DepthPyramid.Height + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            }
+
+            // Generate mip levels down to 1x1
+            DepthPyramidShader.Use();
+
+            for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
+            {
+                var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
+                var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
+                var sourceMip = mipLevel - 1;
+
+                DepthPyramidShader.SetUniform1("g_nDestDepthWidth", destWidth);
+                DepthPyramidShader.SetUniform1("g_nDestDepthHeight", destHeight);
+
+                // Bind source mip level as read-only image
+                GL.BindImageTexture(1, DepthPyramid.Handle, sourceMip, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);
+
+                // Bind destination mip level as write-only image
+                GL.BindImageTexture(2, DepthPyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+
+                // Dispatch compute shader
+                var groupsX = (destWidth + 7) / 8;
+                var groupsY = (destHeight + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            }
+
+            GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
@@ -305,11 +716,16 @@ namespace ValveResourceFormat.Renderer
                 bucket.Clear();
             }
 
+            foreach (var bucket in depthOnlyDraws.Values)
+            {
+                bucket.Clear();
+            }
+
             WantsSceneColor = false;
             WantsSceneDepth = false;
 
             cullFrustum ??= camera.ViewFrustum;
-            var cullResults = GetFrustumCullResults(cullFrustum);
+            var cullResults = GetFrustumCullResults(cullFrustum.Value);
 
             // Collect mesh calls
             foreach (var node in cullResults)
@@ -345,7 +761,7 @@ namespace ValveResourceFormat.Renderer
                             {
                                 Mesh = mesh,
                                 Call = call,
-                                DistanceFromCamera = GetCameraDistance(camera, node),
+                                DistanceFromCamera = node.GetCameraDistance(camera),
                                 Node = node,
                             }, RenderPass.Translucent);
                         }
@@ -353,12 +769,15 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
-                    Add(new MeshBatchRenderer.Request
+                    if (!EnableIndirectDraws || fragment.Parent.HasTransforms || IndirectDrawsGpu == null)
                     {
-                        Mesh = fragment.RenderMesh,
-                        Call = fragment.DrawCall,
-                        Node = node,
-                    }, RenderPass.Opaque);
+                        Add(new MeshBatchRenderer.Request
+                        {
+                            Mesh = fragment.RenderMesh,
+                            Call = fragment.DrawCall,
+                            Node = node,
+                        }, RenderPass.Opaque);
+                    }
                 }
                 else if (node is SceneAggregate aggregate)
                 {
@@ -371,6 +790,16 @@ namespace ValveResourceFormat.Renderer
                             Node = node,
                         }, RenderPass.Opaque);
                     }
+                    else if (EnableIndirectDraws && !aggregate.HasTransforms && aggregate.RenderMesh.DrawCallsOpaque.Count > 0)
+                    {
+                        Add(new MeshBatchRenderer.Request
+                        {
+                            Mesh = aggregate.RenderMesh,
+                            Call = aggregate.RenderMesh.DrawCallsOpaque[0],
+                            //DistanceFromCamera = aggregate.GetAverageCameraDistanceFragments(camera),
+                            Node = node,
+                        }, RenderPass.Opaque);
+                    }
                 }
                 else
                 {
@@ -378,7 +807,7 @@ namespace ValveResourceFormat.Renderer
                     {
                         DistanceFromCamera = node is PhysSceneNode
                             ? 100000f - node.OverlayRenderOrder * 10f
-                            : GetCameraDistance(camera, node),
+                            : node.GetCameraDistance(camera),
                         Node = node,
                     };
 
@@ -454,19 +883,7 @@ namespace ValveResourceFormat.Renderer
                         }
 
                         // todo: create depth only variants for these shader types
-                        var renderWithUnoptimizedShader = opaqueCall.Material.VertexAnimation || opaqueCall.Material.IsAlphaTest;
-
-                        var bucket = (renderWithUnoptimizedShader, animated) switch
-                        {
-                            (true, _) => DepthOnlyProgram.Unspecified, // shader will be null
-                            (false, false) => DepthOnlyProgram.Static,
-                            (false, true) => DepthOnlyProgram.Animated,
-                        };
-
-                        if (mesh.BoneWeightCount > 4)
-                        {
-                            bucket = DepthOnlyProgram.AnimatedEightBones;
-                        }
+                        var bucket = GetSpecializedDepthOnlyShader(animated, mesh, opaqueCall);
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
                         {
@@ -479,6 +896,25 @@ namespace ValveResourceFormat.Renderer
             }
 
             CulledShadowNodes.Clear();
+        }
+
+        private static DepthOnlyProgram GetSpecializedDepthOnlyShader(bool animated, RenderableMesh mesh, DrawCall opaqueCall)
+        {
+            var renderWithUnoptimizedShader = opaqueCall.Material.VertexAnimation || opaqueCall.Material.IsAlphaTest;
+
+            var bucket = (renderWithUnoptimizedShader, animated) switch
+            {
+                (true, _) => DepthOnlyProgram.Unspecified, // shader will be null
+                (false, false) => DepthOnlyProgram.Static,
+                (false, true) => DepthOnlyProgram.Animated,
+            };
+
+            if (mesh.BoneWeightCount > 4)
+            {
+                bucket = DepthOnlyProgram.AnimatedEightBones;
+            }
+
+            return bucket;
         }
 
         public void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders)
@@ -495,9 +931,53 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public void RenderOpaqueLayer(RenderContext renderContext)
+        public void RenderOpaqueLayer(RenderContext renderContext, Span<Shader> depthOnlyShaders = default)
         {
             var camera = renderContext.Camera;
+
+            var depthPrepass = !depthOnlyShaders.IsEmpty && EnableDepthPrepass;
+
+            if (EnableIndirectDraws)
+            {
+                // Memory barrier to ensure compute shader writes are visible to indirect draw commands
+                GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
+            }
+
+            if (depthPrepass)
+            {
+                using (new GLDebugGroup("Depth Prepass"))
+                {
+                    GL.ColorMask(false, false, false, false);
+
+                    renderContext.RenderPass = RenderPass.DepthOnly;
+                    foreach (var (program, calls) in depthOnlyDraws)
+                    {
+                        renderContext.ReplacementShader = depthOnlyShaders[(int)program];
+                        MeshBatchRenderer.Render(calls, renderContext);
+                    }
+
+                    GL.ColorMask(true, true, true, true);
+                }
+
+                using (new GLDebugGroup("Opaque Prepassed"))
+                {
+                    GL.DepthMask(false);
+                    GL.DepthFunc(DepthFunction.Equal);
+
+                    renderContext.RenderPass = RenderPass.OpaqueMeshlets;
+                    MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
+
+                    GL.DepthMask(true);
+                    GL.DepthFunc(DepthFunction.Greater);
+                }
+            }
+
+            if (!depthPrepass && EnableIndirectDraws)
+            {
+                using var _ = new GLDebugGroup("Meshlet Render");
+                renderContext.RenderPass = RenderPass.OpaqueMeshlets;
+                MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
+            }
 
             using (new GLDebugGroup("Opaque Render"))
             {
@@ -649,7 +1129,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (!EnableOcclusionCulling)
+            if (!EnableOcclusionCullingCpu)
             {
                 ClearOccludedStateRecursive(StaticOctree.Root);
                 occlusionDirty = false;
@@ -1033,6 +1513,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (disposing)
             {
+                frustumBuffer?.Dispose();
                 lightingBuffer?.Dispose();
                 lpvBuffer?.Dispose();
                 envMapBuffer?.Dispose();

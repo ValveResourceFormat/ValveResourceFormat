@@ -2,7 +2,6 @@
 
 #include "common/ViewConstants.slang"
 
-#define D_ANIMATED 0
 #define D_MORPHED 0
 #define F_ALPHA_TEST 0
 

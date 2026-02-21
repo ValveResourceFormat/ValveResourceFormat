@@ -300,7 +300,6 @@ namespace ValveResourceFormat.Renderer
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
-            renderShader.SetUniform1("sceneObjectId", Id);
 
             renderShader.SetUniform1("g_bNormalShaded", Shaded);
             renderShader.SetUniform1("g_bTriplanarMapping", ToolTexture != null);
@@ -331,7 +330,7 @@ namespace ValveResourceFormat.Renderer
                 GL.Enable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffsetClamp(2, 100, 0.05f);
 
-                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
                 GL.Disable(EnableCap.PolygonOffsetLine);
                 GL.Disable(EnableCap.PolygonOffsetFill);
@@ -340,7 +339,7 @@ namespace ValveResourceFormat.Renderer
             }
             else
             {
-                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
 
             GL.DepthFunc(DepthFunction.Greater);

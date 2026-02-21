@@ -96,6 +96,8 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
         // Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
+
+        EnsureDepthPyramidSize(256, 256);
     }
 
     public void LoadRendererResources()
@@ -178,8 +180,19 @@ public class Renderer
         camera.SetViewConstants(ViewBuffer.Data);
         scene.SetFogConstants(ViewBuffer.Data);
 
+        ViewBuffer.Data.WorldToProjectionPrev = scene.DepthPyramidViewProjection;
+
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
+
+        if (LockedCullFrustum == null)
+        {
+            scene.MeshletCullGpu(camera.ViewFrustum);
+            if (scene.EnableCompaction)
+            {
+                scene.CompactIndirectDraws();
+            }
+        }
 
         if (Postprocess != null)
         {
@@ -261,8 +274,8 @@ public class Renderer
 
         renderContext.Framebuffer.BindAndClear();
 
-        var isStandardPass = renderContext.ReplacementShader == null
-            && ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
+        var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
+        var isStandardPass = renderContext.ReplacementShader == null && isMainFramebuffer;
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
         var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
@@ -283,10 +296,10 @@ public class Renderer
         using (new GLDebugGroup("Main Scene Opaque Render"))
         {
             renderContext.Scene = Scene;
-            Scene.RenderOpaqueLayer(renderContext);
+            Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShaders : Span<Shader>.Empty);
         }
 
-        if (isStandardPass && Scene.EnableOcclusionCulling)
+        if (isStandardPass && Scene.EnableOcclusionCullingCpu)
         {
             Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
         }
@@ -326,9 +339,20 @@ public class Renderer
 
             copyColor |= computeFramebufferLuminance;
 
-            if (isStandardPass)
+            if (isMainFramebuffer)
             {
+                var generateDepthPyramid = Scene.EnableOcclusionCulling && LockedCullFrustum == null;
+                copyDepth |= generateDepthPyramid;
+
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
+
+                if (generateDepthPyramid)
+                {
+                    Debug.Assert(FramebufferCopy != null && FramebufferCopy.Depth != null);
+                    EnsureDepthPyramidSize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+                    Scene.GenerateDepthPyramid(FramebufferCopy.Depth);
+                    Scene.DepthPyramidViewProjection = Camera.ViewProjectionMatrix;
+                }
             }
 
             if (render3DSkybox)
@@ -473,6 +497,8 @@ public class Renderer
             return;
         }
 
+        using var _ = new GLDebugGroup("Framebuffer Copy");
+
         if (FramebufferCopy is null)
         {
             throw new InvalidOperationException("Initialize() must be called before rendering");
@@ -540,9 +566,37 @@ public class Renderer
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera);
 
         Scene.SetupSceneShadows(updateContext.Camera, ShadowDepthBuffer.Width);
-        Scene.GetOcclusionTestResults();
+
+        if (LockedCullFrustum == null)
+        {
+            Scene.GetOcclusionTestResults();
+        }
 
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
+    }
+
+    void EnsureDepthPyramidSize(int width, int height)
+    {
+        // Get the target pyramid size
+        var maxDim = Math.Max(width, height);
+        var cappedDim = Math.Min(maxDim, 256);
+        var targetSize = 1 << (int)Math.Floor(Math.Log2(cappedDim));
+
+        if (Scene.DepthPyramid != null && Scene.DepthPyramid.Width == targetSize && Scene.DepthPyramid.Height == targetSize)
+        {
+            return;
+        }
+
+        // Delete old texture
+        Scene.DepthPyramid?.Delete();
+
+        // Calculate mips needed to go from targetSize down to 1x1
+        var maxMipLevel = (int)Math.Log2(targetSize);
+
+        Scene.DepthPyramid = RenderTexture.Create(targetSize, targetSize, SizedInternalFormat.R32f, maxMipLevel + 1);
+        Scene.DepthPyramid.SetLabel("DepthPyramid");
+
+        Scene.DepthPyramid.SetBaseMaxLevel(0, maxMipLevel);
     }
 }
