@@ -408,6 +408,9 @@ namespace ValveResourceFormat.Renderer
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             texture.SetWrapMode(TextureWrapMode.Repeat);
 
+            var color32 = new Color32(color[0], color[1], color[2]);
+            texture.Reflectivity = color32.ToLinearColor();
+
             GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgb8, width, height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, width, height, PixelFormat.Rgb, PixelType.UnsignedByte, color);
 

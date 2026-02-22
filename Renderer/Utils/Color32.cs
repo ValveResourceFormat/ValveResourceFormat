@@ -84,6 +84,15 @@ namespace ValveResourceFormat.Renderer
         public static Color32 FromVector4(Vector4 vector) => new(vector.X, vector.Y, vector.Z, vector.W);
 
         /// <summary>
+        /// Converts this color to a linear color space <see cref="Vector4"/> with components in the range [0, 1].
+        /// </summary>
+        public readonly Vector4 ToLinearColor()
+        {
+            var vectorValue = new Vector4(R, G, B, A) / 255f;
+            return new Vector4(ColorSpace.SrgbGammaToLinear(vectorValue.AsVector3()), vectorValue.W);
+        }
+
+        /// <summary>
         /// Gets the color as an 8-character hex string in #RRGGBBAA format.
         /// </summary>
         public readonly string HexCode => $"#{R:X2}{G:X2}{B:X2}{A:X2}";

@@ -276,51 +276,87 @@ namespace ValveResourceFormat.Renderer
                 shader.SetMaterialVector4Uniform(param.Key, value);
             }
 
-            foreach (var param in shader.Default.Matrices)
+            if (shader.Name.StartsWith("csgo_environment", StringComparison.Ordinal))
             {
-                Matrix4x4 textureAdjust(int index)
-                {
-                    var CSB = new Vector3(
-                                Material.FloatParams.GetValueOrDefault($"g_fTextureColorContrast{index}", 1),
-                                Material.FloatParams.GetValueOrDefault($"g_fTextureColorSaturation{index}", 1),
-                                Material.FloatParams.GetValueOrDefault($"g_fTextureColorBrightness{index}", 1));
-
-                    var reflectivity = Textures[$"g_tColor{index}"].Reflectivity;
-
-                    var colorCorrect = VfxEvalFunctions.MatrixColorCorrect2(CSB, reflectivity.AsVector3());
-                    var tint = VfxEvalFunctions.MatrixColorTint2(Material.VectorParams.GetValueOrDefault($"g_vTextureColorTint{index}").AsVector3(), 1);
-
-                    return Matrix4x4.Multiply(tint, colorCorrect);
-                }
-
-                if (param.Key == "g_mTextureColorAdjust1")
-                {
-                    var colorCorrect = textureAdjust(1);
-                    var tint = VfxEvalFunctions.MatrixColorTint2(Material.VectorParams.GetValueOrDefault("g_vTextureColorTint1").AsVector3(), 1);
-
-                    shader.SetUniform4x4(param.Key, Matrix4x4.Multiply(tint, colorCorrect));
-                }
-
-                if (param.Key == "g_mTextureAdjust1")
-                {
-                    shader.SetUniform4x4(param.Key, textureAdjust(1));
-                }
-
-                if (param.Key == "g_mTextureColorAdjust2")
-                {
-                    var colorCorrect = textureAdjust(2);
-                    var tint = VfxEvalFunctions.MatrixColorTint2(Material.VectorParams.GetValueOrDefault("g_vTextureColorTint2").AsVector3(), 2);
-
-                    shader.SetUniform4x4(param.Key, Matrix4x4.Multiply(tint, colorCorrect));
-                }
-
-                if (param.Key == "g_mTextureAdjust2")
-                {
-                    shader.SetUniform4x4(param.Key, textureAdjust(2));
-                }
+                EvalCsgoEnvironmentColorMatrices(shader);
             }
 
             SetRenderState();
+        }
+
+        private void EvalCsgoEnvironmentColorMatrices(Shader shader)
+        {
+            const string contrastBaseKeyString = "g_fTextureColorContrast1";
+            const string saturationBaseKeyString = "g_fTextureColorSaturation1";
+            const string brightnessBaseKeyString = "g_fTextureColorBrightness1";
+            const string tintBaseKeyString = "g_vTextureColorTint1";
+            const string colorTextureBaseKeyString = "g_tColor1";
+
+            Span<char> contrastKey = stackalloc char[contrastBaseKeyString.Length]; contrastBaseKeyString.AsSpan().CopyTo(contrastKey);
+            Span<char> saturationKey = stackalloc char[saturationBaseKeyString.Length]; saturationBaseKeyString.AsSpan().CopyTo(saturationKey);
+            Span<char> brightnessKey = stackalloc char[brightnessBaseKeyString.Length]; brightnessBaseKeyString.AsSpan().CopyTo(brightnessKey);
+            Span<char> tintKey = stackalloc char[tintBaseKeyString.Length]; tintBaseKeyString.AsSpan().CopyTo(tintKey);
+            Span<char> colorTextureKey = stackalloc char[colorTextureBaseKeyString.Length]; colorTextureBaseKeyString.AsSpan().CopyTo(colorTextureKey);
+
+            var floatValueLookup = Material.FloatParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var vectorValueLookup = Material.VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var textureLookup = Textures.GetAlternateLookup<ReadOnlySpan<char>>();
+
+            static void TryGetValueNoUpdate<T>(Dictionary<string, T>.AlternateLookup<ReadOnlySpan<char>> lookup, ReadOnlySpan<char> key, ref T outValue)
+            {
+                if (lookup.TryGetValue(key, out var value))
+                {
+                    outValue = value;
+                }
+            }
+
+            foreach (var param in shader.Default.Matrices)
+            {
+                if (!param.Key.StartsWith("g_mTexture", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var layerCharacter = param.Key[^1];
+                var layerIndex = layerCharacter - '0';
+
+                if (layerIndex < 1 || layerIndex > 3)
+                {
+                    continue;
+                }
+
+                var csb = Vector3.One;
+                var tint = Vector4.One;
+                var textureAverageColor = Vector4.One;
+
+                contrastKey[^1] = layerCharacter;
+                saturationKey[^1] = layerCharacter;
+                brightnessKey[^1] = layerCharacter;
+                tintKey[^1] = layerCharacter;
+                colorTextureKey[^1] = layerCharacter;
+
+                TryGetValueNoUpdate(floatValueLookup, contrastKey, ref csb.X);
+                TryGetValueNoUpdate(floatValueLookup, saturationKey, ref csb.Y);
+                TryGetValueNoUpdate(floatValueLookup, brightnessKey, ref csb.Z);
+                TryGetValueNoUpdate(vectorValueLookup, tintKey, ref tint);
+
+                if (textureLookup.TryGetValue(colorTextureKey, out var colorTexture))
+                {
+                    textureAverageColor = colorTexture.Reflectivity;
+                }
+
+                var ccMatrix = VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor.AsVector3());
+
+                if (param.Key.StartsWith("g_mTextureAdjust", StringComparison.Ordinal))
+                {
+                    tint = Vector4.One;
+                }
+
+                var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
+
+                ccMatrix = Matrix4x4.Multiply(tintMatrix, ccMatrix);
+                shader.SetUniform4x4(param.Key, ccMatrix);
+            }
         }
 
         public void PostRender()
