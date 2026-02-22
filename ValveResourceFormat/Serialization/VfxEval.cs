@@ -88,18 +88,18 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private enum OPCODE
         {
-            RETURN,          // 00
-            UNKNOWN01,
-            BRANCH_SEP,         // 02
-            UNKNOWN03,
+            RETURN,             // 00
+            NOP,                // 01
+            JUMP,               // 02
+            CALL,               // 03
             BRANCH,             // 04
-            UNKNOWN05,
+            RET,                // 05
             FUNC,               // 06
             FLOAT,              // 07
-            STORE,             // 08
-            LOAD,           // 09
-            UNKNOWN0A,
-            UNKNOWN0B,
+            STORE,              // 08
+            LOAD,               // 09
+            OR,                 // 0A
+            AND,                // 0B
             NOT,                // 0C
             EQUALS,             // 0D
             NEQUALS,            // 0E
@@ -113,15 +113,15 @@ namespace ValveResourceFormat.Serialization.VfxEval
             DIV,                // 16
             MODULO,             // 17
             NEGATE,             // 18
-            ATTRIBUTE,             // 19
-            FEATURE,               // 1A (inferred from the shader code)
-            UNKNOWN1B,
-            UNKNOWN1C,
-            MATERIAL_PARAM,               // 1D (inferred from the shader code)
+            ATTRIBUTE,          // 19
+            FEATURE,            // 1A
+            FEATURE2,           // 1B
+            FEATURE3,           // 1C
+            MATERIAL_PARAM,     // 1D
             SWIZZLE,            // 1E
             EXISTS,             // 1F
-            UNKNOWN20,
-            UNKNOWN21,
+            MATERIAL_PARAM_IDX, // 20
+            FLOAT4,             // 21
         };
 
         private static readonly Dictionary<OPCODE, string> OpCodeToSymbol = new()
@@ -276,7 +276,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
             }
 
-            if (op == OPCODE.BRANCH_SEP)
+            if (op == OPCODE.JUMP)
             {
                 var branchExit = (uint)dataReader.ReadUInt16();
                 OffsetAtBranchExits.Push(branchExit + 1);
