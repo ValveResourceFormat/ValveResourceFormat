@@ -470,6 +470,102 @@ namespace Tests
         }
 
 
+        [Test]
+        public void TestMatrixColorTint2_GrayInput()
+        {
+            // Gray has zero saturation, result should be ~identity
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.5f, 0.5f, 0.5f), 1.0f);
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_WhiteInput()
+        {
+            // White has zero saturation, result should be ~identity
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(1f, 1f, 1f), 1.0f);
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_PureRed()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(1f, 0f, 0f), 1.0f);
+            var expected = new Matrix4x4(
+                0f, 0f, 0f, 0.99999994f,
+                0f, 0f, 0f, 5.3124536E-09f,
+                0f, 0f, 0f, -2.9802322E-08f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_WarmColor()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.8f, 0.2f, 0.1f), 0.5f);
+            var expected = new Matrix4x4(
+                0.16458952f, 0.44803202f, 0.0045659216f, 0.57826537f,
+                0.039589547f, 0.57303196f, 0.0045659216f, 0.053265363f,
+                0.039589554f, 0.44803208f, 0.12956592f, -0.034234628f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_BluishColor()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.3f, 0.6f, 0.9f), 1.0f);
+            var expected = new Matrix4x4(
+                0.351208f, 0.20228605f, 0.0020615086f, 0.07141057f,
+                0.017874645f, 0.5356194f, 0.00206151f, 0.27141058f,
+                0.01787465f, 0.20228608f, 0.3353949f, 0.47141054f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorCorrect2_Identity()
+        {
+            // contrast=1, saturation=1, brightness=1 should be ~identity
+            var result = VfxEvalFunctions.MatrixColorCorrect2(new Vector3(1f, 1f, 1f), new Vector3(0.5f, 0.5f, 0.5f));
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorCorrect2_Adjusted()
+        {
+            var result = VfxEvalFunctions.MatrixColorCorrect2(new Vector3(1.2f, 0.8f, 1.5f), new Vector3(0.3f, 0.4f, 0.5f));
+            var expected = new Matrix4x4(
+                1.468957f, 0.32770345f, 0.003339633f, -0.095573045f,
+                0.028956933f, 1.7677034f, 0.0033396427f, -0.11957306f,
+                0.02895683f, 0.32770318f, 1.4433398f, -0.14357306f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        private static void AssertMatrixEqual(Matrix4x4 expected, Matrix4x4 actual, float tolerance)
+        {
+            Assert.That(actual.M11, Is.EqualTo(expected.M11).Within(tolerance));
+            Assert.That(actual.M12, Is.EqualTo(expected.M12).Within(tolerance));
+            Assert.That(actual.M13, Is.EqualTo(expected.M13).Within(tolerance));
+            Assert.That(actual.M14, Is.EqualTo(expected.M14).Within(tolerance));
+            Assert.That(actual.M21, Is.EqualTo(expected.M21).Within(tolerance));
+            Assert.That(actual.M22, Is.EqualTo(expected.M22).Within(tolerance));
+            Assert.That(actual.M23, Is.EqualTo(expected.M23).Within(tolerance));
+            Assert.That(actual.M24, Is.EqualTo(expected.M24).Within(tolerance));
+            Assert.That(actual.M31, Is.EqualTo(expected.M31).Within(tolerance));
+            Assert.That(actual.M32, Is.EqualTo(expected.M32).Within(tolerance));
+            Assert.That(actual.M33, Is.EqualTo(expected.M33).Within(tolerance));
+            Assert.That(actual.M34, Is.EqualTo(expected.M34).Within(tolerance));
+            Assert.That(actual.M41, Is.EqualTo(expected.M41).Within(tolerance));
+            Assert.That(actual.M42, Is.EqualTo(expected.M42).Within(tolerance));
+            Assert.That(actual.M43, Is.EqualTo(expected.M43).Within(tolerance));
+            Assert.That(actual.M44, Is.EqualTo(expected.M44).Within(tolerance));
+        }
+
         private static byte[] ParseString(string bytestring)
         {
             var tokens = bytestring.Split(" ");
