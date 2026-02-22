@@ -65,10 +65,9 @@ namespace ValveResourceFormat.Renderer
             return IsValid;
         }
 
-        private void StoreUniformLocations()
+        private unsafe void StoreUniformLocations()
         {
-            var vec4Val = new float[4];
-            var matrix4x4Val = new float[16];
+            Span<float> floatVal = stackalloc float[16];
 
             // Stores uniform types and locations
             var uniforms = GetAllUniformNames();
@@ -127,9 +126,12 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (isVector && !Default.Material.VectorParams.ContainsKey(name))
                 {
-                    vec4Val[0] = vec4Val[1] = vec4Val[2] = vec4Val[3] = 0f;
-                    GL.GetUniform(Program, GetUniformLocation(name), vec4Val);
-                    Default.Material.VectorParams[name] = new Vector4(vec4Val[0], vec4Val[1], vec4Val[2], vec4Val[3]);
+                    floatVal.Clear();
+                    fixed (float* ptr = floatVal)
+                    {
+                        GL.GetUniform(Program, GetUniformLocation(name), ptr);
+                    }
+                    Default.Material.VectorParams[name] = new Vector4(floatVal[0], floatVal[1], floatVal[2], floatVal[3]);
                 }
                 else if (isScalar && !Default.Material.FloatParams.ContainsKey(name))
                 {
@@ -141,24 +143,19 @@ namespace ValveResourceFormat.Renderer
                     GL.GetUniform(Program, GetUniformLocation(name), out int intVal);
                     Default.Material.IntParams[name] = intVal;
                 }
-
                 else if (isMatrix && !Default.Matrices.ContainsKey(name))
                 {
-                    matrix4x4Val[0] = matrix4x4Val[1] = matrix4x4Val[2] = matrix4x4Val[3] =
-                    matrix4x4Val[4] = matrix4x4Val[5] = matrix4x4Val[6] = matrix4x4Val[7] =
-                    matrix4x4Val[8] = matrix4x4Val[9] = matrix4x4Val[10] = matrix4x4Val[11] =
-                    matrix4x4Val[12] = matrix4x4Val[13] = matrix4x4Val[14] = matrix4x4Val[15] = 0f;
-
-                    GL.GetUniform(Program, GetUniformLocation(name), matrix4x4Val);
-
-                    Matrix4x4 matrix = new Matrix4x4(
-                        matrix4x4Val[0], matrix4x4Val[4], matrix4x4Val[8], matrix4x4Val[12],
-                        matrix4x4Val[1], matrix4x4Val[5], matrix4x4Val[9], matrix4x4Val[13],
-                        matrix4x4Val[2], matrix4x4Val[6], matrix4x4Val[10], matrix4x4Val[14],
-                        matrix4x4Val[3], matrix4x4Val[7], matrix4x4Val[11], matrix4x4Val[15]
+                    floatVal.Clear();
+                    fixed (float* ptr = floatVal)
+                    {
+                        GL.GetUniform(Program, GetUniformLocation(name), ptr);
+                    }
+                    Default.Matrices[name] = new Matrix4x4(
+                        floatVal[0], floatVal[4], floatVal[8], floatVal[12],
+                        floatVal[1], floatVal[5], floatVal[9], floatVal[13],
+                        floatVal[2], floatVal[6], floatVal[10], floatVal[14],
+                        floatVal[3], floatVal[7], floatVal[11], floatVal[15]
                     );
-
-                    Default.Matrices[name] = matrix;
                 }
             }
         }
