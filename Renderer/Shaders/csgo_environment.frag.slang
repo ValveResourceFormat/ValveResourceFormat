@@ -36,7 +36,6 @@ uniform sampler2D g_tNormal1;
 uniform bool g_bMetalness1;
 uniform bool g_bModelTint1 = true;
 uniform int g_nColorCorrectionMode1 = 0;
-uniform vec3 g_vTextureColorTint1 = vec3(1.0);
 uniform float g_fTextureNormalContrast1 = 1.0;
 uniform float g_fTextureRoughnessBrightness1 = 1.0;
 uniform float g_fTextureRoughnessContrast1 = 1.0;
@@ -79,7 +78,6 @@ uniform mat4 g_mTextureAdjust1;
     uniform bool g_bMetalness2;
     uniform bool g_bModelTint2 = true;
     uniform int g_nColorCorrectionMode2 = 0;
-    uniform vec3 g_vTextureColorTint2 = vec3(1.0);
     uniform float g_fTextureNormalContrast2 = 1.0;
     uniform float g_fTextureRoughnessBrightness2 = 1.0;
     uniform float g_fTextureRoughnessContrast2 = 1.0;
@@ -104,10 +102,6 @@ uniform mat4 g_mTextureAdjust1;
         uniform bool g_bMetalness3;
         uniform bool g_bModelTint3 = true;
         uniform int g_nColorCorrectionMode3 = 0;
-        uniform float g_fTextureColorBrightness3 = 1.0;
-        uniform float g_fTextureColorContrast3 = 1.0;
-        uniform float g_fTextureColorSaturation3 = 1.0;
-        uniform vec3 g_vTextureColorTint3 = vec3(1.0);
         uniform float g_fTextureNormalContrast3 = 1.0;
         uniform float g_fTextureRoughnessBrightness3 = 1.0;
         uniform float g_fTextureRoughnessContrast3 = 1.0;
@@ -118,6 +112,9 @@ uniform mat4 g_mTextureAdjust1;
 
         uniform float g_flHeightMapScale3 = 1.0;
         uniform float g_flHeightMapZeroPoint3 = 0.5;
+
+        uniform mat4 g_mTextureColorAdjust3;
+        uniform mat4 g_mTextureAdjust3;
     #endif
 
     uniform bool g_bUseNewBlending = false;
@@ -193,20 +190,6 @@ uniform float g_flModelTintAmount = 1.0;
 
 // Must be last
 #include "common/lighting.slang"
-
-vec3 AdjustBrightnessContrastSaturation(vec3 color, float brightness, float contrast, float saturation)
-{
-    // Brightness
-    color = color * RemapVal(brightness, -8.0, 1.0, 0.0, 1.0);
-
-    // Contrast
-    // color = (color - 0.5) * contrast + 0.5;
-
-    // Saturation
-    color = mix(GetLuma(color).xxx, color, saturation);
-
-    return color;
-}
 
 // Get material properties (possibly from two layers)
 MaterialProperties_t GetMaterial(vec3 vertexNormals)
@@ -335,19 +318,18 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         normal3.rg = (normal3.rg - 0.5) * g_fTextureNormalContrast3 + 0.5;
         normal3.b = saturate(((normal3.b - 0.5) * g_fTextureRoughnessContrast3 + 0.5) * g_fTextureRoughnessBrightness3);
 
-        vec3 adjust3 = AdjustBrightnessContrastSaturation(color3.rgb, g_fTextureColorBrightness3, g_fTextureColorContrast3, g_fTextureColorSaturation3);
-        vec3 color3MaybeAdjusted = mix(color3.rgb, adjust3, bvec3(g_nColorCorrectionMode3 == 1));
+        vec4 color3MaybeColorCorrected = mix(color3, vec4((color3 * g_mTextureAdjust3).rgb, color3.a), bvec4(g_nColorCorrectionMode3 != 0));
+        vec4 color3ColorCorrectedTinted = color3 * g_mTextureColorAdjust3;
 
-        vec3 tintAdjusted3 = mix(color3MaybeAdjusted, adjust3, vec3(tintMask3)).xyz;
-        float tintAdjusted3Luma = GetLuma(tintAdjusted3);
+        vec3 color3TintedMaybeColorCorrected = mix(color3MaybeColorCorrected.rgb, color3ColorCorrectedTinted.rgb, tintMask3);
+        float tintAdjusted3Luma = GetLuma(color3TintedMaybeColorCorrected);
 
         float tintColorAdjusted3LumaRatio = tintAdjusted3Luma / tintColorNormLuma;
         float tintAdjusted3Luma3x = 3.0 * tintAdjusted3Luma;
 
-        vec3 tintResult3 = saturate(mix(adjust3, tintColorNorm * min(tintColorAdjusted3LumaRatio, tintAdjusted3Luma3x * tintColorHighestPoint), vec3((vTintColor_ModelAmount.w * tintMask3) * float(g_bModelTint3))));
+        vec3 tintResult3 = saturate(mix(color3TintedMaybeColorCorrected, tintColorNorm * min(tintColorAdjusted3LumaRatio, tintAdjusted3Luma3x * tintColorHighestPoint), vec3((vTintColor_ModelAmount.w * tintMask3) * float(g_bModelTint3))));
 
-        vec3 tintFactor3 = mix(vec3(1.0), (g_vTextureColorTint3.rgb), tintMask3);
-        color3.rgb = tintResult3 * tintFactor3;
+        color3.rgb = tintResult3;
 
         #if (F_SHARED_COLOR_OVERLAY == 1)
             // 0=Both, 3=Layer 3
