@@ -16,9 +16,11 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Initializes a new instance and prints the summary.
         /// </summary>
-        public PrintVcsFileSummary(VfxProgramData program, IndentedTextWriter outputWriter)
+        public PrintVcsFileSummary(VfxProgramData program, IndentedTextWriter outputWriter, VfxProgramData? featuresProgram = null)
         {
             output = new OutputFormatterTabulatedData(outputWriter);
+            var featureCombos = featuresProgram?.StaticComboArray;
+
             if (program.VcsProgramType == VcsProgramType.Features)
             {
                 PrintFeaturesHeader(program);
@@ -27,9 +29,9 @@ namespace ValveResourceFormat.CompiledShader
             {
                 PrintPsVsHeader(program);
             }
-            PrintCombos(program.StaticComboArray, "STATIC COMBOS");
+            PrintCombos(program.StaticComboArray, "STATIC COMBOS", featureCombos);
             PrintComboRules(program, program.StaticComboRules, "STATIC COMBOS");
-            PrintCombos(program.DynamicComboArray, "DYNAMIC COMBOS");
+            PrintCombos(program.DynamicComboArray, "DYNAMIC COMBOS", featureCombos);
             PrintComboRules(program, program.DynamicComboRules, "DYNAMIC COMBOS");
             PrintParameters(program);
             PrintChannelBlocks(program);
@@ -116,7 +118,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintCombos(VfxCombo[] combos, string comboDesc)
+        private void PrintCombos(VfxCombo[] combos, string comboDesc, VfxCombo[]? featureCombos)
         {
             if (combos.Length == 0)
             {
@@ -130,7 +132,14 @@ namespace ValveResourceFormat.CompiledShader
                     ? string.Join(", ", item.Strings.Select(static (x, i) => $"{i}=\"{x}\""))
                     : string.Empty;
                 var comboSourceType = item.ComboType == VfxComboType.Dynamic ? ((VfxDynamicComboSourceType)item.ComboSourceType).ToString() : ((VfxStaticComboSourceType)item.ComboSourceType).ToString();
-                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", $"{item.FeatureIndex,2}", $"{item.ComboType}", checkboxNames]);
+                var featureIndex = $"{item.FeatureIndex,2}";
+
+                if (item.FeatureIndex >= 0 && featureCombos != null && item.FeatureIndex < featureCombos.Length)
+                {
+                    var feature = featureCombos[item.FeatureIndex];
+                    featureIndex += $" ({feature.Name} {feature.RangeMin}..{feature.RangeMax})";
+                }
+                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", featureIndex, $"{item.ComboType}", checkboxNames]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();

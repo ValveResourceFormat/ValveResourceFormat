@@ -20,6 +20,7 @@ namespace GUI.Types.Viewers
         private readonly Container components;
         private ThemedContextMenuStrip shaderFileContextMenu;
         private readonly VrfGuiContext vrfGuiContext;
+        private VfxProgramData? featuresProgram;
 
         public static bool IsAccepted(uint magic)
         {
@@ -98,6 +99,7 @@ namespace GUI.Types.Viewers
             List<string> sfNames = [];
 
             Debug.Assert(shaderCollection.Features != null);
+            featuresProgram = shaderCollection.Features;
 
             foreach (var program in shaderCollection.OrderBy(static x => x.VcsProgramType))
             {
@@ -258,7 +260,7 @@ namespace GUI.Types.Viewers
             else if (e.Node.Tag is VfxProgramData program)
             {
                 using var output = new IndentedTextWriter();
-                program.PrintSummary(output);
+                program.PrintSummary(output, featuresProgram);
                 control.TextBox.Text = output.ToString();
             }
             else if (e.Node.Tag is VfxStaticComboVcsEntry comboEntry)
