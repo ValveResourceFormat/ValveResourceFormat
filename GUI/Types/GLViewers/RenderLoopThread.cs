@@ -145,7 +145,7 @@ namespace GUI.Types.GLViewers
 
                 var isPaused = !renderSignal.IsSet;
 
-                if (!isPaused && false)
+                if (!isPaused && Form.ActiveForm == null)
                 {
                     isPaused = true;
                     renderSignal.Reset();
