@@ -285,9 +285,9 @@ namespace ValveResourceFormat.Renderer
                                 Material.FloatParams.GetValueOrDefault($"g_fTextureColorSaturation{index}", 1),
                                 Material.FloatParams.GetValueOrDefault($"g_fTextureColorBrightness{index}", 1));
 
-                    var reflectivity = Textures[$"g_tColor{index}"].Reflectivity!;
+                    var reflectivity = Textures[$"g_tColor{index}"].Reflectivity;
 
-                    var colorCorrect = VfxEvalFunctions.MatrixColorCorrect2(CSB, new Vector3(reflectivity[0], reflectivity[1], reflectivity[2]));
+                    var colorCorrect = VfxEvalFunctions.MatrixColorCorrect2(CSB, reflectivity.AsVector3());
                     var tint = VfxEvalFunctions.MatrixColorTint2(Material.VectorParams.GetValueOrDefault($"g_vTextureColorTint{index}").AsVector3(), 1);
 
                     return Matrix4x4.Multiply(tint, colorCorrect);

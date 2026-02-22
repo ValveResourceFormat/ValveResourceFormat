@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer
         public int Depth { get; }
         public int NumMipLevels { get; }
 
-        public float[]? Reflectivity { get; }
+        public Vector4 Reflectivity { get; }
 
         RenderTexture(TextureTarget target)
         {
