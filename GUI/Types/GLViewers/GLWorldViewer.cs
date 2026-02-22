@@ -222,7 +222,6 @@ namespace GUI.Types.GLViewers
 
         protected override void OnFirstPaint()
         {
-            Scene.EnableIndirectDraws = true;
             base.OnFirstPaint();
 
             Input.MoveCamera(new Vector3(0, -150f, 0));
@@ -338,11 +337,7 @@ namespace GUI.Types.GLViewers
 
                 using (UiControl.BeginGroup("Occlusion"))
                 {
-                    UiControl.AddCheckBox("Indirect Draw", true, (v) =>
-                    {
-                        using var lockedGl = MakeCurrent();
-                        Scene.EnableIndirectDraws = v;
-                    });
+                    UiControl.AddCheckBox("Indirect Draw", true, (v) => Scene.EnableIndirectDraws = v);
                     UiControl.AddCheckBox("Compaction", Scene.EnableCompaction, (v) => Scene.EnableCompaction = v);
                     UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
                     UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);

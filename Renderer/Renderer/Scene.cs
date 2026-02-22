@@ -81,26 +81,8 @@ namespace ValveResourceFormat.Renderer
         public bool EnableOcclusionCulling { get; set; } = true;
         public bool EnableOcclusionCullingCpu { get; set; }
         public bool ShowOcclusionCullingDebug { get; set; }
-        public bool EnableCompaction { get; set; } = GLEnvironment.IndirectCountSupported; // todo: fix, glenvironment initializes much later
-        public bool EnableIndirectDraws
-        {
-            get;
-            set
-            {
-                field = value;
-
-                // if indirect draws are enabled, remove aggregate fragments from octree
-                foreach (var node in AllNodes)
-                {
-                    if (node is SceneAggregate.Fragment fragment && !fragment.Parent.HasTransforms)
-                    {
-                        node.LayerEnabled = !value;
-                    }
-                }
-
-                UpdateOctrees();
-            }
-        }
+        public bool EnableCompaction { get; set; } = true;
+        public bool EnableIndirectDraws { get; set; } = true;
 
         public Matrix4x4[] Transforms { get; set; } = [Matrix4x4.Identity];
 
@@ -134,6 +116,7 @@ namespace ValveResourceFormat.Renderer
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
+            EnableCompaction = GLEnvironment.IndirectCountSupported;
             CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
             DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
