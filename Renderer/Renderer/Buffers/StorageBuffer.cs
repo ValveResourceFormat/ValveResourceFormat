@@ -80,8 +80,15 @@ namespace ValveResourceFormat.Renderer.Buffers
             GL.NamedBufferSubData(Handle, offset, size, data);
         }
 
-        public void Clear()
+        public unsafe void Clear()
         {
+            if (PersistentPtr != IntPtr.Zero)
+            {
+                // For mapped buffers, write directly to mapped memory
+                Unsafe.InitBlock((void*)PersistentPtr, 0, (uint)Size);
+                return;
+            }
+
             GL.ClearNamedBufferData(Handle, PixelInternalFormat.R32ui, PixelFormat.RedInteger, PixelType.UnsignedInt, IntPtr.Zero);
         }
 

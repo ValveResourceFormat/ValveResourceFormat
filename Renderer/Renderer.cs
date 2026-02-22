@@ -177,10 +177,26 @@ public class Renderer
     {
         Debug.Assert(ViewBuffer != null);
 
+        {
+            // Skip occlusion culling if the camera moved too much -- we use last frame depth
+            var moveDelta = ViewBuffer.Data.CameraPosition - camera.Location;
+            var eyeDelta = ViewBuffer.Data.CameraDirWs - camera.Forward;
+
+            var t = moveDelta.LengthSquared();
+            var t2 = eyeDelta.LengthSquared();
+
+            if (t > 5000f || t2 > 0.5f)
+            {
+                scene.DepthPyramidValid = false;
+            }
+            else
+            {
+                ViewBuffer.Data.WorldToProjectionPrev = scene.DepthPyramidViewProjection;
+            }
+        }
+
         camera.SetViewConstants(ViewBuffer.Data);
         scene.SetFogConstants(ViewBuffer.Data);
-
-        ViewBuffer.Data.WorldToProjectionPrev = scene.DepthPyramidViewProjection;
 
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
@@ -352,6 +368,7 @@ public class Renderer
                     EnsureDepthPyramidSize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
                     Scene.GenerateDepthPyramid(FramebufferCopy.Depth);
                     Scene.DepthPyramidViewProjection = Camera.ViewProjectionMatrix;
+                    Scene.DepthPyramidValid = true;
                 }
             }
 

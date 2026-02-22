@@ -69,6 +69,7 @@ namespace ValveResourceFormat.Renderer
         private Shader? DepthPyramidNpotShader;
         public RenderTexture? DepthPyramid { get; internal set; }
         public Matrix4x4 DepthPyramidViewProjection { get; internal set; }
+        public bool DepthPyramidValid { get; internal set; }
 
         public RendererContext RendererContext { get; }
         public Octree StaticOctree { get; }
@@ -592,10 +593,11 @@ namespace ValveResourceFormat.Renderer
             FrustumCullShader.Use();
 
             // Set occlusion culling enabled flag
-            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", EnableOcclusionCulling ? 1 : 0);
+            var occlusionEnabled = EnableOcclusionCulling && DepthPyramidValid;
+            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", occlusionEnabled ? 1 : 0);
 
             // If occlusion culling is enabled, setup depth pyramid and bind texture
-            if (EnableOcclusionCulling)
+            if (occlusionEnabled)
             {
                 Debug.Assert(DepthPyramid != null);
 
