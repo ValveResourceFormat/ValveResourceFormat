@@ -36,9 +36,6 @@ uniform sampler2D g_tNormal1;
 uniform bool g_bMetalness1;
 uniform bool g_bModelTint1 = true;
 uniform int g_nColorCorrectionMode1 = 0;
-uniform float g_fTextureColorBrightness1 = 1.0;
-uniform float g_fTextureColorContrast1 = 1.0;
-uniform float g_fTextureColorSaturation1 = 1.0;
 uniform vec3 g_vTextureColorTint1 = vec3(1.0);
 uniform float g_fTextureNormalContrast1 = 1.0;
 uniform float g_fTextureRoughnessBrightness1 = 1.0;
@@ -50,6 +47,9 @@ uniform vec3 g_vAmbientOcclusionLevels1 = vec3(0, 0.5, 1);
 
 uniform float g_flHeightMapScale1 = 1.0;
 uniform float g_flHeightMapZeroPoint1 = 0.5;
+
+uniform mat4 g_mTextureColorAdjust1;
+uniform mat4 g_mTextureAdjust1;
 
 // Material 2
 #if (GameVfx_csgo_environment_blend != 0)
@@ -79,9 +79,6 @@ uniform float g_flHeightMapZeroPoint1 = 0.5;
     uniform bool g_bMetalness2;
     uniform bool g_bModelTint2 = true;
     uniform int g_nColorCorrectionMode2 = 0;
-    uniform float g_fTextureColorBrightness2 = 1.0;
-    uniform float g_fTextureColorContrast2 = 1.0;
-    uniform float g_fTextureColorSaturation2 = 1.0;
     uniform vec3 g_vTextureColorTint2 = vec3(1.0);
     uniform float g_fTextureNormalContrast2 = 1.0;
     uniform float g_fTextureRoughnessBrightness2 = 1.0;
@@ -93,6 +90,9 @@ uniform float g_flHeightMapZeroPoint1 = 0.5;
 
     uniform float g_flHeightMapScale2 = 1.0;
     uniform float g_flHeightMapZeroPoint2 = 0.5;
+
+    uniform mat4 g_mTextureColorAdjust2;
+    uniform mat4 g_mTextureAdjust2;
 
     #if (F_ENABLE_LAYER_3 == 1)
         in vec4 vTexCoord3;
@@ -231,7 +231,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     vec3 overlayFactor = vec3(1.0);
 
-    #if defined(g_tSharedColorOverlay)
+    #if (F_SHARED_COLOR_OVERLAY == 1)
         vec3 overlay = texture(g_tSharedColorOverlay, vTexCoord.zw).rgb * 2.0 - 1.0;
         vec3 _15235 = (((vec3(1.0) - pow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast)
             + ((pow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast)) + vec3(1.0);
@@ -241,23 +241,23 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec3 tintColorNorm = normalize(max(vTintColor_ModelAmount.xyz, vec3(0.001)));
     float tintColorNormLuma = GetLuma(tintColorNorm);
 
-    vec3 adjust1 = AdjustBrightnessContrastSaturation(color.rgb, g_fTextureColorBrightness1, g_fTextureColorContrast1, g_fTextureColorSaturation1);
-    vec3 color1MaybeAdjusted = mix(color.rgb, adjust1, bvec3(g_nColorCorrectionMode1 == 1));
+    vec4 colorMaybeColorCorrected = mix(color, vec4((color * g_mTextureAdjust1).rgb, color.a), bvec4(g_nColorCorrectionMode1 != 0));
+    vec4 colorColorCorrectedTinted = color * g_mTextureColorAdjust1;
 
-    vec3 tintAdjusted = mix(color1MaybeAdjusted, adjust1, vec3(tintMask1)).xyz ;
-    float tintAdjustedLuma = GetLuma(tintAdjusted);
+    vec3 colorTintedMaybeColorCorrected = mix(colorMaybeColorCorrected.rgb, colorColorCorrectedTinted.rgb, tintMask1);
+
+    float tintAdjustedLuma = GetLuma(colorTintedMaybeColorCorrected);
 
     float tintColorAdjustedLumaRatio = tintAdjustedLuma / tintColorNormLuma;
     float tintAdjustedLuma3x = 3.0 * tintAdjustedLuma;
 
     float tintColorHighestPoint = max(vTintColor_ModelAmount.x, max(vTintColor_ModelAmount.y, vTintColor_ModelAmount.z));
     float highPointXLuma = tintAdjustedLuma3x * tintColorHighestPoint;
-    vec3 tintResult = saturate(mix(adjust1, tintColorNorm * min(tintColorAdjustedLumaRatio, highPointXLuma), vec3((vTintColor_ModelAmount.w * tintMask1) * float(g_bModelTint1))));
+    vec3 tintResult = saturate(mix(colorTintedMaybeColorCorrected, tintColorNorm * min(tintColorAdjustedLumaRatio, highPointXLuma), vec3((vTintColor_ModelAmount.w * tintMask1) * float(g_bModelTint1))));
 
-    vec3 tintFactor1 = mix(vec3(1.0), (g_vTextureColorTint1.rgb), tintMask1);
-    color.rgb = tintResult * tintFactor1;
+    color.rgb = tintResult;
 
-    #if defined(g_tSharedColorOverlay)
+    #if (F_SHARED_COLOR_OVERLAY == 1)
         // 0=Both, 1=Layer 1
         const bool g_bColorOverlayLayer1 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 1;
         const bool g_bColorOverlayMaskLayer1 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 1;
@@ -286,21 +286,21 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     normal2.rg = (normal2.rg - 0.5) * g_fTextureNormalContrast2 + 0.5;
     normal2.b = saturate(((normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5) * g_fTextureRoughnessBrightness2);
 
-    vec3 adjust2 = AdjustBrightnessContrastSaturation(color2.rgb, g_fTextureColorBrightness2, g_fTextureColorContrast2, g_fTextureColorSaturation2);
-    vec3 color2MaybeAdjusted = mix(color2.rgb, adjust2, bvec3(g_nColorCorrectionMode2 == 1));
+    vec4 color2MaybeColorCorrected = mix(color2, vec4((color2 * g_mTextureAdjust2).rgb, color2.a), bvec4(g_nColorCorrectionMode2 != 0));
+    vec4 color2ColorCorrectedTinted = color2 * g_mTextureColorAdjust2;
 
-    vec3 tintAdjusted2 = mix(color2MaybeAdjusted, adjust2, vec3(tintMask2)).xyz;
-    float tintAdjusted2Luma = GetLuma(tintAdjusted2);
+    vec3 color2TintedMaybeColorCorrected = mix(color2MaybeColorCorrected.rgb, color2ColorCorrectedTinted.rgb, tintMask2);
+
+    float tintAdjusted2Luma = GetLuma(color2TintedMaybeColorCorrected);
 
     float tintColorAdjusted2LumaRatio = tintAdjusted2Luma / tintColorNormLuma;
     float tintAdjusted2Luma3x = 3.0 * tintAdjusted2Luma;
 
-    vec3 tintResult2 = saturate(mix(adjust2, tintColorNorm * min(tintColorAdjusted2LumaRatio, tintAdjusted2Luma3x * tintColorHighestPoint), vec3((vTintColor_ModelAmount.w * tintMask2) * float(g_bModelTint2))));
+    vec3 tintResult2 = saturate(mix(color2TintedMaybeColorCorrected, tintColorNorm * min(tintColorAdjusted2LumaRatio, tintAdjusted2Luma3x * tintColorHighestPoint), vec3((vTintColor_ModelAmount.w * tintMask2) * float(g_bModelTint2))));
 
-    vec3 tintFactor2 = mix(vec3(1.0), (g_vTextureColorTint2.rgb), tintMask2);
-    color2.rgb = tintResult2 * tintFactor2;
+    color2.rgb = tintResult2;
 
-    #if defined(g_tSharedColorOverlay)
+    #if (F_SHARED_COLOR_OVERLAY == 1)
         // 0=Both, 2=Layer 2
         const bool g_bColorOverlayLayer2 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 2;
         const bool g_bColorOverlayMaskLayer2 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 2;

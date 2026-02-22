@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -57,6 +58,7 @@ namespace ValveResourceFormat.Renderer
         public int SortId { get; }
         public required Shader Shader { get; init; }
         public Material Material { get; }
+        public Dictionary<string, Matrix4x4> Matrices { get; } = [];
         public Dictionary<string, RenderTexture> Textures { get; } = [];
         public bool IsOverlay { get; set; }
         public bool IsToolsMaterial { get; private set; }
@@ -272,6 +274,50 @@ namespace ValveResourceFormat.Renderer
             {
                 var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value);
                 shader.SetMaterialVector4Uniform(param.Key, value);
+            }
+
+            foreach (var param in shader.Default.Matrices)
+            {
+                Matrix4x4 textureAdjust(int index)
+                {
+                    var CSB = new Vector3(
+                                Material.FloatParams.GetValueOrDefault($"g_fTextureColorContrast{index}", 1),
+                                Material.FloatParams.GetValueOrDefault($"g_fTextureColorSaturation{index}", 1),
+                                Material.FloatParams.GetValueOrDefault($"g_fTextureColorBrightness{index}", 1));
+
+                    var reflectivity = Textures[$"g_tColor{index}"].Reflectivity!;
+
+                    var colorCorrect = VfxEvalFunctions.MatrixColorCorrect2(CSB, new Vector3(reflectivity[0], reflectivity[1], reflectivity[2]));
+                    var tint = VfxEvalFunctions.MatrixColorTint2(Material.VectorParams.GetValueOrDefault($"g_vTextureColorTint{index}").AsVector3(), 1);
+
+                    return Matrix4x4.Multiply(tint, colorCorrect);
+                }
+
+                if (param.Key == "g_mTextureColorAdjust1")
+                {
+                    var colorCorrect = textureAdjust(1);
+                    var tint = VfxEvalFunctions.MatrixColorTint2(Material.VectorParams.GetValueOrDefault("g_vTextureColorTint1").AsVector3(), 1);
+
+                    shader.SetUniform4x4(param.Key, Matrix4x4.Multiply(tint, colorCorrect));
+                }
+
+                if (param.Key == "g_mTextureAdjust1")
+                {
+                    shader.SetUniform4x4(param.Key, textureAdjust(1));
+                }
+
+                if (param.Key == "g_mTextureColorAdjust2")
+                {
+                    var colorCorrect = textureAdjust(2);
+                    var tint = VfxEvalFunctions.MatrixColorTint2(Material.VectorParams.GetValueOrDefault("g_vTextureColorTint2").AsVector3(), 2);
+
+                    shader.SetUniform4x4(param.Key, Matrix4x4.Multiply(tint, colorCorrect));
+                }
+
+                if (param.Key == "g_mTextureAdjust2")
+                {
+                    shader.SetUniform4x4(param.Key, textureAdjust(2));
+                }
             }
 
             SetRenderState();

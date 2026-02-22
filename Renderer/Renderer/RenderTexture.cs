@@ -21,6 +21,8 @@ namespace ValveResourceFormat.Renderer
         public int Depth { get; }
         public int NumMipLevels { get; }
 
+        public float[]? Reflectivity { get; }
+
         RenderTexture(TextureTarget target)
         {
             Target = target;
@@ -35,6 +37,7 @@ namespace ValveResourceFormat.Renderer
             Depth = data.Depth;
             NumMipLevels = data.NumMipLevels;
             SpriteSheetData = data.GetSpriteSheetData();
+            Reflectivity = data.Reflectivity;
         }
 
         public RenderTexture(TextureTarget target, int width, int height, int depth, int mipcount)

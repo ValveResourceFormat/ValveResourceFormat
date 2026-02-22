@@ -68,6 +68,7 @@ namespace ValveResourceFormat.Renderer
         private void StoreUniformLocations()
         {
             var vec4Val = new float[4];
+            var matrix4x4Val = new float[16];
 
             // Stores uniform types and locations
             var uniforms = GetAllUniformNames();
@@ -95,6 +96,7 @@ namespace ValveResourceFormat.Renderer
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
                 var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;
+                var isMatrix = type is ActiveUniformType.FloatMat4;
 
                 if (isTexture && !Default.Textures.ContainsKey(name))
                 {
@@ -138,6 +140,25 @@ namespace ValveResourceFormat.Renderer
                 {
                     GL.GetUniform(Program, GetUniformLocation(name), out int intVal);
                     Default.Material.IntParams[name] = intVal;
+                }
+
+                else if (isMatrix && !Default.Matrices.ContainsKey(name))
+                {
+                    matrix4x4Val[0] = matrix4x4Val[1] = matrix4x4Val[2] = matrix4x4Val[3] =
+                    matrix4x4Val[4] = matrix4x4Val[5] = matrix4x4Val[6] = matrix4x4Val[7] =
+                    matrix4x4Val[8] = matrix4x4Val[9] = matrix4x4Val[10] = matrix4x4Val[11] =
+                    matrix4x4Val[12] = matrix4x4Val[13] = matrix4x4Val[14] = matrix4x4Val[15] = 0f;
+
+                    GL.GetUniform(Program, GetUniformLocation(name), matrix4x4Val);
+
+                    Matrix4x4 matrix = new Matrix4x4(
+                        matrix4x4Val[0], matrix4x4Val[4], matrix4x4Val[8], matrix4x4Val[12],
+                        matrix4x4Val[1], matrix4x4Val[5], matrix4x4Val[9], matrix4x4Val[13],
+                        matrix4x4Val[2], matrix4x4Val[6], matrix4x4Val[10], matrix4x4Val[14],
+                        matrix4x4Val[3], matrix4x4Val[7], matrix4x4Val[11], matrix4x4Val[15]
+                    );
+
+                    Default.Matrices[name] = matrix;
                 }
             }
         }
