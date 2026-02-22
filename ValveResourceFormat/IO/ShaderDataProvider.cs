@@ -122,31 +122,42 @@ namespace ValveResourceFormat.IO
                 }
 
                 var feature = features.StaticComboArray[condition.FeatureIndex];
+                featureParams.TryGetValue(feature.Name, out var featureValue);
 
-                foreach (var (name, value) in featureParams)
+                var sourceType = (VfxStaticComboSourceType)condition.ComboSourceType;
+
+                if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE__)
                 {
-                    if (feature.Name == name)
+                    var configValue = (int)featureValue;
+
+                    // Check that data coming from the material is within the allowed range
+                    if (featureValue > feature.RangeMax)
                     {
-                        // Check that data coming from the material is within the allowed range
-                        if (value > feature.RangeMax)
-                        {
-                            Console.WriteLine($"Value for feature '{name}' is higher ({value}) than the maximum ({feature.RangeMax})."); // TODO: logger
-
-                            staticConfiguration[condition.BlockIndex] = feature.RangeMax;
-                        }
-                        else if (value < feature.RangeMin)
-                        {
-                            Console.WriteLine($"Value for feature '{name}' is lower ({value}) than the minimum ({feature.RangeMin})."); // TODO: logger
-
-                            staticConfiguration[condition.BlockIndex] = feature.RangeMin;
-                        }
-                        else
-                        {
-                            staticConfiguration[condition.BlockIndex] = value;
-                        }
-
-                        break;
+                        Console.WriteLine($"Value for feature '{feature.Name}' is higher ({featureValue}) than the maximum ({feature.RangeMax})."); // TODO: logger
+                        configValue = feature.RangeMax;
                     }
+                    else if (featureValue < feature.RangeMin)
+                    {
+                        Console.WriteLine($"Value for feature '{feature.Name}' is lower ({featureValue}) than the minimum ({feature.RangeMin})."); // TODO: logger
+                        configValue = feature.RangeMin;
+                    }
+
+                    staticConfiguration[condition.BlockIndex] = configValue;
+                }
+                else if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__)
+                {
+                    Debug.Assert(condition.RangeMin == 0 && condition.RangeMax == 1);
+                    staticConfiguration[condition.BlockIndex] = featureValue == condition.FeatureComparisonValue ? 1 : 0;
+                }
+                else if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE_NE__)
+                {
+                    Debug.Assert(condition.RangeMin == 0 && condition.RangeMax == 1);
+                    staticConfiguration[condition.BlockIndex] = featureValue != condition.FeatureComparisonValue ? 1 : 0;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Unexpected combo source type '{sourceType}' for feature-linked static combo '{condition.Name}'.");
                 }
             }
 
