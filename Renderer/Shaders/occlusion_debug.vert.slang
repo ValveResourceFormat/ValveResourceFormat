@@ -1,14 +1,7 @@
 #version 460
 
 #include "common/ViewConstants.slang"
-
-struct DrawBounds
-{
-    vec3 min;
-    uint padding1;
-    vec3 max;
-    uint padding2;
-};
+#include "common/structs.slang"
 
 layout(binding = 7, std430) readonly buffer OccludedBoundsDebugBuffer
 {
@@ -29,35 +22,20 @@ void main()
     
     vec3 pos;
     
-    // Generate line vertices procedurally based on vertex index
-    uint lineIndex = vertexInBound / 2;
-    uint vertexInLine = vertexInBound % 2;
+    // 12 edges encoded as pairs of corner indices (each corner = 3 bits: x|y|z, 0=min 1=max)
+    // Bottom(0-3), Top(4-7), Vertical(8-11)
+    const uint edges[24] = uint[](
+        0,1, 1,3, 3,2, 2,0,  // Bottom: 000->001, 001->011, 011->010, 010->000
+        4,5, 5,7, 7,6, 6,4,  // Top: 100->101, 101->111, 111->110, 110->100
+        0,4, 1,5, 3,7, 2,6   // Verticals: connect bottom to top
+    );
     
-    // 12 edges of the box
-    if (lineIndex == 0) // Bottom front
-        pos = vertexInLine == 0 ? vec3(bmin.x, bmin.y, bmin.z) : vec3(bmax.x, bmin.y, bmin.z);
-    else if (lineIndex == 1) // Bottom right
-        pos = vertexInLine == 0 ? vec3(bmax.x, bmin.y, bmin.z) : vec3(bmax.x, bmin.y, bmax.z);
-    else if (lineIndex == 2) // Bottom back
-        pos = vertexInLine == 0 ? vec3(bmax.x, bmin.y, bmax.z) : vec3(bmin.x, bmin.y, bmax.z);
-    else if (lineIndex == 3) // Bottom left
-        pos = vertexInLine == 0 ? vec3(bmin.x, bmin.y, bmax.z) : vec3(bmin.x, bmin.y, bmin.z);
-    else if (lineIndex == 4) // Top front
-        pos = vertexInLine == 0 ? vec3(bmin.x, bmax.y, bmin.z) : vec3(bmax.x, bmax.y, bmin.z);
-    else if (lineIndex == 5) // Top right
-        pos = vertexInLine == 0 ? vec3(bmax.x, bmax.y, bmin.z) : vec3(bmax.x, bmax.y, bmax.z);
-    else if (lineIndex == 6) // Top back
-        pos = vertexInLine == 0 ? vec3(bmax.x, bmax.y, bmax.z) : vec3(bmin.x, bmax.y, bmax.z);
-    else if (lineIndex == 7) // Top left
-        pos = vertexInLine == 0 ? vec3(bmin.x, bmax.y, bmax.z) : vec3(bmin.x, bmax.y, bmin.z);
-    else if (lineIndex == 8) // Vertical front-left
-        pos = vertexInLine == 0 ? vec3(bmin.x, bmin.y, bmin.z) : vec3(bmin.x, bmax.y, bmin.z);
-    else if (lineIndex == 9) // Vertical front-right
-        pos = vertexInLine == 0 ? vec3(bmax.x, bmin.y, bmin.z) : vec3(bmax.x, bmax.y, bmin.z);
-    else if (lineIndex == 10) // Vertical back-right
-        pos = vertexInLine == 0 ? vec3(bmax.x, bmin.y, bmax.z) : vec3(bmax.x, bmax.y, bmax.z);
-    else // lineIndex == 11 // Vertical back-left
-        pos = vertexInLine == 0 ? vec3(bmin.x, bmin.y, bmax.z) : vec3(bmin.x, bmax.y, bmax.z);
+    uint cornerIdx = edges[vertexInBound];
+    pos = vec3(
+        (cornerIdx & 1u) != 0u ? bmax.x : bmin.x,
+        (cornerIdx & 2u) != 0u ? bmax.y : bmin.y,
+        (cornerIdx & 4u) != 0u ? bmax.z : bmin.z
+    );
     
     gl_Position = g_matWorldToProjection * vec4(pos, 1.0);
 }

@@ -149,7 +149,7 @@ namespace ValveResourceFormat.Renderer
                 NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps,
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
-                IndirectDraw = context.Scene.DrawMeshletsIndirect /* && context.RenderPass < RenderPass.Opaque*/,
+                IndirectDraw = context.Scene.DrawMeshletsIndirect && context.RenderPass < RenderPass.Opaque,
             };
 
             foreach (var request in requests)

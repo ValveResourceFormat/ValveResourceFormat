@@ -1,41 +1,9 @@
 #version 460
 
 #include "common/ViewConstants.slang"
+#include "common/structs.slang"
 
 layout (local_size_x = 64) in;
-
-// Draw commands (read-write to modify instanceCount)
-struct DrawCommand
-{
-    uint indexCount;
-    uint instanceCount;
-    uint firstIndex;
-    int baseVertex;
-    uint baseInstance;
-};
-
-// Input: Draw bounds (min.xyz, max.xyz)
-struct DrawBounds
-{
-    vec3 min;
-    uint padding1;
-    vec3 max;
-    uint padding2;
-};
-
-struct PackedAABB
-{
-    uint m_nMin;
-    uint m_nMax;
-};
-
-
-struct MeshletCullInfo
-{
-    PackedAABB m_PackedAABB;
-    uint m_PackedCone;
-    uint m_nParentDrawBoundsIndex;
-};
 
 layout(binding = 4, std140) uniform FrustumPlanes
 {
