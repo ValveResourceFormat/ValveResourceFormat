@@ -203,8 +203,12 @@ public class Renderer
 
         if (LockedCullFrustum == null)
         {
-            scene.MeshletCullGpu(camera.ViewFrustum);
-            if (scene.EnableCompaction)
+            if (scene.EnableIndirectDraws)
+            {
+                scene.MeshletCullGpu(camera.ViewFrustum);
+            }
+
+            if (scene.CompactMeshletDraws)
             {
                 scene.CompactIndirectDraws();
             }
@@ -357,8 +361,12 @@ public class Renderer
 
             if (isMainFramebuffer)
             {
-                var generateDepthPyramid = Scene.EnableOcclusionCulling && LockedCullFrustum == null;
+                var generateDepthPyramid = Scene.EnableOcclusionCulling
+                    && Scene.EnableIndirectDraws
+                    && LockedCullFrustum == null;
+
                 copyDepth |= generateDepthPyramid;
+                Scene.DepthPyramidValid = generateDepthPyramid;
 
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
 

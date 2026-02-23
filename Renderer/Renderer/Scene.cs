@@ -82,6 +82,7 @@ namespace ValveResourceFormat.Renderer
         public bool EnableOcclusionCullingCpu { get; set; }
         public bool ShowOcclusionCullingDebug { get; set; }
         public bool EnableCompaction { get; set; } = true;
+        internal bool CompactMeshletDraws { get; private set; }
         public bool EnableIndirectDraws { get; set; } = true;
 
         public Matrix4x4[] Transforms { get; set; } = [Matrix4x4.Identity];
@@ -121,7 +122,6 @@ namespace ValveResourceFormat.Renderer
             DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
 
             EnableIndirectDraws = LightingInfo.LightingData.IsSkybox == 0u;
-            EnableCompaction = GLEnvironment.IndirectCountSupported;
             RootTransform.Translation = new Vector3(0, 5, 0);
 
             // set render lists to their max capacity
@@ -215,6 +215,8 @@ namespace ValveResourceFormat.Renderer
 
             if (OctreeDirty)
             {
+                // we disabled or enabled some node
+                CreateIndirectDrawBuffers(true);
                 UpdateOctrees();
                 OctreeDirty = false;
             }
@@ -294,7 +296,7 @@ namespace ValveResourceFormat.Renderer
             TransformBufferGpu.Create(transformData.AsSpan(0, i), BufferUsageHint.StaticDraw);
         }
 
-        private void CreateIndirectDrawBuffers()
+        private void CreateIndirectDrawBuffers(bool deletePrevious = false)
         {
             var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => agg.CanDrawIndirect).ToList();
             var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.DrawCallsOpaque.Count);
@@ -371,6 +373,11 @@ namespace ValveResourceFormat.Renderer
                                 firstIndex = (uint)(drawMeshletIndex * count);
                             }
 
+                            if (fragment.LayerEnabled == false)
+                            {
+                                count = 0;
+                            }
+
                             // what is meshlet.VertexOffset used for?
 
                             indirectDrawsGpu[sceneMeshletCount] = new DrawElementsIndirectCommand
@@ -393,6 +400,15 @@ namespace ValveResourceFormat.Renderer
 
                 SceneMeshletCount = sceneMeshletCount;
 
+                if (deletePrevious)
+                {
+                    MeshletDataGpu?.Delete();
+                    IndirectDrawsGpu?.Delete();
+                    CompactedDrawsGpu?.Delete();
+                    CompactedCountsGpu?.Delete();
+                    CompactionRequestsGpu?.Delete();
+                }
+
                 MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets);
                 IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
 
@@ -401,7 +417,7 @@ namespace ValveResourceFormat.Renderer
 
                 // Create compaction buffers
                 CompactedDrawsGpu = new StorageBuffer(ReservedBufferSlots.CompactedDraws);
-                CompactedDrawsGpu.Create<DrawElementsIndirectCommand>(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
+                CompactedDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
 
                 CompactedCountsGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.CompactedCounts, aggregateSceneNodes.Count, BufferUsageHint.DynamicDraw);
 
@@ -445,12 +461,16 @@ namespace ValveResourceFormat.Renderer
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
 
+            CompactMeshletDraws = false;
+
             if (EnableIndirectDraws)
             {
                 Debug.Assert(IndirectDrawsGpu is not null);
-                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, EnableCompaction ? CompactedDrawsGpu!.Handle : IndirectDrawsGpu.Handle);
 
-                if (EnableCompaction)
+                CompactMeshletDraws = GLEnvironment.IndirectCountSupported && EnableCompaction;
+                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, CompactMeshletDraws ? CompactedDrawsGpu!.Handle : IndirectDrawsGpu.Handle);
+
+                if (CompactMeshletDraws)
                 {
                     Debug.Assert(CompactedCountsGpu is not null);
                     GL.BindBuffer(BufferTarget.ParameterBuffer, CompactedCountsGpu.Handle);
@@ -562,150 +582,6 @@ namespace ValveResourceFormat.Renderer
             }
 
             queueList.Add(request);
-        }
-
-        public void MeshletCullGpu(Frustum frustum)
-        {
-            if (!EnableIndirectDraws)
-            {
-                return;
-            }
-
-            Debug.Assert(frustumBuffer is not null);
-            Debug.Assert(FrustumCullShader is not null);
-
-            Debug.Assert(DrawBoundsGpu is not null);
-            Debug.Assert(MeshletDataGpu is not null);
-            Debug.Assert(IndirectDrawsGpu is not null);
-
-            using var _ = new GLDebugGroup("Cull Meshlet Draws");
-
-            frustumBuffer.BindBufferBase();
-            frustumBuffer.Data = frustum;
-
-            FrustumCullShader.Use();
-
-            // Set occlusion culling enabled flag
-            var occlusionEnabled = EnableOcclusionCulling && DepthPyramidValid;
-            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", occlusionEnabled ? 1 : 0);
-
-            // If occlusion culling is enabled, setup depth pyramid and bind texture
-            if (occlusionEnabled)
-            {
-                Debug.Assert(DepthPyramid != null);
-
-                FrustumCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
-                FrustumCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
-                FrustumCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
-                FrustumCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
-                FrustumCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
-
-                // Bind depth pyramid as texture for sampling
-                GL.ActiveTexture(TextureUnit.Texture0);
-                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
-            }
-
-            MeshletDataGpu.BindBufferBase();
-            DrawBoundsGpu.BindBufferBase();
-            IndirectDrawsGpu.BindBufferBase();
-
-            // Bind debug buffer for occluded bounds visualization
-            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", ShowOcclusionCullingDebug ? 1 : 0);
-            if (ShowOcclusionCullingDebug && OccludedBoundsDebugGpu != null)
-            {
-                // Clear the atomic counter before dispatching
-                var zero = 0u;
-                GL.ClearNamedBufferSubData(OccludedBoundsDebugGpu.Handle, PixelInternalFormat.R32ui, IntPtr.Zero, sizeof(uint), PixelFormat.RedInteger, PixelType.UnsignedInt, ref zero);
-                OccludedBoundsDebugGpu.BindBufferBase();
-            }
-
-            var workGroups = (SceneMeshletCount + 63) / 64;
-            GL.DispatchCompute(workGroups, 1, 1);
-
-            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
-        }
-
-        public void CompactIndirectDraws()
-        {
-            if (CompactionShader == null || CompactedDrawsGpu == null || CompactedCountsGpu == null || CompactionRequestsGpu == null)
-            {
-                return;
-            }
-
-            using var _ = new GLDebugGroup("Compact Meshlet Draws");
-
-            CompactionShader.Use();
-
-            IndirectDrawsGpu!.BindBufferBase();
-            CompactedDrawsGpu.BindBufferBase();
-            CompactedCountsGpu.BindBufferBase();
-            CompactionRequestsGpu.BindBufferBase();
-
-            var aggregateCount = CompactionRequestsGpu.Size / sizeof(uint) / 2; // 2 uints per aggregate
-            var workGroups = (aggregateCount + 3) / 4; // 4 requests per workgroup (local_size_x = 4)
-            GL.DispatchCompute(workGroups, 1, 1);
-
-        }
-
-        public void GenerateDepthPyramid(RenderTexture depthSource)
-        {
-            if (DepthPyramid == null || DepthPyramidShader == null)
-            {
-                return;
-            }
-
-            using var _ = new GLDebugGroup("Generate Depth Pyramid");
-
-            Debug.Assert(depthSource.Target == TextureTarget.Texture2D);
-            var startMipLevel = 1;
-
-            // Downsample from non power of two depth source
-            {
-                Debug.Assert(DepthPyramidNpotShader != null);
-                DepthPyramidNpotShader.Use();
-                DepthPyramidNpotShader.SetTexture(0, "g_tSourceDepthNpot", depthSource);
-                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
-                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
-
-                DepthPyramidNpotShader.SetUniform1("g_nDestDepthWidth", DepthPyramid.Width);
-                DepthPyramidNpotShader.SetUniform1("g_nDestDepthHeight", DepthPyramid.Height);
-
-                GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
-
-                var groupsX = (DepthPyramid.Width + 7) / 8;
-                var groupsY = (DepthPyramid.Height + 7) / 8;
-                GL.DispatchCompute(groupsX, groupsY, 1);
-
-                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
-            }
-
-            // Generate mip levels down to 1x1
-            DepthPyramidShader.Use();
-
-            for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
-            {
-                var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
-                var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
-                var sourceMip = mipLevel - 1;
-
-                DepthPyramidShader.SetUniform1("g_nDestDepthWidth", destWidth);
-                DepthPyramidShader.SetUniform1("g_nDestDepthHeight", destHeight);
-
-                // Bind source mip level as read-only image
-                GL.BindImageTexture(1, DepthPyramid.Handle, sourceMip, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);
-
-                // Bind destination mip level as write-only image
-                GL.BindImageTexture(2, DepthPyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
-
-                // Dispatch compute shader
-                var groupsX = (destWidth + 7) / 8;
-                var groupsY = (destHeight + 7) / 8;
-                GL.DispatchCompute(groupsX, groupsY, 1);
-
-                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
-            }
-
-            GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
@@ -918,6 +794,145 @@ namespace ValveResourceFormat.Renderer
             }
 
             return bucket;
+        }
+
+        public void MeshletCullGpu(Frustum frustum)
+        {
+            Debug.Assert(frustumBuffer is not null);
+            Debug.Assert(FrustumCullShader is not null);
+
+            Debug.Assert(DrawBoundsGpu is not null);
+            Debug.Assert(MeshletDataGpu is not null);
+            Debug.Assert(IndirectDrawsGpu is not null);
+
+            using var _ = new GLDebugGroup("Cull Meshlet Draws");
+
+            frustumBuffer.BindBufferBase();
+            frustumBuffer.Data = frustum;
+
+            FrustumCullShader.Use();
+
+            // Set occlusion culling enabled flag
+            var occlusionEnabled = EnableOcclusionCulling && DepthPyramidValid;
+            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", occlusionEnabled ? 1 : 0);
+
+            // If occlusion culling is enabled, setup depth pyramid and bind texture
+            if (occlusionEnabled)
+            {
+                Debug.Assert(DepthPyramid != null);
+
+                FrustumCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
+                FrustumCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
+                FrustumCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
+
+                // Bind depth pyramid as texture for sampling
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
+            }
+
+            MeshletDataGpu.BindBufferBase();
+            DrawBoundsGpu.BindBufferBase();
+            IndirectDrawsGpu.BindBufferBase();
+
+            // Bind debug buffer for occluded bounds visualization
+            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", ShowOcclusionCullingDebug ? 1 : 0);
+            if (ShowOcclusionCullingDebug && OccludedBoundsDebugGpu != null)
+            {
+                // Clear the atomic counter before dispatching
+                var zero = 0u;
+                GL.ClearNamedBufferSubData(OccludedBoundsDebugGpu.Handle, PixelInternalFormat.R32ui, IntPtr.Zero, sizeof(uint), PixelFormat.RedInteger, PixelType.UnsignedInt, ref zero);
+                OccludedBoundsDebugGpu.BindBufferBase();
+            }
+
+            var workGroups = (SceneMeshletCount + 63) / 64;
+            GL.DispatchCompute(workGroups, 1, 1);
+
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+        }
+
+        public void CompactIndirectDraws()
+        {
+            if (CompactionShader == null || CompactedDrawsGpu == null || CompactedCountsGpu == null || CompactionRequestsGpu == null)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Compact Meshlet Draws");
+
+            CompactionShader.Use();
+
+            IndirectDrawsGpu!.BindBufferBase();
+            CompactedDrawsGpu.BindBufferBase();
+            CompactedCountsGpu.BindBufferBase();
+            CompactionRequestsGpu.BindBufferBase();
+
+            var aggregateCount = CompactionRequestsGpu.Size / sizeof(uint) / 2; // 2 uints per aggregate
+            var workGroups = (aggregateCount + 3) / 4; // 4 requests per workgroup (local_size_x = 4)
+            GL.DispatchCompute(workGroups, 1, 1);
+
+        }
+
+        public void GenerateDepthPyramid(RenderTexture depthSource)
+        {
+            if (DepthPyramid == null || DepthPyramidShader == null)
+            {
+                return;
+            }
+
+            using var _ = new GLDebugGroup("Generate Depth Pyramid");
+
+            Debug.Assert(depthSource.Target == TextureTarget.Texture2D);
+            var startMipLevel = 1;
+
+            // Downsample from non power of two depth source
+            {
+                Debug.Assert(DepthPyramidNpotShader != null);
+                DepthPyramidNpotShader.Use();
+                DepthPyramidNpotShader.SetTexture(0, "g_tSourceDepthNpot", depthSource);
+                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
+                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
+
+                DepthPyramidNpotShader.SetUniform1("g_nDestDepthWidth", DepthPyramid.Width);
+                DepthPyramidNpotShader.SetUniform1("g_nDestDepthHeight", DepthPyramid.Height);
+
+                GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+
+                var groupsX = (DepthPyramid.Width + 7) / 8;
+                var groupsY = (DepthPyramid.Height + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            }
+
+            // Generate mip levels down to 1x1
+            DepthPyramidShader.Use();
+
+            for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
+            {
+                var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
+                var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
+                var sourceMip = mipLevel - 1;
+
+                DepthPyramidShader.SetUniform1("g_nDestDepthWidth", destWidth);
+                DepthPyramidShader.SetUniform1("g_nDestDepthHeight", destHeight);
+
+                // Bind source mip level as read-only image
+                GL.BindImageTexture(1, DepthPyramid.Handle, sourceMip, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);
+
+                // Bind destination mip level as write-only image
+                GL.BindImageTexture(2, DepthPyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+
+                // Dispatch compute shader
+                var groupsX = (destWidth + 7) / 8;
+                var groupsY = (destHeight + 7) / 8;
+                GL.DispatchCompute(groupsX, groupsY, 1);
+
+                GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
+            }
+
+            GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
         public void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders)

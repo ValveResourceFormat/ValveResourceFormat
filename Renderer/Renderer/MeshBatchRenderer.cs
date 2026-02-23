@@ -282,7 +282,7 @@ namespace ValveResourceFormat.Renderer
                 if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0 && agg.CompactionIndex >= 0)
                 {
                     var scene = agg.Scene;
-                    if (scene.EnableCompaction)
+                    if (scene.CompactMeshletDraws)
                     {
                         GL.MultiDrawElementsIndirectCount(
                             request.Call.PrimitiveType,
