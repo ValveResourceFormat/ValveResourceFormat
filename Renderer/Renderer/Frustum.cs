@@ -1,18 +1,16 @@
-using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
     /// View frustum for culling objects outside the camera's visible area.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
     public readonly struct Frustum
     {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 6)]
-        public readonly Plane[] Planes = new Plane[6];
+        public readonly Plane[] Planes { get; }
 
         public Frustum()
         {
+            Planes = new Plane[6];
         }
 
         /// <summary>
@@ -88,7 +86,7 @@ namespace ValveResourceFormat.Renderer
         public Frustum Clone()
         {
             var rv = new Frustum();
-            Planes.CopyTo(rv.Planes, 0);
+            Planes.CopyTo(rv.Planes);
             return rv;
         }
 

@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
-        private UniformBuffer<Frustum>? frustumBuffer;
+        private UniformBuffer<FrustumPlanesGpu>? frustumBuffer;
 
         public StorageBuffer? InstanceBufferGpu { get; set; }
         public StorageBuffer? TransformBufferGpu { get; set; }
@@ -816,7 +816,7 @@ namespace ValveResourceFormat.Renderer
             using var _ = new GLDebugGroup("Cull Meshlet Draws");
 
             frustumBuffer.BindBufferBase();
-            frustumBuffer.Data = frustum;
+            frustumBuffer.Data = new(frustum);
 
             FrustumCullShader.Use();
 

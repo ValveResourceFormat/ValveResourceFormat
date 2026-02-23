@@ -1,6 +1,21 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.Buffers;
+
+[InlineArray(6)]
+internal struct FrustumPlanesGpu
+{
+    private Plane Plane0;
+
+    public FrustumPlanesGpu(Frustum frustum)
+    {
+        for (var i = 0; i < 6; i++)
+        {
+            this[i] = frustum.Planes[i];
+        }
+    }
+}
 
 [StructLayout(LayoutKind.Sequential)]
 public struct MeshletCullInfo
