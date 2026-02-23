@@ -199,14 +199,20 @@ namespace ValveResourceFormat.Renderer
 
                 if (debugCubeMaps)
                 {
-                    var tiedEnvmaps = renderContext.Scene.LightingInfo.CubemapType switch
+                    IEnumerable<SceneEnvMap> tiedEnvmaps = node.EnvMaps;
+                    if (renderContext.Scene.LightingInfo.CubemapType == CubemapType.CubemapArray)
                     {
-                        CubemapType.CubemapArray => node.ShaderEnvMapVisibility
-                            .GetVisibleShaderIndices()
-                            .Select(shaderId => renderContext.Scene.LightingInfo.EnvMaps.FirstOrDefault(env => env.ShaderIndex == shaderId))
-                            .OfType<SceneEnvMap>(),
-                        _ => node.EnvMaps
-                    };
+                        var list = new List<SceneEnvMap>();
+                        foreach (var shaderId in node.ShaderEnvMapVisibility.GetVisibleShaderIndices())
+                        {
+                            var env = renderContext.Scene.LightingInfo.EnvMaps.FirstOrDefault(e => e.ShaderIndex == shaderId);
+                            if (env is SceneEnvMap sem)
+                            {
+                                list.Add(sem);
+                            }
+                        }
+                        tiedEnvmaps = list;
+                    }
 
                     var i = 0;
 

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
 using Vector2i = OpenTK.Mathematics.Vector2i;
 
@@ -127,7 +128,7 @@ public class BloomRenderer
 
         for (var i = 0; i < BloomMipCount; i++)
         {
-            using var _ = new GLDebugGroup("Bloom Accumulation Pass " + i);
+            using var _ = new GLDebugGroup(i switch { 0 => "Bloom Accumulation 0", 1 => "Bloom Accumulation 1", 2 => "Bloom Accumulation 2", 3 => "Bloom Accumulation 3", _ => "Bloom Accumulation" });
 
             if (InvalidSize(downsampledSize))
             {
@@ -161,7 +162,7 @@ public class BloomRenderer
         // loop through mips backwards, from lowest res to highest
         for (var i = lastWrittenMip; i >= 1; i--)
         {
-            using var _ = new GLDebugGroup($"Bloom Upsample {i}");
+            using var _ = new GLDebugGroup(i switch { 1 => "Bloom Upsample 1", 2 => "Bloom Upsample 2", 3 => "Bloom Upsample 3", 4 => "Bloom Upsample 4", _ => "Bloom Upsample" });
             var isFirstUpsample = i == lastWrittenMip;
             var isLastUpsample = i == 1;
 

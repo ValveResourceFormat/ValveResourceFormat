@@ -80,6 +80,10 @@ namespace ValveResourceFormat.Renderer
             UpdateBuffers();
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
+
+            // set render lists to their max capacity
+            CollectSceneDrawCalls(new Camera(RendererContext), Frustum.CreateEmpty());
+            SetupSceneShadows(new Camera(RendererContext), -1);
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -308,8 +312,8 @@ namespace ValveResourceFormat.Renderer
             WantsSceneColor = false;
             WantsSceneDepth = false;
 
-            cullFrustum ??= camera.ViewFrustum;
-            var cullResults = GetFrustumCullResults(cullFrustum);
+            var frustum = cullFrustum ??= camera.ViewFrustum;
+            var cullResults = GetFrustumCullResults(frustum);
 
             // Collect mesh calls
             foreach (var node in cullResults)
@@ -411,6 +415,11 @@ namespace ValveResourceFormat.Renderer
             }
 
             LightingInfo.UpdateSunLightFrustum(camera, shadowMapSize);
+
+            if (shadowMapSize == -1)
+            {
+                LightingInfo.SunLightFrustum.SetEmpty();
+            }
 
             foreach (var bucket in CulledShadowDrawCalls.Values)
             {

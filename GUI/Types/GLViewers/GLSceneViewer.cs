@@ -331,6 +331,15 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
+            if (GLNativeWindow != null)
+            {
+                // try to compile shaders?
+                Renderer.Camera.SetLocationPitchYaw(Vector3.UnitZ * 20_000f, -90, 0f);
+                Renderer.Camera.SetViewportSize(64, 64);
+                OnPaint(0f);
+                GLNativeWindow.Context.SwapBuffers();
+            }
+
             GuiContext.ClearCache();
             GuiContext.GLPostLoadAction?.Invoke(this);
             GuiContext.GLPostLoadAction = null;

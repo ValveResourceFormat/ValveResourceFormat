@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Renderer
         public void UpdatePostProcessing(Camera camera)
         {
             // Recalculate post process state
-            var newState = new PostProcessState();
+            var newState = PostProcessState.Default;
 
             // For we SHOULD find the weight of each volume, then blend the values together, and finally blend the remaining values with the Master
 

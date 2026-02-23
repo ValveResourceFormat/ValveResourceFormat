@@ -229,9 +229,9 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public struct PostProcessState()
     {
-        public TonemapSettings TonemapSettings { get; set; } = new();
-        public BloomSettings BloomSettings { get; set; } = new();
-        public ExposureSettings ExposureSettings { get; set; } = new();
+        public TonemapSettings TonemapSettings { get; set; }
+        public BloomSettings BloomSettings { get; set; }
+        public ExposureSettings ExposureSettings { get; set; }
 
         public bool HasBloom { get; set; } = false;
 
@@ -240,6 +240,13 @@ namespace ValveResourceFormat.Renderer
         public float ColorCorrectionWeight { get; set; } = 1.0f;
         public int ColorCorrectionLutDimensions { get; set; } = 32;
         public int NumLutsActive { get; set; }
+
+        public static PostProcessState Default { get; } = new()
+        {
+            TonemapSettings = new TonemapSettings(),
+            BloomSettings = new BloomSettings(),
+            ExposureSettings = new ExposureSettings(),
+        };
     }
 
     /// <summary>
