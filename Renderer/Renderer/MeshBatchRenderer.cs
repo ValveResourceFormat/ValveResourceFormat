@@ -49,10 +49,23 @@ namespace ValveResourceFormat.Renderer
             return -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera);
         }
 
-        public static int CompareAlphaTest(Request a, Request b)
+        public static int CompareAlphaTestThenProgram(Request a, Request b)
         {
             Debug.Assert(a.Call != null && b.Call != null);
-            return a.Call.Material.IsAlphaTest.CompareTo(b.Call.Material.IsAlphaTest);
+            var alphaTestA = a.Call.Material.IsAlphaTest;
+            var alphaTestB = b.Call.Material.IsAlphaTest;
+
+            if (alphaTestA == alphaTestB)
+            {
+                return a.Call.Material.SortId - b.Call.Material.SortId;
+            }
+
+            return alphaTestA.CompareTo(alphaTestB);
+        }
+
+        public static bool IsAggregateWithNoVisibleChildren(Request req)
+        {
+            return req.Node is SceneAggregate { AnyChildrenVisible: false };
         }
 
         public static void Render(List<Request> requests, Scene.RenderContext context)
@@ -61,9 +74,11 @@ namespace ValveResourceFormat.Renderer
             {
                 requests.Sort(CompareCustomPipeline);
             }
-            if (context.RenderPass == RenderPass.OpaqueMeshlets)
+            else if (context.RenderPass == RenderPass.OpaqueAggregate)
             {
-                requests.Sort(CompareAlphaTest);
+                using var _ = new GLDebugGroup("Sort Indirect Draw Dispatches");
+                var removed = requests.RemoveAll(IsAggregateWithNoVisibleChildren);
+                requests.Sort(CompareAlphaTestThenProgram);
             }
             else if (context.RenderPass == RenderPass.StaticOverlay)
             {
@@ -157,7 +172,10 @@ namespace ValveResourceFormat.Renderer
 
                 if (material != requestMaterial)
                 {
-                    material?.PostRender();
+                    if (context.ReplacementShader?.IgnoreMaterialData != true)
+                    {
+                        material?.PostRender();
+                    }
 
                     var requestShader = context.ReplacementShader ?? requestMaterial.Shader;
 
@@ -202,12 +220,15 @@ namespace ValveResourceFormat.Renderer
 
                         shader.Use();
 
-                        foreach (var (slot, name, texture) in context.Textures)
+                        if (!shader.IgnoreMaterialData)
                         {
-                            shader.SetTexture((int)slot, name, texture);
-                        }
+                            foreach (var (slot, name, texture) in context.Textures)
+                            {
+                                shader.SetTexture((int)slot, name, texture);
+                            }
 
-                        context.Scene.LightingInfo.SetLightmapTextures(shader);
+                            context.Scene.LightingInfo.SetLightmapTextures(shader);
+                        }
 
                         Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
                         context.Scene.TransformBufferGpu.BindBufferBase();

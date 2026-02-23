@@ -243,9 +243,8 @@ namespace ValveResourceFormat.Renderer
 
             shader ??= Shader;
 
-            if (shader.Name is "vrf.picking" or "vrf.outline")
+            if (shader.IgnoreMaterialData)
             {
-                // Discard material data for picking shader, (blend modes, etc.)
                 return;
             }
 

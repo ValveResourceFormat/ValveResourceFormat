@@ -17,7 +17,8 @@ namespace ValveResourceFormat.Renderer
         public int IndirectDrawByteOffset { get; set; }
         public int IndirectDrawCount { get; set; }
         public int CompactionIndex { get; set; } = -1;
-        public bool AnyChildrenVisible { get; set; }
+        public bool AnyChildrenVisible { get; internal set; }
+
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }

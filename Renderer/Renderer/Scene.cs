@@ -116,16 +116,17 @@ namespace ValveResourceFormat.Renderer
 
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
-            EnableCompaction = GLEnvironment.IndirectCountSupported;
             CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
             DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
 
+            EnableIndirectDraws = LightingInfo.LightingData.IsSkybox == 0u;
+            EnableCompaction = GLEnvironment.IndirectCountSupported;
+            RootTransform.Translation = new Vector3(0, 5, 0);
+
             // set render lists to their max capacity
             CollectSceneDrawCalls(new Camera(RendererContext), Frustum.CreateEmpty());
             SetupSceneShadows(new Camera(RendererContext), -1);
-
-            RootTransform.Translation = new Vector3(0, 5, 0);
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -494,7 +495,8 @@ namespace ValveResourceFormat.Renderer
 
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
         {
-            [RenderPass.OpaqueMeshlets] = [],
+            [RenderPass.OpaqueAggregate] = [],
+            [RenderPass.OpaqueFragments] = [],
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
             [RenderPass.Water] = [],
@@ -519,18 +521,31 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (renderPass == RenderPass.Opaque)
+            if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
+            {
+                renderLists[RenderPass.Outline].Add(request);
+            }
+
+            if (renderPass == RenderPass.OpaqueAggregate)
             {
                 if (request.Node is SceneAggregate { CanDrawIndirect: true })
                 {
-                    renderPass = RenderPass.OpaqueMeshlets;
-
                     if (EnableDepthPrepass)
                     {
                         var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
                         depthOnlyDraws[bucket].Add(request);
                     }
                 }
+            }
+
+            if (renderPass == RenderPass.OpaqueFragments)
+            {
+                if (EnableIndirectDraws && request.Node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true })
+                {
+                    return; // Skip individual fragment draws if aggregate can be drawn with indirect draw
+                }
+
+                renderPass = RenderPass.Opaque;
             }
 
             var queueList = renderLists[renderPass];
@@ -544,11 +559,6 @@ namespace ValveResourceFormat.Renderer
                 {
                     queueList = renderLists[RenderPass.Water];
                 }
-            }
-
-            if (renderPass > RenderPass.DepthOnly && request.Node.IsSelected)
-            {
-                renderLists[RenderPass.Outline].Add(request);
             }
 
             queueList.Add(request);
@@ -758,15 +768,13 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
-                    if (!EnableIndirectDraws || !fragment.Parent.CanDrawIndirect || IndirectDrawsGpu == null)
+                    fragment.Parent.AnyChildrenVisible = true;
+                    Add(new MeshBatchRenderer.Request
                     {
-                        Add(new MeshBatchRenderer.Request
-                        {
-                            Mesh = fragment.RenderMesh,
-                            Call = fragment.DrawCall,
-                            Node = node,
-                        }, RenderPass.Opaque);
-                    }
+                        Mesh = fragment.RenderMesh,
+                        Call = fragment.DrawCall,
+                        Node = node,
+                    }, RenderPass.OpaqueFragments);
                 }
                 else if (node is SceneAggregate aggregate)
                 {
@@ -781,13 +789,14 @@ namespace ValveResourceFormat.Renderer
                     }
                     else if (EnableIndirectDraws && aggregate.CanDrawIndirect && aggregate.RenderMesh.DrawCallsOpaque.Count > 0)
                     {
+                        aggregate.AnyChildrenVisible = false;
                         Add(new MeshBatchRenderer.Request
                         {
                             Mesh = aggregate.RenderMesh,
                             Call = aggregate.RenderMesh.DrawCallsOpaque[0],
                             //DistanceFromCamera = aggregate.GetAverageCameraDistanceFragments(camera),
                             Node = node,
-                        }, RenderPass.Opaque);
+                        }, RenderPass.OpaqueAggregate);
                     }
                 }
                 else
@@ -958,7 +967,7 @@ namespace ValveResourceFormat.Renderer
                     GL.DepthMask(false);
                     GL.DepthFunc(DepthFunction.Equal);
 
-                    renderContext.RenderPass = RenderPass.OpaqueMeshlets;
+                    renderContext.RenderPass = RenderPass.OpaqueAggregate;
                     MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
 
                     GL.DepthMask(true);
@@ -969,7 +978,7 @@ namespace ValveResourceFormat.Renderer
             if (!depthPrepass && EnableIndirectDraws)
             {
                 using var _ = new GLDebugGroup("Meshlet Render");
-                renderContext.RenderPass = RenderPass.OpaqueMeshlets;
+                renderContext.RenderPass = RenderPass.OpaqueAggregate;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
 
