@@ -346,7 +346,6 @@ namespace GUI.Types.GLViewers
                     UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
                     UiControl.AddCheckBox("Gpu Culling", Scene.EnableIndirectDraws, v =>
                     {
-                        using var _ = MakeCurrent();
                         Scene.EnableIndirectDraws = v;
                     });
 

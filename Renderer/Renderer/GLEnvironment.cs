@@ -74,6 +74,7 @@ public static class GLEnvironment
             extensions.Add(extension);
         }
 
+        // not supported on Intel integrated drivers
         IndirectCountSupported = extensions.Contains("GL_ARB_indirect_parameters");
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))

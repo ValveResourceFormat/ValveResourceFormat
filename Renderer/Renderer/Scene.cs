@@ -296,7 +296,7 @@ namespace ValveResourceFormat.Renderer
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
         {
             var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => agg.CanDrawIndirect).ToList();
-            var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.DrawCallsOpaque.Count);
+            var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.Fragments.Count);
             var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
 
             if (aggregateMeshletCount == 0)
@@ -310,8 +310,9 @@ namespace ValveResourceFormat.Renderer
                 var index = 0;
                 foreach (var agg in aggregateSceneNodes)
                 {
-                    foreach (var drawCall in agg.RenderMesh.DrawCallsOpaque)
+                    foreach (var fragment in agg.Fragments)
                     {
+                        var drawCall = fragment.DrawCall;
                         Debug.Assert(drawCall.DrawBounds != null);
                         drawBounds[index].Min = drawCall.DrawBounds.Value.Min;
                         drawBounds[index].Max = drawCall.DrawBounds.Value.Max;
@@ -338,6 +339,7 @@ namespace ValveResourceFormat.Renderer
                     agg.CompactionIndex = aggregateIndex++;
 
                     var drawIndex = 0;
+                    var indirectDrawCount = 0;
                     foreach (var fragment in agg.Fragments)
                     {
                         var fragmentInstanceId = fragment.Id;
@@ -387,12 +389,16 @@ namespace ValveResourceFormat.Renderer
                             };
 
                             sceneMeshletCount++;
+                            indirectDrawCount++;
                         }
 
                         drawIndex++;
                     }
 
-                    sceneDrawCount += agg.RenderMesh.DrawCallsOpaque.Count;
+                    // can be smaller than serialized meshlets due to LoD filtering
+                    agg.IndirectDrawCount = indirectDrawCount;
+
+                    sceneDrawCount += agg.Fragments.Count;
                 }
 
                 SceneMeshletCount = sceneMeshletCount;
