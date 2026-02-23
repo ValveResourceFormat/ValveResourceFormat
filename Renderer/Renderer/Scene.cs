@@ -295,7 +295,7 @@ namespace ValveResourceFormat.Renderer
 
         private void CreateIndirectDrawBuffers()
         {
-            var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => !agg.HasTransforms).ToList();
+            var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => agg.CanDrawIndirect).ToList();
             var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.DrawCallsOpaque.Count);
             var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
 
@@ -521,7 +521,7 @@ namespace ValveResourceFormat.Renderer
 
             if (renderPass == RenderPass.Opaque)
             {
-                if (request.Node is SceneAggregate { HasTransforms: false })
+                if (request.Node is SceneAggregate { CanDrawIndirect: true })
                 {
                     renderPass = RenderPass.OpaqueMeshlets;
 
@@ -758,7 +758,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
-                    if (!EnableIndirectDraws || fragment.Parent.HasTransforms || IndirectDrawsGpu == null)
+                    if (!EnableIndirectDraws || !fragment.Parent.CanDrawIndirect || IndirectDrawsGpu == null)
                     {
                         Add(new MeshBatchRenderer.Request
                         {
@@ -779,7 +779,7 @@ namespace ValveResourceFormat.Renderer
                             Node = node,
                         }, RenderPass.Opaque);
                     }
-                    else if (EnableIndirectDraws && !aggregate.HasTransforms && aggregate.RenderMesh.DrawCallsOpaque.Count > 0)
+                    else if (EnableIndirectDraws && aggregate.CanDrawIndirect && aggregate.RenderMesh.DrawCallsOpaque.Count > 0)
                     {
                         Add(new MeshBatchRenderer.Request
                         {

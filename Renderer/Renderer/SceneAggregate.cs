@@ -17,10 +17,11 @@ namespace ValveResourceFormat.Renderer
         public int IndirectDrawByteOffset { get; set; }
         public int IndirectDrawCount { get; set; }
         public int CompactionIndex { get; set; } = -1;
+        public bool AnyChildrenVisible { get; set; }
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
-        public bool HasTransforms { get; set; }
+        public bool CanDrawIndirect { get; set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
@@ -35,8 +36,6 @@ namespace ValveResourceFormat.Renderer
             public required DrawCall DrawCall { get; init; }
 
             public Vector4 Tint { get; set; } = Vector4.One;
-
-            public override bool IsSelected { get => base.IsSelected; set { base.IsSelected = value; Parent.IsSelected = value; } }
 
             public Fragment(Scene scene, SceneAggregate parent, AABB bounds) : base(scene)
             {
@@ -132,6 +131,8 @@ namespace ValveResourceFormat.Renderer
             var transformIndex = 0;
             var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
 
+            CanDrawIndirect = true;
+
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
             {
@@ -160,7 +161,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
                 {
-                    HasTransforms = true; // skip indirect draw path for instanced draws
+                    CanDrawIndirect = false; // skip indirect draw path for instanced draws
                     fragment.Transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
                 }
 
