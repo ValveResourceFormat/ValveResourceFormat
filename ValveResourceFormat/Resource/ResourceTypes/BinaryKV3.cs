@@ -630,9 +630,14 @@ namespace ValveResourceFormat.ResourceTypes
                     {
                         if (version >= 5)
                         {
-                            UnexpectedMagicException.Assert(sizeBlockCompressedSizesBytes == 0, sizeBlockCompressedSizesBytes);
+                            // sizeBlockCompressedSizesBytes contains per-block compressed sizes metadata
+                            // that is not needed for bulk ZSTD decompression - skip it
+                            if (sizeBlockCompressedSizesBytes > 0)
+                            {
+                                reader.BaseStream.Position += sizeBlockCompressedSizesBytes;
+                            }
 
-                            var sizeCompressedBinaryBlobs = sizeCompressedTotal - sizeCompressedBuffer1 - sizeCompressedBuffer2;
+                            var sizeCompressedBinaryBlobs = sizeCompressedTotal - sizeCompressedBuffer1 - sizeCompressedBuffer2 - sizeBlockCompressedSizesBytes;
 
                             binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
                             context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
