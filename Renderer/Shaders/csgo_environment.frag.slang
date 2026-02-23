@@ -214,7 +214,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     vec3 overlayFactor = vec3(1.0);
 
-    #if (F_SHARED_COLOR_OVERLAY == 1)
+    #if (GameVfx_csgo_environment_blend != 0 && F_SHARED_COLOR_OVERLAY == 1)
         vec3 overlay = texture(g_tSharedColorOverlay, vTexCoord.zw).rgb * 2.0 - 1.0;
         vec3 _15235 = (((vec3(1.0) - pow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast)
             + ((pow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast)) + vec3(1.0);
@@ -240,14 +240,14 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     color.rgb = tintResult;
 
-    #if (F_SHARED_COLOR_OVERLAY == 1)
-        // 0=Both, 1=Layer 1
-        const bool g_bColorOverlayLayer1 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 1;
-        const bool g_bColorOverlayMaskLayer1 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 1;
-        color.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer1 ? tintMask1 : 1.0) * float(g_bColorOverlayLayer1)));
-    #endif
-
     #if (GameVfx_csgo_environment_blend != 0)
+        #if (F_SHARED_COLOR_OVERLAY == 1)
+            // 0=Both, 1=Layer 1
+            const bool g_bColorOverlayLayer1 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 1;
+            const bool g_bColorOverlayMaskLayer1 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 1;
+            color.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer1 ? tintMask1 : 1.0) * float(g_bColorOverlayLayer1)));
+        #endif
+
         float flVertexColorMask = float(g_nVertexColorMode1 != 2) * mix(height.g, 1.0, g_nVertexColorMode1 == 0);
         color.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask);
     #else
