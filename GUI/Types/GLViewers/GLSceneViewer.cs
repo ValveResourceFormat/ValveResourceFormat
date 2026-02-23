@@ -36,7 +36,6 @@ namespace GUI.Types.GLViewers
         private InfiniteGrid? baseGrid;
         private OctreeDebugRenderer? staticOctreeRenderer;
         private OctreeDebugRenderer? dynamicOctreeRenderer;
-        private OcclusionDebugRenderer? occlusionDebugRenderer;
         protected SelectedNodeRenderer? SelectedNodeRenderer;
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
@@ -93,6 +92,7 @@ namespace GUI.Types.GLViewers
                 {
                     Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
                 });
+
                 UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
                 {
                     showStaticOctree = v;
@@ -111,6 +111,11 @@ namespace GUI.Types.GLViewers
 
                     SkyboxScene?.ShowToolsMaterials = v;
                 });
+
+                if (this is GLWorldViewer worldViewer)
+                {
+                    UiControl.AddCheckBox("Show Occluded Bounds", Scene.OcclusionDebugEnabled, (v) => Scene.OcclusionDebugEnabled = v);
+                }
 
                 UiControl.AddCheckBox("Show Render Timings", Renderer.Timings.Capture, (v) => Renderer.Timings.Capture = v);
             }
@@ -222,7 +227,6 @@ namespace GUI.Types.GLViewers
 
             staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.RendererContext, false);
             dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.RendererContext, true);
-            occlusionDebugRenderer = new OcclusionDebugRenderer(Scene, Scene.RendererContext);
         }
 
         protected abstract void LoadScene();
@@ -480,9 +484,9 @@ namespace GUI.Types.GLViewers
                     dynamicOctreeRenderer.Render();
                 }
 
-                if (Scene.ShowOcclusionCullingDebug && occlusionDebugRenderer != null)
+                if (Scene.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
                 {
-                    occlusionDebugRenderer.Render();
+                    Scene.OcclusionDebug.Render();
                 }
 
                 if (ShowBaseGrid && baseGrid != null)

@@ -76,7 +76,7 @@ namespace ValveResourceFormat.Renderer
             }
             else if (context.RenderPass == RenderPass.OpaqueAggregate)
             {
-                using var _ = new GLDebugGroup("Sort Indirect Draw Dispatches");
+                using var _ = new GLDebugGroup("Sort Indirect Draws");
                 var removed = requests.RemoveAll(IsAggregateWithNoVisibleChildren);
                 requests.Sort(CompareAlphaTestThenProgram);
             }
@@ -149,7 +149,7 @@ namespace ValveResourceFormat.Renderer
                 NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps,
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
-                IndirectDraw = context.Scene.EnableIndirectDraws /* && context.RenderPass < RenderPass.Opaque*/,
+                IndirectDraw = context.Scene.DrawMeshletsIndirect /* && context.RenderPass < RenderPass.Opaque*/,
             };
 
             foreach (var request in requests)

@@ -132,7 +132,7 @@ namespace ValveResourceFormat.Renderer
             var transformIndex = 0;
             var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
 
-            CanDrawIndirect = true;
+            CanDrawIndirect = RenderMesh.DrawCallsOpaque.Count > 0;
 
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)

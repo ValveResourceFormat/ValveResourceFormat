@@ -1,4 +1,7 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -12,6 +15,8 @@ namespace ValveResourceFormat.Renderer
         private readonly Scene scene;
         private readonly RendererContext renderContext;
 
+        internal StorageBuffer? OccludedBoundsDebugGpu;
+
         public OcclusionDebugRenderer(Scene scene, RendererContext rendererContext)
         {
             this.scene = scene;
@@ -20,16 +25,33 @@ namespace ValveResourceFormat.Renderer
             shader = rendererContext.ShaderLoader.LoadShader("vrf.occlusion_debug");
         }
 
+        public void BindAndClearBuffer()
+        {
+            if (OccludedBoundsDebugGpu == null)
+            {
+                // Create debug buffer for occluded bounds (4 uints for header + bounds array)
+                var headerSize = 4; // uint count + 3 padding uints
+                var totalSize = (headerSize + scene.SceneMeshletCount) * Marshal.SizeOf<Vector4>();
+                OccludedBoundsDebugGpu = new StorageBuffer(ReservedBufferSlots.OccludedBoundsDebug);
+                GL.NamedBufferData(OccludedBoundsDebugGpu.Handle, totalSize, IntPtr.Zero, BufferUsageHint.StreamRead);
+            }
+
+            // Clear the atomic counter before dispatching
+            var zero = 0u;
+            GL.ClearNamedBufferSubData(OccludedBoundsDebugGpu.Handle, PixelInternalFormat.R32ui, IntPtr.Zero, sizeof(uint), PixelFormat.RedInteger, PixelType.UnsignedInt, ref zero);
+            OccludedBoundsDebugGpu.BindBufferBase();
+        }
+
         public void Render()
         {
-            if (scene.OccludedBoundsDebugGpu == null || !scene.EnableIndirectDraws || !scene.EnableOcclusionCulling)
+            if (!scene.DrawMeshletsIndirect || !scene.EnableOcclusionCulling || OccludedBoundsDebugGpu == null)
             {
                 return;
             }
 
             // Read only the count from GPU
             var countArray = new uint[1];
-            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, scene.OccludedBoundsDebugGpu.Handle);
+            GL.BindBuffer(BufferTarget.ShaderStorageBuffer, OccludedBoundsDebugGpu.Handle);
             GL.GetBufferSubData(BufferTarget.ShaderStorageBuffer, IntPtr.Zero, sizeof(uint), countArray);
             GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 
@@ -47,7 +69,7 @@ namespace ValveResourceFormat.Renderer
             shader.Use();
 
             // Bind the occluded bounds buffer to shader
-            GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 0, scene.OccludedBoundsDebugGpu.Handle);
+            OccludedBoundsDebugGpu.BindBufferBase();
 
             GL.BindVertexArray(renderContext.MeshBufferCache.EmptyVAO);
 

@@ -37,7 +37,6 @@ namespace GUI.Types.GLViewers
         {
             this.world = world;
             mapExternalReferences = externalReferences;
-            Scene.EnableOcclusionCullingCpu = false;//externalReferences != null;
         }
 
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, WorldNode worldNode, ResourceExtRefList? externalReferences = null)
@@ -335,16 +334,6 @@ namespace GUI.Types.GLViewers
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
                 }
 
-                using (UiControl.BeginGroup("Occlusion"))
-                {
-                    UiControl.AddCheckBox("Indirect Draw", true, (v) => Scene.EnableIndirectDraws = v);
-                    UiControl.AddCheckBox("Compaction", Scene.EnableCompaction, (v) => Scene.EnableCompaction = v);
-                    UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
-                    UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
-                    UiControl.AddCheckBox("Occlusion Culling CPU", Scene.EnableOcclusionCullingCpu, (v) => Scene.EnableOcclusionCullingCpu = v);
-                    UiControl.AddCheckBox("Show Occluded Bounds", Scene.ShowOcclusionCullingDebug, (v) => Scene.ShowOcclusionCullingDebug = v);
-                }
-
                 using (UiControl.BeginGroup("World"))
                 {
                     if (Renderer.SkyboxScene != null)
@@ -354,6 +343,14 @@ namespace GUI.Types.GLViewers
 
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
+                    UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+                    UiControl.AddCheckBox("Gpu Culling", Scene.EnableIndirectDraws, v =>
+                    {
+                        using var _ = MakeCurrent();
+                        Scene.EnableIndirectDraws = v;
+                    });
+
+                    UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
                     UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
 
                     AddSceneExposureSlider();

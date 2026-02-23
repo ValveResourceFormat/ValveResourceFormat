@@ -193,6 +193,8 @@ public class Renderer
             {
                 ViewBuffer.Data.WorldToProjectionPrev = scene.DepthPyramidViewProjection;
             }
+
+            scene.UpdateIndirectRenderingState();
         }
 
         camera.SetViewConstants(ViewBuffer.Data);
@@ -203,7 +205,7 @@ public class Renderer
 
         if (LockedCullFrustum == null)
         {
-            if (scene.EnableIndirectDraws)
+            if (scene.DrawMeshletsIndirect)
             {
                 scene.MeshletCullGpu(camera.ViewFrustum);
             }
@@ -319,7 +321,7 @@ public class Renderer
             Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShaders : Span<Shader>.Empty);
         }
 
-        if (isStandardPass && Scene.EnableOcclusionCullingCpu)
+        if (isStandardPass && Scene.EnableOcclusionQueries)
         {
             Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
         }
@@ -362,11 +364,11 @@ public class Renderer
             if (isMainFramebuffer)
             {
                 var generateDepthPyramid = Scene.EnableOcclusionCulling
-                    && Scene.EnableIndirectDraws
+                    && Scene.DrawMeshletsIndirect
                     && LockedCullFrustum == null;
 
                 copyDepth |= generateDepthPyramid;
-                Scene.DepthPyramidValid = generateDepthPyramid;
+                Scene.DepthPyramidValid = generateDepthPyramid || LockedCullFrustum != null;
 
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
 

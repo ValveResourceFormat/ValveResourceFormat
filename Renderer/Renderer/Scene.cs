@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -59,7 +58,6 @@ namespace ValveResourceFormat.Renderer
         public StorageBuffer? CompactedDrawsGpu { get; set; }
         public StorageBuffer? CompactedCountsGpu { get; set; }
         public StorageBuffer? CompactionRequestsGpu { get; set; }
-        public StorageBuffer? OccludedBoundsDebugGpu { get; set; }
         public int SceneMeshletCount { get; private set; }
 
         private Shader? FrustumCullShader;
@@ -79,15 +77,15 @@ namespace ValveResourceFormat.Renderer
         public bool FogEnabled { get; set; } = true;
         public bool EnableDepthPrepass { get; set; }
         public bool EnableOcclusionCulling { get; set; } = true;
-        public bool EnableOcclusionCullingCpu { get; set; }
-        public bool ShowOcclusionCullingDebug { get; set; }
-        public bool EnableCompaction { get; set; } = true;
-        internal bool CompactMeshletDraws { get; private set; }
+        internal bool EnableOcclusionQueries { get; set; }
+        public bool OcclusionDebugEnabled { get; set; }
+        public OcclusionDebugRenderer? OcclusionDebug { get; set; }
+
         public bool EnableIndirectDraws { get; set; } = true;
+        public bool EnableCompaction { get; set; } = true;
 
-        public Matrix4x4[] Transforms { get; set; } = [Matrix4x4.Identity];
-
-        public ref Matrix4x4 RootTransform => ref Transforms[0];
+        internal bool DrawMeshletsIndirect { get; private set; }
+        internal bool CompactMeshletDraws { get; private set; }
 
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -122,7 +120,6 @@ namespace ValveResourceFormat.Renderer
             DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
 
             EnableIndirectDraws = LightingInfo.LightingData.IsSkybox == 0u;
-            RootTransform.Translation = new Vector3(0, 5, 0);
 
             // set render lists to their max capacity
             CollectSceneDrawCalls(new Camera(RendererContext), Frustum.CreateEmpty());
@@ -407,6 +404,7 @@ namespace ValveResourceFormat.Renderer
                     CompactedDrawsGpu?.Delete();
                     CompactedCountsGpu?.Delete();
                     CompactionRequestsGpu?.Delete();
+                    OcclusionDebug?.OccludedBoundsDebugGpu?.Delete();
                 }
 
                 MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets);
@@ -435,13 +433,9 @@ namespace ValveResourceFormat.Renderer
 
                 CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.CompactionRequests);
                 CompactionRequestsGpu.Create(compactionRequests, BufferUsageHint.StaticDraw);
-
-                // Create debug buffer for occluded bounds (4 uints for header + bounds array)
-                var headerSize = 4; // uint count + 3 padding uints
-                var totalSize = (headerSize + sceneMeshletCount) * Marshal.SizeOf<Vector4>();
-                OccludedBoundsDebugGpu = new StorageBuffer(ReservedBufferSlots.OccludedBoundsDebug);
-                GL.NamedBufferData(OccludedBoundsDebugGpu.Handle, totalSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
             }
+
+            OcclusionDebug = new OcclusionDebugRenderer(this, RendererContext);
         }
 
         public void UpdateBuffers()
@@ -460,22 +454,6 @@ namespace ValveResourceFormat.Renderer
             lightingBuffer.BindBufferBase();
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
-
-            CompactMeshletDraws = false;
-
-            if (EnableIndirectDraws)
-            {
-                Debug.Assert(IndirectDrawsGpu is not null);
-
-                CompactMeshletDraws = GLEnvironment.IndirectCountSupported && EnableCompaction;
-                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, CompactMeshletDraws ? CompactedDrawsGpu!.Handle : IndirectDrawsGpu.Handle);
-
-                if (CompactMeshletDraws)
-                {
-                    Debug.Assert(CompactedCountsGpu is not null);
-                    GL.BindBuffer(BufferTarget.ParameterBuffer, CompactedCountsGpu.Handle);
-                }
-            }
         }
 
         private readonly List<SceneNode> CullResults = [];
@@ -560,7 +538,7 @@ namespace ValveResourceFormat.Renderer
 
             if (renderPass == RenderPass.OpaqueFragments)
             {
-                if (EnableIndirectDraws && request.Node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true })
+                if (DrawMeshletsIndirect && request.Node is SceneAggregate.Fragment { Parent.CanDrawIndirect: true })
                 {
                     return; // Skip individual fragment draws if aggregate can be drawn with indirect draw
                 }
@@ -663,7 +641,7 @@ namespace ValveResourceFormat.Renderer
                             Node = node,
                         }, RenderPass.Opaque);
                     }
-                    else if (EnableIndirectDraws && aggregate.CanDrawIndirect && aggregate.RenderMesh.DrawCallsOpaque.Count > 0)
+                    else if (DrawMeshletsIndirect && aggregate.CanDrawIndirect)
                     {
                         aggregate.AnyChildrenVisible = false;
                         Add(new MeshBatchRenderer.Request
@@ -796,6 +774,30 @@ namespace ValveResourceFormat.Renderer
             return bucket;
         }
 
+        internal void UpdateIndirectRenderingState()
+        {
+            CompactMeshletDraws = false;
+            DrawMeshletsIndirect = EnableIndirectDraws && SceneMeshletCount > 0 && IndirectDrawsGpu != null;
+            EnableOcclusionQueries = EnableOcclusionCulling && !DrawMeshletsIndirect;
+
+            if (DrawMeshletsIndirect)
+            {
+                Debug.Assert(IndirectDrawsGpu is not null);
+                Debug.Assert(CompactedDrawsGpu is not null);
+
+                CompactMeshletDraws = GLEnvironment.IndirectCountSupported && EnableCompaction;
+                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, CompactMeshletDraws
+                    ? CompactedDrawsGpu.Handle
+                    : IndirectDrawsGpu.Handle);
+
+                if (CompactMeshletDraws)
+                {
+                    Debug.Assert(CompactedCountsGpu is not null);
+                    GL.BindBuffer(BufferTarget.ParameterBuffer, CompactedCountsGpu.Handle);
+                }
+            }
+        }
+
         public void MeshletCullGpu(Frustum frustum)
         {
             Debug.Assert(frustumBuffer is not null);
@@ -813,7 +815,7 @@ namespace ValveResourceFormat.Renderer
             FrustumCullShader.Use();
 
             // Set occlusion culling enabled flag
-            var occlusionEnabled = EnableOcclusionCulling && DepthPyramidValid;
+            var occlusionEnabled = DepthPyramidValid;
             FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", occlusionEnabled ? 1 : 0);
 
             // If occlusion culling is enabled, setup depth pyramid and bind texture
@@ -837,14 +839,11 @@ namespace ValveResourceFormat.Renderer
             IndirectDrawsGpu.BindBufferBase();
 
             // Bind debug buffer for occluded bounds visualization
-            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", ShowOcclusionCullingDebug ? 1 : 0);
-            if (ShowOcclusionCullingDebug && OccludedBoundsDebugGpu != null)
+            if (OcclusionDebugEnabled)
             {
-                // Clear the atomic counter before dispatching
-                var zero = 0u;
-                GL.ClearNamedBufferSubData(OccludedBoundsDebugGpu.Handle, PixelInternalFormat.R32ui, IntPtr.Zero, sizeof(uint), PixelFormat.RedInteger, PixelType.UnsignedInt, ref zero);
-                OccludedBoundsDebugGpu.BindBufferBase();
+                OcclusionDebug!.BindAndClearBuffer();
             }
+            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", OcclusionDebugEnabled);
 
             var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
@@ -955,7 +954,7 @@ namespace ValveResourceFormat.Renderer
 
             var depthPrepass = !depthOnlyShaders.IsEmpty && EnableDepthPrepass;
 
-            if (EnableIndirectDraws)
+            if (DrawMeshletsIndirect)
             {
                 // Memory barrier to ensure compute shader writes are visible to indirect draw commands
                 GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
@@ -990,7 +989,7 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            if (!depthPrepass && EnableIndirectDraws)
+            if (!depthPrepass && DrawMeshletsIndirect)
             {
                 using var _ = new GLDebugGroup("Meshlet Render");
                 renderContext.RenderPass = RenderPass.OpaqueAggregate;
@@ -1147,7 +1146,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (!EnableOcclusionCullingCpu)
+            if (!EnableOcclusionQueries)
             {
                 ClearOccludedStateRecursive(StaticOctree.Root);
                 occlusionDirty = false;
