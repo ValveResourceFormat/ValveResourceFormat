@@ -98,6 +98,8 @@ namespace ValveResourceFormat.Renderer
             renderShader.SetUniform3x4("transform", transform);
 
             renderShader.SetBoneAnimationData(false);
+            renderShader.SetUniform1("shaderId", material.Shader.NameHash);
+            renderShader.SetUniform1("shaderProgramId", (uint)material.Shader.Program);
 
             material.Render(renderShader);
 

@@ -304,6 +304,17 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
+            if (deletePrevious)
+            {
+                DrawBoundsGpu?.Delete();
+                MeshletDataGpu?.Delete();
+                IndirectDrawsGpu?.Delete();
+                CompactedDrawsGpu?.Delete();
+                CompactedCountsGpu?.Delete();
+                CompactionRequestsGpu?.Delete();
+                OcclusionDebug?.OccludedBoundsDebugGpu?.Delete();
+            }
+
             // draw bounds
             {
                 var drawBounds = new DrawBounds[aggregateDrawCallCount];
@@ -402,16 +413,6 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 SceneMeshletCount = sceneMeshletCount;
-
-                if (deletePrevious)
-                {
-                    MeshletDataGpu?.Delete();
-                    IndirectDrawsGpu?.Delete();
-                    CompactedDrawsGpu?.Delete();
-                    CompactedCountsGpu?.Delete();
-                    CompactionRequestsGpu?.Delete();
-                    OcclusionDebug?.OccludedBoundsDebugGpu?.Delete();
-                }
 
                 MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets);
                 IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
