@@ -16,8 +16,13 @@ partial class RendererControl
         if (disposing && (components != null))
         {
             components.Dispose();
+        }
+
+        if (disposing)
+        {
             namedGroups.Clear();
         }
+
         base.Dispose(disposing);
     }
 
