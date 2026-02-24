@@ -53,6 +53,7 @@ public static class GLEnvironment
         var minor = GL.GetInteger(GetPName.MinorVersion);
         var major = GL.GetInteger(GetPName.MajorVersion);
 
+        var vendor = GL.GetString(StringName.Vendor);
         var gpu = $"GPU: {GL.GetString(StringName.Renderer)}, Driver: {GL.GetString(StringName.Version)}";
 
         GpuRendererAndDriver = gpu;
@@ -75,7 +76,7 @@ public static class GLEnvironment
         }
 
         // not supported on Intel integrated drivers
-        IndirectCountSupported = extensions.Contains("GL_ARB_indirect_parameters");
+        IndirectCountSupported = vendor != "Intel";
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
         {
