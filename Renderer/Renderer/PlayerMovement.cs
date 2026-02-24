@@ -241,7 +241,7 @@ public class PlayerMovement
         if (crouchDelta != 0f)
         {
             // uncrouching
-            if (crouchDelta < 0f)
+            if (crouchDelta < 0f && Physics != null)
             {
                 // do not uncrouch if there is no headroom
                 var traceUp = TraceBBox(position, position + new Vector3(0, 0, crouchHeightDifference), PlayerHullDucked);
