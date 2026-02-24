@@ -160,6 +160,14 @@ namespace ValveResourceFormat.Renderer
             {
                 var sources = parsedData.Sources;
 
+                if (shaderName == "vrf.depth_only" && arguments.Count == 0)
+                {
+                    lock (sources)
+                    {
+                        sources.Remove(ShaderProgramType.Fragment);
+                    }
+                }
+
                 static ShaderType ToShaderType(ShaderProgramType type) => type switch
                 {
                     ShaderProgramType.Vertex => ShaderType.VertexShader,

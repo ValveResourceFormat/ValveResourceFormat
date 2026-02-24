@@ -59,6 +59,7 @@ namespace ValveResourceFormat.Renderer
             new("MeshId"),
             new("ShaderId"),
             new("ShaderProgramId"),
+            new("Meshlets")
         ];
 
         private readonly static Dictionary<string, byte> ShaderIds = new(Items.Count);

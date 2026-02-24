@@ -92,6 +92,7 @@ namespace GUI.Types.GLViewers
                 {
                     Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
                 });
+
                 UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
                 {
                     showStaticOctree = v;
@@ -110,6 +111,11 @@ namespace GUI.Types.GLViewers
 
                     SkyboxScene?.ShowToolsMaterials = v;
                 });
+
+                if (this is GLWorldViewer worldViewer)
+                {
+                    UiControl.AddCheckBox("Show Occluded Bounds", Scene.OcclusionDebugEnabled, (v) => Scene.OcclusionDebugEnabled = v);
+                }
 
                 UiControl.AddCheckBox("Show Render Timings", Renderer.Timings.Capture, (v) => Renderer.Timings.Capture = v);
             }
@@ -478,6 +484,11 @@ namespace GUI.Types.GLViewers
                     dynamicOctreeRenderer.Render();
                 }
 
+                if (Scene.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
+                {
+                    Scene.OcclusionDebug.Render();
+                }
+
                 if (ShowBaseGrid && baseGrid != null)
                 {
                     baseGrid.Render();
@@ -706,6 +717,8 @@ namespace GUI.Types.GLViewers
             Renderer.ViewBuffer!.Data!.RenderMode = RenderModes.GetShaderId(renderMode);
 
             Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
+
+            Scene.EnableCompaction = renderMode != "Meshlets";
 
             Picker.SetRenderMode(renderMode);
             SelectedNodeRenderer.SetRenderMode(renderMode);

@@ -41,10 +41,10 @@ layout(std140, binding = 2) uniform EnvMapArray
     // ...
 #elif (S_SCENE_CUBEMAP_TYPE == 1)
     uniform samplerCube g_tEnvironmentMap;
-    uniform uvec4 g_nEnvMapVisibility;
+    flat in uvec4 g_nEnvMapVisibility;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap;
-    uniform uvec4 g_nEnvMapVisibility;
+    flat in uvec4 g_nEnvMapVisibility;
 #endif
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)

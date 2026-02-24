@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 
@@ -10,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Buffers
     /// </summary>
     /// <typeparam name="T">The struct type to store in the buffer.</typeparam>
     public class UniformBuffer<T> : Buffer, IDisposable
-        where T : new()
+        where T : notnull, new()
     {
         [NotNull]
         T data;
@@ -24,6 +25,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         {
             Size = Marshal.SizeOf<T>();
             Debug.Assert(Size % 16 == 0);
+            Debug.Assert(Size <= 65536);
 
             cpuBuffer = new float[Size / 4];
             cpuBufferHandle = GCHandle.Alloc(cpuBuffer, GCHandleType.Pinned);
@@ -37,7 +39,21 @@ namespace ValveResourceFormat.Renderer.Buffers
         private void WriteToCpuBuffer()
         {
             Debug.Assert(Size == Marshal.SizeOf(data));
-            Marshal.StructureToPtr(data, cpuBufferHandle.AddrOfPinnedObject(), false);
+
+            var cpuBufferPtr = cpuBufferHandle.AddrOfPinnedObject();
+
+            if (typeof(T).IsValueType)
+            {
+                unsafe
+                {
+                    // avoid Marshal.StructureToPtr boxing our struct
+                    Unsafe.Write(cpuBufferPtr.ToPointer(), data);
+                }
+            }
+            else
+            {
+                Marshal.StructureToPtr(data, cpuBufferPtr, false);
+            }
         }
 
         private void Initialize()

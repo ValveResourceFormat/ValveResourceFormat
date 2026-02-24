@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public void UpdateVertexArrayObject()
+        public int UpdateVertexArrayObject()
         {
             Debug.Assert(Material.Shader.IsLoaded, "Shader must be loaded (more specifically the attribute locations) before creating a VAO");
 
@@ -68,6 +68,7 @@ namespace ValveResourceFormat.Renderer
             var vaoName = $"{MeshName}+{Material.Material.Name}";
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, VertexArrayObject, Math.Min(GLEnvironment.MaxLabelLength, vaoName.Length), vaoName);
 #endif
+            return VertexArrayObject;
         }
 
         public void DeleteVertexArrayObject()

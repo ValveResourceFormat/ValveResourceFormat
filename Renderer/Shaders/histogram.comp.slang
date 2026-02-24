@@ -5,7 +5,7 @@
 layout(binding = 0) uniform sampler2D inputImage;
 
 // Global histogram buffer (256 bins)
-layout(binding = 11, std430) buffer HistogramBuffer
+layout(binding = 2, std430) buffer HistogramBuffer
 {
     uint histogram[256];
 };
@@ -16,7 +16,7 @@ shared uint localHistogram[256];
 uniform float logMinLuminance;      // Minimum log luminance value
 uniform float logLuminanceRange;    // Range of log luminance (inverse scale factor)
 
-layout(binding = 12, std140) buffer Luminance { float outputLuminance; };
+layout(binding = 3, std140) buffer Luminance { float outputLuminance; };
 
 #define D_HISTOGRAM_MODE 0
 

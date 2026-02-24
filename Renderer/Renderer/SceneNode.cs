@@ -89,5 +89,10 @@ namespace ValveResourceFormat.Renderer
         public virtual void Delete()
         {
         }
+
+        public float GetCameraDistance(Camera camera)
+        {
+            return (BoundingBox.Center - camera.Location).LengthSquared();
+        }
     }
 }

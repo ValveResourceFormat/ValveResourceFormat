@@ -7,7 +7,6 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 /// <remarks>
 /// Used to annotate sections of OpenGL commands in debugging tools like RenderDoc.
-/// Only active in DEBUG builds.
 /// </remarks>
 public ref struct GLDebugGroup
 {

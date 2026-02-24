@@ -28,6 +28,9 @@ namespace ValveResourceFormat.Renderer
 
         public Dictionary<string, int> Attributes { get; } = [];
 
+        public bool IgnoreMaterialData { get; }
+
+
 #if DEBUG
         public required string FileName { get; init; }
 #endif
@@ -38,6 +41,10 @@ namespace ValveResourceFormat.Renderer
             NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
             Default = new RenderMaterial(this);
             MaterialLoader = rendererContext.MaterialLoader;
+
+            IgnoreMaterialData = Name is "vrf.picking"
+                                      or "vrf.outline"
+                                      or "vrf.depth_only";
         }
 
         public bool EnsureLoaded()

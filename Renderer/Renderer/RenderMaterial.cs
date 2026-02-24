@@ -31,6 +31,7 @@ namespace ValveResourceFormat.Renderer
         SceneColor,
         SceneDepth,
         SceneStencil,
+        DepthPyramid,
         MorphCompositeTexture,
         Last = MorphCompositeTexture,
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
@@ -242,9 +243,8 @@ namespace ValveResourceFormat.Renderer
 
             shader ??= Shader;
 
-            if (shader.Name is "vrf.picking" or "vrf.outline")
+            if (shader.IgnoreMaterialData)
             {
-                // Discard material data for picking shader, (blend modes, etc.)
                 return;
             }
 
