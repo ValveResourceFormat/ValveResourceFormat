@@ -61,7 +61,7 @@ public class VfxVariableDescription : ShaderDataBlock
     /// <summary>Gets the number of register elements.</summary>
     public int RegisterElements { get; }
 
-    /// <summary>Gets a value indicating whether sRGB reads are disabled for this variable.</summary>
+    /// <summary>Gets a value indicating whether hardware sRGB reads are enabled for this variable.</summary>
     public bool SrgbRead => (ExtConstantBufferId & 0x01) == 1;
 
     /// <summary>Gets the external constant buffer ID.</summary>
