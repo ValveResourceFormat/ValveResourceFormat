@@ -30,31 +30,15 @@ namespace ValveResourceFormat.Renderer
         private static partial Regex RegexUniform();
 
         private readonly StringBuilder builder = new(1024);
-        private int sourceFileNumber;
-        public List<string> SourceFiles { get; } = [];
-
-#if DEBUG
-        public List<List<string>> SourceFileLines { get; } = [];
-#endif
 
         public void ClearBuilder()
         {
             builder.Clear();
         }
 
-        public void Reset()
-        {
-            ClearBuilder();
-            sourceFileNumber = 0;
-            SourceFiles.Clear();
-
-#if DEBUG
-            SourceFileLines.Clear();
-#endif
-        }
-
         public string PreprocessShader(string shaderFile, ParsedShaderData parsedData)
         {
+            var sourceFileNumber = parsedData.SourceFiles.Count;
             var resolvedIncludes = new HashSet<string>(4);
 
             void AppendLineNumber(int a, int b)
@@ -96,11 +80,11 @@ namespace ValveResourceFormat.Renderer
                 string? line;
                 var lineNum = 1;
                 var currentSourceFileNumber = sourceFileNumber++;
-                SourceFiles.Add(shaderFileToLoad);
+                parsedData.SourceFiles.Add(shaderFileToLoad);
 
 #if DEBUG
                 var currentSourceLines = new List<string>();
-                SourceFileLines.Add(currentSourceLines);
+                parsedData.SourceFileLines.Add(currentSourceLines);
 #endif
 
                 builder.EnsureCapacity(builder.Length + (int)stream.Length);

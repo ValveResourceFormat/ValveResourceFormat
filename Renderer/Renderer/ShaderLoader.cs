@@ -60,6 +60,10 @@ namespace ValveResourceFormat.Renderer
             public HashSet<string> Uniforms { get; } = [];
             public HashSet<string> SrgbUniforms { get; } = [];
             public Dictionary<ShaderProgramType, string> Sources { get; } = [];
+            public List<string> SourceFiles { get; } = [];
+#if DEBUG
+            public List<List<string>> SourceFileLines { get; } = [];
+#endif
         }
 
         static ShaderLoader()
@@ -226,7 +230,7 @@ namespace ValveResourceFormat.Renderer
                     if (!shader.EnsureLoaded())
                     {
                         GL.GetProgramInfoLog(shader.Program, out var log);
-                        ThrowShaderError(log, string.Concat(shaderFileName, GetArgumentDescription(arguments)), shaderName, "Failed to link shader");
+                        ThrowShaderError(log, string.Concat(shaderFileName, GetArgumentDescription(arguments)), shaderName, "Failed to link shader", parsedData);
                     }
                 }
 
@@ -243,10 +247,6 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 throw;
-            }
-            finally
-            {
-                Parser.ClearBuilder();
             }
         }
 
@@ -283,11 +283,11 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < shaderObjects.Length; i++)
             {
-                CompileShaderObject(shaderObjects[i], shaderFile, originalShaderName, arguments, headerText, shaderSources[i]);
+                CompileShaderObject(shaderObjects[i], shaderFile, originalShaderName, arguments, headerText, shaderSources[i], parsedData);
             }
         }
 
-        private static void CompileShaderObject(int shader, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, string headerText, string shaderText)
+        private static void CompileShaderObject(int shader, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, string headerText, string shaderText, ParsedShaderData parsedData)
         {
             string[] sources = [headerText, shaderText];
             int[] lengths = [sources[0].Length, sources[1].Length];
@@ -301,11 +301,11 @@ namespace ValveResourceFormat.Renderer
             {
                 GL.GetShaderInfoLog(shader, out var log);
 
-                ThrowShaderError(log, string.Concat(shaderFile, GetArgumentDescription(arguments)), originalShaderName, "Failed to set up shader");
+                ThrowShaderError(log, string.Concat(shaderFile, GetArgumentDescription(arguments)), originalShaderName, "Failed to set up shader", parsedData);
             }
         }
 
-        private static void ThrowShaderError(string info, string shaderFile, ReadOnlySpan<char> originalShaderName, string errorType)
+        private static void ThrowShaderError(string info, string shaderFile, ReadOnlySpan<char> originalShaderName, string errorType, ParsedShaderData parsedData)
         {
             // Attempt to parse error message to get the line number so we can print the actual line
             var errorMatch = NvidiaGlslError().Match(info);
@@ -328,7 +328,7 @@ namespace ValveResourceFormat.Renderer
             {
                 errorSourceFile = int.Parse(errorMatch.Groups["SourceFile"].Value, CultureInfo.InvariantCulture);
                 errorLine = int.Parse(errorMatch.Groups["Line"].Value, CultureInfo.InvariantCulture);
-                sourceFile = Parser.SourceFiles[errorSourceFile];
+                sourceFile = parsedData.SourceFiles[errorSourceFile];
             }
 
 #if DEBUG
@@ -358,9 +358,9 @@ namespace ValveResourceFormat.Renderer
                 info += $"\nError in {sourceFile} on line {errorLine}";
 
 #if DEBUG
-                if (errorLine > 0 && errorLine <= Parser.SourceFileLines[errorSourceFile].Count)
+                if (errorLine > 0 && errorLine <= parsedData.SourceFileLines[errorSourceFile].Count)
                 {
-                    info += $":\n{Parser.SourceFileLines[errorSourceFile][errorLine - 1]}\n";
+                    info += $":\n{parsedData.SourceFileLines[errorSourceFile][errorLine - 1]}\n";
                 }
 #endif
             }
@@ -474,7 +474,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
         public void ReloadAllShaders(string? name = null)
         {
-            Parser.Reset();
+            Parser.ClearBuilder();
 
             if (name != null && ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".{ext}.slang", StringComparison.Ordinal)))
             {
@@ -545,10 +545,10 @@ namespace ValveResourceFormat.Renderer
                 loader.LoadShader(vrfFileName);
 
                 // Test all defines one by one
-                var allDefines = GetOrParseShader(GetShaderFileByName(vrfFileName)).Defines;
-                var defines = allDefines.Where(static x => !x.Key.StartsWith("GameVfx_", StringComparison.Ordinal)).ToDictionary();
-                var variants = allDefines.Keys.Where(static x => x.StartsWith("GameVfx_", StringComparison.Ordinal));
-                var sourceLines = Parser.SourceFileLines;
+                var parsed = GetOrParseShader(GetShaderFileByName(vrfFileName));
+                var defines = parsed.Defines.Where(static x => !x.Key.StartsWith("GameVfx_", StringComparison.Ordinal)).ToDictionary();
+                var variants = parsed.Defines.Keys.Where(static x => x.StartsWith("GameVfx_", StringComparison.Ordinal));
+                var sourceLines = parsed.SourceFileLines;
                 var maxValues = ExtractMaxDefineValues(defines, sourceLines);
 
                 foreach (var define in defines.Keys)
