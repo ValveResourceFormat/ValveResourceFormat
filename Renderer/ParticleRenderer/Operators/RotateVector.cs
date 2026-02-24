@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var axis = Vector3.Normalize(ParticleCollection.RandomBetween(particle.ParticleID, RotAxisMin, RotAxisMax));
-                var rotationRate = MathUtils.ToRadians(ParticleCollection.RandomBetween(particle.ParticleID, RotRateMin, rotRateMax));
+                var rotationRate = float.DegreesToRadians(ParticleCollection.RandomBetween(particle.ParticleID, RotRateMin, rotRateMax));
 
                 var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
 

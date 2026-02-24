@@ -2,12 +2,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     class CreateWithinSphere : ParticleFunctionInitializer
     {
-        private readonly INumberProvider radiusMin = new LiteralNumberProvider(0);
-        private readonly INumberProvider radiusMax = new LiteralNumberProvider(0);
-        private readonly INumberProvider speedMin = new LiteralNumberProvider(0);
-        private readonly INumberProvider speedMax = new LiteralNumberProvider(0);
-        private readonly IVectorProvider localCoordinateSystemSpeedMin = new LiteralVectorProvider(Vector3.Zero);
-        private readonly IVectorProvider localCoordinateSystemSpeedMax = new LiteralVectorProvider(Vector3.Zero);
+        protected readonly INumberProvider radiusMin = new LiteralNumberProvider(0);
+        protected readonly INumberProvider radiusMax = new LiteralNumberProvider(0);
+        protected readonly INumberProvider speedMin = new LiteralNumberProvider(0);
+        protected readonly INumberProvider speedMax = new LiteralNumberProvider(0);
+        protected readonly IVectorProvider localCoordinateSystemSpeedMin = new LiteralVectorProvider(Vector3.Zero);
+        protected readonly IVectorProvider localCoordinateSystemSpeedMax = new LiteralVectorProvider(Vector3.Zero);
 
         public CreateWithinSphere(ParticleDefinitionParser parse) : base(parse)
         {

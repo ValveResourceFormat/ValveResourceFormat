@@ -1,0 +1,67 @@
+name: Issue Automation
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+  actions: read
+
+jobs:
+  check-bug:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'Bug'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - name: Auto-label based on issue content
+        run: |
+          LABELS=""
+
+          # Detect Exporting issues
+          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.IO\.([A-Za-z]+Extract|GltfModelExporter|ContentFile)|GUI\.Types\.Exporter'; then
+            LABELS="$LABELS,Exporting"
+          fi
+
+          # Detect Renderer issues
+          if echo "$ISSUE_BODY" | grep -qE 'ValveResourceFormat\.Renderer|GUI\.Types\.GLViewers|RendererContext|RenderLoop'; then
+            LABELS="$LABELS,Renderer"
+          fi
+
+          # Remove leading comma and add labels
+          LABELS="${LABELS#,}"
+          if [ -n "$LABELS" ]; then
+            echo "Adding labels: $LABELS"
+            gh issue edit "$ISSUE_NUMBER" --add-label "$LABELS"
+          else
+            echo "No labels to add"
+          fi
+
+      - name: Check reported version
+        run: |
+          VERSION_TEXT=$(echo "$ISSUE_BODY" | grep -A 2 '### What version of S2V are you using' | tail -1 || true)
+          BUILD_NUMBER=$(echo "$VERSION_TEXT" | grep -oP '\d{1,3}\.\d{1,3}\.\K\d+' | head -1 || true)
+          echo "Detected version text: $VERSION_TEXT"
+          echo "Detected build number: $BUILD_NUMBER"
+
+          LATEST_BUILD=$(gh run list --branch master --status success --workflow build.yml --limit 1 --json number --jq '.[0].number')
+          echo "Latest build number: $LATEST_BUILD"
+
+          if [ -z "$BUILD_NUMBER" ]; then
+            BODY=$'Unable to determine the version of Source 2 Viewer from this issue.\nPlease provide the version by using the **copy version** button in the about window, and download the [latest dev build](https://s2v.app/dev) to confirm that this issue still occurs.'
+          elif [ "$BUILD_NUMBER" -ge "$LATEST_BUILD" ]; then
+            echo "Version is up to date"
+            exit 0
+          elif [ "$BUILD_NUMBER" -eq 0 ]; then
+            echo "Local build detected, skipping"
+            exit 0
+          else
+            BUILDS_BEHIND=$((LATEST_BUILD - BUILD_NUMBER))
+            BODY="The version of Source 2 Viewer reported in this issue is **$BUILDS_BEHIND** build(s) behind the latest dev build."$'\nPlease download the [latest dev build](https://s2v.app/dev) and confirm that this issue still occurs.'
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "$BODY"

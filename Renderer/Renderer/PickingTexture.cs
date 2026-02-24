@@ -5,21 +5,35 @@ using OpenTK.Mathematics;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Framebuffer for GPU-based object picking using unique object IDs.
+/// </summary>
 public class PickingTexture : Framebuffer
 {
+    /// <summary>
+    /// Type of interaction when picking an object.
+    /// </summary>
     public enum PickingIntent
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         Select,
         Open,
         Details,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
+    /// <summary>
+    /// Object picking response containing intent and pixel data.
+    /// </summary>
     public readonly struct PickingResponse
     {
         public PickingIntent Intent { get; init; }
         public PixelInfo PixelInfo { get; init; }
     }
 
+    /// <summary>
+    /// Pixel data read back from the picking framebuffer.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct PixelInfo
     {

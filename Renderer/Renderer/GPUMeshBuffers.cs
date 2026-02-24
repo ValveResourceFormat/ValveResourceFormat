@@ -4,6 +4,9 @@ using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// GPU vertex and index buffers created from VBIB mesh data.
+    /// </summary>
     public class GPUMeshBuffers
     {
         public int[] VertexBuffers { get; private set; }

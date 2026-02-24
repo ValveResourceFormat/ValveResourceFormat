@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 degrees *= -1;
             }
 
-            particle.SetScalar(FieldOutput, MathUtils.ToRadians(degrees));
+            particle.SetScalar(FieldOutput, float.DegreesToRadians(degrees));
 
             return particle;
         }

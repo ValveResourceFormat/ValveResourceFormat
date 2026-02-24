@@ -4,6 +4,9 @@ using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Single GPU draw operation with geometry, material, and render state.
+    /// </summary>
     public class DrawCall
     {
         public PrimitiveType PrimitiveType { get; set; }
@@ -31,6 +34,14 @@ namespace ValveResourceFormat.Renderer
         public IndexDrawBuffer IndexBuffer { get; set; }
         public int VertexIdOffset { get; set; }
 
+        public int IndexSizeInBytes => IndexType switch
+        {
+            DrawElementsType.UnsignedByte => 1,
+            DrawElementsType.UnsignedShort => 2,
+            DrawElementsType.UnsignedInt => 4,
+            _ => throw new UnreachableException(nameof(IndexType))
+        };
+
 
         public void SetNewMaterial(RenderMaterial newMaterial)
         {
@@ -43,7 +54,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public void UpdateVertexArrayObject()
+        public int UpdateVertexArrayObject()
         {
             Debug.Assert(Material.Shader.IsLoaded, "Shader must be loaded (more specifically the attribute locations) before creating a VAO");
 
@@ -57,6 +68,7 @@ namespace ValveResourceFormat.Renderer
             var vaoName = $"{MeshName}+{Material.Material.Name}";
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, VertexArrayObject, Math.Min(GLEnvironment.MaxLabelLength, vaoName.Length), vaoName);
 #endif
+            return VertexArrayObject;
         }
 
         public void DeleteVertexArrayObject()
@@ -65,12 +77,18 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    /// <summary>
+    /// Index buffer binding for draw calls.
+    /// </summary>
     public readonly struct IndexDrawBuffer
     {
         public int Handle { get; init; }
         public uint Offset { get; init; }
     }
 
+    /// <summary>
+    /// Vertex buffer binding with stride and attribute layout.
+    /// </summary>
     public readonly struct VertexDrawBuffer
     {
         public int Handle { get; init; }

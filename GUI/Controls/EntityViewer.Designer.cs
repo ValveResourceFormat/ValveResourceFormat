@@ -19,6 +19,12 @@ partial class EntityViewer
         {
             components.Dispose();
         }
+
+        if (disposing)
+        {
+            VisibleChanged -= EntityViewer_VisibleChanged;
+        }
+
         base.Dispose(disposing);
     }
 

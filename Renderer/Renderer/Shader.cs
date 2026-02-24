@@ -3,6 +3,9 @@ using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// OpenGL shader program with uniform management and material defaults.
+    /// </summary>
     public class Shader
     {
         public string Name { get; }
@@ -25,6 +28,9 @@ namespace ValveResourceFormat.Renderer
 
         public Dictionary<string, int> Attributes { get; } = [];
 
+        public bool IgnoreMaterialData { get; }
+
+
 #if DEBUG
         public required string FileName { get; init; }
 #endif
@@ -35,6 +41,10 @@ namespace ValveResourceFormat.Renderer
             NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
             Default = new RenderMaterial(this);
             MaterialLoader = rendererContext.MaterialLoader;
+
+            IgnoreMaterialData = Name is "vrf.picking"
+                                      or "vrf.outline"
+                                      or "vrf.depth_only";
         }
 
         public bool EnsureLoaded()
@@ -62,9 +72,9 @@ namespace ValveResourceFormat.Renderer
             return IsValid;
         }
 
-        private void StoreUniformLocations()
+        private unsafe void StoreUniformLocations()
         {
-            var vec4Val = new float[4];
+            Span<float> floatVal = stackalloc float[16];
 
             // Stores uniform types and locations
             var uniforms = GetAllUniformNames();
@@ -92,6 +102,7 @@ namespace ValveResourceFormat.Renderer
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
                 var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;
+                var isMatrix = type is ActiveUniformType.FloatMat4;
 
                 if (isTexture && !Default.Textures.ContainsKey(name))
                 {
@@ -122,9 +133,12 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (isVector && !Default.Material.VectorParams.ContainsKey(name))
                 {
-                    vec4Val[0] = vec4Val[1] = vec4Val[2] = vec4Val[3] = 0f;
-                    GL.GetUniform(Program, GetUniformLocation(name), vec4Val);
-                    Default.Material.VectorParams[name] = new Vector4(vec4Val[0], vec4Val[1], vec4Val[2], vec4Val[3]);
+                    floatVal.Clear();
+                    fixed (float* ptr = floatVal)
+                    {
+                        GL.GetUniform(Program, GetUniformLocation(name), ptr);
+                    }
+                    Default.Material.VectorParams[name] = new Vector4(floatVal[0], floatVal[1], floatVal[2], floatVal[3]);
                 }
                 else if (isScalar && !Default.Material.FloatParams.ContainsKey(name))
                 {
@@ -135,6 +149,20 @@ namespace ValveResourceFormat.Renderer
                 {
                     GL.GetUniform(Program, GetUniformLocation(name), out int intVal);
                     Default.Material.IntParams[name] = intVal;
+                }
+                else if (isMatrix && !Default.Matrices.ContainsKey(name))
+                {
+                    floatVal.Clear();
+                    fixed (float* ptr = floatVal)
+                    {
+                        GL.GetUniform(Program, GetUniformLocation(name), ptr);
+                    }
+                    Default.Matrices[name] = new Matrix4x4(
+                        floatVal[0], floatVal[4], floatVal[8], floatVal[12],
+                        floatVal[1], floatVal[5], floatVal[9], floatVal[13],
+                        floatVal[2], floatVal[6], floatVal[10], floatVal[14],
+                        floatVal[3], floatVal[7], floatVal[11], floatVal[15]
+                    );
                 }
             }
         }

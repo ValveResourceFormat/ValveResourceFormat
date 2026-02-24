@@ -14,6 +14,9 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Loads and manages Source 2 world data including entities, lighting, and geometry.
+    /// </summary>
     public class WorldLoader
     {
         private readonly Scene scene;
@@ -251,6 +254,7 @@ namespace ValveResourceFormat.Renderer
             {"direct_light_shadows", "g_tDirectLightShadows"},
             {"direct_light_indices", "g_tDirectLightIndices"},
             {"direct_light_strengths", "g_tDirectLightStrengths"},
+            {"debug_chart_color", "g_tIrradianceDebugChart"},
         };
 
         private readonly string[] LightmapSetV81_SteamVr = ["g_tIrradiance", "g_tDirectionalIrradiance"];

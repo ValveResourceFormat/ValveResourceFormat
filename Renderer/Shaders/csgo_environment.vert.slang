@@ -1,5 +1,7 @@
 #version 460
 
+#define GameVfx_csgo_environment_blend 0
+
 #include "common/utils.slang"
 #include "common/instancing.slang"
 #include "common/animation.slang"
@@ -21,7 +23,7 @@ in vec2 vTEXCOORD1;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if defined(csgo_environment_blend_vfx)
+#if (GameVfx_csgo_environment_blend != 0)
     in vec4 vTEXCOORD4;
     out vec4 vColorBlendValues;
 #endif
@@ -61,7 +63,7 @@ uniform vec2 g_vTexCoordScale1 = vec2(1.0);
 #endif
 
 // Material 2
-#if defined(csgo_environment_blend_vfx)
+#if (GameVfx_csgo_environment_blend != 0)
     uniform int g_nUVSet2 = 1;
     uniform float g_flTexCoordRotation2 = 0.0;
     uniform vec2 g_vTexCoordCenter2 = vec2(0.5);
@@ -184,7 +186,7 @@ void main()
         g_vTexCoordCenter1.xy
     );
 
-    #if defined(csgo_environment_blend_vfx)
+    #if (GameVfx_csgo_environment_blend != 0)
         vec2 selectedUVs2 = (g_nUVSet2 == 2) ? baseUVs.zw : baseUVs.xy;
         vTexCoord2.xy = RotateVector2D(selectedUVs2,
             g_flTexCoordRotation2,
@@ -230,7 +232,7 @@ void main()
             g_vDetailTexCoordCenter1.xy
         );
 
-        #if defined(csgo_environment_blend_vfx)
+        #if (GameVfx_csgo_environment_blend != 0)
             int actualDetailUVSet2 = (g_nDetailUVSet2 == -1) ? g_nUVSet2 : g_nDetailUVSet2;
             vec2 detailUVs2 = (actualDetailUVSet2 == 2) ? vTEXCOORD1.xy : vTEXCOORD.xy;
             vTexCoord2.zw = RotateVector2D(detailUVs2,
@@ -253,7 +255,7 @@ void main()
         #endif
     #endif
 
-    #if defined(csgo_environment_blend_vfx)
+    #if (GameVfx_csgo_environment_blend != 0)
 
         vTexCoord2.xy = RotateVector2D(vTEXCOORD.xy,
             g_flTexCoordRotation2,

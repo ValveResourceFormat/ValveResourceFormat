@@ -2,6 +2,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Renders a 2D skybox using a fullscreen cube.
+    /// </summary>
     public class SceneSkybox2D
     {
         public Vector3 Tint { get; init; } = Vector3.One;
@@ -13,6 +16,11 @@ namespace ValveResourceFormat.Renderer
         {
             Material = material;
             GL.CreateVertexArrays(1, out vao);
+
+#if DEBUG
+            var vaoLabel = nameof(SceneSkybox2D);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, vaoLabel.Length, vaoLabel);
+#endif
         }
 
         public void Render()

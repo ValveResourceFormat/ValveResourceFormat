@@ -2,6 +2,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Renders an infinite reference grid on the XY plane.
+    /// </summary>
     public class InfiniteGrid
     {
         private readonly int vao;
@@ -35,6 +38,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = nameof(InfiniteGrid);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, buffer, vaoLabel.Length, vaoLabel);
 #endif
         }
 

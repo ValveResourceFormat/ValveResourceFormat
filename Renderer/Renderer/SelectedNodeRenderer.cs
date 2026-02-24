@@ -4,6 +4,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Renders selection outlines and debug information for selected scene nodes.
+    /// </summary>
     public class SelectedNodeRenderer
     {
         private readonly Shader shader;
@@ -31,6 +34,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = nameof(SelectedNodeRenderer);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
 #endif
         }
 
@@ -195,14 +199,20 @@ namespace ValveResourceFormat.Renderer
 
                 if (debugCubeMaps)
                 {
-                    var tiedEnvmaps = renderContext.Scene.LightingInfo.CubemapType switch
+                    IEnumerable<SceneEnvMap> tiedEnvmaps = node.EnvMaps;
+                    if (renderContext.Scene.LightingInfo.CubemapType == CubemapType.CubemapArray)
                     {
-                        CubemapType.CubemapArray => node.ShaderEnvMapVisibility
-                            .GetVisibleShaderIndices()
-                            .Select(shaderId => renderContext.Scene.LightingInfo.EnvMaps.FirstOrDefault(env => env.ShaderIndex == shaderId))
-                            .OfType<SceneEnvMap>(),
-                        _ => node.EnvMaps
-                    };
+                        var list = new List<SceneEnvMap>();
+                        foreach (var shaderId in node.ShaderEnvMapVisibility.GetVisibleShaderIndices())
+                        {
+                            var env = renderContext.Scene.LightingInfo.EnvMaps.FirstOrDefault(e => e.ShaderIndex == shaderId);
+                            if (env is SceneEnvMap sem)
+                            {
+                                list.Add(sem);
+                            }
+                        }
+                        tiedEnvmaps = list;
+                    }
 
                     var i = 0;
 

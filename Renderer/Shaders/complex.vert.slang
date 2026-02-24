@@ -1,5 +1,17 @@
 #version 460
 
+#define GameVfx_csgo_character 0
+#define GameVfx_csgo_foliage 0
+#define GameVfx_csgo_simple_2way_blend 0
+#define GameVfx_environment_blend 0
+#define GameVfx_vr_complex 0
+#define GameVfx_vr_simple_2way_blend 0
+#define GameVfx_vr_simple_2way_parallax 0
+#define GameVfx_vr_simple_3way_parallax 0
+#define GameVfx_vr_simple_blend_to_triplanar 0
+#define GameVfx_vr_simple_blend_to_xen_membrane 0
+#define GameVfx_vr_standard 0
+
 #include "common/utils.slang"
 #include "common/features.slang"
 #include "common/ViewConstants.slang"
@@ -22,10 +34,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
 //End of parameter defines
 
-#if defined(vr_simple_2way_blend_vfx) || defined (csgo_simple_2way_blend_vfx)
-    #define simple_2way_blend_vfx
-#endif
-#if defined(vr_simple_2way_blend_vfx) || defined(vr_simple_2way_parallax_vfx) || defined(vr_simple_3way_parallax_vfx) || defined(vr_simple_blend_to_triplanar_vfx) || defined(vr_simple_blend_to_xen_membrane_vfx)
+#if (GameVfx_vr_simple_2way_blend != 0) || (GameVfx_vr_simple_2way_parallax != 0) || (GameVfx_vr_simple_3way_parallax != 0) || (GameVfx_vr_simple_blend_to_triplanar != 0) || (GameVfx_vr_simple_blend_to_xen_membrane != 0)
     #define vr_blend_vfx_common
 #endif
 
@@ -33,7 +42,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
     in vec2 vLightmapUV;
     centroid out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    #if defined(vr_standard_vfx)
+    #if (GameVfx_vr_standard != 0)
         #undef F_VERTEX_COLOR
         #undef F_PAINT_VERTEX_COLORS
         in vec4 vCOLOR1;
@@ -43,7 +52,7 @@ uniform int F_TEXTURE_ANIMATION_MODE;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || defined(simple_2way_blend_vfx) || defined(vr_blend_vfx_common) || defined(vr_standard_vfx_blend) || defined(environment_blend_vfx)
+#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common) || defined(vr_standard_vfx_blend) || (GameVfx_environment_blend != 0)
     #if defined(vr_standard_vfx_blend)
         #define vBLEND_COLOR vTEXCOORD2
     #else
@@ -60,9 +69,9 @@ uniform int F_TEXTURE_ANIMATION_MODE;
 #endif
 
 #if defined(foliage_vfx_common)
-    #if defined(csgo_foliage_vfx)
+    #if (GameVfx_csgo_foliage != 0)
         #define vFoliageParams vCOLOR
-    #elif defined(vr_complex_vfx)
+    #elif (GameVfx_vr_complex != 0)
         #define vFoliageParams vTEXCOORD3
     #endif
     in vec4 vFoliageParams;
@@ -293,7 +302,7 @@ void main()
     vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
 #endif
 
-#if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
+#if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1) && (D_ANIMATED == 1)
     eyeInterpolator = GetCharacterEyeInterpolator(vPOSITION);
 #endif
 
@@ -302,7 +311,7 @@ void main()
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-    #if defined(vr_standard_vfx)
+    #if (GameVfx_vr_standard != 0)
         vec4 vPerVertexLighting = vCOLOR1;
     #endif
     vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;

@@ -74,6 +74,12 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public HashSet<string> AnimationFilter { get; } = [];
 
+        /// <summary>
+        /// Gets the set of mesh names to filter during export.
+        /// The filter does not apply when exporting a vmesh resource.
+        /// </summary>
+        public HashSet<string> MeshFilter { get; } = [];
+
         private string DstDir = string.Empty;
         private CancellationToken CancellationToken;
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
@@ -337,9 +343,9 @@ namespace ValveResourceFormat.IO
                         }
 
                         var pitchYawRoll = entity.GetVector3Property("angles");
-                        var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * MathF.PI / 180f);
-                        var pitchMatrix = Matrix4x4.CreateRotationY((pitchYawRoll.X - 90) * MathF.PI / 180f); // copypasta because of this
-                        var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * MathF.PI / 180f);
+                        var rollMatrix = Matrix4x4.CreateRotationX(float.DegreesToRadians(pitchYawRoll.Z));
+                        var pitchMatrix = Matrix4x4.CreateRotationY(float.DegreesToRadians(pitchYawRoll.X - 90)); // copypasta because of this
+                        var yawMatrix = Matrix4x4.CreateRotationZ(float.DegreesToRadians(pitchYawRoll.Y));
                         var rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
 
                         var scaleMatrix = Matrix4x4.CreateScale(scale);
@@ -560,22 +566,32 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
 
-            var skeletonResource = FileLoader.LoadFileCompiled(animationClip.SkeletonName)
-                ?? throw new InvalidOperationException($"Unable to load skeleton data '{animationClip.SkeletonName}'.");
-
-            var skeletonData = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
-
-            var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, animationClip.SkeletonName);
-            if (joints == null)
+            void ExportAnimationClip(VAnimationClip clip)
             {
-                throw new InvalidDataException($"Failure creating glTF skeleton for '{animationClip.SkeletonName}'.");
+                var skeletonResource = FileLoader.LoadFileCompiled(clip.SkeletonName)
+                ?? throw new InvalidOperationException($"Unable to load skeleton data '{clip.SkeletonName}'.");
+
+                var skeletonData = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
+
+                var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, clip.SkeletonName);
+                if (joints == null)
+                {
+                    throw new InvalidDataException($"Failure creating glTF skeleton for '{clip.SkeletonName}'.");
+                }
+
+                //if (ExportAnimations)
+                {
+                    var animation = new ResourceTypes.ModelAnimation.Animation(clip);
+                    var animationWriter = new AnimationWriter(skeletonData, []);
+                    animationWriter.WriteAnimation(exportedModel, joints, animation);
+                }
             }
 
-            //if (ExportAnimations)
+            ExportAnimationClip(animationClip);
+
+            foreach (var secondaryClip in animationClip.SecondaryAnimations)
             {
-                var animation = new ResourceTypes.ModelAnimation.Animation(animationClip);
-                var animationWriter = new AnimationWriter(skeletonData, []);
-                animationWriter.WriteAnimation(exportedModel, joints, animation);
+                ExportAnimationClip(secondaryClip);
             }
 
             WriteModelFile(exportedModel, fileName);
@@ -639,6 +655,13 @@ namespace ValveResourceFormat.IO
             foreach (var m in LoadModelMeshes(model, name))
             {
                 var meshName = m.Name;
+
+                // Apply mesh filter if specified
+                if (MeshFilter.Count > 0 && !MeshFilter.Contains(name.Split('.')[^1]))
+                {
+                    continue;
+                }
+
                 if (skinName != null)
                 {
                     meshName = string.Concat(meshName, ".", skinName);

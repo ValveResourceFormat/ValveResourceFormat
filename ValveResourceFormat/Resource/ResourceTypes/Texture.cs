@@ -222,7 +222,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the reflectivity values as a 4-component vector (RGBA).
         /// </summary>
-        public float[] Reflectivity { get; private set; } = [];
+        public Vector4 Reflectivity { get; private set; }
 
         /// <summary>
         /// Gets the texture flags that define various properties and behaviors.
@@ -300,13 +300,12 @@ namespace ValveResourceFormat.ResourceTypes
 
             Flags = (VTexFlags)reader.ReadUInt16();
 
-            Reflectivity =
-            [
+            Reflectivity = new(
                 reader.ReadSingle(),
                 reader.ReadSingle(),
                 reader.ReadSingle(),
-                reader.ReadSingle(),
-            ];
+                reader.ReadSingle()
+            );
             Width = reader.ReadUInt16();
             Height = reader.ReadUInt16();
             Depth = reader.ReadUInt16();
@@ -621,11 +620,16 @@ namespace ValveResourceFormat.ResourceTypes
                     return SKBitmap.Decode(Reader.ReadBytes(CalculateWebpSize()));
             }
 
+            var isHdrBitmap = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR);
+            var removeDecodeFlags = isHdrBitmap
+                ? (TextureCodec.ColorSpaceLinear | TextureCodec.ColorSpaceSrgb)
+                : TextureCodec.None;
+
             decodeFlags = decodeFlags == TextureCodec.Auto
-                ? RetrieveCodecFromResourceEditInfo()
+                ? RetrieveCodecFromResourceEditInfo() & ~removeDecodeFlags
                 : decodeFlags;
 
-            var colorType = IsHighDynamicRange && !decodeFlags.HasFlag(TextureCodec.ForceLDR)
+            var colorType = isHdrBitmap
                 ? HdrBitmapColorType
                 : DefaultBitmapColorType;
 

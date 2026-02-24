@@ -171,7 +171,7 @@ vec3 calculateIridescence(float hueAngle, float intensity)
     }
 }
 
-#if defined(vr_skin_vfx) || defined(vr_xen_foliage_vfx)
+#if (GameVfx_vr_skin != 0) || (GameVfx_vr_xen_foliage != 0)
 #define DIFFUSE_AO_COLOR_BLEED
 #endif
 
@@ -228,16 +228,39 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 //                              ALPHA TEST
 //-------------------------------------------------------------------------
 
-#if (F_ALPHA_TEST == 1) || (alphatest)
+#if (F_ALPHA_TEST > 0) || (alphatest)
 
+    uniform float g_flAlphaTestReference = 0.5;
     uniform float g_flAntiAliasedEdgeStrength = 1.0;
 
     float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
     {
-        float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
-        float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
-        float flAntiAliasAlphaBlend = mix(1.0, flAlphaTestAA_Amount, g_flAntiAliasedEdgeStrength);
-        return mix( flAlphaTestAA, flOpacity, flAntiAliasAlphaBlend );
+        const bool isMsaa = true;
+
+        const float epsilon = 1 / 255.0;
+        float flTestValue = isMsaa
+            ? 0.0
+            : g_flAlphaTestReference;
+        
+        if (flOpacity - epsilon < flTestValue)
+        {
+            discard;
+        }
+        
+        if (isMsaa)
+        {
+            // Sharp anti-aliased edge using shader derivatives
+            float flAlphaTestAA = saturate( (flOpacity - g_flAlphaTestReference) / ClampToPositive( fwidth(flOpacity) ) + 0.5 );
+            float flAlphaTestAA_Amount = min(1.0, length( fwidth(UVs) ) * 4.0);
+
+            // todo: lower this based on distance
+            float flAntiAliasAlphaBlend = mix(flAlphaTestAA_Amount, 1.0, g_flAntiAliasedEdgeStrength);
+
+            // this value will determine the number of msaa samples covered by this fragment
+            flOpacity = mix(flOpacity, flAlphaTestAA, flAntiAliasAlphaBlend);
+        }
+
+        return flOpacity;
     }
 #endif
 
@@ -248,9 +271,9 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 #if (F_DETAIL_TEXTURE > 0)
 
 // Xen foliage detail textures always has both color and normal
-#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && !defined(vr_xen_foliage_vfx)
-#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || defined(vr_xen_foliage_vfx)
-#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || defined(vr_xen_foliage_vfx)
+#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && (GameVfx_vr_xen_foliage == 0)
+#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
+#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
 
 uniform float g_flDetailBlendFactor = 1.0;
 uniform float g_flDetailBlendToFull = 0.0;
@@ -330,7 +353,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 
 // Cloth Sheen
-#if defined(csgo_character_vfx)
+#if (GameVfx_csgo_character != 0)
 
     uniform float g_flSheenScale = 0.667;
     uniform vec3 g_flSheenTintColor = vec3(1.0);  // SrgbRead(true)

@@ -166,7 +166,7 @@ public partial class GltfModelExporter
             return;
         }
 
-        if (renderMaterial.VectorParams.TryGetValue("g_vSpecularColor", out var vSpecularColor))
+        if (needsSpecularMode && renderMaterial.VectorParams.TryGetValue("g_vSpecularColor", out var vSpecularColor))
         {
             material.WithChannelColor("SpecularColor", vSpecularColor); // This might need SrgbGammaToLinear
         }

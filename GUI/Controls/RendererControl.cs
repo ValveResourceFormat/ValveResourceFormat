@@ -7,12 +7,17 @@ namespace GUI.Controls;
 
 partial class RendererControl : UserControl
 {
-    private Control ControlsPanel => controlsPanel;
+#pragma warning disable CA2213 // Disposable fields should be disposed
+    private Control? currentControlsTarget;
+#pragma warning restore CA2213 // Disposable fields should be disposed
+    private Control ControlsPanel => currentControlsTarget ?? controlsPanel;
     public Control GLControlContainer => glControlContainer;
+    private readonly Dictionary<string, Panel> namedGroups = [];
 
     public RendererControl(bool isPreview = false)
     {
         InitializeComponent();
+        currentControlsTarget = controlsPanel;
 
         if (isPreview)
         {
@@ -39,7 +44,7 @@ partial class RendererControl : UserControl
         SetControlLocation(control);
     }
 
-    public CheckBox AddCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
+    public static GLViewerCheckboxControl CreateCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
     {
         var checkbox = new GLViewerCheckboxControl(name, defaultChecked);
         checkbox.CheckBox.CheckedChanged += (_, __) =>
@@ -47,9 +52,13 @@ partial class RendererControl : UserControl
             changeCallback(checkbox.CheckBox.Checked);
         };
 
-        ControlsPanel.Controls.Add(checkbox);
+        return checkbox;
+    }
 
-        SetControlLocation(checkbox);
+    public CheckBox AddCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
+    {
+        var checkbox = CreateCheckBox(name, defaultChecked, changeCallback);
+        AddControl(checkbox);
 
         return checkbox.CheckBox;
     }
@@ -188,6 +197,76 @@ partial class RendererControl : UserControl
         SetControlLocation(trackBar);
 
         return trackBar;
+    }
+
+    public static Panel CreateFloatInput(string name, Action<float> onValChanged, float startValue = 0, float minValue = 0, float maxValue = 1000)
+    {
+        var panel = new Panel();
+
+        var label = new Label
+        {
+            Text = name,
+            Dock = DockStyle.Fill,
+        };
+
+        var numeric = new ThemedFloatNumeric
+        {
+            MinValue = minValue,
+            MaxValue = maxValue,
+            DragWithinRange = true,
+            DragDistance = 600,
+            Value = startValue,
+            Dock = DockStyle.Right,
+            Padding = new Padding(0, 0, 4, 0),
+        };
+
+        numeric.Width = numeric.AdjustForDPI(50);
+
+        numeric.ValueChanged += (obj, e) =>
+        {
+            onValChanged(((ThemedFloatNumeric)obj!).Value);
+        };
+
+        panel.Controls.Add(label);
+        panel.Controls.Add(numeric);
+        panel.Height = panel.AdjustForDPI(22);
+
+        return panel;
+    }
+
+    public ControlGroup BeginGroup(string title)
+    {
+        if (!namedGroups.TryGetValue(title, out var content))
+        {
+            var groupPanel = new Panel { AutoSize = true, Padding = new(0, 2, 0, 2) };
+            var groupBox = new ThemedGroupBox
+            {
+                Text = title,
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                Padding = new(4, 8, 4, 4),
+            };
+            content = new Panel { Dock = DockStyle.Top, AutoSize = true };
+
+            groupBox.Controls.Add(content);
+            groupPanel.Controls.Add(groupBox);
+            controlsPanel.Controls.Add(groupPanel);
+            SetControlLocation(groupPanel);
+
+            namedGroups[title] = content;
+        }
+
+        currentControlsTarget = content;
+        return new ControlGroup(this);
+    }
+
+    public ref struct ControlGroup(RendererControl? owner)
+    {
+        public void Dispose()
+        {
+            owner?.currentControlsTarget = null;
+            owner = null;
+        }
     }
 
     public void AddDivider()

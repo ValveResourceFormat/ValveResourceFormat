@@ -221,8 +221,6 @@ partial class ModelExtract
     }
     #endregion
 
-
-
     static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
         foreach (var bone in bones)

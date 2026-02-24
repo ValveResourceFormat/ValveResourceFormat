@@ -3,7 +3,8 @@
 #ifndef VRF_VIEWCONSTANTS_INCLUDE
 #define VRF_VIEWCONSTANTS_INCLUDE
 
-layout(std140, binding = 0) uniform ViewConstants {
+layout(std140, binding = 0) uniform ViewConstants
+{
     mat4 g_matWorldToProjection;
     mat4 g_matProjectionToWorld;
     mat4 g_matWorldToView;
@@ -31,6 +32,8 @@ layout(std140, binding = 0) uniform ViewConstants {
     vec4 g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip;
     mat4 g_matvCubeFogSkyWsToOs;
     vec4 g_vCubeFogCullingParams_ExposureBias_MaxOpacity;
+
+    mat4 g_matPrevWorldToProjection;
 };
 
 bool blink()

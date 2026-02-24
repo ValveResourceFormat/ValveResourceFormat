@@ -195,15 +195,15 @@ namespace GUI.Types.PackageViewer
 
             Cursor.Current = Cursors.Default;
 
+#if DEBUG
             if (resourceEntries.Count > 0 && MessageBox.Show(
                 "Would you like to scan and all dependencies of the compiled file (ending in \"_c\") you just added?",
                 "Detected a compiled resource",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                MessageBox.Show("TODO :)");
+                MessageBox.Show("This is not yet implemented.");
 
-#if DEBUG
                 while (resourceEntries.TryDequeue(out var entry))
                 {
                     if (vrfGuiContext.CurrentPackage == null)
@@ -255,8 +255,8 @@ namespace GUI.Types.PackageViewer
 
 
                 }
-#endif
             }
+#endif
         }
 
         public void RemoveCurrentFiles()

@@ -2,6 +2,9 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Scene node representing a light source with type, color, and attenuation.
+/// </summary>
 public class SceneLight(Scene scene) : SceneNode(scene)
 {
     /// <summary>
@@ -10,21 +13,31 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     public int StationaryLightIndex { get; set; }
 
+    /// <summary>
+    /// Shader light type for rendering calculations.
+    /// </summary>
     public enum LightType
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         Directional,
         Point,
         Spot,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
+    /// <summary>
+    /// Source 2 light entity class names.
+    /// </summary>
     public enum EntityType
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         Environment,
         Omni,
         Spot,
         Omni2,
         Barn,
         Rect,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     public Vector3 Position { get; set; }

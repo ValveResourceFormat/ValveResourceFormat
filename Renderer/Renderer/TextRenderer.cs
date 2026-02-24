@@ -7,6 +7,9 @@ using SkiaSharp;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Renders text using multi-channel signed distance field fonts.
+    /// </summary>
     public class TextRenderer
     {
         private record FontMetric(Vector4 PlaneBounds, Vector4 AtlasBounds, float Advance);
@@ -21,6 +24,9 @@ namespace ValveResourceFormat.Renderer
             public Color32 Color;
         }
 
+        /// <summary>
+        /// Text rendering parameters.
+        /// </summary>
         public struct TextRenderRequest()
         {
             public float X { get; set; }
@@ -88,6 +94,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var objectLabel = nameof(TextRenderer);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, objectLabel.Length, objectLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, bufferHandle, objectLabel.Length, objectLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, fontTexture.Handle, objectLabel.Length, objectLabel);
 #endif
         }

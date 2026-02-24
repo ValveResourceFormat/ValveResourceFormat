@@ -1,9 +1,14 @@
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Base class for scene nodes that render primitive shapes like boxes, spheres, and capsules.
+    /// </summary>
     public abstract class ShapeSceneNode : SceneNode
     {
         public virtual bool IsTranslucent { get; } = true;
@@ -100,6 +105,8 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = nameof(PhysSceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
 #endif
         }
 
@@ -164,12 +171,12 @@ namespace ValveResourceFormat.Renderer
             // generate vertices
             for (var band = 0; band < SphereBands; band++)
             {
-                var angleUp = -MathUtils.ToRadians(band * (90.0f / SphereBands));
+                var angleUp = -float.DegreesToRadians(band * (90.0f / SphereBands));
                 var quatUp = Quaternion.CreateFromAxisAngle(axisAround, angleUp);
 
                 for (var segment = 0; segment < SphereSegments; segment++)
                 {
-                    var angleAround = MathUtils.ToRadians(segment * (360.0f / SphereSegments));
+                    var angleAround = float.DegreesToRadians(segment * (360.0f / SphereSegments));
                     var quatAround = Quaternion.CreateFromAxisAngle(axisUp, angleAround);
 
                     var point = Vector3.Transform(v, Quaternion.Multiply(quatAround, quatUp));
@@ -293,7 +300,6 @@ namespace ValveResourceFormat.Renderer
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
-            renderShader.SetUniform1("sceneObjectId", Id);
 
             renderShader.SetUniform1("g_bNormalShaded", Shaded);
             renderShader.SetUniform1("g_bTriplanarMapping", ToolTexture != null);
@@ -324,7 +330,7 @@ namespace ValveResourceFormat.Renderer
                 GL.Enable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffsetClamp(2, 100, 0.05f);
 
-                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
                 GL.Disable(EnableCap.PolygonOffsetLine);
                 GL.Disable(EnableCap.PolygonOffsetFill);
@@ -333,7 +339,7 @@ namespace ValveResourceFormat.Renderer
             }
             else
             {
-                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+                GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
 
             GL.DepthFunc(DepthFunction.Greater);
@@ -356,5 +362,16 @@ namespace ValveResourceFormat.Renderer
             resource.Read(stream);
             return resource;
         });
+
+        public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
+        {
+            if (ShapeSceneNode.CubemapResource.Value.DataBlock is not Model model)
+            {
+                throw new InvalidDataException("Cubemap resource is not a Model.");
+            }
+
+            var node = new ModelSceneNode(scene, model);
+            return node;
+        }
     }
 }

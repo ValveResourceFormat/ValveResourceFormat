@@ -8,15 +8,24 @@ namespace ValveResourceFormat.Renderer.Particles
     /// </summary>
     class AttributeMapping
     {
+        /// <summary>
+        /// Input handling modes for attribute mapping operations.
+        /// </summary>
         public enum PfInputMode
         {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
             Invalid = -1,
             Clamped,
             Looped,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         }
 
+        /// <summary>
+        /// Attribute mapping transformation types.
+        /// </summary>
         public enum PfMapType
         {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
             Invalid = -1,
             Direct,
             Mult,
@@ -24,6 +33,7 @@ namespace ValveResourceFormat.Renderer.Particles
             RemapBiased,
             Curve,
             Notched,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         };
 
         private readonly PfMapType MapType;

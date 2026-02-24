@@ -5,7 +5,7 @@
 
 #include "csgo_character_eyes_common.slang"
 
-#if defined(csgo_character_vfx) && (F_EYEBALLS == 1)
+#if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1) && (D_ANIMATED == 1)
 uniform sampler2D g_tEyeAlbedo1; // SrgbRead(true)
 uniform sampler2D g_tEyeMask1;
 
@@ -86,6 +86,6 @@ void ApplyEye(EyePixelInput i, vec2 texCoord, inout MaterialProperties_t mat)
         }
     }
 }
-#endif // defined(csgo_character_vfx) && (F_EYEBALLS == 1)
+#endif // (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)
 
 #endif

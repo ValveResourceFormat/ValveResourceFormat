@@ -84,15 +84,16 @@ namespace GUI.Types.GLViewers
             Scene.ShowToolsMaterials = true;
             renderMat = Renderer.RendererContext.MaterialLoader.LoadMaterial(Resource, Scene.RenderAttributes);
             renderMat.Shader.EnsureLoaded();
+            renderMat.IsOverlay = false; // render without trying to overlay on empty space
 
             {
                 var planeMesh = MeshSceneNode.CreateMaterialPreviewQuad(Scene, renderMat, new Vector2(32));
-                planeMesh.Transform = Matrix4x4.CreateRotationZ(MathUtils.ToRadians(90f));
+                planeMesh.Transform = Matrix4x4.CreateRotationZ(float.DegreesToRadians(90f));
 
                 var isHorizontalPlaneMaterial = renderMat.IsCs2Water;
                 if (!isHorizontalPlaneMaterial)
                 {
-                    planeMesh.Transform *= Matrix4x4.CreateRotationY(MathUtils.ToRadians(90f));
+                    planeMesh.Transform *= Matrix4x4.CreateRotationY(float.DegreesToRadians(90f));
                 }
 
                 Scene.Add(planeMesh, false);
@@ -100,7 +101,7 @@ namespace GUI.Types.GLViewers
             }
 
             {
-                var sphereMesh = CreateEnvCubemapSphere(Scene);
+                var sphereMesh = ShapeSceneNode.CreateEnvCubemapSphere(Scene);
                 foreach (var renderable in sphereMesh.RenderableMeshes)
                 {
                     renderable.SetMaterialForMaterialViewer(Resource);
@@ -278,18 +279,26 @@ namespace GUI.Types.GLViewers
                 {
                     case ParamType.Float:
                         var (floatVal, floatPresence) = ((float, ParameterPresence))value;
+                        Vector2 range = vfxDescription != null
+                            ? new(vfxDescription.FloatMins[0], vfxDescription.FloatMaxs[0])
+                            : new(Math.Min(floatVal, 0), Math.Max(floatVal, 1));
                         AddNumericParameter(
                             paramName,
                             floatVal,
+                            range,
                             ParamType.Float,
                             v => drawCall.Material.Material.FloatParams[paramName] = (float)v,
                             floatPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Int:
                         var (intVal, intPresence) = ((int, ParameterPresence))value;
+                        Vector2 rangeInt = vfxDescription != null
+                            ? new(vfxDescription.IntMins[0], vfxDescription.IntMaxs[0])
+                            : new(Math.Min(intVal, 0), Math.Max(intVal, 1));
                         AddNumericParameter(
                             paramName,
                             intVal,
+                            rangeInt,
                             ParamType.Int,
                             v =>
                             {
@@ -544,7 +553,7 @@ namespace GUI.Types.GLViewers
             ParamsTable.Controls.Add(colorButton, 1, row);
         }
 
-        private void AddNumericParameter(string paramName, float initialValue, ParamType paramType, Action<float> onValueChanged, bool isEnabled = true)
+        private void AddNumericParameter(string paramName, float initialValue, Vector2 range, ParamType paramType, Action<float> onValueChanged, bool isEnabled = true)
         {
             Debug.Assert(ParamsTable != null);
 
@@ -572,18 +581,37 @@ namespace GUI.Types.GLViewers
                 Margin = new Padding(0),
             };
 
+            var min = range.X;
+            var max = range.Y;
+            if (float.IsNaN(min) || float.IsNaN(max) || min > max)
+            {
+                min = Math.Min(initialValue, 0);
+                max = Math.Max(initialValue, 1);
+            }
+
             if (paramType == ParamType.Float)
             {
                 inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70F));
                 inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30F));
 
-                var sliderMax = initialValue > 1 ? (int)(initialValue * 1000) : 1000;
-                var sliderValue = (int)(Math.Clamp((double)initialValue, 0.0, (double)(sliderMax / 1000.0)) * 1000);
+                // Slider uses thousandths for reasonable precision
+                var scale = 1000.0f;
+                var sliderMin = (int)Math.Round(min * scale);
+                var sliderMax = (int)Math.Round(max * scale);
+
+                // Ensure a usable slider range
+                if (sliderMax <= sliderMin)
+                {
+                    sliderMax = sliderMin + 1;
+                }
+
+                var clampedInitial = Math.Clamp(initialValue, min, max);
+                var sliderValue = (int)Math.Round(clampedInitial * scale);
 
                 var slider = new TrackBar
                 {
                     Dock = DockStyle.Fill,
-                    Minimum = 0,
+                    Minimum = sliderMin,
                     Maximum = sliderMax,
                     TickStyle = TickStyle.None,
                     Value = sliderValue,
@@ -593,11 +621,11 @@ namespace GUI.Types.GLViewers
                 var input = new ThemedFloatNumeric
                 {
                     Dock = DockStyle.Fill,
-                    MinValue = float.MinValue,
-                    MaxValue = float.MaxValue,
+                    MinValue = min,
+                    MaxValue = max,
                     DecimalMax = 3,
                     DragWithinRange = false,
-                    Value = initialValue,
+                    Value = clampedInitial,
                     Enabled = isEnabled,
                 };
 
@@ -608,24 +636,29 @@ namespace GUI.Types.GLViewers
                     if (!updatingFromSlider)
                     {
                         updatingFromSlider = true;
-                        var newValue = slider.Value / 1000.0f;
-                        input.Value = newValue;
+                        input.Value = slider.Value / scale;
                         updatingFromSlider = false;
                     }
                 };
 
                 input.ValueChanged += (sender, e) =>
                 {
-                    onValueChanged(input.Value);
+                    var v = Math.Clamp(input.Value, min, max);
+                    onValueChanged(v);
 
-                    // Update slider if value is in valid range
-                    if (input.Value >= 0 && input.Value <= (slider.Maximum / 1000.0) && !updatingFromSlider)
+                    if (!updatingFromSlider)
                     {
                         updatingFromSlider = true;
-                        slider.Value = (int)(input.Value * 1000);
+                        slider.Value = (int)Math.Round(v * scale);
                         updatingFromSlider = false;
                     }
                 };
+
+                // If the range is degenerate, disable the slider UI
+                if (Math.Abs(max - min) < 1e-6f)
+                {
+                    slider.Enabled = false;
+                }
 
                 inputRow.Controls.Add(slider, 0, 0);
                 inputRow.Controls.Add(input, 1, 0);
@@ -634,12 +667,19 @@ namespace GUI.Types.GLViewers
             {
                 inputRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
+                var intMin = (int)Math.Floor(min);
+                var intMax = (int)Math.Ceiling(max);
+                if (intMax < intMin)
+                {
+                    intMax = intMin;
+                }
+
                 var input = new ThemedIntNumeric
                 {
                     Dock = DockStyle.Fill,
-                    MinValue = int.MinValue,
-                    MaxValue = int.MaxValue,
-                    Value = (int)initialValue,
+                    MinValue = intMin,
+                    MaxValue = intMax,
+                    Value = Math.Clamp((int)initialValue, intMin, intMax),
                     Enabled = isEnabled,
                 };
 
@@ -666,10 +706,10 @@ namespace GUI.Types.GLViewers
 
         protected override void OnFirstPaint()
         {
-            Input.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, MathUtils.ToRadians(180f), 0);
+            Input.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, float.DegreesToRadians(180f), 0);
             if (renderMat != null && renderMat.IsCs2Water)
             {
-                Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, MathUtils.ToRadians(-90f));
+                Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, float.DegreesToRadians(-90f));
             }
 
             if (previewNode != null)
@@ -678,17 +718,6 @@ namespace GUI.Types.GLViewers
             }
 
             Input.ForceUpdate = true;
-        }
-
-        public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
-        {
-            if (ShapeSceneNode.CubemapResource.Value.DataBlock is not Model model)
-            {
-                throw new InvalidDataException("Cubemap resource is not a Model.");
-            }
-
-            var node = new ModelSceneNode(scene, model);
-            return node;
         }
 
         private void OnShadersButtonClick(object? s, EventArgs e)

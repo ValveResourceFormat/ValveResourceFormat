@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     ? particle.NormalizedAge
                     : particle.Age;
 
-                var delta = MathF.Sin(((t * frequency * oscillationMultiplier) + oscillationOffset) * MathF.PI);
+                var delta = float.SinPi((t * frequency * oscillationMultiplier) + oscillationOffset);
 
                 var finalScalar = delta * rate * frameTime;
                 particle.SetScalar(outputField, particle.GetScalar(outputField) + finalScalar);
@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             // Update remaining particles
             foreach (ref var particle in particles.Current)
             {
-                var delta = MathF.Sin(((particle.Age * frequency * oscillationMultiplier) + oscillationOffset) * MathF.PI);
+                var delta = float.SinPi((particle.Age * frequency * oscillationMultiplier) + oscillationOffset);
 
                 var finalScalar = delta * rate * frameTime;
 

@@ -1,0 +1,37 @@
+name: PR Automation
+
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Auto-label based on changed files
+        run: |
+          FILES=$(gh pr diff "$PR_NUMBER" --name-only)
+          LABELS=""
+
+          if grep -qE '^(ValveResourceFormat/IO/|GUI/Types/Exporter/)' <<< "$FILES"; then
+            LABELS="$LABELS,Exporting"
+          fi
+
+          if grep -qE '^(GUI/Types/GLViewers/|Renderer/)' <<< "$FILES"; then
+            LABELS="$LABELS,Renderer"
+          fi
+
+          LABELS="${LABELS#,}"
+          if [ -n "$LABELS" ]; then
+            echo "Adding labels: $LABELS"
+            gh pr edit "$PR_NUMBER" --add-label "$LABELS"
+          else
+            echo "No labels to add"
+          fi

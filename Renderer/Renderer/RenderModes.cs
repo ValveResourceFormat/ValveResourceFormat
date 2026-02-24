@@ -2,8 +2,14 @@ using System.Collections.Immutable;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Available render mode options for debug visualization.
+    /// </summary>
     public static class RenderModes
     {
+        /// <summary>
+        /// Render mode configuration with optional header flag.
+        /// </summary>
         public record struct RenderMode(string Name, bool IsHeader = false);
 
         public static ImmutableList<RenderMode> Items { get; set; } =
@@ -15,6 +21,7 @@ namespace ValveResourceFormat.Renderer
             new("Diffuse"),
             new("Specular"),
             new("Irradiance"),
+            new("IrradianceDebug"),
             new("Illumination"),
             new("LightmapShadows"),
             new("Cubemaps"),
@@ -52,6 +59,7 @@ namespace ValveResourceFormat.Renderer
             new("MeshId"),
             new("ShaderId"),
             new("ShaderProgramId"),
+            new("Meshlets")
         ];
 
         private readonly static Dictionary<string, byte> ShaderIds = new(Items.Count);

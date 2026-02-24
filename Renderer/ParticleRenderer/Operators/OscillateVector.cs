@@ -75,9 +75,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 }
 
                 Vector3 delta;
-                delta.X = MathF.Sin(((t * frequency.X * oscillationMultiplier) + oscillationOffset) * MathF.PI);
-                delta.Y = MathF.Sin(((t * frequency.Y * oscillationMultiplier) + oscillationOffset) * MathF.PI);
-                delta.Z = MathF.Sin(((t * frequency.Z * oscillationMultiplier) + oscillationOffset) * MathF.PI);
+                delta.X = float.SinPi((t * frequency.X * oscillationMultiplier) + oscillationOffset);
+                delta.Y = float.SinPi((t * frequency.Y * oscillationMultiplier) + oscillationOffset);
+                delta.Z = float.SinPi((t * frequency.Z * oscillationMultiplier) + oscillationOffset);
 
                 var value = rate * frameTime * delta;
 
@@ -108,9 +108,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 Vector3 delta;
-                delta.X = MathF.Sin(((particle.Age * frequency.X * oscillationMultiplier) + oscillationOffset) * MathF.PI);
-                delta.Y = MathF.Sin(((particle.Age * frequency.Y * oscillationMultiplier) + oscillationOffset) * MathF.PI);
-                delta.Z = MathF.Sin(((particle.Age * frequency.Z * oscillationMultiplier) + oscillationOffset) * MathF.PI);
+                delta.X = float.SinPi((particle.Age * frequency.X * oscillationMultiplier) + oscillationOffset);
+                delta.Y = float.SinPi((particle.Age * frequency.Y * oscillationMultiplier) + oscillationOffset);
+                delta.Z = float.SinPi((particle.Age * frequency.Z * oscillationMultiplier) + oscillationOffset);
 
                 var value = rate * frameTime * delta;
 

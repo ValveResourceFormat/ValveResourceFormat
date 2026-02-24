@@ -1,9 +1,13 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
 using Vector2i = OpenTK.Mathematics.Vector2i;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Post-processing renderer that creates bloom effects using multi-pass Gaussian blur.
+/// </summary>
 public class BloomRenderer
 {
     private Shader? firstDownsampleBloomThreshold;
@@ -124,7 +128,7 @@ public class BloomRenderer
 
         for (var i = 0; i < BloomMipCount; i++)
         {
-            using var _ = new GLDebugGroup("Bloom Accumulation Pass " + i);
+            using var _ = new GLDebugGroup(i switch { 0 => "Bloom Accumulation 0", 1 => "Bloom Accumulation 1", 2 => "Bloom Accumulation 2", 3 => "Bloom Accumulation 3", _ => "Bloom Accumulation" });
 
             if (InvalidSize(downsampledSize))
             {
@@ -158,7 +162,7 @@ public class BloomRenderer
         // loop through mips backwards, from lowest res to highest
         for (var i = lastWrittenMip; i >= 1; i--)
         {
-            using var _ = new GLDebugGroup($"Bloom Upsample {i}");
+            using var _ = new GLDebugGroup(i switch { 1 => "Bloom Upsample 1", 2 => "Bloom Upsample 2", 3 => "Bloom Upsample 3", 4 => "Bloom Upsample 4", _ => "Bloom Upsample" });
             var isFirstUpsample = i == lastWrittenMip;
             var isLastUpsample = i == 1;
 
@@ -191,9 +195,9 @@ public class BloomRenderer
             var blurTint = settings.BlurTint[i] * settings.BlurWeight[i];
 
             // last merge
-            // there are 5 blue+tint values, but only 4 mips to combine, seems like s2 bloom uses to start
+            // there are 5 blur+tint values, but only 4 mips to combine, seems like s2 bloom used to start
             // at half res, and downsample to 5 mips at some point, but right now it looks like they just
-            // combine the last two tint + blur combos into a single one for last mip merge
+            // combine the last two blur + tint combos into a single one for last mip merge
             if (isLastUpsample)
             {
                 blurTint += settings.BlurTint[i - 1] * settings.BlurWeight[i - 1];

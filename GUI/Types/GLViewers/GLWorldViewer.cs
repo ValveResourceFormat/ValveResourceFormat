@@ -9,7 +9,6 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 using static GUI.Controls.SavedCameraPositionsControl;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
@@ -38,7 +37,6 @@ namespace GUI.Types.GLViewers
         {
             this.world = world;
             mapExternalReferences = externalReferences;
-            Scene.EnableOcclusionCulling = externalReferences != null;
         }
 
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, WorldNode worldNode, ResourceExtRefList? externalReferences = null)
@@ -94,8 +92,8 @@ namespace GUI.Types.GLViewers
             if (!isSetRequest)
             {
                 var loc = Renderer.Camera.Location;
-                pitch = -1.0f * MathUtils.ToDegrees(Renderer.Camera.Pitch);
-                yaw = MathUtils.ToDegrees(Renderer.Camera.Yaw);
+                pitch = -1.0f * float.RadiansToDegrees(Renderer.Camera.Pitch);
+                yaw = float.RadiansToDegrees(Renderer.Camera.Yaw);
 
                 Clipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
 
@@ -118,8 +116,8 @@ namespace GUI.Types.GLViewers
 
             if (ang.Success)
             {
-                pitch = -1f * MathUtils.ToRadians(float.Parse(ang.Groups["pitch"].Value, CultureInfo.InvariantCulture));
-                yaw = MathUtils.ToRadians(float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture));
+                pitch = -1f * float.DegreesToRadians(float.Parse(ang.Groups["pitch"].Value, CultureInfo.InvariantCulture));
+                yaw = float.DegreesToRadians(float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture));
             }
 
             Input.SaveCameraForTransition();
@@ -155,6 +153,28 @@ namespace GUI.Types.GLViewers
 
             Settings.Config.SavedCameras.Add(saveName, [cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw]);
             Settings.InvokeRefreshCamerasOnSave();
+        }
+
+        public override void PreSceneLoad()
+        {
+            base.PreSceneLoad();
+
+            if (worldNode != null)
+            {
+                base.LoadDefaultLighting();
+
+                Scene.LightingInfo.CubemapType = CubemapType.None; // default envmap actually looks bad
+                Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
+                Scene.LightingInfo.SunLightShadowCoverageScale = 2f;
+
+                var post = new ScenePostProcessVolume(Scene)
+                {
+                    HasBloom = true,
+                    IsMaster = true,
+                };
+
+                Scene.PostProcessInfo.AddPostProcessVolume(post);
+            }
         }
 
         protected override void LoadScene()
@@ -203,15 +223,19 @@ namespace GUI.Types.GLViewers
         {
             base.OnFirstPaint();
 
-            Input.MoveCamera(0, 0, -150f);
-            Input.MoveCamera(0, 0, 150f, transition: true);
+            Input.MoveCamera(new Vector3(0, -150f, 0));
+            Input.MoveCamera(new Vector3(0, 150f, 0), transition: true);
         }
 
         protected override void AddUiControls()
         {
             Debug.Assert(UiControl != null);
 
-            AddRenderModeSelectionControl();
+            using (UiControl.BeginGroup("Render"))
+            {
+                AddRenderModeSelectionControl();
+                AddWireframeToggleControl();
+            }
 
             worldLayersComboBox = UiControl.AddMultiSelection("World Layers", null, (worldLayers) =>
             {
@@ -232,30 +256,31 @@ namespace GUI.Types.GLViewers
                 SetEnabledPhysicsGroups([.. physicsGroups]);
             });
 
-            savedCameraPositionsControl = new SavedCameraPositionsControl();
-            savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
-            savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
-            savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
-            UiControl.AddControl(savedCameraPositionsControl);
-
-            if (LoadedWorld != null && LoadedWorld.CameraMatrices.Count > 0)
+            using (UiControl.BeginGroup("Camera"))
             {
-                cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
-                {
-                    if (index > 0)
-                    {
-                        Input.SaveCameraForTransition();
-                        Input.Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
-                    }
-                });
-                cameraComboBox.BeginUpdate();
-                cameraComboBox.Items.Add("Set view to camera…");
-                cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
-                cameraComboBox.SelectedIndex = 0;
-                cameraComboBox.EndUpdate();
-            }
+                savedCameraPositionsControl = new SavedCameraPositionsControl();
+                savedCameraPositionsControl.SaveCameraRequest += OnSaveCameraRequest;
+                savedCameraPositionsControl.RestoreCameraRequest += OnRestoreCameraRequest;
+                savedCameraPositionsControl.GetOrSetPositionFromClipboardRequest += OnGetOrSetPositionFromClipboardRequest;
+                UiControl.AddControl(savedCameraPositionsControl);
 
-            UiControl.AddDivider();
+                if (LoadedWorld != null && LoadedWorld.CameraMatrices.Count > 0)
+                {
+                    cameraComboBox = UiControl.AddSelection("Map Camera", (cameraName, index) =>
+                    {
+                        if (index > 0)
+                        {
+                            Input.SaveCameraForTransition();
+                            Input.Camera.SetFromTransformMatrix(CameraMatrices[index - 1]);
+                        }
+                    });
+                    cameraComboBox.BeginUpdate();
+                    cameraComboBox.Items.Add("Set view to camera…");
+                    cameraComboBox.Items.AddRange([.. LoadedWorld.CameraNames]);
+                    cameraComboBox.SelectedIndex = 0;
+                    cameraComboBox.EndUpdate();
+                }
+            }
 
             if (world != null)
             {
@@ -309,17 +334,26 @@ namespace GUI.Types.GLViewers
                     SetAvailablePhysicsGroups(uniquePhysicsGroups);
                 }
 
-                if (Renderer.SkyboxScene != null)
+                using (UiControl.BeginGroup("World"))
                 {
-                    UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
+                    if (Renderer.SkyboxScene != null)
+                    {
+                        UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
+                    }
+
+                    UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
+                    UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
+                    UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+                    UiControl.AddCheckBox("Gpu Culling", Scene.EnableIndirectDraws, v =>
+                    {
+                        Scene.EnableIndirectDraws = v;
+                    });
+
+                    UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
+                    UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
+
+                    AddSceneExposureSlider();
                 }
-
-                UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
-                UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
-                UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
-                UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
-
-                AddSceneExposureSlider();
             }
 
             if (worldNode != null && worldLayersComboBox != null)
@@ -342,6 +376,98 @@ namespace GUI.Types.GLViewers
             ignoreLayersChangeEvents = false;
 
             base.AddUiControls();
+
+            if (world != null)
+            {
+                AddDOFControls();
+            }
+        }
+
+        public void AddDOFControls()
+        {
+            Debug.Assert(UiControl != null);
+
+            var groupBoxPanel = new Panel
+            {
+                Height = UiControl.AdjustForDPI(230),
+                Padding = new(0, 2, 0, 2),
+            };
+
+            var groupBox = new ThemedGroupBox
+            {
+                Text = "Depth Of Field",
+                Dock = DockStyle.Fill,
+                Padding = new(4, 8, 4, 4),
+            };
+
+            var controlsContainer = new Panel
+            {
+                Height = UiControl.AdjustForDPI(175),
+                Dock = DockStyle.Top
+            };
+
+            void dofCheckBoxAction(bool v)
+            {
+                Renderer.Postprocess.DOF.Enabled = v;
+
+                controlsContainer.Enabled = v;
+                controlsContainer.Visible = v;
+
+                var height = v ? 230 : 60;
+                groupBoxPanel.Height = UiControl.AdjustForDPI(height);
+            }
+
+            dofCheckBoxAction(Renderer.Postprocess.DOF.Enabled);
+
+            var checkBox = RendererControl.CreateCheckBox("Enabled", Renderer.Postprocess.DOF.Enabled, dofCheckBoxAction);
+            checkBox.Dock = DockStyle.Top;
+
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Far blurry", val =>
+            {
+                Renderer.Postprocess.DOF.FarBlurry = val;
+            }, Renderer.Postprocess.DOF.FarBlurry, 0, 10000));
+
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Far crisp", val =>
+            {
+                Renderer.Postprocess.DOF.FarCrisp = val;
+            }, Renderer.Postprocess.DOF.FarCrisp, 0, 10000));
+
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Near blurry", val =>
+            {
+                Renderer.Postprocess.DOF.NearBlurry = -val;
+            }, Renderer.Postprocess.DOF.NearBlurry, 0, 100));
+
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Near crisp", val =>
+            {
+                Renderer.Postprocess.DOF.NearCrisp = val;
+            }, Renderer.Postprocess.DOF.NearCrisp, 0, 1000));
+
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Max Blur Size", val =>
+            {
+                Renderer.Postprocess.DOF.MaxBlurSize = val;
+            }, Renderer.Postprocess.DOF.MaxBlurSize, 0, 100));
+
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Radius Scale", val =>
+            {
+                Renderer.Postprocess.DOF.RadScale = val;
+            }, Renderer.Postprocess.DOF.RadScale, 0, 1));
+
+            controlsContainer.Controls.Add(RendererControl.CreateFloatInput("Focal Distance", val =>
+            {
+                Renderer.Postprocess.DOF.FocalDistance = val;
+            }, Renderer.Postprocess.DOF.FocalDistance, 0, 10000));
+
+            foreach (Control control in controlsContainer.Controls)
+            {
+                control.Dock = DockStyle.Top;
+                control.Margin = new Padding(4);
+            }
+
+            groupBox.Controls.Add(controlsContainer);
+            groupBox.Controls.Add(checkBox);
+            groupBoxPanel.Controls.Add(groupBox);
+
+            UiControl.AddControl(groupBoxPanel);
         }
 
         public void SelectAndFocusEntity(EntityLump.Entity entity)
@@ -446,6 +572,7 @@ namespace GUI.Types.GLViewers
                     var material = sceneFragment.DrawCall.Material.Material;
                     entityInfoForm.EntityInfoControl.AddProperty("Shader", material.ShaderName);
                     entityInfoForm.EntityInfoControl.AddProperty("Material", material.Name);
+                    entityInfoForm.EntityInfoControl.AddProperty("Aggregate Model", sceneFragment.Name!);
 
                     var tris = sceneFragment.DrawCall.IndexCount / 3;
                     if (sceneFragment.DrawCall.NumMeshlets > 0)
@@ -470,6 +597,7 @@ namespace GUI.Types.GLViewers
                 }
                 else if (sceneNode is ModelSceneNode modelSceneNode)
                 {
+                    entityInfoForm.EntityInfoControl.AddProperty("Model", modelSceneNode.Name!);
                     entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(modelSceneNode.Tint));
                     entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
 

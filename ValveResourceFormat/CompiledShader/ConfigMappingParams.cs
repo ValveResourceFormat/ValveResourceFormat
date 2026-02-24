@@ -145,14 +145,17 @@ namespace ValveResourceFormat.CompiledShader
 
             offsets = new int[combos.Length];
             nr_states = new int[combos.Length];
+            range_mins = new int[combos.Length];
 
             offsets[0] = 1;
             nr_states[0] = combos[0].RangeMax - combos[0].RangeMin + 1;
+            range_mins[0] = combos[0].RangeMin;
 
             for (var i = 1; i < combos.Length; i++)
             {
                 nr_states[i] = combos[i].RangeMax - combos[i].RangeMin + 1;
                 offsets[i] = offsets[i - 1] * nr_states[i - 1];
+                range_mins[i] = combos[i].RangeMin;
             }
 
             for (var i = 0; i < combos.Length; i++)
@@ -173,7 +176,7 @@ namespace ValveResourceFormat.CompiledShader
             var state = new int[nr_states.Length];
             for (var i = 0; i < nr_states.Length; i++)
             {
-                state[i] = (int)(zframeId / offsets[i] % nr_states[i]);
+                state[i] = (int)(zframeId / offsets[i] % nr_states[i]) + range_mins[i];
             }
 
             return state;
@@ -189,7 +192,7 @@ namespace ValveResourceFormat.CompiledShader
             var staticComboId = 0L;
             for (var i = 0; i < nr_states.Length; i++)
             {
-                staticComboId += configState[i] * offsets[i];
+                staticComboId += (configState[i] - range_mins[i]) * offsets[i];
             }
 
             return staticComboId;
@@ -197,6 +200,7 @@ namespace ValveResourceFormat.CompiledShader
 
         int[] offsets = [];
         int[] nr_states = [];
+        int[] range_mins = [];
         /*
         readonly bool[,] exclusions = new bool[100, 100];
         readonly bool[,] inclusions = new bool[100, 100];

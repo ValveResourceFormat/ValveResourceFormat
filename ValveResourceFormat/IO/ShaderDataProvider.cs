@@ -122,31 +122,42 @@ namespace ValveResourceFormat.IO
                 }
 
                 var feature = features.StaticComboArray[condition.FeatureIndex];
+                featureParams.TryGetValue(feature.Name, out var featureValue);
 
-                foreach (var (name, value) in featureParams)
+                var sourceType = (VfxStaticComboSourceType)condition.ComboSourceType;
+
+                if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE__)
                 {
-                    if (feature.Name == name)
+                    var configValue = (int)featureValue;
+
+                    // Check that data coming from the material is within the allowed range
+                    if (featureValue > feature.RangeMax)
                     {
-                        // Check that data coming from the material is within the allowed range
-                        if (value > feature.RangeMax)
-                        {
-                            Console.WriteLine($"Value for feature '{name}' is higher ({value}) than the maximum ({feature.RangeMax})."); // TODO: logger
-
-                            staticConfiguration[condition.BlockIndex] = feature.RangeMax;
-                        }
-                        else if (value < feature.RangeMin)
-                        {
-                            Console.WriteLine($"Value for feature '{name}' is lower ({value}) than the minimum ({feature.RangeMin})."); // TODO: logger
-
-                            staticConfiguration[condition.BlockIndex] = feature.RangeMin;
-                        }
-                        else
-                        {
-                            staticConfiguration[condition.BlockIndex] = value;
-                        }
-
-                        break;
+                        Console.WriteLine($"Value for feature '{feature.Name}' is higher ({featureValue}) than the maximum ({feature.RangeMax})."); // TODO: logger
+                        configValue = feature.RangeMax;
                     }
+                    else if (featureValue < feature.RangeMin)
+                    {
+                        Console.WriteLine($"Value for feature '{feature.Name}' is lower ({featureValue}) than the minimum ({feature.RangeMin})."); // TODO: logger
+                        configValue = feature.RangeMin;
+                    }
+
+                    staticConfiguration[condition.BlockIndex] = configValue;
+                }
+                else if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__)
+                {
+                    Debug.Assert(condition.RangeMin == 0 && condition.RangeMax == 1);
+                    staticConfiguration[condition.BlockIndex] = featureValue == condition.FeatureComparisonValue ? 1 : 0;
+                }
+                else if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE_NE__)
+                {
+                    Debug.Assert(condition.RangeMin == 0 && condition.RangeMax == 1);
+                    staticConfiguration[condition.BlockIndex] = featureValue != condition.FeatureComparisonValue ? 1 : 0;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Unexpected combo source type '{sourceType}' for feature-linked static combo '{condition.Name}'.");
                 }
             }
 
@@ -164,36 +175,100 @@ namespace ValveResourceFormat.IO
         {
             reducedConfiguration = [.. staticConfiguration];
 
-            foreach (var constraint in program.StaticComboRules)
+            // Iterate until stable -- disabling one combo may create new violations.
+            for (var loop = 0; loop < 100; loop++)
             {
-                // Allow only one of the statics
-                if (constraint.Rule == VfxRuleMethod.AllowNum)
+                var changed = false;
+
+                foreach (var constraint in program.StaticComboRules)
                 {
-                    // Allow0 (disable this toggle)
-                    var allow0 = constraint.ExtraRuleData[0] == 0;
-                    if (allow0 && staticConfiguration[constraint.Indices[0]] != 0)
+                    var indexCount = constraint.ExtraRuleData[1];
+
+                    if (loop == 0)
                     {
-                        reducedConfiguration[constraint.Indices[0]] = 0;
+                        for (var i = 0; i < indexCount; i++)
+                        {
+                            if (constraint.ConditionalTypes[i] is not VfxRuleType.Static)
+                            {
+                                Console.WriteLine($"WARNING: Static combo rule {constraint.Rule} has non-static arg type {constraint.ConditionalTypes[i]} at index {i}");
+                                break;
+                            }
+                        }
                     }
 
-                    // Allow1 (cannot both be active)
-                    var allow1 = constraint.ExtraRuleData[0] == 1;
-                    if (allow1 && staticConfiguration[constraint.Indices[0]] != 0 && staticConfiguration[constraint.Indices[1]] != 0)
+                    if (constraint.Rule is VfxRuleMethod.ChildOf or VfxRuleMethod.Requires)
                     {
-                        reducedConfiguration[constraint.Indices[1]] = 0;
+                        if (!ArgMatches(constraint, 0, reducedConfiguration))
+                        {
+                            continue;
+                        }
+
+                        var numEnabled = 0;
+                        for (var i = 1; i < indexCount; i++)
+                        {
+                            if (ArgMatches(constraint, i, reducedConfiguration))
+                            {
+                                numEnabled++;
+                            }
+                        }
+
+                        if (numEnabled < constraint.ExtraRuleData[0])
+                        {
+                            reducedConfiguration[constraint.Indices[0]] = 0;
+                            changed = true;
+                        }
+                    }
+                    else if (constraint.Rule == VfxRuleMethod.AllowNum)
+                    {
+                        var allowedCount = constraint.ExtraRuleData[0];
+
+                        var numEnabled = 0;
+                        for (var i = 0; i < indexCount; i++)
+                        {
+                            if (ArgMatches(constraint, i, reducedConfiguration))
+                            {
+                                if (numEnabled >= allowedCount)
+                                {
+                                    if (constraint.ConditionalTypes[i] == constraint.RuleType)
+                                    {
+                                        reducedConfiguration[constraint.Indices[i]] = 0;
+                                        changed = true;
+                                    }
+                                }
+                                else
+                                {
+                                    numEnabled++;
+                                }
+                            }
+                        }
                     }
                 }
-                else if (constraint.Rule == VfxRuleMethod.Requires)
+
+                if (!changed)
                 {
-                    var requires1 = constraint.ExtraRuleData[0] == 1;
-                    if (requires1 && staticConfiguration[constraint.Indices[0]] == 0 && staticConfiguration[constraint.Indices[1]] == 1)
-                    {
-                        reducedConfiguration[constraint.Indices[1]] = 0;
-                    }
+                    break;
                 }
             }
 
-            return !reducedConfiguration.Equals(staticConfiguration);
+            return !reducedConfiguration.AsSpan().SequenceEqual(staticConfiguration);
+
+            static bool ArgMatches(VfxRule constraint, int argIndex, int[] values)
+            {
+                if (constraint.ConditionalTypes[argIndex] != VfxRuleType.Static)
+                {
+                    return false;
+                }
+
+                var value = values[constraint.Indices[argIndex]];
+                var expected = constraint.Values[argIndex];
+
+                if (expected == -1)
+                {
+                    return value != 0;
+                }
+
+                return value == expected;
+            }
         }
 
         /// <summary>
@@ -230,6 +305,11 @@ namespace ValveResourceFormat.IO
             if (@params.Length > 1)
             {
                 (determinedParameter, originatingShaderFile) = DetermineParameterReferencedByMaterial(shader, material, textureType);
+
+                if (determinedParameter == null)
+                {
+                    return [(Channel.RGBA, BasicShaderDataProvider.ConvertTextureToInput(textureType))];
+                }
             }
 
             return [.. GetParameterInputs(determinedParameter, originatingShaderFile)];
@@ -311,10 +391,13 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                // TODO: Ignore possibly unused texture for export? (Issue #652)
-                throw new InvalidDataException(
-                    $"Varying parameter '{paramName}' in '{shader.Features!.ShaderName}' could not be resolved. "
-                    + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
+                // Parameter not found in write sequence for any shader file.
+                // Most likely the material was compiled against an older shader version, and the
+                // feature combination that references this parameter no longer exists.
+                Console.WriteLine($"WARNING: Varying parameter '{paramName}' in '{shader.Features!.ShaderName}' could not be resolved. "
+                    + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))}). "
+                    + "The material may reference a texture that no longer exists in the shader.");
+                return default;
             }
 
             IEnumerable<(Channel Channel, string Name)> GetParameterInputs(VfxVariableDescription param, VfxProgramData program)

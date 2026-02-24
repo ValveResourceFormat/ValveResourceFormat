@@ -32,9 +32,9 @@ namespace ValveResourceFormat.Utils
         public static Matrix4x4 CreateRotationMatrixFromEulerAngles(Vector3 pitchYawRoll)
         {
             Matrix4x4 rotationMatrix;
-            var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z * MathF.PI / 180f);
-            var pitchMatrix = Matrix4x4.CreateRotationY(pitchYawRoll.X * MathF.PI / 180f);
-            var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y * MathF.PI / 180f);
+            var rollMatrix = Matrix4x4.CreateRotationX(float.DegreesToRadians(pitchYawRoll.Z));
+            var pitchMatrix = Matrix4x4.CreateRotationY(float.DegreesToRadians(pitchYawRoll.X));
+            var yawMatrix = Matrix4x4.CreateRotationZ(float.DegreesToRadians(pitchYawRoll.Y));
 
             rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
             return rotationMatrix;

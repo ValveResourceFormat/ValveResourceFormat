@@ -6,6 +6,9 @@ using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Filmic tonemapping curve parameters for HDR-to-LDR conversion.
+    /// </summary>
     public readonly struct TonemapSettings
     {
         public float ExposureBias { get; init; } // converted to linear via exp2. Kept as exposurebias for blending purposes
@@ -99,6 +102,9 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    /// <summary>
+    /// Automatic exposure adjustment parameters for adaptive brightness.
+    /// </summary>
     public struct ExposureSettings
     {
         public bool AutoExposureEnabled { get; set; }
@@ -146,13 +152,21 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    /// <summary>
+    /// Bloom compositing blend modes.
+    /// </summary>
     public enum BloomBlendType
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         BLOOM_BLEND_ADD,
         BLOOM_BLEND_SCREEN,
         BLOOM_BLEND_BLUR
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
+    /// <summary>
+    /// Bloom effect parameters including threshold, intensity, and per-mip blur settings.
+    /// </summary>
     public readonly struct BloomSettings()
     {
         public BloomBlendType BlendMode { get; init; } = BloomBlendType.BLOOM_BLEND_ADD;
@@ -210,11 +224,14 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    /// <summary>
+    /// Combined post-processing state including tonemapping, bloom, and color grading.
+    /// </summary>
     public struct PostProcessState()
     {
-        public TonemapSettings TonemapSettings { get; set; } = new();
-        public BloomSettings BloomSettings { get; set; } = new();
-        public ExposureSettings ExposureSettings { get; set; } = new();
+        public TonemapSettings TonemapSettings { get; set; }
+        public BloomSettings BloomSettings { get; set; }
+        public ExposureSettings ExposureSettings { get; set; }
 
         public bool HasBloom { get; set; } = false;
 
@@ -223,14 +240,27 @@ namespace ValveResourceFormat.Renderer
         public float ColorCorrectionWeight { get; set; } = 1.0f;
         public int ColorCorrectionLutDimensions { get; set; } = 32;
         public int NumLutsActive { get; set; }
+
+        public static PostProcessState Default { get; } = new()
+        {
+            TonemapSettings = new TonemapSettings(),
+            BloomSettings = new BloomSettings(),
+            ExposureSettings = new ExposureSettings(),
+        };
     }
 
+    /// <summary>
+    /// Scene node for controlling global tonemapping and exposure parameters.
+    /// </summary>
     public class SceneTonemapController(Scene scene) : SceneNode(scene)
     {
         public ExposureSettings ControllerExposureSettings { get; set; }
     }
 
-    // make a parent TriggerSceneNode class?
+    // TODO: make a parent TriggerSceneNode class?
+    /// <summary>
+    /// Spatial volume that applies post-processing effects to the camera view.
+    /// </summary>
     public class ScenePostProcessVolume(Scene scene) : SceneNode(scene)
     {
         public float FadeTime { get; init; }

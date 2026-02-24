@@ -41,10 +41,10 @@ layout(std140, binding = 2) uniform EnvMapArray
     // ...
 #elif (S_SCENE_CUBEMAP_TYPE == 1)
     uniform samplerCube g_tEnvironmentMap;
-    uniform uvec4 g_nEnvMapVisibility;
+    flat in uvec4 g_nEnvMapVisibility;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap;
-    uniform uvec4 g_nEnvMapVisibility;
+    flat in uvec4 g_nEnvMapVisibility;
 #endif
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
@@ -129,7 +129,7 @@ float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
 }
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
-#if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
+#if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || (GameVfx_vr_complex == 0)))
     vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
     {
         // is this like part of the material struct in the og code? it's calculated at the start
@@ -153,7 +153,7 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
 
 vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
 {
-    #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !defined(vr_complex_vfx)))
+    #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || (GameVfx_vr_complex == 0)))
         vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
     #else
         vec3 reflectionNormal = mat.AmbientNormal;
@@ -182,7 +182,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     vec3 envMap = vec3(0.0);
 
     #if (S_SCENE_CUBEMAP_TYPE == 0)
-        envMap = vec3(0.3, 0.1, 0.1);
+        envMap = vec3(0.3, 0.3, 0.3);
     #elif (S_SCENE_CUBEMAP_TYPE == 1)
         int envMapIndex = int(g_nEnvMapVisibility.x);
         EnvMapData envData = envMaps[envMapIndex];

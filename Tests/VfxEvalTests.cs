@@ -75,7 +75,7 @@ namespace Tests
         /*
          *      a = length(1);
          *      a = sqrt(1);
-         *      a = TextureSize(1);
+         *      a = rotation2d(1);
          *      frac(a)
          */
         [Test]
@@ -85,7 +85,7 @@ namespace Tests
             var expectedResult =
                 "v0 = length(1);\n" +
                 "v0 = sqrt(1);\n" +
-                "v0 = TextureSize(1);\n" +
+                "v0 = rotation2d(1);\n" +
                 "return frac(v0);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -357,13 +357,61 @@ namespace Tests
         [Test]
         public void TestDynamicExpression19()
         {
-            var exampleStr = "07 00 00 40 41 06 25 00 08 00 07 00 00 40 41 07 00 00 40 41 06 26 00 08 01 07 00 00 20 41 06 27 00 08 02 09 00 00";
+            var exampleStr = "07 00 00 40 41 06 24 00 08 00 07 00 00 40 41 07 00 00 40 41 06 25 00 08 01 07 00 00 20 41 06 26 00 08 02 09 00 00";
             var expectedResult =
                 "v0 = rotation2d(12);\n" +
                 "v1 = rotate2d(12,12);\n" +
                 "v2 = sincos(10);\n" +
                 "return v0;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        /*
+         * a = 0;
+         * _27 = TextureSize(g_tColor);
+         * _28 = TextureAverageColor(g_tColor);
+         * _29 = MatrixIdentity();
+         * _2A = MatrixScale(float3(0.5, 0.3, 0.2));
+         * _2B = MatrixTranslate(float3(1.0, 2.0, 3.0));
+         * _2C = MatrixAxisAngle(float4(0.0, 1.0, 0.0, 45.0));
+         * _2D = MatrixAxisToAxis(float3(1.0, 0.0, 0.0), float3(0.0, 1.0, 0.0));
+         * _2E = MatrixMultiply(_2A, _2B);
+         * _2F = MatrixColorCorrect(float4(1.0, 0.8, 0.6, 1.0)); // contrast, saturation, brightness, unknown
+         * _30 = MatrixColorCorrect2(float4(1.0, 0.8, 0.6, 1.0), TextureAverageColor(g_tColor));
+         * _31 = MatrixColorTint(float4(1.0, 1.0, 1.0, 1.0));
+         *
+         * return a;
+         */
+
+        [Test]
+        public void TestDynamicExpression18_Matrices()
+        {
+            var blob = ParseString(
+                "07 00 00 00 00 08 00 19 0F 54 63 59 06 27 00 08 01 19 0F 54 63 59 06 28 00 08 02 06 29 00 08 03 " +
+                "07 00 00 00 3F 07 9A 99 99 3E 07 CD CC 4C 3E 06 19 00 06 2A 00 08 04 07 00 00 80 3F 07 00 00 00 " +
+                "40 07 00 00 40 40 06 19 00 06 2B 00 08 05 07 00 00 00 00 07 00 00 80 3F 07 00 00 00 00 07 00 00 " +
+                "34 42 06 18 00 06 2C 00 08 06 07 00 00 80 3F 07 00 00 00 00 07 00 00 00 00 06 19 00 07 00 00 00 " +
+                "00 07 00 00 80 3F 07 00 00 00 00 06 19 00 06 2D 00 08 07 09 04 09 05 06 2E 00 08 08 07 00 00 80 " +
+                "3F 07 CD CC 4C 3F 07 9A 99 19 3F 07 00 00 80 3F 06 18 00 06 2F 00 08 09 07 00 00 80 3F 07 CD CC " +
+                "4C 3F 07 9A 99 19 3F 07 00 00 80 3F 06 18 00 19 0F 54 63 59 06 28 00 06 30 00 08 0A 07 00 00 80 " +
+                "3F 07 00 00 80 3F 07 00 00 80 3F 07 00 00 80 3F 06 18 00 06 31 00 08 0B 09 00 00"
+            );
+
+            var expectedResult = "v0 = 0;\n" +
+                "v1 = TextureSize(g_tColor);\n" +
+                "v2 = TextureAverageColor(g_tColor);\n" +
+                "v3 = MatrixIdentity();\n" +
+                "v4 = MatrixScale(float3(.5,.3,.2));\n" +
+                "v5 = MatrixTranslate(float3(1,2,3));\n" +
+                "v6 = MatrixAxisAngle(float4(0,1,0,45));\n" +
+                "v7 = MatrixAxisToAxis(float3(1,0,0),float3(0,1,0));\n" +
+                "v8 = MatrixMultiply(v4,v5);\n" +
+                "v9 = MatrixColorCorrect(float4(1,.8,.6,1));\n" +
+                "v10 = MatrixColorCorrect2(float4(1,.8,.6,1),TextureAverageColor(g_tColor));\n" +
+                "v11 = MatrixColorTint(float4(1,1,1,1));\n" +
+                "return v0;";
+
+            Assert.That(new VfxEval(blob, ["g_tColor"]).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
         /*
@@ -421,6 +469,102 @@ namespace Tests
             Assert.That(new VfxEval(testInput, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
+
+        [Test]
+        public void TestMatrixColorTint2_GrayInput()
+        {
+            // Gray has zero saturation, result should be ~identity
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.5f, 0.5f, 0.5f), 1.0f);
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_WhiteInput()
+        {
+            // White has zero saturation, result should be ~identity
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(1f, 1f, 1f), 1.0f);
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_PureRed()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(1f, 0f, 0f), 1.0f);
+            var expected = new Matrix4x4(
+                0f, 0f, 0f, 0.99999994f,
+                0f, 0f, 0f, 5.3124536E-09f,
+                0f, 0f, 0f, -2.9802322E-08f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_WarmColor()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.8f, 0.2f, 0.1f), 0.5f);
+            var expected = new Matrix4x4(
+                0.16458952f, 0.44803202f, 0.0045659216f, 0.57826537f,
+                0.039589547f, 0.57303196f, 0.0045659216f, 0.053265363f,
+                0.039589554f, 0.44803208f, 0.12956592f, -0.034234628f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_BluishColor()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.3f, 0.6f, 0.9f), 1.0f);
+            var expected = new Matrix4x4(
+                0.351208f, 0.20228605f, 0.0020615086f, 0.07141057f,
+                0.017874645f, 0.5356194f, 0.00206151f, 0.27141058f,
+                0.01787465f, 0.20228608f, 0.3353949f, 0.47141054f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorCorrect2_Identity()
+        {
+            // contrast=1, saturation=1, brightness=1 should be ~identity
+            var result = VfxEvalFunctions.MatrixColorCorrect2(new Vector3(1f, 1f, 1f), new Vector3(0.5f, 0.5f, 0.5f));
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorCorrect2_Adjusted()
+        {
+            var result = VfxEvalFunctions.MatrixColorCorrect2(new Vector3(1.2f, 0.8f, 1.5f), new Vector3(0.3f, 0.4f, 0.5f));
+            var expected = new Matrix4x4(
+                1.468957f, 0.32770345f, 0.003339633f, -0.095573045f,
+                0.028956933f, 1.7677034f, 0.0033396427f, -0.11957306f,
+                0.02895683f, 0.32770318f, 1.4433398f, -0.14357306f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        private static void AssertMatrixEqual(Matrix4x4 expected, Matrix4x4 actual, float tolerance)
+        {
+            Assert.That(actual.M11, Is.EqualTo(expected.M11).Within(tolerance));
+            Assert.That(actual.M12, Is.EqualTo(expected.M12).Within(tolerance));
+            Assert.That(actual.M13, Is.EqualTo(expected.M13).Within(tolerance));
+            Assert.That(actual.M14, Is.EqualTo(expected.M14).Within(tolerance));
+            Assert.That(actual.M21, Is.EqualTo(expected.M21).Within(tolerance));
+            Assert.That(actual.M22, Is.EqualTo(expected.M22).Within(tolerance));
+            Assert.That(actual.M23, Is.EqualTo(expected.M23).Within(tolerance));
+            Assert.That(actual.M24, Is.EqualTo(expected.M24).Within(tolerance));
+            Assert.That(actual.M31, Is.EqualTo(expected.M31).Within(tolerance));
+            Assert.That(actual.M32, Is.EqualTo(expected.M32).Within(tolerance));
+            Assert.That(actual.M33, Is.EqualTo(expected.M33).Within(tolerance));
+            Assert.That(actual.M34, Is.EqualTo(expected.M34).Within(tolerance));
+            Assert.That(actual.M41, Is.EqualTo(expected.M41).Within(tolerance));
+            Assert.That(actual.M42, Is.EqualTo(expected.M42).Within(tolerance));
+            Assert.That(actual.M43, Is.EqualTo(expected.M43).Within(tolerance));
+            Assert.That(actual.M44, Is.EqualTo(expected.M44).Within(tolerance));
+        }
 
         private static byte[] ParseString(string bytestring)
         {

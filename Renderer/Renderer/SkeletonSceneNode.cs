@@ -4,6 +4,9 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node that visualizes skeletal bone hierarchy and animation poses.
+    /// </summary>
     public class SkeletonSceneNode : SceneNode
     {
         public bool Enabled { get; set; }
@@ -31,6 +34,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = nameof(SkeletonSceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
 #endif
         }
 
@@ -121,10 +125,9 @@ namespace ValveResourceFormat.Renderer
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
-            renderShader.SetUniform1("sceneObjectId", Id);
 
             GL.BindVertexArray(vaoHandle);
-            GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
+            GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, vertexCount, 1, Id);
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);

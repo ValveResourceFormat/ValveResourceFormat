@@ -3,6 +3,9 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Post-processing renderer for tonemapping, color grading, and adaptive exposure.
+    /// </summary>
     public class PostProcessRenderer
     {
         private readonly RendererContext RendererContext;
@@ -10,6 +13,7 @@ namespace ValveResourceFormat.Renderer
         private Shader? shaderPostProcess;
         private Shader? shaderPostProcessBloom;
         private Framebuffer? MsaaResolveFramebuffer;
+        private readonly OutlineRenderer Outline;
 
         public RenderTexture? BlueNoise { get; set; }
         private readonly Random random = new();
@@ -18,6 +22,7 @@ namespace ValveResourceFormat.Renderer
         public PostProcessState State { get; set; }
         public bool Enabled { get; set; } = true;
         public bool ColorCorrectionEnabled { get; set; } = true;
+        public bool HasOutlineObjects { get; set; }
 
         public List<float> ExposureHistory { get; } = new(10);
         public float CustomExposure { get; set; } = -1;
@@ -25,6 +30,7 @@ namespace ValveResourceFormat.Renderer
         public float TargetExposure { get; private set; }
         public float TonemapScalar { get; set; }
         public BloomRenderer Bloom { get; private set; }
+        public DOFRenderer DOF { get; private set; }
 
         public static Framebuffer.AttachmentFormat DefaultColorFormat => new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.Float);
 
@@ -32,6 +38,8 @@ namespace ValveResourceFormat.Renderer
         {
             RendererContext = rendererContext;
             Bloom = new BloomRenderer(rendererContext, this);
+            DOF = new DOFRenderer(rendererContext);
+            Outline = new OutlineRenderer(rendererContext);
         }
 
         public void Load()
@@ -42,8 +50,10 @@ namespace ValveResourceFormat.Renderer
 
             MsaaResolveFramebuffer = Framebuffer.Prepare("Multi Sampling Resolve", 2, 2, 0, DefaultColorFormat, null);
             MsaaResolveFramebuffer.Initialize();
+            MsaaResolveFramebuffer.Color!.SetWrapMode(TextureWrapMode.ClampToEdge);
 
             Bloom.Load();
+            Outline.Load();
         }
 
         private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
@@ -67,7 +77,7 @@ namespace ValveResourceFormat.Renderer
             shader.SetUniform1("g_flWhitePointScale", 1.0f / tonemappedWhitePoint);
         }
 
-        public void Render(Framebuffer colorBufferRead, Framebuffer colorBufferDraw, bool flipY)
+        public void Render(Framebuffer colorBufferRead, Framebuffer colorBufferDraw, Camera camera, bool flipY)
         {
             Debug.Assert(shaderMSAAResolve != null);
             Debug.Assert(shaderPostProcess != null && shaderPostProcessBloom != null);
@@ -80,17 +90,37 @@ namespace ValveResourceFormat.Renderer
 
             using (new GLDebugGroup("MSAA Resolve"))
             {
+                var msaaResolveShader = shaderMSAAResolve;
+
+                if (DOF.Enabled)
+                {
+                    msaaResolveShader = DOF.MsaaResolveDof.Value;
+                }
+
                 MsaaResolveFramebuffer.Resize(colorBufferRead.Width, colorBufferRead.Height);
                 MsaaResolveFramebuffer.BindAndClear(FramebufferTarget.DrawFramebuffer);
 
-                shaderMSAAResolve.Use();
+                msaaResolveShader.Use();
 
-                shaderMSAAResolve.SetTexture(0, "g_tColorBuffer", colorBufferRead.Color);
-                shaderMSAAResolve.SetUniform1("g_bFlipY", flipY);
-                shaderMSAAResolve.SetUniform1("g_nNumSamplesMSAA", colorBufferRead.NumSamples);
+                msaaResolveShader.SetTexture(0, "g_tSourceMsaa", colorBufferRead.Color);
+
+                msaaResolveShader.SetUniform1("g_bFlipY", flipY);
+                msaaResolveShader.SetUniform1("g_nNumSamplesMSAA", colorBufferRead.NumSamples);
+
+                if (DOF.Enabled)
+                {
+                    DOF.SetDofResolveShaderUniforms(msaaResolveShader, camera, colorBufferRead.Depth!);
+                }
 
                 GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            }
+
+            var resolvedScene = MsaaResolveFramebuffer;
+
+            if (DOF.Enabled)
+            {
+                resolvedScene = DOF.Render(MsaaResolveFramebuffer);
             }
 
             using (new GLDebugGroup("Tonemapping, Color Correction, Bloom"))
@@ -101,17 +131,16 @@ namespace ValveResourceFormat.Renderer
 
                 if (State.HasBloom)
                 {
-                    Bloom.Render(MsaaResolveFramebuffer);
+                    Bloom.Render(resolvedScene);
                 }
 
                 colorBufferDraw.Bind(FramebufferTarget.DrawFramebuffer);
                 postProcessShader.Use();
                 GL.Viewport(0, 0, colorBufferRead.Width, colorBufferRead.Height);
 
-                postProcessShader.SetTexture(0, "g_tColorBuffer", MsaaResolveFramebuffer.Color);
+                postProcessShader.SetTexture(0, "g_tColorBuffer", resolvedScene.Color);
                 postProcessShader.SetTexture(1, "g_tColorCorrectionLUT", State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
                 postProcessShader.SetTexture(2, "g_tBlueNoise", BlueNoise);
-                postProcessShader.SetTexture(3, "g_tStencilBuffer", colorBufferRead.Stencil!);
 
                 if (State.HasBloom)
                 {
@@ -137,6 +166,13 @@ namespace ValveResourceFormat.Renderer
 
                 GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            }
+
+            if (HasOutlineObjects)
+            {
+                using var _ = new GLDebugGroup("Outline Edge");
+                Debug.Assert(colorBufferRead.Stencil != null);
+                Outline.Render(colorBufferRead.Stencil, colorBufferRead.NumSamples, flipY);
             }
 
             GL.UseProgram(0);

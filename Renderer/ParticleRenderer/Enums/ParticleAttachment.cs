@@ -1,7 +1,11 @@
 namespace ValveResourceFormat.Renderer.Particles
 {
+    /// <summary>
+    /// Attachment modes for particle systems relative to entities.
+    /// </summary>
     public enum ParticleAttachment // ParticleAttachment_t
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         PATTACH_INVALID = -1,
         PATTACH_ABSORIGIN = 0,
         PATTACH_ABSORIGIN_FOLLOW = 1,
@@ -19,5 +23,6 @@ namespace ValveResourceFormat.Renderer.Particles
         PATTACH_CENTER_FOLLOW = 13,
         PATTACH_CUSTOM_GAME_STATE_1 = 14,
         PATTACH_HEALTHBAR = 15,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     };
 }

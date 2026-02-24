@@ -2,6 +2,9 @@ using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.Buffers
 {
+    /// <summary>
+    /// Uniform buffer containing all scene lights and lightmap configuration.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public class LightingConstants
     {

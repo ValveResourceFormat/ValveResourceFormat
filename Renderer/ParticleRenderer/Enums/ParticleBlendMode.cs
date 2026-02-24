@@ -1,7 +1,11 @@
 namespace ValveResourceFormat.Renderer.Particles
 {
+    /// <summary>
+    /// Particle render output blending modes.
+    /// </summary>
     public enum ParticleBlendMode
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         PARTICLE_OUTPUT_BLEND_MODE_ALPHA = 0,
         PARTICLE_OUTPUT_BLEND_MODE_ADD = 1,
         PARTICLE_OUTPUT_BLEND_MODE_BLEND_ADD = 2,
@@ -9,5 +13,6 @@ namespace ValveResourceFormat.Renderer.Particles
         PARTICLE_OUTPUT_BLEND_MODE_NEG_HALF_BLEND_ADD = 4,
         PARTICLE_OUTPUT_BLEND_MODE_MOD2X = 5,
         PARTICLE_OUTPUT_BLEND_MODE_LIGHTEN = 6,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 }

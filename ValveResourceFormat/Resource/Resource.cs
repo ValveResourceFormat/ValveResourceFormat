@@ -195,7 +195,7 @@ namespace ValveResourceFormat
 
             if (HeaderVersion != KnownHeaderVersion)
             {
-                throw new UnexpectedMagicException($"Unexpected header (expected {KnownHeaderVersion})", HeaderVersion, nameof(HeaderVersion));
+                throw new UnexpectedMagicException($"Unexpected header. You likely tried to read a file that is not actually a resource (usually ends in '_c').", HeaderVersion, nameof(HeaderVersion));
             }
 
             if (FileName != null)

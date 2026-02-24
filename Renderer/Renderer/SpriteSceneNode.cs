@@ -63,6 +63,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
             var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
             GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
             var spriteSize = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
@@ -97,13 +98,12 @@ namespace ValveResourceFormat.Renderer
             renderShader.SetUniform3x4("transform", transform);
 
             renderShader.SetBoneAnimationData(false);
-            renderShader.SetUniform1("sceneObjectId", Id);
             renderShader.SetUniform1("shaderId", material.Shader.NameHash);
             renderShader.SetUniform1("shaderProgramId", (uint)material.Shader.Program);
 
             material.Render(renderShader);
 
-            GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
+            GL.DrawArraysInstancedBaseInstance(PrimitiveType.TriangleStrip, 0, 4, 1, Id);
 
             material.PostRender();
 

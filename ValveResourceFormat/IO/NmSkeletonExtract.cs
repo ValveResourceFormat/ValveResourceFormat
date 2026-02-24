@@ -34,7 +34,7 @@ public class NmSkeletonExtract
         var skel = Skeleton.FromSkeletonData(kvSkeleton);
         var dmxFile = Path.ChangeExtension(resource.FileName, "dmx");
         kv.AddProperty("m_sourceFileName", dmxFile);
-        kv.AddProperty("m_rootBoneName", skel.Roots.FirstOrDefault()?.Name);
+        kv.AddProperty("m_rootBoneName", "");
         kv.AddProperty("m_flGlobalScale", 1.0f);
         kv.AddProperty("m_bIsAttachableProp", kvSkeleton.GetProperty<bool>("m_bIsPropSkeleton"));
         kv.AddProperty("m_secondarySkeletons", kvSkeleton.GetProperty<object>("m_secondarySkeletons"));
@@ -53,7 +53,7 @@ public class NmSkeletonExtract
         {
             Data = Encoding.UTF8.GetBytes(new KV3File(kv).ToString())
         };
-        contentFile.AddSubFile(dmxFile ?? "skeleton.dmx", () =>
+        contentFile.AddSubFile(Path.GetFileName(dmxFile) ?? "skeleton.dmx", () =>
         {
             // Empty animation data
             var anim = new Animation(new AnimationClip() { Resource = null! });

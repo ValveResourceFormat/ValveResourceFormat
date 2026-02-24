@@ -3,6 +3,9 @@ using ValveResourceFormat.NavMesh;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node that visualizes navigation mesh areas and ladders.
+    /// </summary>
     public class NavMeshSceneNode : ShapeSceneNode
     {
         private static readonly Color32 NavMeshColor = new(64, 32, 255, 100);
@@ -81,7 +84,6 @@ namespace ValveResourceFormat.Renderer
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
-            renderShader.SetUniform1("sceneObjectId", Id);
 
             renderShader.SetUniform1("g_bNormalShaded", true);
             renderShader.SetUniform1("g_bTriplanarMapping", false);
@@ -98,7 +100,7 @@ namespace ValveResourceFormat.Renderer
             GL.PrimitiveRestartIndex(int.MaxValue);
             GL.DrawElements(PrimitiveType.LineLoop, indexCount, DrawElementsType.UnsignedInt, 0);
 
-            GL.DrawElements(PrimitiveType.TriangleFan, indexCount, DrawElementsType.UnsignedInt, 0);
+            GL.DrawElementsInstancedBaseInstance(PrimitiveType.TriangleFan, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
             GL.Disable(EnableCap.PrimitiveRestart);
             GL.Disable(EnableCap.PolygonOffsetLine);

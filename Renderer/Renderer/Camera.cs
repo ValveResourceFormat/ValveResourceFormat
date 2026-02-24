@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Perspective camera with view and projection matrix management.
+    /// </summary>
     public class Camera
     {
         public Vector3 Location { get; set; }
@@ -11,7 +14,7 @@ namespace ValveResourceFormat.Renderer
         public Vector3 Up { get; private set; }
 
         private RendererContext RendererContext;
-        private Matrix4x4 ProjectionMatrix;
+        public Matrix4x4 ProjectionMatrix { get; private set; }
         public Matrix4x4 CameraViewMatrix { get; private set; }
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
         public Frustum ViewFrustum { get; } = new Frustum();
@@ -82,7 +85,11 @@ namespace ValveResourceFormat.Renderer
             AspectRatio = viewportWidth / (float)viewportHeight;
             WindowSize = new Vector2(viewportWidth, viewportHeight);
 
-            // Calculate projection matrix
+            CreateProjectionMatrix();
+        }
+
+        public void CreateProjectionMatrix()
+        {
             ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f);
         }
 
@@ -207,7 +214,7 @@ namespace ValveResourceFormat.Renderer
 
         private float GetFOV()
         {
-            return MathUtils.ToRadians(RendererContext.FieldOfView);
+            return float.DegreesToRadians(RendererContext.FieldOfView);
         }
     }
 }

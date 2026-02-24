@@ -4,6 +4,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Scene node for indirect lighting via light probe volumes.
+/// </summary>
 public class SceneLightProbe : SceneNode
 {
     public int HandShake { get; set; }

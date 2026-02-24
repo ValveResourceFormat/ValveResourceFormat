@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Manages post-processing volumes and current post-processing state for the scene.
+    /// </summary>
     public class WorldPostProcessInfo()
     {
         // This may seem like a really stupid structure, but because of
@@ -45,7 +48,7 @@ namespace ValveResourceFormat.Renderer
         public void UpdatePostProcessing(Camera camera)
         {
             // Recalculate post process state
-            var newState = new PostProcessState();
+            var newState = PostProcessState.Default;
 
             // For we SHOULD find the weight of each volume, then blend the values together, and finally blend the remaining values with the Master
 

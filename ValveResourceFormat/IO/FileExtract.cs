@@ -207,7 +207,7 @@ namespace ValveResourceFormat.IO
                             wrappedData.AddProperty("VrfExportedSound", ctrlData.Data);
                             contentFile.AdditionalFiles.Add(new ContentFile
                             {
-                                FileName = Path.GetFileNameWithoutExtension(resource.FileName) + ".vsnd",
+                                FileName = Path.ChangeExtension(resource.FileName, "vsnd") ?? "exported.vsnd",
                                 Data = Encoding.UTF8.GetBytes(new KV3File(wrappedData).ToString())
                             });
                         }

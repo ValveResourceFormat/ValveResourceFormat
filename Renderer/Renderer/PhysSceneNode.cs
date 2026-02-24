@@ -6,6 +6,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node that visualizes physics collision shapes.
+    /// </summary>
     public class PhysSceneNode : ShapeSceneNode
     {
         private static readonly Color32 ColorSphere = new(0.4f, 1f, 0.1f, 0.65f);

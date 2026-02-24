@@ -1,41 +1,24 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
-    class CreateWithinSphereTransform : ParticleFunctionInitializer
+    class CreateWithinSphereTransform : CreateWithinSphere
     {
-        private readonly INumberProvider radiusMin = new LiteralNumberProvider(0);
-        private readonly INumberProvider radiusMax = new LiteralNumberProvider(0);
         private readonly IVectorProvider distanceBias = new LiteralVectorProvider(Vector3.One);
         private readonly Vector3 distanceBiasAbs = Vector3.Zero;
-        private readonly ITransformProvider transformInput = new IdentityTransformProvider();
-        private readonly INumberProvider speedMin = new LiteralNumberProvider(0);
-        private readonly INumberProvider speedMax = new LiteralNumberProvider(0);
-        private readonly float speedRandExp = 1f;
+        private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
         private readonly bool localCoords;
-        private readonly IVectorProvider localCoordinateSystemSpeedMin = new LiteralVectorProvider(Vector3.Zero);
-        private readonly IVectorProvider localCoordinateSystemSpeedMax = new LiteralVectorProvider(Vector3.Zero);
-        private readonly ParticleField fieldOutput = ParticleField.Position;
-        private readonly ParticleField fieldVelocity = ParticleField.PositionPrevious;
 
         public CreateWithinSphereTransform(ParticleDefinitionParser parse) : base(parse)
         {
-            radiusMin = parse.NumberProvider("m_fRadiusMin", radiusMin);
-            radiusMax = parse.NumberProvider("m_fRadiusMax", radiusMax);
             distanceBias = parse.VectorProvider("m_vecDistanceBias", distanceBias);
             distanceBiasAbs = parse.Vector3("m_vecDistanceBiasAbs", distanceBiasAbs);
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
-            speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
-            speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
-            speedRandExp = parse.Float("m_fSpeedRandExp", speedRandExp);
             localCoords = parse.Boolean("m_bLocalCoords", localCoords);
-            localCoordinateSystemSpeedMin = parse.VectorProvider("m_LocalCoordinateSystemSpeedMin", localCoordinateSystemSpeedMin);
-            localCoordinateSystemSpeedMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", localCoordinateSystemSpeedMax);
-            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
-            fieldVelocity = parse.ParticleField("m_nFieldVelocity", fieldVelocity);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
             var transform = transformInput.NextTransform(ref particle, particleSystemState);
+            var position = transform.Translation;
 
             var randomVector = ParticleCollection.RandomBetweenPerComponent(
                 particle.ParticleID,
@@ -61,42 +44,51 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 biasedDirection = Vector3.Normalize(biasedDirection);
             }
 
-            var minRadius = radiusMin.NextNumber(ref particle, particleSystemState);
-            var maxRadius = radiusMax.NextNumber(ref particle, particleSystemState);
-            var distance = ParticleCollection.RandomBetween(particle.ParticleID, minRadius, maxRadius);
+            var distance = ParticleCollection.RandomBetween(
+                particle.ParticleID,
+                radiusMin.NextNumber(ref particle, particleSystemState),
+                radiusMax.NextNumber(ref particle, particleSystemState));
 
-            var localOffset = biasedDirection * distance;
-            var worldOffset = Vector3.Transform(localOffset, transform);
+            var speed = ParticleCollection.RandomBetween(
+                particle.ParticleID,
+                speedMin.NextNumber(ref particle, particleSystemState),
+                speedMax.NextNumber(ref particle, particleSystemState));
 
-            var position = worldOffset;
-            particle.SetVector(fieldOutput, position);
-            particle.PositionPrevious = position;
-
-            var minSpeed = speedMin.NextNumber(ref particle, particleSystemState);
-            var maxSpeed = speedMax.NextNumber(ref particle, particleSystemState);
-
-            var speedT = ParticleCollection.RandomBetween(particle.ParticleID + 1, 0f, 1f);
-            speedT = (float)Math.Pow(speedT, speedRandExp);
-            var speed = float.Lerp(minSpeed, maxSpeed, speedT);
-
-            var localSpeed = ParticleCollection.RandomBetweenPerComponent(
-                particle.ParticleID + 2,
+            var localCoordinateSystemSpeed = ParticleCollection.RandomBetweenPerComponent(
+                particle.ParticleID,
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
-            Vector3 velocity;
+            var offset = biasedDirection * distance;
+
+            Vector3 worldOffset;
             if (localCoords)
             {
-                velocity = (biasedDirection * speed) + localSpeed;
+                // Transform offset into world space
+                worldOffset = Vector3.TransformNormal(offset, transform) + position;
             }
             else
             {
-                var worldDirection = Vector3.TransformNormal(biasedDirection, transform);
-                var worldLocalSpeed = Vector3.TransformNormal(localSpeed, transform);
-                velocity = (worldDirection * speed) + worldLocalSpeed;
+                worldOffset = position + offset;
             }
 
-            particle.SetVector(fieldVelocity, velocity);
+            particle.Position = worldOffset;
+            particle.PositionPrevious = particle.Position;
+
+            Vector3 velocityDirection;
+            Vector3 velocityLocal;
+            if (localCoords)
+            {
+                velocityDirection = Vector3.TransformNormal(biasedDirection, transform);
+                velocityLocal = Vector3.TransformNormal(localCoordinateSystemSpeed, transform);
+            }
+            else
+            {
+                velocityDirection = biasedDirection;
+                velocityLocal = localCoordinateSystemSpeed;
+            }
+
+            particle.Velocity = (velocityDirection * speed) + velocityLocal;
 
             return particle;
         }

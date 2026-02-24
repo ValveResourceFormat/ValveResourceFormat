@@ -1,17 +1,23 @@
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Main renderer for Source 2 scenes with support for shadows, post-processing, and multiple render passes.
+/// </summary>
 public class Renderer
 {
     public float Uptime { get; set; }
     public float DeltaTime { get; set; }
     public RendererContext RendererContext { get; }
     public Camera Camera { get; set; }
+
+    public Timings Timings { get; } = new();
 
     public Scene Scene { get; set; }
     public Scene? SkyboxScene { get; set; }
@@ -32,7 +38,6 @@ public class Renderer
     public Framebuffer? MainFramebuffer { get; set; }
     public PostProcessRenderer Postprocess { get; set; }
     public Frustum? LockedCullFrustum { get; set; }
-
 
     // options
     public int ShadowTextureSize { get; set; } = 1024;
@@ -91,6 +96,8 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", FramebufferCopy.Color));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", FramebufferCopy.Depth));
         // Textures.Add(new(ReservedTextureSlots.SceneStencil, "g_tSceneStencil", FramebufferCopy.Stencil));
+
+        EnsureDepthPyramidSize(256, 256);
     }
 
     public void LoadRendererResources()
@@ -170,11 +177,44 @@ public class Renderer
     {
         Debug.Assert(ViewBuffer != null);
 
+        {
+            // Skip occlusion culling if the camera moved too much -- we use last frame depth
+            var moveDelta = ViewBuffer.Data.CameraPosition - camera.Location;
+            var eyeDelta = ViewBuffer.Data.CameraDirWs - camera.Forward;
+
+            var t = moveDelta.LengthSquared();
+            var t2 = eyeDelta.LengthSquared();
+
+            if (t > 5000f || t2 > 0.5f)
+            {
+                scene.DepthPyramidValid = false;
+            }
+            else
+            {
+                ViewBuffer.Data.WorldToProjectionPrev = scene.DepthPyramidViewProjection;
+            }
+
+            scene.UpdateIndirectRenderingState();
+        }
+
         camera.SetViewConstants(ViewBuffer.Data);
         scene.SetFogConstants(ViewBuffer.Data);
 
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
+
+        if (LockedCullFrustum == null)
+        {
+            if (scene.DrawMeshletsIndirect)
+            {
+                scene.MeshletCullGpu(camera.ViewFrustum);
+            }
+
+            if (scene.CompactMeshletDraws)
+            {
+                scene.CompactIndirectDraws();
+            }
+        }
 
         if (Postprocess != null)
         {
@@ -256,8 +296,8 @@ public class Renderer
 
         renderContext.Framebuffer.BindAndClear();
 
-        var isStandardPass = renderContext.ReplacementShader == null
-            && ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
+        var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
+        var isStandardPass = renderContext.ReplacementShader == null && isMainFramebuffer;
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
         var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
@@ -278,10 +318,10 @@ public class Renderer
         using (new GLDebugGroup("Main Scene Opaque Render"))
         {
             renderContext.Scene = Scene;
-            Scene.RenderOpaqueLayer(renderContext);
+            Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShaders : Span<Shader>.Empty);
         }
 
-        if (isStandardPass && Scene.EnableOcclusionCulling)
+        if (isStandardPass && Scene.EnableOcclusionQueries)
         {
             Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
         }
@@ -294,6 +334,7 @@ public class Renderer
             var skyboxScene = SkyboxScene;
             var render3DSkybox = ShowSkybox && skyboxScene != null;
             var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
+            Postprocess.HasOutlineObjects = Scene.HasOutlineObjects;
 
             if (render3DSkybox)
             {
@@ -304,6 +345,7 @@ public class Renderer
 
                 copyColor |= skyboxScene.WantsSceneColor;
                 copyDepth |= skyboxScene.WantsSceneDepth;
+                Postprocess.HasOutlineObjects |= skyboxScene.HasOutlineObjects;
 
                 using var _ = new GLDebugGroup("3D Sky Scene");
                 skyboxScene.RenderOpaqueLayer(renderContext);
@@ -319,9 +361,25 @@ public class Renderer
 
             copyColor |= computeFramebufferLuminance;
 
-            if (isStandardPass)
+            if (isMainFramebuffer)
             {
+                var generateDepthPyramid = Scene.EnableOcclusionCulling
+                    && Scene.DrawMeshletsIndirect
+                    && LockedCullFrustum == null;
+
+                copyDepth |= generateDepthPyramid;
+                Scene.DepthPyramidValid = generateDepthPyramid || LockedCullFrustum != null;
+
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
+
+                if (generateDepthPyramid)
+                {
+                    Debug.Assert(FramebufferCopy != null && FramebufferCopy.Depth != null);
+                    EnsureDepthPyramidSize(renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+                    Scene.GenerateDepthPyramid(FramebufferCopy.Depth);
+                    Scene.DepthPyramidViewProjection = Camera.ViewProjectionMatrix;
+                    Scene.DepthPyramidValid = true;
+                }
             }
 
             if (render3DSkybox)
@@ -359,7 +417,7 @@ public class Renderer
                 ComputeAverageLuminance(renderContext);
             }
 
-            using (new GLDebugGroup("Outline Render"))
+            if (Postprocess.HasOutlineObjects)
             {
                 RenderOutlineLayer(renderContext);
             }
@@ -393,6 +451,8 @@ public class Renderer
     private void ComputeAverageLuminance(Scene.RenderContext renderContext)
     {
         Debug.Assert(FramebufferCopy != null);
+
+        using var _ = new GLDebugGroup("Compute Average Luminance");
 
         var width = FramebufferCopy.Width;
         var height = FramebufferCopy.Height;
@@ -437,6 +497,8 @@ public class Renderer
 
     private void RenderOutlineLayer(Scene.RenderContext renderContext)
     {
+        using var _ = new GLDebugGroup("Outline Stencil Write");
+
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
         GL.Disable(EnableCap.CullFace);
@@ -461,6 +523,8 @@ public class Renderer
         {
             return;
         }
+
+        using var _ = new GLDebugGroup("Framebuffer Copy");
 
         if (FramebufferCopy is null)
         {
@@ -487,7 +551,7 @@ public class Renderer
     }
 
     /// <summary>
-    /// Multisampling resolve, postprocess the image & convert to gamma.
+    /// Multisampling resolve, postprocess the image, and convert to gamma.
     /// </summary>
     public void PostprocessRender(Framebuffer inputFramebuffer, Framebuffer outputFramebuffer, bool flipY = false)
     {
@@ -499,7 +563,7 @@ public class Renderer
         Debug.Assert(inputFramebuffer.NumSamples > 0);
         Debug.Assert(outputFramebuffer.NumSamples == 0);
 
-        Postprocess.Render(inputFramebuffer, outputFramebuffer, flipY);
+        Postprocess.Render(inputFramebuffer, outputFramebuffer, Camera, flipY);
     }
 
     public void Dispose()
@@ -507,6 +571,7 @@ public class Renderer
         ViewBuffer?.Dispose();
         Scene?.Dispose();
         SkyboxScene?.Dispose();
+        Timings?.Dispose();
     }
 
     public void Update(Scene.UpdateContext updateContext)
@@ -528,9 +593,37 @@ public class Renderer
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera);
 
         Scene.SetupSceneShadows(updateContext.Camera, ShadowDepthBuffer.Width);
-        Scene.GetOcclusionTestResults();
+
+        if (LockedCullFrustum == null)
+        {
+            Scene.GetOcclusionTestResults();
+        }
 
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
+    }
+
+    void EnsureDepthPyramidSize(int width, int height)
+    {
+        // Get the target pyramid size
+        var maxDim = Math.Max(width, height);
+        var cappedDim = Math.Min(maxDim, 256);
+        var targetSize = 1 << (int)Math.Floor(Math.Log2(cappedDim));
+
+        if (Scene.DepthPyramid != null && Scene.DepthPyramid.Width == targetSize && Scene.DepthPyramid.Height == targetSize)
+        {
+            return;
+        }
+
+        // Delete old texture
+        Scene.DepthPyramid?.Delete();
+
+        // Calculate mips needed to go from targetSize down to 1x1
+        var maxMipLevel = (int)Math.Log2(targetSize);
+
+        Scene.DepthPyramid = RenderTexture.Create(targetSize, targetSize, SizedInternalFormat.R32f, maxMipLevel + 1);
+        Scene.DepthPyramid.SetLabel("DepthPyramid");
+
+        Scene.DepthPyramid.SetBaseMaxLevel(0, maxMipLevel);
     }
 }

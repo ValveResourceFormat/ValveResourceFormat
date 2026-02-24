@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         private static float CosineInterpolate(float start, float end, float mu)
         {
-            var mu2 = (1 - MathF.Cos(mu * MathF.PI)) / 2f;
+            var mu2 = (1 - float.CosPi(mu)) / 2f;
             return float.Lerp(start, end, mu2);
         }
     }

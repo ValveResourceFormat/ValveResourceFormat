@@ -2,6 +2,9 @@ using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Environment map reflection probe with box or sphere projection.
+/// </summary>
 public class SceneEnvMap : SceneNode
 {
     public int HandShake { get; init; }
@@ -28,6 +31,9 @@ public class SceneEnvMap : SceneNode
 
     public int ShaderIndex { get; set; }
 
+    /// <summary>
+    /// 128-bit bitmask tracking which environment maps are visible to a node.
+    /// </summary>
     [InlineArray(4)]
     public struct EnvMapVisibility128
     {

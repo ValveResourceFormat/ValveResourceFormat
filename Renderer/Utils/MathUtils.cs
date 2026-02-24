@@ -85,24 +85,6 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Converts degrees to radians.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float ToRadians(float deg)
-        {
-            return deg * (MathF.PI / 180.0f);
-        }
-
-        /// <summary>
-        /// Converts radians to degrees.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float ToDegrees(float rad)
-        {
-            return rad * (180.0f / MathF.PI);
-        }
-
-        /// <summary>
         /// Linearly interpolates between two angles in radians, taking the shortest path around the circle.
         /// </summary>
         /// <param name="from">Start angle in radians.</param>

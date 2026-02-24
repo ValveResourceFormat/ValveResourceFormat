@@ -249,124 +249,128 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            UiControl.AddControl(new Label
-            {
-                Text = $"Size: {textureData.Width}x{textureData.Height}",
-                Width = 200,
-            });
-            UiControl.AddControl(new Label
-            {
-                Text = $"Format: {textureData.Format}",
-                Width = 200,
-            });
-
             ComboBox? cubemapProjectionComboBox = null;
             CheckBox? softwareDecodeCheckBox = null;
             ComboBox? depthComboBox = null;
 
-            if (textureData.NumMipLevels > 1)
+            using (UiControl.BeginGroup("Texture"))
             {
-                string GetMipLevelSizeString(int mipLevel)
+                UiControl.AddControl(new Label
                 {
-                    var mipWidth = Math.Max(1, textureData.Width >> mipLevel);
-                    var mipHeight = Math.Max(1, textureData.Height >> mipLevel);
+                    Text = $"Size: {textureData.Width}x{textureData.Height}",
+                    Width = 200,
+                });
+                UiControl.AddControl(new Label
+                {
+                    Text = $"Format: {textureData.Format}",
+                    Width = 200,
+                });
 
-                    if ((textureData.Flags & VTexFlags.VOLUME_TEXTURE) != 0)
+                if (textureData.NumMipLevels > 1)
+                {
+                    string GetMipLevelSizeString(int mipLevel)
                     {
-                        var mipDepth = Math.Max(1, textureData.Depth >> mipLevel);
-                        return $"(#{mipLevel}) {mipWidth}x{mipHeight}x{mipDepth}";
+                        var mipWidth = Math.Max(1, textureData.Width >> mipLevel);
+                        var mipHeight = Math.Max(1, textureData.Height >> mipLevel);
+
+                        if ((textureData.Flags & VTexFlags.VOLUME_TEXTURE) != 0)
+                        {
+                            var mipDepth = Math.Max(1, textureData.Depth >> mipLevel);
+                            return $"(#{mipLevel}) {mipWidth}x{mipHeight}x{mipDepth}";
+                        }
+
+                        return $"(#{mipLevel}) {mipWidth}x{mipHeight}";
                     }
 
-                    return $"(#{mipLevel}) {mipWidth}x{mipHeight}";
+                    var mipComboBox = UiControl.AddSelection("Mip level", (name, index) =>
+                    {
+                        SelectedMip = index;
+
+                        // Depth levels are also mip mapped, so we have to remove incorrect levels
+                        if (depthComboBox != null && (textureData.Flags & VTexFlags.VOLUME_TEXTURE) != 0)
+                        {
+                            var depthMip = textureData.Depth >> SelectedMip;
+                            var newSelectedDepth = Math.Min(SelectedDepth, depthMip - 1);
+
+                            depthComboBox.BeginUpdate();
+                            depthComboBox.Items.Clear();
+                            depthComboBox.Items.AddRange(Enumerable.Range(0, depthMip).Select(x => $"#{x}").ToArray());
+                            depthComboBox.SelectedIndex = newSelectedDepth;
+                            depthComboBox.EndUpdate();
+                        }
+
+                        if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                        {
+                            SetupTextureFromUi(true);
+                        }
+                    });
+
+                    mipComboBox.Items.AddRange(
+                        [.. Enumerable.Range(0, textureData.NumMipLevels).Select(GetMipLevelSizeString)]);
+                    mipComboBox.SelectedIndex = 0;
                 }
 
-                var mipComboBox = UiControl.AddSelection("Mip level", (name, index) =>
+                if (textureData.Depth > 1)
                 {
-                    SelectedMip = index;
-
-                    // Depth levels are also mip mapped, so we have to remove incorrect levels
-                    if (depthComboBox != null && (textureData.Flags & VTexFlags.VOLUME_TEXTURE) != 0)
+                    depthComboBox = UiControl.AddSelection("Depth", (name, index) =>
                     {
-                        var depthMip = textureData.Depth >> SelectedMip;
-                        var newSelectedDepth = Math.Min(SelectedDepth, depthMip - 1);
+                        SelectedDepth = index;
 
-                        depthComboBox.BeginUpdate();
-                        depthComboBox.Items.Clear();
-                        depthComboBox.Items.AddRange(Enumerable.Range(0, depthMip).Select(x => $"#{x}").ToArray());
-                        depthComboBox.SelectedIndex = newSelectedDepth;
-                        depthComboBox.EndUpdate();
-                    }
+                        if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                        {
+                            SetupTextureFromUi(true);
+                        }
+                    });
 
-                    if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
-                    {
-                        SetupTextureFromUi(true);
-                    }
-                });
+                    depthComboBox.Items.AddRange(Enumerable.Range(0, textureData.Depth).Select(x => $"#{x}").ToArray());
+                    depthComboBox.SelectedIndex = 0;
+                }
 
-                mipComboBox.Items.AddRange(
-                    [.. Enumerable.Range(0, textureData.NumMipLevels).Select(GetMipLevelSizeString)]);
-                mipComboBox.SelectedIndex = 0;
-            }
-
-            if (textureData.Depth > 1)
-            {
-                depthComboBox = UiControl.AddSelection("Depth", (name, index) =>
+                if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
                 {
-                    SelectedDepth = index;
+                    ComboBox? cubeFaceComboBox = null;
 
-                    if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                    cubemapProjectionComboBox = UiControl.AddSelection("Projection type", (name, index) =>
                     {
-                        SetupTextureFromUi(true);
-                    }
-                });
+                        cubeFaceComboBox!.Enabled = index == 0;
 
-                depthComboBox.Items.AddRange(Enumerable.Range(0, textureData.Depth).Select(x => $"#{x}").ToArray());
-                depthComboBox.SelectedIndex = 0;
-            }
+                        if (softwareDecodeCheckBox == null)
+                        {
+                            CubemapProjectionType = (CubemapProjection)index;
+                            return;
+                        }
 
-            if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
-            {
-                ComboBox? cubeFaceComboBox = null;
+                        var oldTextureSize = ActualTextureSizeScaled;
 
-                cubemapProjectionComboBox = UiControl.AddSelection("Projection type", (name, index) =>
-                {
-                    cubeFaceComboBox!.Enabled = index == 0;
-
-                    if (softwareDecodeCheckBox == null)
-                    {
                         CubemapProjectionType = (CubemapProjection)index;
-                        return;
-                    }
 
-                    var oldTextureSize = ActualTextureSizeScaled;
+                        TextureScaleChangeTime = 0f;
+                        TextureScaleOld = TextureScale;
 
-                    CubemapProjectionType = (CubemapProjection)index;
+                        PositionOld = Position;
+                        CenterPosition();
+                    });
 
-                    TextureScaleChangeTime = 0f;
-                    TextureScaleOld = TextureScale;
-
-                    PositionOld = Position;
-                    CenterPosition();
-                });
-
-                cubeFaceComboBox = UiControl.AddSelection("Cube face", (name, index) =>
-                {
-                    SelectedCubeFace = index;
-
-                    if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                    cubeFaceComboBox = UiControl.AddSelection("Cube face", (name, index) =>
                     {
-                        SetupTextureFromUi(true);
-                    }
-                });
+                        SelectedCubeFace = index;
 
-                cubeFaceComboBox.Items.AddRange(Enum.GetNames<CubemapFace>());
-                cubeFaceComboBox.SelectedIndex = 0;
+                        if (softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked)
+                        {
+                            SetupTextureFromUi(true);
+                        }
+                    });
 
-                cubemapProjectionComboBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
-                cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
+                    cubeFaceComboBox.Items.AddRange(Enum.GetNames<CubemapFace>());
+                    cubeFaceComboBox.SelectedIndex = 0;
+
+                    cubemapProjectionComboBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
+                    cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
+                    SelectedFiltering = Filtering.Linear;
+                }
+
+                decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
             }
-
-            decodeFlags = textureData.RetrieveCodecFromResourceEditInfo();
 
             decodeFlagsListBox = UiControl.AddMultiSelection("Texture Conversion",
                 SetInitialDecodeFlagsState,
@@ -381,40 +385,45 @@ namespace GUI.Types.GLViewers
                 }
             );
 
-            AddChannelsComboBox();
-
-            var forceSoftwareDecode = textureData.IsRawAnyImage;
-            softwareDecodeCheckBox = UiControl.AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
+            using (UiControl.BeginGroup("View"))
             {
-                if (cubemapProjectionComboBox != null)
+                AddChannelsComboBox();
+
+                var forceSoftwareDecode = textureData.IsRawAnyImage;
+                softwareDecodeCheckBox = UiControl.AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
                 {
-                    if (state)
+                    if (cubemapProjectionComboBox != null)
                     {
-                        cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.None;
-                        cubemapProjectionComboBox.Enabled = false;
+                        if (state)
+                        {
+                            cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.None;
+                            cubemapProjectionComboBox.Enabled = false;
+                        }
+                        else
+                        {
+                            cubemapProjectionComboBox.Enabled = true;
+                        }
                     }
-                    else
-                    {
-                        cubemapProjectionComboBox.Enabled = true;
-                    }
+
+                    SetupTextureFromUi(state);
+                });
+
+                UiControl.AddCheckBox("Show UV Tiling", false, (state) =>
+                {
+                    var previousSize = ActualTextureSizeScaled;
+
+                    VisualizeTiling = state;
+
+                    TextureDimensionsChanged(previousSize);
+
+                    SetTextureFilteringFromUi();
+
+                });
+
+                if (forceSoftwareDecode)
+                {
+                    softwareDecodeCheckBox.Enabled = false;
                 }
-
-                SetupTextureFromUi(state);
-            });
-
-            UiControl.AddCheckBox("Show UV Tiling", false, (state) =>
-            {
-                var previousSize = ActualTextureSizeScaled;
-
-                VisualizeTiling = state;
-                SetTextureFilteringFromUi();
-
-                TextureDimensionsChanged(previousSize);
-            });
-
-            if (forceSoftwareDecode)
-            {
-                softwareDecodeCheckBox.Enabled = false;
             }
 
             return;
@@ -493,7 +502,7 @@ namespace GUI.Types.GLViewers
             });
 
             samplingComboBox.Items.AddRange(Enum.GetNames<Filtering>());
-            samplingComboBox.SelectedIndex = 0;
+            samplingComboBox.SelectedIndex = (int)SelectedFiltering;
         }
 
         private void SetTextureFiltering()
@@ -677,6 +686,10 @@ namespace GUI.Types.GLViewers
 
         protected SKBitmap ReadPixelsToBitmap(bool hdr = false)
         {
+            var removeFlags = hdr
+                ? (TextureCodec.ColorSpaceLinear | TextureCodec.ColorSpaceSrgb)
+                : TextureCodec.None;
+
             var size = ActualTextureSize;
 
             if (SelectedMip > 0)
@@ -719,7 +732,7 @@ namespace GUI.Types.GLViewers
 
                 SaveAsFbo.BindAndClear(FramebufferTarget.DrawFramebuffer);
 
-                Draw(SaveAsFbo, captureFullSizeImage: true);
+                Draw(SaveAsFbo, captureFullSizeImage: true, removeFlags);
 
                 GL.Flush();
                 GL.Finish();
@@ -1347,7 +1360,7 @@ namespace GUI.Types.GLViewers
             GLControl?.Invalidate();
         }
 
-        protected void Draw(Framebuffer fbo, bool captureFullSizeImage = false)
+        protected void Draw(Framebuffer fbo, bool captureFullSizeImage = false, TextureCodec removeFlags = TextureCodec.None)
         {
             GL.DepthMask(false);
             GL.Disable(EnableCap.DepthTest);
@@ -1383,7 +1396,7 @@ namespace GUI.Types.GLViewers
             shader.SetUniform1("g_bVisualizeTiling", VisualizeTiling);
             shader.SetUniform1("g_nChannelSplitMode", (int)ChannelSplitMode);
             shader.SetUniform1("g_nCubemapProjectionType", (int)CubemapProjectionType);
-            shader.SetUniform1("g_nDecodeFlags", (int)decodeFlags);
+            shader.SetUniform1("g_nDecodeFlags", (int)(decodeFlags & ~removeFlags));
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

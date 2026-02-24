@@ -86,30 +86,39 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
+            using (UiControl.BeginGroup("Debug"))
             {
-                Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
-            });
-            UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
-            {
-                showStaticOctree = v;
-
-                if (showStaticOctree && staticOctreeRenderer != null)
+                UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
                 {
-                    using var lockedGl = MakeCurrent();
+                    Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
+                });
 
-                    staticOctreeRenderer.StaticBuild();
+                UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
+                {
+                    showStaticOctree = v;
+
+                    if (showStaticOctree && staticOctreeRenderer != null)
+                    {
+                        using var lockedGl = MakeCurrent();
+
+                        staticOctreeRenderer.StaticBuild();
+                    }
+                });
+                UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
+                UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
+                {
+                    Scene.ShowToolsMaterials = v;
+
+                    SkyboxScene?.ShowToolsMaterials = v;
+                });
+
+                if (this is GLWorldViewer worldViewer)
+                {
+                    UiControl.AddCheckBox("Show Occluded Bounds", Scene.OcclusionDebugEnabled, (v) => Scene.OcclusionDebugEnabled = v);
                 }
-            });
-            UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
-            UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
-            {
-                Scene.ShowToolsMaterials = v;
 
-                SkyboxScene?.ShowToolsMaterials = v;
-            });
-
-            AddWireframeToggleControl();
+                UiControl.AddCheckBox("Show Render Timings", Renderer.Timings.Capture, (v) => Renderer.Timings.Capture = v);
+            }
 
             base.AddUiControls();
         }
@@ -117,6 +126,52 @@ namespace GUI.Types.GLViewers
         public virtual void PreSceneLoad()
         {
             Renderer.LoadRendererResources();
+        }
+
+        // Default environment + simple sun lighting used by viewers without lighting information
+        protected readonly Vector2 defaultSunAngles = new(80f, 170f);
+        protected readonly Vector4 defaultSunColor = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
+        protected Vector2 sunAngles;
+        private bool loadedDefaultLighting;
+
+        protected virtual void LoadDefaultLighting()
+        {
+            using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
+            Debug.Assert(stream != null);
+
+            using var resource = new ValveResourceFormat.Resource()
+            {
+                FileName = "vrf_default_cubemap.vtex_c"
+            };
+            resource.Read(stream);
+
+            var texture = Scene.RendererContext.MaterialLoader.LoadTexture(resource, true);
+            var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
+            {
+                Transform = Matrix4x4.Identity,
+                EdgeFadeDists = Vector3.Zero,
+                HandShake = 0,
+                ProjectionMode = 0,
+                EnvMapTexture = texture,
+            };
+
+            Scene.LightingInfo.AddEnvironmentMap(environmentMap);
+            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
+
+            sunAngles = defaultSunAngles;
+            Scene.LightingInfo.LightingData.LightColor_Brightness[0] = defaultSunColor;
+            UpdateSunAngles();
+            loadedDefaultLighting = true;
+        }
+
+        protected void UpdateSunAngles()
+        {
+            // clamp and wrap angles
+            sunAngles.X = Math.Clamp(sunAngles.X, 0f, 89f);
+            sunAngles.Y %= 360f;
+
+            Scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(float.DegreesToRadians(sunAngles.X))
+                                                             * Matrix4x4.CreateRotationZ(float.DegreesToRadians(sunAngles.Y));
         }
 
         public virtual void PostSceneLoad()
@@ -190,6 +245,11 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseWheel(sender, e);
 
+            if (!Input.NoClip)
+            {
+                return;
+            }
+
             var modifier = Input.OnMouseWheel(e.Delta);
 
             if (Input.OrbitMode)
@@ -206,6 +266,11 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseUp(sender, e);
 
+            if (!Input.NoClip)
+            {
+                return;
+            }
+
             if (InitialMousePosition == new Point(e.X, e.Y))
             {
                 Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Select);
@@ -215,6 +280,11 @@ namespace GUI.Types.GLViewers
         protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             base.OnMouseDown(sender, e);
+
+            if (!Input.NoClip)
+            {
+                return;
+            }
 
             if (e.Button == MouseButtons.Left)
             {
@@ -234,6 +304,12 @@ namespace GUI.Types.GLViewers
 
             GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery1);
             GL.CreateQueries(QueryTarget.TimeElapsed, 1, out frametimeQuery2);
+
+#if DEBUG
+            const string queryLabel = "Frame Time Query";
+            GL.ObjectLabel(ObjectLabelIdentifier.Query, frametimeQuery1, queryLabel.Length, queryLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Query, frametimeQuery2, queryLabel.Length, queryLabel);
+#endif
 
             // Needed to fix crash on certain drivers
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);
@@ -261,6 +337,15 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
+            if (GLNativeWindow != null)
+            {
+                // try to compile shaders?
+                Renderer.Camera.SetLocationPitchYaw(Vector3.UnitZ * 20_000f, -90, 0f);
+                Renderer.Camera.SetViewportSize(64, 64);
+                OnPaint(0f);
+                GLNativeWindow.Context.SwapBuffers();
+            }
+
             GuiContext.ClearCache();
             GuiContext.GLPostLoadAction?.Invoke(this);
             GuiContext.GLPostLoadAction = null;
@@ -269,6 +354,18 @@ namespace GUI.Types.GLViewers
         protected override void OnUpdate(float frameTime)
         {
             base.OnUpdate(frameTime);
+
+            Input.EnableMouseLook = true;
+            if (loadedDefaultLighting && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
+            {
+                var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
+
+                sunAngles += delta;
+                Scene.AdjustEnvMapSunAngle(Matrix4x4.CreateRotationZ(-delta.Y / 80f));
+                UpdateSunAngles();
+                Scene.UpdateBuffers();
+                Input.EnableMouseLook = false;
+            }
 
             if (MouseOverRenderArea || Input.ForceUpdate)
             {
@@ -288,6 +385,11 @@ namespace GUI.Types.GLViewers
                 Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = MouseDelta;
                 MouseDelta = System.Drawing.Point.Empty;
+
+                // Clear mouse wheel events after processing (they're one-time events)
+                CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
+
+                GrabbedMouse = !Input.NoClip && !Paused;
             }
         }
 
@@ -324,6 +426,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
+            Renderer.Timings.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
             var renderContext = new Scene.RenderContext
@@ -381,6 +484,11 @@ namespace GUI.Types.GLViewers
                     dynamicOctreeRenderer.Render();
                 }
 
+                if (Scene.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
+                {
+                    Scene.OcclusionDebug.Render();
+                }
+
                 if (ShowBaseGrid && baseGrid != null)
                 {
                     baseGrid.Render();
@@ -422,15 +530,46 @@ namespace GUI.Types.GLViewers
 
             BlitFramebufferToScreen();
 
+            if (GrabbedMouse)
+            {
+                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 0.5f,
+                    Y = 0.02f,
+                    Scale = 14f,
+                    Color = new Color32(0, 150, 255),
+                    Text = "* MOVEMENT IS EXPERIMENTAL. EXPECT BUGS. HELP US IMPROVE IT. *",
+                    CenterVertical = true,
+                }, Renderer.Camera);
+
+                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 0.5f,
+                    Y = 0.85f,
+                    Scale = 12f,
+                    Color = Color32.Yellow,
+                    Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
+                    CenterVertical = true,
+                }, Renderer.Camera);
+            }
+
+            if (Renderer.Timings.Capture)
+            {
+                Renderer.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
+            }
+
             TextRenderer.Render(Renderer.Camera);
             Picker?.TriggerEventIfAny();
+
+            Renderer.Timings.MarkFrameEnd();
         }
 
         protected void AddBaseGridControl()
         {
             Debug.Assert(UiControl != null);
 
-            UiControl.AddDivider();
+            using var _ = UiControl.BeginGroup("Display");
+
             var lightBackgroundCheckbox = UiControl.AddCheckBox("Light Background", ShowLightBackground, (v) =>
             {
                 ShowLightBackground = v;
@@ -444,7 +583,6 @@ namespace GUI.Types.GLViewers
                 ShowSolidBackground = v;
                 Renderer.BaseBackground!.SetSolidBackground(ShowSolidBackground);
             });
-            UiControl.AddDivider();
 
             if (this is not GLMaterialViewer)
             {
@@ -579,6 +717,8 @@ namespace GUI.Types.GLViewers
             Renderer.ViewBuffer!.Data!.RenderMode = RenderModes.GetShaderId(renderMode);
 
             Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
+
+            Scene.EnableCompaction = renderMode != "Meshlets";
 
             Picker.SetRenderMode(renderMode);
             SelectedNodeRenderer.SetRenderMode(renderMode);

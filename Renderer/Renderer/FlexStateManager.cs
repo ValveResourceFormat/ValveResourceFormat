@@ -3,6 +3,9 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Manages flex controller state and morph target composition for facial animation.
+    /// </summary>
     public class FlexStateManager
     {
         private readonly Dictionary<int, int> morphIdToRuleId = [];

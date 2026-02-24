@@ -6,25 +6,39 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node for instanced rendering of aggregated world geometry.
+    /// </summary>
     public class SceneAggregate : SceneNode
     {
         public RenderableMesh RenderMesh { get; }
+        public List<Fragment> Fragments { get; private set; } = [];
+
+        public int IndirectDrawByteOffset { get; set; }
+        public int IndirectDrawCount { get; set; }
+        public int CompactionIndex { get; set; } = -1;
+        public bool AnyChildrenVisible { get; internal set; }
+
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
         public StorageBuffer? InstanceTransformsGpu { get; private set; }
+        public bool CanDrawIndirect { get; set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
         public ObjectTypeFlags AnyFlags { get; set; }
 
+        /// <summary>
+        /// Single drawable fragment within an aggregate with independent bounds.
+        /// </summary>
         public sealed class Fragment : SceneNode
         {
-            public required SceneNode Parent { get; init; }
+            public required SceneAggregate Parent { get; init; }
             public required RenderableMesh RenderMesh { get; init; }
             public required DrawCall DrawCall { get; init; }
 
             public Vector4 Tint { get; set; } = Vector4.One;
 
-            public Fragment(Scene scene, SceneNode parent, AABB bounds) : base(scene)
+            public Fragment(Scene scene, SceneAggregate parent, AABB bounds) : base(scene)
             {
                 Parent = parent;
                 LocalBoundingBox = bounds;
@@ -76,7 +90,16 @@ namespace ValveResourceFormat.Renderer
             LocalBoundingBox = new AABB(Vector3.NegativeInfinity, Vector3.PositiveInfinity);
         }
 
-        public IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
+        public void LoadFragments(KVObject aggregateSceneObject)
+        {
+            Fragments.AddRange(CreateFragments(aggregateSceneObject));
+            foreach (var fragment in Fragments)
+            {
+                Scene.Add(fragment, false);
+            }
+        }
+
+        private IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
         {
             var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 
@@ -109,13 +132,15 @@ namespace ValveResourceFormat.Renderer
             var transformIndex = 0;
             var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
 
+            CanDrawIndirect = RenderMesh.DrawCallsOpaque.Count > 0;
+
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
             {
                 var lightProbeVolumePrecomputedHandshake = fragmentData.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
                 var drawCallIndex = fragmentData.GetInt32Property("m_nDrawCallIndex");
                 var drawCall = RenderMesh.DrawCallsOpaque[drawCallIndex];
-                var drawBounds = drawCall.DrawBounds ?? RenderMesh.BoundingBox;
+                var drawBounds = drawCall.DrawBounds ?? throw new InvalidDataException("Draw call bounds must exist for all new format fragments");
                 var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
                 var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
                 var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
@@ -137,6 +162,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
                 {
+                    CanDrawIndirect = false; // skip indirect draw path for instanced draws
                     fragment.Transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
                 }
 

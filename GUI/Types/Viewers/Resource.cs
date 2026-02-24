@@ -231,19 +231,6 @@ namespace GUI.Types.Viewers
             containerTabPage.Controls.Add(resTabs);
             //containerTabPage.PerformLayout();
 
-            var ownsResource = true;
-            void OnTabDisposed(object? sender, EventArgs e)
-            {
-                resTabs.Disposed -= OnTabDisposed;
-
-                if (ownsResource)
-                {
-                    resource?.Dispose();
-                }
-            }
-
-            resTabs.Disposed += OnTabDisposed;
-
             var selectData = true;
 
             if (viewMode != ResourceViewMode.ResourceBlocksOnly)
@@ -282,10 +269,19 @@ namespace GUI.Types.Viewers
 
                 resTabs.Dispose();
 
-                ownsResource = false;
-
                 return;
             }
+
+            // Strictly speaking this event should not be needed, but we have it for safety.
+            // Handled by OpenFile -> OnTabDisposed
+            void OnTabDisposed(object? sender, EventArgs e)
+            {
+                resTabs.Disposed -= OnTabDisposed;
+
+                resource?.Dispose();
+            }
+
+            resTabs.Disposed += OnTabDisposed;
 
             List<RawBinary>? binaryBuffers = null;
 

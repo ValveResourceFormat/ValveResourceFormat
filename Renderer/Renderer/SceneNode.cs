@@ -3,6 +3,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Base class for all objects in the scene graph.
+    /// </summary>
     [DebuggerDisplay("{DebugName,nq}")]
     public abstract class SceneNode
     {
@@ -85,6 +88,11 @@ namespace ValveResourceFormat.Renderer
 
         public virtual void Delete()
         {
+        }
+
+        public float GetCameraDistance(Camera camera)
+        {
+            return (BoundingBox.Center - camera.Location).LengthSquared();
         }
     }
 }

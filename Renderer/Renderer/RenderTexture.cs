@@ -5,6 +5,9 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// OpenGL texture object with metadata for dimensions and filtering configuration.
+    /// </summary>
     [DebuggerDisplay("{Width}x{Height}x{Depth} mip:{NumMipLevels} srgb:{Srgb}")]
     public class RenderTexture
     {
@@ -16,7 +19,9 @@ namespace ValveResourceFormat.Renderer
         public int Width { get; }
         public int Height { get; }
         public int Depth { get; }
-        public int NumMipLevels { get; }
+        public int NumMipLevels { get; private set; }
+
+        public Vector4 Reflectivity { get; internal set; }
 
         RenderTexture(TextureTarget target)
         {
@@ -32,6 +37,7 @@ namespace ValveResourceFormat.Renderer
             Depth = data.Depth;
             NumMipLevels = data.NumMipLevels;
             SpriteSheetData = data.GetSpriteSheetData();
+            Reflectivity = data.Reflectivity;
         }
 
         public RenderTexture(TextureTarget target, int width, int height, int depth, int mipcount)
@@ -55,6 +61,13 @@ namespace ValveResourceFormat.Renderer
                 ? MaxMipCount(width, height)
                 : 1;
 
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount);
+            GL.TextureStorage2D(texture.Handle, mipCount, format, width, height);
+            return texture;
+        }
+
+        public static RenderTexture Create(int width, int height, SizedInternalFormat format, int mipCount)
+        {
             var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount);
             GL.TextureStorage2D(texture.Handle, mipCount, format, width, height);
             return texture;

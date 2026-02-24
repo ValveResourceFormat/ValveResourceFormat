@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Handles keyboard and mouse input for camera movement and orbit controls.
+/// </summary>
 public class UserInput
 {
     private const float MovementSpeed = 250f; // WASD movement, per second
@@ -21,6 +24,9 @@ public class UserInput
     ];
     private int CurrentSpeedModifier = 4;
 
+    /// <summary>
+    /// Lightweight camera state snapshot for smooth interpolation.
+    /// </summary>
     public record struct CameraLite(Vector3 Location, float Pitch, float Yaw);
 
     private readonly Renderer Renderer;
@@ -30,15 +36,20 @@ public class UserInput
     public Camera Camera { get; }
     public Rubikon? PhysicsWorld { get; set; }
 
+    private Vector3? _orbitTarget;
+    private bool _forceUpdate = true;
+
     // Orbit controls
-    public bool OrbitMode => OrbitTarget != null;
+    public bool OrbitMode => _orbitTarget != null;
     public bool OrbitModeAlways { get; set; }
+    public Func<Vector3?>? OrbitTargetProvider { get; set; }
+
     public Vector3? OrbitTarget
     {
-        get;
+        get => _orbitTarget;
         set
         {
-            field = value;
+            _orbitTarget = value;
             OrbitDistance = Vector3.Distance(Camera.Location, value ?? Vector3.Zero);
         }
     }
@@ -48,13 +59,17 @@ public class UserInput
     private const float MaxOrbitDistance = 10000f;
     private const float OrbitZoomSpeed = 0.1f;
 
+    private readonly PlayerMovement PlayerMovement;
+    public bool NoClip { get; private set; } = true;
+
+    private TrackedKeys Keys;
     private TrackedKeys PreviousKeys;
-    private Vector3 Velocity = Vector3.Zero;
+    public Vector3 Velocity { get; private set; }
 
     /// <summary>
     /// Force an input update on the next tick.
     /// </summary>
-    public bool ForceUpdate { get => field || TransitionEndTime > Renderer.Uptime; set; } = true;
+    public bool ForceUpdate { get => _forceUpdate || TransitionEndTime > Renderer.Uptime; set => _forceUpdate = value; }
     public bool EnableMouseLook { get; set; } = true;
     private Vector2 MouseDelta2D;
     private Vector2 MouseDeltaPitchYaw;
@@ -63,10 +78,56 @@ public class UserInput
     {
         Renderer = renderer;
         Camera = new Camera(renderer.RendererContext);
+        PlayerMovement = new PlayerMovement(this);
+    }
+
+    /// <summary>
+    /// Checks if a key is currently being held down.
+    /// </summary>
+    public bool Holding(TrackedKeys key) => (Keys & key) != 0;
+
+    /// <summary>
+    /// Checks if a key was just pressed this frame (pressed now but not last frame).
+    /// </summary>
+    public bool Pressed(TrackedKeys key) => (Keys & ~PreviousKeys & key) != 0;
+
+    /// <summary>
+    /// Checks if a key was just released this frame (not pressed now but was pressed last frame).
+    /// </summary>
+    public bool Released(TrackedKeys key) => (PreviousKeys & ~Keys & key) != 0;
+
+    private readonly Dictionary<TrackedKeys, float> lastKeyPressTimes = [];
+
+    /// <summary>
+    /// Checks if a key was pressed twice within a certain time interval.
+    /// </summary>
+    public bool PressedSuccessive(TrackedKeys key, float maxInterval)
+    {
+        if (Pressed(key))
+        {
+            var currentTime = Renderer.Uptime;
+            if (lastKeyPressTimes.TryGetValue(key, out var lastPressTime))
+            {
+                var interval = currentTime - lastPressTime;
+                lastKeyPressTimes[key] = currentTime;
+
+                if (interval <= maxInterval)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                lastKeyPressTimes[key] = currentTime;
+            }
+        }
+
+        return false;
     }
 
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)
     {
+        Keys = keyboardState;
         ForceUpdate = false;
 
         if (!EnableMouseLook)
@@ -85,14 +146,11 @@ public class UserInput
 
         if (!OrbitModeAlways)
         {
-            var holdingAlt = keyboardState.HasFlag(TrackedKeys.Alt);
-            var justPressedAlt = holdingAlt && !PreviousKeys.HasFlag(TrackedKeys.Alt);
-
-            if (!holdingAlt)
+            if (!Holding(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
             }
-            else if (justPressedAlt)
+            else if (Pressed(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
 
@@ -102,11 +160,45 @@ public class UserInput
                     OrbitTarget = hitPosition;
                 }
 
+                if (OrbitTarget == null && OrbitTargetProvider != null)
+                {
+                    OrbitTarget = OrbitTargetProvider();
+                    if (OrbitTarget != null)
+                    {
+                        // the target might not be in front of the camera, so we need to transition
+                        SaveCameraForTransition();
+                    }
+                }
             }
-
         }
 
-        if (OrbitMode)
+        var wasClipping = !NoClip;
+        if (Pressed(TrackedKeys.X) || PressedSuccessive(TrackedKeys.Space, 0.5f))
+        {
+            NoClip = !NoClip;
+            PlayerMovement.Initialize = !NoClip;
+        }
+
+        if (Pressed(TrackedKeys.Escape))
+        {
+            NoClip = true;
+        }
+
+        if (wasClipping && NoClip)
+        {
+            MoveCamera(new Vector3(0, 0, 32), transition: true);
+            CurrentSpeedModifier = 7;
+        }
+
+        if (!NoClip)
+        {
+            PlayerMovement.ProcessMovement(this, Camera, deltaTime);
+            Velocity = PlayerMovement.Velocity;
+            Camera.Pitch -= MouseDeltaPitchYaw.X;
+            Camera.Yaw -= MouseDeltaPitchYaw.Y;
+            Camera.ClampRotation();
+        }
+        else if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState);
         }
@@ -128,6 +220,8 @@ public class UserInput
 
     public void SaveCameraForTransition(float transitionDuration = 1.5f)
     {
+        NoClip = true;
+
         StartingCamera = GetInterpolatedCamera();
         TransitionDuration = transitionDuration;
         TransitionEndTime = Renderer.Uptime + transitionDuration;
@@ -153,7 +247,7 @@ public class UserInput
     {
         var previousCamera = CameraPositionAngles;
 
-        if (keyboardState.HasFlag(TrackedKeys.MouseRight))
+        if ((keyboardState & TrackedKeys.MouseRight) != 0)
         {
             var speed = deltaTime * OrbitDistance / 2;
             var panOffset = Camera.Right * speed * -MouseDelta2D.X;
@@ -162,19 +256,19 @@ public class UserInput
             Camera.Location += panOffset;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.MouseLeft))
+        if ((keyboardState & TrackedKeys.MouseLeft) != 0)
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.ClampRotation();
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Forward))
+        if ((keyboardState & TrackedKeys.Forward) != 0)
         {
             OrbitZoom(-deltaTime * 10);
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Back))
+        if ((keyboardState & TrackedKeys.Back) != 0)
         {
             OrbitZoom(deltaTime * 10);
         }
@@ -228,7 +322,7 @@ public class UserInput
 
     private void HandleFreeFlightControls(float deltaTime, TrackedKeys keyboardState)
     {
-        if (keyboardState.HasFlag(TrackedKeys.Shift))
+        if ((keyboardState & TrackedKeys.Shift) != 0)
         {
             // Camera truck and pedestal movement (blender calls this pan)
             var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
@@ -252,14 +346,11 @@ public class UserInput
     /// <summary>
     /// Moves the camera by the specified amounts in camera space.
     /// </summary>
-    public void MoveCamera(float x, float y, float z, bool transition = false)
+    public void MoveCamera(Vector3 delta, bool transition = false)
     {
         Camera.RecalculateDirectionVectors();
-        var forward = Camera.Forward;
-        var right = Camera.Right;
-        var up = Camera.Up;
 
-        var movement = right * x + up * y + forward * z;
+        var movement = Camera.Right * delta.X + Camera.Forward * delta.Y + Camera.Up * delta.Z;
         var newLocation = Camera.Location + movement;
 
         if (transition)
@@ -305,32 +396,32 @@ public class UserInput
         var maxSpeed = MovementSpeed * SpeedModifiers[CurrentSpeedModifier];
         var targetVelocity = Vector3.Zero;
 
-        if (keyboardState.HasFlag(TrackedKeys.Forward))
+        if ((keyboardState & TrackedKeys.Forward) != 0)
         {
             targetVelocity += Camera.Forward * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Back))
+        if ((keyboardState & TrackedKeys.Back) != 0)
         {
             targetVelocity -= Camera.Forward * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Right))
+        if ((keyboardState & TrackedKeys.Right) != 0)
         {
             targetVelocity += Camera.Right * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Left))
+        if ((keyboardState & TrackedKeys.Left) != 0)
         {
             targetVelocity -= Camera.Right * maxSpeed;
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Down))
+        if ((keyboardState & TrackedKeys.Down) != 0)
         {
             targetVelocity += new Vector3(0, 0, -maxSpeed);
         }
 
-        if (keyboardState.HasFlag(TrackedKeys.Up))
+        if ((keyboardState & TrackedKeys.Up) != 0)
         {
             targetVelocity += new Vector3(0, 0, maxSpeed);
         }

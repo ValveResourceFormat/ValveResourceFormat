@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - docs/**
+      - Renderer/**
       - ValveResourceFormat/**
 
 permissions:

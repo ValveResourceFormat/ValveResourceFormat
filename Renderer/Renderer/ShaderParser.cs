@@ -8,6 +8,9 @@ using static ValveResourceFormat.Renderer.ShaderLoader;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Preprocesses shader source files and extracts defines and render modes.
+    /// </summary>
     public partial class ShaderParser
     {
         public const string ShaderDirectory = "Renderer.Shaders.";
@@ -16,13 +19,8 @@ namespace ValveResourceFormat.Renderer
 
         [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
         private static partial Regex RegexInclude();
-        [GeneratedRegex("^#define (?<ParamName>(?:renderMode|F|S|D)_\\S+) (?<DefaultValue>[0-9]+)")]
+        [GeneratedRegex("^#define (?<ParamName>(?:renderMode|GameVfx|F|S|D)_\\S+) (?<DefaultValue>[0-9]+)")]
         private static partial Regex RegexDefine();
-
-#if DEBUG
-        [GeneratedRegex(@"defined\((?<Name>\w+)_vfx\)")]
-        private static partial Regex RegexIsVfxDefined();
-#endif
 
         // regex that detects
         // uniform sampler{dim} x;
@@ -185,7 +183,7 @@ namespace ValveResourceFormat.Renderer
 
                                     if (index == -1)
                                     {
-                                        Debug.Assert(false); /// Add to <see cref="RenderModes.Items"/> if this assert is hit
+                                        Debug.Assert(false); // Add to <see cref="RenderModes.Items"/> if this assert is hit
 
                                         RenderModes.Items = RenderModes.Items.Add(renderModeObj);
                                         index = RenderModes.Items.IndexOf(renderModeObj);
@@ -230,16 +228,6 @@ namespace ValveResourceFormat.Renderer
                                 parsedData.SrgbUniforms.Add(uniformName);
                             }
                         }
-
-#if DEBUG
-                        // defined(shader_vfx)
-                        match = RegexIsVfxDefined().Match(line);
-                        if (match.Success)
-                        {
-                            var shaderName = match.Groups["Name"].Value;
-                            parsedData.ShaderVariants.Add(shaderName);
-                        }
-#endif
                     }
 
                     builder.Append(line);

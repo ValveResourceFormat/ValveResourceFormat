@@ -6,6 +6,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Loads scene objects and aggregates from a world node resource.
+    /// </summary>
     public class WorldNodeLoader
     {
         private readonly WorldNode node;
@@ -80,9 +83,11 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
+                    var skin = sceneObject.GetProperty<string>("m_skin");
+
                     var model = (Model?)newResource.DataBlock;
                     Debug.Assert(model != null);
-                    var modelNode = new ModelSceneNode(scene, model, null)
+                    var modelNode = new ModelSceneNode(scene, model, skin)
                     {
                         Transform = matrix,
                         Tint = tintColor,
@@ -151,10 +156,7 @@ namespace ValveResourceFormat.Renderer
                     };
 
                     scene.Add(aggregate, false);
-                    foreach (var fragment in aggregate.CreateFragments(sceneObject))
-                    {
-                        scene.Add(fragment, false);
-                    }
+                    aggregate.LoadFragments(sceneObject);
                 }
             }
         }

@@ -4,11 +4,16 @@ using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Reserved GPU texture unit slots for global textures.
+    /// </summary>
     public enum ReservedTextureSlots
     {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
         BRDFLookup = 0,
         BlueNoise,
         FogCubeTexture,
@@ -26,8 +31,10 @@ namespace ValveResourceFormat.Renderer
         SceneColor,
         SceneDepth,
         SceneStencil,
+        DepthPyramid,
         MorphCompositeTexture,
         Last = MorphCompositeTexture,
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     enum BlendMode
@@ -41,6 +48,9 @@ namespace ValveResourceFormat.Renderer
         ModThenAdd,
     }
 
+    /// <summary>
+    /// Material with shader, textures, and render state for GPU rendering.
+    /// </summary>
     [DebuggerDisplay("{Material.Name} ({Shader.Name})")]
     public class RenderMaterial
     {
@@ -49,8 +59,9 @@ namespace ValveResourceFormat.Renderer
         public int SortId { get; }
         public required Shader Shader { get; init; }
         public Material Material { get; }
+        public Dictionary<string, Matrix4x4> Matrices { get; } = [];
         public Dictionary<string, RenderTexture> Textures { get; } = [];
-        public bool IsOverlay { get; private set; }
+        public bool IsOverlay { get; set; }
         public bool IsToolsMaterial { get; private set; }
         public bool IsCs2Water { get; private set; }
         public bool VertexAnimation { get; private set; }
@@ -140,7 +151,6 @@ namespace ValveResourceFormat.Renderer
             "vr_energy_field.vfx",
             "csgo_glass.vfx",
             "csgo_effects.vfx",
-            "tools_sprite.vfx",
         ];
 
         RenderMaterial(Material material)
@@ -180,7 +190,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (material.IntParams.GetValueOrDefault("F_ALPHA_TEST") == 1)
+            if (material.IntParams.GetValueOrDefault("F_ALPHA_TEST") > 0)
             {
                 blendMode = BlendMode.AlphaTest;
             }
@@ -233,9 +243,8 @@ namespace ValveResourceFormat.Renderer
 
             shader ??= Shader;
 
-            if (shader.Name is "vrf.picking" or "vrf.outline")
+            if (shader.IgnoreMaterialData)
             {
-                // Discard material data for picking shader, (blend modes, etc.)
                 return;
             }
 
@@ -267,7 +276,87 @@ namespace ValveResourceFormat.Renderer
                 shader.SetMaterialVector4Uniform(param.Key, value);
             }
 
+            if (shader.Name.StartsWith("csgo_environment", StringComparison.Ordinal))
+            {
+                EvalCsgoEnvironmentColorMatrices(shader);
+            }
+
             SetRenderState();
+        }
+
+        private void EvalCsgoEnvironmentColorMatrices(Shader shader)
+        {
+            const string contrastBaseKeyString = "g_fTextureColorContrast1";
+            const string saturationBaseKeyString = "g_fTextureColorSaturation1";
+            const string brightnessBaseKeyString = "g_fTextureColorBrightness1";
+            const string tintBaseKeyString = "g_vTextureColorTint1";
+            const string colorTextureBaseKeyString = "g_tColor1";
+
+            Span<char> contrastKey = stackalloc char[contrastBaseKeyString.Length]; contrastBaseKeyString.AsSpan().CopyTo(contrastKey);
+            Span<char> saturationKey = stackalloc char[saturationBaseKeyString.Length]; saturationBaseKeyString.AsSpan().CopyTo(saturationKey);
+            Span<char> brightnessKey = stackalloc char[brightnessBaseKeyString.Length]; brightnessBaseKeyString.AsSpan().CopyTo(brightnessKey);
+            Span<char> tintKey = stackalloc char[tintBaseKeyString.Length]; tintBaseKeyString.AsSpan().CopyTo(tintKey);
+            Span<char> colorTextureKey = stackalloc char[colorTextureBaseKeyString.Length]; colorTextureBaseKeyString.AsSpan().CopyTo(colorTextureKey);
+
+            var floatValueLookup = Material.FloatParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var vectorValueLookup = Material.VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var textureLookup = Textures.GetAlternateLookup<ReadOnlySpan<char>>();
+
+            static void TryGetValueNoUpdate<T>(Dictionary<string, T>.AlternateLookup<ReadOnlySpan<char>> lookup, ReadOnlySpan<char> key, ref T outValue)
+            {
+                if (lookup.TryGetValue(key, out var value))
+                {
+                    outValue = value;
+                }
+            }
+
+            foreach (var param in shader.Default.Matrices)
+            {
+                if (!param.Key.StartsWith("g_mTexture", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var layerCharacter = param.Key[^1];
+                var layerIndex = layerCharacter - '0';
+
+                if (layerIndex < 1 || layerIndex > 3)
+                {
+                    continue;
+                }
+
+                var csb = Vector3.One;
+                var tint = Vector4.One;
+                var textureAverageColor = Vector4.One;
+
+                contrastKey[^1] = layerCharacter;
+                saturationKey[^1] = layerCharacter;
+                brightnessKey[^1] = layerCharacter;
+                tintKey[^1] = layerCharacter;
+                colorTextureKey[^1] = layerCharacter;
+
+                TryGetValueNoUpdate(floatValueLookup, contrastKey, ref csb.X);
+                TryGetValueNoUpdate(floatValueLookup, saturationKey, ref csb.Y);
+                TryGetValueNoUpdate(floatValueLookup, brightnessKey, ref csb.Z);
+                TryGetValueNoUpdate(vectorValueLookup, tintKey, ref tint);
+
+                if (textureLookup.TryGetValue(colorTextureKey, out var colorTexture))
+                {
+                    textureAverageColor = colorTexture.Reflectivity;
+                }
+
+                var ccMatrix = VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor.AsVector3());
+
+                if (param.Key.StartsWith("g_mTextureAdjust", StringComparison.Ordinal))
+                {
+                    tint = Vector4.One;
+                }
+
+                var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
+
+                ccMatrix = Matrix4x4.Multiply(tintMatrix, ccMatrix);
+                shader.SetUniform4x4(param.Key, ccMatrix);
+            }
         }
 
         public void PostRender()
@@ -289,7 +378,7 @@ namespace ValveResourceFormat.Renderer
 
             if (blendMode == BlendMode.AlphaTest)
             {
-                GL.Enable(EnableCap.SampleAlphaToCoverage);
+                GL.Enable(EnableCap.SampleAlphaToCoverage); // todo: only if msaa samples > 1
             }
             else if (blendMode >= BlendMode.Translucent)
             {

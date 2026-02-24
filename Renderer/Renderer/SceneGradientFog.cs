@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>
+/// Scene node representing distance and height-based gradient fog.
+/// </summary>
 public class SceneGradientFog(Scene scene) : SceneNode(scene)
 {
     public float StartDist { get; set; }

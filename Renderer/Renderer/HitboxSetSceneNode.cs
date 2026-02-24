@@ -5,6 +5,9 @@ using ValveResourceFormat.ResourceTypes.ModelData;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Scene node that visualizes model hitbox sets for debugging.
+    /// </summary>
     public class HitboxSetSceneNode : SceneNode
     {
         class HitboxSetData

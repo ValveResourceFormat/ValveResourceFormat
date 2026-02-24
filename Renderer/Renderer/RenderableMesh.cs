@@ -8,6 +8,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// GPU-ready mesh with draw calls, materials, and optional skeletal animation support.
+    /// </summary>
     [DebuggerDisplay("{Name}")]
     public class RenderableMesh
     {
@@ -16,6 +19,7 @@ namespace ValveResourceFormat.Renderer
         public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
 
         private readonly RendererContext renderContext;
+        public List<Meshlet> Meshlets { get; } = [];
         public List<DrawCall> DrawCallsOpaque { get; } = [];
         public List<DrawCall> DrawCallsOverlay { get; } = [];
         public List<DrawCall> DrawCallsBlended { get; } = [];
@@ -92,6 +96,27 @@ namespace ValveResourceFormat.Renderer
             FlexStateManager?.ResetControllers();
         }
 
+        public void SetMaterialCombo((string ComboName, byte ComboValue) combo)
+        {
+            foreach (var drawCall in DrawCalls)
+            {
+                var material = drawCall.Material;
+                var materialData = material.Material;
+                var materialName = materialData.Name;
+
+                var currentCombos = material.Shader.Parameters;
+                if (currentCombos.GetValueOrDefault(combo.ComboName) == combo.ComboValue)
+                {
+                    continue;
+                }
+
+                var newCombos = currentCombos.ToDictionary();
+
+                newCombos[combo.ComboName] = combo.ComboValue;
+                drawCall.SetNewMaterial(renderContext.MaterialLoader.GetMaterial(materialName, newCombos));
+            }
+        }
+
         public void ReplaceMaterials(Dictionary<string, string> materialTable)
         {
             foreach (var drawCall in DrawCalls)
@@ -150,6 +175,9 @@ namespace ValveResourceFormat.Renderer
             }
 
             var gpuVbib = renderContext.MeshBufferCache.CreateVertexIndexBuffers(Name, vbib);
+
+            // note: we are flattening the scene objects into one mesh
+            // we are not sure when there can be more than one scene object here.
 
             var vertexOffset = 0;
             foreach (var sceneObject in sceneObjects)
@@ -237,6 +265,17 @@ namespace ValveResourceFormat.Renderer
                     vertexOffset += objectDrawCall.GetInt32Property("m_nVertexCount");
 
                     i++;
+                }
+
+                var meshlets = sceneObject.GetArray("m_meshlets");
+                if (meshlets != null)
+                {
+                    Meshlets.EnsureCapacity(Meshlets.Count + meshlets.Length);
+
+                    foreach (var meshletData in meshlets)
+                    {
+                        Meshlets.Add(new Meshlet(meshletData));
+                    }
                 }
             }
         }
@@ -456,6 +495,9 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
+    /// <summary>
+    /// Base class for scene nodes that contain a collection of renderable meshes.
+    /// </summary>
     public abstract class MeshCollectionNode : SceneNode
     {
         public abstract Vector4 Tint { get; set; }

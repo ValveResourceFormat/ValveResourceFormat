@@ -61,46 +61,45 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ("normalize",  1),     // 21
             ("length",     1),     // 22
             ("sqr",        1),     // 23
-            ("TextureSize",1),     // 24
-            ("rotation2d", 1),     // 25
-            ("rotate2d",   2),     // 26
-            ("sincos",     1),     // 27
-            ("TextureSize",1),     // 28
-            ("TextureAverageColor", 1), // 29
-            ("MatrixIdentity",      0), // 2A
-            ("MatrixScale",         1), // 2B
-            ("MatrixTranslate",     1), // 2C
-            ("MatrixAxisAngle",     1), // 2D
-            ("MatrixAxisToAxis",    2), // 2E
-            ("MatrixMultiply",      2), // 2F
-            ("MatrixColorCorrect",  1), // 30
-            ("MatrixColorCorrect2", 2), // 31
-            ("MatrixColorTint",     1), // 32
-            ("normalize_safe",      1), // 33
+            ("rotation2d", 1),     // 24
+            ("rotate2d",   2),     // 25
+            ("sincos",     1),     // 26
+            ("TextureSize",1),     // 27
+            ("TextureAverageColor", 1), // 28
+            ("MatrixIdentity",      0), // 29
+            ("MatrixScale",         1), // 2A
+            ("MatrixTranslate",     1), // 2B
+            ("MatrixAxisAngle",     1), // 2C
+            ("MatrixAxisToAxis",    2), // 2D
+            ("MatrixMultiply",      2), // 2E
+            ("MatrixColorCorrect",  1), // 2F
+            ("MatrixColorCorrect2", 2), // 30
+            ("MatrixColorTint",     1), // 31
+            ("normalize_safe",      1), // 32
+            ("Remap01ScaleOffset",  1), // 33
             ("radians",             1), // 34
             ("degrees",             1), // 35
-            ("Remap01ScaleOffset",  1), // 36
-            ("MatrixColorTint2",    2), // 37
-            ("MatrixColorTint3",    3), // 38
-            ("RemapVal",            5), // 39
-            ("RemapValClamped",     5), // 3A
+            ("MatrixColorTint2",    2), // 36
+            ("MatrixColorTint3",    3), // 37
+            ("RemapVal",            5), // 38
+            ("RemapValClamped",     5), // 39
 #pragma warning restore format
         ];
 
         private enum OPCODE
         {
-            RETURN,          // 00
-            UNKNOWN01,
-            BRANCH_SEP,         // 02
-            UNKNOWN03,
+            RETURN,             // 00
+            NOP,                // 01
+            JUMP,               // 02
+            CALL,               // 03
             BRANCH,             // 04
-            UNKNOWN05,
+            RET,                // 05
             FUNC,               // 06
             FLOAT,              // 07
-            STORE,             // 08
-            LOAD,           // 09
-            UNKNOWN0A,
-            UNKNOWN0B,
+            STORE,              // 08
+            LOAD,               // 09
+            OR,                 // 0A
+            AND,                // 0B
             NOT,                // 0C
             EQUALS,             // 0D
             NEQUALS,            // 0E
@@ -114,15 +113,15 @@ namespace ValveResourceFormat.Serialization.VfxEval
             DIV,                // 16
             MODULO,             // 17
             NEGATE,             // 18
-            ATTRIBUTE,             // 19
-            FEATURE,               // 1A (inferred from the shader code)
-            UNKNOWN1B,
-            UNKNOWN1C,
-            MATERIAL_PARAM,               // 1D (inferred from the shader code)
+            ATTRIBUTE,          // 19
+            FEATURE,            // 1A
+            FEATURE2,           // 1B
+            FEATURE3,           // 1C
+            MATERIAL_PARAM,     // 1D
             SWIZZLE,            // 1E
             EXISTS,             // 1F
-            UNKNOWN20,
-            UNKNOWN21,
+            MATERIAL_PARAM_IDX, // 20
+            FLOAT4,             // 21
         };
 
         private static readonly Dictionary<OPCODE, string> OpCodeToSymbol = new()
@@ -277,7 +276,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
             }
 
-            if (op == OPCODE.BRANCH_SEP)
+            if (op == OPCODE.JUMP)
             {
                 var branchExit = (uint)dataReader.ReadUInt16();
                 OffsetAtBranchExits.Push(branchExit + 1);
