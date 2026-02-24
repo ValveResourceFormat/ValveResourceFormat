@@ -16,6 +16,9 @@ namespace GUI.Forms
         public EntityInfoControl()
         {
             InitializeComponent();
+
+            components ??= new System.ComponentModel.Container();
+            components.Add(tabPageOutputs);
         }
 
         public EntityInfoControl(VrfGuiContext vrfGuiContext) : this()
