@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -6,8 +8,13 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
+using GUI.Types.PackageViewer.ThumbnailRenderers;
 using GUI.Utils;
+using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
+using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.PackageViewer
 {
@@ -18,6 +25,16 @@ namespace GUI.Types.PackageViewer
     /// </summary>
     partial class TreeViewWithSearchResults : UserControl
     {
+        ThumbnailSizes CurrentThumbnailSizes { get; set; } = ThumbnailSizes.Big;
+
+        private List<ListViewItem> ListViewItems = new List<ListViewItem>();
+        private readonly ImageList ImageList;
+        Dictionary<string, IconImageCacheEntry?> IconImageCache = [];
+        private CancellationTokenSource? ThumbnailRenderTokenSource;
+
+        private readonly Thread ThumbnailRenderThread;
+        private readonly BlockingCollection<Func<Task>> ThumbnailRenderQueue = new();
+
         private static readonly string[] Columns = ["Name", "Size", "Type"];
 
         private static int SplitterWidth;
@@ -44,12 +61,23 @@ namespace GUI.Types.PackageViewer
                 Themer.ThemeControl(control);
             }
 
+            ThumbnailRenderThread = new Thread(RenderLoop)
+            {
+                IsBackground = false,
+                Name = "Thumbnail GL Thread"
+            };
+
+            ThumbnailRenderThread.Start();
+
             searchTextBox.BackColor = Themer.CurrentThemeColors.AppMiddle;
 
             if (SplitterWidth > 0)
             {
                 mainSplitContainer.SplitterDistance = SplitterWidth;
             }
+
+            mainListView.VirtualMode = true;
+            mainListView.RetrieveVirtualItem += MainListView_RetrieveVirtualItem;
 
             Dock = DockStyle.Fill;
 
@@ -59,13 +87,33 @@ namespace GUI.Types.PackageViewer
             mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
             mainListView.ListViewItemSorter = new ListViewColumnSorter();
+            mainListView.View = View.LargeIcon;
 
             mainTreeView.HideSelection = false;
             mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
 
+            ImageList = InitThumbnailImageList();
+            mainListView.SmallImageList = ImageList;
+            mainListView.LargeImageList = ImageList;
+
             Viewer = viewer;
+        }
+
+        private void RenderLoop()
+        {
+            // Create GL context here
+            while (true)
+            {
+                var work = ThumbnailRenderQueue.Take();
+                work().GetAwaiter().GetResult();
+            }
+        }
+
+        private void MainListView_RetrieveVirtualItem(object? sender, RetrieveVirtualItemEventArgs e)
+        {
+            e.Item = ListViewItems[e.ItemIndex];
         }
 
         protected override void OnCreateControl()
@@ -91,7 +139,6 @@ namespace GUI.Types.PackageViewer
 
             mainTreeView.VrfGuiContext?.Dispose();
             mainTreeView.VrfGuiContext = null;
-            mainListView.VrfGuiContext = null;
 
             mainTreeView = null;
             mainListView = null;
@@ -173,8 +220,13 @@ namespace GUI.Types.PackageViewer
 
         private void MainListView_DisplayNodes(VirtualPackageNode pkgNode, bool updatePath = true)
         {
+            ThumbnailRenderTokenSource?.Cancel();
+            ThumbnailRenderTokenSource = new CancellationTokenSource();
+
             mainListView.BeginUpdate();
-            mainListView.Items.Clear();
+
+            ListViewItems.Clear();
+            mainListView.VirtualListSize = 0;
 
             var sorter = mainListView.ListViewItemSorter;
             mainListView.ListViewItemSorter = null;
@@ -201,7 +253,191 @@ namespace GUI.Types.PackageViewer
             {
                 UpdateSearchTextBoxToCurrentPath(pkgNode);
             }
+
+            var currentThumbnailSizeInt = (int)CurrentThumbnailSizes;
+
+            for (int i = 0; i < ListViewItems.Count; i++)
+            {
+                if (ListViewItems[i] is not BetterListViewItem betterListViewItem)
+                {
+                    continue;
+                }
+
+                if (betterListViewItem.IsFolder)
+                {
+                    betterListViewItem.ImageIndex = betterListViewItem.PkgNode?.CreatedNode != null ? 1 : 0;
+                    continue;
+                }
+
+                var entry = betterListViewItem.PackageEntry!;
+                var extension = ResolveExtension(entry.TypeName);
+
+                if (!IconImageCache.TryGetValue(extension, out var iconImageCacheEntry) || iconImageCacheEntry == null)
+                {
+                    MainForm.ExtensionSVGS.TryGetValue(extension, out var svgFile);
+                    svgFile ??= MainForm.ExtensionSVGS.GetValueOrDefault("File");
+
+#pragma warning disable CA2000 // Bitmap lifetime is managed by ImageList, when ImageList is disposed it disposes all images too
+                    var bitmap = Themer.SvgToBitmap(svgFile!, currentThumbnailSizeInt, currentThumbnailSizeInt);
+                    var index = IconImageCache.Count + 2;
+                    iconImageCacheEntry = new IconImageCacheEntry(bitmap, index);
+                    IconImageCache[extension] = iconImageCacheEntry;
+                    ImageList.Images.Add(iconImageCacheEntry.image);
+                }
+
+                betterListViewItem.ImageIndex = iconImageCacheEntry.index;
+            }
+
+            mainListView.VirtualListSize = ListViewItems.Count;
+            mainListView.Invalidate();
+
+            _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource.Token);
         }
+
+        private readonly Dictionary<string, IThumbnailRenderer> ThumbnailRenderers = new Dictionary<string, IThumbnailRenderer>()
+        {
+            {"vmdl_c", new ThumbnailModelRenderer() },
+        };
+
+        private IThumbnailRenderer? GetThumbnailRenderer(string resourceType)
+        {
+            ThumbnailRenderers.TryGetValue(resourceType, out var renderer);
+
+            if (renderer != null)
+            {
+                if (!renderer.Loaded)
+                {
+                    renderer.Load(mainListView.VrfGuiContext!);
+                }
+
+                return renderer;
+            }
+
+            return null;
+        }
+
+        private async Task UpdateLargeImageListIconsAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+
+                foreach (var item in ListViewItems)
+                {
+                    var castItem = item as BetterListViewItem;
+
+                    if (castItem == null)
+                    {
+                        continue;
+                    }
+
+                    var entry = castItem.PackageEntry;
+
+                    if (entry == null)
+                    {
+                        continue;
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    try
+                    {
+                        ThumbnailRenderQueue.Add(async () =>
+                        {
+                            var renderer = GetThumbnailRenderer(entry.TypeName);
+
+                            if (renderer == null)
+                            {
+                                return;
+                            }
+
+                            var (bitmap, cacheEntryName) = renderer.Render(entry, mainListView.VrfGuiContext!, cancellationToken);
+
+                            if (bitmap == null || cacheEntryName == null)
+                            {
+                                return;
+                            }
+
+                            IconImageCache.TryGetValue(cacheEntryName, out var cachedEntry);
+
+                            await mainListView.InvokeAsync(() =>
+                            {
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    return;
+                                }
+
+                                if (cachedEntry != null)
+                                {
+                                    castItem.ImageIndex = cachedEntry.index;
+                                }
+                                else
+                                {
+                                    castItem.ImageIndex = ImageList.Images.Count;
+                                    ImageList.Images.Add(bitmap);
+                                    IconImageCache[cacheEntryName] = new(bitmap, castItem.ImageIndex);
+                                }
+
+                                mainListView.Invalidate();
+
+                            }).ConfigureAwait(false);
+                        }, cancellationToken);
+
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        Log.Error(nameof(TreeViewWithSearchResults), $"Failed to render thumbnail for {entry.GetFullPath()}: {ex}");
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // User navigated away, silently discard
+            }
+        }
+
+        private static string ResolveExtension(string typeName)
+        {
+            if (MainForm.ExtensionSVGS.ContainsKey(typeName)) return typeName;
+
+            var ext = typeName;
+
+            if (ext.EndsWith("_c", StringComparison.Ordinal))
+            {
+                ext = ext[..^2];
+            }
+
+            if (MainForm.ExtensionSVGS.ContainsKey(ext)) return ext;
+
+            if (ext.StartsWith('v'))
+            {
+                ext = ext[1..];
+            }
+
+            if (MainForm.ExtensionSVGS.ContainsKey(ext)) return ext;
+
+            return "File";
+        }
+
+        private record class IconImageCacheEntry(Bitmap image, int index);
+
+        private ImageList InitThumbnailImageList()
+        {
+            var currentThumbnailSize = (int)CurrentThumbnailSizes;
+            var bigIconsImageList = new ImageList();
+
+            bigIconsImageList.ImageSize = new Size(currentThumbnailSize, currentThumbnailSize);
+            bigIconsImageList.ColorDepth = ColorDepth.Depth32Bit;
+
+            MainForm.ExtensionSVGS.TryGetValue("Folder", out var folderSvgFile);
+            MainForm.ExtensionSVGS.TryGetValue("FolderUp", out var folderUpSvgFile);
+            var folderBitmap = Themer.SvgToBitmap(folderSvgFile!, currentThumbnailSize, currentThumbnailSize);
+            var folderUpBitmap = Themer.SvgToBitmap(folderUpSvgFile!, currentThumbnailSize, currentThumbnailSize);
+            bigIconsImageList.Images.Add(folderBitmap);
+            bigIconsImageList.Images.Add(folderUpBitmap);
+
+            return bigIconsImageList;
+        }
+
 
         private void MainTreeView_NodeMouseClick(object? sender, TreeNodeMouseClickEventArgs e)
         {
@@ -644,7 +880,9 @@ namespace GUI.Types.PackageViewer
             var results = mainTreeView.Search(searchText, selectedSearchType);
 
             mainListView.BeginUpdate();
-            mainListView.Items.Clear();
+
+            ListViewItems.Clear();
+            mainListView.VirtualListSize = 0;
 
             var sorter = mainListView.ListViewItemSorter;
             mainListView.ListViewItemSorter = null;
@@ -654,6 +892,7 @@ namespace GUI.Types.PackageViewer
                 AddFileToListView(entry);
             }
 
+            mainListView.VirtualListSize = ListViewItems.Count;
             mainListView.ListViewItemSorter = sorter;
 
             DisplayMainListView();
@@ -703,12 +942,12 @@ namespace GUI.Types.PackageViewer
             // if an item was clicked in the list view
             if (info.Item is not IBetterBaseItem item)
             {
-                mainListView.SelectedItems.Clear();
+                mainListView.SelectedIndices.Clear();
                 return;
             }
 
             // When left or right clicking a folder, select it in the tree view and ensure it is visible
-            if (item.PkgNode != null && mainListView.SelectedItems.Count <= 1)
+            if (item.PkgNode != null && mainListView.SelectedIndices.Count <= 1)
             {
                 mainTreeView.BeginUpdate();
                 var node = CreateTreeNodes(item.PkgNode);
@@ -730,7 +969,7 @@ namespace GUI.Types.PackageViewer
             if (item.PackageEntry != null)
             {
                 // When right clicking a file, select it in the tree view and ensure it is visible
-                if (mainListView.SelectedItems.Count <= 1)
+                if (mainListView.SelectedIndices.Count <= 1)
                 {
                     var pkgNode = mainTreeView.Root;
 
@@ -818,7 +1057,7 @@ namespace GUI.Types.PackageViewer
 
             if (info.Item is not IBetterBaseItem item)
             {
-                mainListView.SelectedItems.Clear();
+                mainListView.SelectedIndices.Clear();
                 return;
             }
 
@@ -855,8 +1094,6 @@ namespace GUI.Types.PackageViewer
             {
                 mainListView.Columns.Add(Columns[i]);
             }
-
-            mainListView.SmallImageList = MainForm.ImageList;
         }
 
         private void AddParentNavigationItemToListView(VirtualPackageNode parentNode)
@@ -874,7 +1111,7 @@ namespace GUI.Types.PackageViewer
             item.SubItems.Add(HumanReadableByteSizeFormatter.Format(parentNode.TotalSize));
             item.SubItems.Add(string.Empty);
 
-            mainListView.Items.Add(item);
+            ListViewItems.Add(item);
         }
 
         private void AddFolderToListView(string name, VirtualPackageNode node)
@@ -888,7 +1125,7 @@ namespace GUI.Types.PackageViewer
             item.SubItems.Add(HumanReadableByteSizeFormatter.Format(node.TotalSize));
             item.SubItems.Add(string.Empty);
 
-            mainListView.Items.Add(item);
+            ListViewItems.Add(item);
         }
 
         private void AddFileToListView(PackageEntry file)
@@ -907,7 +1144,7 @@ namespace GUI.Types.PackageViewer
             item.SubItems.Add(HumanReadableByteSizeFormatter.Format(file.TotalLength));
             item.SubItems.Add(file.TypeName);
 
-            mainListView.Items.Add(item);
+            ListViewItems.Add(item);
         }
 
         public void ReplaceListViewWithControl(TabPage tab)
@@ -1048,6 +1285,22 @@ namespace GUI.Types.PackageViewer
             }
 
             mainTreeView.EndUpdate();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+
+            base.Dispose(disposing);
+
+            ThumbnailRenderTokenSource?.Cancel();
+
+            ImageList.Dispose();
+            ThumbnailRenderTokenSource?.Dispose();
+            ThumbnailRenderQueue.Dispose();
         }
     }
 }
