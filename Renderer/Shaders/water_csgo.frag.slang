@@ -21,10 +21,10 @@ in vec4 vColorBlendValues;
 
 out vec4 outputColor;
 
-#define F_REFLECTION_TYPE 0 // (0="Sky Color Only", 1="Environment Cube Map", 2="SSR over Environment Cube Map")
-#define F_REFRACTION 0
-#define F_CAUSTICS 0
-#define F_BLUR_REFRACTION 0
+#define F_REFLECTION_TYPE 0 // csgo_water_fancy; (0="Sky Color Only", 1="Environment Cube Map", 2="SSR over Environment Cube Map")
+#define F_REFRACTION 0 // csgo_water_fancy
+#define F_CAUSTICS 0 // csgo_water_fancy
+#define F_BLUR_REFRACTION 0 // csgo_water_fancy
 
 uniform float g_flWaterPlaneOffset = 0.0;
 uniform float g_flSkyBoxScale = 16.0;

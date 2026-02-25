@@ -3,7 +3,7 @@
 #include "common/ViewConstants.slang"
 
 #define D_MORPHED 0
-#define F_ALPHA_TEST 0
+#define F_ALPHA_TEST 0 // most shaders
 
 layout (location = 0) in vec3 vPOSITION;
 #if (F_ALPHA_TEST == 1)

@@ -16,10 +16,10 @@
 #define renderMode_RimLight 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define F_MASKS_1 0
-#define F_MASKS_2 0
-#define F_ALPHA_TEST 0
-#define F_SPECULAR_CUBE_MAP 0
+#define F_MASKS_1 0 // hero
+#define F_MASKS_2 0 // hero
+#define F_ALPHA_TEST 0 // most shaders
+#define F_SPECULAR_CUBE_MAP 0 // blend, crystal, foliage, generic, hero, hero_underlords, projected_decals, vr_eyeball, vr_skin, vr_skin_blended, vr_standard, vr_substance_painter
 //End of parameter defines
 
 in vec3 vFragPosition;

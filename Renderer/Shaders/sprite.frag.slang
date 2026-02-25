@@ -1,6 +1,6 @@
 #version 460
 
-#define F_ALPHA_TEST 0
+#define F_ALPHA_TEST 0 // most shaders
 
 #include "common/texturing.slang"
 

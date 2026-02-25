@@ -12,18 +12,18 @@
 #define renderMode_Tint 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define F_FULLBRIGHT 0
-#define F_SOLID_COLOR 0
-#define F_NORMAL_MAP 0
-#define F_SPECULAR 0
-uniform int F_MODULATE_SPECULAR_BY_ALPHA;
-#define F_TINT_MASK 0
-#define F_TINT_MASK2 0 // what does this do?
-#define F_PAINT_VERTEX_COLORS 0
-#define F_ALPHA_TEST 0
-#define F_TRANSLUCENT 0
-#define F_ALLOW_LIGHTING_ON_TRANSLUCENT 0
-#define F_SCROLL_UV 0
+#define F_FULLBRIGHT 0 // global_lit_simple
+#define F_SOLID_COLOR 0 // global_lit_simple
+#define F_NORMAL_MAP 0 // most shaders
+#define F_SPECULAR 0 // most shaders
+uniform int F_MODULATE_SPECULAR_BY_ALPHA; // citycrawl_building_anim, global_lit_boardspray, global_lit_erosion, global_lit_simple
+#define F_TINT_MASK 0 // most shaders
+#define F_TINT_MASK2 0 // global_lit_simple, multiblend // what does this do?
+#define F_PAINT_VERTEX_COLORS 0 // citycrawl_building_anim, csgo_complex, csgo_depth_only, csgo_glass, csgo_simple, csgo_simple_2way_blend, csgo_static_overlay, generic, global_lit_boardspray, global_lit_erosion, global_lit_simple, liquid_fx, pbr
+#define F_ALPHA_TEST 0 // most shaders
+#define F_TRANSLUCENT 0 // most shaders
+#define F_ALLOW_LIGHTING_ON_TRANSLUCENT 0 // global_lit_simple, liquid_fx
+#define F_SCROLL_UV 0 // global_lit_simple, standard_lit
 //End of parameter defines
 
 in vec3 vFragPosition;

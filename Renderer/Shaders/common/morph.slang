@@ -3,7 +3,7 @@
 #ifndef VRF_MORPH_INCLUDE
 #define VRF_MORPH_INCLUDE
 
-#define F_MORPH_SUPPORTED 0
+#define F_MORPH_SUPPORTED 0 // most shaders
 #define bMorphed (morphVertexIdOffset != -1)
 
 #if (F_MORPH_SUPPORTED == 1)

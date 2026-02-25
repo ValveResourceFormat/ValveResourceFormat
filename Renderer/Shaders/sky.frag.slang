@@ -10,11 +10,11 @@ out vec4 vColor;
 #define VRF_TEXTURE_FORMAT_RGBM 5
 
 // Core: 0="HDR (float16)", 1="RGB (8-bit uncompressed)", 2="YCoCg (dxt compressed)", 3="Dxt1 (LDR)", 4="RGBM (dxt compressed)", 5="RGBM (8-bit uncompressed)"
-#define F_TEXTURE_FORMAT 0
+#define F_TEXTURE_FORMAT 0 // sky
 
 // hlvr: 0="HDR (float16)", 1="RGB (8-bit uncompressed)", 2="YCoCg (dxt compressed)", 3="Dxt1 (LDR)", 4="RGBM (dxt compressed)", 5="RGBM (8-bit uncompressed)", 6="BC6H (HDR compressed - recommended)"
 // cs2: 0="BC6H (HDR compressed - recommended)", 1="Dxt1 (LDR)", 2="HDR (float16)", 3="RGB (8-bit uncompressed)", 4="YCoCg (dxt compressed)", 5="RGBM (dxt compressed)", 6="RGBM (8-bit uncompressed)"
-#define F_TEXTURE_FORMAT2 0
+#define F_TEXTURE_FORMAT2 0 // sky
 
 #if (F_TEXTURE_FORMAT2 > 0)
     #define TextureFormat F_TEXTURE_FORMAT2

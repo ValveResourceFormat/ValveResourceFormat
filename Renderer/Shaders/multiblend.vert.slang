@@ -4,7 +4,7 @@
 #include "common/instancing.slang"
 #include "common/animation.slang"
 
-#define F_WORLDSPACE_UVS 0
+#define F_WORLDSPACE_UVS 0 // multiblend
 
 layout (location = 0) in vec3 vPOSITION;
 #include "common/compression.slang"

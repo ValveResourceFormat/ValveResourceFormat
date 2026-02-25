@@ -53,44 +53,44 @@
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
 // BLENDING
-#define F_FULLBRIGHT 0
-#define F_LIT 0
-#define F_UNLIT 0
-#define F_ALPHA_TEST 0
-#define F_TRANSLUCENT 0
-#define F_BLEND_MODE 0
-#define F_GLASS 0
-uniform int F_DISABLE_TONE_MAPPING;
-#define F_SCALE_NORMAL_MAP 0
+#define F_FULLBRIGHT 0 // global_lit_simple
+#define F_LIT 0 // csgo_static_overlay, vr_static_overlay
+#define F_UNLIT 0 // debugoverlay_wireframe, generic, pbr, tools_solid, tools_wireframe, vr_complex, vr_simple, vr_standard, vr_substance_painter
+#define F_ALPHA_TEST 0 // most shaders
+#define F_TRANSLUCENT 0 // most shaders
+#define F_BLEND_MODE 0 // csgo_projected_decals, csgo_static_overlay, csgo_unlitgeneric, vr_projected_decals, vr_static_overlay
+#define F_GLASS 0 // complex, pbr, vr_standard
+uniform int F_DISABLE_TONE_MAPPING; // vr_complex
+#define F_SCALE_NORMAL_MAP 0 // vr_complex
 // TEXTURING
-#define F_TINT_MASK 0
-#define F_FANCY_BLENDING 0
-#define F_METALNESS_TEXTURE 0
-#define F_AMBIENT_OCCLUSION_TEXTURE 0
-#define F_SELF_ILLUM 0
-#define F_ENABLE_AMBIENT_OCCLUSION 0
-#define F_ENABLE_TINT_MASKS 0
-#define F_DECAL_TEXTURE 0
-uniform int F_DECAL_BLEND_MODE;
+#define F_TINT_MASK 0 // most shaders
+#define F_FANCY_BLENDING 0 // csgo_lightmappedgeneric
+#define F_METALNESS_TEXTURE 0 // most shaders
+#define F_AMBIENT_OCCLUSION_TEXTURE 0 // csgo_simple, vr_simple
+#define F_SELF_ILLUM 0 // most shaders
+#define F_ENABLE_AMBIENT_OCCLUSION 0 // csgo_simple_2way_blend, steampal_2way_blend_mask, vr_simple_2way_blend
+#define F_ENABLE_TINT_MASKS 0 // csgo_simple_2way_blend, steampal_2way_blend_mask, vr_simple_2way_blend
+#define F_DECAL_TEXTURE 0 // csgo_character, csgo_complex, csgo_vertexlitgeneric
+uniform int F_DECAL_BLEND_MODE; // csgo_character, csgo_complex, csgo_vertexlitgeneric
 // SHADING
-#define F_SPECULAR 0
-#define F_SPECULAR_INDIRECT 0
-#define F_ANISOTROPIC_GLOSS 0
-#define F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP 0 // only optional in HLA
-#define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
-#define F_USE_BENT_NORMALS 0
-#define F_DIFFUSE_WRAP 0
-#define F_TRANSMISSIVE_BACKFACE_NDOTL 0
-uniform int F_NO_SPECULAR_AT_FULL_ROUGHNESS;
+#define F_SPECULAR 0 // most shaders
+#define F_SPECULAR_INDIRECT 0 // csgo_lightmapped_4wayblend, csgo_lightmappedgeneric, csgo_projected_decals, csgo_vertexlitgeneric
+#define F_ANISOTROPIC_GLOSS 0 // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex, vr_standard
+#define F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP 0 // only optional in HLA (vr_complex)
+#define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0 // csgo_character
+#define F_USE_BENT_NORMALS 0 // vr_complex, vr_skin
+#define F_DIFFUSE_WRAP 0 // vr_complex
+#define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // csgo_complex, csgo_foliage, csgo_simple_3layer_parallax, vr_complex
+uniform int F_NO_SPECULAR_AT_FULL_ROUGHNESS; // csgo_lightmappedgeneric, pbr
 // SKIN
-//#define F_SUBSURFACE_SCATTERING 0 // todo, same preintegrated method as vr_skin in HLA
-//#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo, weird
-//#define F_USE_PER_VERTEX_CURVATURE 0 // todo
-//#define F_SSS_MASK 0 // todo
+//#define F_SUBSURFACE_SCATTERING 0 // todo: same preintegrated method as vr_skin in HLA; csgo_character
+//#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo: weird; vr_skin, vr_xen_foliage
+//#define F_USE_PER_VERTEX_CURVATURE 0 // todo; vr_skin, vr_skin_blended
+//#define F_SSS_MASK 0 // todo; vr_skin
 
 // vr_standard
-#define F_HIGH_QUALITY_GLOSS 0
-#define F_BLEND_NORMALS 0
+#define F_HIGH_QUALITY_GLOSS 0 // vr_standard
+#define F_BLEND_NORMALS 0 // blend, vr_standard, vr_substance_painter
 
 //End of feature defines
 
@@ -117,8 +117,8 @@ uniform sampler2D g_tTintMask;
 #endif
 
 #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
-    uniform int F_DISABLE_TRANSMISSIVE_SHADOWS = 0;
-    uniform int F_USE_ALBEDO_FOR_TRANSMISSIVE = 0;
+    uniform int F_DISABLE_TRANSMISSIVE_SHADOWS = 0; // csgo_complex, csgo_foliage
+    uniform int F_USE_ALBEDO_FOR_TRANSMISSIVE = 0; // csgo_complex, csgo_foliage
     uniform sampler2D g_tTransmissiveColor; // SrgbRead(true)
 #endif
 

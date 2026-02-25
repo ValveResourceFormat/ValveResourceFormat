@@ -5,7 +5,7 @@
 
 // Render modes -- Switched on/off by code
 #define renderMode_Color 0
-#define F_MOD2X 0
+#define F_MOD2X 0 // global_lit_underlord_fx, spritecard, tower_range, tower_range_halo
 
 uniform sampler2D uTexture;
 uniform float uOverbrightFactor;

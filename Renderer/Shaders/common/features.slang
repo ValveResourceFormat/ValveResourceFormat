@@ -11,8 +11,8 @@
 #define S_LIGHTMAP_VERSION_MAJOR 0
 #define S_LIGHTMAP_VERSION_MINOR 0
 
-uniform int F_RENDER_BACKFACES;
-uniform int F_DONT_FLIP_BACKFACE_NORMALS;
-uniform int F_RETRO_REFLECTIVE;
+uniform int F_RENDER_BACKFACES; // most shaders
+uniform int F_DONT_FLIP_BACKFACE_NORMALS; // most shaders
+uniform int F_RETRO_REFLECTIVE; // csgo_character, vr_complex
 
 #endif

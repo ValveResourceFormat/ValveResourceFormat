@@ -27,11 +27,11 @@ layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define F_NOTINT 0
-#define F_VERTEX_COLOR 0
-#define F_TEXTURE_ANIMATION 0
-uniform int F_TEXTURE_ANIMATION_MODE;
-#define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
+#define F_NOTINT 0 // csgo_vertexlitgeneric
+#define F_VERTEX_COLOR 0 // most shaders
+#define F_TEXTURE_ANIMATION 0 // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor, vr_panorama_hint_ui, vr_simple, vr_standard
+uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor
+#define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0 // csgo_character
 //End of parameter defines
 
 #if (GameVfx_vr_simple_2way_blend != 0) || (GameVfx_vr_simple_2way_parallax != 0) || (GameVfx_vr_simple_3way_parallax != 0) || (GameVfx_vr_simple_blend_to_triplanar != 0) || (GameVfx_vr_simple_blend_to_xen_membrane != 0)

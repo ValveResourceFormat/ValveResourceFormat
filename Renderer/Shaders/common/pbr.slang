@@ -108,7 +108,7 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
     return normalize(mix(N, retroReflectionVector, retroReflectivity));
 }
 
-uniform int F_CLOTH_SHADING;
+uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex
 
 float D_Charlie(float roughness, float NoH)
 {

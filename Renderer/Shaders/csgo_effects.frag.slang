@@ -14,8 +14,8 @@ centroid in vec4 vColorOut;
 
 out vec4 outputColor;
 
-#define F_TINT_MASK 0
-#define F_DEPTH_FEATHER 0
+#define F_TINT_MASK 0 // most shaders
+#define F_DEPTH_FEATHER 0 // csgo_effects
 
 uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tMask1;
