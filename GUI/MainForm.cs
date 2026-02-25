@@ -48,6 +48,11 @@ namespace GUI
         public static Dictionary<string, int> ExtensionIcons { get; private set; } = [];
 
         /// <summary>
+        /// Lookup a file extension icon as SVG from GUI/Icons/AssetTypes/ folder.
+        /// </summary>
+        public static Dictionary<string, SKSvg> ExtensionSVGS { get; private set; } = [];
+
+        /// <summary>
         /// Lookup a game icon by appid that are loaded by the Explorer control from Steam.
         /// </summary>
         public static Dictionary<int, int> GameIcons { get; private set; } = [];
@@ -214,8 +219,10 @@ namespace GUI
                 if (extension.SequenceEqual(".svg"))
                 {
 #pragma warning disable CA2000 // Dispose objects before losing scope, this is a false positive
-                    using var svg = new SKSvg();
+                    var svg = new SKSvg();
                     svg.Load(stream);
+
+                    ExtensionSVGS.TryAdd(iconName, svg);
 
                     using var bitmap = Themer.SvgToBitmap(svg, ImageList.ImageSize.Width, ImageList.ImageSize.Height);
                     AddFixedImageToImageList(bitmap, ImageList);
@@ -242,6 +249,7 @@ namespace GUI
                 {
                     var space = line.IndexOf(' ', StringComparison.Ordinal);
                     var addResult = ExtensionIcons.TryAdd(line[..space], ExtensionIcons[line[(space + 1)..]]);
+                    var addResultSVG = ExtensionSVGS.TryAdd(line[..space], ExtensionSVGS[line[(space + 1)..]]);
                     Debug.Assert(addResult, "Duplicate icon");
                 }
             }

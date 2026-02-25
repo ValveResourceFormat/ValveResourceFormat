@@ -275,6 +275,14 @@ namespace ValveResourceFormat.Renderer
             return (NodeType.Unknown, -1);
         }
 
+        public void Clear()
+        {
+            dynamicNodes.Clear();
+            staticNodes.Clear();
+            StaticOctree.Clear();
+            DynamicOctree.Clear();
+        }
+
         /// <summary>
         /// Finds a scene node by its scene-unique ID.
         /// </summary>
