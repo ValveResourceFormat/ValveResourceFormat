@@ -63,7 +63,7 @@ namespace GUI.Types.PackageViewer
 
             ThumbnailRenderThread = new Thread(RenderLoop)
             {
-                IsBackground = false,
+                IsBackground = true,
                 Name = "Thumbnail GL Thread"
             };
 
