@@ -471,12 +471,18 @@ namespace ValveResourceFormat.Renderer
         }
 
 
-        public void Clear(AABB rootSize)
+        /// <summary>
+        /// Clears all nodes and roughly sizes root to the specified bounds.
+        /// </summary>
+        public void Clear(AABB rootBounds)
         {
             Clear();
 
-            var cubeRegion = new AABB(rootSize.Center, rootSize.Size.Length());
-            Root = new Node(null, cubeRegion.Min, cubeRegion.Max);
+            var min = Vector3.Max(-new Vector3(16384), rootBounds.Min);
+            var max = Vector3.Min(new Vector3(16384), rootBounds.Max);
+
+            max = new Vector3(max.Length());
+            Root = new Node(null, min, max - min);
         }
     }
 }

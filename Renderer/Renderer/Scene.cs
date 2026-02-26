@@ -1293,7 +1293,7 @@ namespace ValveResourceFormat.Renderer
             if (StaticOctree.Dirty)
             {
                 // static octree is tightly wrapped around the scene
-                var maxBounds = new AABB(Vector3.PositiveInfinity, Vector3.NegativeInfinity);
+                var maxBounds = new AABB();
 
                 foreach (var node in staticNodes)
                 {
