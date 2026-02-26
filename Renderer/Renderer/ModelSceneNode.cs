@@ -333,7 +333,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            boneMatricesGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
+            boneMatricesGpu = new StorageBuffer(ReservedBufferSlots.BoneTransforms);
         }
 
         public IEnumerable<string> GetSupportedAnimationNames()
