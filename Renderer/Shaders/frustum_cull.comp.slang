@@ -100,10 +100,23 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     vec2 uvMax = ndcMax.xy * 0.5 + 0.5;
     vec2 uvSize = uvMax - uvMin;
 
-     // Early out: degenerate rect, or beyond far plane
+    // Early out: degenerate rect, or beyond far plane
     if (uvSize.x * uvSize.y <= 0.0 || ndcMax.z >= 1.0)
     {
         return false;
+    }
+
+    const bool SizeCull = true;
+    const float minPixelSize = 0.5;
+    const vec2 referenceResolution = vec2(3840, 2160);
+    vec2 screenSpaceSize = uvSize * referenceResolution;
+
+    // check if this AABB is too small to even draw anything
+    if (SizeCull && any(lessThan(screenSpaceSize, vec2(minPixelSize))))
+    {
+        // oob objects will have zero size, so ignore those
+        bool atScreenEdge = any(equal(uvMin.xy, vec2(0.0))) || any(equal(uvMax.xy, vec2(1.0)));
+        return atScreenEdge == false;
     }
 
     // Convert to pixel coordinates
