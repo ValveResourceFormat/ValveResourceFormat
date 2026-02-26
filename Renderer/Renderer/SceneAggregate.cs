@@ -21,7 +21,6 @@ namespace ValveResourceFormat.Renderer
 
 
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
-        public StorageBuffer? InstanceTransformsGpu { get; private set; }
         public bool CanDrawIndirect { get; set; }
 
         public ObjectTypeFlags AllFlags { get; set; }
@@ -167,15 +166,6 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 yield return fragment;
-            }
-        }
-
-        public override void Update(Scene.UpdateContext context)
-        {
-            if (InstanceTransforms.Count > 0 && InstanceTransformsGpu == null)
-            {
-                InstanceTransformsGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
-                InstanceTransformsGpu.Create(InstanceTransforms);
             }
         }
 

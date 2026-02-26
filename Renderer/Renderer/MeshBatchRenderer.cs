@@ -386,10 +386,9 @@ namespace ValveResourceFormat.Renderer
 
             var instanceCount = 1;
 
-            if (request.Node is SceneAggregate { InstanceTransformsGpu: not null } aggregate)
+            if (request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate)
             {
                 instanceCount = aggregate.InstanceTransforms.Count;
-                aggregate.InstanceTransformsGpu.BindBufferBase();
             }
 
             if (uniforms.IsInstancing > -1)

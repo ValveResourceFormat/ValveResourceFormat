@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -272,11 +273,11 @@ namespace ValveResourceFormat.Renderer
             var maxId = nodes.Max(n => n.Id);
 
             var instanceData = new ObjectDataStandard[maxId + 1];
-            var transformData = new OpenTK.Mathematics.Matrix3x4[maxId + 2];
-
-            // Reserve index 0 for identity transform
-            var i = 1;
-            transformData[0] = Matrix4x4.Identity.To3x4();
+            var transformData = new List<OpenTK.Mathematics.Matrix3x4>(capacity: (int)maxId + 2)
+            {
+                // Reserve index 0 for identity transform
+                Matrix4x4.Identity.To3x4()
+            };
 
             foreach (var node in nodes)
             {
@@ -287,17 +288,24 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 uint transformIndex;
-                var usesOwnTransformBuffer = node is SceneAggregate { InstanceTransforms.Count: > 0 };
 
-                if (usesOwnTransformBuffer || node.Transform.IsIdentity)
+                if (node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregateWithInstances)
+                {
+                    transformIndex = (uint)transformData.Count;
+
+                    foreach (var instanceTransform in aggregateWithInstances.InstanceTransforms)
+                    {
+                        transformData.Add(instanceTransform);
+                    }
+                }
+                else if (node.Transform.IsIdentity)
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
                 else
                 {
-                    transformIndex = (uint)i;
-                    transformData[i] = node.Transform.To3x4();
-                    i++;
+                    transformIndex = (uint)transformData.Count;
+                    transformData.Add(node.Transform.To3x4());
                 }
 
                 instanceData[node.Id] = new ObjectDataStandard
@@ -314,7 +322,7 @@ namespace ValveResourceFormat.Renderer
             TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
 
             InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
-            TransformBufferGpu.Create(transformData.AsSpan(0, i), BufferUsageHint.StaticDraw);
+            TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsageHint.StaticDraw);
         }
 
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
