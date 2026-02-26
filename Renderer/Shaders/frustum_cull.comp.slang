@@ -107,7 +107,7 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     }
 
     const bool SizeCull = true;
-    const float minPixelSize = 0.5;
+    const float minPixelSize = 0.2;
     vec2 screenSpaceSize = uvSize * g_vViewportSize;
 
     // check if this AABB is too small to even draw anything

@@ -169,7 +169,7 @@ public class Timings
             Y = yOffset,
             Scale = scale,
             Color = new Color32(255, 200, 0),
-            Text = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"",6}"
+            Text = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"P100",6}"
         }, camera);
 
         yOffset += lineHeight;
