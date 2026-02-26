@@ -149,6 +149,11 @@ public class UserInput
             if (!Holding(TrackedKeys.Alt))
             {
                 OrbitTarget = null;
+
+                if (Released(TrackedKeys.Alt))
+                {
+                    PlayerMovement.Initialize = !NoClip;
+                }
             }
             else if (Pressed(TrackedKeys.Alt))
             {
@@ -166,7 +171,7 @@ public class UserInput
                     if (OrbitTarget != null)
                     {
                         // the target might not be in front of the camera, so we need to transition
-                        SaveCameraForTransition();
+                        TransitionCamera();
                     }
                 }
             }
@@ -190,21 +195,21 @@ public class UserInput
             CurrentSpeedModifier = 7;
         }
 
-        if (!NoClip)
+        if (OrbitMode)
+        {
+            HandleOrbitControls(deltaTime, keyboardState, !NoClip);
+        }
+        else if (NoClip)
+        {
+            HandleFreeFlightControls(deltaTime, keyboardState);
+        }
+        else
         {
             PlayerMovement.ProcessMovement(this, Camera, deltaTime);
             Velocity = PlayerMovement.Velocity;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.ClampRotation();
-        }
-        else if (OrbitMode)
-        {
-            HandleOrbitControls(deltaTime, keyboardState);
-        }
-        else
-        {
-            HandleFreeFlightControls(deltaTime, keyboardState);
         }
 
         var finalCamera = GetInterpolatedCamera();
@@ -221,7 +226,11 @@ public class UserInput
     public void SaveCameraForTransition(float transitionDuration = 1.5f)
     {
         NoClip = true;
+        TransitionCamera(transitionDuration);
+    }
 
+    private void TransitionCamera(float transitionDuration = 1.5f)
+    {
         StartingCamera = GetInterpolatedCamera();
         TransitionDuration = transitionDuration;
         TransitionEndTime = Renderer.Uptime + transitionDuration;
@@ -243,7 +252,7 @@ public class UserInput
         return new(location, pitch, yaw);
     }
 
-    private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState)
+    private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState, bool walking)
     {
         var previousCamera = CameraPositionAngles;
 
@@ -256,7 +265,7 @@ public class UserInput
             Camera.Location += panOffset;
         }
 
-        if ((keyboardState & TrackedKeys.MouseLeft) != 0)
+        if ((keyboardState & TrackedKeys.MouseLeft) != 0 || walking)
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
@@ -290,6 +299,8 @@ public class UserInput
             var direction = clippedPos - target;
             OrbitDistance = direction.Length();
         }
+
+        Velocity = (Camera.Location - previousCamera.Location) / deltaTime;
     }
 
     private (bool Clipped, Vector3 ClipPosition, float ImpactTime) ClipOrbitMovement(Vector3 fromLocation, Vector3 toLocation)
@@ -444,6 +455,6 @@ public class UserInput
 
         OrbitDistance *= 1f + delta * OrbitZoomSpeed;
         OrbitDistance = Math.Clamp(OrbitDistance, MinOrbitDistance, MaxOrbitDistance);
-        SaveCameraForTransition(transitionDuration: 0.5f);
+        TransitionCamera(transitionDuration: 0.5f);
     }
 }
