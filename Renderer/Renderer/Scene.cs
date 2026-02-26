@@ -147,23 +147,44 @@ namespace ValveResourceFormat.Renderer
             octree.Dirty = true;
         }
 
+        public enum NodeType
+        {
+            Unknown,
+            Static,
+            Dynamic,
+        }
+
+        public (NodeType Type, int LocalId) GetNodeTypeById(uint id)
+        {
+            if (id > 0)
+            {
+                var staticNodeIndex = (int)(id - 1);
+                var dynamicNodeIndex = staticNodeIndex - staticNodes.Count;
+
+                if (staticNodeIndex < staticNodes.Count)
+                {
+                    return (NodeType.Static, staticNodeIndex);
+                }
+                else if (dynamicNodeIndex < dynamicNodes.Count)
+                {
+                    return (NodeType.Dynamic, dynamicNodeIndex);
+                }
+            }
+
+            return (NodeType.Unknown, -1);
+        }
+
         public SceneNode? Find(uint id)
         {
-            if (id == 0)
-            {
-                return null;
-            }
+            var (type, localId) = GetNodeTypeById(id);
 
-            var staticNodeIndex = id - 1;
-            var dynamicNodeIndex = staticNodeIndex - staticNodes.Count;
-
-            if (staticNodeIndex < staticNodes.Count)
+            if (type == NodeType.Static)
             {
-                return staticNodes[(int)staticNodeIndex];
+                return staticNodes[localId];
             }
-            else if (dynamicNodeIndex < dynamicNodes.Count)
+            else if (type == NodeType.Dynamic)
             {
-                return dynamicNodes[(int)dynamicNodeIndex];
+                return dynamicNodes[localId];
             }
 
             return null;
@@ -200,12 +221,10 @@ namespace ValveResourceFormat.Renderer
                 node.Update(updateContext);
             }
 
-            if (OctreeDirty)
+            if (StaticOctree.Dirty)
             {
-                // we disabled or enabled some node
+                // we disabled or enabled some static node
                 CreateIndirectDrawBuffers(true);
-                UpdateOctrees();
-                OctreeDirty = false;
             }
 
             foreach (var node in dynamicNodes)
@@ -213,10 +232,17 @@ namespace ValveResourceFormat.Renderer
                 var oldBox = node.BoundingBox;
                 node.Update(updateContext);
 
-                if (!oldBox.Equals(node.BoundingBox))
+                if (node.LayerEnabled && !oldBox.Equals(node.BoundingBox))
                 {
                     DynamicOctree.Update(node, oldBox);
                 }
+            }
+
+            if (StaticOctree.Dirty || DynamicOctree.Dirty)
+            {
+                UpdateOctrees();
+                UpdateNodeIndices();
+                CreateInstanceTransformBuffers(deletePrevious: true);
             }
         }
 
@@ -234,8 +260,14 @@ namespace ValveResourceFormat.Renderer
             CreateIndirectDrawBuffers();
         }
 
-        private void CreateInstanceTransformBuffers()
+        private void CreateInstanceTransformBuffers(bool deletePrevious = false)
         {
+            if (deletePrevious)
+            {
+                InstanceBufferGpu?.Delete();
+                TransformBufferGpu?.Delete();
+            }
+
             var nodes = AllNodes.ToList();
             var maxId = nodes.Max(n => n.Id);
 
@@ -254,13 +286,10 @@ namespace ValveResourceFormat.Renderer
                     instanceTint = fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint;
                 }
 
-                if (node is SceneAggregate { InstanceTransforms.Count: > 0 })
-                {
-                    //
-                }
-
                 uint transformIndex;
-                if (node.Transform.IsIdentity)
+                var usesOwnTransformBuffer = node is SceneAggregate { InstanceTransforms.Count: > 0 };
+
+                if (usesOwnTransformBuffer || node.Transform.IsIdentity)
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
@@ -1236,17 +1265,22 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public bool OctreeDirty { get; set; }
+        public bool MarkParentOctreeDirty(SceneNode node)
+        {
+            var nodeType = GetNodeTypeById(node.Id).Type;
+            if (nodeType == NodeType.Unknown)
+            {
+                return false;
+            }
+
+            var octree = nodeType == NodeType.Static ? StaticOctree : DynamicOctree;
+            octree.Dirty = true;
+            return true;
+        }
 
         public void UpdateOctrees()
         {
             LastFrustum = -1;
-
-            if (OctreeDirty)
-            {
-                StaticOctree.Dirty = true;
-                DynamicOctree.Dirty = true;
-            }
 
             if (StaticOctree.Dirty)
             {
