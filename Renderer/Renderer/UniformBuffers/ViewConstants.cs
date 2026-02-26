@@ -13,7 +13,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Matrix4x4 WorldToView = Matrix4x4.Identity;
         public Matrix4x4 ViewToProjection = Matrix4x4.Identity;
         public Vector4 InvProjRow3 = Vector4.Zero;
-        public Vector4 InvViewportSize;
+        public Vector2 InvViewportSize;
+        public Vector2 ViewportSize;
         public Vector3 CameraPosition = Vector3.Zero;
         public float ViewportMinZ;
         public Vector3 CameraDirWs;

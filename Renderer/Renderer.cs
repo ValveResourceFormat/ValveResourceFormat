@@ -292,7 +292,8 @@ public class Renderer
         var (w, h) = (renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
 
         GL.Viewport(0, 0, w, h);
-        ViewBuffer.Data.InvViewportSize = Vector4.One / new Vector4(w, h, 1, 1);
+        ViewBuffer.Data.ViewportSize = new Vector2(w, h);
+        ViewBuffer.Data.InvViewportSize = Vector2.One / ViewBuffer.Data.ViewportSize;
 
         renderContext.Framebuffer.BindAndClear();
 

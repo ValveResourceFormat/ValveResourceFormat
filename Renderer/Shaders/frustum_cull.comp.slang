@@ -85,12 +85,12 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
 
     // Find min/max bounds in NDC space, clamp to [-1, 1]
     vec3 ndcMin = max(
-        min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])), 
+        min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])),
             min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7]))),
         vec3(-1.0)
     );
     vec3 ndcMax = min(
-        max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])), 
+        max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])),
             max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7]))),
         vec3(1.0)
     );
@@ -108,8 +108,7 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
 
     const bool SizeCull = true;
     const float minPixelSize = 0.5;
-    const vec2 referenceResolution = vec2(3840, 2160);
-    vec2 screenSpaceSize = uvSize * referenceResolution;
+    vec2 screenSpaceSize = uvSize * g_vViewportSize;
 
     // check if this AABB is too small to even draw anything
     if (SizeCull && any(lessThan(screenSpaceSize, vec2(minPixelSize))))
@@ -180,20 +179,20 @@ bool testAABBFrustum(vec3 bmin, vec3 bmax)
         vec4 plane = planes[i];
         vec3 normal = plane.xyz;
         float dist = plane.w;
-        
+
         // Get the closest vertex to the plane (matching C# Frustum.Intersects logic)
         vec3 closest;
         closest.x = normal.x < 0.0 ? bmin.x : bmax.x;
         closest.y = normal.y < 0.0 ? bmin.y : bmax.y;
         closest.z = normal.z < 0.0 ? bmin.z : bmax.z;
-        
+
         // If closest vertex is outside, box is completely outside
         if (dot(normal, closest) + dist < 0.0)
         {
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -227,7 +226,7 @@ vec4 unpackSByteVector(uint packedData)
 void main()
 {
     uint drawId = gl_GlobalInvocationID.x;
-    
+
     if (drawId >= drawCommands.length())
     {
         return;
