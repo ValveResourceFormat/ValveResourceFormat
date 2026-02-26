@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -106,6 +107,7 @@ namespace ValveResourceFormat.Renderer
         public void Initialize()
         {
             UpdateOctrees();
+            UpdateNodeIndices();
             CreateBuffers();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
@@ -128,14 +130,12 @@ namespace ValveResourceFormat.Renderer
 
         public void Add(SceneNode node, bool dynamic)
         {
-            var (nodeList, octree, indexOffset) = dynamic
-                ? (dynamicNodes, DynamicOctree, 1u)
-                : (staticNodes, StaticOctree, 0u);
+            var (nodeList, octree) = dynamic
+                ? (dynamicNodes, DynamicOctree)
+                : (staticNodes, StaticOctree);
 
             nodeList.Add(node);
-            node.Id = (uint)nodeList.Count * 2 - indexOffset;
-
-            octree.Insert(node);
+            octree.Dirty = true;
         }
 
         public void Remove(SceneNode node, bool dynamic)
@@ -145,38 +145,50 @@ namespace ValveResourceFormat.Renderer
                 : (staticNodes, StaticOctree);
 
             nodeList.Remove(node);
-            octree.Remove(node); // octree removal can be unreliable
+            octree.Dirty = true;
+        }
+
+        public enum NodeType
+        {
+            Unknown,
+            Static,
+            Dynamic,
+        }
+
+        public (NodeType Type, int LocalId) GetNodeTypeById(uint id)
+        {
+            if (id > 0)
+            {
+                var staticNodeIndex = (int)(id - 1);
+                var dynamicNodeIndex = staticNodeIndex - staticNodes.Count;
+
+                if (staticNodeIndex < staticNodes.Count)
+                {
+                    return (NodeType.Static, staticNodeIndex);
+                }
+                else if (dynamicNodeIndex < dynamicNodes.Count)
+                {
+                    return (NodeType.Dynamic, dynamicNodeIndex);
+                }
+            }
+
+            return (NodeType.Unknown, -1);
         }
 
         public SceneNode? Find(uint id)
         {
-            if (id == 0)
+            var (type, localId) = GetNodeTypeById(id);
+
+            if (type == NodeType.Static)
             {
-                return null;
+                return staticNodes[localId];
+            }
+            else if (type == NodeType.Dynamic)
+            {
+                return dynamicNodes[localId];
             }
 
-            if (id % 2 == 1)
-            {
-                var index = ((int)id + 1) / 2 - 1;
-
-                if (index >= dynamicNodes.Count)
-                {
-                    return null;
-                }
-
-                return dynamicNodes[index];
-            }
-            else
-            {
-                var index = (int)id / 2 - 1;
-
-                if (index >= staticNodes.Count)
-                {
-                    return null;
-                }
-
-                return staticNodes[index];
-            }
+            return null;
         }
 
         public SceneNode? Find(EntityLump.Entity entity)
@@ -210,12 +222,10 @@ namespace ValveResourceFormat.Renderer
                 node.Update(updateContext);
             }
 
-            if (OctreeDirty)
+            if (StaticOctree.Dirty)
             {
-                // we disabled or enabled some node
+                // we disabled or enabled some static node
                 CreateIndirectDrawBuffers(true);
-                UpdateOctrees();
-                OctreeDirty = false;
             }
 
             foreach (var node in dynamicNodes)
@@ -223,10 +233,17 @@ namespace ValveResourceFormat.Renderer
                 var oldBox = node.BoundingBox;
                 node.Update(updateContext);
 
-                if (!oldBox.Equals(node.BoundingBox))
+                if (node.LayerEnabled && !oldBox.Equals(node.BoundingBox))
                 {
                     DynamicOctree.Update(node, oldBox);
                 }
+            }
+
+            if (StaticOctree.Dirty || DynamicOctree.Dirty)
+            {
+                UpdateOctrees();
+                UpdateNodeIndices();
+                CreateInstanceTransformBuffers(deletePrevious: true);
             }
         }
 
@@ -244,17 +261,23 @@ namespace ValveResourceFormat.Renderer
             CreateIndirectDrawBuffers();
         }
 
-        private void CreateInstanceTransformBuffers()
+        private void CreateInstanceTransformBuffers(bool deletePrevious = false)
         {
+            if (deletePrevious)
+            {
+                InstanceBufferGpu?.Delete();
+                TransformBufferGpu?.Delete();
+            }
+
             var nodes = AllNodes.ToList();
             var maxId = nodes.Max(n => n.Id);
 
             var instanceData = new ObjectDataStandard[maxId + 1];
-            var transformData = new OpenTK.Mathematics.Matrix3x4[maxId + 2];
-
-            // Reserve index 0 for identity transform
-            var i = 1;
-            transformData[0] = Matrix4x4.Identity.To3x4();
+            var transformData = new List<OpenTK.Mathematics.Matrix3x4>(capacity: (int)maxId + 2)
+            {
+                // Reserve index 0 for identity transform
+                Matrix4x4.Identity.To3x4()
+            };
 
             foreach (var node in nodes)
             {
@@ -265,15 +288,24 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 uint transformIndex;
-                if (node.Transform.IsIdentity)
+
+                if (node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregateWithInstances)
+                {
+                    transformIndex = (uint)transformData.Count;
+
+                    foreach (var instanceTransform in aggregateWithInstances.InstanceTransforms)
+                    {
+                        transformData.Add(instanceTransform);
+                    }
+                }
+                else if (node.Transform.IsIdentity)
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
                 else
                 {
-                    transformIndex = (uint)i;
-                    transformData[i] = node.Transform.To3x4();
-                    i++;
+                    transformIndex = (uint)transformData.Count;
+                    transformData.Add(node.Transform.To3x4());
                 }
 
                 instanceData[node.Id] = new ObjectDataStandard
@@ -290,7 +322,7 @@ namespace ValveResourceFormat.Renderer
             TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
 
             InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
-            TransformBufferGpu.Create(transformData.AsSpan(0, i), BufferUsageHint.StaticDraw);
+            TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsageHint.StaticDraw);
         }
 
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
@@ -1241,28 +1273,80 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public bool OctreeDirty { get; set; }
+        public bool MarkParentOctreeDirty(SceneNode node)
+        {
+            var nodeType = GetNodeTypeById(node.Id).Type;
+            if (nodeType == NodeType.Unknown)
+            {
+                return false;
+            }
+
+            var octree = nodeType == NodeType.Static ? StaticOctree : DynamicOctree;
+            octree.Dirty = true;
+            return true;
+        }
 
         public void UpdateOctrees()
         {
             LastFrustum = -1;
-            StaticOctree.Clear();
-            DynamicOctree.Clear();
+
+            if (StaticOctree.Dirty)
+            {
+                // static octree is tightly wrapped around the scene
+                var maxBounds = new AABB(Vector3.PositiveInfinity, Vector3.NegativeInfinity);
+
+                foreach (var node in staticNodes)
+                {
+                    if (node.LayerEnabled)
+                    {
+                        maxBounds = maxBounds.Union(node.BoundingBox);
+                    }
+                }
+
+                StaticOctree.Clear(maxBounds);
+
+                foreach (var node in staticNodes)
+                {
+                    if (node.LayerEnabled)
+                    {
+                        StaticOctree.Insert(node);
+                    }
+                }
+
+                StaticOctree.DebugRenderer?.StaticBuild();
+                StaticOctree.Dirty = false;
+            }
+
+            if (DynamicOctree.Dirty)
+            {
+                DynamicOctree.Clear();
+
+                foreach (var node in dynamicNodes)
+                {
+                    if (node.LayerEnabled)
+                    {
+                        DynamicOctree.Insert(node);
+                    }
+                }
+
+                DynamicOctree.Dirty = false;
+            }
+        }
+
+        public void UpdateNodeIndices()
+        {
+            uint index = 1; // 0 is reserved for invalid index
 
             foreach (var node in staticNodes)
             {
-                if (node.LayerEnabled)
-                {
-                    StaticOctree.Insert(node);
-                }
+                node.Id = index;
+                index++;
             }
 
             foreach (var node in dynamicNodes)
             {
-                if (node.LayerEnabled)
-                {
-                    DynamicOctree.Insert(node);
-                }
+                node.Id = index;
+                index++;
             }
         }
 

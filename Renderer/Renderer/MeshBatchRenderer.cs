@@ -299,20 +299,15 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            if (uniforms.EnvmapTexture != -1)
+            if (config.NeedsCubemapBinding && uniforms.EnvmapTexture != -1)
             {
-                var isSteamVrEnvMaps = config.NeedsCubemapBinding && request.Node.EnvMaps.Count > 0;
-
-                if (isSteamVrEnvMaps)
-                {
-                    var envmap = request.Node.EnvMaps[0];
-                    SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap.EnvMapTexture);
-                }
+                var envmap = request.Node.EnvMaps[0];
+                SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap.EnvMapTexture);
             }
 
-            if (uniforms.LPVIrradianceTexture != -1 && request.Node.LightProbeBinding is { } lightProbe)
+            if (config.LightProbeType == LightProbeType.IndividualProbes && uniforms.LPVIrradianceTexture != -1)
             {
-                if (config.LightProbeType == LightProbeType.IndividualProbes)
+                if (request.Node.LightProbeBinding is { } lightProbe)
                 {
                     if (lightProbe.Irradiance != null)
                     {
@@ -386,10 +381,9 @@ namespace ValveResourceFormat.Renderer
 
             var instanceCount = 1;
 
-            if (request.Node is SceneAggregate { InstanceTransformsGpu: not null } aggregate)
+            if (request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate)
             {
                 instanceCount = aggregate.InstanceTransforms.Count;
-                aggregate.InstanceTransformsGpu.BindBufferBase();
             }
 
             if (uniforms.IsInstancing > -1)

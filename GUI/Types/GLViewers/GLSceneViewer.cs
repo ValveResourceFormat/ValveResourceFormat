@@ -34,8 +34,6 @@ namespace GUI.Types.GLViewers
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
         private InfiniteGrid? baseGrid;
-        private OctreeDebugRenderer? staticOctreeRenderer;
-        private OctreeDebugRenderer? dynamicOctreeRenderer;
         protected SelectedNodeRenderer? SelectedNodeRenderer;
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
@@ -93,17 +91,7 @@ namespace GUI.Types.GLViewers
                     Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
                 });
 
-                UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
-                {
-                    showStaticOctree = v;
-
-                    if (showStaticOctree && staticOctreeRenderer != null)
-                    {
-                        using var lockedGl = MakeCurrent();
-
-                        staticOctreeRenderer.StaticBuild();
-                    }
-                });
+                UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
                 UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
                 {
@@ -225,8 +213,8 @@ namespace GUI.Types.GLViewers
                 Input.Camera.LookAt(bbox.Center);
             }
 
-            staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.RendererContext, false);
-            dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.RendererContext, true);
+            Scene.StaticOctree.DebugRenderer = new(Scene.StaticOctree, Scene.RendererContext, false);
+            Scene.DynamicOctree.DebugRenderer = new(Scene.DynamicOctree, Scene.RendererContext, true);
         }
 
         protected abstract void LoadScene();
@@ -474,14 +462,14 @@ namespace GUI.Types.GLViewers
             {
                 SelectedNodeRenderer.Render();
 
-                if (showStaticOctree && staticOctreeRenderer != null)
+                if (showStaticOctree && Scene.StaticOctree.DebugRenderer != null)
                 {
-                    staticOctreeRenderer.Render();
+                    Scene.StaticOctree.DebugRenderer.Render();
                 }
 
-                if (showDynamicOctree && dynamicOctreeRenderer != null)
+                if (showDynamicOctree && Scene.DynamicOctree.DebugRenderer != null)
                 {
-                    dynamicOctreeRenderer.Render();
+                    Scene.DynamicOctree.DebugRenderer.Render();
                 }
 
                 if (Scene.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
@@ -700,13 +688,6 @@ namespace GUI.Types.GLViewers
         {
             Scene.SetEnabledLayers(layers);
             SkyboxScene?.SetEnabledLayers(layers);
-
-            if (showStaticOctree && staticOctreeRenderer != null)
-            {
-                using var lockedGl = MakeCurrent();
-
-                staticOctreeRenderer.Rebuild();
-            }
         }
 
         private void SetRenderMode(string renderMode)

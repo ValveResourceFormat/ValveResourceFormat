@@ -27,6 +27,11 @@ layout (location = 2) in vec4 vBLENDWEIGHT;
 
 uniform uvec4 uAnimationData;
 
+layout(std430, binding = 11) readonly buffer g_boneTransformBuffer
+{
+    mat3x4 boneTransforms[];
+};
+
 #define bAnimated (uAnimationData.x != 0u)
 #define meshBoneOffset uAnimationData.y
 #define meshBoneCount uAnimationData.z
@@ -43,7 +48,7 @@ mat4 getMatrix(uint boneIndex)
 
     boneIndex += meshBoneOffset;
 
-    return UnpackMatrix4(transforms[boneIndex]);
+    return UnpackMatrix4(boneTransforms[boneIndex]);
 }
 
 mat4 getSkinMatrix()

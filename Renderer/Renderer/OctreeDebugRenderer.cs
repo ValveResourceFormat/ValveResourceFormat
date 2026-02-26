@@ -12,7 +12,6 @@ namespace ValveResourceFormat.Renderer
         private readonly int vaoHandle;
         private readonly int vboHandle;
         private readonly bool dynamic;
-        private bool built;
         private int vertexCount;
 
         public OctreeDebugRenderer(Octree octree, RendererContext rendererContext, bool dynamic)
@@ -61,11 +60,7 @@ namespace ValveResourceFormat.Renderer
 
         public void StaticBuild()
         {
-            if (!built)
-            {
-                built = true;
-                Rebuild();
-            }
+            Rebuild();
         }
 
         public void Rebuild()
@@ -97,6 +92,13 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(0);
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
+        }
+
+
+        public void Delete()
+        {
+            GL.DeleteBuffer(vboHandle);
+            GL.DeleteVertexArray(vaoHandle);
         }
     }
 }

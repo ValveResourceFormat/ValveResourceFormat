@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer
         public virtual bool LayerEnabled
         {
             get => layerEnabledField;
-            set { layerEnabledField = value; Scene.OctreeDirty = true; }
+            set { layerEnabledField = value; Scene.MarkParentOctreeDirty(this); }
         }
 
         public AABB BoundingBox { get; private set; }

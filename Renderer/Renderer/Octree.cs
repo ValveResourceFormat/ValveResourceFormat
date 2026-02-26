@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
@@ -356,18 +357,32 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets the root node of the octree.
         /// </summary>
-        public Node Root { get; }
+        public Node Root { get; private set; }
+
+        /// <summary>
+        /// Gets or sets whether this octree needs to be rebuilt.
+        /// </summary>
+        public bool Dirty { get; set; } = true;
+
+        public OctreeDebugRenderer? DebugRenderer { get; set; }
 
         /// <summary>
         /// Initializes a new octree with the specified size.
         /// </summary>
         /// <param name="size">Total size of the octree region (centered at origin).</param>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="size"/> is negative or zero.</exception>
         public Octree(float size)
+            : this(new AABB(Vector3.Zero, size))
         {
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+        }
 
-            Root = new Node(null, new Vector3(-size * 0.5f), new Vector3(size));
+        /// <summary>
+        /// Initializes a new octree with the specified bounding box as the largest region.
+        /// </summary>
+        public Octree(AABB size)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size.Size.Length());
+
+            Root = new Node(null, size.Min, size.Max);
         }
 
         /// <summary>
@@ -453,6 +468,15 @@ namespace ValveResourceFormat.Renderer
         public void Clear()
         {
             Root.Clear();
+        }
+
+
+        public void Clear(AABB rootSize)
+        {
+            Clear();
+
+            var cubeRegion = new AABB(rootSize.Center, rootSize.Size.Length());
+            Root = new Node(null, cubeRegion.Min, cubeRegion.Max);
         }
     }
 }

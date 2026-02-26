@@ -66,7 +66,7 @@ ObjectData_t GetObjectData()
     ObjectDataStandard objectData = objects[gl_BaseInstance];
 
     ObjectData_t object;
-    object.transform = UnpackMatrix4(bIsInstancing ? transforms[objectData.TransformIndex] : transform);
+    object.transform = UnpackMatrix4(bIsInstancing ? transforms[objectData.TransformIndex + gl_InstanceID] : transform);
     object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
 
     #if (S_SCENE_CUBEMAP_TYPE > 0)
