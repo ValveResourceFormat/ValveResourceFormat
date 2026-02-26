@@ -3,7 +3,6 @@
 #ifndef VRF_INSTANCING_INCLUDE
 #define VRF_INSTANCING_INCLUDE
 
-uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
 
@@ -66,7 +65,7 @@ ObjectData_t GetObjectData()
     ObjectDataStandard objectData = objects[gl_BaseInstance];
 
     ObjectData_t object;
-    object.transform = UnpackMatrix4(bIsInstancing ? transforms[objectData.TransformIndex + gl_InstanceID] : transform);
+    object.transform = UnpackMatrix4(transforms[objectData.TransformIndex + gl_InstanceID]);
     object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
 
     #if (S_SCENE_CUBEMAP_TYPE > 0)

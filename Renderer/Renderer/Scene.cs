@@ -215,7 +215,7 @@ namespace ValveResourceFormat.Renderer
             return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
         }
 
-        public void Update(Scene.UpdateContext updateContext)
+        public void Update(UpdateContext updateContext)
         {
             foreach (var node in staticNodes)
             {

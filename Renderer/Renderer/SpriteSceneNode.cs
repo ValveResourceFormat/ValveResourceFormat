@@ -73,6 +73,26 @@ namespace ValveResourceFormat.Renderer
             Transform = Matrix4x4.CreateScale(spriteSize) * Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
         }
 
+        public override void Update(Scene.UpdateContext context)
+        {
+            // Create billboarding rotation (always facing camera)
+
+            if (!Matrix4x4.Decompose(context.Camera.CameraViewMatrix, out _, out var modelViewRotation, out _))
+            {
+                throw new InvalidOperationException("Matrix decompose failed");
+            }
+
+            if (!Matrix4x4.Decompose(Transform, out var scale, out _, out var translation))
+            {
+                throw new InvalidOperationException("Matrix decompose failed");
+            }
+
+            modelViewRotation = Quaternion.Inverse(modelViewRotation);
+            var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
+
+            Transform = Matrix4x4.CreateScale(scale) * billboardMatrix * Matrix4x4.CreateTranslation(translation);
+        }
+
         public override void Render(Scene.RenderContext context)
         {
             if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline)
@@ -84,18 +104,6 @@ namespace ValveResourceFormat.Renderer
             renderShader.Use();
 
             GL.BindVertexArray(vaoHandle);
-
-            // Create billboarding rotation (always facing camera)
-            if (!Matrix4x4.Decompose(context.Camera.CameraViewMatrix, out _, out var modelViewRotation, out _))
-            {
-                throw new InvalidOperationException("Matrix decompose failed");
-            }
-
-            modelViewRotation = Quaternion.Inverse(modelViewRotation);
-            var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
-
-            var transform = billboardMatrix * Transform;
-            renderShader.SetUniform3x4("transform", transform);
 
             renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("shaderId", material.Shader.NameHash);

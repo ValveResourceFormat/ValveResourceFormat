@@ -82,7 +82,6 @@ namespace ValveResourceFormat.Renderer
             var renderShader = context.ReplacementShader ?? shader;
 
             renderShader.Use();
-            renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
             renderShader.SetUniform1("g_bNormalShaded", true);

@@ -100,7 +100,6 @@ namespace ValveResourceFormat.Renderer
             public int LPVIndicesTexture = -1;
             public int LPVScalarsTexture = -1;
             public int LPVShadowsTexture = -1;
-            public int Transform = -1;
             public int IsInstancing = -1;
             public int Tint = -1;
             public int MeshId = -1;
@@ -186,7 +185,6 @@ namespace ValveResourceFormat.Renderer
                         uniforms = new Uniforms
                         {
                             AnimationData = shader.GetUniformLocation("uAnimationData"),
-                            Transform = shader.GetUniformLocation("transform"),
                             IsInstancing = shader.GetUniformLocation("bIsInstancing"),
                             Tint = shader.GetUniformLocation("vTint"),
                         };
@@ -363,12 +361,6 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
-            }
-
-            if (uniforms.Transform > -1)
-            {
-                var transform = request.Node.Transform.To3x4();
-                GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
             }
 
             if (uniforms.Tint > -1)
