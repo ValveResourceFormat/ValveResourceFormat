@@ -58,7 +58,7 @@
 			m_ChildNodeIndices = 
 			[
 			]
-			m_worldNodePrefix = resource:"maps\dota\worldnodes\node000"
+			m_worldNodePrefix = resource:"maps\\dota\\worldnodes\\node000"
 		},
 	]
 	m_entityLumps = 
