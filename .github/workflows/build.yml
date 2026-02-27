@@ -104,7 +104,7 @@ jobs:
       uses: actions/upload-artifact@v7
       if: matrix.os == 'windows-latest'
       with:
-        archive: false
+        #archive: false # https://github.com/oprypin/nightly.link/issues/88
         name: Source2Viewer
         path: 'GUI/bin/Release/win-x64/publish/*.exe'
 
