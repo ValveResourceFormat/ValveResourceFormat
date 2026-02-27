@@ -42,10 +42,10 @@ namespace ValveResourceFormat.Renderer
         /// Initializes a new bounding box centered at a point with uniform extents.
         /// </summary>
         /// <param name="point">Center point.</param>
-        /// <param name="uniformSize">Half-size along each axis.</param>
-        public AABB(Vector3 point, float uniformSize)
+        /// <param name="halfExtents">Half-size along each axis.</param>
+        public AABB(Vector3 point, float halfExtents)
         {
-            var size = new Vector3(uniformSize);
+            var size = new Vector3(halfExtents);
             Min = point - size;
             Max = point + size;
         }

@@ -371,7 +371,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="size">Total size of the octree region (centered at origin).</param>
         public Octree(float size)
-            : this(new AABB(Vector3.Zero, size))
+            : this(new AABB(Vector3.Zero, size / 2f))
         {
         }
 
@@ -382,7 +382,7 @@ namespace ValveResourceFormat.Renderer
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size.Size.Length());
 
-            Root = new Node(null, size.Min, size.Max);
+            Root = new Node(null, size.Min, size.Size);
         }
 
         /// <summary>
