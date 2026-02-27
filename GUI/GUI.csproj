@@ -4,7 +4,6 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <RollForward>LatestMajor</RollForward>
-    <OutputType>WinExe</OutputType>
     <Description>Source 2 resource viewer</Description>
     <ApplicationIcon>..\Misc\Icons\source2viewer.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -41,10 +40,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Renderer\Renderer.csproj" />
-    <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj">
-      <Project>{E685E563-5F49-4D8D-8342-A7354229E54F}</Project>
-      <Name>ValveResourceFormat</Name>
-    </ProjectReference>
+    <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />

@@ -50,16 +50,18 @@ jobs:
           nuget-
 
     - name: Run tests
-      run: dotnet test ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
+      run: dotnet test ./Tests/Tests.csproj --configuration Release -p:CollectCoverage=true -p:CoverletOutputFormat=lcov -p:CoverletOutput='./lcov.info' -p:Include="[ValveResourceFormat*]*"
 
 #    - name: Check formatting
 #      if: matrix.os == 'ubuntu-latest'
 #      run: dotnet format --verify-no-changes
 
     - name: Pack nupkg
+      if: matrix.os == 'ubuntu-latest'
       run: dotnet pack --configuration Release ValveResourceFormat/ValveResourceFormat.csproj
 
     - name: Pack renderer nupkg
+      if: matrix.os == 'ubuntu-latest'
       run: dotnet pack --configuration Release Renderer/Renderer.csproj
 
     - name: Publish GUI
@@ -99,74 +101,91 @@ jobs:
       run: dotnet build Misc/MiscVrfProjects.slnx
 
     - name: Upload GUI
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'windows-latest'
       with:
+        archive: false
         name: Source2Viewer
-        path: GUI/bin/Release/win-x64/publish
+        path: 'GUI/bin/Release/win-x64/publish/*.exe'
 
     - name: Upload nupkg
-      uses: actions/upload-artifact@v6
-      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v7
+      if: matrix.os == 'ubuntu-latest'
       with:
+        archive: false
         name: nupkg
         path: 'ValveResourceFormat/bin/Release/*.nupkg'
 
     - name: Upload renderer nupkg
-      uses: actions/upload-artifact@v6
-      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v7
+      if: matrix.os == 'ubuntu-latest'
       with:
+        archive: false
         name: renderer-nupkg
         path: 'Renderer/bin/Release/*.nupkg'
 
     - name: Upload CLI (Windows x64)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'windows-latest'
       with:
         name: cli-windows-x64
-        path: CLI/bin/Release/win-x64/publish
+        path: |
+          CLI/bin/Release/win-x64/publish
+          !**/*.pdb
 
     - name: Upload CLI (Windows arm64)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'windows-11-arm'
       with:
         name: cli-windows-arm64
-        path: CLI/bin/Release/win-arm64/publish
+        path: |
+          CLI/bin/Release/win-arm64/publish
+          !**/*.pdb
 
     - name: Upload CLI (Linux x64)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'ubuntu-latest'
       with:
         name: cli-linux-x64
-        path: CLI/bin/Release/linux-x64/publish
+        path: |
+          CLI/bin/Release/linux-x64/publish
+          !**/*.pdb
 
     - name: Upload CLI (Linux arm)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'ubuntu-latest'
       with:
         name: cli-linux-arm
-        path: CLI/bin/Release/linux-arm/publish
+        path: |
+          CLI/bin/Release/linux-arm/publish
+          !**/*.pdb
 
     - name: Upload CLI (Linux arm64)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'ubuntu-24.04-arm'
       with:
         name: cli-linux-arm64
-        path: CLI/bin/Release/linux-arm64/publish
+        path: |
+          CLI/bin/Release/linux-arm64/publish
+          !**/*.pdb
 
     - name: Upload CLI (macOS x64)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'macos-latest'
       with:
         name: cli-macos-x64
-        path: CLI/bin/Release/osx-x64/publish
+        path: |
+          CLI/bin/Release/osx-x64/publish
+          !**/*.pdb
 
     - name: Upload CLI (macOS arm64)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'macos-latest'
       with:
         name: cli-macos-arm64
-        path: CLI/bin/Release/osx-arm64/publish
+        path: |
+          CLI/bin/Release/osx-arm64/publish
+          !**/*.pdb
 
     - name: Upload test coverage
       uses: codecov/codecov-action@v5
@@ -185,7 +204,7 @@ jobs:
 
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         path: artifacts
 
@@ -195,7 +214,7 @@ jobs:
 
     - name: Upload binaries to be signed
       id: signpath-artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: signpath-to-be-signed
         retention-days: 1
