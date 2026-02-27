@@ -47,7 +47,7 @@ body:
   attributes:
     label: What version of S2V are you using?
     description: |
-      # **Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)** (NOT RELEASE)
+      # **Make sure your issue still exists on [the latest dev build.](https://s2v.app/dev/)** (NOT RELEASE)
     placeholder: Use copy version button in the about window. Download dev build from the site (NOT RELEASE)
   validations:
     required: true
@@ -55,7 +55,7 @@ body:
 - type: dropdown
   attributes:
     label: Have you tried the latest dev build?
-    description: "**Make sure your issue still exists on [the latest dev build.](https://valveresourceformat.github.io/)**"
+    description: "**Make sure your issue still exists on [the latest dev build.](https://s2v.app/dev/)**"
     options:
       - "I don't know what this means"
       - "No"

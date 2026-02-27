@@ -52,7 +52,7 @@ jobs:
           echo "Latest build number: $LATEST_BUILD"
 
           if [ -z "$BUILD_NUMBER" ]; then
-            BODY=$'Unable to determine the version of Source 2 Viewer from this issue.\nPlease provide the version by using the **copy version** button in the about window, and download the [latest dev build](https://s2v.app/dev) to confirm that this issue still occurs.'
+            BODY=$'Unable to determine the version of Source 2 Viewer from this issue.\nPlease provide the version by using the **copy version** button in the about window, and download the [latest dev build](https://s2v.app/dev/) to confirm that this issue still occurs.'
           elif [ "$BUILD_NUMBER" -ge "$LATEST_BUILD" ]; then
             echo "Version is up to date"
             exit 0
@@ -61,7 +61,7 @@ jobs:
             exit 0
           else
             BUILDS_BEHIND=$((LATEST_BUILD - BUILD_NUMBER))
-            BODY="The version of Source 2 Viewer reported in this issue is **$BUILDS_BEHIND** build(s) behind the latest dev build."$'\nPlease download the [latest dev build](https://s2v.app/dev) and confirm that this issue still occurs.'
+            BODY="The version of Source 2 Viewer reported in this issue is **$BUILDS_BEHIND** build(s) behind the latest dev build."$'\nPlease download the [latest dev build](https://s2v.app/dev/) and confirm that this issue still occurs.'
           fi
 
           gh issue comment "$ISSUE_NUMBER" --body "$BODY"
