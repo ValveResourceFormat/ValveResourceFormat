@@ -9,8 +9,6 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public class SkeletonSceneNode : SceneNode
     {
-        public bool Enabled { get; set; }
-
         readonly AnimationController animationController;
         readonly Skeleton skeleton;
         readonly Shader shader;

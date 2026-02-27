@@ -1254,23 +1254,79 @@ namespace ValveResourceFormat.Renderer
             renderContext.ReplacementShader = null;
         }
 
+        private readonly Dictionary<string, uint> LayerMasks = [];
+        private uint sceneLayerMask = 0xFFFFFFFF;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsLayerEnabled(uint nodeLayerMask)
+        {
+            var isEnabled = (sceneLayerMask & nodeLayerMask) == nodeLayerMask;
+            // if (!isEnabled)
+            // {
+            //     var nodeLayers = LayerMasks.Where(kvp => (nodeLayerMask & kvp.Value) != 0).Select(kvp => kvp.Key).ToList();
+            //     var sceneEnabledLayers = LayerMasks.Where(kvp => (sceneLayerMask & kvp.Value) != 0).Select(kvp => kvp.Key).ToList();
+            // }
+            return isEnabled;
+        }
+
+        public uint GetLayerMask(string? layerName, bool addIfMissing = false)
+        {
+            var mask = 0u;
+            if (layerName != null)
+            {
+                if (!LayerMasks.TryGetValue(layerName, out mask) && addIfMissing)
+                {
+                    if (LayerMasks.Count >= 31)
+                    {
+                        throw new InvalidOperationException("Maximum unique layers exceeded");
+                    }
+
+                    mask = 1u << LayerMasks.Count;
+                    LayerMasks[layerName] = mask;
+                }
+            }
+
+            return mask;
+        }
+
+        public string? GetLeafiestLayerName(uint layerMask)
+        {
+            var leafiestMask = layerMask & (uint)-(int)layerMask; // Get the least significant bit
+            foreach (var kvp in LayerMasks)
+            {
+                if (kvp.Value == leafiestMask)
+                {
+                    return kvp.Key;
+                }
+            }
+
+            return null;
+        }
+
+        public string[] GetLayerNames(uint layerMask)
+        {
+            var names = new List<string>(LayerMasks.Count);
+            foreach (var kvp in LayerMasks)
+            {
+                if ((layerMask & kvp.Value) != 0)
+                {
+                    names.Add(kvp.Key);
+                }
+            }
+
+            return [.. names];
+        }
+
         public void SetEnabledLayers(HashSet<string> layers)
         {
-            foreach (var renderer in AllNodes)
+            sceneLayerMask = 1u << 31;
+            foreach (var layer in layers)
             {
-                if (renderer.LayerName == null)
-                {
-                    renderer.LayerEnabled = false;
-                    continue;
-                }
-
-                if (renderer.LayerName.StartsWith("LightProbeGrid", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                renderer.LayerEnabled = layers.Contains(renderer.LayerName);
+                sceneLayerMask |= GetLayerMask(layer);
             }
+
+            StaticOctree.Dirty = true;
+            DynamicOctree.Dirty = true;
         }
 
         public bool MarkParentOctreeDirty(SceneNode node)

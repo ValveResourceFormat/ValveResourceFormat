@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Renderer
         {
             foreach (var node in selectedNodes)
             {
-                node.LayerEnabled = !node.LayerEnabled;
+                node.Enabled = !node.Enabled;
             }
         }
 

@@ -16,16 +16,6 @@ namespace ValveResourceFormat.Renderer
         private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, 0.65f);
         private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, 0.65f);
 
-        public override bool LayerEnabled => Enabled && base.LayerEnabled;
-        public bool Enabled
-        {
-            get => field;
-            set
-            {
-                field = value;
-                Scene.MarkParentOctreeDirty(this);
-            }
-        }
         public required string PhysGroupName { get; init; }
 
         public PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : base(scene, verts, inds)

@@ -686,6 +686,7 @@ namespace GUI.Types.GLViewers
 
         protected void SetEnabledLayers(HashSet<string> layers)
         {
+            using var glLock = MakeCurrent();
             Scene.SetEnabledLayers(layers);
             SkyboxScene?.SetEnabledLayers(layers);
         }

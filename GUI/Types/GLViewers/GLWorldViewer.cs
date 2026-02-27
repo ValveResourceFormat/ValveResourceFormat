@@ -284,20 +284,15 @@ namespace GUI.Types.GLViewers
 
             if (world != null)
             {
-                var uniqueWorldLayers = new HashSet<string>(4);
+                var uniqueWorldLayers = new HashSet<string>(Scene.GetLayerNames(0xFFFFFFFF));
                 var uniquePhysicsGroups = new HashSet<string>();
 
                 foreach (var node in Scene.AllNodes)
                 {
-                    if (node.LayerName?.StartsWith("LightProbeGrid", StringComparison.Ordinal) == true)
-                    {
-                        continue;
-                    }
-
-                    if (node.LayerName != null)
-                    {
-                        uniqueWorldLayers.Add(node.LayerName);
-                    }
+                    //if (node.LayerName?.StartsWith("LightProbeGrid", StringComparison.Ordinal) == true)
+                    //{
+                    //    continue;
+                    //}
 
                     if (node is PhysSceneNode physSceneNode)
                     {
@@ -325,8 +320,7 @@ namespace GUI.Types.GLViewers
 
                     worldLayersComboBox.EndUpdate();
 
-                    Scene.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
-                    SkyboxScene?.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
+                    SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
                 }
 
                 if (uniquePhysicsGroups.Count > 0)

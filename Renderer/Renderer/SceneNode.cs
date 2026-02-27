@@ -19,13 +19,37 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public string? LayerName { get; set; }
+        const uint SelfLayerBit = 1u << 31;
+        private uint LayerMask { get; set; } = SelfLayerBit;
 
-        private bool layerEnabledField = true;
-        public virtual bool LayerEnabled
+        public string? LayerName
         {
-            get => layerEnabledField;
-            set { layerEnabledField = value; Scene.MarkParentOctreeDirty(this); }
+            get => Scene.GetLeafiestLayerName(LayerMask);
+            set => LayerMask |= Scene.GetLayerMask(value, true);
+        }
+
+        public string[] Layers
+        {
+            get => Scene.GetLayerNames(LayerMask);
+            set
+            {
+                LayerMask = SelfLayerBit;
+                foreach (var layer in value)
+                {
+                    LayerMask |= Scene.GetLayerMask(layer, true);
+                }
+            }
+        }
+
+        public bool LayerEnabled
+        {
+            get => Scene.IsLayerEnabled(LayerMask);
+        }
+
+        public bool Enabled
+        {
+            get => (LayerMask & SelfLayerBit) != 0;
+            set { LayerMask = value ? (LayerMask | SelfLayerBit) : (LayerMask & ~SelfLayerBit); Scene.MarkParentOctreeDirty(this); }
         }
 
         public AABB BoundingBox { get; private set; }

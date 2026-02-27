@@ -43,7 +43,7 @@ namespace GUI.Types.GLViewers
             });
 
             worldLayersComboBox.BeginUpdate();
-            var layerNames = Scene.AllNodes.Select(static x => x.LayerName).OfType<string>();
+            var layerNames = Scene.GetLayerNames(0xFFFFFFFF);
             foreach (var layerName in layerNames)
             {
                 worldLayersComboBox.Items.Add(layerName, true);

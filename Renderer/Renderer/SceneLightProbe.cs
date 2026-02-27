@@ -62,7 +62,7 @@ public class SceneLightProbe : SceneNode
     {
         if (DebugGridSpheres != null)
         {
-            DebugGridSpheres.LayerEnabled = true;
+            DebugGridSpheres.Enabled = true;
             return;
         }
 
@@ -77,7 +77,7 @@ public class SceneLightProbe : SceneNode
             LightProbeVolumePrecomputedHandshake = LightProbeVolumePrecomputedHandshake,
             LightProbeBinding = this,
             LayerName = "LightProbeGrid" + Id,
-            LayerEnabled = true,
+            Enabled = true,
         };
 
         DebugGridSpheres.SetInfiniteBoundingBox();
@@ -121,7 +121,7 @@ public class SceneLightProbe : SceneNode
     {
         if (DebugGridSpheres != null)
         {
-            DebugGridSpheres.LayerEnabled = false;
+            DebugGridSpheres.Enabled = false;
         }
     }
 

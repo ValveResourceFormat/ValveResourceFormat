@@ -161,7 +161,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                LoadEntitiesFromLump(entityLump, "Entities", Matrix4x4.Identity);
+                LoadEntitiesFromLump(entityLump, ["Entities"], Matrix4x4.Identity);
             }
 
             Action<List<SceneLight>> lightEntityStore = scene.LightingInfo.LightmapGameVersionNumber switch
@@ -235,7 +235,7 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
                 {
-                    physSceneNode.LayerName = "world_layer_base";
+                    physSceneNode.LayerName = "world_physics";
                     scene.Add(physSceneNode, true);
                 }
 
@@ -329,7 +329,7 @@ namespace ValveResourceFormat.Renderer
             || cls == "point_camera_vertical_fov"
             || cls == "point_camera";
 
-        private void LoadEntitiesFromLump(EntityLump entityLump, string layerName, Matrix4x4 parentTransform)
+        private void LoadEntitiesFromLump(EntityLump entityLump, string[] layers, Matrix4x4 parentTransform)
         {
             var childEntities = entityLump.GetChildEntityNames();
             var childEntityLumps = new Dictionary<string, EntityLump>(childEntities.Length);
@@ -407,7 +407,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     var lightNode = SceneLight.FromEntityProperties(scene, light.Type, entity);
                     lightNode.Transform = transformationMatrix;
-                    lightNode.LayerName = layerName;
+                    lightNode.Layers = layers;
                     scene.Add(lightNode, true);
                 }
                 else if (classname == "point_template")
@@ -416,7 +416,7 @@ namespace ValveResourceFormat.Renderer
 
                     if (entityLumpName != null && childEntityLumps.TryGetValue(entityLumpName, out var childLump))
                     {
-                        LoadEntitiesFromLump(childLump, entityLumpName, transformationMatrix);
+                        LoadEntitiesFromLump(childLump, [.. layers, entityLumpName], transformationMatrix);
                     }
                     else
                     {
@@ -687,7 +687,7 @@ namespace ValveResourceFormat.Renderer
 
                             var envMap = new SceneEnvMap(scene, bounds)
                             {
-                                LayerName = layerName,
+                                Layers = layers,
                                 Transform = transformationMatrix,
                                 HandShake = handShake,
                                 ArrayIndex = arrayIndex,
@@ -713,7 +713,7 @@ namespace ValveResourceFormat.Renderer
 
                         var lightProbe = new SceneLightProbe(scene, bounds)
                         {
-                            LayerName = layerName,
+                            Layers = layers,
                             Transform = transformationMatrix,
                             HandShake = handShake,
                             Irradiance = irradianceTexture,
@@ -799,7 +799,7 @@ namespace ValveResourceFormat.Renderer
                             {
                                 Name = particle,
                                 Transform = Matrix4x4.CreateTranslation(origin),
-                                LayerName = "Particles",
+                                Layers = [.. layers, "Particles"],
                                 EntityData = entity,
                             };
                             scene.Add(particleNode, true);
@@ -860,7 +860,7 @@ namespace ValveResourceFormat.Renderer
                             var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin)
                             {
                                 Transform = transformationMatrix,
-                                LayerName = layerName,
+                                Layers = layers,
                                 Name = model,
                                 EntityData = entity,
                             };
@@ -913,7 +913,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, layers, transformationMatrix);
                     return;
                 }
 
@@ -929,7 +929,7 @@ namespace ValveResourceFormat.Renderer
                         {
                             Name = "error",
                             Transform = transformationMatrix,
-                            LayerName = layerName,
+                            Layers = layers,
                             EntityData = entity,
                         };
 
@@ -957,7 +957,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     Transform = transformationMatrix,
                     Tint = new Vector4(rendercolor, renderamt),
-                    LayerName = layerName,
+                    Layers = layers,
                     Name = model,
                     EntityData = entity,
                 };
@@ -1007,7 +1007,7 @@ namespace ValveResourceFormat.Renderer
                     foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, model, classname))
                     {
                         physSceneNode.Transform = transformationMatrix;
-                        physSceneNode.LayerName = layerName;
+                        physSceneNode.Layers = [.. layers, "Entity Physics"];
                         physSceneNode.EntityData = entity;
 
                         scene.Add(physSceneNode, true);
@@ -1016,7 +1016,7 @@ namespace ValveResourceFormat.Renderer
                 else if (!modelNode.HasMeshes)
                 {
                     // If the loaded model has no meshes and has no physics, fallback to default entity
-                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, layers, transformationMatrix);
                 }
             }
 
@@ -1163,7 +1163,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, string layerName, Matrix4x4 transformationMatrix)
+        private void CreateDefaultEntity(Entity entity, string classname, string[] layers, Matrix4x4 transformationMatrix)
         {
             var hammerEntity = HammerEntities.Get(classname);
             string? filename = null;
@@ -1184,6 +1184,8 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            string[] toolIconLayers = ["Tool Icons", .. layers];
+
             if (resource == null)
             {
                 var color = hammerEntity?.Color ?? new Color32(255, 0, 255, 255);
@@ -1194,7 +1196,7 @@ namespace ValveResourceFormat.Renderer
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
                     Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
-                    LayerName = layerName,
+                    Layers = toolIconLayers,
                     Name = filename,
                     EntityData = entity,
                 };
@@ -1207,7 +1209,7 @@ namespace ValveResourceFormat.Renderer
                     : new ModelSceneNode(scene, modelData, null, isWorldPreview: true) { Name = filename };
 
                 modelNode.Transform = transformationMatrix;
-                modelNode.LayerName = layerName;
+                modelNode.Layers = toolIconLayers;
                 modelNode.EntityData = entity;
 
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
@@ -1218,7 +1220,7 @@ namespace ValveResourceFormat.Renderer
             {
                 var spriteNode = new SpriteSceneNode(scene, RendererContext, resource, transformationMatrix.Translation)
                 {
-                    LayerName = layerName,
+                    Layers = toolIconLayers,
                     Name = filename,
                     EntityData = entity,
                 };
@@ -1271,7 +1273,7 @@ namespace ValveResourceFormat.Renderer
 
                     var lineNode = new LineSceneNode(scene, start, end, line.Color, line.Color)
                     {
-                        LayerName = layerName,
+                        Layers = toolIconLayers,
                         Transform = Matrix4x4.CreateTranslation(origin)
                     };
                     scene.Add(lineNode, true);
@@ -1320,7 +1322,7 @@ namespace ValveResourceFormat.Renderer
 
                 var lineNode = new LineSceneNode(scene, lineStart, end, new Color32(0, 255, 0), new Color32(255, 0, 0))
                 {
-                    LayerName = "Entity Connections",
+                    Layers = ["Entities", "Entity Connections"],
                     Transform = Matrix4x4.CreateTranslation(origin),
 #if DEBUG
                     Name = $"Line from {entity.GetProperty<string>("hammeruniqueid")} to {endEntity.GetProperty<string>("hammeruniqueid")}"
