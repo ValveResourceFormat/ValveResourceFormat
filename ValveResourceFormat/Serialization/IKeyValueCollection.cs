@@ -79,6 +79,18 @@ namespace ValveResourceFormat.Serialization.KeyValues
             => Convert.ToInt32(collection.GetProperty<object>(name), CultureInfo.InvariantCulture);
 
         /// <summary>
+        /// Gets an short property stored as long
+        /// </summary>
+        public static short GetInt16Property(this KVObject collection, string name) => collection.GetProperty<object>(name) switch
+        {
+            long l when l < short.MinValue || l > short.MaxValue => throw new OverflowException($"Value {l} is out of range for Int16"),
+            long l => (short)l,
+            int i when i < short.MinValue || i > short.MaxValue => throw new OverflowException($"Value {i} is out of range for Int16"),
+            int i => (short)i,
+            _ => throw new InvalidCastException($"Unexpected underlying type for Int16"),
+        };
+
+        /// <summary>
         /// Gets a UInt32 property from the key-value object.
         /// </summary>
         public static uint GetUInt32Property(this KVObject collection, string name)

@@ -390,6 +390,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     }).Cast<T>().ToArray();
                 }
 
+                if (typeof(T) == typeof(short))
+                {
+                    return ((KVObject)value.Value).Properties.Values.Select(static (v) =>
+                    {
+                        return v.Type == KVValueType.Int64 ? (short)(int)v.Value : (short)v.Value;
+                    }).Cast<T>().ToArray();
+                }
+
                 return ((KVObject)value.Value).Properties.Values.Select(static v => (T)v.Value).ToArray();
             }
             else

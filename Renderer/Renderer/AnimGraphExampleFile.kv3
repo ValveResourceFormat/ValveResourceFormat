@@ -1,0 +1,3475 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_variationID = "Default"
+	m_skeleton = resource:"animation/skeletons/characters/chicken.vnmskel"
+	m_pUserData = null
+	m_persistentNodeIndices = 
+	[
+		0,
+		1,
+		2,
+		3,
+		4,
+		5,
+		6,
+		7,
+	]
+	m_nRootNodeIdx = 8
+	m_controlParameterIDs = 
+	[
+		"idle_variation",
+		"action",
+		"action_reset",
+		"in_water",
+		"panic_variation",
+		"run_variation",
+		"action_subtype",
+		"squat_variation",
+	]
+	m_virtualParameterIDs = 
+	[
+	]
+	m_virtualParameterNodeIndices = 
+	[
+	]
+	m_referencedGraphSlots = 
+	[
+	]
+	m_externalGraphSlots = 
+	[
+	]
+	m_externalPoseSlots = 
+	[
+	]
+	m_nodePaths = 
+	[
+		"idle_variation",
+		"action",
+		"action_reset",
+		"in_water",
+		"panic_variation",
+		"run_variation",
+		"action_subtype",
+		"squat_variation",
+		"SM",
+		"SM/Idle",
+		"SM/Idle/SM",
+		"SM/Idle/SM/Idle",
+		"SM/Idle/SM/Idle/SM",
+		"SM/Idle/SM/Idle/SM/Idle0",
+		"SM/Idle/SM/Idle/SM/Idle0/Parameterized Clip Selector",
+		"SM/Idle/SM/Idle/SM/Idle0/chick_idle01",
+		"SM/Idle/SM/Idle/SM/Idle0/chick_idle02",
+		"SM/Idle/SM/Idle/SM/Idle0/chick_idle03",
+		"SM/Idle/SM/Idle/SM/Idle1",
+		"SM/Idle/SM/Idle/SM/Idle1/Parameterized Clip Selector",
+		"SM/Idle/SM/Idle/SM/Idle1/chick_idle01",
+		"SM/Idle/SM/Idle/SM/Idle1/chick_idle02",
+		"SM/Idle/SM/Idle/SM/Idle1/chick_idle03",
+		"SM/Idle/SM/Idle/SM/Global Transitions/Idle1",
+		"SM/Idle/SM/Idle/SM/Global Transitions/And",
+		"SM/Idle/SM/Idle/SM/Global Transitions/ID Comparison",
+		"SM/Idle/SM/Idle/SM/Global Transitions/Idle0",
+		"SM/Idle/SM/Entry Overrides/Not",
+		"SM/Idle/SM/Water",
+		"SM/Idle/SM/Water/chick_idle01_water",
+		"SM/Idle/SM/Global Transitions/Water",
+		"SM/Idle/SM/Global Transitions/Idle",
+		"SM/Idle/SM/Global Transitions/Not",
+		"SM/Entry Overrides/ID Comparison",
+		"SM/Squat",
+		"SM/Squat/SM",
+		"SM/Squat/SM/Intro",
+		"SM/Squat/SM/Intro/chick_squat_start",
+		"SM/Squat/SM/Entry Overrides/ID Comparison",
+		"SM/Squat/SM/Outro",
+		"SM/Squat/SM/Outro/chick_squat_stand",
+		"SM/Squat/SM/Entry Overrides/ID Comparison",
+		"SM/Squat/SM/Squat",
+		"SM/Squat/SM/Squat/SM",
+		"SM/Squat/SM/Squat/SM/Squat0",
+		"SM/Squat/SM/Squat/SM/Squat0/Parameterized Clip Selector",
+		"SM/Squat/SM/Squat/SM/Squat0/chick_squat_cycle01",
+		"SM/Squat/SM/Squat/SM/Squat0/chick_squat_cycle02",
+		"SM/Squat/SM/Squat/SM/Squat0/chick_squat_cycle03",
+		"SM/Squat/SM/Squat/SM/Squat0/chick_squat_cycle04",
+		"SM/Squat/SM/Squat/SM/Squat0/chick_squat_cycle05",
+		"SM/Squat/SM/Squat/SM/Squat1",
+		"SM/Squat/SM/Squat/SM/Squat1/Parameterized Clip Selector",
+		"SM/Squat/SM/Squat/SM/Squat1/chick_squat_cycle01",
+		"SM/Squat/SM/Squat/SM/Squat1/chick_squat_cycle02",
+		"SM/Squat/SM/Squat/SM/Squat1/chick_squat_cycle03",
+		"SM/Squat/SM/Squat/SM/Squat1/chick_squat_cycle04",
+		"SM/Squat/SM/Squat/SM/Squat1/chick_squat_cycle05",
+		"SM/Squat/SM/Squat/SM/Global Transitions/Squat1",
+		"SM/Squat/SM/Squat/SM/Global Transitions/And",
+		"SM/Squat/SM/Squat/SM/Global Transitions/ID Comparison",
+		"SM/Squat/SM/Squat/SM/Global Transitions/ID Comparison",
+		"SM/Squat/SM/Squat/SM/Global Transitions/Squat0",
+		"SM/Squat/SM/Entry Overrides/ID Comparison",
+		"SM/Squat/SM/Transition Conduit/Transition",
+		"SM/Squat/SM/Transition Conduit/State Completed",
+		"SM/Squat/SM/Global Transitions/Outro",
+		"SM/Squat/SM/Global Transitions/ID Comparison",
+		"SM/Squat/SM/Global Transitions/Intro",
+		"SM/Squat/SM/Global Transitions/ID Comparison",
+		"SM/Squat/SM/Global Transitions/Squat",
+		"SM/Squat/SM/Global Transitions/ID Comparison",
+		"SM/Squat/SM/Transition Conduit/Transition",
+		"SM/Squat/SM/Transition Conduit/State Completed",
+		"SM/Entry Overrides/ID Comparison",
+		"SM/Walk",
+		"SM/Walk/SM",
+		"SM/Walk/SM/Intro",
+		"SM/Walk/SM/Intro/chick_start_walk",
+		"SM/Walk/SM/Entry Overrides/Not",
+		"SM/Walk/SM/Walk",
+		"SM/Walk/SM/Walk/chick_walk01",
+		"SM/Walk/SM/Swim",
+		"SM/Walk/SM/Swim/chick_walk01_swim",
+		"SM/Walk/SM/Transition Conduit/Transition",
+		"SM/Walk/SM/Transition Conduit/State Completed",
+		"SM/Walk/SM/Global Transitions/Swim",
+		"SM/Walk/SM/Global Transitions/Walk",
+		"SM/Walk/SM/Global Transitions/Not",
+		"SM/Entry Overrides/ID Comparison",
+		"SM/Run",
+		"SM/Run/SM",
+		"SM/Run/SM/Run",
+		"SM/Run/SM/Run/SM",
+		"SM/Run/SM/Run/SM/Run0",
+		"SM/Run/SM/Run/SM/Run0/Parameterized Clip Selector",
+		"SM/Run/SM/Run/SM/Run0/chick_run01",
+		"SM/Run/SM/Run/SM/Run0/chick_runflap01",
+		"SM/Run/SM/Run/SM/Run1",
+		"SM/Run/SM/Run/SM/Run1/Parameterized Clip Selector",
+		"SM/Run/SM/Run/SM/Run1/chick_run01",
+		"SM/Run/SM/Run/SM/Run1/chick_runflap01",
+		"SM/Run/SM/Run/SM/Global Transitions/Run1",
+		"SM/Run/SM/Run/SM/Global Transitions/And",
+		"SM/Run/SM/Run/SM/Global Transitions/ID Comparison",
+		"SM/Run/SM/Run/SM/Global Transitions/Not",
+		"SM/Run/SM/Run/SM/Global Transitions/Run0",
+		"SM/Run/SM/Entry Overrides/Not",
+		"SM/Run/SM/Swim",
+		"SM/Run/SM/Swim/chick_run01_swim",
+		"SM/Run/SM/Global Transitions/Swim",
+		"SM/Run/SM/Global Transitions/Run",
+		"SM/Run/SM/Global Transitions/Not",
+		"SM/Entry Overrides/ID Comparison",
+		"SM/Glide",
+		"SM/Glide/chick_fall_flap",
+		"SM/Entry Overrides/ID Comparison",
+		"SM/Land",
+		"SM/Land/SM",
+		"SM/Land/SM/Land",
+		"SM/Land/SM/Land/chick_land",
+		"SM/Land/SM/Entry Overrides/Not",
+		"SM/Land/SM/LandWater",
+		"SM/Land/SM/LandWater/chick_land_water",
+		"SM/Land/SM/Global Transitions/LandWater",
+		"SM/Land/SM/Global Transitions/Land",
+		"SM/Land/SM/Global Transitions/Not",
+		"SM/Entry Overrides/ID Comparison",
+		"SM/Panic",
+		"SM/Panic/SM",
+		"SM/Panic/SM/Panic0",
+		"SM/Panic/SM/Panic0/Parameterized Clip Selector",
+		"SM/Panic/SM/Panic0/chick_react01",
+		"SM/Panic/SM/Panic0/chick_react02",
+		"SM/Panic/SM/Panic1",
+		"SM/Panic/SM/Panic1/Parameterized Clip Selector",
+		"SM/Panic/SM/Panic1/chick_react01",
+		"SM/Panic/SM/Panic1/chick_react02",
+		"SM/Panic/SM/Global Transitions/Panic1",
+		"SM/Panic/SM/Global Transitions/And",
+		"SM/Panic/SM/Global Transitions/ID Comparison",
+		"SM/Panic/SM/Global Transitions/Panic0",
+		"SM/Entry Overrides/ID Comparison",
+		"SM/Global Transitions/Squat",
+		"SM/Global Transitions/ID Comparison",
+		"SM/Global Transitions/Walk",
+		"SM/Global Transitions/ID Comparison",
+		"SM/Global Transitions/Run",
+		"SM/Global Transitions/ID Comparison",
+		"SM/Global Transitions/Glide",
+		"SM/Global Transitions/ID Comparison",
+		"SM/Global Transitions/Land",
+		"SM/Global Transitions/ID Comparison",
+		"SM/Global Transitions/Panic",
+		"SM/Global Transitions/ID Comparison",
+		"SM/Global Transitions/Idle",
+		"SM/Global Transitions/ID Comparison",
+	]
+	m_resources = 
+	[
+		resource:"animation/anims/chicken/chick_idle01.vnmclip",
+		resource:"animation/anims/chicken/chick_idle02.vnmclip",
+		resource:"animation/anims/chicken/chick_idle03.vnmclip",
+		resource:"animation/anims/chicken/chick_idle01_water.vnmclip",
+		resource:"animation/anims/chicken/chick_squat_start.vnmclip",
+		resource:"animation/anims/chicken/chick_squat_stand.vnmclip",
+		resource:"animation/anims/chicken/chick_squat_cycle01.vnmclip",
+		resource:"animation/anims/chicken/chick_squat_cycle02.vnmclip",
+		resource:"animation/anims/chicken/chick_squat_cycle03.vnmclip",
+		resource:"animation/anims/chicken/chick_squat_cycle04.vnmclip",
+		resource:"animation/anims/chicken/chick_squat_cycle05.vnmclip",
+		resource:"animation/anims/chicken/chick_start_walk.vnmclip",
+		resource:"animation/anims/chicken/chick_walk01.vnmclip",
+		resource:"animation/anims/chicken/chick_walk01_swim.vnmclip",
+		resource:"animation/anims/chicken/chick_run01.vnmclip",
+		resource:"animation/anims/chicken/chick_runflap01.vnmclip",
+		resource:"animation/anims/chicken/chick_run01_swim.vnmclip",
+		resource:"animation/anims/chicken/chick_fall_flap.vnmclip",
+		resource:"animation/anims/chicken/chick_land.vnmclip",
+		resource:"animation/anims/chicken/chick_land_water.vnmclip",
+		resource:"animation/anims/chicken/chick_react01.vnmclip",
+		resource:"animation/anims/chicken/chick_react02.vnmclip",
+	]
+	m_nodes = 
+	[
+		
+		{
+			_class = "CNmControlParameterFloatNode::CDefinition"
+			m_nNodeIdx = 0
+		},
+		
+		{
+			_class = "CNmControlParameterIDNode::CDefinition"
+			m_nNodeIdx = 1
+		},
+		
+		{
+			_class = "CNmControlParameterBoolNode::CDefinition"
+			m_nNodeIdx = 2
+		},
+		
+		{
+			_class = "CNmControlParameterBoolNode::CDefinition"
+			m_nNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmControlParameterFloatNode::CDefinition"
+			m_nNodeIdx = 4
+		},
+		
+		{
+			_class = "CNmControlParameterFloatNode::CDefinition"
+			m_nNodeIdx = 5
+		},
+		
+		{
+			_class = "CNmControlParameterIDNode::CDefinition"
+			m_nNodeIdx = 6
+		},
+		
+		{
+			_class = "CNmControlParameterFloatNode::CDefinition"
+			m_nNodeIdx = 7
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 8
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 9
+					m_nEntryConditionNodeIdx = 33
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 144
+							m_nTransitionNodeIdx = 143
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 146
+							m_nTransitionNodeIdx = 145
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 3
+							m_nConditionNodeIdx = 148
+							m_nTransitionNodeIdx = 147
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 4
+							m_nConditionNodeIdx = 150
+							m_nTransitionNodeIdx = 149
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 5
+							m_nConditionNodeIdx = 152
+							m_nTransitionNodeIdx = 151
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 6
+							m_nConditionNodeIdx = 154
+							m_nTransitionNodeIdx = 153
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 34
+					m_nEntryConditionNodeIdx = 74
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 156
+							m_nTransitionNodeIdx = 155
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 146
+							m_nTransitionNodeIdx = 145
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 3
+							m_nConditionNodeIdx = 148
+							m_nTransitionNodeIdx = 147
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 4
+							m_nConditionNodeIdx = 150
+							m_nTransitionNodeIdx = 149
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 5
+							m_nConditionNodeIdx = 152
+							m_nTransitionNodeIdx = 151
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 6
+							m_nConditionNodeIdx = 154
+							m_nTransitionNodeIdx = 153
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 75
+					m_nEntryConditionNodeIdx = 89
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 156
+							m_nTransitionNodeIdx = 155
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 144
+							m_nTransitionNodeIdx = 143
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 3
+							m_nConditionNodeIdx = 148
+							m_nTransitionNodeIdx = 147
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 4
+							m_nConditionNodeIdx = 150
+							m_nTransitionNodeIdx = 149
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 5
+							m_nConditionNodeIdx = 152
+							m_nTransitionNodeIdx = 151
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 6
+							m_nConditionNodeIdx = 154
+							m_nTransitionNodeIdx = 153
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 90
+					m_nEntryConditionNodeIdx = 113
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 156
+							m_nTransitionNodeIdx = 155
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 144
+							m_nTransitionNodeIdx = 143
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 146
+							m_nTransitionNodeIdx = 145
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 4
+							m_nConditionNodeIdx = 150
+							m_nTransitionNodeIdx = 149
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 5
+							m_nConditionNodeIdx = 152
+							m_nTransitionNodeIdx = 151
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 6
+							m_nConditionNodeIdx = 154
+							m_nTransitionNodeIdx = 153
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 114
+					m_nEntryConditionNodeIdx = 116
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 156
+							m_nTransitionNodeIdx = 155
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 144
+							m_nTransitionNodeIdx = 143
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 146
+							m_nTransitionNodeIdx = 145
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 3
+							m_nConditionNodeIdx = 148
+							m_nTransitionNodeIdx = 147
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 5
+							m_nConditionNodeIdx = 152
+							m_nTransitionNodeIdx = 151
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 6
+							m_nConditionNodeIdx = 154
+							m_nTransitionNodeIdx = 153
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 117
+					m_nEntryConditionNodeIdx = 127
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 156
+							m_nTransitionNodeIdx = 155
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 144
+							m_nTransitionNodeIdx = 143
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 146
+							m_nTransitionNodeIdx = 145
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 3
+							m_nConditionNodeIdx = 148
+							m_nTransitionNodeIdx = 147
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 4
+							m_nConditionNodeIdx = 150
+							m_nTransitionNodeIdx = 149
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 6
+							m_nConditionNodeIdx = 154
+							m_nTransitionNodeIdx = 153
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 128
+					m_nEntryConditionNodeIdx = 142
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 156
+							m_nTransitionNodeIdx = 155
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 144
+							m_nTransitionNodeIdx = 143
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 146
+							m_nTransitionNodeIdx = 145
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 3
+							m_nConditionNodeIdx = 148
+							m_nTransitionNodeIdx = 147
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 4
+							m_nConditionNodeIdx = 150
+							m_nTransitionNodeIdx = 149
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 5
+							m_nConditionNodeIdx = 152
+							m_nTransitionNodeIdx = 151
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 9
+			m_nChildNodeIdx = 10
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 10
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 11
+					m_nEntryConditionNodeIdx = 27
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 3
+							m_nTransitionNodeIdx = 30
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 28
+					m_nEntryConditionNodeIdx = 3
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 32
+							m_nTransitionNodeIdx = 31
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 11
+			m_nChildNodeIdx = 12
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 12
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 13
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 24
+							m_nTransitionNodeIdx = 23
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 18
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 24
+							m_nTransitionNodeIdx = 26
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 13
+			m_nChildNodeIdx = 14
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmParameterizedClipSelectorNode::CDefinition"
+			m_nNodeIdx = 14
+			m_optionNodeIndices = 
+			[
+				15,
+				16,
+				17,
+			]
+			m_optionWeights = 
+			[
+			]
+			m_parameterNodeIdx = 0
+			m_bIgnoreInvalidOptions = false
+			m_bHasWeightsSet = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 15
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 0
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 16
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 1
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 17
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 2
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 18
+			m_nChildNodeIdx = 19
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmParameterizedClipSelectorNode::CDefinition"
+			m_nNodeIdx = 19
+			m_optionNodeIndices = 
+			[
+				20,
+				21,
+				22,
+			]
+			m_optionWeights = 
+			[
+			]
+			m_parameterNodeIdx = 0
+			m_bIgnoreInvalidOptions = false
+			m_bHasWeightsSet = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 20
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 0
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 21
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 1
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 22
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 2
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 23
+			m_nTargetStateNodeIdx = 18
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmAndNode::CDefinition"
+			m_nNodeIdx = 24
+			m_conditionNodeIndices = 
+			[
+				25,
+				2,
+			]
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 25
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_idle",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 26
+			m_nTargetStateNodeIdx = 13
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 27
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 28
+			m_nChildNodeIdx = 29
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 29
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 3
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 30
+			m_nTargetStateNodeIdx = 28
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 31
+			m_nTargetStateNodeIdx = 11
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 32
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 33
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_idle",
+			]
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 34
+			m_nChildNodeIdx = 35
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 35
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 36
+					m_nEntryConditionNodeIdx = 38
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 65
+							m_nTransitionNodeIdx = 64
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 67
+							m_nTransitionNodeIdx = 66
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 39
+					m_nEntryConditionNodeIdx = 41
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 69
+							m_nTransitionNodeIdx = 68
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 71
+							m_nTransitionNodeIdx = 70
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 42
+					m_nEntryConditionNodeIdx = 63
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 73
+							m_nTransitionNodeIdx = 72
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 69
+							m_nTransitionNodeIdx = 68
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 36
+			m_nChildNodeIdx = 37
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 37
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 4
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 38
+			m_nInputValueNodeIdx = 6
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"squat_intro",
+			]
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 39
+			m_nChildNodeIdx = 40
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 40
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 5
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 41
+			m_nInputValueNodeIdx = 6
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"squat_outro",
+			]
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 42
+			m_nChildNodeIdx = 43
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 43
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 44
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 59
+							m_nTransitionNodeIdx = 58
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 51
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 59
+							m_nTransitionNodeIdx = 62
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 44
+			m_nChildNodeIdx = 45
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmParameterizedClipSelectorNode::CDefinition"
+			m_nNodeIdx = 45
+			m_optionNodeIndices = 
+			[
+				46,
+				47,
+				48,
+				49,
+				50,
+			]
+			m_optionWeights = 
+			[
+			]
+			m_parameterNodeIdx = 7
+			m_bIgnoreInvalidOptions = false
+			m_bHasWeightsSet = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 46
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 6
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 47
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 7
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 48
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 8
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 49
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 9
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 50
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 10
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 51
+			m_nChildNodeIdx = 52
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmParameterizedClipSelectorNode::CDefinition"
+			m_nNodeIdx = 52
+			m_optionNodeIndices = 
+			[
+				53,
+				54,
+				55,
+				56,
+				57,
+			]
+			m_optionWeights = 
+			[
+			]
+			m_parameterNodeIdx = 7
+			m_bIgnoreInvalidOptions = false
+			m_bHasWeightsSet = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 53
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 6
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 54
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 7
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 55
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 8
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 56
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 9
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 57
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 10
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 58
+			m_nTargetStateNodeIdx = 51
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmAndNode::CDefinition"
+			m_nNodeIdx = 59
+			m_conditionNodeIndices = 
+			[
+				60,
+				61,
+				2,
+			]
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 60
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_squat",
+			]
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 61
+			m_nInputValueNodeIdx = 6
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"squat_loop",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 62
+			m_nTargetStateNodeIdx = 44
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 63
+			m_nInputValueNodeIdx = 6
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"squat_loop",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 64
+			m_nTargetStateNodeIdx = 42
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmStateCompletedConditionNode::CDefinition"
+			m_nNodeIdx = 65
+			m_nSourceStateNodeIdx = 36
+			m_nTransitionDurationOverrideNodeIdx = -1
+			m_flTransitionDurationSeconds = 0.200000
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 66
+			m_nTargetStateNodeIdx = 39
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 67
+			m_nInputValueNodeIdx = 6
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"squat_outro",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 68
+			m_nTargetStateNodeIdx = 36
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 69
+			m_nInputValueNodeIdx = 6
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"squat_intro",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 70
+			m_nTargetStateNodeIdx = 42
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 71
+			m_nInputValueNodeIdx = 6
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"squat_loop",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 72
+			m_nTargetStateNodeIdx = 39
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmStateCompletedConditionNode::CDefinition"
+			m_nNodeIdx = 73
+			m_nSourceStateNodeIdx = 42
+			m_nTransitionDurationOverrideNodeIdx = -1
+			m_flTransitionDurationSeconds = 0.200000
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 74
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_squat",
+			]
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 75
+			m_nChildNodeIdx = 76
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 76
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 77
+					m_nEntryConditionNodeIdx = 79
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 85
+							m_nTransitionNodeIdx = 84
+							m_bCanBeForced = false
+						},
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 3
+							m_nTransitionNodeIdx = 86
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 80
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 2
+							m_nConditionNodeIdx = 3
+							m_nTransitionNodeIdx = 86
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 82
+					m_nEntryConditionNodeIdx = 3
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 88
+							m_nTransitionNodeIdx = 87
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 77
+			m_nChildNodeIdx = 78
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 78
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 11
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 79
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 80
+			m_nChildNodeIdx = 81
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 81
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = true
+			m_nDataSlotIdx = 12
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 82
+			m_nChildNodeIdx = 83
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 83
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = true
+			m_nDataSlotIdx = 13
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 84
+			m_nTargetStateNodeIdx = 80
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmStateCompletedConditionNode::CDefinition"
+			m_nNodeIdx = 85
+			m_nSourceStateNodeIdx = 77
+			m_nTransitionDurationOverrideNodeIdx = -1
+			m_flTransitionDurationSeconds = 0.200000
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 86
+			m_nTargetStateNodeIdx = 82
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 87
+			m_nTargetStateNodeIdx = 80
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 88
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 89
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_walk",
+			]
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 90
+			m_nChildNodeIdx = 91
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 91
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 92
+					m_nEntryConditionNodeIdx = 107
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 3
+							m_nTransitionNodeIdx = 110
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 108
+					m_nEntryConditionNodeIdx = 3
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 112
+							m_nTransitionNodeIdx = 111
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 92
+			m_nChildNodeIdx = 93
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 93
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 94
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 103
+							m_nTransitionNodeIdx = 102
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 98
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 103
+							m_nTransitionNodeIdx = 106
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 94
+			m_nChildNodeIdx = 95
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmParameterizedClipSelectorNode::CDefinition"
+			m_nNodeIdx = 95
+			m_optionNodeIndices = 
+			[
+				96,
+				97,
+			]
+			m_optionWeights = 
+			[
+			]
+			m_parameterNodeIdx = 5
+			m_bIgnoreInvalidOptions = false
+			m_bHasWeightsSet = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 96
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = true
+			m_nDataSlotIdx = 14
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 97
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = true
+			m_nDataSlotIdx = 15
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 98
+			m_nChildNodeIdx = 99
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmParameterizedClipSelectorNode::CDefinition"
+			m_nNodeIdx = 99
+			m_optionNodeIndices = 
+			[
+				100,
+				101,
+			]
+			m_optionWeights = 
+			[
+			]
+			m_parameterNodeIdx = 5
+			m_bIgnoreInvalidOptions = false
+			m_bHasWeightsSet = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 100
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = true
+			m_nDataSlotIdx = 14
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 101
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = true
+			m_nDataSlotIdx = 15
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 102
+			m_nTargetStateNodeIdx = 98
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmAndNode::CDefinition"
+			m_nNodeIdx = 103
+			m_conditionNodeIndices = 
+			[
+				2,
+				104,
+				105,
+			]
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 104
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_run",
+			]
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 105
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 106
+			m_nTargetStateNodeIdx = 94
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 107
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 108
+			m_nChildNodeIdx = 109
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 109
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = true
+			m_nDataSlotIdx = 16
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 110
+			m_nTargetStateNodeIdx = 108
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 111
+			m_nTargetStateNodeIdx = 92
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 112
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 113
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_run",
+			]
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 114
+			m_nChildNodeIdx = 115
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 115
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = true
+			m_nDataSlotIdx = 17
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 116
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_glide",
+			]
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 117
+			m_nChildNodeIdx = 118
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 118
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 119
+					m_nEntryConditionNodeIdx = 121
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 3
+							m_nTransitionNodeIdx = 124
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 122
+					m_nEntryConditionNodeIdx = 3
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 126
+							m_nTransitionNodeIdx = 125
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 119
+			m_nChildNodeIdx = 120
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 120
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 18
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 121
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 122
+			m_nChildNodeIdx = 123
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 123
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 19
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 124
+			m_nTargetStateNodeIdx = 122
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 125
+			m_nTargetStateNodeIdx = 119
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmNotNode::CDefinition"
+			m_nNodeIdx = 126
+			m_nInputValueNodeIdx = 3
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 127
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_land",
+			]
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 128
+			m_nChildNodeIdx = 129
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmStateMachineNode::CDefinition"
+			m_nNodeIdx = 129
+			m_stateDefinitions = 
+			[
+				
+				{
+					m_nStateNodeIdx = 130
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 1
+							m_nConditionNodeIdx = 139
+							m_nTransitionNodeIdx = 138
+							m_bCanBeForced = false
+						},
+					]
+				},
+				
+				{
+					m_nStateNodeIdx = 134
+					m_nEntryConditionNodeIdx = -1
+					m_transitionDefinitions = 
+					[
+						
+						{
+							m_nTargetStateIdx = 0
+							m_nConditionNodeIdx = 139
+							m_nTransitionNodeIdx = 141
+							m_bCanBeForced = false
+						},
+					]
+				},
+			]
+			m_nDefaultStateIndex = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 130
+			m_nChildNodeIdx = 131
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmParameterizedClipSelectorNode::CDefinition"
+			m_nNodeIdx = 131
+			m_optionNodeIndices = 
+			[
+				132,
+				133,
+			]
+			m_optionWeights = 
+			[
+			]
+			m_parameterNodeIdx = 4
+			m_bIgnoreInvalidOptions = false
+			m_bHasWeightsSet = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 132
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 20
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 133
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 21
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmStateNode::CDefinition"
+			m_nNodeIdx = 134
+			m_nChildNodeIdx = 135
+			m_entryEvents = 
+			[
+			]
+			m_executeEvents = 
+			[
+			]
+			m_exitEvents = 
+			[
+			]
+			m_timedRemainingEvents = 
+			[
+				
+				{
+					m_ID = "ACTION_COMPLETED"
+					m_flTimeValueSeconds = 0.200000
+					m_comparisionOperator = "LessThanEqual"
+				},
+			]
+			m_timedElapsedEvents = 
+			[
+			]
+			m_nLayerWeightNodeIdx = -1
+			m_nLayerRootMotionWeightNodeIdx = -1
+			m_nLayerBoneMaskNodeIdx = -1
+			m_bIsOffState = false
+			m_bUseActualElapsedTimeInStateForTimedEvents = false
+		},
+		
+		{
+			_class = "CNmParameterizedClipSelectorNode::CDefinition"
+			m_nNodeIdx = 135
+			m_optionNodeIndices = 
+			[
+				136,
+				137,
+			]
+			m_optionWeights = 
+			[
+			]
+			m_parameterNodeIdx = 4
+			m_bIgnoreInvalidOptions = false
+			m_bHasWeightsSet = false
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 136
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 20
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmClipNode::CDefinition"
+			m_nNodeIdx = 137
+			m_nPlayInReverseValueNodeIdx = -1
+			m_nResetTimeValueNodeIdx = -1
+			m_bSampleRootMotion = true
+			m_bAllowLooping = false
+			m_nDataSlotIdx = 21
+			m_graphEvents = 
+			[
+			]
+			m_flSpeedMultiplier = 1.000000
+			m_nStartSyncEventOffset = 0
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 138
+			m_nTargetStateNodeIdx = 134
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmAndNode::CDefinition"
+			m_nNodeIdx = 139
+			m_conditionNodeIndices = 
+			[
+				140,
+				2,
+			]
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 140
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_panic",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 141
+			m_nTargetStateNodeIdx = 130
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 142
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_panic",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 143
+			m_nTargetStateNodeIdx = 34
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 144
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_squat",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 145
+			m_nTargetStateNodeIdx = 75
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 146
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_walk",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 147
+			m_nTargetStateNodeIdx = 90
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 148
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_run",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 149
+			m_nTargetStateNodeIdx = 114
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 150
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_glide",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 151
+			m_nTargetStateNodeIdx = 117
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 152
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_land",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 153
+			m_nTargetStateNodeIdx = 128
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 154
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_panic",
+			]
+		},
+		
+		{
+			_class = "CNmTransitionNode::CDefinition"
+			m_nNodeIdx = 155
+			m_nTargetStateNodeIdx = 9
+			m_nDurationOverrideNodeIdx = -1
+			m_timeOffsetOverrideNodeIdx = -1
+			m_startBoneMaskNodeIdx = -1
+			m_flDuration = 0.200000
+			m_boneMaskBlendInTimePercentage = 
+			{
+				m_flValue = 0.330000
+			}
+			m_flTimeOffset = 0.000000
+			m_transitionOptions = 
+			{
+				m_flags = 0
+			}
+			m_targetSyncIDNodeIdx = -1
+			m_blendWeightEasing = "Linear"
+			m_rootMotionBlend = "Blend"
+		},
+		
+		{
+			_class = "CNmIDComparisonNode::CDefinition"
+			m_nNodeIdx = 156
+			m_nInputValueNodeIdx = 1
+			m_comparison = "Matches"
+			m_comparisionIDs = 
+			[
+				"action_idle",
+			]
+		},
+	]
+}

@@ -15,6 +15,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 namespace GUI.Types.Viewers
 {
@@ -174,9 +175,9 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.NmGraph:
-                    if (resource.DataBlock is BinaryKV3 binaryKV3)
+                    if (resource.DataBlock is NmGraphDefinition graphDef)
                     {
-                        GLViewer = new AnimationGraphViewer(vrfGuiContext, rendererContext, binaryKV3.Data);
+                        GLViewer = new AnimationGraphViewer(vrfGuiContext, rendererContext, graphDef.Data);
                         GLViewerTabName = "ANIMATION GRAPH";
                     }
                     break;
