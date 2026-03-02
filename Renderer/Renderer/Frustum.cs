@@ -97,14 +97,15 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the box is at least partially inside the frustum.</returns>
         public bool Intersects(in AABB box)
         {
-            for (var i = 0; i < Planes.Length; ++i)
-            {
-                var closest = new Vector3(
-                    Planes[i].Normal.X < 0 ? box.Min.X : box.Max.X,
-                    Planes[i].Normal.Y < 0 ? box.Min.Y : box.Max.Y,
-                    Planes[i].Normal.Z < 0 ? box.Min.Z : box.Max.Z);
+            var center = new Vector4((box.Max + box.Min) * 0.5f, 1f);
+            var extent = (box.Max - box.Min) * 0.5f;
 
-                if (Vector3.Dot(Planes[i].Normal, closest) + Planes[i].D < 0)
+            foreach (ref readonly var plane in Planes.AsSpan())
+            {
+                var dist = Plane.Dot(plane, center);
+                var radius = Vector3.Dot(extent, Vector3.Abs(plane.Normal));
+
+                if (dist + radius < 0)
                 {
                     return false;
                 }
@@ -120,9 +121,9 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the point is inside the frustum.</returns>
         public bool Intersects(in Vector3 point)
         {
-            for (var i = 0; i < Planes.Length; ++i)
+            foreach (ref readonly var plane in Planes.AsSpan())
             {
-                if (Vector3.Dot(Planes[i].Normal, point) + Planes[i].D < 0)
+                if (Plane.DotCoordinate(plane, point) < 0)
                 {
                     return false;
                 }
