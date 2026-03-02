@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Manages skeletal animation playback and computes animated bone poses.
     /// </summary>
-    public class AnimationController
+    public class AnimationController : BaseAnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
 
@@ -23,22 +23,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
 
-        /// <summary>
-        /// The skeleton skinning bind pose.
-        /// </summary>
-        public Matrix4x4[] BindPose { get; }
-
-        /// <summary>
-        /// The skeleton inverse bind pose.
-        /// </summary>
-        private Matrix4x4[] InverseBindPose { get; }
-
-        /// <summary>
-        /// The flattened worldspace transform of each bone, according to the current animation frame.
-        /// </summary>
-        public Matrix4x4[] Pose { get; }
-
-        /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
         private bool isPaused;
@@ -84,20 +68,9 @@ namespace ValveResourceFormat.Renderer
         /// <param name="skeleton">The skeleton whose bones define the rig.</param>
         /// <param name="flexControllers">The flex controllers used for facial/morph animation.</param>
         public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
+            : base(skeleton)
         {
             FrameCache = new(skeleton, flexControllers);
-
-            BindPose = new Matrix4x4[skeleton.Bones.Length];
-            InverseBindPose = new Matrix4x4[skeleton.Bones.Length];
-            Pose = new Matrix4x4[skeleton.Bones.Length];
-
-            foreach (var root in skeleton.Roots)
-            {
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, null, BindPose);
-                GetInverseBindPoseRecursive(root, Matrix4x4.Identity, InverseBindPose);
-            }
-
-            BindPose.CopyTo(Pose, 0);
         }
 
         /// <summary>
@@ -105,7 +78,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="timeStep">Elapsed time in seconds since the last update.</param>
         /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> if nothing changed.</returns>
-        public bool Update(float timeStep)
+        public override bool Update(float timeStep)
         {
             if ((ActiveAnimation == null || IsPaused || ActiveAnimation.FrameCount == 1) && !forceUpdate)
             {
@@ -188,64 +161,6 @@ namespace ValveResourceFormat.Renderer
         public void RegisterUpdateHandler(Action<Animation?, int> handler)
         {
             updateHandler = handler;
-        }
-
-        private static void GetBoneMatricesRecursive(Bone bone, Matrix4x4 parent, Frame? frame, Span<Matrix4x4> boneMatrices)
-        {
-            var boneTransform = bone.BindPose;
-
-            if (frame != null)
-            {
-                var frameBone = frame.Bones[bone.Index];
-                boneTransform = Matrix4x4.CreateScale(frameBone.Scale)
-                    * Matrix4x4.CreateFromQuaternion(frameBone.Angle)
-                    * Matrix4x4.CreateTranslation(frameBone.Position);
-            }
-
-            boneTransform *= parent;
-            boneMatrices[bone.Index] = boneTransform;
-
-            foreach (var child in bone.Children)
-            {
-                GetBoneMatricesRecursive(child, boneTransform, frame, boneMatrices);
-            }
-        }
-
-        private static void GetInverseBindPoseRecursive(Bone bone, Matrix4x4 parent, Span<Matrix4x4> boneMatrices)
-        {
-            boneMatrices[bone.Index] = parent * bone.InverseBindPose;
-
-            foreach (var child in bone.Children)
-            {
-                GetInverseBindPoseRecursive(child, boneMatrices[bone.Index], boneMatrices);
-            }
-        }
-
-        /// <summary>
-        /// Get bone matrices in bindpose space.
-        /// Bones that do not move from the original location will have an identity matrix.
-        /// Thus there will be no transformation in the vertex shader.
-        /// </summary>
-        public void GetSkinningMatrices(Span<Matrix4x4> modelBones)
-        {
-            var skeleton = FrameCache.Skeleton;
-
-            for (var i = 0; i < Pose.Length; i++)
-            {
-                modelBones[i] = InverseBindPose[i] * Pose[i];
-            }
-
-            // Copy procedural cloth node transforms from a animated root bone
-            if (skeleton.ClothSimulationRoot is not null)
-            {
-                foreach (var clothNode in skeleton.Roots)
-                {
-                    if (clothNode.IsProceduralCloth)
-                    {
-                        modelBones[clothNode.Index] = modelBones[skeleton.ClothSimulationRoot.Index];
-                    }
-                }
-            }
         }
     }
 }
