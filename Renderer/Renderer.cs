@@ -334,7 +334,7 @@ public class Renderer
             Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
         }
 
-        using (new GLDebugGroup("Sky Render"))
+        //using (new GLDebugGroup("Sky Render"))
         {
             GL.DepthRange(0, 0.05);
 
