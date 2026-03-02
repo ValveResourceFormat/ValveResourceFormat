@@ -42,13 +42,15 @@ namespace ValveResourceFormat.Renderer
             Outline = new OutlineRenderer(rendererContext);
         }
 
-        public void Load()
+        public void Load(int msaaSamples)
         {
-            shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve");
-            shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("vrf.depth_resolve");
+            var msaa = (byte)msaaSamples;
+            shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_MSAA_SAMPLES", msaa));
+            shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("vrf.depth_resolve", ("D_MSAA_SAMPLES", msaa));
             shaderPostProcess = RendererContext.ShaderLoader.LoadShader("vrf.post_processing", ("D_BLOOM", 0));
             shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("vrf.post_processing", ("D_BLOOM", 1));
 
+            DOF.MsaaSamples = msaa;
             Bloom.Load();
             Outline.Load();
         }
@@ -72,7 +74,6 @@ namespace ValveResourceFormat.Renderer
                 shaderMsaaResolve.SetTexture(0, "g_tSourceMsaa", source.Color);
                 GL.BindImageTexture(1, destColor.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
-                shaderMsaaResolve.SetUniform1("g_nNumSamplesMSAA", source.NumSamples);
                 GL.DispatchCompute(groupsX, groupsY, 1);
             }
 
@@ -82,7 +83,6 @@ namespace ValveResourceFormat.Renderer
                 shaderDepthResolve.SetTexture(0, "g_tSourceDepthMsaa", source.Depth);
                 GL.BindImageTexture(1, destDepth.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.R32f);
-                shaderDepthResolve.SetUniform1("g_nNumSamplesMSAA", source.NumSamples);
                 GL.DispatchCompute(groupsX, groupsY, 1);
             }
 
@@ -133,7 +133,6 @@ namespace ValveResourceFormat.Renderer
                 GL.BindImageTexture(1, resolveTarget.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
                 msaaResolveShader.SetUniform1("g_bFlipY", flipY);
-                msaaResolveShader.SetUniform1("g_nNumSamplesMSAA", colorBufferRead.NumSamples);
 
                 if (DOF.Enabled)
                 {

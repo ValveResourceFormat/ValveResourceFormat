@@ -27,7 +27,8 @@ public class DOFRenderer
     public Dof2InputParams CurrentDofParams { get; private set; }
 
     private Shader? DOF;
-    public Lazy<Shader> MsaaResolveDof => new(() => RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_DOF", 1)));
+    public byte MsaaSamples { get; set; }
+    public Lazy<Shader> MsaaResolveDof => new(() => RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_DOF", 1), ("D_MSAA_SAMPLES", MsaaSamples)));
 
     private readonly RendererContext RendererContext;
 

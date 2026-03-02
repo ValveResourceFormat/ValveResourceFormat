@@ -304,7 +304,7 @@ namespace GUI.Types.GLViewers
             GL.EndQuery(QueryTarget.TimeElapsed);
 
             TextRenderer.Load();
-            Renderer.Postprocess.Load();
+            Renderer.Postprocess.Load(NumSamples);
 
             baseGrid = new InfiniteGrid(Scene);
             SelectedNodeRenderer = new(Scene.RendererContext);

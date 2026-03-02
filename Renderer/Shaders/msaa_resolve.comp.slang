@@ -7,7 +7,8 @@ layout (local_size_x = 8, local_size_y = 8) in;
 
 #define D_DOF 0
 
-uniform int g_nNumSamplesMSAA;
+#define D_MSAA_SAMPLES 1
+
 uniform bool g_bFlipY = false;
 
 layout(binding = 0) uniform sampler2DMS g_tSourceMsaa;
@@ -31,14 +32,14 @@ void main()
     ivec2 sampleCoord = coord;
     sampleCoord.y = g_bFlipY ? textureSize(g_tSourceMsaa).y - sampleCoord.y - 1 : sampleCoord.y;
 
-    float invNumSamples = 1.0 / float(g_nNumSamplesMSAA);
+    float invNumSamples = 1.0 / float(D_MSAA_SAMPLES);
     vec3 resolved = vec3(0.0);
 
 #if D_DOF == 1
     float lowestDepth = 1.0;
 #endif
 
-    for (int i = 0; i < g_nNumSamplesMSAA; i++)
+    for (int i = 0; i < D_MSAA_SAMPLES; i++)
     {
         vec3 s = texelFetch(g_tSourceMsaa, sampleCoord, i).rgb;
         s = clamp(s, vec3(0.0), vec3(65504.0));
