@@ -302,6 +302,7 @@ namespace GUI.Controls
             shadowResolutionInput.Size = new System.Drawing.Size(100, 25);
             shadowResolutionInput.TabIndex = 12;
             shadowResolutionInput.Value = 2048;
+            shadowResolutionInput.ValueChanged += OnShadowResolutionValueChanged;
             // 
             // shadowResolutionLabel
             // 

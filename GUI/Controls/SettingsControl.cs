@@ -136,6 +136,16 @@ namespace GUI.Controls
             Settings.Config.MaxTextureSize = maxTextureSizeInput.Value;
         }
 
+        private void OnShadowResolutionValueChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.ShadowResolution = shadowResolutionInput.Value;
+        }
+
         private void OnFovValueChanged(object sender, EventArgs e)
         {
             if (!IsHandleCreated)
