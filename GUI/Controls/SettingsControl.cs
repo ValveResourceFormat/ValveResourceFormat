@@ -31,7 +31,7 @@ namespace GUI.Controls
             textViewerFontSize.Value = Settings.Config.TextViewerFontSize;
 
             themeComboBox.Items.AddRange(Enum.GetNames<Themer.AppTheme>());
-            themeComboBox.SelectedIndex = Settings.Config.Theme;
+            themeComboBox.SelectedIndex = Math.Clamp(Settings.Config.Theme, 0, themeComboBox.Items.Count - 1);
 
             var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
             quickPreviewCheckbox.Checked = (quickPreviewFlags & Settings.QuickPreviewFlags.Enabled) != 0;
@@ -174,7 +174,7 @@ namespace GUI.Controls
 
         private void OnAntiAliasingValueChanged(object sender, EventArgs e)
         {
-            if (!IsHandleCreated)
+            if (!IsHandleCreated || antiAliasingComboBox.SelectedIndex < 0)
             {
                 return;
             }
@@ -210,7 +210,7 @@ namespace GUI.Controls
                 return;
             }
 
-            Settings.Config.TextViewerFontSize = (int)textViewerFontSize.Value;
+            Settings.Config.TextViewerFontSize = textViewerFontSize.Value;
         }
 
         private void OnQuickPreviewCheckboxChanged(object sender, EventArgs e) => SetQuickPreviewSetting();

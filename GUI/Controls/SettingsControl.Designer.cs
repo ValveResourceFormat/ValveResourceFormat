@@ -40,7 +40,7 @@ namespace GUI.Controls
             gamePathsRemove = new ThemedButton();
             gamePathsAddFolder = new ThemedButton();
             maxTextureSizeLabel = new System.Windows.Forms.Label();
-            maxTextureSizeInput = new ThemedIntNumeric() { MaxValue = 8192, MinValue = 16 };
+            maxTextureSizeInput = new ThemedIntNumeric() { MaxValue = 10240, MinValue = 16 };
             fovInput = new ThemedFloatNumeric() { MaxValue = 170, MinValue = 1 };
             fovLabel = new System.Windows.Forms.Label();
             antiAliasingLabel = new System.Windows.Forms.Label();
@@ -54,7 +54,7 @@ namespace GUI.Controls
             shadowResolutionLabel = new System.Windows.Forms.Label();
             groupBox3 = new ThemedGroupBox();
             textViewerFontSizeLabel = new System.Windows.Forms.Label();
-            textViewerFontSize = new ThemedFloatNumeric() { MaxValue = 24, MinValue = 8 };
+            textViewerFontSize = new ThemedIntNumeric() { MaxValue = 24, MinValue = 8 };
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
             themeComboBox = new ThemedComboBox();
             themeLabel = new System.Windows.Forms.Label();
@@ -501,7 +501,7 @@ namespace GUI.Controls
         private ThemedIntNumeric shadowResolutionInput;
         private System.Windows.Forms.Label themeLabel;
         private System.Windows.Forms.Label textViewerFontSizeLabel;
-        private ThemedFloatNumeric textViewerFontSize;
+        private ThemedIntNumeric textViewerFontSize;
         private System.Windows.Forms.Label footerLabel;
         private System.Windows.Forms.Panel footerPanel;
         private ThemedButton gamePathsAdd;

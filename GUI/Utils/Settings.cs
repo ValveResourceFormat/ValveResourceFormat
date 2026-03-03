@@ -7,63 +7,114 @@ using ValveResourceFormat.Renderer;
 
 namespace GUI.Utils
 {
+    /// <summary>
+    /// Manages application settings.
+    /// </summary>
     static class Settings
     {
         private const int SettingsFileCurrentVersion = 11;
         private const int RecentFilesLimit = 20;
 
+        /// <summary>
+        /// Flags that control quick file preview behavior in the file explorer.
+        /// </summary>
         [Flags]
         public enum QuickPreviewFlags : int
         {
+            /// <summary>Quick preview is enabled.</summary>
             Enabled = 1 << 0,
+            /// <summary>Sounds are automatically played when previewing audio files.</summary>
             AutoPlaySounds = 1 << 1,
         }
 
+        /// <summary>
+        /// Holds state related to automatic application update checks.
+        /// </summary>
         public class AppUpdateState
         {
+            /// <summary>Gets or sets whether to automatically check for updates on startup.</summary>
             public bool CheckAutomatically { get; set; }
+            /// <summary>Gets or sets whether a newer version of the application is available.</summary>
             public bool UpdateAvailable { get; set; }
+            /// <summary>Gets or sets the timestamp of the last update check.</summary>
             public string LastCheck { get; set; } = string.Empty;
+            /// <summary>Gets or sets the application version recorded the last time settings were loaded, used to detect version changes and reset update state.</summary>
             public string Version { get; set; } = string.Empty;
         }
 
+        /// <summary>
+        /// Represents the full set of persisted application configuration values.
+        /// </summary>
         public class AppConfig
         {
+            /// <summary>Gets or sets the list of game content search paths.</summary>
             public List<string> GameSearchPaths { get; set; } = [];
+            /// <summary>Gets or sets the last directory used when opening files.</summary>
             public string OpenDirectory { get; set; } = string.Empty;
+            /// <summary>Gets or sets the last directory used when saving files.</summary>
             public string SaveDirectory { get; set; } = string.Empty;
+            /// <summary>Gets or sets the list of bookmarked file paths.</summary>
             public List<string> BookmarkedFiles { get; set; } = [];
+            /// <summary>Gets or sets the list of recently opened file paths.</summary>
             public List<string> RecentFiles { get; set; } = [];
+            /// <summary>Gets or sets saved camera positions keyed by name.</summary>
             public Dictionary<string, float[]> SavedCameras { get; set; } = [];
+            /// <summary>Gets or sets the selected UI theme index.</summary>
             public int Theme { get; set; }
+            /// <summary>Gets or sets the maximum texture resolution loaded by the renderer.</summary>
             public int MaxTextureSize { get; set; }
+            /// <summary>Gets or sets the shadow map resolution.</summary>
             public int ShadowResolution { get; set; }
+            /// <summary>Gets or sets the camera field of view in degrees.</summary>
             public float FieldOfView { get; set; }
+            /// <summary>Gets or sets the number of MSAA samples used for anti-aliasing.</summary>
             public int AntiAliasingSamples { get; set; }
+            /// <summary>Gets or sets the top edge position of the main window.</summary>
             public int WindowTop { get; set; }
+            /// <summary>Gets or sets the left edge position of the main window.</summary>
             public int WindowLeft { get; set; }
+            /// <summary>Gets or sets the width of the main window.</summary>
             public int WindowWidth { get; set; }
+            /// <summary>Gets or sets the height of the main window.</summary>
             public int WindowHeight { get; set; }
+            /// <summary>Gets or sets the window state (normal, minimized, maximized).</summary>
             public int WindowState { get; set; }
+            /// <summary>Gets or sets the normalized audio playback volume.</summary>
             public float Volume { get; set; }
+            /// <summary>Gets or sets the swap interval (the number of screen updates to wait between swapping front and back buffers).</summary>
             public int Vsync { get; set; }
+            /// <summary>Gets or sets whether the FPS counter is shown in the viewport.</summary>
             public int DisplayFps { get; set; }
+            /// <summary>Gets or sets the <see cref="QuickPreviewFlags"/> bitmask for quick file preview behavior.</summary>
             public int QuickFilePreview { get; set; }
+            /// <summary>Gets or sets whether the file explorer panel is opened automatically on start (suppressed on first startup or when command-line files are provided).</summary>
             public int OpenExplorerOnStart { get; set; }
+            /// <summary>Gets or sets the font size used in the text viewer.</summary>
             public int TextViewerFontSize { get; set; }
+            /// <summary>Internal settings file version used to apply migrations when upgrading from older versions. Do not modify manually.</summary>
             public int _VERSION_DO_NOT_MODIFY { get; set; }
+            /// <summary>Gets or sets the application update check state.</summary>
             public AppUpdateState Update { get; set; } = new();
         }
 
+        /// <summary>Gets whether this is the first time the application has been launched (no prior settings were found).</summary>
         public static bool IsFirstStartup { get; private set; }
+        /// <summary>Gets the folder path where the settings file and other persistent application data are stored.</summary>
         public static string SettingsFolder { get; private set; } = string.Empty;
         private static string SettingsFilePath = string.Empty;
 
-        public static AppConfig Config { get; set; } = new AppConfig();
+        /// <summary>Gets or sets the active application configuration.</summary>
+        public static AppConfig Config { get; private set; } = new AppConfig();
 
+        /// <summary>Raised when <see cref="AppConfig.SavedCameras"/> is mutated, signaling subscribers to refresh their camera lists.</summary>
         public static event EventHandler? RefreshCamerasOnSave;
+        /// <summary>Raises the <see cref="RefreshCamerasOnSave"/> event.</summary>
         public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave?.Invoke(null, EventArgs.Empty);
 
+        /// <summary>
+        /// Loads the application configuration from disk, applies defaults and migrations for older
+        /// settings file versions, and populates <see cref="Config"/>.
+        /// </summary>
         public static void Load()
         {
             SettingsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Source2Viewer");
@@ -154,18 +205,9 @@ namespace GUI.Utils
             {
                 Config.FieldOfView = 60;
             }
-            else if (Config.FieldOfView >= 120)
+            else if (Config.FieldOfView > 170)
             {
-                Config.FieldOfView = 120;
-            }
-
-            if (Config.FieldOfView <= 0)
-            {
-                Config.FieldOfView = 60;
-            }
-            else if (Config.FieldOfView >= 120)
-            {
-                Config.FieldOfView = 120;
+                Config.FieldOfView = 170;
             }
 
             Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
@@ -223,6 +265,9 @@ namespace GUI.Utils
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
         }
 
+        /// <summary>
+        /// Serializes the current <see cref="Config"/> to disk, writing atomically via a temp file.
+        /// </summary>
         public static void Save()
         {
             var tempFile = Path.GetTempFileName();
@@ -235,6 +280,11 @@ namespace GUI.Utils
             File.Move(tempFile, SettingsFilePath, overwrite: true);
         }
 
+        /// <summary>
+        /// Adds <paramref name="path"/> to the top of the recent files list, removing any duplicate
+        /// entry, trimming the list to <see cref="RecentFilesLimit"/>, then saves.
+        /// </summary>
+        /// <param name="path">The absolute file path to record as recently opened.</param>
         public static void TrackRecentFile(string path)
         {
             Config.RecentFiles.Remove(path);
@@ -248,6 +298,9 @@ namespace GUI.Utils
             Save();
         }
 
+        /// <summary>
+        /// Clears the recent files list and saves.
+        /// </summary>
         public static void ClearRecentFiles()
         {
             Config.RecentFiles.Clear();
