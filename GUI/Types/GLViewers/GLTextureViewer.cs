@@ -129,7 +129,6 @@ namespace GUI.Types.GLViewers
         private GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(rendererContext)
         {
             VrfGuiContext = vrfGuiContext;
-            RendererContext = new(vrfGuiContext, VrfGuiContext.Logger);
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -424,7 +423,6 @@ namespace GUI.Types.GLViewers
                     TextureDimensionsChanged(previousSize);
 
                     SetTextureFilteringFromUi();
-
                 });
 
                 if (forceSoftwareDecode)
@@ -432,8 +430,6 @@ namespace GUI.Types.GLViewers
                     softwareDecodeCheckBox.Enabled = false;
                 }
             }
-
-            return;
         }
 
         public GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SKBitmap? bitmap) : this(vrfGuiContext, rendererContext)
@@ -493,10 +489,7 @@ namespace GUI.Types.GLViewers
                 }
             });
 
-            for (var i = 0; i < ChannelsComboBoxOrder.Length; i++)
-            {
-                channelsComboBox.Items.Add(ChannelsComboBoxOrder[i].ChoiceString);
-            }
+            channelsComboBox.Items.AddRange([.. ChannelsComboBoxOrder.Select(c => (object)c.ChoiceString)]);
 
             channelsComboBox.SelectedIndex = Svg != null
                 ? Array.FindIndex(ChannelsComboBoxOrder, channel => channel.Channels == ChannelMapping.RGBA)
@@ -584,8 +577,6 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
-            base.Dispose();
-
             if (GLControl != null)
             {
                 GLControl.PreviewKeyDown -= OnPreviewKeyDown;
@@ -595,6 +586,7 @@ namespace GUI.Types.GLViewers
 #if DEBUG
             ShaderHotReload.ShadersReloaded -= OnHotReload;
 #endif
+
             Resource = null;
 
             Bitmap?.Dispose();
@@ -609,6 +601,8 @@ namespace GUI.Types.GLViewers
 
             decodeFlagsListBox?.Dispose();
             decodeFlagsListBox = null;
+
+            base.Dispose();
         }
 
         private void OnSaveButtonClick(object? sender, EventArgs e)
@@ -652,7 +646,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var directory = saveFileDialog.FileName;
+            var directory = Path.GetDirectoryName(saveFileDialog.FileName);
             if (directory != null)
             {
                 Settings.Config.SaveDirectory = directory;
