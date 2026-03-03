@@ -1,63 +1,36 @@
-<h1 align="center"><img src="./Misc/Icons/source2viewer.png" width="64" align="center"> Source 2 Viewer</h1>
+<h1 align="center"><img src="./Misc/Icons/source2viewer.png" width="64" height="64" align="center"> Source 2 Viewer</h1>
 
 <p align="center">
-    <a href="https://github.com/ValveResourceFormat/ValveResourceFormat/actions"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/ValveResourceFormat/ValveResourceFormat/build.yml?logo=github&style=for-the-badge&branch=master"></a>
-    <a href="https://www.nuget.org/packages/ValveResourceFormat/"><img src="https://img.shields.io/nuget/dt/ValveResourceFormat.svg?logo=nuget&style=for-the-badge&label=Library"></a>
-    <a href="https://www.nuget.org/packages/ValveResourceFormat.Renderer/"><img src="https://img.shields.io/nuget/dt/ValveResourceFormat.Renderer.svg?logo=nuget&style=for-the-badge&label=Renderer"></a>
-    <a href="https://app.codecov.io/gh/ValveResourceFormat/ValveResourceFormat"><img src="https://img.shields.io/codecov/c/github/ValveResourceFormat/ValveResourceFormat/master?logo=codecov&logoColor=ffffff&style=for-the-badge"></a>
+    <a href="https://github.com/ValveResourceFormat/ValveResourceFormat/actions" title="Build Status"><img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/ValveResourceFormat/ValveResourceFormat/build.yml?logo=github&label=Build&logoColor=ffffff&style=for-the-badge&branch=master"></a>
+    <a href="https://www.nuget.org/packages/ValveResourceFormat/" title="NuGet Library Downloads"><img alt="NuGet Library Downloads" src="https://img.shields.io/nuget/dt/ValveResourceFormat.svg?logo=nuget&label=Library&logoColor=ffffff&color=004880&style=for-the-badge"></a>
+    <a href="https://www.nuget.org/packages/ValveResourceFormat.Renderer/" title="NuGet Renderer Downloads"><img alt="NuGet Renderer Downloads" src="https://img.shields.io/nuget/dt/ValveResourceFormat.Renderer.svg?logo=nuget&label=Renderer&logoColor=ffffff&color=004880&style=for-the-badge"></a>
+    <a href="https://app.codecov.io/gh/ValveResourceFormat/ValveResourceFormat" title="Code Coverage"><img alt="Code Coverage" src="https://img.shields.io/codecov/c/github/ValveResourceFormat/ValveResourceFormat/master?logo=codecov&label=Coverage&logoColor=ffffff&color=F01F7A&style=for-the-badge"></a>
+    <a href="https://discord.gg/s9QQ7Wg7r4" title="Discord"><img alt="Discord" src="https://img.shields.io/discord/1408482312060145725?logo=discord&label=Discord&logoColor=ffffff&color=5865F2&style=for-the-badge"></a>
 </p>
 
-*\* The library component of Source 2 Viewer is called ValveResourceFormat (VRF).*
+Valve's Source 2 resource file format parser, renderer, decompiler, and exporter.
+The library component is called **ValveResourceFormat (VRF)**.
 
-Valve's Source 2 resource file format parser, decompiler, and exporter.
-Source 2 files usually end with `_c`, for example `.vmdl_c`.
+> [!IMPORTANT]
+> [**For more information and downloads of *Source 2 Viewer*, visit the website.**](https://s2v.app/)
+>
+> [View Library API documentation here.](https://s2v.app/ValveResourceFormat/api/ValveResourceFormat.html) [View guide on getting started with parsing resources.](https://s2v.app/ValveResourceFormat/guides/read-resource.html)
 
-This repository is split into four components:
-- **Command-line utility** - File data viewer, decompiler and a playground for testing new formats and features.
-- **GUI Viewer** - A vpk archive viewer and extractor. Also supports viewing resources such as sounds, textures, models, maps, and much more.
-- **Renderer** - OpenGL-based rendering engine for Source 2 game assets.
-- **Library** - Provides public API to parse resource files and some helpers.
+<img src="./Misc/Icons/readme_screenshot.webp" width="1100" height="700" align="center">
 
-⚒ [View the official website for downloads](https://valveresourceformat.github.io/).
-ℹ️ [View the library documentation here](https://s2v.app/ValveResourceFormat/api/ValveResourceFormat.html).
+## Contributing
 
-## Join our Discord
+This tool is based entirely on reverse engineering
+as Valve does not provide Source 2 documentation or code.
+Not all formats are fully supported.
+If you are interested in helping, take a look at the
+[open issues](https://github.com/ValveResourceFormat/ValveResourceFormat/issues)
+and join our Discord. See [CONTRIBUTING.md](CONTRIBUTING.md)
+and [AGENTS.md](AGENTS.md) for more information.
 
-[![Join our Discord](https://discord.com/api/guilds/1408482312060145725/embed.png?style=banner2)](https://discord.gg/s9QQ7Wg7r4)
+<details>
+<summary>Supported resource types</summary>
 
-## Eye catchy screenshots
-<table>
-	<tr>
-		<td><img src="https://valveresourceformat.github.io/static/screen_map.png"></td>
-		<td><img src="https://valveresourceformat.github.io/static/screen_texture.png"></td>
-	</tr>
-	<tr>
-		<td><img src="https://valveresourceformat.github.io/static/screen_package.png"></td>
-		<td><img src="https://valveresourceformat.github.io/static/screen_cli.png"></td>
-	</tr>
-</table>
-
-## What's supported?
-- VPK viewer which supports opening and exporting files
-- Creating new vpk archives
-- Model viewer and decompiler to glTF and modeldoc
-- Map viewer and decompiler to glTF and vmap
-- Material decompiler to vmat
-- Sound player
-- Binary KeyValues3 parser
-- NTRO support
-
-## Limitations
-
-This tool is based entirely on a reverse engineered effort because Valve does not provide any documentation or Source 2 code (SDK or engine code), while the Source 1 SDK and leaked engine code are helpful, a lot of systems and formats have changed.
-
-The code contained in this repository is based on countless hours of reverse engineering Source 2 games and not all intricate details have been figured out.
-
-If you are interested in helping, take a look at the open issues and join our Discord.
-
-Not all formats are 100% supported, some parameters are still unknown and not fully understood.
-
-## Supported resource types
 Ext           | Name                              | Support
 ------------- | --------------------------------- | -------
 vagrp         | Animation Group                   | 👍
@@ -122,7 +95,11 @@ vfe           | Flex Scene File                   | 👍 Handled by `FlexSceneFi
 vfont         | Bitmap Font                       | 👍 Decrypts `VFONT1`, supported in Source 1 and Source 2.
 vpk           | Pak (package)                     | 👍 Handled by [ValvePak](https://github.com/ValveResourceFormat/ValvePak)
 
-## List of supported magics
+</details>
+
+<details>
+<summary>List of supported magics</summary>
+
 Magic        | Description
 ------------ | ------------
 `0x03564B56` | VKV\x03 - First binary keyvalues 3 encoding with custom block compression
@@ -146,15 +123,15 @@ Magic        | Description
 `VFONT1`     | "encrypted" font file
 `0x00564645` | VFE - flex scene file
 
-# GUI
+</details>
+
+## GUI
 
 Source 2 Viewer keeps its settings in `%LocalAppData%/Source2Viewer/settings.vdf`.
 
-# Misc
-
 ## License
 
-Contents of this repository are available under [MIT license](LICENSE), except for `Tests/Files` folder contains files which have likely come from Valve's games.
+Contents of this repository are available under [MIT license](LICENSE), except for `Tests/Files` folder which contains files that have likely come from Valve's games.
 
 ## Code signing policy
 

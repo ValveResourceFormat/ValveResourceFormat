@@ -1,3 +1,5 @@
+# Contributing to S2V
+
 When contributing new code, run `dotnet format` and make sure tests pass with `dotnet test`.
 
 If you need help or pointers, [join our Discord](https://discord.gg/s9QQ7Wg7r4)
@@ -97,3 +99,7 @@ This is required for correct material extraction. These mappings are used as a f
 - Wait for CI build to publish a release on GitHub
 - Login to SignPath and approve the signing
 - Update release with changelog
+
+---
+
+*See [AGENTS.md](AGENTS.md) for more information.*
