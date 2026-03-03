@@ -160,6 +160,8 @@ namespace GUI.Types.GLViewers
 
             UiControl.AddControl(resetButton);
 
+            AddSaveButton();
+
             if (Bitmap != null)
             {
                 // Image viewer
@@ -178,9 +180,8 @@ namespace GUI.Types.GLViewers
             base.AddUiControls();
         }
 
-        private void InitializeUIControlsForResource()
+        private void AddSaveButton()
         {
-            Debug.Assert(Resource != null);
             Debug.Assert(UiControl != null);
 
             var saveButton = new ThemedButton
@@ -211,6 +212,12 @@ namespace GUI.Types.GLViewers
             saveTable.Controls.Add(saveButton, 0, 0);
             saveTable.Controls.Add(copyLabel, 1, 0);
             UiControl.AddControl(saveTable);
+        }
+
+        private void InitializeUIControlsForResource()
+        {
+            Debug.Assert(Resource != null);
+            Debug.Assert(UiControl != null);
 
             if (Resource.ResourceType == ResourceType.PanoramaVectorGraphic)
             {
@@ -606,7 +613,7 @@ namespace GUI.Types.GLViewers
 
         private void OnSaveButtonClick(object? sender, EventArgs e)
         {
-            if (Resource == null)
+            if (Resource == null && Svg == null && Bitmap == null)
             {
                 return;
             }
@@ -614,7 +621,7 @@ namespace GUI.Types.GLViewers
             var filter = "PNG Image|*.png|JPG Image|*.jpg";
             var alternativeImageFormatIndex = 2;
 
-            var isHdrTexture = Resource.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
+            var isHdrTexture = Resource?.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
 
             if (Svg != null)
             {
@@ -627,12 +634,16 @@ namespace GUI.Types.GLViewers
                 alternativeImageFormatIndex++;
             }
 
+            var fileName = Resource != null
+                ? Path.GetFileNameWithoutExtension(Resource.FileName)
+                : Path.GetFileNameWithoutExtension(VrfGuiContext.FileName);
+
             using var saveFileDialog = new SaveFileDialog
             {
                 InitialDirectory = Settings.Config.SaveDirectory,
                 Filter = filter,
                 Title = "Save an Image File",
-                FileName = Path.GetFileNameWithoutExtension(Resource.FileName),
+                FileName = fileName,
                 AddToRecent = true,
             };
 
@@ -649,7 +660,7 @@ namespace GUI.Types.GLViewers
 
             using var fs = saveFileDialog.OpenFile();
 
-            if (Svg != null && saveFileDialog.FilterIndex == 1 && Resource.DataBlock is Panorama panoramaData)
+            if (Svg != null && saveFileDialog.FilterIndex == 1 && Resource?.DataBlock is Panorama panoramaData)
             {
                 fs.Write(panoramaData.Data);
                 return;
@@ -662,8 +673,6 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            // TODO: nonpow2 sizes?
-            using var bitmap = ReadPixelsToBitmap();
             var format = SKEncodedImageFormat.Png;
 
             switch (saveFileDialog.FilterIndex - alternativeImageFormatIndex)
@@ -673,14 +682,27 @@ namespace GUI.Types.GLViewers
                     break;
             }
 
-            var test = bitmap.GetPixelSpan();
+            if (Svg?.Picture != null)
+            {
+                using var svgBitmap = RasterizeSvg(Svg.Picture, OriginalWidth * TextureScale, OriginalHeight * TextureScale);
+                using var pixmap = svgBitmap.PeekPixels();
+                pixmap.Encode(fs, format, 100);
+                return;
+            }
 
-            using var pixmap = bitmap.PeekPixels();
-            var t = pixmap.Encode(fs, format, 100);
+            // TODO: nonpow2 sizes?
+            using var bitmap = ReadPixelsToBitmap();
+            using var bitmapPixmap = bitmap.PeekPixels();
+            bitmapPixmap.Encode(fs, format, 100);
         }
 
         protected override SKBitmap ReadPixelsToBitmap()
         {
+            if (Svg?.Picture != null)
+            {
+                return RasterizeSvg(Svg.Picture, OriginalWidth * TextureScale, OriginalHeight * TextureScale);
+            }
+
             return ReadPixelsToBitmap(hdr: false);
         }
 
@@ -1213,6 +1235,26 @@ namespace GUI.Types.GLViewers
             InvalidateRender();
         }
 
+        private static SKBitmap RasterizeSvg(SKPicture picture, float width, float height)
+        {
+            var imageInfo = new SKImageInfo((int)width, (int)height, SKColorType.Bgra8888, SKAlphaType.Premul, null);
+            var bitmap = new SKBitmap(imageInfo);
+
+            using var canvas = new SKCanvas(bitmap);
+            var scaleX = width / picture.CullRect.Width;
+            var scaleY = height / picture.CullRect.Height;
+            canvas.Scale(scaleX, scaleY);
+
+            using var paint = new SKPaint
+            {
+                IsAntialias = true,
+            };
+
+            canvas.DrawPicture(picture, paint);
+
+            return bitmap;
+        }
+
         private void GenerateNewSvgBitmap()
         {
             Debug.Assert(Svg?.Picture != null);
@@ -1221,16 +1263,11 @@ namespace GUI.Types.GLViewers
 
             var width = Svg.Picture.CullRect.Width * TextureScale;
             var height = Svg.Picture.CullRect.Height * TextureScale;
-            var imageInfo = new SKImageInfo((int)width, (int)height, SKColorType.Bgra8888, SKAlphaType.Premul, null);
 
-            var bitmap = new SKBitmap(imageInfo);
+            var bitmap = RasterizeSvg(Svg.Picture, width, height);
 
             try
             {
-                using var canvas = new SKCanvas(bitmap);
-                canvas.Scale(TextureScale, TextureScale);
-                canvas.DrawPicture(Svg.Picture);
-
                 if (version == NextBitmapVersion)
                 {
                     NextBitmapToSet = bitmap;

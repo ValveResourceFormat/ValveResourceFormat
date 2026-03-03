@@ -169,9 +169,12 @@ internal abstract class GLBaseControl : IDisposable
             Application.DoEvents(); // Force the updated text to show up
 
             using var bitmap = ReadPixelsToBitmap();
-            if (bitmap != null)
+            if (bitmap == null)
             {
-                Log.Error(nameof(GLBaseControl), "Failed to copy image to clipboard, bitmat was null");
+                Log.Error(nameof(GLBaseControl), "Failed to copy image to clipboard, bitmap was null");
+            }
+            else
+            {
                 ClipboardSetImage(bitmap);
             }
 
