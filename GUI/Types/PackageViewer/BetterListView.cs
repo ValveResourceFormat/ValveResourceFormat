@@ -1,16 +1,18 @@
 using System.Drawing;
 using System.Windows.Forms;
 using GUI.Utils;
+using Windows.Win32;
 
 namespace GUI.Types.PackageViewer
 {
     /// <inheritdoc/>
-    sealed class BetterListView : ListView
+    internal class BetterListView : ListView
     {
         public Color BorderColor { get; set; } = Color.White;
         public Color Highlight { get; set; } = Color.White;
         public VrfGuiContext? VrfGuiContext { get; set; }
         private bool isAdjustingColumns;
+        public event ScrollEventHandler? Scroll;
 
         public BetterListView() : base()
         {
@@ -18,6 +20,30 @@ namespace GUI.Types.PackageViewer
             BorderStyle = BorderStyle.None;
             DoubleBuffered = true;
             HotTracking = false;
+        }
+
+        protected virtual void OnScroll(ScrollEventArgs e)
+        {
+            ScrollEventHandler? handler = this.Scroll;
+            if (handler != null) handler(this, e);
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg == PInvoke.WM_VSCROLL)
+            {
+                OnScroll(new ScrollEventArgs((ScrollEventType)(m.WParam.ToInt32() & 0xffff), 0));
+            }
+
+            // Mouse wheel
+            if (m.Msg == PInvoke.WM_MOUSEWHEEL)
+            {
+                OnScroll(new ScrollEventArgs(
+                    ScrollEventType.EndScroll,
+                    0 // no idea how to get scroll pos
+                ));
+            }
         }
 
         protected override void OnDrawItem(DrawListViewItemEventArgs e)

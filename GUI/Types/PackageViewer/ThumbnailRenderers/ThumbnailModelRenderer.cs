@@ -192,13 +192,13 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         textRenderer.Render(SceneRenderer.Camera);
     }
 
-    public (Bitmap? bitmap, string? cacheKey) Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
+    public Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
     {
         using var stream = GameFileLoader.GetPackageEntryStream(context.CurrentPackage!, entry);
 
         if (stream == null)
         {
-            return (null, null);
+            return null;
         }
 
         using var resource = new Resource { FileName = entry.GetFullPath() };
@@ -209,7 +209,7 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         RenderFrame();
         GL.Flush();
 
-        return (ReadPixelsToBitmap(), model.Name);
+        return ReadPixelsToBitmap();
     }
 
     public void Dispose()
