@@ -329,7 +329,7 @@ namespace ValveResourceFormat.Renderer
             || cls == "point_camera_vertical_fov"
             || cls == "point_camera";
 
-        private void LoadEntitiesFromLump(EntityLump entityLump, string layerName, Matrix4x4 parentTransform)
+        private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 parentTransform)
         {
             var childEntities = entityLump.GetChildEntityNames();
             var childEntityLumps = new Dictionary<string, EntityLump>(childEntities.Length);
@@ -388,6 +388,19 @@ namespace ValveResourceFormat.Renderer
                     CreateEntityConnectionLines(entity, transformationMatrix.Translation);
                 }
 
+                var layerName = originalLayerName;
+                var disabled = entity.GetProperty("startdisabled", false);
+
+                if (!disabled)
+                {
+                    disabled = !entity.GetProperty("enabled", true);
+                }
+
+                if (disabled && layerName == "Entities")
+                {
+                    layerName = "Disabled Entities";
+                }
+
                 if (classname == "info_world_layer")
                 {
                     var spawnflags = entity.GetPropertyUnchecked<uint>("spawnflags");
@@ -427,12 +440,10 @@ namespace ValveResourceFormat.Renderer
                 {
                     var skyname = entity.GetProperty<string>("skyname") ?? entity.GetProperty<string>("skybox_material_day");
                     var tintColor = Vector3.One;
-                    var disabled = false;
 
                     if (classname == "env_sky")
                     {
                         // If it has "startdisabled", only take it if we haven't found any others yet.
-                        disabled = entity.GetProperty<bool>("startdisabled");
                         disabled = disabled && Skybox2D != null;
 
                         tintColor = entity.GetColor32Property("tint_color");
