@@ -125,8 +125,21 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         SceneRenderer.Camera.LookAt(center);
     }
 
-    public void Render()
+    public Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
     {
+        using var stream = GameFileLoader.GetPackageEntryStream(context.CurrentPackage!, entry);
+
+        if (stream == null)
+        {
+            return null;
+        }
+
+        using var resource = new Resource { FileName = entry.GetFullPath() };
+        resource.Read(stream);
+
+        var model = (Model)resource.DataBlock!;
+        SetModel(model);
+
         var size = (int)Size;
 
         NativeWindow?.Size = new OpenTK.Mathematics.Vector2i(size, size);
@@ -161,23 +174,7 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
 
         // no need for this since we just want the pixels into bitmap
         //NativeWindow.Context.SwapBuffers();
-    }
 
-    public Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
-    {
-        using var stream = GameFileLoader.GetPackageEntryStream(context.CurrentPackage!, entry);
-
-        if (stream == null)
-        {
-            return null;
-        }
-
-        using var resource = new Resource { FileName = entry.GetFullPath() };
-        resource.Read(stream);
-
-        var model = (Model)resource.DataBlock!;
-        SetModel(model);
-        Render();
         GL.Flush();
 
         return ReadPixelsToBitmap();
