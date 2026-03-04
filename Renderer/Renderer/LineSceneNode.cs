@@ -3,11 +3,22 @@ using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer
 {
-    class LineSceneNode : SceneNode
+    /// <summary>
+    /// Scene node that renders a single line segment between two points.
+    /// </summary>
+    public class LineSceneNode : SceneNode
     {
         readonly Shader shader;
         readonly int vaoHandle;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="LineSceneNode"/> class.
+        /// </summary>
+        /// <param name="scene">The scene this node belongs to.</param>
+        /// <param name="start">The start position of the line.</param>
+        /// <param name="end">The end position of the line.</param>
+        /// <param name="startColor">The color at the start of the line.</param>
+        /// <param name="endColor">The color at the end of the line.</param>
         public LineSceneNode(Scene scene, Vector3 start, Vector3 end, Color32 startColor, Color32 endColor)
             : base(scene)
         {
