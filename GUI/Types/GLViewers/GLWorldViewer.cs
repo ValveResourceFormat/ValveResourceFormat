@@ -183,7 +183,8 @@ namespace GUI.Types.GLViewers
 
             if (world != null)
             {
-                LoadedWorld = new WorldLoader(world, Scene, mapExternalReferences);
+                LoadedWorld = new WorldLoader(world, Scene);
+                LoadedWorld.Load(mapExternalReferences);
 
                 if (LoadedWorld.SkyboxScene != null)
                 {

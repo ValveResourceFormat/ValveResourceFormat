@@ -22,48 +22,91 @@ namespace ValveResourceFormat.Renderer
         private readonly Scene scene;
         private readonly RendererContext RendererContext;
 
+        /// <summary>The directory path of the map, e.g. <c>maps/de_dust2</c>.</summary>
         public string MapName { get; }
 
+        /// <summary>The world resource being loaded.</summary>
         public World World { get; }
 
+        /// <summary>All entities parsed from the world's entity lumps.</summary>
         public List<Entity> Entities { get; } = [];
+        /// <summary>The first world node encountered during loading.</summary>
         public WorldNode? MainWorldNode { get; private set; }
 
+        /// <summary>Layer names that should be visible by default, populated during loading.</summary>
         public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
 
+        /// <summary>Names of info_camera_link entities found in the world.</summary>
         public List<string> CameraNames { get; } = [];
+        /// <summary>Transform matrices corresponding to each entry in <see cref="CameraNames"/>.</summary>
         public List<Matrix4x4> CameraMatrices { get; } = [];
 
+        /// <summary>The 3D skybox scene, if one was found during entity loading.</summary>
         public Scene? SkyboxScene { get; set; }
+        /// <summary>The 2D skybox, if one was found during entity loading.</summary>
         public SceneSkybox2D? Skybox2D { get; set; }
+        /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
         public NavMeshFile? NavMesh { get; set; }
 
+        /// <summary>Translation offset applied to the world, used when compositing multiple maps.</summary>
         public Vector3 WorldOffset { get; set; } = Vector3.Zero;
+        /// <summary>Uniform scale applied to the world.</summary>
         public float WorldScale { get; set; } = 1.0f;
         // TODO: also store skybox reference rotation
 
+        /// <summary>
+        /// Loads a map by name, performing a full load of all world components.
+        /// </summary>
+        /// <param name="mapResourceName">Path to the <c>.vmap</c> or <c>.vmap_c</c> resource.</param>
+        /// <param name="scene">The scene to load the world into.</param>
         public static WorldLoader LoadMap(string mapResourceName, Scene scene)
         {
+            var renderContext = scene.RendererContext;
+            Resource? mapResource = null;
+
             if (mapResourceName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
             {
-                mapResourceName = mapResourceName[..^GameFileLoader.CompiledFileSuffix.Length];
+                mapResource = renderContext.FileLoader.LoadFile(mapResourceName);
+            }
+            else
+            {
+                mapResource = renderContext.FileLoader.LoadFileCompiled(mapResourceName);
             }
 
-            var renderContext = scene.RendererContext;
-            var mapResource = renderContext.FileLoader.LoadFileCompiled(mapResourceName) ?? throw new FileNotFoundException($"Failed to load map file '{mapResourceName}'.");
+            if (mapResource == null)
+            {
+                throw new FileNotFoundException($"Failed to load map file '{mapResourceName}'.");
+            }
+
             var worldPath = GetWorldNameFromMap(mapResourceName);
             var worldResource = renderContext.FileLoader.LoadFileCompiled(worldPath) ?? throw new FileNotFoundException($"Failed to load world file '{worldPath}'.");
 
-            return new WorldLoader((World)worldResource.DataBlock!, scene, mapResource.ExternalReferences);
+            var loader = new WorldLoader((World)worldResource.DataBlock!, scene);
+            loader.Load(mapResource.ExternalReferences);
+            return loader;
         }
 
-        public WorldLoader(World world, Scene scene, ResourceExtRefList? mapResourceReferences)
+        /// <summary>
+        /// Initializes a new <see cref="WorldLoader"/> for the given world resource.
+        /// Call <see cref="Load"/> to begin loading world components into the scene.
+        /// </summary>
+        /// <param name="world">The world data block to load.</param>
+        /// <param name="scene">The scene to load the world into.</param>
+        public WorldLoader(World world, Scene scene)
         {
             MapName = Path.GetDirectoryName(world.Resource!.FileName!)!.Replace('\\', '/');
             World = world;
             this.scene = scene;
             RendererContext = scene.RendererContext;
+        }
 
+        /// <summary>
+        /// Preloads referenced resources in parallel using the map's external reference list.
+        /// This is called automatically by <see cref="Load"/> and does not need to be called manually.
+        /// </summary>
+        /// <param name="mapResourceReferences">External reference list from the map resource, used to preload models and entity icons.</param>
+        public void ParallelPreloadResources(ResourceExtRefList? mapResourceReferences = null)
+        {
             if (mapResourceReferences != null)
             {
                 Resource? PreloadResource(string resourceName)
@@ -86,8 +129,6 @@ namespace ValveResourceFormat.Renderer
                 var resourceNames = mapResourceReferences.ResourceRefInfoList
                     .Select(x => x.Name)
                     .Where(r => !r.StartsWith("_bakeresourcecache", StringComparison.Ordinal));
-
-                var otherTask = Task.Run(LoadNavigationMesh);
 
                 Parallel.ForEach(resourceNames, resourceReference =>
                 {
@@ -123,23 +164,31 @@ namespace ValveResourceFormat.Renderer
                         });
                     }
                 });
-
-                otherTask.Wait();
             }
-
-            Load();
         }
 
-        private void Load()
+        /// <summary>
+        /// Loads all world components: lighting, entities, world nodes, physics, and navigation mesh.
+        /// Navigation mesh loading is parallelized with resource preloading when references are provided.
+        /// </summary>
+        /// <param name="mapResourceReferences">Optional external reference list from the map resource, used to preload assets in parallel.</param>
+        public void Load(ResourceExtRefList? mapResourceReferences = null)
         {
+            var navMeshTask = Task.Run(LoadNavigationMesh);
+
+            ParallelPreloadResources(mapResourceReferences);
             LoadWorldLightingInfo();
             LoadEntities();
             LoadWorldNodes();
             LoadWorldPhysics();
-            LoadNavigationMesh();
+
+            navMeshTask.Wait();
         }
 
-        private void LoadEntities()
+        /// <summary>
+        /// Loads all entities from the world's entity lumps into the scene.
+        /// </summary>
+        public void LoadEntities()
         {
             foreach (var lumpName in World.GetEntityLumpNames())
             {
@@ -176,7 +225,10 @@ namespace ValveResourceFormat.Renderer
             );
         }
 
-        private void LoadWorldNodes()
+        /// <summary>
+        /// Loads all world nodes (<c>.vwnod_c</c>) referenced by the world into the scene.
+        /// </summary>
+        public void LoadWorldNodes()
         {
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = World.GetWorldNodeNames();
@@ -209,6 +261,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Loads world physics collision geometry into the scene.
+        /// </summary>
         public void LoadWorldPhysics()
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
@@ -262,7 +317,10 @@ namespace ValveResourceFormat.Renderer
         private readonly string[] LightmapSetV82 = ["g_tIrradiance", "g_tDirectionalIrradiance", "g_tDirectLightShadows"];
         private readonly string[] LightmapSetV83 = ["g_tIrradiance", "g_tDirectionalIrradianceR", "g_tDirectionalIrradianceG", "g_tDirectionalIrradianceB", "g_tDirectLightShadows"];
 
-        private void LoadWorldLightingInfo()
+        /// <summary>
+        /// Loads lightmap and lighting information from the world into the scene.
+        /// </summary>
+        public void LoadWorldLightingInfo()
         {
             var worldLightingInfo = World.GetWorldLightingInfo();
             if (worldLightingInfo == null)
@@ -1150,6 +1208,10 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Loads the navigation mesh for this world. Populates <see cref="NavMesh"/>.
+        /// Skips loading if <see cref="NavMesh"/> is already set.
+        /// </summary>
         public void LoadNavigationMesh()
         {
             if (NavMesh is not null)
@@ -1361,6 +1423,10 @@ namespace ValveResourceFormat.Renderer
             return null;
         }
 
+        /// <summary>
+        /// Returns the path to the world resource (<c>.vwrld_c</c>) for a given map name.
+        /// </summary>
+        /// <param name="mapName">Path to the map, with or without the compiled file suffix.</param>
         public static string GetWorldNameFromMap(string mapName)
         {
             mapName = mapName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.InvariantCultureIgnoreCase)
