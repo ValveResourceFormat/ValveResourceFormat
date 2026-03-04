@@ -400,6 +400,12 @@ namespace ValveResourceFormat.Renderer
             }
 
             var nodes = AllNodes.ToList();
+
+            if (nodes.Count == 0)
+            {
+                return;
+            }
+
             var maxId = nodes.Max(n => n.Id);
 
             var instanceData = new ObjectDataStandard[maxId + 1];
