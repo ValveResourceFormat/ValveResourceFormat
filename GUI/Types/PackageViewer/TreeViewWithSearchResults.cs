@@ -374,7 +374,7 @@ namespace GUI.Types.PackageViewer
 
                             await mainListView.InvokeAsync(() =>
                             {
-                                if (cancellationToken.IsCancellationRequested)
+                                if (cancellationToken.IsCancellationRequested || bitmap == null)
                                 {
                                     return;
                                 }

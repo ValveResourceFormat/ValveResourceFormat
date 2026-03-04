@@ -15,14 +15,6 @@ using Vector3 = System.Numerics.Vector3;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
-internal enum ThumbnailSizes : int
-{
-    Tiny = 24,
-    Small = 128,
-    Medium = 192,
-    Big = 256,
-}
-
 internal class ThumbnailModelRenderer : IThumbnailRenderer
 {
     public ResourceType RendererType => ResourceType.Model;
@@ -55,11 +47,11 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
             StartVisible = false,
         };
 
-
         NativeWindow = new NativeWindow(nativeWindowSettings);
         RendererContext = new RendererContext(context, VrfGuiContext.Logger)
         {
-            FieldOfView = 75
+            FieldOfView = 75,
+            MaxTextureSize = 1024,
         };
 
         NativeWindow.MakeCurrent();
@@ -112,31 +104,6 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         return bitmap.ToBitmap();
     }
 
-    public void UpdateFrame()
-    {
-        if (Loaded == false)
-        {
-            return;
-        }
-
-        var updateContext = new Scene.UpdateContext
-        {
-            Camera = SceneRenderer!.Camera,
-            TextRenderer = textRenderer!,
-            Timestep = 0,
-        };
-
-        SceneRenderer.Update(updateContext);
-    }
-
-    public void Resize(int Width, int Height)
-    {
-        NativeWindow?.Size = new OpenTK.Mathematics.Vector2i(Width, Height);
-        GL.Viewport(0, 0, Width, Height);
-        SceneRenderer?.Camera.SetViewportSize(Width, Height);
-        framebuffer?.Resize(Width, Height);
-    }
-
     public void SetModel(Model model)
     {
         NativeWindow?.MakeCurrent();
@@ -158,28 +125,29 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         SceneRenderer.Camera.LookAt(center);
     }
 
-    public void RenderFrame()
+    public void Render()
     {
         var size = (int)Size;
 
-        Resize(size, size);
+        NativeWindow?.Size = new OpenTK.Mathematics.Vector2i(size, size);
+        GL.Viewport(0, 0, size, size);
+        SceneRenderer?.Camera.SetViewportSize(size, size);
+        framebuffer?.Resize(size, size);
 
         NativeWindow?.MakeCurrent();
 
-        UpdateFrame();
+        var updateContext = new Scene.UpdateContext
+        {
+            Camera = SceneRenderer!.Camera,
+            TextRenderer = textRenderer!,
+            Timestep = 0,
+        };
+
+        SceneRenderer.Update(updateContext);
 
         GL.ClearColor(Color.Green);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-        RenderScene();
-
-        // no need for this since we just want the pixels into bitmap
-        //NativeWindow.Context.SwapBuffers();
-    }
-
-
-    private void RenderScene()
-    {
         Debug.Assert(SceneRenderer != null, "SceneRenderer is not loaded.");
         Debug.Assert(framebuffer is not null, "Framebuffer is not created.");
         Debug.Assert(textRenderer != null, "TextRenderer is not created.");
@@ -190,6 +158,9 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         SceneRenderer.PostprocessRender(framebuffer, Framebuffer.GLDefaultFramebuffer, flipY: false);
 
         textRenderer.Render(SceneRenderer.Camera);
+
+        // no need for this since we just want the pixels into bitmap
+        //NativeWindow.Context.SwapBuffers();
     }
 
     public Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
@@ -206,7 +177,7 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
 
         var model = (Model)resource.DataBlock!;
         SetModel(model);
-        RenderFrame();
+        Render();
         GL.Flush();
 
         return ReadPixelsToBitmap();

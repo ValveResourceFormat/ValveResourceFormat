@@ -6,6 +6,14 @@ using ValveResourceFormat;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
+internal enum ThumbnailSizes : int
+{
+    Tiny = 24,
+    Small = 128,
+    Medium = 192,
+    Big = 256,
+}
+
 internal interface IThumbnailRenderer : IDisposable
 {
     public ResourceType RendererType { get; }
