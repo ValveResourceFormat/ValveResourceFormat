@@ -11,7 +11,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
-using Vector3 = System.Numerics.Vector3;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
@@ -26,7 +25,7 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
     private NativeWindow? NativeWindow;
     private bool disposed;
 
-    public ThumbnailSizes Size { get; private set; } = ThumbnailSizes.Medium;
+    public ThumbnailSizes Size { get; private set; } = ThumbnailSizes.Big;
 
     public bool Loaded { get; private set; }
 
@@ -39,7 +38,7 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
             APIVersion = GLEnvironment.RequiredVersion,
             Vsync = VSyncMode.Adaptive,
             ClientSize = new((int)Size, (int)Size),
-            WindowBorder = WindowBorder.Resizable,
+            WindowBorder = WindowBorder.Hidden,
             WindowState = WindowState.Normal,
             Title = "S2V Render Test",
             Flags = ContextFlags.ForwardCompatible,
@@ -60,6 +59,9 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         GLEnvironment.SetDefaultRenderState();
 
         SceneRenderer = new Renderer(RendererContext);
+
+        SceneRenderer.Camera.Pitch = float.DegreesToRadians(-20);
+        SceneRenderer.Camera.Yaw = float.DegreesToRadians(225);
 
         RendererContext.Logger.LogInformation("Loading scene...");
 
@@ -118,11 +120,12 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         var bbox = modelSceneNode.BoundingBox;
 
         var center = bbox.Center;
-        var size = bbox.Size;
-        var offset = Math.Max(size.X, Math.Max(size.Y, size.Z)) * 0.5f;
+        // add some padding
+        var size = bbox.Size * 1.5f;
+        var biggestSide = Math.Max(size.X, Math.Max(size.Y, size.Z));
 
-        SceneRenderer.Camera.SetLocation(new Vector3(center.X + offset, center.Y + offset * 0.5f, center.Z + offset));
-        SceneRenderer.Camera.LookAt(center);
+        SceneRenderer.Camera.RecalculateDirectionVectors();
+        SceneRenderer.Camera.FrameObject(bbox.Center, size.X, size.Z, size.Y);
     }
 
     public Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
