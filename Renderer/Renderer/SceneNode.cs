@@ -6,7 +6,9 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Base class for all objects in the scene graph.
     /// </summary>
+#if DEBUG
     [DebuggerDisplay("{DebugName,nq}")]
+#endif
     public abstract class SceneNode
     {
         /// <summary>
@@ -76,10 +78,12 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public ObjectTypeFlags Flags { get; set; }
 
+#if DEBUG
         /// <summary>
         /// Gets a human-readable debug name including type, name, id, and position.
         /// </summary>
         public string DebugName => $"{GetType().Name.Replace("SceneNode", "", StringComparison.Ordinal)}{(string.IsNullOrEmpty(Name) ? "" : " ")}{Name} ({Id}) at {BoundingBox.Center.X:F2} {BoundingBox.Center.Y:F2} {BoundingBox.Center.Z:F2}";
+#endif
 
         /// <summary>
         /// Gets the scene this node belongs to.

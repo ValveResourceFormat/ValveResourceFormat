@@ -9,7 +9,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Draw call request with distance and render order for sorting.
         /// </summary>
+#if DEBUG
         [DebuggerDisplay("{Node.DebugName,nq}")]
+#endif
         public struct Request
         {
             public RenderableMesh Mesh;
