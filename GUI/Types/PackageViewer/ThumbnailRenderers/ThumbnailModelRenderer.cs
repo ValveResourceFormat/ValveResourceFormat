@@ -75,7 +75,7 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
         textRenderer = new TextRenderer(RendererContext, SceneRenderer.Camera);
         textRenderer.Load();
 
-        SceneRenderer.Postprocess.Load();
+        SceneRenderer.Postprocess.Load(4);
 
         // Create framebuffer for rendering
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
