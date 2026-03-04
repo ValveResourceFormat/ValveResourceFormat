@@ -82,8 +82,32 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
 
         SceneRenderer.LoadRendererResources();
 
-        // Initialize scene (creates lighting buffers, octrees, etc.)
-        SceneRenderer.Scene.Initialize();
+        using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.industrial_sunset_puresky.vtex_c");
+        Debug.Assert(stream != null);
+
+        using var resource = new Resource()
+        {
+            FileName = "vrf_default_cubemap.vtex_c"
+        };
+        resource.Read(stream);
+
+        Renderer.LoadDefaultLighting(SceneRenderer.Scene, resource);
+
+        var post = new ScenePostProcessVolume(SceneRenderer.Scene)
+        {
+            HasBloom = true,
+            IsMaster = true,
+            BloomSettings = new BloomSettings
+            {
+                BlendMode = BloomBlendType.BLOOM_BLEND_SCREEN,
+                BloomStartValue = 1,
+                ScreenBloomStrength = 0.584f,
+                BloomThreshold = 1.972f,
+                BloomThresholdWidth = 2.364f
+            }
+        };
+
+        SceneRenderer.Scene.PostProcessInfo.AddPostProcessVolume(post);
     }
 
     public Bitmap? ReadPixelsToBitmap()
@@ -116,6 +140,9 @@ internal class ThumbnailModelRenderer : IThumbnailRenderer
 
         var modelSceneNode = new ModelSceneNode(SceneRenderer.Scene, model);
         SceneRenderer.Scene.Add(modelSceneNode, true);
+
+        // Initialize scene (creates lighting buffers, octrees, etc.)
+        SceneRenderer.Scene.Initialize();
 
         var bbox = modelSceneNode.BoundingBox;
 

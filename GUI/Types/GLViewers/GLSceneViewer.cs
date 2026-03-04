@@ -120,10 +120,7 @@ namespace GUI.Types.GLViewers
             Renderer.LoadRendererResources();
         }
 
-        // Default environment + simple sun lighting used by viewers without lighting information
-        protected readonly Vector2 defaultSunAngles = new(80f, 170f);
-        protected readonly Vector4 defaultSunColor = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
-        protected Vector2 sunAngles;
+        public Vector2 sunAngles;
         private bool loadedDefaultLighting;
 
         protected virtual void LoadDefaultLighting()
@@ -137,22 +134,9 @@ namespace GUI.Types.GLViewers
             };
             resource.Read(stream);
 
-            var texture = Scene.RendererContext.MaterialLoader.LoadTexture(resource, true);
-            var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
-            {
-                Transform = Matrix4x4.Identity,
-                EdgeFadeDists = Vector3.Zero,
-                HandShake = 0,
-                ProjectionMode = 0,
-                EnvMapTexture = texture,
-            };
+            Renderer.LoadDefaultLighting(Scene, resource);
 
-            Scene.LightingInfo.AddEnvironmentMap(environmentMap);
-            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
-
-            sunAngles = defaultSunAngles;
-            Scene.LightingInfo.LightingData.LightColor_Brightness[0] = defaultSunColor;
-            UpdateSunAngles();
+            sunAngles = Renderer.DefaultSunAngles;
             loadedDefaultLighting = true;
         }
 

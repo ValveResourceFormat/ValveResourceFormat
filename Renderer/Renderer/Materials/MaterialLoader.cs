@@ -46,6 +46,25 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
+        public void Clear()
+        {
+            Materials.Clear();
+
+            foreach (var item in Textures)
+            {
+                item.Value.Delete();
+            }
+
+            Textures.Clear();
+
+            foreach (var item in TexturesSrgb)
+            {
+                item.Value.Delete();
+            }
+
+            TexturesSrgb.Clear();
+        }
+
         /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
         /// <param name="name">The compiled material resource path, or <see langword="null"/> to return the error material.</param>
         /// <param name="shaderArguments">Optional static combo overrides to pass to the shader.</param>

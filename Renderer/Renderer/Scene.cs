@@ -277,10 +277,23 @@ namespace ValveResourceFormat.Renderer
 
         public void Clear()
         {
+            foreach (var item in dynamicNodes)
+            {
+                item.Delete();
+            }
             dynamicNodes.Clear();
+
+            foreach (var item in staticNodes)
+            {
+                item.Delete();
+            }
             staticNodes.Clear();
+
             StaticOctree.Clear();
             DynamicOctree.Clear();
+
+            RendererContext.MaterialLoader.Clear();
+            RendererContext.MeshBufferCache.Clear();
         }
 
         /// <summary>
