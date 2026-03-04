@@ -57,6 +57,23 @@ namespace ValveResourceFormat.Renderer
             return gpuVbib;
         }
 
+        public void Clear()
+        {
+            foreach (var item in gpuBuffers)
+            {
+                item.Value.Delete();
+            }
+
+            gpuBuffers.Clear();
+
+            foreach (var item in vertexArrayObjects)
+            {
+                GL.DeleteVertexArray(item.Value);
+            }
+
+            vertexArrayObjects.Clear();
+        }
+
         /// <summary>Deletes and removes the cached GPU buffers for the specified mesh.</summary>
         /// <param name="meshName">Unique name identifying the mesh to delete.</param>
         public void DeleteVertexIndexBuffers(string meshName)

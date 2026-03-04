@@ -138,6 +138,31 @@ public class Renderer
         Scene = new Scene(rendererContext);
     }
 
+    // Default environment + simple sun lighting used by viewers without lighting information
+    public static Vector2 DefaultSunAngles { get; } = new(80f, 170f);
+    public static Vector4 DefaultSunColor { get; } = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
+
+    public static void LoadDefaultLighting(Scene scene, Resource skyCubemap)
+    {
+        var texture = scene.RendererContext.MaterialLoader.LoadTexture(skyCubemap, true);
+        var environmentMap = new SceneEnvMap(scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
+        {
+            Transform = Matrix4x4.Identity,
+            EdgeFadeDists = Vector3.Zero,
+            HandShake = 0,
+            ProjectionMode = 0,
+            EnvMapTexture = texture,
+        };
+
+        scene.LightingInfo.AddEnvironmentMap(environmentMap);
+        scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
+
+        scene.LightingInfo.LightingData.LightColor_Brightness[0] = Renderer.DefaultSunColor;
+
+        scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(float.DegreesToRadians(DefaultSunAngles.X))
+                                                             * Matrix4x4.CreateRotationZ(float.DegreesToRadians(DefaultSunAngles.Y));
+    }
+
     /// <summary>
     /// Allocates GPU resources required for rendering; must be called once before <see cref="Render(Scene.RenderContext)"/>.
     /// </summary>
