@@ -10,20 +10,23 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 using Matrix4x4 = System.Numerics.Matrix4x4;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
+internal record LandmarkData(Vector3 Origin, Vector3 Angles);
+
 internal record MapTransitionData(
-    Dictionary<string, Vector3> Landmarks,
+    Dictionary<string, LandmarkData> Landmarks,
     List<(string LandmarkName, string NextMapName)> Transitions
 );
 
 internal record MapChainEntry(
     string MapVpkPath,
     string MapName,
-    Vector3 Offset,
+    Matrix4x4 Transform,
     string? LandmarkName = null,
     Vector3 LandmarkWorldPos = default
 );
@@ -37,6 +40,7 @@ internal class RenderTestWindow : GameWindow
     private readonly RendererContext rendererContext;
     private readonly string gamePath;
     private readonly ILogger logger;
+    private List<MapChainEntry> mapChain = [];
 
     private Vector2 lastMousePosition;
     private bool firstMouseMove = true;
@@ -133,7 +137,7 @@ internal class RenderTestWindow : GameWindow
                 return new MapTransitionData([], []);
             }
 
-            var landmarks = new Dictionary<string, Vector3>();
+            var landmarks = new Dictionary<string, LandmarkData>();
             var transitions = new List<(string LandmarkName, string NextMapName)>();
 
             foreach (var lumpName in world.GetEntityLumpNames())
@@ -156,13 +160,13 @@ internal class RenderTestWindow : GameWindow
                     switch (classname)
                     {
                         case "info_landmark":
-                        case "info_spawngroup_landmark":
                             {
                                 var name = entity.GetProperty<string>("targetname");
                                 if (name != null)
                                 {
                                     var origin = entity.GetVector3Property("origin");
-                                    landmarks[name] = origin;
+                                    var angles = entity.GetVector3Property("angles");
+                                    landmarks[name] = new LandmarkData(origin, angles);
                                 }
 
                                 break;
@@ -174,17 +178,6 @@ internal class RenderTestWindow : GameWindow
                                 if (landmarkName != null && nextMap != null)
                                 {
                                     transitions.Add((landmarkName, nextMap));
-                                }
-
-                                break;
-                            }
-                        case "info_spawngroup_load_unload":
-                            {
-                                var mapName = entity.GetProperty<string>("mapname");
-                                var landmarkName = entity.GetProperty<string>("landmark");
-                                if (mapName != null && landmarkName != null)
-                                {
-                                    transitions.Add((landmarkName, mapName));
                                 }
 
                                 break;
@@ -264,9 +257,9 @@ internal class RenderTestWindow : GameWindow
             }
 
             Console.WriteLine($"[{mapName}]");
-            foreach (var (name, pos) in data.Landmarks)
+            foreach (var (name, landmark) in data.Landmarks)
             {
-                Console.WriteLine($"  landmark: {name} at {pos}");
+                Console.WriteLine($"  landmark: {name} at {landmark.Origin} angles {landmark.Angles}");
             }
             foreach (var (landmarkName, nextMap) in data.Transitions)
             {
@@ -288,7 +281,7 @@ internal class RenderTestWindow : GameWindow
 
         var chain = new List<MapChainEntry>
         {
-            new(firstMapVpk, firstMapName, Vector3.Zero)
+            new(firstMapVpk, firstMapName, Matrix4x4.Identity)
         };
 
         var visited = new HashSet<string> { firstMapName };
@@ -321,27 +314,38 @@ internal class RenderTestWindow : GameWindow
                         continue;
                     }
 
-                    if (!currentData.Landmarks.TryGetValue(landmarkName, out var currLandmarkPos))
+                    if (!currentData.Landmarks.TryGetValue(landmarkName, out var currLandmark))
                     {
                         Console.WriteLine($"  skip fwd {current.MapName} -> {nextMapName}: landmark '{landmarkName}' not in current map");
                         continue;
                     }
 
                     var nextData = allTransitions[nextMapName];
-                    if (!nextData.Landmarks.TryGetValue(landmarkName, out var nextLandmarkPos))
+                    if (!nextData.Landmarks.TryGetValue(landmarkName, out var nextLandmark))
                     {
                         Console.WriteLine($"  skip fwd {current.MapName} -> {nextMapName}: landmark '{landmarkName}' not in next map");
                         continue;
                     }
 
-                    var nextOffset = current.Offset + (currLandmarkPos - nextLandmarkPos);
-                    var nextMapVpk = Path.Join(mapsDir, $"{nextMapName}.vpk");
+                    var currLandmarkRot = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(currLandmark.Angles);
+                    var nextLandmarkRot = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(nextLandmark.Angles);
+                    Matrix4x4.Invert(nextLandmarkRot, out var nextLandmarkRotInv);
 
-                    var landmarkWorldPos = currLandmarkPos + current.Offset;
+                    // Extract accumulated rotation from current map's transform, then bring currLandmark into world space
+                    Matrix4x4.Decompose(current.Transform, out _, out var currentRotQuat, out _);
+                    var currentRot = Matrix4x4.CreateFromQuaternion(currentRotQuat);
+                    var currLandmarkWorldRot = currLandmarkRot * currentRot;
+                    var rotDelta = nextLandmarkRotInv * currLandmarkWorldRot;
+
+                    var landmarkWorldPos = Vector3.Transform(currLandmark.Origin, current.Transform);
+
+                    // Move next map so its landmark is at world origin, rotate to align, then translate to landmark world pos
+                    var nextTransform = Matrix4x4.CreateTranslation(-nextLandmark.Origin) * rotDelta * Matrix4x4.CreateTranslation(landmarkWorldPos);
+                    var nextMapVpk = Path.Join(mapsDir, $"{nextMapName}.vpk");
                     logger.LogInformation("Chain: {Map} -> {NextMap} via landmark '{Landmark}'",
                         current.MapName, nextMapName, landmarkName);
 
-                    chain.Add(new MapChainEntry(nextMapVpk, nextMapName, nextOffset, landmarkName, landmarkWorldPos));
+                    chain.Add(new MapChainEntry(nextMapVpk, nextMapName, nextTransform, landmarkName, landmarkWorldPos));
                     visited.Add(nextMapName);
                     foundNext = true;
                     break;
@@ -368,27 +372,39 @@ internal class RenderTestWindow : GameWindow
                         }
 
                         var srcData = allTransitions[sourceMap];
-                        if (!srcData.Landmarks.TryGetValue(srcLandmark, out var srcLandmarkPos))
+                        if (!srcData.Landmarks.TryGetValue(srcLandmark, out var srcLandmarkData))
                         {
                             continue;
                         }
 
                         var targetData = allTransitions[srcTarget];
-                        if (!targetData.Landmarks.TryGetValue(srcLandmark, out var targetLandmarkPos))
+                        if (!targetData.Landmarks.TryGetValue(srcLandmark, out var targetLandmarkData))
                         {
                             continue;
                         }
 
-                        // Find the source map in the chain to get its offset
+                        // Find the source map in the chain to get its accumulated transform
                         var srcEntry = chain.First(e => e.MapName == sourceMap);
-                        var nextOffset = srcEntry.Offset + (srcLandmarkPos - targetLandmarkPos);
-                        var nextMapVpk = Path.Join(mapsDir, $"{srcTarget}.vpk");
 
-                        var landmarkWorldPos = srcLandmarkPos + srcEntry.Offset;
+                        var srcLandmarkRot = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(srcLandmarkData.Angles);
+                        var targetLandmarkRot = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(targetLandmarkData.Angles);
+                        Matrix4x4.Invert(targetLandmarkRot, out var targetLandmarkRotInv);
+
+                        // Extract accumulated rotation from source map's transform
+                        Matrix4x4.Decompose(srcEntry.Transform, out _, out var srcRotQuat, out _);
+                        var srcRot = Matrix4x4.CreateFromQuaternion(srcRotQuat);
+                        var srcLandmarkWorldRot = srcLandmarkRot * srcRot;
+                        var rotDelta = targetLandmarkRotInv * srcLandmarkWorldRot;
+
+                        var landmarkWorldPos = Vector3.Transform(srcLandmarkData.Origin, srcEntry.Transform);
+
+                        // Move next map so its landmark is at world origin, rotate to align, then translate to landmark world pos
+                        var nextTransform = Matrix4x4.CreateTranslation(-targetLandmarkData.Origin) * rotDelta * Matrix4x4.CreateTranslation(landmarkWorldPos);
+                        var nextMapVpk = Path.Join(mapsDir, $"{srcTarget}.vpk");
                         logger.LogInformation("Chain: {Source} -> {NextMap} via landmark '{Landmark}'",
                             sourceMap, srcTarget, srcLandmark);
 
-                        chain.Add(new MapChainEntry(nextMapVpk, srcTarget, nextOffset, srcLandmark, landmarkWorldPos));
+                        chain.Add(new MapChainEntry(nextMapVpk, srcTarget, nextTransform, srcLandmark, landmarkWorldPos));
                         visited.Add(srcTarget);
                         foundNext = true;
                         break;
@@ -429,6 +445,8 @@ internal class RenderTestWindow : GameWindow
         var scene = SceneRenderer.Scene;
         var fileLoader = rendererContext.FileLoader;
 
+        scene.LightingInfo.EnableDynamicShadows = false;
+
         // Create TextRenderer (needed for Scene.Update)
         textRenderer = new TextRenderer(rendererContext, SceneRenderer.Camera);
         textRenderer.Load();
@@ -445,14 +463,14 @@ internal class RenderTestWindow : GameWindow
 
         SceneRenderer.LoadRendererResources();
 
-        // Build map chain - limit to first 2 maps for initial test
-        var mapChain = BuildMapChain(fileLoader);
+        // Build map chain
+        mapChain = BuildMapChain(fileLoader);
 
         logger.LogInformation("Loading {Count} maps...", mapChain.Count);
 
         foreach (var entry in mapChain)
         {
-            logger.LogInformation("Loading map: {Map} with offset {Offset}", entry.MapName, entry.Offset);
+            logger.LogInformation("Loading map: {Map}", entry.MapName);
 
             // Add this map's VPK to search paths
             var vpk = fileLoader.AddPackageToSearch(entry.MapVpkPath);
@@ -478,15 +496,15 @@ internal class RenderTestWindow : GameWindow
             worldLoader.ParallelPreloadResources(mapResource.ExternalReferences);
             worldLoader.LoadWorldNodes();
 
-            // Apply translation offset to newly added nodes
-            if (entry.Offset != Vector3.Zero)
+            // Apply accumulated transform to newly added nodes (identity for the first map)
+            if (entry.Transform != Matrix4x4.Identity)
             {
-                var offsetTransform = Matrix4x4.CreateTranslation(entry.Offset);
                 foreach (var node in scene.AllNodes)
                 {
                     if (!existingNodes.Contains(node))
                     {
-                        node.Transform *= offsetTransform;
+                        node.Transform *= entry.Transform;
+                        //node.Transform = Matrix4x4.CreateTranslation(new Vector3(0, 0, 1000)) * node.Transform;
                     }
                 }
             }
@@ -720,6 +738,24 @@ internal class RenderTestWindow : GameWindow
             Color = new Color32(0, 255, 0),
             Text = $"FPS: {currentFps:0}"
         });
+
+        for (var i = 1; i < mapChain.Count; i++)
+        {
+            var entry = mapChain[i];
+            if (entry.LandmarkName == null)
+            {
+                continue;
+            }
+
+            textRenderer.AddTextBillboard(entry.LandmarkWorldPos, new TextRenderer.TextRenderRequest
+            {
+                Scale = 14f,
+                Color = new Color32(255, 0, 255),
+                Text = $"{mapChain[i - 1].MapName} -> {entry.MapName}\n({entry.LandmarkName})",
+                CenterHorizontal = true,
+                CenterVertical = true,
+            }, SceneRenderer.Camera, false);
+        }
 
         textRenderer.Render(SceneRenderer.Camera);
     }
