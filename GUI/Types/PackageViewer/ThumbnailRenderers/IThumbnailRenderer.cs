@@ -14,5 +14,5 @@ internal interface IThumbnailRenderer : IDisposable
     // gl load
     void Load(VrfGuiContext context);
 
-    public (Bitmap? bitmap, string? cacheKey) Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken);
+    public Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken);
 }

@@ -10,11 +10,8 @@ using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.PackageViewer.ThumbnailRenderers;
 using GUI.Utils;
-using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
-using ValveResourceFormat;
-using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
+
 
 namespace GUI.Types.PackageViewer
 {
@@ -31,6 +28,7 @@ namespace GUI.Types.PackageViewer
         private readonly ImageList ImageList;
         Dictionary<string, IconImageCacheEntry?> IconImageCache = [];
         private CancellationTokenSource? ThumbnailRenderTokenSource;
+        private readonly HashSet<PackageEntry> QueuedOrRenderedTuumbnailItems = new();
 
         private readonly Thread ThumbnailRenderThread;
         private readonly BlockingCollection<Func<Task>> ThumbnailRenderQueue = new();
@@ -98,7 +96,20 @@ namespace GUI.Types.PackageViewer
             mainListView.SmallImageList = ImageList;
             mainListView.LargeImageList = ImageList;
 
+            mainListView.Resize += MainListView_Resize;
+            mainListView.Scroll += MainListView_Scroll;
+
             Viewer = viewer;
+        }
+
+        private void MainListView_Scroll(object? sender, ScrollEventArgs e)
+        {
+            _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource!.Token);
+        }
+
+        private void MainListView_Resize(object? sender, EventArgs e)
+        {
+            _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource!.Token);
         }
 
         private void RenderLoop()
@@ -124,24 +135,6 @@ namespace GUI.Types.PackageViewer
             mainTreeView.BackColor = Themer.CurrentThemeColors.AppMiddle;
             mainListView.BackColor = Themer.CurrentThemeColors.AppSoft;
             mainSplitContainer.BackColor = Themer.CurrentThemeColors.AppMiddle;
-        }
-
-        private void MainListView_Disposed(object? sender, EventArgs e)
-        {
-            mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
-            mainListView.MouseDown -= MainListView_MouseDown;
-            mainListView.ColumnClick -= MainListView_ColumnClick;
-            mainListView.Disposed -= MainListView_Disposed;
-
-            mainTreeView.NodeMouseDoubleClick -= MainTreeView_NodeMouseDoubleClick;
-            mainTreeView.NodeMouseClick -= MainTreeView_NodeMouseClick;
-            mainTreeView.AfterSelect -= MainTreeView_AfterSelect;
-
-            mainTreeView.VrfGuiContext?.Dispose();
-            mainTreeView.VrfGuiContext = null;
-
-            mainTreeView = null;
-            mainListView = null;
         }
 
         private void MainSplitContainerSplitterMoved(object sender, SplitterEventArgs e)
@@ -221,7 +214,11 @@ namespace GUI.Types.PackageViewer
         private void MainListView_DisplayNodes(VirtualPackageNode pkgNode, bool updatePath = true)
         {
             ThumbnailRenderTokenSource?.Cancel();
+
             ThumbnailRenderTokenSource = new CancellationTokenSource();
+
+
+            QueuedOrRenderedTuumbnailItems.Clear();
 
             mainListView.BeginUpdate();
 
@@ -320,10 +317,14 @@ namespace GUI.Types.PackageViewer
         {
             try
             {
+                var (first, last) = GetVisibleItemRange();
 
-                foreach (var item in ListViewItems)
+                if (first == -1)
+                    return;
+
+                for (int i = first; i <= last; i++)
                 {
-                    var castItem = item as BetterListViewItem;
+                    var castItem = ListViewItems[i] as BetterListViewItem;
 
                     if (castItem == null)
                     {
@@ -333,6 +334,11 @@ namespace GUI.Types.PackageViewer
                     var entry = castItem.PackageEntry;
 
                     if (entry == null)
+                    {
+                        continue;
+                    }
+
+                    if (!QueuedOrRenderedTuumbnailItems.Add(entry))
                     {
                         continue;
                     }
@@ -350,14 +356,21 @@ namespace GUI.Types.PackageViewer
                                 return;
                             }
 
-                            var (bitmap, cacheEntryName) = renderer.Render(entry, mainListView.VrfGuiContext!, cancellationToken);
+                            var entryKey = entry.GetFullPath();
 
-                            if (bitmap == null || cacheEntryName == null)
+                            IconImageCache.TryGetValue(entryKey, out var cachedEntry);
+
+                            var imageIndex = -1;
+                            Bitmap? bitmap = null;
+
+                            if (cachedEntry != null)
                             {
-                                return;
+                                imageIndex = cachedEntry.index;
                             }
-
-                            IconImageCache.TryGetValue(cacheEntryName, out var cachedEntry);
+                            else
+                            {
+                                bitmap = renderer.Render(entry, mainListView.VrfGuiContext!, cancellationToken);
+                            }
 
                             await mainListView.InvokeAsync(() =>
                             {
@@ -366,15 +379,15 @@ namespace GUI.Types.PackageViewer
                                     return;
                                 }
 
-                                if (cachedEntry != null)
+                                if (imageIndex != -1)
                                 {
-                                    castItem.ImageIndex = cachedEntry.index;
+                                    castItem.ImageIndex = imageIndex;
                                 }
                                 else
                                 {
                                     castItem.ImageIndex = ImageList.Images.Count;
                                     ImageList.Images.Add(bitmap);
-                                    IconImageCache[cacheEntryName] = new(bitmap, castItem.ImageIndex);
+                                    IconImageCache[entryKey] = new(bitmap, castItem.ImageIndex);
                                 }
 
                                 mainListView.Invalidate();
@@ -438,6 +451,35 @@ namespace GUI.Types.PackageViewer
             return bigIconsImageList;
         }
 
+        private (int first, int last) GetVisibleItemRange()
+        {
+            if (mainListView.VirtualListSize == 0)
+                return (-1, -1);
+
+            var visible = mainListView.ClientRectangle;
+
+            int first = -1;
+            int last = -1;
+
+            for (int i = 0; i < mainListView.VirtualListSize; i++)
+            {
+                var rect = mainListView.GetItemRect(i);
+
+                if (rect.IntersectsWith(visible))
+                {
+                    if (first == -1)
+                        first = i;
+
+                    last = i;
+                }
+                else if (first != -1)
+                {
+                    break; // passed visible range
+                }
+            }
+
+            return (first, last);
+        }
 
         private void MainTreeView_NodeMouseClick(object? sender, TreeNodeMouseClickEventArgs e)
         {
@@ -1285,6 +1327,26 @@ namespace GUI.Types.PackageViewer
             }
 
             mainTreeView.EndUpdate();
+        }
+
+        private void MainListView_Disposed(object? sender, EventArgs e)
+        {
+            mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
+            mainListView.MouseDown -= MainListView_MouseDown;
+            mainListView.ColumnClick -= MainListView_ColumnClick;
+            mainListView.Scroll -= MainListView_Scroll;
+            mainListView.Resize -= MainListView_Resize;
+            mainListView.Disposed -= MainListView_Disposed;
+
+            mainTreeView.NodeMouseDoubleClick -= MainTreeView_NodeMouseDoubleClick;
+            mainTreeView.NodeMouseClick -= MainTreeView_NodeMouseClick;
+            mainTreeView.AfterSelect -= MainTreeView_AfterSelect;
+
+            mainTreeView.VrfGuiContext?.Dispose();
+            mainTreeView.VrfGuiContext = null;
+
+            mainTreeView = null;
+            mainListView = null;
         }
 
         protected override void Dispose(bool disposing)
