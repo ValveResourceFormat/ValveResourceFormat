@@ -104,7 +104,7 @@ namespace GUI.Forms
             ToggleAutomaticUpdateCheck(checkForUpdatesCheckbox.Checked);
         }
 
-        public static void ToggleAutomaticUpdateCheck(bool enabled = true)
+        private static void ToggleAutomaticUpdateCheck(bool enabled = true)
         {
             Settings.Config.Update.CheckAutomatically = enabled;
             Settings.Config.Update.LastCheck = string.Empty;

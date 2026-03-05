@@ -29,12 +29,5 @@ namespace GUI.Controls
 
             fileAssociationButton.Text = "File association has been registered";
         }
-
-        private void updateCheckButton_Click(object sender, EventArgs e)
-        {
-            AboutForm.ToggleAutomaticUpdateCheck();
-
-            updateCheckButton.Text = "Automatic update checks have been enabled";
-        }
     }
 }

@@ -12,7 +12,7 @@ namespace GUI.Utils
     /// </summary>
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 11;
+        private const int SettingsFileCurrentVersion = 12;
         private const int RecentFilesLimit = 20;
 
         /// <summary>
@@ -247,6 +247,11 @@ namespace GUI.Utils
             if (currentVersion < 11) // version 11: added text viewer font size
             {
                 Config.TextViewerFontSize = 10;
+            }
+
+            if (currentVersion < 12) // version 12: enable automatic update checks by default
+            {
+                Config.Update.CheckAutomatically = true;
             }
 
             if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)
