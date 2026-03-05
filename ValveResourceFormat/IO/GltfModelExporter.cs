@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
+using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -131,20 +132,12 @@ namespace ValveResourceFormat.IO
         }
 #endif
 
-        /// <summary>
-        /// Export a Valve resource to glTF.
-        /// </summary>
-        /// <param name="resource">The resource being exported.</param>
-        /// <param name="targetPath">Target file name.</param>
-        /// <param name="cancellationToken">Optional task cancellation token</param>
-        public void Export(Resource resource, string? targetPath, CancellationToken cancellationToken = default)
+        private void RunExport(Action exportAction, string? targetPath, CancellationToken cancellationToken)
         {
             if (IsExporting)
             {
                 throw new InvalidOperationException($"{nameof(GltfModelExporter)} does not support multi threaded exporting, do not call Export while another export is in progress.");
             }
-
-            Debug.Assert(resource.FileName != null);
 
             IsExporting = true;
             CancellationToken = cancellationToken;
@@ -157,6 +150,34 @@ namespace ValveResourceFormat.IO
             }
 
             try
+            {
+                exportAction();
+            }
+            finally
+            {
+                ExportedMeshes.Clear();
+                PhysicsToExport.Clear();
+                TextureExportingTasks.Clear();
+                ExportedTextures.Clear();
+                ExportedMaterials.Clear();
+                TextureSampler = null;
+                TexturesExportedSoFar = 0;
+                DstDir = string.Empty;
+                IsExporting = false;
+            }
+        }
+
+        /// <summary>
+        /// Export a Valve resource to glTF.
+        /// </summary>
+        /// <param name="resource">The resource being exported.</param>
+        /// <param name="targetPath">Target file name.</param>
+        /// <param name="cancellationToken">Optional task cancellation token</param>
+        public void Export(Resource resource, string? targetPath, CancellationToken cancellationToken = default)
+        {
+            Debug.Assert(resource.FileName != null);
+
+            RunExport(() =>
             {
                 switch (resource.ResourceType)
                 {
@@ -192,18 +213,39 @@ namespace ValveResourceFormat.IO
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
                 }
-            }
-            finally
+            }, targetPath, cancellationToken);
+        }
+
+        /// <summary>
+        /// Export a navigation mesh to glTF.
+        /// </summary>
+        /// <param name="navMesh">The navigation mesh to export.</param>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="targetPath">Target file name.</param>
+        /// <param name="cancellationToken">Optional task cancellation token.</param>
+        public void Export(NavMeshFile navMesh, string resourceName, string? targetPath, CancellationToken cancellationToken = default)
+        {
+            RunExport(() =>
             {
-                ExportedMeshes.Clear();
-                PhysicsToExport.Clear();
-                TextureExportingTasks.Clear();
-                ExportedTextures.Clear();
-                ExportedMaterials.Clear();
-                TextureSampler = null;
-                TexturesExportedSoFar = 0;
-                IsExporting = false;
-            }
+                var exportedModel = BuildNavMeshModel(resourceName, navMesh);
+                WriteModelFile(exportedModel, targetPath);
+            }, targetPath, cancellationToken);
+        }
+
+        /// <summary>
+        /// Export a navigation mesh to a GLB stream.
+        /// </summary>
+        /// <param name="navMesh">The navigation mesh to export.</param>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="stream">Target stream to write GLB data to.</param>
+        /// <param name="cancellationToken">Optional task cancellation token.</param>
+        public void Export(NavMeshFile navMesh, string resourceName, Stream stream, CancellationToken cancellationToken = default)
+        {
+            RunExport(() =>
+            {
+                var exportedModel = BuildNavMeshModel(resourceName, navMesh);
+                WriteModelFile(exportedModel, null, stream);
+            }, null, cancellationToken);
         }
 
         /// <summary>
@@ -789,7 +831,7 @@ namespace ValveResourceFormat.IO
             return exportedModel;
         }
 
-        private void WriteModelFile(ModelRoot exportedModel, string? filePath)
+        private void WriteModelFile(ModelRoot exportedModel, string? filePath, Stream? stream = null)
         {
             if (!SatelliteImages)
             {
@@ -805,6 +847,14 @@ namespace ValveResourceFormat.IO
                 JsonIndented = false,
                 MergeBuffers = false,
             };
+
+            // Write GLB to a provided stream
+            if (stream != null)
+            {
+                exportedModel.MergeBuffers();
+                exportedModel.WriteGLB(stream, settings);
+                return;
+            }
 
             // If no file path is provided, validate the schema without writing a file
             if (filePath == null)

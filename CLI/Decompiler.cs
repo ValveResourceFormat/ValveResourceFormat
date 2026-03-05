@@ -823,6 +823,16 @@ namespace CLI
                 var navMeshFile = new NavMeshFile();
                 navMeshFile.Read(stream);
 
+                if (OutputFile != null && GltfExportFormat != null)
+                {
+                    var outFilePath = Path.ChangeExtension(GetOutputPath(path), GltfExportFormat);
+                    Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
+
+                    using var fileLoader = new GameFileLoader(null, path);
+                    CreateGltfExporter(fileLoader).Export(navMeshFile, path, outFilePath);
+                    return;
+                }
+
                 if (!CollectStats)
                 {
                     Console.WriteLine(navMeshFile.ToString());
