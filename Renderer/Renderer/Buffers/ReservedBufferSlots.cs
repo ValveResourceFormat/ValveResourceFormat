@@ -28,6 +28,7 @@ public enum ReservedBufferSlots
     CompactedCounts = 9,
     CompactionRequests = 10,
     BoneTransforms = 11,
+    BarnLights = 12,
 
     Max = 8, // guaranteed minimum in 4.6
 }

@@ -213,6 +213,21 @@ vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset, v
     return vec2(dot(xform.xy, vectorInput.xy), dot(xform.zw, vectorInput.xy)) + finalOffset;
 }
 
+// From vr_common in sbox
+vec4 QuaternionMultiplication( vec4 q1, vec4 q2 )
+{
+	return vec4(
+		q2.xyz * q1.w + q1.xyz * q2.w + cross( q1.xyz, q2.xyz ),
+		q1.w * q2.w - dot( q1.xyz, q2.xyz )
+	);
+}
+
+vec3 QuaternionRotation( vec3 v, vec4 q )
+{
+	vec4 q_c = q.xyzw * vec4( -1, -1, -1, 1 );
+	return QuaternionMultiplication( q, QuaternionMultiplication( vec4( v.xyz, 0 ), q_c.xyzw ) ).xyz;
+}
+
 // All of this is directly ported from The Lab Renderer from the unity store.
 // These are their utility functions, at least as of the lab.
 

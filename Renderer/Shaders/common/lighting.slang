@@ -48,6 +48,8 @@
 #include "pbr.slang"
 #include "environment.slang"
 
+#include "lighting.barn.slang"
+
 // https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
 float attenuate_cusp(float s, float falloff)
 {
@@ -308,6 +310,7 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     #endif
 
     CalculateDirectLighting(lighting, mat);
+    CalculateBarnLighting(lighting, mat);
     CalculateIndirectLighting(lighting, mat);
 
     return lighting;

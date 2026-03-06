@@ -258,6 +258,7 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer = new(ReservedBufferSlots.LightProbe);
             frustumBuffer = new(ReservedBufferSlots.FrustumPlanes);
 
+            LightingInfo.CreateBarnLightBuffer();
             CreateIndirectDrawBuffers();
         }
 
@@ -406,7 +407,7 @@ namespace ValveResourceFormat.Renderer
 
                             if (count == 0 && firstIndex == 0)
                             {
-                                // older meshlets   
+                                // older meshlets
                                 var tris = drawCall.IndexCount / 3;
                                 var clusters = drawCall.NumMeshlets;
                                 var trisPerCluster = tris / clusters;
@@ -490,9 +491,11 @@ namespace ValveResourceFormat.Renderer
         {
             Debug.Assert(lightingBuffer is not null && envMapBuffer is not null && lpvBuffer is not null);
 
+            lightingBuffer.Update();
             lightingBuffer.BindBufferBase();
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
+            LightingInfo.BindBarnLightBuffer();
         }
 
         private readonly List<SceneNode> CullResults = [];
@@ -737,28 +740,72 @@ namespace ValveResourceFormat.Renderer
                 LightingInfo.SunLightFrustum.SetEmpty();
             }
 
+            CollectShadowDrawCalls(LightingInfo.SunLightFrustum,
+                includeStatic: !LightingInfo.HasBakedShadowsFromLightmap,
+                includeDynamic: true);
+        }
+
+        public void SetupBarnLightShadow(Frustum lightFrustum)
+        {
+            CollectShadowDrawCalls(lightFrustum, includeStatic: true, includeDynamic: true);
+        }
+
+        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic)
+        {
             foreach (var bucket in CulledShadowDrawCalls.Values)
             {
                 bucket.Clear();
             }
 
-            if (!LightingInfo.HasBakedShadowsFromLightmap)
+            if (includeStatic)
             {
-                StaticOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
+                StaticOctree.Root.QueryNoOcclusion(frustum, CulledShadowNodes);
             }
 
-            DynamicOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
+            if (includeDynamic)
+            {
+                DynamicOctree.Root.QueryNoOcclusion(frustum, CulledShadowNodes);
+            }
 
             foreach (var node in CulledShadowNodes)
             {
+                const ObjectTypeFlags skipFlags = ObjectTypeFlags.NoShadows | ObjectTypeFlags.BlockLight;
+
                 List<RenderableMesh> meshes;
+                DrawCall? singleCall = null;
 
                 if (node is MeshCollectionNode meshCollection)
                 {
+                    if ((node.Flags & skipFlags) != 0)
+                    {
+                        continue;
+                    }
+
                     meshes = meshCollection.RenderableMeshes;
+                }
+                else if (node is SceneAggregate.Fragment fragment)
+                {
+                    if ((fragment.Flags & skipFlags) != 0)
+                    {
+                        continue;
+                    }
+
+                    listWithSingleMesh[0] = fragment.RenderMesh;
+                    meshes = listWithSingleMesh;
+                    singleCall = fragment.DrawCall;
                 }
                 else if (node is SceneAggregate aggregate)
                 {
+                    if ((aggregate.AllFlags & skipFlags) != 0)
+                    {
+                        continue;
+                    }
+
+                    if (aggregate.InstanceTransforms.Count == 0)
+                    {
+                        continue;
+                    }
+
                     listWithSingleMesh[0] = aggregate.RenderMesh;
                     meshes = listWithSingleMesh;
                 }
@@ -773,12 +820,16 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var opaqueCall in mesh.DrawCallsOpaque)
                     {
+                        if (singleCall != null && opaqueCall != singleCall)
+                        {
+                            continue;
+                        }
+
                         if (opaqueCall.Material.DoNotCastShadows)
                         {
                             continue;
                         }
 
-                        // todo: create depth only variants for these shader types
                         var bucket = GetSpecializedDepthOnlyShader(animated, mesh, opaqueCall);
 
                         CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
@@ -975,15 +1026,12 @@ namespace ValveResourceFormat.Renderer
 
         public void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders)
         {
-            using (new GLDebugGroup("Scene Shadows"))
-            {
-                renderContext.RenderPass = RenderPass.DepthOnly;
+            renderContext.RenderPass = RenderPass.DepthOnly;
 
-                foreach (var (program, calls) in CulledShadowDrawCalls)
-                {
-                    renderContext.ReplacementShader = depthOnlyShaders[(int)program];
-                    MeshBatchRenderer.Render(calls, renderContext);
-                }
+            foreach (var (program, calls) in CulledShadowDrawCalls)
+            {
+                renderContext.ReplacementShader = depthOnlyShaders[(int)program];
+                MeshBatchRenderer.Render(calls, renderContext);
             }
         }
 
@@ -1625,6 +1673,7 @@ namespace ValveResourceFormat.Renderer
                 lightingBuffer?.Dispose();
                 lpvBuffer?.Dispose();
                 envMapBuffer?.Dispose();
+                LightingInfo.DisposeBarnLights();
             }
         }
     }

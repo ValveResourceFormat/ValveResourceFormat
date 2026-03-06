@@ -13,8 +13,7 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         public Vector2 LightmapUvScale;
         public uint IsSkybox;
-        public float _LightingPadding1;
-
+        public uint NumBarnLights;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLights;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLightsBakedShadowIndex;
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightPosition_Type;

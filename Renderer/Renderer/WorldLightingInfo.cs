@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -28,6 +29,12 @@ namespace ValveResourceFormat.Renderer
         IndividualProbes,
         ProbeAtlas,
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+    }
+
+    public struct BinnedShadowCaster
+    {
+        public Matrix4x4 WorldToFrustum { get; set; }
+        public ShadowAtlasRegion Region { get; set; }
     }
 
     /// <summary>
@@ -67,6 +74,27 @@ namespace ValveResourceFormat.Renderer
         public float SunLightShadowCoverageScale { get; set; } = 1f;
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
+        // Barn lights
+
+        // This should very much be removed / changed (to not be constant)
+        internal const int BarnLightShadowAtlasSize = 8192;
+        private static readonly (float MaxDistance, int MaxResolution)[] ShadowTiers =
+        [
+            (384f, 1536),
+            (768f, 512),
+            (2048f, 256),
+        ];
+
+        private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
+
+        private List<SceneLight>? BarnLightEntities;
+        private Dictionary<string, int>? BarnLightCookiePaths;
+        private StorageBuffer? BarnLightStorageBuffer;
+        public List<BinnedShadowCaster> BinnedShadowCasters { get; } = [];
+        private RenderTexture? BarnLightCookieAtlas { get; set; }
+        private int CookieSamplerClampBorder;
+        private int CookieSamplerWrap;
+
         public void SetLightmapTextures(Shader shader)
         {
             var i = 0;
@@ -83,6 +111,15 @@ namespace ValveResourceFormat.Renderer
             {
                 shader.SetTexture((int)ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", LightProbes[0].Irradiance);
                 shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
+            }
+
+            if (BarnLightCookieAtlas != null)
+            {
+                shader.SetTexture((int)ReservedTextureSlots.LightCookieTexture, "g_tLightCookieTexture", BarnLightCookieAtlas);
+                GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
+
+                shader.SetTexture((int)ReservedTextureSlots.LightCookieTextureWrap, "g_tLightCookieTextureWrap", BarnLightCookieAtlas);
+                GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
             }
         }
 
@@ -240,42 +277,267 @@ namespace ValveResourceFormat.Renderer
 
         public void StoreLightMappedLights_V2(List<SceneLight> lights)
         {
-            var currentShadowIndex = 0;
-            var totalCount = 0u;
+            InitializeBarnLights(lights);
+        }
 
-            foreach (var light in lights.OrderBy(l => l.StationaryLightIndex))
+        public void InitializeBarnLights(List<SceneLight> lights)
+        {
+            var filtered = lights.Where(SceneLight.IsDynamicLight).ToList();
+
+            if (filtered.Count == 0)
             {
-                if (totalCount >= LightingConstants.MAX_LIGHTS)
-                {
-                    scene.RendererContext.Logger.LogWarning("Too many lights in scene. Some lights were removed");
-                    break;
-                }
+                LightingData.NumBarnLights = 0;
+                return;
+            }
 
-                if (light.StationaryLightIndex < 0 || light.StationaryLightIndex > 3)
+            BarnLightEntities = filtered;
+            RebuildCookieAtlas();
+        }
+
+        private static int GetResolutionCap(float distance)
+        {
+            for (var i = 0; i < ShadowTiers.Length; i++)
+            {
+                if (distance <= ShadowTiers[i].MaxDistance)
+                {
+                    return ShadowTiers[i].MaxResolution;
+                }
+            }
+
+            return ShadowTiers.Length > 0 ? ShadowTiers[^1].MaxResolution : int.MaxValue;
+        }
+
+        private static (int W, int H) ApplyDistanceCap(int w, int h, float distance)
+        {
+            var cap = GetResolutionCap(distance);
+            var maxDim = Math.Max(w, h);
+            return maxDim <= cap
+                ? (w, h)
+                : (w * cap / maxDim, h * cap / maxDim);
+        }
+
+        public void BinBarnLights(Frustum cameraFrustum, Vector3 cameraPosition)
+        {
+            LightingData.NumBarnLights = 0;
+            BinnedShadowCasters.Clear();
+
+            if (BarnLightEntities is null || BarnLightEntities.Count == 0)
+            {
+                LightingData.NumBarnLights = 0;
+                return;
+            }
+
+            var visibleLights = new List<SceneLight>();
+            var shadowRequests = new List<ShadowRequest>();
+
+            foreach (var light in BarnLightEntities)
+            {
+                if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
                 {
                     continue;
                 }
 
-                if (currentShadowIndex != light.StationaryLightIndex)
+                // TODO: Don't compute all variables every time when lights don't change
+                light.ComputeBarnFaces(BarnLightCookiePaths!);
+
+                if (light.BarnFaces is null)
                 {
-                    LightingData.NumLightsBakedShadowIndex[currentShadowIndex] = totalCount;
-                    currentShadowIndex = light.StationaryLightIndex;
+                    continue;
                 }
 
-                LightingData.LightPosition_Type[totalCount] = new Vector4(light.Position, (int)light.Type);
-                LightingData.LightDirection_InvRange[totalCount] = new Vector4(light.Direction, 1.0f / light.Range);
+                visibleLights.Add(light);
 
-                //Matrix4x4.Invert(light.Transform, out var lightToWorld);
-                LightingData.LightToWorld[totalCount] = light.Transform;
+                if (light.CastShadows > 0)
+                {
+                    var (w, h) = light.GetShadowFaceDimensions();
+                    var distance = Vector3.Distance(cameraPosition, light.Position);
+                    (w, h) = ApplyDistanceCap(w, h, distance);
 
-                LightingData.LightColor_Brightness[totalCount] = new Vector4(ColorSpace.SrgbGammaToLinear(light.Color), light.Brightness);
-
-                LightingData.LightFallOff[totalCount] = new Vector4(light.FallOff, light.Range, 0.0f, 0.0f);
-
-                totalCount++;
+                    for (var i = 0; i < light.BarnFaces.Length; i++)
+                    {
+                        shadowRequests.Add(new ShadowRequest { Width = w, Height = h });
+                    }
+                }
             }
 
-            LightingData.NumLightsBakedShadowIndex[currentShadowIndex] = totalCount;
+            ShadowAtlasRegion[]? atlasRegions = null;
+            if (shadowRequests.Count > 0)
+            {
+                atlasRegions = ShadowAtlasPacker.Pack(BarnLightShadowAtlasSize, shadowRequests.ToArray());
+            }
+
+            var requestIndex = 0;
+            foreach (var light in visibleLights)
+            {
+                if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
+                {
+                    break;
+                }
+
+                foreach (var face in light.BarnFaces!)
+                {
+                    if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
+                    {
+                        break;
+                    }
+
+                    var data = face.GpuData;
+
+                    if (light.CastShadows > 0 && atlasRegions != null)
+                    {
+                        var region = atlasRegions[requestIndex++];
+
+                        if (region.IsValid)
+                        {
+                            var atlasScale = new Vector2(
+                                region.Width / (float)BarnLightShadowAtlasSize,
+                                region.Height / (float)BarnLightShadowAtlasSize
+                            );
+                            var atlasOffset = new Vector2(
+                                region.X / (float)BarnLightShadowAtlasSize,
+                                region.Y / (float)BarnLightShadowAtlasSize
+                            );
+                            var bakedScale = atlasScale * 0.5f;
+                            var bakedOffset = atlasOffset + bakedScale;
+
+                            data.BarnLightShadowOffsetScale = new Vector4(
+                                bakedOffset.X, bakedOffset.Y,
+                                bakedScale.X, bakedScale.Y
+                            );
+                            data.BarnLightShadowScale = 1.0f;
+
+                            BinnedShadowCasters.Add(new BinnedShadowCaster
+                            {
+                                WorldToFrustum = face.WorldToFrustum,
+                                Region = region
+                            });
+                        }
+                        else
+                        {
+                            scene.RendererContext.Logger.LogWarning(
+                                "Barn light shadow atlas is full, skipping light '{LightName}' (size {Size})",
+                                light.Name, light.ShadowMapSize);
+                            continue;
+                        }
+                    }
+
+                    BinnedBarnLightGpuData[LightingData.NumBarnLights++] = data;
+                }
+            }
+
+            if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
+            {
+                scene.RendererContext.Logger.LogWarning("Max barn light count ({Max}) reached, some lights will be missing", BarnLightConstants.MAX_BARN_LIGHTS);
+            }
+
+            BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, (int)LightingData.NumBarnLights * Unsafe.SizeOf<BarnLightConstants>());
+        }
+
+        private void RebuildCookieAtlas()
+        {
+            BarnLightCookieAtlas?.Delete();
+            BarnLightCookieAtlas = null;
+
+            BarnLightCookiePaths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var cookieTextures = new List<RenderTexture>();
+
+            foreach (var light in BarnLightEntities!)
+            {
+                if (light.CookieTexturePath != null && BarnLightCookiePaths.TryAdd(light.CookieTexturePath, cookieTextures.Count + 1))
+                {
+                    var tex = scene.RendererContext.MaterialLoader.GetTexture(light.CookieTexturePath, true);
+                    cookieTextures.Add(tex);
+                }
+            }
+
+            if (cookieTextures.Count > 0)
+            {
+                BarnLightCookieAtlas = BuildCookieAtlas(cookieTextures);
+                CreateCookieSamplers();
+            }
+        }
+
+        private static RenderTexture BuildCookieAtlas(List<RenderTexture> textures)
+        {
+            var atlasSize = 512;
+            foreach (var tex in textures)
+            {
+                atlasSize = Math.Max(atlasSize, Math.Max(tex.Width, tex.Height));
+            }
+
+            var numLayers = textures.Count + 1;
+
+            var atlas = new RenderTexture(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, 1);
+            GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, atlasSize, atlasSize, numLayers);
+
+            GL.CreateFramebuffers(1, out int readFbo);
+            GL.CreateFramebuffers(1, out int drawFbo);
+
+            // First layer is full white
+            GL.NamedFramebufferTextureLayer(drawFbo, FramebufferAttachment.ColorAttachment0, atlas.Handle, 0, 0);
+            GL.ClearNamedFramebuffer(drawFbo, ClearBuffer.Color, 0, [1f, 1f, 1f, 1f]);
+
+            for (var i = 0; i < textures.Count; i++)
+            {
+                var tex = textures[i];
+
+                GL.NamedFramebufferTexture(readFbo, FramebufferAttachment.ColorAttachment0, tex.Handle, 0);
+                GL.NamedFramebufferTextureLayer(drawFbo, FramebufferAttachment.ColorAttachment0, atlas.Handle, 0, i + 1);
+
+                GL.BlitNamedFramebuffer(readFbo, drawFbo,
+                    0, 0, tex.Width, tex.Height,
+                    0, 0, atlasSize, atlasSize,
+                    ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear);
+            }
+
+            GL.DeleteFramebuffer(readFbo);
+            GL.DeleteFramebuffer(drawFbo);
+
+            return atlas;
+        }
+
+        private void CreateCookieSamplers()
+        {
+            GL.CreateSamplers(1, out CookieSamplerClampBorder);
+            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
+            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
+            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+
+            GL.CreateSamplers(1, out CookieSamplerWrap);
+            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+        }
+
+        public void CreateBarnLightBuffer()
+        {
+            BarnLightStorageBuffer = StorageBuffer.Allocate<BarnLightConstants>(
+                ReservedBufferSlots.BarnLights, BarnLightConstants.MAX_BARN_LIGHTS, BufferUsageHint.DynamicDraw);
+        }
+
+        public void BindBarnLightBuffer()
+        {
+            BarnLightStorageBuffer?.BindBufferBase();
+        }
+
+        public void DisposeBarnLights()
+        {
+            BarnLightStorageBuffer?.Delete();
+
+            BarnLightCookieAtlas?.Delete();
+            BarnLightCookieAtlas = null;
+
+            if (CookieSamplerClampBorder != 0)
+            {
+                GL.DeleteSampler(CookieSamplerClampBorder);
+                CookieSamplerClampBorder = 0;
+            }
+
+            if (CookieSamplerWrap != 0)
+            {
+                GL.DeleteSampler(CookieSamplerWrap);
+                CookieSamplerWrap = 0;
+            }
         }
     }
 }
