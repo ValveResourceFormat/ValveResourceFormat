@@ -40,6 +40,8 @@ public class GameExtractTests
         var extractor = new AnimationGraphExtract(asset, fileLoader);
         var content = extractor.ToContentFile();
 
+        Assert.That(content.Data, Is.Not.Null, $"Failed to extract {testCase.assetName}.");
+
         // Use this to update test files
         var UpdateFiles = false;
 
@@ -49,6 +51,16 @@ public class GameExtractTests
             Directory.CreateDirectory(Path.GetDirectoryName(outputPathRepo)!);
             using var stream = new FileStream(outputPathRepo, FileMode.Create);
             stream.Write(content.Data);
+            return;
         }
+
+        // Compare with existing file
+        using var expectedStream = new FileStream(outputPath, FileMode.Open);
+        using var expectedReader = new StreamReader(expectedStream);
+
+        var expectedKv3 = expectedReader.ReadToEnd();
+        var actualKv3 = System.Text.Encoding.UTF8.GetString(content.Data);
+
+        Assert.That(actualKv3, Is.EqualTo(expectedKv3), $"Extracted file differs. {testCase.assetName}.");
     }
 }

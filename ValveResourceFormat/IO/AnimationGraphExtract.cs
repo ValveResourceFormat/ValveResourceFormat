@@ -149,33 +149,27 @@ public class AnimationGraphExtract
 
     private static long GenerateNewNodeId(HashSet<long> assignedNodeIds)
     {
-        var random = new Random();
-        var baseNumber = (long)(random.NextDouble() * 9000000000L) + 1000000000L;
+        const long MinId = 100_000_000L;
+        const long MaxId = 999_999_999L;
 
-        var candidate = baseNumber;
-        var attempts = 0;
-
-        while (attempts < 10000)
+        for (long candidate = MinId; candidate <= MaxId; candidate++)
         {
             if (!assignedNodeIds.Contains(candidate))
             {
                 return candidate;
             }
-            candidate++;
-            attempts++;
+        }
 
-            if (candidate > 9999999999L)
+        for (long candidate = MinId; candidate <= MaxId; candidate++)
+        {
+            if (!assignedNodeIds.Contains(candidate))
             {
-                candidate = 1000000000L;
+                return candidate;
             }
         }
 
-        var timestampId = (DateTime.UtcNow.Ticks % 9000000000L) + 1000000000L;
-        while (assignedNodeIds.Contains(timestampId))
-        {
-            timestampId = (timestampId + 1) % 9000000000L + 1000000000L;
-        }
-        return timestampId;
+        // As a last resort (should never happen) just return MinId.
+        return MinId;
     }
 
     private sealed class LayoutNode(long id)
