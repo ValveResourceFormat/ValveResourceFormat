@@ -3,8 +3,10 @@
 // 
 // Re-attempting reflection with the GLSL backend.
 
-// SPIR-V source (24200 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
 // 
+// SPIR-V source (24200 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
+// Static combos: S_TRANSLUCENT
+// Dynamic combos: D_DEPTH_FEATHERING
 
 #version 460
 #extension GL_EXT_samplerless_texture_functions : require

@@ -1,5 +1,5 @@
-// SPIR-V source (2632 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
 // 
+// SPIR-V source (2632 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
 
 struct _1125
 {

@@ -1,5 +1,6 @@
-// SPIR-V source (12464 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
 // 
+// SPIR-V source (12464 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
+// Dynamic combos: D_RESAMPLE, D_MIP_COUNT, D_MSAA_DEPTH
 
 static const float _462[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 static const uint2 _2013[4] = { uint2(0u, 0u), uint2(1u, 0u), uint2(0u, 1u), uint2(1u, 1u) };

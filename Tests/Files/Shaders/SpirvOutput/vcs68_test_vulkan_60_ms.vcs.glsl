@@ -1,5 +1,6 @@
-// SPIR-V source (2492 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
 // 
+// SPIR-V source (2492 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
+// Dynamic combos: D_MS_TEST
 
 static float _24362;
 

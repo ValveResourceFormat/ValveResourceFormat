@@ -3,8 +3,9 @@
 // 
 // Re-attempting reflection with the GLSL backend.
 
-// SPIR-V source (9832 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
 // 
+// SPIR-V source (9832 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
+// Dynamic combos: D_BLEND_WEIGHT_COUNT=4, D_COMPRESSED_NORMALS_AND_TANGENTS
 
 #version 460
 #if defined(GL_EXT_control_flow_attributes)
