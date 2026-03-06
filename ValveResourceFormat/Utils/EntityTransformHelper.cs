@@ -41,6 +41,37 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Convert a quaternion to Euler angles in degrees (pitch=X, yaw=Y, roll=Z). 0-360 range.
+        /// </summary>
+        public static Vector3 ToEulerAngles(Quaternion q)
+        {
+            var angles = new Vector3();
+
+            // pitch / x
+            var sinp = 2f * (q.W * q.Y - q.Z * q.X);
+            if (MathF.Abs(sinp) >= 1f)
+            {
+                angles.X = MathF.CopySign(MathF.PI / 2f, sinp);
+            }
+            else
+            {
+                angles.X = MathF.Asin(sinp);
+            }
+
+            // yaw / y
+            var siny_cosp = 2f * (q.W * q.Z + q.X * q.Y);
+            var cosy_cosp = 1f - 2f * (q.Y * q.Y + q.Z * q.Z);
+            angles.Y = MathF.Atan2(siny_cosp, cosy_cosp);
+
+            // roll / z
+            var sinr_cosp = 2f * (q.W * q.X + q.Y * q.Z);
+            var cosr_cosp = 1f - 2f * (q.X * q.X + q.Y * q.Y);
+            angles.Z = MathF.Atan2(sinr_cosp, cosr_cosp);
+
+            return angles * (180f / MathF.PI);
+        }
+
+        /// <summary>
         /// Calculates the full transformation matrix for an entity.
         /// </summary>
         /// <param name="entity">The entity.</param>

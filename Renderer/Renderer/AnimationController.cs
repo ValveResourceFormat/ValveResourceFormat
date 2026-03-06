@@ -1,12 +1,13 @@
+using System.Diagnostics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Manages skeletal animation playback and computes animated bone poses.
+    /// Controls the playback of a single sequence on a skeleton.
     /// </summary>
-    public class AnimationController
+    public class AnimationController : BaseAnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
 
@@ -16,21 +17,6 @@ namespace ValveResourceFormat.Renderer
 
         public Animation? ActiveAnimation { get; private set; }
         public AnimationFrameCache FrameCache { get; }
-
-        /// <summary>
-        /// The skeleton skinning bind pose.
-        /// </summary>
-        public Matrix4x4[] BindPose { get; }
-
-        /// <summary>
-        /// The skeleton inverse bind pose.
-        /// </summary>
-        private Matrix4x4[] InverseBindPose { get; }
-
-        /// <summary>
-        /// The flattened worldspace transform of each bone, according to the current animation frame.
-        /// </summary>
-        public Matrix4x4[] Pose { get; }
 
         public Frame? AnimationFrame { get; private set; }
 
@@ -68,23 +54,12 @@ namespace ValveResourceFormat.Renderer
         }
 
         public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
+            : base(skeleton)
         {
             FrameCache = new(skeleton, flexControllers);
-
-            BindPose = new Matrix4x4[skeleton.Bones.Length];
-            InverseBindPose = new Matrix4x4[skeleton.Bones.Length];
-            Pose = new Matrix4x4[skeleton.Bones.Length];
-
-            foreach (var root in skeleton.Roots)
-            {
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, null, BindPose);
-                GetInverseBindPoseRecursive(root, Matrix4x4.Identity, InverseBindPose);
-            }
-
-            BindPose.CopyTo(Pose, 0);
         }
 
-        public bool Update(float timeStep)
+        public override bool Update(float timeStep)
         {
             if ((ActiveAnimation == null || IsPaused || ActiveAnimation.FrameCount == 1) && !forceUpdate)
             {
@@ -106,7 +81,7 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
-            foreach (var root in FrameCache.Skeleton.Roots)
+            foreach (var root in Skeleton.Roots)
             {
                 if (root.IsProceduralCloth)
                 {
@@ -119,7 +94,7 @@ namespace ValveResourceFormat.Renderer
             return true;
         }
 
-        public void SetAnimation(Animation? animation)
+        public virtual void SetAnimation(Animation? animation)
         {
             FrameCache.Clear();
             ActiveAnimation = animation;
@@ -156,62 +131,44 @@ namespace ValveResourceFormat.Renderer
             updateHandler = handler;
         }
 
-        private static void GetBoneMatricesRecursive(Bone bone, Matrix4x4 parent, Frame? frame, Span<Matrix4x4> boneMatrices)
+        private static void GetBoneMatricesRecursive(Bone bone, FrameBone parent, Frame frame, Span<FrameBone> boneTransforms)
         {
-            var boneTransform = bone.BindPose;
+            var frameBone = frame.Bones[bone.Index];
 
-            if (frame != null)
-            {
-                var frameBone = frame.Bones[bone.Index];
-                boneTransform = Matrix4x4.CreateScale(frameBone.Scale)
-                    * Matrix4x4.CreateFromQuaternion(frameBone.Angle)
-                    * Matrix4x4.CreateTranslation(frameBone.Position);
-            }
-
-            boneTransform *= parent;
-            boneMatrices[bone.Index] = boneTransform;
+            frameBone *= parent;
+            boneTransforms[bone.Index] = frameBone;
 
             foreach (var child in bone.Children)
             {
-                GetBoneMatricesRecursive(child, boneTransform, frame, boneMatrices);
+                GetBoneMatricesRecursive(child, frameBone, frame, boneTransforms);
             }
         }
 
-        private static void GetInverseBindPoseRecursive(Bone bone, Matrix4x4 parent, Span<Matrix4x4> boneMatrices)
+        internal void SamplePoseAtFrame(int i, FrameBone[] pose)
         {
-            boneMatrices[bone.Index] = parent * bone.InverseBindPose;
+            Debug.Assert(ActiveAnimation != null);
+            var frame = FrameCache.GetFrame(ActiveAnimation, i);
 
-            foreach (var child in bone.Children)
+            foreach (var root in Skeleton.Roots)
             {
-                GetInverseBindPoseRecursive(child, boneMatrices[bone.Index], boneMatrices);
+                GetBoneMatricesRecursive(root, FrameBone.Identity, frame, pose);
             }
         }
 
-        /// <summary>
-        /// Get bone matrices in bindpose space.
-        /// Bones that do not move from the original location will have an identity matrix.
-        /// Thus there will be no transformation in the vertex shader.
-        /// </summary>
-        public void GetSkinningMatrices(Span<Matrix4x4> modelBones)
+        internal Frame SamplePoseAtPercentage(float cycle, FrameBone[] pose)
         {
-            var skeleton = FrameCache.Skeleton;
+            Debug.Assert(ActiveAnimation != null);
+            Debug.Assert(cycle >= 0f && cycle <= 1f);
 
-            for (var i = 0; i < Pose.Length; i++)
+            var time = cycle * ActiveAnimation.Duration;
+            var frame = FrameCache.GetInterpolatedFrame(ActiveAnimation, time);
+
+            foreach (var root in Skeleton.Roots)
             {
-                modelBones[i] = InverseBindPose[i] * Pose[i];
+                GetBoneMatricesRecursive(root, FrameBone.Identity, frame, pose);
             }
 
-            // Copy procedural cloth node transforms from a animated root bone
-            if (skeleton.ClothSimulationRoot is not null)
-            {
-                foreach (var clothNode in skeleton.Roots)
-                {
-                    if (clothNode.IsProceduralCloth)
-                    {
-                        modelBones[clothNode.Index] = modelBones[skeleton.ClothSimulationRoot.Index];
-                    }
-                }
-            }
+            return frame;
         }
     }
 }

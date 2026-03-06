@@ -9,12 +9,15 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.GLViewers
 {
     class GLModelViewer : GLSingleNodeViewer
     {
         protected Model? model { get; init; }
+        private readonly bool ModelViewerWithAnimGraphSupport;
         private PhysAggregateData? phys;
         public ComboBox? animationComboBox { get; protected set; }
         protected CheckBox? animationPlayPause;
@@ -28,6 +31,7 @@ namespace GUI.Types.GLViewers
         public ComboBox? materialGroupListBox { get; private set; }
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
+        protected AnimationGraphController? animGraphController;
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
         private CheckedListBox? physicsGroupsComboBox;
@@ -41,6 +45,7 @@ namespace GUI.Types.GLViewers
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Model model) : base(vrfGuiContext, rendererContext)
         {
             this.model = model;
+            ModelViewerWithAnimGraphSupport = true;
         }
 
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, PhysAggregateData phys) : base(vrfGuiContext, rendererContext)
@@ -164,6 +169,32 @@ namespace GUI.Types.GLViewers
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
+
+                if (ModelViewerWithAnimGraphSupport)
+                {
+                    // check in model data if there is an anim graph reference.
+
+                    var animGraph2Refs = model.Data.GetArray<KVObject>("m_animGraph2Refs");
+                    // m_vecNmSkeletonRefs
+
+                    if (animGraph2Refs != null && animGraph2Refs.Length > 0)
+                    {
+                        var animGraphRef = animGraph2Refs[0];
+                        var identifier = animGraphRef.GetProperty<string>("m_sIdentifier");
+                        var graphName = animGraphRef.GetProperty<string>("m_hGraph");
+                        var animGraphResource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
+                        if (animGraphResource != null && animGraphResource.DataBlock is NmGraphDefinition graphDefinition)
+                        {
+                            animGraphController = new AnimationGraphController(model.Skeleton, graphDefinition, Scene.RendererContext.FileLoader);
+                            modelSceneNode.AnimationController = animGraphController;
+
+                            // force model to use skinning matrices
+                            modelSceneNode.SetupBoneMatrixBuffers();
+                            modelSceneNode.SetAnimation(animGraphController.Animation);
+                        }
+                    }
+                }
+
                 animationController = modelSceneNode.AnimationController;
                 Scene.Add(modelSceneNode, true);
 
@@ -274,6 +305,11 @@ namespace GUI.Types.GLViewers
                     });
                 }
 
+                if (animGraphController != null)
+                {
+                    CreateAnimGraphControls(UiControl, animGraphController, modelSceneNode);
+                }
+
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
                     Debug.Assert(hitboxSetSceneNode != null);
@@ -370,6 +406,42 @@ namespace GUI.Types.GLViewers
             }
 
             base.AddUiControls();
+        }
+
+        private static void CreateAnimGraphControls(RendererControl uiControl, AnimationGraphController animGraphController, ModelSceneNode modelSceneNode)
+        {
+            uiControl.AddDivider();
+            uiControl.AddLabel($"Animation: {animGraphController.Name}");
+
+
+            foreach (var (paramName, _) in animGraphController.BoolParameters)
+            {
+                uiControl.AddCheckBox(paramName, animGraphController.BoolParameters[paramName], isChecked =>
+                {
+                    animGraphController.BoolParameters[paramName] = isChecked;
+                });
+            }
+
+            foreach (var (paramName, value) in animGraphController.FloatParameters)
+            {
+                uiControl.AddNumericField(paramName, value, val =>
+                {
+                    animGraphController.FloatParameters[paramName] = val;
+                });
+            }
+
+            foreach (var (paramName, value) in animGraphController.IdParameters)
+            {
+                var combo = uiControl.AddSelection(paramName, (id, _) =>
+                {
+                    animGraphController.IdParameters[paramName] = id;
+                }, horizontal: true);
+
+                combo.Items.AddRange([.. animGraphController.GetParameterIdOptions(paramName)]);
+                combo.SelectedIndex = Math.Max(0, combo.Items.IndexOf(value));
+            }
+
+            uiControl.AddDivider();
         }
 
         protected void SetAnimationControllerUpdateHandler()

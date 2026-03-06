@@ -175,6 +175,7 @@ namespace GUI.Controls
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Visible)]
         public int Increment { get; set; } = 1;
 
+        // todo: tryparse
         protected override int Parse(string text)
         {
             try
