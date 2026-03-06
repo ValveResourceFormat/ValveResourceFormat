@@ -131,9 +131,12 @@ public static partial class ShaderSpirvReflection
 
             code = ReplaceCommonPatterns(code);
 
+            buffer.WriteLine($"// {StringToken.VRF_GENERATOR}");
             buffer.WriteLine(
                 $"// SPIR-V source ({vulkanSource.BytecodeSize} bytes), {backend} reflection with SPIRV-Cross by KhronosGroup");
-            buffer.WriteLine($"// {StringToken.VRF_GENERATOR}");
+
+            BuildComboComment(vulkanSource, buffer);
+
             buffer.WriteLine();
             buffer.WriteLine(code);
         }
@@ -145,6 +148,66 @@ public static partial class ShaderSpirvReflection
 
         code = buffer.ToString();
         return result == Result.Success;
+    }
+
+    private static void BuildComboComment(VfxShaderFile shaderFile, StringWriter buffer)
+    {
+        var staticCombo = shaderFile.ParentCombo;
+        var program = staticCombo?.ParentProgramData;
+
+        if (program is null || staticCombo is null)
+        {
+            return;
+        }
+
+        static string FormatComboEntry(VfxCombo combo, int value)
+            => value != 1 ? $"{combo.Name}={value}" : combo.Name;
+
+        if (program.StaticComboArray.Length > 0)
+        {
+            var parts = new List<string>();
+            var configGen = new ConfigMappingParams(program);
+            var state = configGen.GetConfigState(staticCombo.StaticComboId);
+
+            for (var i = 0; i < state.Length; i++)
+            {
+                if (state[i] == 0)
+                {
+                    continue;
+                }
+
+                parts.Add(FormatComboEntry(program.StaticComboArray[i], state[i]));
+            }
+
+            if (parts.Count > 0)
+            {
+                buffer.WriteLine($"// Static combos: {string.Join(", ", parts)}");
+            }
+        }
+
+        var dynamicComboEntry = Array.Find(staticCombo.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId);
+        var dynamicComboId = dynamicComboEntry?.DynamicComboId ?? 0;
+
+        if (dynamicComboId != 0)
+        {
+            var parts = new List<string>();
+            var state = program.GetDBlockConfig(dynamicComboId);
+
+            for (var i = 0; i < state.Length; i++)
+            {
+                if (state[i] == 0)
+                {
+                    continue;
+                }
+
+                parts.Add(FormatComboEntry(program.DynamicComboArray[i], state[i]));
+            }
+
+            if (parts.Count > 0)
+            {
+                buffer.WriteLine($"// Dynamic combos: {string.Join(", ", parts)}");
+            }
+        }
     }
 
     private static void RenameResource(spvc_compiler compiler, spvc_resources resources, SpirvResourceType resourceType,
