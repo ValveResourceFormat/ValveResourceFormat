@@ -143,7 +143,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, inout MaterialPropert
 
         if (barnLight.m_vBarnLightColor_flCookie.w > 0.0)
         {
-            vec2 cookieUV = ndc.xy * vec2(0.5, -0.5) + vec2(0.5);
+            vec2 cookieUV = ndc.xy * vec2(-0.5, -0.5) + vec2(0.5);
             cookieUV = cookieUV * barnLight.m_vBarnLightCookieParameters.zw + barnLight.m_vBarnLightCookieParameters.xy;
             float layer = barnLight.m_vBarnLightColor_flCookie.w - 1.0;
             vec3 cookieColor = texture(g_tLightCookieTexture, vec3(cookieUV, layer)).rgb;
