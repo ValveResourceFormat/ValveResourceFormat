@@ -1,5 +1,5 @@
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using ValveResourceFormat.ResourceTypes.ModelFlex;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -20,9 +20,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="skeleton">The renderable model skeleton.</param>
         public Animation2Controller(Skeleton skeleton) : base(skeleton)
         {
-
+            // The animated skeleton bones has to be matched to renderable skeleton bones
             {
-                // The animated skeleton bones have to be matched to renderable skeleton bones
                 // Build bone remap table
                 var sourceBoneCount = Skeleton2.Bones.Length;
                 var destinationBoneCount = Skeleton.Bones.Length;
