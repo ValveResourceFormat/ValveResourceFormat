@@ -153,11 +153,11 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
                     CalculateShading(lighting, lightVector, visibility * lightColor, mat);
                 }
             }
+        }
 
-            if (g_bExperimentalLightsEnabled)
-            {
-                CalculateBarnLighting(lighting, mat, dlsh);
-            }
+        if (g_bExperimentalLightsEnabled)
+        {
+            CalculateBarnLighting(lighting, mat, dlsh);
         }
     #else
         // Non lightmapped scene

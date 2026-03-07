@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public struct BarnLightConstants
     {
-        public const int MAX_BARN_LIGHTS = 320;
+        public const int MAX_BARN_LIGHTS = 128; // 320 would be the max lights in a scene
 
         public Matrix4x4 BarnFrustum;
         public Vector4 BarnLightPosition;

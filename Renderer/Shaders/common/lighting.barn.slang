@@ -69,6 +69,13 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
     {
         BarnLightConstants barnLight = g_BarnLights[i];
 
+        float visibility = saturate(1.0 - dot(bakedShadow, barnLight.m_vBarnLightBakedShadowMask));
+        if (visibility == 0.0)
+        {
+            // lighting.DiffuseDirect *= vec3(1.0, 0.0, 0.0);
+            continue;
+        }
+
         vec4 clipPos = barnLight.m_mBarnFrustum * vec4(mat.PositionWS, 1.0);
         vec3 ndc = clipPos.xyz / clipPos.w;
         if (any(lessThanEqual(ndc, vec3(-1.0, -1.0, 0.0))) || any(greaterThanEqual(ndc, vec3(1.0))))
@@ -90,6 +97,11 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
         if (barnLight.m_vBarnLightDistanceFade_vSkirt.w > 0.0)
         {
             skirtFade *= smoothstep(0.0, 1.0, (1.0 - ndc.z) * barnLight.m_vBarnLightDistanceFade_vSkirt.w);
+        }
+
+        if (skirtFade == 0.0)
+        {
+            continue;
         }
 
         vec3 lightDir;
@@ -128,7 +140,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
         }
 
         vec3 lightColor = barnLight.m_vBarnLightColor_flCookie.xyz
-            * (1.0 - dot(bakedShadow, barnLight.m_vBarnLightBakedShadowMask))
+            * visibility
             * attenuation;
 
         if (barnLight.m_vBarnLightColor_flCookie.w > 0.0)
@@ -217,25 +229,13 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
 
         float savedIsoRoughness = mat.IsometricRoughness;
         vec2 savedRoughness = mat.Roughness;
-
         mat.IsometricRoughness = max(mat.IsometricRoughness, barnLight.m_fBarnLightMinRoughness);
         mat.Roughness = max(mat.Roughness, vec2(barnLight.m_fBarnLightMinRoughness));
 
-        lighting.SpecularDirect += specularLighting(lightDir, mat.Normal, mat) * lightColor;
+        CalculateShading(lighting, lightDir, lightColor, mat);
 
         mat.IsometricRoughness = savedIsoRoughness;
         mat.Roughness = savedRoughness;
-
-        #if defined(S_DIFFUSE_WRAP)
-            lighting.DiffuseDirect += diffuseWrapped(mat.Normal, lightDir) * lightColor;
-        #else
-            lighting.DiffuseDirect += diffuseLobe(ClampToPositive(dot(mat.Normal, lightDir)), mat.IsometricRoughness) * lightColor;
-        #endif
-
-        #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
-            float transmissiveLight = ClampToPositive(-dot(mat.Normal, lightDir));
-            lighting.TransmissiveDirect += transmissiveLight * lightColor * mat.TransmissiveColor;
-        #endif
     }
 }
 

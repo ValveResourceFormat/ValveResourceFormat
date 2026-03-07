@@ -346,6 +346,8 @@ namespace ValveResourceFormat.Renderer
             LightingData.NumBarnLights = 0;
             BinnedShadowCasters.Clear();
 
+            const int MaxShadowCasters = 8; // todo: prioritize close up lights
+
             if (BarnLightEntities is null || BarnLightEntities.Count == 0)
             {
                 LightingData.NumBarnLights = 0;
@@ -392,6 +394,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             var requestIndex = 0;
+            var numShadowCasters = 0;
             foreach (var light in BarnLightEntities)
             {
                 if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
@@ -419,7 +422,7 @@ namespace ValveResourceFormat.Renderer
                     var face = light.BarnFaces[faceIndex];
                     var data = face.GpuData;
 
-                    if (light.CastShadows > 0 && atlasRegions.Length > 0)
+                    if (light.CastShadows > 0 && atlasRegions.Length > 0 && numShadowCasters < MaxShadowCasters)
                     {
                         var region = atlasRegions[requestIndex++];
 
@@ -443,6 +446,7 @@ namespace ValveResourceFormat.Renderer
                                 Light = light,
                                 FaceIndex = faceIndex,
                             });
+                            numShadowCasters++;
                         }
                         else
                         {
@@ -457,7 +461,7 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS && !barnLightsLoggedOnce)
+            if (LightingData.NumBarnLights == BarnLightConstants.MAX_BARN_LIGHTS && !barnLightsLoggedOnce)
             {
                 scene.RendererContext.Logger.LogWarning("Max barn light count ({Max}) reached, some lights will be missing", BarnLightConstants.MAX_BARN_LIGHTS);
                 barnLightsLoggedOnce = true;
