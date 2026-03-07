@@ -126,6 +126,7 @@ namespace ValveResourceFormat.Renderer
             // set render lists to their max capacity
             CollectSceneDrawCalls(new Camera(RendererContext), Frustum.CreateEmpty());
             SetupSceneShadows(new Camera(RendererContext), -1);
+            LightingInfo.BinBarnLights(Frustum.CreateEmpty(), Vector3.Zero);
         }
 
         public void Add(SceneNode node, bool dynamic)
