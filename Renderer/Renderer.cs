@@ -27,7 +27,7 @@ public class Renderer
     public UniformBuffer<ViewConstants>? ViewBuffer { get; set; }
     public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
-    private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
+    internal readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
     private readonly Frustum barnLightShadowFrustum = new();
     public Framebuffer? ShadowDepthBuffer { get; private set; }
     public Framebuffer? BarnLightShadowBuffer { get; private set; }
@@ -474,7 +474,7 @@ public class Renderer
 
         using (new GLDebugGroup("Direct Light Shadows"))
         {
-            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, Scene.CulledShadowDrawCalls);
         }
     }
 
@@ -528,8 +528,9 @@ public class Renderer
 
             // This is performing culling mid render, reusing the scene draw lists.
             // Should be in update loop.
-            Scene.SetupBarnLightShadow(barnLightShadowFrustum);
-            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
+            Scene.SetupBarnLightFaceShadow(caster.Light, caster.FaceIndex, barnLightShadowFrustum);
+
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, caster.Light.FaceShadowCache[caster.FaceIndex].DrawCalls!);
         }
 
         GL.Disable(EnableCap.ScissorTest);
@@ -687,7 +688,11 @@ public class Renderer
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera);
 
         Scene.SetupSceneShadows(updateContext.Camera, ShadowDepthBuffer.Width);
-        Scene.LightingInfo.BinBarnLights(Camera.ViewFrustum, Camera.Location);
+
+        if (ViewBuffer.Data.ExperimentalLightsEnabled)
+        {
+            Scene.LightingInfo.BinBarnLights(Camera.ViewFrustum, Camera.Location);
+        }
 
         if (LockedCullFrustum == null)
         {

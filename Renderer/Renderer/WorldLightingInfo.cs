@@ -33,8 +33,10 @@ namespace ValveResourceFormat.Renderer
 
     public struct BinnedShadowCaster
     {
+        public SceneLight Light { get; set; }
         public Matrix4x4 WorldToFrustum { get; set; }
         public ShadowAtlasRegion Region { get; set; }
+        public int FaceIndex { get; set; }
     }
 
     /// <summary>
@@ -407,13 +409,14 @@ namespace ValveResourceFormat.Renderer
                     break;
                 }
 
-                foreach (var face in light.BarnFaces)
+                for (var faceIndex = 0; faceIndex < light.BarnFaces.Length; faceIndex++)
                 {
                     if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
                     {
                         break;
                     }
 
+                    var face = light.BarnFaces[faceIndex];
                     var data = face.GpuData;
 
                     if (light.CastShadows > 0 && atlasRegions.Length > 0)
@@ -422,14 +425,8 @@ namespace ValveResourceFormat.Renderer
 
                         if (region.IsValid)
                         {
-                            var atlasScale = new Vector2(
-                                region.Width / (float)BarnLightShadowAtlasSize,
-                                region.Height / (float)BarnLightShadowAtlasSize
-                            );
-                            var atlasOffset = new Vector2(
-                                region.X / (float)BarnLightShadowAtlasSize,
-                                region.Y / (float)BarnLightShadowAtlasSize
-                            );
+                            var atlasScale = new Vector2(region.Width, region.Height) / BarnLightShadowAtlasSize;
+                            var atlasOffset = new Vector2(region.X, region.Y) / BarnLightShadowAtlasSize;
                             var bakedScale = atlasScale * 0.5f;
                             var bakedOffset = atlasOffset + bakedScale;
 
@@ -442,7 +439,9 @@ namespace ValveResourceFormat.Renderer
                             BinnedShadowCasters.Add(new BinnedShadowCaster
                             {
                                 WorldToFrustum = face.WorldToFrustum,
-                                Region = region
+                                Region = region,
+                                Light = light,
+                                FaceIndex = faceIndex,
                             });
                         }
                         else

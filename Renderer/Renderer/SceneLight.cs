@@ -84,9 +84,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public Vector3[]? PrecomputedSubObbExtents { get; set; }
     public Vector3[]? PrecomputedSubObbAngles { get; set; }
     // Precomputed barn light faces (1 for a barn light, 1-6 for an omni light)
-    public BarnFaceData[]? BarnFaces { get; private set; }
+    public BarnFaceData[] BarnFaces { get; private set; } = [];
     // Marks a barn light dirty. This will recalculate all faces.
     public bool IsDirty { get; set; } = true;
+
+    internal Dictionary<int, (int FrustumHash, DepthOnlyDrawBuckets? DrawCalls)> FaceShadowCache { get; } = [];
 
     public static (bool Accepted, EntityType Type) IsAccepted(string classname)
     {

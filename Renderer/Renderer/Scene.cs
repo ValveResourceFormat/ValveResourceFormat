@@ -1,3 +1,5 @@
+global using DepthOnlyDrawBuckets = System.Collections.Generic.Dictionary<ValveResourceFormat.Renderer.DepthOnlyProgram, System.Collections.Generic.List<ValveResourceFormat.Renderer.MeshBatchRenderer.Request>>;
+
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -126,7 +128,7 @@ namespace ValveResourceFormat.Renderer
             // set render lists to their max capacity
             CollectSceneDrawCalls(new Camera(RendererContext), Frustum.CreateEmpty());
             SetupSceneShadows(new Camera(RendererContext), -1);
-            LightingInfo.BinBarnLights(Frustum.CreateEmpty(), Vector3.Zero);
+            // LightingInfo.BinBarnLights(Frustum.CreateEmpty(), Vector3.Zero);
         }
 
         public void Add(SceneNode node, bool dynamic)
@@ -719,7 +721,8 @@ namespace ValveResourceFormat.Renderer
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null!];
-        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
+        internal DepthOnlyDrawBuckets CulledShadowDrawCalls { get; } = CreateDepthOnlyDrawCallCollection();
+        internal static DepthOnlyDrawBuckets CreateDepthOnlyDrawCallCollection() => new()
         {
             [DepthOnlyProgram.Static] = [],
             [DepthOnlyProgram.Animated] = [],
@@ -743,17 +746,27 @@ namespace ValveResourceFormat.Renderer
 
             CollectShadowDrawCalls(LightingInfo.SunLightFrustum,
                 includeStatic: !LightingInfo.HasBakedShadowsFromLightmap,
-                includeDynamic: true);
+                includeDynamic: true, CulledShadowDrawCalls);
         }
 
-        public void SetupBarnLightShadow(Frustum lightFrustum)
+        public void SetupBarnLightFaceShadow(SceneLight light, int faceIndex, Frustum lightFrustum)
         {
-            CollectShadowDrawCalls(lightFrustum, includeStatic: true, includeDynamic: true);
+            var barnLightFrustumHash = lightFrustum.GetHashCode();
+            ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(light.FaceShadowCache, faceIndex, out _);
+
+            if (entry.FrustumHash == barnLightFrustumHash && entry.DrawCalls is not null)
+            {
+                return;
+            }
+
+            entry.DrawCalls ??= CreateDepthOnlyDrawCallCollection();
+            CollectShadowDrawCalls(lightFrustum, includeStatic: true, includeDynamic: true, entry.DrawCalls);
+            entry.FrustumHash = barnLightFrustumHash;
         }
 
-        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic)
+        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, DepthOnlyDrawBuckets drawBuckets)
         {
-            foreach (var bucket in CulledShadowDrawCalls.Values)
+            foreach (var bucket in drawBuckets.Values)
             {
                 bucket.Clear();
             }
@@ -833,7 +846,7 @@ namespace ValveResourceFormat.Renderer
 
                         var bucket = GetSpecializedDepthOnlyShader(animated, mesh, opaqueCall);
 
-                        CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
+                        drawBuckets[bucket].Add(new MeshBatchRenderer.Request
                         {
                             Mesh = mesh,
                             Call = opaqueCall,
@@ -1025,11 +1038,11 @@ namespace ValveResourceFormat.Renderer
             GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
-        public void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders)
+        public void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders, DepthOnlyDrawBuckets drawCalls)
         {
             renderContext.RenderPass = RenderPass.DepthOnly;
 
-            foreach (var (program, calls) in CulledShadowDrawCalls)
+            foreach (var (program, calls) in drawCalls)
             {
                 renderContext.ReplacementShader = depthOnlyShaders[(int)program];
                 MeshBatchRenderer.Render(calls, renderContext);
