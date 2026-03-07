@@ -310,7 +310,11 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     #endif
 
     CalculateDirectLighting(lighting, mat);
-    CalculateBarnLighting(lighting, mat);
+
+    #if (S_LIGHTMAP_VERSION_MINOR >= 2)
+        CalculateBarnLighting(lighting, mat);
+    #endif
+
     CalculateIndirectLighting(lighting, mat);
 
     return lighting;
