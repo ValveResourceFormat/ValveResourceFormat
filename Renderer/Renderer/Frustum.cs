@@ -47,36 +47,18 @@ namespace ValveResourceFormat.Renderer
         /// <param name="viewProjectionMatrix">Combined view and projection matrix.</param>
         public void Update(in Matrix4x4 viewProjectionMatrix)
         {
-            Planes[0] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 + viewProjectionMatrix.M11,
-                viewProjectionMatrix.M24 + viewProjectionMatrix.M21,
-                viewProjectionMatrix.M34 + viewProjectionMatrix.M31,
-                viewProjectionMatrix.M44 + viewProjectionMatrix.M41));
-            Planes[1] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 - viewProjectionMatrix.M11,
-                viewProjectionMatrix.M24 - viewProjectionMatrix.M21,
-                viewProjectionMatrix.M34 - viewProjectionMatrix.M31,
-                viewProjectionMatrix.M44 - viewProjectionMatrix.M41));
-            Planes[2] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 - viewProjectionMatrix.M12,
-                viewProjectionMatrix.M24 - viewProjectionMatrix.M22,
-                viewProjectionMatrix.M34 - viewProjectionMatrix.M32,
-                viewProjectionMatrix.M44 - viewProjectionMatrix.M42));
-            Planes[3] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 + viewProjectionMatrix.M12,
-                viewProjectionMatrix.M24 + viewProjectionMatrix.M22,
-                viewProjectionMatrix.M34 + viewProjectionMatrix.M32,
-                viewProjectionMatrix.M44 + viewProjectionMatrix.M42));
-            Planes[4] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M13,
-                viewProjectionMatrix.M23,
-                viewProjectionMatrix.M33,
-                viewProjectionMatrix.M43));
-            Planes[5] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 - viewProjectionMatrix.M13,
-                viewProjectionMatrix.M24 - viewProjectionMatrix.M23,
-                viewProjectionMatrix.M34 - viewProjectionMatrix.M33,
-                viewProjectionMatrix.M44 - viewProjectionMatrix.M43));
+            var m = viewProjectionMatrix;
+            var c1 = new Vector4(m.M11, m.M21, m.M31, m.M41);
+            var c2 = new Vector4(m.M12, m.M22, m.M32, m.M42);
+            var c3 = new Vector4(m.M13, m.M23, m.M33, m.M43);
+            var c4 = new Vector4(m.M14, m.M24, m.M34, m.M44);
+
+            Planes[0] = Plane.Normalize(new Plane(c4 + c1)); // Left
+            Planes[1] = Plane.Normalize(new Plane(c4 - c1)); // Right
+            Planes[2] = Plane.Normalize(new Plane(c4 - c2)); // Top
+            Planes[3] = Plane.Normalize(new Plane(c4 + c2)); // Bottom
+            Planes[4] = Plane.Normalize(new Plane(c3));       // Near
+            Planes[5] = Plane.Normalize(new Plane(c4 - c3)); // Far
         }
 
         /// <summary>

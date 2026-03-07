@@ -56,6 +56,29 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Parses a string representation of a Vector2.
+        /// </summary>
+        /// <param name="input">The input string.</param>
+        /// <returns>The parsed vector.</returns>
+        public static Vector2 ParseVector2(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return default;
+            }
+            var split = input.Split(' ');
+
+            if (split.Length != 2)
+            {
+                return default;
+            }
+
+            return new Vector2(
+                float.Parse(split[0], CultureInfo.InvariantCulture),
+                float.Parse(split[1], CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>
         /// Parses a string representation of a Vector3.
         /// </summary>
         /// <param name="input">The input string.</param>

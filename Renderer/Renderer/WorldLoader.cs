@@ -479,6 +479,7 @@ namespace ValveResourceFormat.Renderer
                     var lightNode = SceneLight.FromEntityProperties(scene, light.Type, entity);
                     lightNode.Transform = transformationMatrix;
                     lightNode.LayerName = layerName;
+                    lightNode.Flags |= ObjectTypeFlags.NoShadows;
                     scene.Add(lightNode, true);
                 }
                 else if (classname == "point_template")
@@ -980,9 +981,11 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
+                var entityFlags = light.Accepted ? ObjectTypeFlags.NoShadows : ObjectTypeFlags.None;
+
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix, entityFlags);
                     return;
                 }
 
@@ -1030,6 +1033,8 @@ namespace ValveResourceFormat.Renderer
                     Name = model,
                     EntityData = entity,
                 };
+
+                modelNode.Flags |= entityFlags;
 
                 if (modelNode.HasMeshes)
                 {
@@ -1236,7 +1241,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, string layerName, Matrix4x4 transformationMatrix)
+        private void CreateDefaultEntity(Entity entity, string classname, string layerName, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None)
         {
             var hammerEntity = HammerEntities.Get(classname);
             string? filename = null;
@@ -1270,6 +1275,7 @@ namespace ValveResourceFormat.Renderer
                     LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
+                    Flags = flags,
                 };
                 scene.Add(boxNode, true);
             }
@@ -1282,6 +1288,7 @@ namespace ValveResourceFormat.Renderer
                 modelNode.Transform = transformationMatrix;
                 modelNode.LayerName = layerName;
                 modelNode.EntityData = entity;
+                modelNode.Flags |= flags;
 
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 
@@ -1294,6 +1301,7 @@ namespace ValveResourceFormat.Renderer
                     LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
+                    Flags = flags,
                 };
                 scene.Add(spriteNode, true);
             }

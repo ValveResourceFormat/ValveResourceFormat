@@ -48,6 +48,8 @@
 #include "pbr.slang"
 #include "environment.slang"
 
+#include "lighting.barn.slang"
+
 // https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
 float attenuate_cusp(float s, float falloff)
 {
@@ -142,19 +144,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
                 }
                 else
                 {
-                    if (!g_bExperimentalLightsEnabled)
-                    {
-                        continue;
-                    }
-
-                    float flInvRange = g_vLightDirection_InvRange[uLightIndex].a * 0.5;
-                    vec3 vLightPosition = g_vLightPosition_Type[uLightIndex].xyz;
-                    float flDistance = length(vLightPosition - mat.PositionWS);
-                    float flFallOff = g_vLightFallOff[uLightIndex].x;
-
-                    // 0.0 near the light, 1.0 at the light maximum range
-                    float flDistanceOverRange = flDistance * flInvRange;
-                    visibility *= attenuate_cusp(flDistanceOverRange, flFallOff);
+                    continue;
                 }
 
                 if (visibility > MIN_ALPHA)
@@ -162,6 +152,11 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
                     vec3 lightColor = GetLightColor(uLightIndex);
                     CalculateShading(lighting, lightVector, visibility * lightColor, mat);
                 }
+            }
+
+            if (g_bExperimentalLightsEnabled)
+            {
+                CalculateBarnLighting(lighting, mat, dlsh);
             }
         }
     #else

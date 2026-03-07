@@ -89,6 +89,7 @@ public class Framebuffer
     /// </summary>
     public record class DepthAttachmentFormat(PixelInternalFormat InternalFormat, PixelType PixelType)
     {
+        public static readonly DepthAttachmentFormat Depth16 = new(PixelInternalFormat.DepthComponent16, PixelType.UnsignedShort);
         public static readonly DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);
         public static readonly DepthAttachmentFormat Depth32FStencil8 = new(PixelInternalFormat.Depth32fStencil8, PixelType.Float32UnsignedInt248Rev);
 

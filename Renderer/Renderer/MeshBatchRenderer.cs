@@ -4,7 +4,7 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
-    static class MeshBatchRenderer
+    public static class MeshBatchRenderer
     {
         /// <summary>
         /// Draw call request with distance and render order for sorting.
@@ -12,15 +12,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
         [DebuggerDisplay("{Node.DebugName,nq}")]
 #endif
-        public struct Request
-        {
-            public RenderableMesh Mesh;
-            public DrawCall? Call;
-            public float DistanceFromCamera;
-            public int RenderOrder;
-            public SceneNode Node;
-        }
-
+        public record struct Request(RenderableMesh Mesh, DrawCall? Call, float DistanceFromCamera, int RenderOrder, SceneNode Node);
         record struct BatchRequest(RenderableMesh Mesh, DrawCall Call, SceneNode Node);
 
         public static int CompareCustomPipeline(Request a, Request b)
