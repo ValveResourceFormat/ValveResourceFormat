@@ -472,7 +472,7 @@ public class Renderer
         ViewBuffer.Data.SunLightShadowBias = Scene.LightingInfo.SunLightShadowBias;
         ViewBuffer.Update();
 
-        using (new GLDebugGroup("Scene Shadows"))
+        using (new GLDebugGroup("Direct Light Shadows"))
         {
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
         }

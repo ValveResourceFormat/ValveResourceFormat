@@ -89,7 +89,7 @@ namespace ValveResourceFormat.Renderer
         private readonly List<ShadowRequest> ShadowRequests = [];
         private readonly ShadowAtlasPacker BarnLightPacker = new();
 
-        private List<SceneLight>? BarnLightEntities;
+        private readonly List<SceneLight> BarnLightEntities = [];
         private Dictionary<string, int>? BarnLightCookiePaths;
         private StorageBuffer? BarnLightStorageBuffer;
         public List<BinnedShadowCaster> BinnedShadowCasters { get; } = [];
@@ -312,7 +312,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            BarnLightEntities = filtered;
+            BarnLightEntities.AddRange(filtered);
             RebuildCookieAtlas();
         }
 
@@ -338,6 +338,7 @@ namespace ValveResourceFormat.Renderer
                 : (w * cap / maxDim, h * cap / maxDim);
         }
 
+        private bool barnLightsLoggedOnce;
         public void BinBarnLights(Frustum cameraFrustum, Vector3 cameraPosition)
         {
             LightingData.NumBarnLights = 0;
@@ -457,9 +458,10 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
+            if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS && !barnLightsLoggedOnce)
             {
                 scene.RendererContext.Logger.LogWarning("Max barn light count ({Max}) reached, some lights will be missing", BarnLightConstants.MAX_BARN_LIGHTS);
+                barnLightsLoggedOnce = true;
             }
 
             BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, (int)LightingData.NumBarnLights * Unsafe.SizeOf<BarnLightConstants>());
