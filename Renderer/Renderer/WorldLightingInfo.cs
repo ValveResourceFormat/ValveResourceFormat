@@ -279,6 +279,31 @@ namespace ValveResourceFormat.Renderer
 
         public void StoreLightMappedLights_V2(List<SceneLight> lights)
         {
+            // This loop is required for environment (sun) lights.
+            // I don't know if there can be multiple instances, but just to be safe
+            var envCount = 0u;
+            foreach (var light in lights)
+            {
+                if (light.Entity != SceneLight.EntityType.Environment)
+                {
+                    continue;
+                }
+
+                if (envCount >= LightingConstants.MAX_LIGHTS)
+                {
+                    break;
+                }
+
+                LightingData.LightPosition_Type[envCount] = new Vector4(light.Position, (int)light.Type);
+                LightingData.LightDirection_InvRange[envCount] = new Vector4(light.Direction, 1.0f / light.Range);
+                LightingData.LightToWorld[envCount] = light.Transform;
+                LightingData.LightColor_Brightness[envCount] = new Vector4(ColorSpace.SrgbGammaToLinear(light.Color), light.Brightness);
+                LightingData.LightFallOff[envCount] = new Vector4(light.FallOff, light.Range, 0.0f, 0.0f);
+                envCount++;
+            }
+
+            LightingData.NumLightsBakedShadowIndex[0] = envCount;
+
             var filtered = lights.Where(SceneLight.IsDynamicLight).ToList();
 
             if (filtered.Count == 0)
