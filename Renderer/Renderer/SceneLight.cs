@@ -85,6 +85,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public Vector3[]? PrecomputedSubObbAngles { get; set; }
     // Precomputed barn light faces (1 for a barn light, 1-6 for an omni light)
     public BarnFaceData[]? BarnFaces { get; private set; }
+    // Marks a barn light dirty. This will recalculate all faces.
+    public bool IsDirty { get; set; } = true;
 
     public static (bool Accepted, EntityType Type) IsAccepted(string classname)
     {
@@ -244,11 +246,16 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     {
         if (Entity == EntityType.Barn)
         {
-            BarnFaces = [ComputeBarnLightFace(this, cookiePaths)];
+            if (BarnFaces is not { Length: 1 })
+            {
+                BarnFaces = new BarnFaceData[1];
+            }
+
+            BarnFaces[0] = ComputeBarnLightFace(this, cookiePaths);
         }
         else if (Entity == EntityType.Omni2)
         {
-            BarnFaces = ComputeOmni2Faces(this, cookiePaths);
+            ComputeOmni2Faces(this, cookiePaths);
         }
     }
 
@@ -351,7 +358,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         };
     }
 
-    private static BarnFaceData[] ComputeOmni2Faces(SceneLight light, Dictionary<string, int> cookiePaths)
+    private static void ComputeOmni2Faces(SceneLight light, Dictionary<string, int> cookiePaths)
     {
         var noTranslation = light.Transform with { Translation = Vector3.Zero };
         var forward = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, noTranslation));
@@ -364,6 +371,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             ? MathF.Max(light.Range - heightOffset, 0f) * MathF.Sin(angleRad) + heightOffset
             : light.Range;
         var faceCount = GetOmni2FaceCount(light.SpotOuterAngle, heightOffset);
+
+        if (light.BarnFaces is not { Length: var currentLen } || currentLen != faceCount)
+        {
+            light.BarnFaces = new BarnFaceData[faceCount];
+        }
 
         var origin = light.Transform.Translation;
         var nearPlane = 1f / MathF.Max(light.SizeParams.Z, 0.0001f);
@@ -415,23 +427,20 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             };
         }
 
-        var faces = new BarnFaceData[faceCount];
-        faces[0] = MakeFace(forward, up, light.Range, 0);
+        light.BarnFaces[0] = MakeFace(forward, up, light.Range, 0);
 
         if (faceCount >= 5)
         {
-            faces[1] = MakeFace(-up, forward, sideRange, 1);
-            faces[2] = MakeFace(up, -forward, sideRange, 2);
-            faces[3] = MakeFace(right, up, sideRange, 3);
-            faces[4] = MakeFace(-right, up, sideRange, 4);
+            light.BarnFaces[1] = MakeFace(-up, forward, sideRange, 1);
+            light.BarnFaces[2] = MakeFace(up, -forward, sideRange, 2);
+            light.BarnFaces[3] = MakeFace(right, up, sideRange, 3);
+            light.BarnFaces[4] = MakeFace(-right, up, sideRange, 4);
         }
 
         if (faceCount >= 6)
         {
-            faces[5] = MakeFace(-forward, up, MathF.Abs(MathF.Cos(angleRad)) * light.Range, 5);
+            light.BarnFaces[5] = MakeFace(-forward, up, MathF.Abs(MathF.Cos(angleRad)) * light.Range, 5);
         }
-
-        return faces;
     }
 
     private static Vector3 ComputeOmni2Color(SceneLight light)

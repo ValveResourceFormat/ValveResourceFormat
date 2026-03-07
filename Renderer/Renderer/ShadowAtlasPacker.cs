@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -18,36 +19,44 @@ public struct ShadowAtlasRegion
     public bool IsValid => Width > 0 && Height > 0;
 }
 
-public static class ShadowAtlasPacker
+public class ShadowAtlasPacker
 {
-    public static ShadowAtlasRegion[] Pack(int atlasSize, ShadowRequest[] requests)
-    {
-        var count = requests.Length;
-        var regions = new ShadowAtlasRegion[count];
+    private ShadowAtlasRegion[] regions = [];
+    private (int Height, int Width, int Index)[] sortBuffer = [];
 
+    public Span<ShadowAtlasRegion> Pack(int atlasSize, List<ShadowRequest> requests)
+    {
+        var count = requests.Count;
         if (count == 0)
         {
-            return regions;
+            return [];
         }
 
-        var sorted = new int[count];
+        if (regions.Length < count)
+        {
+            regions = new ShadowAtlasRegion[int.Max(count, regions.Length * 2)];
+        }
+
+        if (sortBuffer.Length < count)
+        {
+            sortBuffer = new (int, int, int)[int.Max(count, sortBuffer.Length * 2)];
+        }
+
         for (var i = 0; i < count; i++)
         {
-            sorted[i] = i;
+            sortBuffer[i] = (requests[i].Height, requests[i].Width, i);
         }
 
-        Array.Sort(sorted, (a, b) =>
-        {
-            var cmp = requests[b].Height.CompareTo(requests[a].Height);
-            return cmp != 0 ? cmp : requests[b].Width.CompareTo(requests[a].Width);
-        });
+        sortBuffer.AsSpan(0, count).Sort();
+        regions.AsSpan(0, count).Clear();
 
         var penX = 0;
         var shelfY = 0;
         var shelfHeight = 0;
 
-        foreach (var idx in sorted)
+        for (var s = count - 1; s >= 0; s--)
         {
+            var idx = sortBuffer[s].Index;
             var w = requests[idx].Width;
             var h = requests[idx].Height;
 
@@ -80,6 +89,6 @@ public static class ShadowAtlasPacker
             penX += w;
         }
 
-        return regions;
+        return regions.AsSpan(0, count);
     }
 }

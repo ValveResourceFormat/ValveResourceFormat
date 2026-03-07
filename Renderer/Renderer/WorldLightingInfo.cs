@@ -86,6 +86,8 @@ namespace ValveResourceFormat.Renderer
         ];
 
         private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
+        private readonly List<ShadowRequest> ShadowRequests = [];
+        private readonly ShadowAtlasPacker BarnLightPacker = new();
 
         private List<SceneLight>? BarnLightEntities;
         private Dictionary<string, int>? BarnLightCookiePaths;
@@ -277,11 +279,6 @@ namespace ValveResourceFormat.Renderer
 
         public void StoreLightMappedLights_V2(List<SceneLight> lights)
         {
-            InitializeBarnLights(lights);
-        }
-
-        public void InitializeBarnLights(List<SceneLight> lights)
-        {
             var filtered = lights.Where(SceneLight.IsDynamicLight).ToList();
 
             if (filtered.Count == 0)
@@ -327,8 +324,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            var visibleLights = new List<SceneLight>();
-            var shadowRequests = new List<ShadowRequest>();
+            ShadowRequests.Clear();
 
             foreach (var light in BarnLightEntities)
             {
@@ -337,15 +333,16 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                // TODO: Don't compute all variables every time when lights don't change
-                light.ComputeBarnFaces(BarnLightCookiePaths!);
+                if (light.IsDirty)
+                {
+                    light.ComputeBarnFaces(BarnLightCookiePaths!);
+                    light.IsDirty = false;
+                }
 
                 if (light.BarnFaces is null)
                 {
                     continue;
                 }
-
-                visibleLights.Add(light);
 
                 if (light.CastShadows > 0)
                 {
@@ -355,26 +352,36 @@ namespace ValveResourceFormat.Renderer
 
                     for (var i = 0; i < light.BarnFaces.Length; i++)
                     {
-                        shadowRequests.Add(new ShadowRequest { Width = w, Height = h });
+                        ShadowRequests.Add(new ShadowRequest { Width = w, Height = h });
                     }
                 }
             }
 
-            ShadowAtlasRegion[]? atlasRegions = null;
-            if (shadowRequests.Count > 0)
+            Span<ShadowAtlasRegion> atlasRegions = [];
+            if (ShadowRequests.Count > 0)
             {
-                atlasRegions = ShadowAtlasPacker.Pack(BarnLightShadowAtlasSize, shadowRequests.ToArray());
+                atlasRegions = BarnLightPacker.Pack(BarnLightShadowAtlasSize, ShadowRequests);
             }
 
             var requestIndex = 0;
-            foreach (var light in visibleLights)
+            foreach (var light in BarnLightEntities)
             {
+                if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
+                {
+                    continue;
+                }
+
+                if (light.BarnFaces is null)
+                {
+                    continue;
+                }
+
                 if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
                 {
                     break;
                 }
 
-                foreach (var face in light.BarnFaces!)
+                foreach (var face in light.BarnFaces)
                 {
                     if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
                     {
@@ -383,7 +390,7 @@ namespace ValveResourceFormat.Renderer
 
                     var data = face.GpuData;
 
-                    if (light.CastShadows > 0 && atlasRegions != null)
+                    if (light.CastShadows > 0 && atlasRegions.Length > 0)
                     {
                         var region = atlasRegions[requestIndex++];
 
