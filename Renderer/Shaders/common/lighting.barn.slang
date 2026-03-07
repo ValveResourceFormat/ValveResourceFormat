@@ -70,7 +70,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, inout MaterialPropert
     vec4 bakedShadow = vec4(0.0);
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1 && S_LIGHTMAP_VERSION_MINOR >= 2)
         bakedShadow = textureLod(g_tDirectLightShadows, mat.LightmapUv, 0.0);
-    #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
+    #elif (D_BAKED_LIGHTING_FROM_PROBE == 1 && S_LIGHTMAP_VERSION_MINOR >= 2)
         bakedShadow = textureLod(g_tLPV_Shadows, CalculateProbeShadowCoords(mat.PositionWS), 0.0);
     #endif
 
