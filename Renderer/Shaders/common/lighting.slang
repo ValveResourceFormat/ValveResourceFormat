@@ -144,19 +144,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
                 }
                 else
                 {
-                    if (!g_bExperimentalLightsEnabled)
-                    {
-                        continue;
-                    }
-
-                    float flInvRange = g_vLightDirection_InvRange[uLightIndex].a * 0.5;
-                    vec3 vLightPosition = g_vLightPosition_Type[uLightIndex].xyz;
-                    float flDistance = length(vLightPosition - mat.PositionWS);
-                    float flFallOff = g_vLightFallOff[uLightIndex].x;
-
-                    // 0.0 near the light, 1.0 at the light maximum range
-                    float flDistanceOverRange = flDistance * flInvRange;
-                    visibility *= attenuate_cusp(flDistanceOverRange, flFallOff);
+                    continue;
                 }
 
                 if (visibility > MIN_ALPHA)
@@ -164,6 +152,11 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
                     vec3 lightColor = GetLightColor(uLightIndex);
                     CalculateShading(lighting, lightVector, visibility * lightColor, mat);
                 }
+            }
+
+            if (g_bExperimentalLightsEnabled)
+            {
+                CalculateBarnLighting(lighting, mat, dlsh);
             }
         }
     #else
@@ -310,11 +303,6 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     #endif
 
     CalculateDirectLighting(lighting, mat);
-
-    #if (S_LIGHTMAP_VERSION_MINOR >= 2)
-        CalculateBarnLighting(lighting, mat);
-    #endif
-
     CalculateIndirectLighting(lighting, mat);
 
     return lighting;

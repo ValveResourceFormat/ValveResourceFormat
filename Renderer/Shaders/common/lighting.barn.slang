@@ -62,18 +62,8 @@ float ComputeBarnLightShadow_PCF_3x3_Gaussian(vec2 shadowUV, float shadowRef, ve
     return shadow;
 }
 
-void CalculateBarnLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
+void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
 {
-    if (!g_bExperimentalLightsEnabled)
-        return;
-
-    vec4 bakedShadow = vec4(0.0);
-    #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1 && S_LIGHTMAP_VERSION_MINOR >= 2)
-        bakedShadow = textureLod(g_tDirectLightShadows, mat.LightmapUv, 0.0);
-    #elif (D_BAKED_LIGHTING_FROM_PROBE == 1 && S_LIGHTMAP_VERSION_MINOR >= 2)
-        bakedShadow = textureLod(g_tLPV_Shadows, CalculateProbeShadowCoords(mat.PositionWS), 0.0);
-    #endif
-
     // No tile culling
     for (uint i = 0; i < g_nNumBarnLights; i++)
     {

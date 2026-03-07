@@ -525,6 +525,9 @@ public class Renderer
             ViewBuffer.Update();
 
             barnLightShadowFrustum.Update(caster.WorldToFrustum);
+
+            // This is performing culling mid render, reusing the scene draw lists.
+            // Should be in update loop.
             Scene.SetupBarnLightShadow(barnLightShadowFrustum);
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
         }
