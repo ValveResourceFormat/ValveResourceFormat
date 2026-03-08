@@ -280,15 +280,15 @@ public class Framebuffer
         }
     }
 
-    public void SetShadowDepthSamplerState(bool gEqualCompare = false)
+    public void SetShadowDepthSamplerState(bool lEqualCompare = false)
     {
         if (Depth != null)
         {
             Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
 
-            if (gEqualCompare)
+            if (lEqualCompare)
             {
-                Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Gequal);
+                Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Lequal);
             }
 
             Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);

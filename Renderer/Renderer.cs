@@ -486,8 +486,9 @@ public class Renderer
         using var _ = new GLDebugGroup("Barn Light Shadows");
         Debug.Assert(BarnLightShadowBuffer != null);
 
-        // Reverse Z without flipping the projection matrix
-        GL.DepthRange(1.0, 0.0);
+        GL.DepthFunc(DepthFunction.Lequal);
+        GL.DepthRange(0.0, 1.0);
+        GL.ClearDepth(1.0);
         GL.FrontFace(FrontFaceDirection.Cw);
 
         GL.Enable(EnableCap.PolygonOffsetFill);
@@ -539,7 +540,7 @@ public class Renderer
 
         GL.FrontFace(FrontFaceDirection.Ccw);
         GL.DepthFunc(DepthFunction.Greater);
-        GL.DepthRange(0.0, 1.0);
+        GL.ClearDepth(0.0);
     }
 
     private void ComputeAverageLuminance(Scene.RenderContext renderContext)
