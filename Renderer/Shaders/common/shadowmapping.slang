@@ -5,7 +5,7 @@
 
 #include "ViewConstants.slang"
 
-uniform sampler2DShadow g_tShadowDepthBufferDepth;
+uniform layout(binding = 13) sampler2DShadow g_tShadowDepthBufferDepth;
 
 float CalculateSunShadowMapVisibility(vec3 vPosition)
 {

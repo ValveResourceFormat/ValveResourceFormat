@@ -89,6 +89,7 @@ public class Framebuffer
     /// </summary>
     public record class DepthAttachmentFormat(PixelInternalFormat InternalFormat, PixelType PixelType)
     {
+        public static readonly DepthAttachmentFormat Depth16 = new(PixelInternalFormat.DepthComponent16, PixelType.UnsignedShort);
         public static readonly DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);
         public static readonly DepthAttachmentFormat Depth32FStencil8 = new(PixelInternalFormat.Depth32fStencil8, PixelType.Float32UnsignedInt248Rev);
 
@@ -157,16 +158,17 @@ public class Framebuffer
         Resize(width, height);
     }
 
-    public void Resize(int width, int height)
+    public bool Resize(int width, int height)
     {
         if (width == Width && height == Height)
         {
-            return;
+            return false;
         }
 
         Width = width;
         Height = height;
         CreateAttachments();
+        return true;
     }
 
     private void CreateAttachments()
@@ -275,6 +277,22 @@ public class Framebuffer
         if (Stencil != null)
         {
             GL.DeleteTexture(Stencil.Handle);
+        }
+    }
+
+    public void SetShadowDepthSamplerState(bool lEqualCompare = false)
+    {
+        if (Depth != null)
+        {
+            Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
+
+            if (lEqualCompare)
+            {
+                Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Lequal);
+            }
+
+            Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            Depth.SetWrapMode(TextureWrapMode.ClampToEdge);
         }
     }
 }

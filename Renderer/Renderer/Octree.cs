@@ -322,6 +322,31 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            public void QueryNoOcclusion(Frustum frustum, List<SceneNode> results)
+            {
+                if (HasElements)
+                {
+                    foreach (var element in Elements!)
+                    {
+                        if (frustum.Intersects(element.BoundingBox))
+                        {
+                            results.Add(element);
+                        }
+                    }
+                }
+
+                if (HasChildren)
+                {
+                    foreach (var child in Children)
+                    {
+                        if (frustum.Intersects(child.Region))
+                        {
+                            child.QueryNoOcclusion(frustum, results);
+                        }
+                    }
+                }
+            }
+
             /// <summary>
             /// Calculates the combined bounding box of all elements in this node and its children.
             /// </summary>

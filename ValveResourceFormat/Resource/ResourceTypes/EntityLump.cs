@@ -85,6 +85,30 @@ namespace ValveResourceFormat.ResourceTypes
             public bool ContainsKey(string name) => Properties.Properties.ContainsKey(name);
 
             /// <summary>
+            /// Gets a Vector2 property value by name.
+            /// </summary>
+            /// <param name="name">The property name.</param>
+            /// <param name="defaultValue">The default value to return if the property is not found.</param>
+            /// <returns>The Vector2 property value or the default value.</returns>
+            public Vector2 GetVector2Property(string name, Vector2 defaultValue = default)
+            {
+                if (Properties.Properties.TryGetValue(name, out var value))
+                {
+                    if (value.Value is KVObject kv)
+                    {
+                        return kv.ToVector2();
+                    }
+
+                    if (value.Value is string editString)
+                    {
+                        return EntityTransformHelper.ParseVector2(editString);
+                    }
+                }
+
+                return defaultValue;
+            }
+
+            /// <summary>
             /// Gets a Vector3 property value by name.
             /// </summary>
             /// <param name="name">The property name.</param>

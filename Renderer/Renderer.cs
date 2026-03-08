@@ -27,8 +27,10 @@ public class Renderer
     public UniformBuffer<ViewConstants>? ViewBuffer { get; set; }
     public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
-    private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
+    internal readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
+    private readonly Frustum barnLightShadowFrustum = new();
     public Framebuffer? ShadowDepthBuffer { get; private set; }
+    public Framebuffer? BarnLightShadowBuffer { get; private set; }
     /// <summary>
     /// Resolved (non-MSAA) scene color in rgba16f format, used for refraction, bloom input, and luminance computation.
     /// Filled by <see cref="GrabFramebufferCopy"/>.
@@ -74,12 +76,19 @@ public class Renderer
 
         GL.DrawBuffer(DrawBufferMode.None);
         GL.ReadBuffer(ReadBufferMode.None);
+        ShadowDepthBuffer.SetShadowDepthSamplerState();
         Textures.Add(new(ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth));
 
-        GL.TextureParameter(ShadowDepthBuffer.Depth!.Handle, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-        ShadowDepthBuffer.Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-        ShadowDepthBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-        ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
+        // Barn light shadow atlas
+        BarnLightShadowBuffer = Framebuffer.Prepare(nameof(BarnLightShadowBuffer), 4, 4, 0, null, Framebuffer.DepthAttachmentFormat.Depth16);
+        BarnLightShadowBuffer.Initialize();
+        BarnLightShadowBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
+        Debug.Assert(BarnLightShadowBuffer.Depth != null);
+
+        GL.DrawBuffer(DrawBufferMode.None);
+        GL.ReadBuffer(ReadBufferMode.None);
+        BarnLightShadowBuffer.SetShadowDepthSamplerState(true);
+        Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth));
 
         depthOnlyShaders[(int)DepthOnlyProgram.Static] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only");
         //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", ("F_ALPHA_TEST", 1));
@@ -286,6 +295,7 @@ public class Renderer
     public void Render(Scene.RenderContext renderContext)
     {
         RenderSceneShadows(renderContext);
+        RenderBarnLightShadows(renderContext);
         RenderScenesWithView(renderContext);
     }
 
@@ -453,7 +463,84 @@ public class Renderer
         ViewBuffer.Data.SunLightShadowBias = Scene.LightingInfo.SunLightShadowBias;
         ViewBuffer.Update();
 
-        Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
+        using (new GLDebugGroup("Direct Light Shadows"))
+        {
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, Scene.CulledShadowDrawCalls);
+        }
+    }
+
+    private void RenderBarnLightShadows(Scene.RenderContext renderContext)
+    {
+        Debug.Assert(ViewBuffer != null);
+
+        if (!ViewBuffer.Data!.ExperimentalLightsEnabled)
+        {
+            return;
+        }
+
+        if (Scene.LightingInfo.BinnedShadowCasters.Count == 0)
+        {
+            return;
+        }
+
+        using var _ = new GLDebugGroup("Barn Light Shadows");
+        Debug.Assert(BarnLightShadowBuffer != null);
+
+        GL.DepthFunc(DepthFunction.Lequal);
+        GL.DepthRange(0.0, 1.0);
+        GL.ClearDepth(1.0);
+        GL.FrontFace(FrontFaceDirection.Cw);
+
+        GL.Enable(EnableCap.PolygonOffsetFill);
+        GL.PolygonOffset(2f, 0f);
+
+        BarnLightShadowBuffer.Bind(FramebufferTarget.Framebuffer);
+
+        var atlasSize = ShadowTextureSize;
+        Scene.LightingInfo.BarnLightShadowAtlasSize = atlasSize;
+
+        if (BarnLightShadowBuffer.Resize(atlasSize, atlasSize))
+        {
+            BarnLightShadowBuffer.SetShadowDepthSamplerState(true);
+            Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.BarnLightShadowDepth);
+            Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth!));
+        }
+
+        GL.Enable(EnableCap.ScissorTest);
+        GL.Viewport(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
+        GL.Scissor(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
+        GL.Clear(ClearBufferMask.DepthBufferBit);
+
+        foreach (var caster in Scene.LightingInfo.BinnedShadowCasters)
+        {
+            var region = caster.Region;
+
+            if (region.Width == 0)
+            {
+                continue;
+            }
+
+            GL.Viewport(region.X, region.Y, region.Width, region.Height);
+            GL.Scissor(region.X, region.Y, region.Width, region.Height);
+
+            ViewBuffer.Data.WorldToProjection = caster.WorldToFrustum;
+            ViewBuffer.Update();
+
+            barnLightShadowFrustum.Update(caster.WorldToFrustum);
+
+            // This is performing culling mid render, reusing the scene draw lists.
+            // Should be in update loop.
+            Scene.SetupBarnLightFaceShadow(caster.Light, caster.FaceIndex, barnLightShadowFrustum);
+
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, caster.Light.FaceShadowCache[caster.FaceIndex].DrawCalls!);
+        }
+
+        GL.Disable(EnableCap.ScissorTest);
+        GL.Disable(EnableCap.PolygonOffsetFill);
+
+        GL.FrontFace(FrontFaceDirection.Ccw);
+        GL.DepthFunc(DepthFunction.Greater);
+        GL.ClearDepth(0.0);
     }
 
     private void ComputeAverageLuminance(Scene.RenderContext renderContext)
@@ -603,6 +690,11 @@ public class Renderer
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera);
 
         Scene.SetupSceneShadows(updateContext.Camera, ShadowDepthBuffer.Width);
+
+        if (ViewBuffer.Data.ExperimentalLightsEnabled)
+        {
+            Scene.LightingInfo.BinBarnLights(Camera.ViewFrustum, Camera.Location);
+        }
 
         if (LockedCullFrustum == null)
         {
