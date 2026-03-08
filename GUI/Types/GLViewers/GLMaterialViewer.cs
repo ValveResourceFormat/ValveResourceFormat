@@ -17,7 +17,6 @@ namespace GUI.Types.GLViewers
 {
     /// <summary>
     /// GL Render control with material controls (render modes maybe at some point?).
-    /// Renders a list of MatarialRenderers.
     /// </summary>
     class GLMaterialViewer : GLSingleNodeViewer
     {

@@ -10,7 +10,7 @@ uniform float g_flOutlineIntensity = 2.25;
 
 layout (binding = 0) uniform usampler2DMS g_tStencilBuffer;
 
-void SampleStencilMSAA(ivec2 pixelCoords, out uint insideCount, out int totalSamples)
+void SampleStencilMSAA(ivec2 pixelCoords, inout uint insideCount, inout int totalSamples)
 {
     for (int i = 0; i < g_nNumSamplesMSAA; i++)
     {

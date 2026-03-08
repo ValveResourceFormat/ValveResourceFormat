@@ -42,7 +42,7 @@ layout(binding = 0) uniform sampler2D g_tDepthPyramid;
 uniform int g_nDepthPyramidMaxMip;
 uniform int g_nDepthPyramidWidth;
 uniform int g_nDepthPyramidHeight;
-uniform float g_flDepthPyramidCameraOffset;
+//uniform float g_flDepthPyramidCameraOffset;
 uniform float g_flDepthRangeMin;
 uniform float g_flDepthRangeMax;
 uniform bool g_bOcclusionCullEnabled;
@@ -51,7 +51,7 @@ uniform bool g_bOcclusionCullEnabled;
 bool testAABBOcclusion(vec3 bmin, vec3 bmax)
 {
     // Offset camera forward to reduce false occlusions
-    vec3 cameraOffset = g_vCameraDirWs * g_flDepthPyramidCameraOffset;
+    //vec3 cameraOffset = g_vCameraDirWs * g_flDepthPyramidCameraOffset;
 
     // Project all 8 corners to clip space
     vec4 corners[8];

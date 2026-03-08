@@ -166,10 +166,8 @@ namespace ValveResourceFormat.Renderer
 
                 if (shaderName == "vrf.depth_only" && arguments.Count == 0)
                 {
-                    lock (sources)
-                    {
-                        sources.Remove(ShaderProgramType.Fragment);
-                    }
+                    sources = new(sources);
+                    sources.Remove(ShaderProgramType.Fragment);
                 }
 
                 static ShaderType ToShaderType(ShaderProgramType type) => type switch

@@ -471,24 +471,12 @@ namespace GUI.Types.GLViewers
                 var moreThanSixEllipsis = coloredMaterialNames.Count > 6 ? "..." : string.Empty;
                 var allColoredMaterials = string.Join("\\#FFFFFFFF, ", coloredMaterialNames.Take(6)) + "\\#FFFFFFFF" + moreThanSixEllipsis;
 
-                static string FormatSize(int bytes)
-                {
-                    if (bytes >= 1024)
-                    {
-                        return $"{bytes / 1024.0 / 1024.0:N4} MiB";
-                    }
-                    else
-                    {
-                        return $"{bytes / 1024.0:N4} KiB";
-                    }
-                }
-
                 sb.Append(CultureInfo.InvariantCulture,
                     $"""
 
                     Mesh '{meshName}':
-                        Vertices  : {vertexTotal:N0} | {FormatSize(vertexBufferSize)}
-                        Triangles : {triangleTotal:N0} | {FormatSize(indexBufferSize)}
+                        Vertices  : {vertexTotal:N0} | {HumanReadableByteSizeFormatter.Format(vertexBufferSize)}
+                        Triangles : {triangleTotal:N0} | {HumanReadableByteSizeFormatter.Format(indexBufferSize)}
 
                     """
                 );

@@ -21,7 +21,7 @@ Option                        | Description
 `--all` (or `-a`)             | Print the content of each resource block in the file.
 `--block` (or `-b`)           | Print the content of a specific block, example: DATA, RERL, REDI, NTRO.
 `--vpk_decompile` (or `-d`)   | Decompile supported resource files.
-`--texture_decode_flags`      | Decompile textures with specified decode flags. Options: "none", "auto", "foceldr". Default: "auto".
+`--texture_decode_flags`      | Decompile textures with specified decode flags. Options: "none", "auto", "ForceLDR". Default: "auto".
 `--vpk_list` (or `-l`)        | Lists all resources in given VPK. File extension and path filters apply.
 `--vpk_dir`                   | Print a list of files in given VPK and information about them.
 | **Type specific export**    | |
