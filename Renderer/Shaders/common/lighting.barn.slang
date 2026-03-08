@@ -18,7 +18,7 @@ struct BarnLightConstants
     float m_fBarnLightShadowScale;
     // PathTraceIndex (short) is not used
     uint m_nPathTraceIndex_BarnLightFlags;
-    mat4x3 m_mBarnIlluminationFromWorld;
+    mat3x4 m_mBarnIlluminationFromWorld;
 };
 
 layout(std430, binding = 12) readonly buffer BarnLightBuffer {
@@ -83,7 +83,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
             continue;
         }
 
-        vec3 obbPos = barnLight.m_mBarnIlluminationFromWorld * vec4(mat.PositionWS, 1.0);
+        vec3 obbPos = vec4(mat.PositionWS, 1.0) * barnLight.m_mBarnIlluminationFromWorld;
         if (any(greaterThan(abs(obbPos), vec3(1.0))))
         {
             continue;

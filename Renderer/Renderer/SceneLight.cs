@@ -551,8 +551,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         return SphericalTriangleArea(dirA, dirB, dirC) + SphericalTriangleArea(dirA, dirC, dirD);
     }
 
-    // This is a mat4x3
-    private static Matrix4x4 ComputeIlluminationFromWorld(Vector3 center, Vector3 extent, Vector3 angles)
+    private static OpenTK.Mathematics.Matrix3x4 ComputeIlluminationFromWorld(Vector3 center, Vector3 extent, Vector3 angles)
     {
         var rotMatrix = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles);
 
@@ -560,23 +559,26 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var axis1 = new Vector3(rotMatrix.M21, rotMatrix.M22, rotMatrix.M23);
         var axis2 = new Vector3(rotMatrix.M31, rotMatrix.M32, rotMatrix.M33);
 
-        var invX = 0.999f / extent.X;
-        var invY = 0.999f / extent.Y;
-        var invZ = 0.999f / extent.Z;
+        var inv = new Vector3(0.999f) / extent;
 
-        var tx = -Vector3.Dot(center, axis0) * invX;
-        var ty = -Vector3.Dot(center, axis1) * invY;
-        var tz = -Vector3.Dot(center, axis2) * invZ;
+        var translation = new Vector3(
+            -Vector3.Dot(center, axis0),
+            -Vector3.Dot(center, axis1),
+            -Vector3.Dot(center, axis2)
+        ) * inv;
 
-        return new Matrix4x4(
-            axis0.X * invX, axis1.X * invY, axis2.X * invZ, 0,
-            axis0.Y * invX, axis1.Y * invY, axis2.Y * invZ, 0,
-            axis0.Z * invX, axis1.Z * invY, axis2.Z * invZ, 0,
-            tx, ty, tz, 0
+        axis0 *= inv.X;
+        axis1 *= inv.Y;
+        axis2 *= inv.Z;
+
+        return new OpenTK.Mathematics.Matrix3x4(
+            axis0.X, axis0.Y, axis0.Z, translation.X,
+            axis1.X, axis1.Y, axis1.Z, translation.Y,
+            axis2.X, axis2.Y, axis2.Z, translation.Z
         );
     }
 
-    private static Matrix4x4 GetOmni2FaceOBB(SceneLight light, int faceIndex)
+    private static OpenTK.Mathematics.Matrix3x4 GetOmni2FaceOBB(SceneLight light, int faceIndex)
     {
         if (light.PrecomputedSubObbOrigins != null
             && faceIndex < light.PrecomputedSubObbOrigins.Length)

@@ -21,7 +21,6 @@ namespace ValveResourceFormat.Renderer.Buffers
         public float BarnLightShadowScale;
         public uint PathTraceIndex_BarnLightFlags;
         private uint _padding1;
-        // This is a mat4x3
-        public Matrix4x4 BarnIlluminationFromWorld;
+        public OpenTK.Mathematics.Matrix3x4 BarnIlluminationFromWorld;
     }
 }
