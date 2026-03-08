@@ -97,6 +97,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public bool FromSequence { get; }
 
+        /// <summary>
+        /// Gets the duration of the animation in seconds.
+        /// </summary>
+        public float Duration => FrameCount / Fps;
+
         private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
             // Get animation properties
