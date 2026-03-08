@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -33,9 +34,9 @@ namespace ValveResourceFormat.Renderer
 
     public struct BinnedShadowCaster
     {
-        public SceneLight Light { get; set; }
         public Matrix4x4 WorldToFrustum { get; set; }
         public ShadowAtlasRegion Region { get; set; }
+        public SceneLight Light { get; set; }
         public int FaceIndex { get; set; }
     }
 
@@ -89,7 +90,7 @@ namespace ValveResourceFormat.Renderer
 
         private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
         private readonly List<ShadowRequest> ShadowRequests = [];
-        private readonly ShadowAtlasPacker BarnLightPacker = new();
+        private readonly ShadowAtlasPacker ShadowAtlas = new(64);
 
         private readonly List<SceneLight> BarnLightEntities = [];
         private Dictionary<string, int>? BarnLightCookiePaths;
@@ -346,8 +347,6 @@ namespace ValveResourceFormat.Renderer
             LightingData.NumBarnLights = 0;
             BinnedShadowCasters.Clear();
 
-            const int MaxShadowCasters = 8; // todo: prioritize close up lights
-
             if (BarnLightEntities is null || BarnLightEntities.Count == 0)
             {
                 LightingData.NumBarnLights = 0;
@@ -355,6 +354,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             ShadowRequests.Clear();
+            ShadowRequests.Capacity = ShadowAtlas.MaxShadowMaps;
 
             foreach (var light in BarnLightEntities)
             {
@@ -374,27 +374,32 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
+                light.WillDrawShadows = false;
+
                 if (light.CastShadows > 0)
                 {
                     var (w, h) = light.GetShadowFaceDimensions();
                     var distance = Vector3.Distance(cameraPosition, light.Position);
                     (w, h) = ApplyDistanceCap(w, h, distance);
 
+                    // Only submit shadows if all faces can be rendered
+                    if (ShadowRequests.Count + light.BarnFaces.Length > ShadowAtlas.MaxShadowMaps)
+                    {
+                        continue;
+                    }
+
+                    light.WillDrawShadows = true;
+
                     for (var i = 0; i < light.BarnFaces.Length; i++)
                     {
-                        ShadowRequests.Add(new ShadowRequest { Width = w, Height = h });
+                        ShadowRequests.Add(new ShadowRequest(w, h));
                     }
                 }
             }
 
-            Span<ShadowAtlasRegion> atlasRegions = [];
-            if (ShadowRequests.Count > 0)
-            {
-                atlasRegions = BarnLightPacker.Pack(BarnLightShadowAtlasSize, ShadowRequests);
-            }
+            var atlasRegions = ShadowAtlas.Pack(BarnLightShadowAtlasSize, CollectionsMarshal.AsSpan(ShadowRequests));
 
             var requestIndex = 0;
-            var numShadowCasters = 0;
             foreach (var light in BarnLightEntities)
             {
                 if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
@@ -422,7 +427,7 @@ namespace ValveResourceFormat.Renderer
                     var face = light.BarnFaces[faceIndex];
                     var data = face.GpuData;
 
-                    if (light.CastShadows > 0 && atlasRegions.Length > 0 && numShadowCasters < MaxShadowCasters)
+                    if (light.WillDrawShadows && atlasRegions.Length > 0)
                     {
                         var region = atlasRegions[requestIndex++];
 
@@ -446,7 +451,6 @@ namespace ValveResourceFormat.Renderer
                                 Light = light,
                                 FaceIndex = faceIndex,
                             });
-                            numShadowCasters++;
                         }
                         else
                         {

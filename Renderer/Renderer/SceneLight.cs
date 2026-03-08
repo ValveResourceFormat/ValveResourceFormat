@@ -87,6 +87,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public BarnFaceData[] BarnFaces { get; private set; } = [];
     // Marks a barn light dirty. This will recalculate all faces.
     public bool IsDirty { get; set; } = true;
+    internal bool WillDrawShadows { get; set; }
 
     internal Dictionary<int, (int FrustumHash, DepthOnlyDrawBuckets? DrawCalls)> FaceShadowCache { get; } = [];
 

@@ -1,46 +1,37 @@
-using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer;
 
-public struct ShadowRequest
-{
-    public int Width { get; set; }
-    public int Height { get; set; }
-}
+public record struct ShadowRequest(int Width, int Height);
 
-public struct ShadowAtlasRegion
+public record struct ShadowAtlasRegion(int X, int Y, int Width, int Height)
 {
-    public int X { get; set; }
-    public int Y { get; set; }
-    public int Width { get; set; }
-    public int Height { get; set; }
-
-    public bool IsValid => Width > 0 && Height > 0;
+    public readonly bool IsValid => Width > 0 && Height > 0;
 }
 
 public class ShadowAtlasPacker
 {
-    private ShadowAtlasRegion[] regions = [];
-    private (int Height, int Width, int Index)[] sortBuffer = [];
+    public int MaxShadowMaps { get; }
+    private readonly ShadowAtlasRegion[] regions;
+    private readonly (int Height, int Width, int Index)[] sortBuffer;
 
-    public Span<ShadowAtlasRegion> Pack(int atlasSize, List<ShadowRequest> requests)
+    public ShadowAtlasPacker(int capacity)
     {
-        var count = requests.Count;
+        MaxShadowMaps = capacity;
+        regions = new ShadowAtlasRegion[capacity];
+        sortBuffer = new (int, int, int)[capacity];
+    }
+
+    public Span<ShadowAtlasRegion> Pack(int atlasSize, ReadOnlySpan<ShadowRequest> requests)
+    {
+        var count = requests.Length;
         if (count == 0)
         {
             return [];
         }
 
-        if (regions.Length < count)
-        {
-            regions = new ShadowAtlasRegion[int.Max(count, regions.Length * 2)];
-        }
-
-        if (sortBuffer.Length < count)
-        {
-            sortBuffer = new (int, int, int)[int.Max(count, sortBuffer.Length * 2)];
-        }
+        Debug.Assert(count <= regions.Length, "ShadowAtlasPacker capacity exceeded.");
+        count = Math.Min(count, regions.Length);
 
         for (var i = 0; i < count; i++)
         {
@@ -77,13 +68,7 @@ public class ShadowAtlasPacker
                 continue;
             }
 
-            regions[idx] = new ShadowAtlasRegion
-            {
-                X = penX,
-                Y = shelfY,
-                Width = w,
-                Height = h,
-            };
+            regions[idx] = new ShadowAtlasRegion(penX, shelfY, w, h);
 
             shelfHeight = Math.Max(shelfHeight, h);
             penX += w;
