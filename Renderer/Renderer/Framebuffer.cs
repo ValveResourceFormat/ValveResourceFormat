@@ -158,16 +158,17 @@ public class Framebuffer
         Resize(width, height);
     }
 
-    public void Resize(int width, int height)
+    public bool Resize(int width, int height)
     {
         if (width == Width && height == Height)
         {
-            return;
+            return false;
         }
 
         Width = width;
         Height = height;
         CreateAttachments();
+        return true;
     }
 
     private void CreateAttachments()
@@ -276,6 +277,22 @@ public class Framebuffer
         if (Stencil != null)
         {
             GL.DeleteTexture(Stencil.Handle);
+        }
+    }
+
+    public void SetShadowDepthSamplerState(bool gEqualCompare = false)
+    {
+        if (Depth != null)
+        {
+            Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
+
+            if (gEqualCompare)
+            {
+                Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Gequal);
+            }
+
+            Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            Depth.SetWrapMode(TextureWrapMode.ClampToEdge);
         }
     }
 }

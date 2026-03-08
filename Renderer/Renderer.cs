@@ -76,12 +76,8 @@ public class Renderer
 
         GL.DrawBuffer(DrawBufferMode.None);
         GL.ReadBuffer(ReadBufferMode.None);
+        ShadowDepthBuffer.SetShadowDepthSamplerState();
         Textures.Add(new(ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth));
-
-        GL.TextureParameter(ShadowDepthBuffer.Depth!.Handle, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-        ShadowDepthBuffer.Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-        ShadowDepthBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-        ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
 
         // Barn light shadow atlas
         BarnLightShadowBuffer = Framebuffer.Prepare(nameof(BarnLightShadowBuffer), 4, 4, 0, null, Framebuffer.DepthAttachmentFormat.Depth16);
@@ -91,12 +87,8 @@ public class Renderer
 
         GL.DrawBuffer(DrawBufferMode.None);
         GL.ReadBuffer(ReadBufferMode.None);
+        BarnLightShadowBuffer.SetShadowDepthSamplerState(true);
         Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth));
-
-        BarnLightShadowBuffer.Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-        BarnLightShadowBuffer.Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Gequal);
-        BarnLightShadowBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-        BarnLightShadowBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToEdge);
 
         depthOnlyShaders[(int)DepthOnlyProgram.Static] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only");
         //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", ("F_ALPHA_TEST", 1));
@@ -505,7 +497,13 @@ public class Renderer
 
         var atlasSize = ShadowTextureSize;
         Scene.LightingInfo.BarnLightShadowAtlasSize = atlasSize;
-        BarnLightShadowBuffer.Resize(atlasSize, atlasSize);
+
+        if (BarnLightShadowBuffer.Resize(atlasSize, atlasSize))
+        {
+            BarnLightShadowBuffer.SetShadowDepthSamplerState(true);
+            Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.BarnLightShadowDepth);
+            Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth!));
+        }
 
         GL.Enable(EnableCap.ScissorTest);
         GL.Viewport(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);

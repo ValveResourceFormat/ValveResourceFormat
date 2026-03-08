@@ -305,11 +305,11 @@ namespace ValveResourceFormat.Renderer
 
             LightingData.NumLightsBakedShadowIndex[0] = envCount;
 
-            var filtered = lights.Where(SceneLight.IsDynamicLight).ToList();
+            LightingData.NumBarnLights = 0; // changed dynamically
 
+            var filtered = lights.Where(SceneLight.IsRealTimeLight).ToList();
             if (filtered.Count == 0)
             {
-                LightingData.NumBarnLights = 0;
                 return;
             }
 

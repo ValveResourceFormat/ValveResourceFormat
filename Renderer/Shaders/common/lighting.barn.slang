@@ -29,7 +29,7 @@ layout(std430, binding = 12) readonly buffer BarnLightBuffer {
 uniform sampler2DArray g_tLightCookieTexture; // ClampToBorder
 uniform sampler2DArray g_tLightCookieTextureWrap; // Wrap
 // We currently have a separate shadow map for all barn lights
-uniform sampler2DShadow g_tBarnLightShadowDepth;
+uniform layout(binding = 14) sampler2DShadow g_tBarnLightShadowDepth;
 
 float ComputeBarnLightShadow(vec2 shadowUV, float shadowRef)
 {

@@ -222,7 +222,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         return light;
     }
 
-    internal static bool IsDynamicLight(SceneLight light)
+    internal static bool IsRealTimeLight(SceneLight light)
     {
         if (light.Entity is not (EntityType.Barn or EntityType.Omni2))
         {
