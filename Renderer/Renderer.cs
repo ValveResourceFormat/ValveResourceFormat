@@ -95,7 +95,7 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth));
 
         BarnLightShadowBuffer.Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-        BarnLightShadowBuffer.Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Lequal);
+        BarnLightShadowBuffer.Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Gequal);
         BarnLightShadowBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
         BarnLightShadowBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToEdge);
 
@@ -494,9 +494,8 @@ public class Renderer
 
         using var _ = new GLDebugGroup("Barn Light Shadows");
 
-        GL.DepthFunc(DepthFunction.Lequal);
-        GL.ClearDepth(1.0f);
-
+        // Reverse Z without flipping the projection matrix
+        GL.DepthRange(1.0, 0.0);
         GL.FrontFace(FrontFaceDirection.Cw);
 
         GL.Enable(EnableCap.PolygonOffsetFill);
@@ -538,7 +537,7 @@ public class Renderer
 
         GL.FrontFace(FrontFaceDirection.Ccw);
         GL.DepthFunc(DepthFunction.Greater);
-        GL.ClearDepth(0.0f);
+        GL.DepthRange(0.0, 1.0);
     }
 
     private void ComputeAverageLuminance(Scene.RenderContext renderContext)
