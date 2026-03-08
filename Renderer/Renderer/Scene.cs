@@ -772,7 +772,8 @@ namespace ValveResourceFormat.Renderer
             }
 
             entry.DrawCalls ??= CreateDepthOnlyDrawCallCollection();
-            CollectShadowDrawCalls(lightFrustum, includeStatic: true, includeDynamic: true, entry.DrawCalls);
+            // Skip static geo for stationary lights
+            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != 3, includeDynamic: true, entry.DrawCalls);
             entry.FrustumHash = barnLightFrustumHash;
         }
 
