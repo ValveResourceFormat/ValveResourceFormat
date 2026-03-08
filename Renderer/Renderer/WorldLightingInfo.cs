@@ -474,6 +474,14 @@ namespace ValveResourceFormat.Renderer
             BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, (int)LightingData.NumBarnLights * Unsafe.SizeOf<BarnLightConstants>());
         }
 
+        public void ClearBarnShadowCache()
+        {
+            foreach (var light in BarnLightEntities)
+            {
+                scene.ClearShadowCache(light);
+            }
+        }
+
         private void RebuildCookieAtlas()
         {
             BarnLightCookieAtlas?.Delete();

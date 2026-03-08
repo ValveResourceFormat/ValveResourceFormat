@@ -749,6 +749,18 @@ namespace ValveResourceFormat.Renderer
                 includeDynamic: true, CulledShadowDrawCalls);
         }
 
+        public void ClearShadowCache(SceneLight light)
+        {
+            for (var i = 0; i < light.BarnFaces.Length; i++)
+            {
+                ref var entry = ref CollectionsMarshal.GetValueRefOrNullRef(light.FaceShadowCache, i);
+                if (!Unsafe.IsNullRef(ref entry))
+                {
+                    entry.FrustumHash = -1;
+                }
+            }
+        }
+
         public void SetupBarnLightFaceShadow(SceneLight light, int faceIndex, Frustum lightFrustum)
         {
             var barnLightFrustumHash = lightFrustum.GetHashCode();
@@ -1342,6 +1354,8 @@ namespace ValveResourceFormat.Renderer
             {
                 return false;
             }
+
+            LightingInfo.ClearBarnShadowCache();
 
             var octree = nodeType == NodeType.Static ? StaticOctree : DynamicOctree;
             octree.Dirty = true;
