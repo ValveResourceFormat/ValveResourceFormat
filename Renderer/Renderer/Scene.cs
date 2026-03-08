@@ -749,7 +749,7 @@ namespace ValveResourceFormat.Renderer
                 includeDynamic: true, CulledShadowDrawCalls);
         }
 
-        public void ClearShadowCache(SceneLight light)
+        public static void ClearShadowCache(SceneLight light)
         {
             for (var i = 0; i < light.BarnFaces.Length; i++)
             {

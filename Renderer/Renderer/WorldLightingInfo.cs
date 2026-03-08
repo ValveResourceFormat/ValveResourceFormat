@@ -48,6 +48,7 @@ namespace ValveResourceFormat.Renderer
         public Dictionary<string, RenderTexture> Lightmaps { get; } = [];
         public List<SceneLightProbe> LightProbes { get; } = [];
         public List<SceneEnvMap> EnvMaps { get; } = [];
+        public List<SceneLight> BarnLights { get; } = [];
         public Dictionary<int, SceneEnvMap> EnvMapHandshakes { get; } = [];
         public Dictionary<int, SceneLightProbe> ProbeHandshakes { get; } = [];
         public bool HasValidLightmaps { get; set; }
@@ -78,9 +79,7 @@ namespace ValveResourceFormat.Renderer
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
         // Barn lights
-
-        // This should very much be removed / changed (to not be constant)
-        internal const int BarnLightShadowAtlasSize = 8192;
+        public int BarnLightShadowAtlasSize { get; set; } = 4096;
         private static readonly (float MaxDistance, int MaxResolution)[] ShadowTiers =
         [
             (384f, 1536),
@@ -92,7 +91,6 @@ namespace ValveResourceFormat.Renderer
         private readonly List<ShadowRequest> ShadowRequests = [];
         private readonly ShadowAtlasPacker ShadowAtlas = new(64);
 
-        private readonly List<SceneLight> BarnLightEntities = [];
         private Dictionary<string, int>? BarnLightCookiePaths;
         private StorageBuffer? BarnLightStorageBuffer;
         public List<BinnedShadowCaster> BinnedShadowCasters { get; } = [];
@@ -315,7 +313,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            BarnLightEntities.AddRange(filtered);
+            BarnLights.AddRange(filtered);
             RebuildCookieAtlas();
         }
 
@@ -347,7 +345,7 @@ namespace ValveResourceFormat.Renderer
             LightingData.NumBarnLights = 0;
             BinnedShadowCasters.Clear();
 
-            if (BarnLightEntities is null || BarnLightEntities.Count == 0)
+            if (BarnLights is null || BarnLights.Count == 0)
             {
                 LightingData.NumBarnLights = 0;
                 return;
@@ -356,7 +354,7 @@ namespace ValveResourceFormat.Renderer
             ShadowRequests.Clear();
             ShadowRequests.Capacity = ShadowAtlas.MaxShadowMaps;
 
-            foreach (var light in BarnLightEntities)
+            foreach (var light in BarnLights)
             {
                 if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
                 {
@@ -400,7 +398,7 @@ namespace ValveResourceFormat.Renderer
             var atlasRegions = ShadowAtlas.Pack(BarnLightShadowAtlasSize, CollectionsMarshal.AsSpan(ShadowRequests));
 
             var requestIndex = 0;
-            foreach (var light in BarnLightEntities)
+            foreach (var light in BarnLights)
             {
                 if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
                 {
@@ -476,9 +474,9 @@ namespace ValveResourceFormat.Renderer
 
         public void ClearBarnShadowCache()
         {
-            foreach (var light in BarnLightEntities)
+            foreach (var light in BarnLights)
             {
-                scene.ClearShadowCache(light);
+                Scene.ClearShadowCache(light);
             }
         }
 
@@ -490,7 +488,7 @@ namespace ValveResourceFormat.Renderer
             BarnLightCookiePaths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var cookieTextures = new List<RenderTexture>();
 
-            foreach (var light in BarnLightEntities!)
+            foreach (var light in BarnLights!)
             {
                 if (light.CookieTexturePath != null && BarnLightCookiePaths.TryAdd(light.CookieTexturePath, cookieTextures.Count + 1))
                 {

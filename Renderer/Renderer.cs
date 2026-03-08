@@ -84,8 +84,7 @@ public class Renderer
         ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
 
         // Barn light shadow atlas
-        var barnShadowSize = WorldLightingInfo.BarnLightShadowAtlasSize;
-        BarnLightShadowBuffer = Framebuffer.Prepare(nameof(BarnLightShadowBuffer), barnShadowSize, barnShadowSize, 0, null, Framebuffer.DepthAttachmentFormat.Depth16);
+        BarnLightShadowBuffer = Framebuffer.Prepare(nameof(BarnLightShadowBuffer), 4, 4, 0, null, Framebuffer.DepthAttachmentFormat.Depth16);
         BarnLightShadowBuffer.Initialize();
         BarnLightShadowBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
         Debug.Assert(BarnLightShadowBuffer.Depth != null);
@@ -493,6 +492,7 @@ public class Renderer
         }
 
         using var _ = new GLDebugGroup("Barn Light Shadows");
+        Debug.Assert(BarnLightShadowBuffer != null);
 
         // Reverse Z without flipping the projection matrix
         GL.DepthRange(1.0, 0.0);
@@ -501,7 +501,11 @@ public class Renderer
         GL.Enable(EnableCap.PolygonOffsetFill);
         GL.PolygonOffset(2f, 0f);
 
-        BarnLightShadowBuffer!.Bind(FramebufferTarget.Framebuffer);
+        BarnLightShadowBuffer.Bind(FramebufferTarget.Framebuffer);
+
+        var atlasSize = ShadowTextureSize;
+        Scene.LightingInfo.BarnLightShadowAtlasSize = atlasSize;
+        BarnLightShadowBuffer.Resize(atlasSize, atlasSize);
 
         GL.Enable(EnableCap.ScissorTest);
         GL.Viewport(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);

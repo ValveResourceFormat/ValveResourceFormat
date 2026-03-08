@@ -216,9 +216,11 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
             shadowUV = shadowUV * barnLight.m_vBarnLightShadowOffsetScale.zw
                      + barnLight.m_vBarnLightShadowOffsetScale.xy;
 
-            ndc.z = 1.0 - ndc.z; // Reverse Z
             const float g_flShadowCascadeReceiverDepthBias = -0.000015;
-            float shadowRef = saturate(ndc.z + g_flShadowCascadeReceiverDepthBias);
+            ndc.z += g_flShadowCascadeReceiverDepthBias;
+
+            ndc.z = 1.0 - ndc.z; // Reverse Z
+            float shadowRef = saturate(ndc.z);
 
             //float shadow = ComputeBarnLightShadow(shadowUV, shadowRef);
             float shadow = ComputeBarnLightShadow_PCF_3x3_Gaussian(shadowUV, shadowRef, texelSize);
