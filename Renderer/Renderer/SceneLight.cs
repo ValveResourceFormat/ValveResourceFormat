@@ -276,25 +276,55 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             : ((int)MathF.Round(size * aspect), size);
     }
 
-    private static BarnFaceData ComputeBarnLightFace(SceneLight light, Dictionary<string, int> cookiePaths)
+    private static (Matrix4x4 WorldToFrustum, Vector4 Position, float SkirtNear, float SkirtFar, float Divisor)
+        ComputeOrthographicBarnGeometry(SceneLight light, Vector3 forwardDir, Vector3 upDir, Vector3 rightDir)
     {
-        var nearPlane = 1f / MathF.Max(light.SizeParams.Z, 0.0001f);
+        var eyePosition = light.Transform.Translation;
+
+        var lightView = Matrix4x4.CreateLookAtLeftHanded(eyePosition,
+            eyePosition + forwardDir, upDir);
+
+        var shearMatrix = Matrix4x4.Identity;
+        shearMatrix.M31 = -light.Shear.X / light.Range;
+        shearMatrix.M32 = -light.Shear.Y / light.Range;
+
+        var lightProj = Matrix4x4.CreateOrthographicOffCenterLeftHanded(
+            -light.SizeParams.X, light.SizeParams.X,
+            -light.SizeParams.Y, light.SizeParams.Y,
+            0f, light.Range);
+
+        var worldToFrustum = lightView * shearMatrix * lightProj;
+
+        var skirtNear = light.SkirtNear > 0 ? 1f / light.SkirtNear : 0f;
+        var skirtFar = light.FallOff > 0 ? 1f / light.FallOff : 0f;
+
+        var divisor = light.SizeParams.X * light.SizeParams.Y / (MathF.PI * 10f);
+
+        var projectionDir = Vector3.Normalize(
+            light.Range * forwardDir + light.Shear.X * rightDir + light.Shear.Y * upDir);
+        var position = new Vector4(-projectionDir, 0f);
+
+        return (worldToFrustum, position, skirtNear, skirtFar, divisor);
+    }
+
+    private static (Matrix4x4 WorldToFrustum, Vector4 Position, float SkirtNear, float SkirtFar, float Divisor)
+        ComputePerspectiveBarnGeometry(SceneLight light, Vector3 forwardDir, Vector3 upDir, Vector3 rightDir)
+    {
+        var nearPlane = 1f / light.SizeParams.Z;
         var farPlane = nearPlane + light.Range;
 
         var centerX = light.Shear.X / light.Range * nearPlane;
         var centerY = light.Shear.Y / light.Range * nearPlane;
 
-        var noTranslation = light.Transform with { Translation = Vector3.Zero };
         var eyePosition = light.Transform.Translation
-                          - Vector3.Transform(new Vector3(nearPlane, centerX, centerY), noTranslation);
+                          - nearPlane * forwardDir - centerX * rightDir - centerY * upDir;
 
         var lightProj = Matrix4x4.CreatePerspectiveOffCenterLeftHanded(
             centerX - light.SizeParams.X, centerX + light.SizeParams.X,
             centerY - light.SizeParams.Y, centerY + light.SizeParams.Y,
             nearPlane, farPlane);
         var lightView = Matrix4x4.CreateLookAtLeftHanded(eyePosition,
-            eyePosition + Vector3.Normalize(Vector3.Transform(Vector3.UnitX, noTranslation)),
-            Vector3.Normalize(Vector3.Transform(Vector3.UnitZ, noTranslation)));
+            eyePosition + forwardDir, upDir);
 
         var worldToFrustum = lightView * lightProj;
         if (!Matrix4x4.Invert(worldToFrustum, out var frustumToWorld))
@@ -319,6 +349,23 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var eyeToOriginDistSq = centerX * centerX + centerY * centerY + nearPlane * nearPlane;
         var solidAngle = ComputeFrustumSolidAngle(frustumToWorld, eyePosition);
         var divisor = solidAngle * eyeToOriginDistSq / (4f * MathF.PI * 10f);
+
+        var position = new Vector4(eyePosition, eyeToOriginDistSq);
+
+        return (worldToFrustum, position, skirtNear, skirtFar, divisor);
+    }
+
+    private static BarnFaceData ComputeBarnLightFace(SceneLight light, Dictionary<string, int> cookiePaths)
+    {
+        var noTranslation = light.Transform with { Translation = Vector3.Zero };
+        var forwardDir = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, noTranslation));
+        var upDir = Vector3.Normalize(Vector3.Transform(Vector3.UnitZ, noTranslation));
+        var rightDir = Vector3.Normalize(Vector3.Cross(upDir, forwardDir));
+
+        var (worldToFrustum, barnLightPosition, skirtNear, skirtFar, divisor) = light.SizeParams.Z <= 0
+            ? ComputeOrthographicBarnGeometry(light, forwardDir, upDir, rightDir)
+            : ComputePerspectiveBarnGeometry(light, forwardDir, upDir, rightDir);
+
         var colorIntensity = divisor > 0.000001f ? light.Brightness * light.BrightnessScale / divisor : 0f;
         var linearColor = ColorSpace.SrgbGammaToLinear(light.Color) * colorIntensity;
 
@@ -341,7 +388,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             GpuData = new BarnLightConstants
             {
                 BarnFrustum = worldToFrustum,
-                BarnLightPosition = new Vector4(eyePosition, eyeToOriginDistSq),
+                BarnLightPosition = barnLightPosition,
                 BarnLightDistanceFade_vSkirt = new Vector4(1f, 0f, skirtNear, skirtFar),
                 BarnLightColor_flCookie = new Vector4(linearColor, cookieW),
                 BarnLightOrientationQ = new Vector4(orientationQ.X, orientationQ.Y, orientationQ.Z, orientationQ.W),
