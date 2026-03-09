@@ -14,6 +14,7 @@ const rendererSidebar = [vrfRoot.items.splice(rendererIndex, 1)[0]]
 export default defineConfig({
     title: 'ValveResourceFormat',
     description: 'Source 2 resource file format parser, decompiler, and exporter',
+    base: '/ValveResourceFormat/',
 
     themeConfig: {
         logo: {
