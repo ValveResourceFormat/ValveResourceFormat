@@ -2,9 +2,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.ResourceTypes.ModelAnimation2;
+namespace ValveResourceFormat.IO;
 
 /// <summary>
 /// Extracts Source 2 animation clips to editable format.
