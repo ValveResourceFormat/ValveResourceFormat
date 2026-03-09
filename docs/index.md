@@ -4,8 +4,6 @@
 
 [**Download Source 2 Viewer**](https://s2v.app/) | [View on GitHub](https://github.com/ValveResourceFormat/ValveResourceFormat)
 
----
-
 ## What is Source 2 Viewer?
 
 Source 2 Viewer is a modern, actively maintained tool for browsing, extracting, and viewing assets from Valve's Source 2 engine games. Whether you're a game modder, map creator, texture artist, or simply curious about how your favorite Source 2 games work, Source 2 Viewer provides everything you need to explore game files.
@@ -23,8 +21,6 @@ Source 2 Viewer is a modern, actively maintained tool for browsing, extracting, 
 - **Game Explorer** - Automatically detects VPK files from all your installed Steam games
 - **Free & Open Source** - MIT licensed, community-driven development
 
----
-
 ## What is ValveResourceFormat?
 
 ValveResourceFormat (VRF) is the underlying library that powers Source 2 Viewer. It's a comprehensive Source 2 resource file format parser, decompiler, and exporter. The project consists of three main components:
@@ -39,8 +35,6 @@ Developers can integrate ValveResourceFormat into their own projects via [NuGet]
 
 - **[ValvePak](https://www.nuget.org/packages/ValvePak/)** - VPK archive reading library for .NET
 - **[ValveKeyValue](https://www.nuget.org/packages/ValveKeyValue/)** - KeyValues format support library (KV1/KV2/KV3)
-
----
 
 ## Supported Games
 
@@ -84,8 +78,6 @@ In their [asset system](https://sbox.game/news/asset-system#asset-information), 
 
 This demonstrates VRF's reliability—even developers with official Source 2 SDK access choose VRF for programmatic asset processing.
 
----
-
 ## Frequently Asked Questions
 
 ### Does Source 2 Viewer work on Mac and Linux?
@@ -110,8 +102,6 @@ Source 2 Viewer can export .vmdl, .vmesh, .vwrld, .vwnod, and .vmap files into a
 ### Does Source 2 use BSP files like Source 1?
 No, Source 2 does not use the traditional BSP (Binary Space Partitioning) format. Source 1 games used .bsp files for compiled maps with BSP tree structures for rendering optimization. Source 2 instead uses mesh-based maps. This represents a fundamental shift in how Source 2 handles level geometry and rendering.
 
----
-
 ## Alternative to GCFScape
 
 **Source 2 Viewer is the modern alternative to GCFScape** for working with Valve package files.
@@ -123,8 +113,6 @@ GCFScape was a popular utility created by Nem for extracting and browsing Valve 
 - **Game Explorer** - Automatically detects VPK files from all installed Steam games
 - **Asset Previewing** - View assets directly without extraction
 - **Decompilation** - Convert compiled resources to readable formats
-
----
 
 ## Community & Support
 

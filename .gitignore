@@ -221,3 +221,5 @@ _Pvt_Extensions
 Tests/lcov.info
 /docs/_site/
 /docs/api/
+/docs/.vitepress/dist/
+/docs/.vitepress/cache/

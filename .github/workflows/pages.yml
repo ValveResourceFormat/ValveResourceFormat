@@ -39,13 +39,29 @@ jobs:
     - name: Install docfx
       run: dotnet tool update -g docfx
 
-    - name: Build docs
-      run: docfx docs/docfx.json
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: docs/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+      working-directory: docs
+
+    - name: Generate API metadata
+      run: npm run generate
+      working-directory: docs
+
+    - name: Build with VitePress
+      run: npm run build
+      working-directory: docs
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v4
       with:
-        path: 'docs/_site'
+        path: 'docs/.vitepress/dist'
 
     - name: Deploy to GitHub Pages
       id: deployment
