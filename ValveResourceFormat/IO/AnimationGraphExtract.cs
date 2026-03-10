@@ -601,13 +601,6 @@ public class AnimationGraphExtract
         var boneNames = LoadBoneNamesFromModel();
         return boneIndex >= 0 && boneIndex < boneNames.Length ? boneNames[boneIndex] : string.Empty;
     }
-    private string GetSequenceNameFromIndex(long sequenceIndex)
-    {
-        sequenceNamesCache ??= LoadSequenceNamesFromModel();
-        return sequenceNamesCache.TryGetValue((int)sequenceIndex, out var name)
-            ? name
-            : $"sequence_{sequenceIndex}";
-    }
     private string[] LoadIKChainNamesFromModel()
     {
         var modelName = Graph.GetStringProperty("m_modelName");
@@ -1325,7 +1318,7 @@ public class AnimationGraphExtract
 
     private KVValue ConvertTagIndicesArray(long[] tagIndices)
     {
-        var tagIds = tagIndices.Select(tagIndex => 
+        var tagIds = tagIndices.Select(tagIndex =>
             MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)).Value as KVObject ?? new KVObject("tag", 0)
         ).ToArray();
         return KVValue.MakeArray(tagIds);
@@ -1831,41 +1824,14 @@ public class AnimationGraphExtract
             var trimmedComponent = componentCondition.Trim();
             trimmedComponent = RemoveAllOuterParentheses(trimmedComponent);
 
-            string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
-            string? foundOp = null;
-            string? leftSide = null;
-            string? rightSide = null;
-
-            foreach (var op in operators)
-            {
-                if (trimmedComponent.Contains(op))
-                {
-                    var parts = trimmedComponent.Split(op, StringSplitOptions.TrimEntries);
-                    if (parts.Length == 2)
-                    {
-                        leftSide = parts[0];
-                        rightSide = parts[1];
-                        foundOp = op;
-                        break;
-                    }
-                }
-            }
+            var (foundOp, leftSide, rightSide) = ParseOperatorExpression(trimmedComponent);
 
             if (foundOp == null || leftSide == null || rightSide == null)
             {
                 continue;
             }
 
-            comparisonOp = foundOp switch
-            {
-                "==" => "COMPARISON_EQUALS",
-                "!=" => "COMPARISON_NOT_EQUALS",
-                ">" => "COMPARISON_GREATER",
-                ">=" => "COMPARISON_GREATER_OR_EQUAL",
-                "<" => "COMPARISON_LESS",
-                "<=" => "COMPARISON_LESS_OR_EQUAL",
-                _ => "COMPARISON_EQUALS"
-            };
+            comparisonOp = OperatorToComparisonOp(foundOp);
 
             var componentDotIndex = leftSide.IndexOf('.');
             if (componentDotIndex == -1)
@@ -2107,43 +2073,16 @@ public class AnimationGraphExtract
     private KVObject? ParseStateStatusCondition(string conditionString)
     {
         var stateStatusCondition = MakeNode("CStateStatusCondition");
-        var leftSide = conditionString;
-        string? rightSide = null;
-        string? comparisonOperator = null;
 
-        string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
-        foreach (var op in operators)
-        {
-            if (conditionString.Contains(op))
-            {
-                var parts = conditionString.Split(op, StringSplitOptions.TrimEntries);
-                if (parts.Length == 2)
-                {
-                    leftSide = parts[0];
-                    rightSide = parts[1];
-                    comparisonOperator = op;
-                    break;
-                }
-            }
-        }
+        var (comparisonOperator, leftSide, rightSide) = ParseOperatorExpression(conditionString);
 
-        if (comparisonOperator == null)
+        if (comparisonOperator == null || leftSide == null)
         {
             return null;
         }
 
-        var comparisonOp = comparisonOperator switch
-        {
-            "==" => "COMPARISON_EQUALS",
-            "!=" => "COMPARISON_NOT_EQUALS",
-            ">" => "COMPARISON_GREATER",
-            ">=" => "COMPARISON_GREATER_OR_EQUAL",
-            "<" => "COMPARISON_LESS",
-            "<=" => "COMPARISON_LESS_OR_EQUAL",
-            _ => "COMPARISON_EQUALS"
-        };
+        stateStatusCondition.AddProperty("m_comparisonOp", OperatorToComparisonOp(comparisonOperator));
 
-        stateStatusCondition.AddProperty("m_comparisonOp", comparisonOp);
         var sourceValue = leftSide switch
         {
             var s when s.StartsWith("GetStateWeight(0)") => "SourceStateBlendWeight",
@@ -2177,20 +2116,16 @@ public class AnimationGraphExtract
             {
                 return HandleParameterComparison(stateStatusCondition, rightSide, sourceValue);
             }
+            else if (float.TryParse(rightSide, out var floatValue))
+            {
+                stateStatusCondition.AddProperty("m_comparisonValueType", "StateComparisonValue_FixedValue");
+                stateStatusCondition.AddProperty("m_comparisonFixedValue", floatValue);
+                stateStatusCondition.AddProperty("m_comparisonStateValue", sourceValue);
+                stateStatusCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
+            }
             else
             {
-                var cleanRightSide = rightSide.Trim('(', ')', ' ');
-                if (float.TryParse(cleanRightSide, out var floatValue))
-                {
-                    stateStatusCondition.AddProperty("m_comparisonValueType", "StateComparisonValue_FixedValue");
-                    stateStatusCondition.AddProperty("m_comparisonFixedValue", floatValue);
-                    stateStatusCondition.AddProperty("m_comparisonStateValue", sourceValue);
-                    stateStatusCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
-                }
-                else
-                {
-                    return null;
-                }
+                return null;
             }
         }
 
@@ -2223,56 +2158,49 @@ public class AnimationGraphExtract
         return tagCondition;
     }
 
+    private static readonly string[] ComparisonOperators = ["==", "!=", ">=", "<=", ">", "<"];
+
+    private static string OperatorToComparisonOp(string op) => op switch
+    {
+        "==" => "COMPARISON_EQUALS",
+        "!=" => "COMPARISON_NOT_EQUALS",
+        ">" => "COMPARISON_GREATER",
+        ">=" => "COMPARISON_GREATER_OR_EQUAL",
+        "<" => "COMPARISON_LESS",
+        "<=" => "COMPARISON_LESS_OR_EQUAL",
+        _ => "COMPARISON_EQUALS"
+    };
+
+    private static (string? op, string? leftSide, string? rightSide) ParseOperatorExpression(string expression, string[]? operators = null)
+    {
+        operators ??= ComparisonOperators;
+        foreach (var op in operators)
+        {
+            if (expression.Contains(op))
+            {
+                var parts = expression.Split(op, StringSplitOptions.TrimEntries);
+                if (parts.Length == 2)
+                {
+                    return (op, parts[0], parts[1].Trim('(', ')', ' '));
+                }
+            }
+        }
+        return (null, null, null);
+    }
+
     private static KVObject? ParseFinishedCondition(string conditionString)
     {
         var timeCondition = MakeNode("CFinishedCondition");
 
-        if (conditionString.Contains("<="))
-        {
-            var parts = conditionString.Split("<=", StringSplitOptions.TrimEntries);
-            var valueStr = parts[1].Trim('(', ')', ' ');
+        var (op, _, rightSide) = ParseOperatorExpression(conditionString);
 
-            if (float.TryParse(valueStr, out var value))
-            {
-                if (value == 0.0f)
-                {
-                    timeCondition.AddProperty("m_option", "FinishedConditionOption_OnFinished");
-                }
-                else
-                {
-                    timeCondition.AddProperty("m_option", "FinishedConditionOption_OnAlmostFinished");
-                }
-                timeCondition.AddProperty("m_bIsFinished", true);
-            }
-        }
-        else if (conditionString.Contains(">="))
+        if (op != null && rightSide != null && float.TryParse(rightSide, out var value))
         {
-            var parts = conditionString.Split(">=", StringSplitOptions.TrimEntries);
-            var valueStr = parts[1].Trim('(', ')', ' ');
-
-            if (float.TryParse(valueStr, out var value))
-            {
-                timeCondition.AddProperty("m_option", "FinishedConditionOption_OnFinished");
-                timeCondition.AddProperty("m_bIsFinished", value <= 0.0f);
-            }
-        }
-        else if (conditionString.Contains("=="))
-        {
-            var parts = conditionString.Split("==", StringSplitOptions.TrimEntries);
-            var valueStr = parts[1].Trim('(', ')', ' ');
-
-            if (float.TryParse(valueStr, out var value))
-            {
-                if (value == 0.0f)
-                {
-                    timeCondition.AddProperty("m_option", "FinishedConditionOption_OnFinished");
-                }
-                else
-                {
-                    timeCondition.AddProperty("m_option", "FinishedConditionOption_OnAlmostFinished");
-                }
-                timeCondition.AddProperty("m_bIsFinished", true);
-            }
+            timeCondition.AddProperty("m_option",
+                op == "<=" && value != 0.0f || op == "==" && value != 0.0f
+                    ? "FinishedConditionOption_OnAlmostFinished"
+                    : "FinishedConditionOption_OnFinished");
+            timeCondition.AddProperty("m_bIsFinished", op != ">=" || value <= 0.0f);
         }
         else
         {
@@ -2284,90 +2212,40 @@ public class AnimationGraphExtract
 
     private static KVObject? ParseTimeCondition(string conditionString)
     {
-        var timeCondition = MakeNode("CTimeCondition");
-        string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
-        string? foundOp = null;
-        foreach (var op in operators)
-        {
-            if (conditionString.Contains(op))
-            {
-                foundOp = op;
-                break;
-            }
-        }
+        var (foundOp, _, rightSide) = ParseOperatorExpression(conditionString);
 
-        if (foundOp != null)
+        if (foundOp != null && rightSide != null)
         {
-            var parts = conditionString.Split(foundOp, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2)
-            {
-                var valueStr = parts[1].Trim('(', ')', ' ');
-                var comparisonOp = foundOp switch
-                {
-                    "==" => "COMPARISON_EQUALS",
-                    "!=" => "COMPARISON_NOT_EQUALS",
-                    ">" => "COMPARISON_GREATER",
-                    ">=" => "COMPARISON_GREATER_OR_EQUAL",
-                    "<" => "COMPARISON_LESS",
-                    "<=" => "COMPARISON_LESS_OR_EQUAL",
-                    _ => "COMPARISON_EQUALS"
-                };
-
-                timeCondition.AddProperty("m_comparisonOp", comparisonOp);
-                timeCondition.AddProperty("m_comparisonString", valueStr);
-                return timeCondition;
-            }
+            var timeCondition = MakeNode("CTimeCondition");
+            timeCondition.AddProperty("m_comparisonOp", OperatorToComparisonOp(foundOp));
+            timeCondition.AddProperty("m_comparisonString", rightSide);
+            return timeCondition;
         }
         return null;
     }
 
     private static KVObject? ParseCycleCondition(string conditionString)
     {
-        var cycleCondition = MakeNode("CCycleCondition");
-        string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
-        string? foundOp = null;
-        foreach (var op in operators)
+        var (foundOp, _, rightSide) = ParseOperatorExpression(conditionString);
+
+        if (foundOp != null && rightSide != null)
         {
-            if (conditionString.Contains(op))
+            var cycleCondition = MakeNode("CCycleCondition");
+            cycleCondition.AddProperty("m_comparisonOp", OperatorToComparisonOp(foundOp));
+            cycleCondition.AddProperty("m_comparisonString", rightSide);
+
+            if (float.TryParse(rightSide, out var floatValue))
             {
-                foundOp = op;
-                break;
+                cycleCondition.AddProperty("m_comparisonValue", floatValue);
             }
-        }
-
-        if (foundOp != null)
-        {
-            var parts = conditionString.Split(foundOp, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2)
+            else
             {
-                var valueStr = parts[1].Trim('(', ')', ' ');
-                var comparisonOp = foundOp switch
-                {
-                    "==" => "COMPARISON_EQUALS",
-                    "!=" => "COMPARISON_NOT_EQUALS",
-                    ">" => "COMPARISON_GREATER",
-                    ">=" => "COMPARISON_GREATER_OR_EQUAL",
-                    "<" => "COMPARISON_LESS",
-                    "<=" => "COMPARISON_LESS_OR_EQUAL",
-                    _ => "COMPARISON_EQUALS"
-                };
-
-                cycleCondition.AddProperty("m_comparisonOp", comparisonOp);
-                cycleCondition.AddProperty("m_comparisonString", valueStr);
-
-                if (float.TryParse(valueStr, out var floatValue))
-                {
-                    cycleCondition.AddProperty("m_comparisonValue", floatValue);
-                }
-                else
-                {
-                    cycleCondition.AddProperty("m_comparisonValue", 0.0f);
-                }
-
-                cycleCondition.AddProperty("m_comparisonValueType", "COMPARISONVALUETYPE_FIXEDVALUE");
-                cycleCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
-                return cycleCondition;
+                cycleCondition.AddProperty("m_comparisonValue", 0.0f);
             }
+
+            cycleCondition.AddProperty("m_comparisonValueType", "COMPARISONVALUETYPE_FIXEDVALUE");
+            cycleCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
+            return cycleCondition;
         }
         return null;
     }
@@ -2382,29 +2260,13 @@ public class AnimationGraphExtract
             return null;
         }
 
-        string[] operators = ["==", "!=", ">=", "<=", ">", "<"];
-        string? foundOp = null;
-        string? leftSide = null;
-        string? rightSide = null;
-
-        foreach (var op in operators)
-        {
-            var index = cleanedCondition.IndexOf(op);
-            if (index >= 0)
-            {
-                foundOp = op;
-                leftSide = cleanedCondition[..index].Trim();
-                rightSide = cleanedCondition[(index + op.Length)..].Trim();
-                break;
-            }
-        }
+        var (foundOp, leftSide, rightSide) = ParseOperatorExpression(cleanedCondition);
 
         if (foundOp == null || leftSide == null || rightSide == null)
         {
             return null;
         }
 
-        rightSide = rightSide.Trim('(', ')', ' ');
         var (foundParam, paramId, paramClass) = FindParameterByName(leftSide);
 
         if (foundParam == null || paramClass == null)
@@ -2414,19 +2276,8 @@ public class AnimationGraphExtract
 
         var paramCondition = MakeNode("CParameterCondition");
         paramCondition.AddProperty("m_paramID", MakeNodeIdObjectValue(paramId));
+        paramCondition.AddProperty("m_comparisonOp", OperatorToComparisonOp(foundOp));
 
-        var comparisonOp = foundOp switch
-        {
-            "==" => "COMPARISON_EQUALS",
-            "!=" => "COMPARISON_NOT_EQUALS",
-            ">" => "COMPARISON_GREATER",
-            ">=" => "COMPARISON_GREATER_OR_EQUAL",
-            "<" => "COMPARISON_LESS",
-            "<=" => "COMPARISON_LESS_OR_EQUAL",
-            _ => "COMPARISON_EQUALS"
-        };
-
-        paramCondition.AddProperty("m_comparisonOp", comparisonOp);
         var comparisonValue = new KVObject(null, 2);
 
         if (paramClass == "CEnumAnimParameter")
@@ -2486,6 +2337,8 @@ public class AnimationGraphExtract
         paramCondition.AddProperty("m_comparisonValue", comparisonValue);
         return paramCondition;
     }
+
+
 
     private KVObject HandleParameterComparison(KVObject stateStatusCondition, string paramName, string sourceValue)
     {
@@ -3249,6 +3102,101 @@ public class AnimationGraphExtract
         return nodes;
     }
 
+    private KVObject CreateSequenceMotionNode(KVObject compiledMotionNode, float posX, float posY)
+    {
+        var sequenceNode = MakeNode("CSequenceAnimNode");
+        sequenceNode.AddProperty("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
+        sequenceNode.AddProperty("m_vecPosition", MakeVector2(posX, posY));
+
+        if (compiledMotionNode.ContainsKey("m_hSequence"))
+        {
+            var sequenceIndex = compiledMotionNode.GetIntegerProperty("m_hSequence");
+            var sequenceName = GetSequenceName(sequenceIndex);
+            sequenceNode.AddProperty("m_sequenceName", sequenceName);
+        }
+        else
+        {
+            sequenceNode.AddProperty("m_sequenceName", "");
+        }
+
+        var playbackSpeed = compiledMotionNode.ContainsKey("m_flPlaybackSpeed")
+            ? compiledMotionNode.GetFloatProperty("m_flPlaybackSpeed")
+            : 1.0f;
+        sequenceNode.AddProperty("m_playbackSpeed", playbackSpeed);
+
+        sequenceNode.AddProperty("m_bLoop", compiledMotionNode.GetIntegerProperty("m_bLoop") > 0);
+        sequenceNode.AddProperty("m_tagSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
+        sequenceNode.AddProperty("m_paramSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
+        sequenceNode.AddProperty("m_networkMode", "ServerAuthoritative");
+
+        return sequenceNode;
+    }
+
+    private static KVObject CreateBlendMotionNode(KVObject compiledMotionNode, List<long> motionParamIds, Dictionary<long, long> idMap, float posX, float posY)
+    {
+        var blendNode = MakeNode("CBlendAnimNode");
+        blendNode.AddProperty("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
+        blendNode.AddProperty("m_vecPosition", MakeVector2(posX, posY));
+
+        if (compiledMotionNode.ContainsKey("m_blendItems"))
+        {
+            var blendItems = compiledMotionNode.GetArray("m_blendItems");
+            var children = new List<KVObject>();
+
+            foreach (var blendItem in blendItems)
+            {
+                var blendChild = MakeNode("CBlendNodeChild");
+                blendChild.AddProperty("m_name", "Unnamed");
+                blendChild.AddProperty("m_blendValue", blendItem.GetFloatProperty("m_flKeyValue"));
+
+                if (blendItem.ContainsKey("m_pChild"))
+                {
+                    var childNode = blendItem.GetSubCollection("m_pChild");
+                    var childCompiledId = childNode.GetSubCollection("m_id").GetIntegerProperty("m_id");
+                    var childNewId = idMap[childCompiledId];
+                    var inputConnection = MakeInputConnection(childNewId);
+                    blendChild.AddProperty("m_inputConnection", inputConnection);
+                }
+
+                children.Add(blendChild);
+            }
+
+            blendNode.AddProperty("m_children", KVValue.MakeArray(children.ToArray()));
+        }
+
+        blendNode.AddProperty("m_blendValueSource", "Parameter");
+
+        if (compiledMotionNode.ContainsKey("m_nParamIndex"))
+        {
+            var paramIndex = (int)compiledMotionNode.GetIntegerProperty("m_nParamIndex");
+
+            if (paramIndex >= 0 && paramIndex < motionParamIds.Count)
+            {
+                var motionParamId = motionParamIds[paramIndex];
+                var paramIdValue = MakeNodeIdObjectValue(motionParamId);
+                blendNode.AddProperty("m_param", paramIdValue);
+            }
+            else
+            {
+                blendNode.AddProperty("m_param", MakeNodeIdObjectValue(-1));
+            }
+        }
+        else
+        {
+            blendNode.AddProperty("m_param", MakeNodeIdObjectValue(-1));
+        }
+
+        blendNode.AddProperty("m_blendKeyType", "BlendKey_UserValue");
+        blendNode.AddProperty("m_bLockBlendOnReset", false);
+        blendNode.AddProperty("m_bSyncCycles", true);
+        blendNode.AddProperty("m_bLoop", true);
+        blendNode.AddProperty("m_bLockWhenWaning", true);
+        blendNode.AddProperty("m_damping", MakeDefaultDamping());
+        blendNode.AddProperty("m_networkMode", "ServerAuthoritative");
+
+        return blendNode;
+    }
+
     private KVObject ConvertMotionNode(KVObject compiledMotionNode, List<long> motionParamIds, Dictionary<long, long> idMap)
     {
         var className = compiledMotionNode.GetStringProperty("_class");
@@ -3259,187 +3207,21 @@ public class AnimationGraphExtract
         var posX = -200 + random.Next(0, 400);
         var posY = -200 + random.Next(0, 400);
 
-        if (className == "CMotionNodeSequence")
+        // Check for sequence node
+        if ((className == "CMotionNodeSequence") ||
+            (className == "CMotionNode" && compiledMotionNode.ContainsKey("m_hSequence")))
         {
-            var sequenceNode = MakeNode("CSequenceAnimNode");
-            sequenceNode.AddProperty("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
-            sequenceNode.AddProperty("m_vecPosition", MakeVector2(posX, posY));
-
-            if (compiledMotionNode.ContainsKey("m_hSequence"))
-            {
-                var sequenceIndex = compiledMotionNode.GetIntegerProperty("m_hSequence");
-                var sequenceName = GetSequenceName(sequenceIndex);
-                sequenceNode.AddProperty("m_sequenceName", sequenceName);
-            }
-
-            sequenceNode.AddProperty("m_playbackSpeed", compiledMotionNode.GetFloatProperty("m_flPlaybackSpeed"));
-            sequenceNode.AddProperty("m_bLoop", compiledMotionNode.GetIntegerProperty("m_bLoop") > 0);
-
-            sequenceNode.AddProperty("m_tagSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
-            sequenceNode.AddProperty("m_paramSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
-
-            sequenceNode.AddProperty("m_networkMode", "ServerAuthoritative");
-
-            return sequenceNode;
-        }
-        else if (className == "CMotionNodeBlend1D")
-        {
-            var blendNode = MakeNode("CBlendAnimNode");
-            blendNode.AddProperty("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
-            blendNode.AddProperty("m_vecPosition", MakeVector2(posX, posY));
-
-            if (compiledMotionNode.ContainsKey("m_blendItems"))
-            {
-                var blendItems = compiledMotionNode.GetArray("m_blendItems");
-                var children = new List<KVObject>();
-
-                foreach (var blendItem in blendItems)
-                {
-                    var blendChild = MakeNode("CBlendNodeChild");
-                    blendChild.AddProperty("m_name", "Unnamed");
-                    blendChild.AddProperty("m_blendValue", blendItem.GetFloatProperty("m_flKeyValue"));
-
-                    if (blendItem.ContainsKey("m_pChild"))
-                    {
-                        var childNode = blendItem.GetSubCollection("m_pChild");
-                        var childCompiledId = childNode.GetSubCollection("m_id").GetIntegerProperty("m_id");
-                        var childNewId = idMap[childCompiledId];
-                        var inputConnection = MakeInputConnection(childNewId);
-                        blendChild.AddProperty("m_inputConnection", inputConnection);
-                    }
-
-                    children.Add(blendChild);
-                }
-
-                blendNode.AddProperty("m_children", KVValue.MakeArray(children.ToArray()));
-            }
-
-            blendNode.AddProperty("m_blendValueSource", "Parameter");
-
-            if (compiledMotionNode.ContainsKey("m_nParamIndex"))
-            {
-                var paramIndex = (int)compiledMotionNode.GetIntegerProperty("m_nParamIndex");
-
-                if (paramIndex >= 0 && paramIndex < motionParamIds.Count)
-                {
-                    var motionParamId = motionParamIds[paramIndex];
-                    var paramIdValue = MakeNodeIdObjectValue(motionParamId);
-                    blendNode.AddProperty("m_param", paramIdValue);
-                }
-                else
-                {
-                    blendNode.AddProperty("m_param", MakeNodeIdObjectValue(-1));
-                }
-            }
-            else
-            {
-                blendNode.AddProperty("m_param", MakeNodeIdObjectValue(-1));
-            }
-
-            blendNode.AddProperty("m_blendKeyType", "BlendKey_UserValue");
-            blendNode.AddProperty("m_bLockBlendOnReset", false);
-            blendNode.AddProperty("m_bSyncCycles", true);
-            blendNode.AddProperty("m_bLoop", true);
-            blendNode.AddProperty("m_bLockWhenWaning", true);
-
-            blendNode.AddProperty("m_damping", MakeDefaultDamping());
-
-            blendNode.AddProperty("m_networkMode", "ServerAuthoritative");
-
-            return blendNode;
-        }
-        else if (className == "CMotionNode")
-        {
-            if (compiledMotionNode.ContainsKey("m_hSequence"))
-            {
-                var sequenceNode = MakeNode("CSequenceAnimNode");
-                sequenceNode.AddProperty("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
-                sequenceNode.AddProperty("m_vecPosition", MakeVector2(posX, posY));
-
-                var sequenceIndex = compiledMotionNode.GetIntegerProperty("m_hSequence");
-                var sequenceName = GetSequenceName(sequenceIndex);
-                sequenceNode.AddProperty("m_sequenceName", sequenceName);
-
-                if (compiledMotionNode.ContainsKey("m_flPlaybackSpeed"))
-                {
-                    sequenceNode.AddProperty("m_playbackSpeed", compiledMotionNode.GetFloatProperty("m_flPlaybackSpeed"));
-                }
-                else
-                {
-                    sequenceNode.AddProperty("m_playbackSpeed", 1.0f);
-                }
-
-                sequenceNode.AddProperty("m_bLoop", compiledMotionNode.GetIntegerProperty("m_bLoop") > 0);
-                sequenceNode.AddProperty("m_tagSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
-                sequenceNode.AddProperty("m_paramSpans", KVValue.MakeArray(Array.Empty<KVObject>()));
-                sequenceNode.AddProperty("m_networkMode", "ServerAuthoritative");
-
-                return sequenceNode;
-            }
-            else if (compiledMotionNode.ContainsKey("m_blendItems"))
-            {
-                var blendNode = MakeNode("CBlendAnimNode");
-                blendNode.AddProperty("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
-                blendNode.AddProperty("m_vecPosition", MakeVector2(posX, posY));
-
-                var blendItems = compiledMotionNode.GetArray("m_blendItems");
-                var children = new List<KVObject>();
-
-                foreach (var blendItem in blendItems)
-                {
-                    var blendChild = MakeNode("CBlendNodeChild");
-                    blendChild.AddProperty("m_name", "Unnamed");
-                    blendChild.AddProperty("m_blendValue", blendItem.GetFloatProperty("m_flKeyValue"));
-
-                    if (blendItem.ContainsKey("m_pChild"))
-                    {
-                        var childNode = blendItem.GetSubCollection("m_pChild");
-                        var childCompiledId = childNode.GetSubCollection("m_id").GetIntegerProperty("m_id");
-                        var childNewId = idMap[childCompiledId];
-                        var inputConnection = MakeInputConnection(childNewId);
-                        blendChild.AddProperty("m_inputConnection", inputConnection);
-                    }
-
-                    children.Add(blendChild);
-                }
-
-                blendNode.AddProperty("m_children", KVValue.MakeArray(children.ToArray()));
-
-                blendNode.AddProperty("m_blendValueSource", "Parameter");
-
-                if (compiledMotionNode.ContainsKey("m_nParamIndex"))
-                {
-                    var paramIndex = (int)compiledMotionNode.GetIntegerProperty("m_nParamIndex");
-
-                    if (paramIndex >= 0 && paramIndex < motionParamIds.Count)
-                    {
-                        var motionParamId = motionParamIds[paramIndex];
-                        var paramIdValue = MakeNodeIdObjectValue(motionParamId);
-                        blendNode.AddProperty("m_param", paramIdValue);
-                    }
-                    else
-                    {
-                        blendNode.AddProperty("m_param", MakeNodeIdObjectValue(-1));
-                    }
-                }
-                else
-                {
-                    blendNode.AddProperty("m_param", MakeNodeIdObjectValue(-1));
-                }
-
-                blendNode.AddProperty("m_blendKeyType", "BlendKey_UserValue");
-                blendNode.AddProperty("m_bLockBlendOnReset", false);
-                blendNode.AddProperty("m_bSyncCycles", true);
-                blendNode.AddProperty("m_bLoop", true);
-                blendNode.AddProperty("m_bLockWhenWaning", true);
-
-                blendNode.AddProperty("m_damping", MakeDefaultDamping());
-                blendNode.AddProperty("m_networkMode", "ServerAuthoritative");
-
-                return blendNode;
-            }
+            return CreateSequenceMotionNode(compiledMotionNode, posX, posY);
         }
 
+        // Check for blend node
+        if ((className == "CMotionNodeBlend1D") ||
+            (className == "CMotionNode" && compiledMotionNode.ContainsKey("m_blendItems")))
+        {
+            return CreateBlendMotionNode(compiledMotionNode, motionParamIds, idMap, posX, posY);
+        }
+
+        // Default fallback
         var defaultNode = MakeNode("CSequenceAnimNode");
         defaultNode.AddProperty("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
         defaultNode.AddProperty("m_vecPosition", MakeVector2(posX, posY));
@@ -3894,7 +3676,7 @@ public class AnimationGraphExtract
                 if (key == "m_clips")
                 {
                     var clipIndices = compiledNode.GetIntegerArray("m_clips");
-                    var clipNames = clipIndices.Select(GetSequenceNameFromIndex).ToArray();
+                    var clipNames = clipIndices.Select(idx => GetSequenceName(idx)).ToArray();
                     node.AddProperty("m_clips", KVValue.MakeArray(clipNames.Select(name => new KVValue(ValveKeyValue.KVValueType.String, name)).ToArray()));
                     continue;
                 }
