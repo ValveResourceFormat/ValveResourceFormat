@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import yaml from 'js-yaml'
 
@@ -8,6 +8,8 @@ import yaml from 'js-yaml'
  * @param {string} baseUrl - URL prefix for links (e.g. '/api/' or '/guides/')
  */
 export function parseToc(tocPath, baseUrl) {
+    if (!existsSync(tocPath)) return []
+
     let content = readFileSync(tocPath, 'utf-8')
 
     // Strip DocFX YAML MIME header if present

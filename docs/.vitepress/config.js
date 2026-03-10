@@ -7,9 +7,14 @@ const docsDir = resolve(import.meta.dirname, '..')
 const apiSidebar = parseToc(resolve(docsDir, 'api/toc.yml'), '/api/')
 
 // Split Renderer namespace into its own sidebar
+let rendererSidebar = []
 const vrfRoot = apiSidebar[0]
-const rendererIndex = vrfRoot.items.findIndex(item => item.text === 'Renderer')
-const rendererSidebar = [vrfRoot.items.splice(rendererIndex, 1)[0]]
+if (vrfRoot?.items) {
+    const rendererIndex = vrfRoot.items.findIndex(item => item.text === 'Renderer')
+    if (rendererIndex !== -1) {
+        rendererSidebar = [vrfRoot.items.splice(rendererIndex, 1)[0]]
+    }
+}
 
 export default defineConfig({
     title: 'Source 2 Viewer',
