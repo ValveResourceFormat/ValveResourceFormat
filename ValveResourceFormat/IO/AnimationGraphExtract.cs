@@ -85,6 +85,82 @@ public class AnimationGraphExtract
             {
                 ["m_duration"] = (PropAction.Skip, null),
                 ["m_hSequence"] = (PropAction.Skip, null),
+            },
+            ["CAdd"] = new(StringComparer.Ordinal)
+            {
+                ["m_bResetChild1"] = (PropAction.Rename, "m_bResetBase"),
+                ["m_bResetChild2"] = (PropAction.Rename, "m_bResetAdditive"),
+            },
+            ["CSubtract"] = new(StringComparer.Ordinal)
+            {
+                ["m_bResetChild1"] = (PropAction.Rename, "m_bResetBase"),
+                ["m_bResetChild2"] = (PropAction.Rename, "m_bResetSubtract"),
+            },
+            ["CTurnHelper"] = new(StringComparer.Ordinal)
+            {
+                ["m_pChildNode"] = (PropAction.InputConnection, null),
+                ["m_facingTarget"] = (PropAction.Copy, null),
+                ["m_turnStartTimeOffset"] = (PropAction.Rename, "m_turnStartTime"),
+                ["m_turnDuration"] = (PropAction.Copy, null),
+                ["m_bMatchChildDuration"] = (PropAction.Copy, null),
+                ["m_manualTurnOffset"] = (PropAction.Copy, null),
+                ["m_bUseManualTurnOffset"] = (PropAction.Copy, null),
+            },
+            ["CAimMatrix"] = new(StringComparer.Ordinal)
+            {
+                ["m_target"] = (PropAction.Copy, null),
+                ["m_paramIndex"] = (PropAction.ParamRef, "m_param"),
+                ["m_hSequence"] = (PropAction.SequenceName, "m_sequenceName"),
+                ["m_bResetChild"] = (PropAction.Rename, "m_bResetBase"),
+                ["m_bLockWhenWaning"] = (PropAction.Copy, null),
+            },
+            ["CDirectionalBlend"] = new(StringComparer.Ordinal)
+            {
+                ["m_paramIndex"] = (PropAction.ParamRef, "m_param"),
+                ["m_blendValueSource"] = (PropAction.Copy, null),
+                ["m_playbackSpeed"] = (PropAction.Copy, null),
+                ["m_bLoop"] = (PropAction.Copy, null),
+                ["m_bLockBlendOnReset"] = (PropAction.Copy, null),
+                ["m_damping"] = (PropAction.Copy, null),
+                ["m_duration"] = (PropAction.Skip, null),
+            },
+            ["CFollowAttachment"] = new(StringComparer.Ordinal)
+            {
+                ["m_pChildNode"] = (PropAction.InputConnection, null),
+            },
+            ["CFootAdjustment"] = new(StringComparer.Ordinal)
+            {
+                ["m_pChildNode"] = (PropAction.InputConnection, null),
+                ["m_facingTarget"] = (PropAction.ParamRef, null),
+                ["m_bResetChild"] = (PropAction.Copy, null),
+                ["m_bAnimationDriven"] = (PropAction.Copy, null),
+                ["m_flTurnTimeMin"] = (PropAction.Copy, null),
+                ["m_flTurnTimeMax"] = (PropAction.Copy, null),
+                ["m_flStepHeightMax"] = (PropAction.Copy, null),
+                ["m_flStepHeightMaxAngle"] = (PropAction.Copy, null),
+            },
+            ["CFootPinning"] = new(StringComparer.Ordinal)
+            {
+                ["m_pChildNode"] = (PropAction.InputConnection, null),
+                ["m_eTimingSource"] = (PropAction.Copy, null),
+                ["m_bResetChild"] = (PropAction.Copy, null),
+            },
+            ["CFootStepTrigger"] = new(StringComparer.Ordinal)
+            {
+                ["m_pChildNode"] = (PropAction.InputConnection, null),
+                ["m_flTolerance"] = (PropAction.Copy, null),
+            },
+            ["CJiggleBone"] = new(StringComparer.Ordinal)
+            {
+                ["m_pChildNode"] = (PropAction.InputConnection, null),
+            },
+            ["CBlend2D"] = new(StringComparer.Ordinal)
+            {
+                ["m_paramX"] = (PropAction.ParamRef, null),
+                ["m_paramY"] = (PropAction.ParamRef, null),
+                ["m_eBlendMode"] = (PropAction.Copy, null),
+                ["m_blendSourceX"] = (PropAction.Copy, null),
+                ["m_blendSourceY"] = (PropAction.Copy, null),
             }
         };
 
@@ -3746,11 +3822,7 @@ public class AnimationGraphExtract
                     continue;
                 }
 
-                if (key == "m_bResetOnChange" || key == "m_bLockWhenWaning" || key == "m_bSyncCyclesOnChange")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
+
             }
             else if (className == "CStateMachine")
             {
@@ -3802,44 +3874,8 @@ public class AnimationGraphExtract
                     continue;
                 }
             }
-            else if (className == "CAdd")
-            {
-                if (key == "m_bResetChild1")
-                {
-                    node.AddProperty("m_bResetBase", value);
-                    continue;
-                }
-                else if (key == "m_bResetChild2")
-                {
-                    node.AddProperty("m_bResetAdditive", value);
-                    continue;
-                }
-            }
-            else if (className == "CSubtract")
-            {
-                if (key == "m_bResetChild1")
-                {
-                    node.AddProperty("m_bResetBase", value);
-                    continue;
-                }
-                else if (key == "m_bResetChild2")
-                {
-                    node.AddProperty("m_bResetSubtract", value);
-                    continue;
-                }
-            }
             else if (className == "CBoneMask")
             {
-                if (key == "m_hBlendParameter")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
-                    node.AddProperty("m_blendParameter", paramIdValue);
-                    continue;
-                }
-
                 if (key == "m_nWeightListIndex")
                 {
                     var weightListIndex = compiledNode.GetIntegerProperty("m_nWeightListIndex");
@@ -4035,94 +4071,10 @@ public class AnimationGraphExtract
                     }
                     continue;
                 }
-                if (key == "m_eBlendMode")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                if (key == "m_paramX" || key == "m_paramY")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
-                    node.AddProperty(key, paramIdValue);
-                    continue;
-                }
-                if (key == "m_blendSourceX" || key == "m_blendSourceY")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-            }
-            else if (className == "CTurnHelper")
-            {
-                if (key == "m_name")
-                {
-                    var nameValue = value.Value?.ToString() ?? "Unnamed";
-                    node.AddProperty("m_sName", nameValue);
-                    continue;
-                }
-                else if (key == "m_pChildNode")
-                {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
-                    continue;
-                }
-                else if (key == "m_facingTarget")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_turnStartTimeOffset")
-                {
-                    node.AddProperty("m_turnStartTime", value);
-                    continue;
-                }
-                else if (key == "m_turnDuration" || key == "m_bMatchChildDuration" ||
-                         key == "m_manualTurnOffset" || key == "m_bUseManualTurnOffset")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
             }
             else if (className == "CAimMatrix")
             {
-                if (key == "m_target")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_paramIndex")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    node.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
-                    continue;
-                }
-                else if (key == "m_hSequence")
-                {
-                    var sequenceIndex = compiledNode.GetIntegerProperty("m_hSequence");
-                    var sequenceName = GetSequenceName(sequenceIndex);
-                    node.AddProperty("m_sequenceName", sequenceName);
-                    continue;
-                }
-                else if (key == "m_bResetChild")
-                {
-                    node.AddProperty("m_bResetBase", value);
-                    continue;
-                }
-                else if (key == "m_bLockWhenWaning")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_opFixedSettings")
+                if (key == "m_opFixedSettings")
                 {
                     var opFixedSettings = subCollection.Value;
 
@@ -4163,13 +4115,7 @@ public class AnimationGraphExtract
             }
             else if (className == "CDirectionalBlend")
             {
-                if (key == "m_name")
-                {
-                    var nameValue = value.Value?.ToString() ?? "Unnamed";
-                    node.AddProperty("m_sName", nameValue);
-                    continue;
-                }
-                else if (key == "m_hSequences")
+                if (key == "m_hSequences")
                 {
                     var sequenceIndices = compiledNode.GetIntegerArray("m_hSequences");
                     if (sequenceIndices.Length == 8)
@@ -4195,53 +4141,10 @@ public class AnimationGraphExtract
                     }
                     continue;
                 }
-                else if (key == "m_paramIndex")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    node.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
-                    continue;
-                }
-                else if (key == "m_blendValueSource")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_playbackSpeed" || key == "m_bLoop" || key == "m_bLockBlendOnReset")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_damping")
-                {
-                    node.AddProperty(key, subCollection.Value);
-                    continue;
-                }
-                else if (key == "m_duration")
-                {
-                    continue;
-                }
             }
             else if (className == "CFollowAttachment")
             {
-                if (key == "m_name")
-                {
-                    var nameValue = value.Value?.ToString() ?? "Unnamed";
-                    node.AddProperty("m_sName", nameValue);
-                    continue;
-                }
-                else if (key == "m_pChildNode")
-                {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
-                    continue;
-                }
-                else if (key == "m_opFixedData")
+                if (key == "m_opFixedData")
                 {
                     var opFixedData = subCollection.Value;
 
@@ -4274,51 +4177,11 @@ public class AnimationGraphExtract
             }
             else if (className == "CFootAdjustment")
             {
-                if (key == "m_name")
-                {
-                    var nameValue = value.Value?.ToString() ?? "Unnamed";
-                    node.AddProperty("m_sName", nameValue);
-                    continue;
-                }
-                else if (key == "m_pChildNode")
-                {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
-                    continue;
-                }
-                else if (key == "m_facingTarget")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    node.AddProperty("m_facingTarget", ParameterIDFromIndex(paramType, paramIndex));
-                    continue;
-                }
-                else if (key == "m_clips")
+                if (key == "m_clips")
                 {
                     var clipIndices = compiledNode.GetIntegerArray("m_clips");
                     var clipNames = clipIndices.Select(GetSequenceNameFromIndex).ToArray();
                     node.AddProperty("m_clips", KVValue.MakeArray(clipNames.Select(name => new KVValue(ValveKeyValue.KVValueType.String, name)).ToArray()));
-                    continue;
-                }
-                else if (key == "m_bResetChild")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_bAnimationDriven")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_flTurnTimeMin" || key == "m_flTurnTimeMax" ||
-                         key == "m_flStepHeightMax" || key == "m_flStepHeightMaxAngle")
-                {
-                    node.AddProperty(key, value);
                     continue;
                 }
                 else if (key == "m_hBasePoseCacheHandle")
@@ -4332,23 +4195,7 @@ public class AnimationGraphExtract
             }
             else if (className == "CFootPinning")
             {
-                if (key == "m_name")
-                {
-                    var nameValue = value.Value?.ToString() ?? "Unnamed";
-                    node.AddProperty("m_sName", nameValue);
-                    continue;
-                }
-                else if (key == "m_pChildNode")
-                {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
-                    continue;
-                }
-                else if (key == "m_poseOpFixedData")
+                if (key == "m_poseOpFixedData")
                 {
                     var poseOpFixedData = subCollection.Value;
                     if (poseOpFixedData.ContainsKey("m_footInfo"))
@@ -4474,36 +4321,10 @@ public class AnimationGraphExtract
                     node.AddProperty("m_items", KVValue.MakeArray(itemsList.ToArray()));
                     continue;
                 }
-                else if (key == "m_bResetChild")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
             }
             else if (className == "CFootStepTrigger")
             {
-                if (key == "m_name")
-                {
-                    var nameValue = value.Value?.ToString() ?? "Unnamed";
-                    node.AddProperty("m_sName", nameValue);
-                    continue;
-                }
-                else if (key == "m_pChildNode")
-                {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
-                    continue;
-                }
-                else if (key == "m_flTolerance")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_triggers")
+                if (key == "m_triggers")
                 {
                     var triggers = compiledNode.GetArray("m_triggers");
                     var convertedItems = new List<KVObject>();
@@ -4558,23 +4379,7 @@ public class AnimationGraphExtract
             }
             else if (className == "CJiggleBone")
             {
-                if (key == "m_name")
-                {
-                    var nameValue = value.Value?.ToString() ?? "Unnamed";
-                    node.AddProperty("m_sName", nameValue);
-                    continue;
-                }
-                else if (key == "m_pChildNode")
-                {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
-                    continue;
-                }
-                else if (key == "m_opFixedData")
+                if (key == "m_opFixedData")
                 {
                     var opFixedData = subCollection.Value;
                     if (opFixedData.ContainsKey("m_boneSettings"))
