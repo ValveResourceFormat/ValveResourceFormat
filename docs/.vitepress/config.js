@@ -12,7 +12,7 @@ const rendererIndex = vrfRoot.items.findIndex(item => item.text === 'Renderer')
 const rendererSidebar = [vrfRoot.items.splice(rendererIndex, 1)[0]]
 
 export default defineConfig({
-    title: 'ValveResourceFormat',
+    title: 'Source 2 Viewer',
     description: 'Source 2 resource file format parser, decompiler, and exporter',
     base: '/ValveResourceFormat/',
 
