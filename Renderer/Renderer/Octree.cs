@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Renderer
             /// <summary>
             /// Gets or sets whether an occlusion query has been submitted for this node.
             /// </summary>
-            public bool OcculsionQuerySubmitted { get; set; }
+            public bool OcclusionQuerySubmitted { get; set; }
 
             /// <summary>
             /// Gets or sets whether this node is occluded by other geometry.
@@ -250,7 +250,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 FrustumCulled = false;
-                OcculsionQuerySubmitted = false;
+                OcclusionQuerySubmitted = false;
                 OcclusionCulled = false;
             }
 

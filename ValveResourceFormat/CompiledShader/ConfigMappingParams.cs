@@ -44,7 +44,7 @@ namespace ValveResourceFormat.CompiledShader
      * 11        1  2  1
      *
      * In most shader files some static-combinations are not allowed. These are described by constraints specified
-     * in the the Sf-constraints blocks. The most common types of constraints are mutual-exclusion and dependencies
+     * in the Sf-constraints blocks. The most common types of constraints are mutual-exclusion and dependencies
      * between pairs of parameters.
      *
      * EXC(S1,S2) means S1 and S2 are mutually exclusive and cannot appear together

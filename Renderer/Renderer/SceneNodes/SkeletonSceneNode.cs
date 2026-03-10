@@ -97,7 +97,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     (_, 0) => new Color32(0.3f, 0.8f, 0.3f, 1.0f),
                     _ => Color32.White,
                 },
-                CenterVertical = false
             }, camera);
 
             if (bone.Parent != null)

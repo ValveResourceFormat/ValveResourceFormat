@@ -531,7 +531,7 @@ namespace GUI.Types.GLViewers
                     Scale = 14f,
                     Color = new Color32(0, 150, 255),
                     Text = "* MOVEMENT IS EXPERIMENTAL. EXPECT BUGS. HELP US IMPROVE IT. *",
-                    CenterVertical = true,
+                    CenterHorizontal = true,
                 }, Renderer.Camera);
 
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
@@ -541,7 +541,7 @@ namespace GUI.Types.GLViewers
                     Scale = 12f,
                     Color = Color32.Yellow,
                     Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
-                    CenterVertical = true,
+                    CenterHorizontal = true,
                 }, Renderer.Camera);
             }
 

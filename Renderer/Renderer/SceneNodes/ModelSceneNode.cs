@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             LoadMeshes(model);
             UpdateBoundingBox();
-            LoadAnimations(model, embededAnimationsOnly: isWorldPreview);
+            LoadAnimations(model, embeddedAnimationsOnly: isWorldPreview);
 
             SetCharacterEyeRenderParams();
         }
@@ -308,9 +308,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        private void LoadAnimations(Model model, bool embededAnimationsOnly)
+        private void LoadAnimations(Model model, bool embeddedAnimationsOnly)
         {
-            animations.AddRange(embededAnimationsOnly
+            animations.AddRange(embeddedAnimationsOnly
                 ? model.GetEmbeddedAnimations()
                 : model.GetAllAnimations(Scene.RendererContext.FileLoader)
             );

@@ -725,8 +725,8 @@ namespace ValveResourceFormat.Renderer
 
             if (renderPass == RenderPass.Translucent)
             {
-                WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
-                WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+                WantsSceneColor |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneColor");
+                WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
 
                 if (request.Call.Material.IsCs2Water)
                 {
@@ -1300,7 +1300,7 @@ namespace ValveResourceFormat.Renderer
             foreach (var child in node.Children)
             {
                 child.OcclusionCulled = false;
-                child.OcculsionQuerySubmitted = false;
+                child.OcclusionQuerySubmitted = false;
                 ClearOccludedStateRecursive(child);
             }
         }
@@ -1350,7 +1350,7 @@ namespace ValveResourceFormat.Renderer
                 if (node.FrustumCulled)
                 {
                     node.OcclusionCulled = false;
-                    node.OcculsionQuerySubmitted = false;
+                    node.OcclusionQuerySubmitted = false;
                     continue;
                 }
 
@@ -1365,7 +1365,7 @@ namespace ValveResourceFormat.Renderer
                     // if the camera is inside the octant, we can skip the occlusion test, however we still need to test the children
                     testChildren[i] = true;
                     node.OcclusionCulled = false;
-                    node.OcculsionQuerySubmitted = false;
+                    node.OcclusionQuerySubmitted = false;
                     continue;
                 }
 
@@ -1380,7 +1380,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 // Queried on a previous frame, waiting for result
-                if (node.OcculsionQuerySubmitted)
+                if (node.OcclusionQuerySubmitted)
                 {
                     //TryGetOcclusionTestResult(node);
                     continue;
@@ -1406,7 +1406,7 @@ namespace ValveResourceFormat.Renderer
                 octreeNode.OcclusionQueryHandle = GL.GenQuery();
             }
 
-            octreeNode.OcculsionQuerySubmitted = true;
+            octreeNode.OcclusionQuerySubmitted = true;
             maxTests--;
 
             GL.VertexAttrib4(
@@ -1450,7 +1450,7 @@ namespace ValveResourceFormat.Renderer
             {
                 foreach (var child in root.Children)
                 {
-                    if (child.OcculsionQuerySubmitted)
+                    if (child.OcclusionQuerySubmitted)
                     {
                         TryGetOcclusionTestResult(child);
                     }
@@ -1475,7 +1475,7 @@ namespace ValveResourceFormat.Renderer
             );
 
             node.OcclusionCulled = visible == 0;
-            node.OcculsionQuerySubmitted = visible == -1;
+            node.OcclusionQuerySubmitted = visible == -1;
             return visible != -1;
         }
 

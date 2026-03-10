@@ -146,7 +146,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                     IncomingTangent = CurvePoint.GetTangentType(tangents[i].GetProperty<string>("m_nIncomingTangent")),
                     OutgoingTangent = CurvePoint.GetTangentType(tangents[i].GetProperty<string>("m_nOutgoingTangent")),
                     SlopeIncoming = splines[i].GetFloatProperty("m_flSlopeIncoming"),
-                    SlopeOutgoing = splines[i].GetFloatProperty("m_flSlopeIncoming"),
+                    SlopeOutgoing = splines[i].GetFloatProperty("m_flSlopeOutgoing"),
                 };
             }
 

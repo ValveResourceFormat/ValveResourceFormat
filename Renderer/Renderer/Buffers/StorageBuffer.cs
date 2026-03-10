@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer.Buffers
                     return;
                 }
 
-                throw new InvalidOperationException("Trying to update an unitialized buffer.");
+                throw new InvalidOperationException("Trying to update an uninitialized buffer.");
             }
 
             if (PersistentPtr != IntPtr.Zero)

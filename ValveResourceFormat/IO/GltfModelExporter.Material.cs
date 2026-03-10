@@ -43,7 +43,7 @@ public partial class GltfModelExporter
 
 
     // In SatelliteImages mode, SharpGLTF will still load and validate images.
-    // To save memory, we initiate MemoryImage with a a dummy image instead.
+    // To save memory, we initiate MemoryImage with a dummy image instead.
     private static readonly byte[] DummyPng = [137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0];
 
     private int TexturesExportedSoFar;

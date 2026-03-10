@@ -59,7 +59,7 @@ public class SceneLightProbe : SceneNode
     /// <summary>
     /// Creates or re-enables the debug grid sphere visualization for this light probe volume.
     /// </summary>
-    public void CrateDebugGridSpheres()
+    public void CreateDebugGridSpheres()
     {
         if (DebugGridSpheres != null)
         {

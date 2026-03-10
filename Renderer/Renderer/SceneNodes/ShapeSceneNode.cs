@@ -162,7 +162,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>Returns a unit vector perpendicular to <paramref name="a"/>.</summary>
-        protected static Vector3 GetOrtogonal(Vector3 a)
+        protected static Vector3 GetOrthogonal(Vector3 a)
         {
             // Any vector not parallel to the given vector
             var arbitraryVector = new Vector3(1, 0, 0);
@@ -172,11 +172,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 arbitraryVector = new Vector3(0, 1, 0);
             }
 
-            return GetOrtogonal(a, arbitraryVector);
+            return GetOrthogonal(a, arbitraryVector);
         }
 
         /// <summary>Returns a unit vector perpendicular to both <paramref name="a"/> and <paramref name="b"/>.</summary>
-        protected static Vector3 GetOrtogonal(Vector3 a, Vector3 b)
+        protected static Vector3 GetOrthogonal(Vector3 a, Vector3 b)
         {
             var sideVector = Vector3.Cross(a, b);
             return Vector3.Normalize(sideVector);
@@ -188,8 +188,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var baseVertex = verts.Count;
 
             var axisUp = Vector3.Normalize(up);
-            var axisAround = GetOrtogonal(up);
-            var v = GetOrtogonal(axisAround, axisUp);
+            var axisAround = GetOrthogonal(up);
+            var v = GetOrthogonal(axisAround, axisUp);
 
             // generate vertices
             for (var band = 0; band < SphereBands; band++)

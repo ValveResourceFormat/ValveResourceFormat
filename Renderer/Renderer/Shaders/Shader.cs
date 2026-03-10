@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         public required HashSet<string> SrgbUniforms { get; init; }
 
         /// <summary>Gets the set of reserved texture uniform names that are actively used by this shader.</summary>
-        public HashSet<string> ReservedTexuresUsed { get; } = [];
+        public HashSet<string> ReservedTexturesUsed { get; } = [];
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
 
@@ -150,7 +150,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                     if (isReserved)
                     {
-                        ReservedTexuresUsed.Add(name);
+                        ReservedTexturesUsed.Add(name);
                         continue;
                     }
 

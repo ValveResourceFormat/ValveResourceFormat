@@ -255,7 +255,7 @@ namespace ValveResourceFormat.Renderer
                     AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
                     ShapeSceneNode.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
-                    node.LightProbeBinding.CrateDebugGridSpheres();
+                    node.LightProbeBinding.CreateDebugGridSpheres();
                 }
 
                 if (node.EntityData != null)
@@ -322,7 +322,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     Scale = 20f,
                     Text = nodeName,
-                    CenterVertical = true,
+                    CenterHorizontal = true,
                     TextOffset = SelectedNodeNameOffset
                 }, renderContext.Camera, fixedScale: false);
             }

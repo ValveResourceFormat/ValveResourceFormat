@@ -48,10 +48,10 @@ namespace ValveResourceFormat.Renderer
             public required string Text { get; init; }
 
             /// <summary>Gets whether the text is centered horizontally around <see cref="X"/>.</summary>
-            public bool CenterVertical { get; init; } = false;
+            public bool CenterHorizontal { get; init; } = false;
 
             /// <summary>Gets whether the text is centered vertically around <see cref="Y"/>.</summary>
-            public bool CenterHorizontal { get; init; } = false;
+            public bool CenterVertical { get; init; } = false;
         }
 
         private readonly List<TextRenderRequest> TextRenderRequests = new(10);
@@ -217,13 +217,13 @@ namespace ValveResourceFormat.Renderer
                     x += textRenderRequest.TextOffset.X;
                     y += textRenderRequest.TextOffset.Y;
 
-                    if (textRenderRequest.CenterVertical)
+                    if (textRenderRequest.CenterHorizontal)
                     {
                         // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
                         x -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
                     }
 
-                    if (textRenderRequest.CenterHorizontal)
+                    if (textRenderRequest.CenterVertical)
                     {
                         y -= (Ascender + Descender) / 2f * textRenderRequest.Scale;
                     }
