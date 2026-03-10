@@ -1,27 +1,23 @@
 {
-	"$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
-	"metadata": [
-		{
-			"src": [
-				{
-					"src": "../ValveResourceFormat",
-					"files": [
-						"ValveResourceFormat.csproj"
-					]
-				},
+    "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+    "metadata": [
+        {
+            "src": [
                 {
-					"src": "../Renderer",
-					"files": [
-						"Renderer.csproj"
-					]
-				}
-			],
+                    "src": "../ValveResourceFormat",
+                    "files": ["ValveResourceFormat.csproj"]
+                },
+                {
+                    "src": "../Renderer",
+                    "files": ["Renderer.csproj"]
+                }
+            ],
             "output": "api",
             "outputFormat": "markdown",
             "namespaceLayout": "nested",
             "categoryLayout": "flattened",
             "enumSortOrder": "declaringOrder",
             "filter": "docfx-filter.json"
-		}
-	]
+        }
+    ]
 }

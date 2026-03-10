@@ -10,7 +10,8 @@ Our documentation is still growing, and we'd love your help! Whether you've figu
 2. Click **Add file** > **Create new file**
 3. Name your file with a descriptive name using dashes, ending in `.md` (e.g. `exporting-models.md`)
 4. Write your guide using Markdown
-5. Click **Propose new file** at the bottom of the page to submit a pull request
+5. Also edit [`docs/.vitepress/config.js`](https://github.com/ValveResourceFormat/ValveResourceFormat/blob/master/docs/.vitepress/config.js) to add your guide to the sidebar
+6. Click **Propose new file** at the bottom of the page to submit a pull request
 
 ::: info
 You need to be logged in to your GitHub account.
@@ -23,7 +24,8 @@ If you prefer working locally:
 1. Fork the [ValveResourceFormat repository](https://github.com/ValveResourceFormat/ValveResourceFormat)
 2. Create a new `.md` file in the `docs/guides/` directory
 3. Write your guide
-4. Submit a pull request to the `master` branch
+4. Add your guide to the sidebar in [`docs/.vitepress/config.js`](https://github.com/ValveResourceFormat/ValveResourceFormat/blob/master/docs/.vitepress/config.js)
+5. Submit a pull request to the `master` branch
 
 ::: tip
 If you're not familiar with git on the command line, [GitHub Desktop](https://desktop.github.com/) makes forking, cloning, and submitting pull requests straightforward.
@@ -78,7 +80,7 @@ resource.Read(stream); // highlighted line
 If your guide benefits from screenshots or diagrams, place image files in the `docs/guides/images/` directory and reference them using an absolute path:
 
 ```md
-![Description of the image](/images/my-screenshot.png)
+![Description of the image](./images/my-screenshot.png)
 ```
 
 Keep images concise and relevant. Crop to the area of interest and avoid including unnecessary UI chrome. Use PNG for screenshots and SVG for diagrams where possible.
@@ -101,6 +103,12 @@ npm run dev
 ```
 
 This starts a local server with hot reload, so you can see your changes in real time as you edit.
+
+Before submitting, run the formatter to ensure consistent style:
+
+```sh
+npm run format
+```
 
 ## After you submit
 

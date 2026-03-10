@@ -10,27 +10,32 @@ All multi-byte values are stored in **little-endian** byte order.
 
 ## File Header
 
-| Offset | Size | Type   | Field Name    | Description                                           |
-|--------|------|--------|---------------|-------------------------------------------------------|
-| `0x00` | `4`  | uint32 | FileSize      | Total size of the resource data in bytes              |
-| `0x04` | `2`  | uint16 | HeaderVersion | Header format version (currently always **12**)       |
-| `0x06` | `2`  | uint16 | Version       | Resource type-specific version number                 |
-| `0x08` | `4`  | uint32 | BlockOffset   | Offset to block index table (typically **8**)         |
-| `0x0C` | `4`  | uint32 | BlockCount    | Number of blocks in this resource                     |
+| Offset | Size | Type   | Field Name    | Description                                     |
+| ------ | ---- | ------ | ------------- | ----------------------------------------------- |
+| `0x00` | `4`  | uint32 | FileSize      | Total size of the resource data in bytes        |
+| `0x04` | `2`  | uint16 | HeaderVersion | Header format version (currently always **12**) |
+| `0x06` | `2`  | uint16 | Version       | Resource type-specific version number           |
+| `0x08` | `4`  | uint32 | BlockOffset   | Offset to block index table (typically **8**)   |
+| `0x0C` | `4`  | uint32 | BlockCount    | Number of blocks in this resource               |
 
 ### FileSize
+
 The total size of the structured resource file in bytes. However, this may not match the actual file size on disk for certain resource types that have streaming data like sounds and textures.
 
 ### HeaderVersion
+
 The resource header format version. **Must be 12** for current Source 2 resources. If this value differs, the file uses an unsupported or legacy format.
 
 ### Version
+
 A version number specific to the resource type. Different resource types maintain independent versioning.
 
 ### BlockOffset
+
 The offset in bytes from the **current read position** (after reading `BlockCount`) to the start of the block index table.
 
 ### BlockCount
+
 The total number of data blocks in this resource. The block index table will contain exactly this many entries.
 
 ## Block Index Table
@@ -40,7 +45,7 @@ The block index table begins at offset `0x10 + BlockOffset` (typically at offset
 Each entry in the table is exactly **12 bytes** and describes one block:
 
 | Offset | Size | Type   | Field Name | Description                                      |
-|--------|------|--------|------------|--------------------------------------------------|
+| ------ | ---- | ------ | ---------- | ------------------------------------------------ |
 | `0x00` | `4`  | uint32 | BlockType  | FourCC code identifying the block type           |
 | `0x04` | `4`  | uint32 | Offset     | Relative offset from this position to block data |
 | `0x08` | `4`  | uint32 | Size       | Size of the block data in bytes                  |
@@ -50,6 +55,7 @@ Each entry in the table is exactly **12 bytes** and describes one block:
 Block types are identified using **FourCC** (Four Character Code) values. These are stored as little-endian uint32 values where each byte represents an ASCII character.
 
 For example, the `DATA` block:
+
 ```csharp
 Characters: 'D' 'A' 'T' 'A'
 ASCII:      0x44 0x41 0x54 0x41

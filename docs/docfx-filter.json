@@ -1,10 +1,10 @@
 {
-	"$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/filterconfig.schema.json",
-	"apiRules": [
-		{
-			"exclude": {
-				"uidRegex": "^System\\.Object\\..*"
-			}
-		}
-	]
+    "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/filterconfig.schema.json",
+    "apiRules": [
+        {
+            "exclude": {
+                "uidRegex": "^System\\.Object\\..*"
+            }
+        }
+    ]
 }
