@@ -596,10 +596,31 @@ public class AnimationGraphExtract
         modelBoneNamesCache[modelName] = boneNames.ToArray();
         return boneNames.ToArray();
     }
+    private static string GetNameByIndex(string[] names, int index)
+    {
+        return index >= 0 && index < names.Length ? names[index] : string.Empty;
+    }
+
+    private static KVObject[]? GetIKChainsFromModel(Model? modelData)
+    {
+        if (modelData is null)
+        {
+            return null;
+        }
+
+        var keyvalues = modelData.KeyValues;
+        if (!keyvalues.ContainsKey("ikdata"))
+        {
+            return null;
+        }
+
+        var ikdata = keyvalues.GetSubCollection("ikdata");
+        return ikdata.ContainsKey("m_IKChains") ? ikdata.GetArray("m_IKChains") : null;
+    }
+
     private string GetBoneName(int boneIndex)
     {
-        var boneNames = LoadBoneNamesFromModel();
-        return boneIndex >= 0 && boneIndex < boneNames.Length ? boneNames[boneIndex] : string.Empty;
+        return GetNameByIndex(LoadBoneNamesFromModel(), boneIndex);
     }
     private string[] LoadIKChainNamesFromModel()
     {
@@ -615,25 +636,15 @@ public class AnimationGraphExtract
         var ikChainNames = new List<string>();
         try
         {
-            var modelData = ModelData;
-            if (modelData is not null)
+            var ikChains = GetIKChainsFromModel(ModelData);
+            if (ikChains is not null)
             {
-                var keyvalues = modelData.KeyValues;
-                if (keyvalues.ContainsKey("ikdata"))
+                foreach (var chain in ikChains)
                 {
-                    var ikdata = keyvalues.GetSubCollection("ikdata");
-                    if (ikdata.ContainsKey("m_IKChains"))
+                    var name = chain.GetStringProperty("m_Name");
+                    if (!string.IsNullOrEmpty(name))
                     {
-                        var ikChains = ikdata.GetArray("m_IKChains");
-
-                        foreach (var chain in ikChains)
-                        {
-                            var name = chain.GetStringProperty("m_Name");
-                            if (!string.IsNullOrEmpty(name))
-                            {
-                                ikChainNames.Add(name);
-                            }
-                        }
+                        ikChainNames.Add(name);
                     }
                 }
             }
@@ -658,45 +669,35 @@ public class AnimationGraphExtract
 
         try
         {
-            var modelData = ModelData;
-            if (modelData is not null)
+            var ikChains = GetIKChainsFromModel(ModelData);
+            if (ikChains is not null)
             {
-                var keyvalues = modelData.KeyValues;
-                if (keyvalues.ContainsKey("ikdata"))
+                foreach (var chain in ikChains)
                 {
-                    var ikdata = keyvalues.GetSubCollection("ikdata");
-                    if (ikdata.ContainsKey("m_IKChains"))
+                    var name = chain.GetStringProperty("m_Name");
+                    if (string.IsNullOrEmpty(name))
                     {
-                        var ikChains = ikdata.GetArray("m_IKChains");
+                        continue;
+                    }
 
-                        foreach (var chain in ikChains)
+                    var boneList = new List<string>();
+                    if (chain.ContainsKey("m_Joints"))
+                    {
+                        var joints = chain.GetArray("m_Joints");
+                        foreach (var joint in joints)
                         {
-                            var name = chain.GetStringProperty("m_Name");
-                            if (string.IsNullOrEmpty(name))
+                            if (joint.ContainsKey("m_Bone"))
                             {
-                                continue;
-                            }
-
-                            var boneList = new List<string>();
-                            if (chain.ContainsKey("m_Joints"))
-                            {
-                                var joints = chain.GetArray("m_Joints");
-                                foreach (var joint in joints)
+                                var bone = joint.GetSubCollection("m_Bone");
+                                var boneName = bone.GetStringProperty("m_Name");
+                                if (!string.IsNullOrEmpty(boneName))
                                 {
-                                    if (joint.ContainsKey("m_Bone"))
-                                    {
-                                        var bone = joint.GetSubCollection("m_Bone");
-                                        var boneName = bone.GetStringProperty("m_Name");
-                                        if (!string.IsNullOrEmpty(boneName))
-                                        {
-                                            boneList.Add(boneName);
-                                        }
-                                    }
+                                    boneList.Add(boneName);
                                 }
                             }
-                            chainBones[name] = boneList;
                         }
                     }
+                    chainBones[name] = boneList;
                 }
             }
         }
@@ -733,13 +734,11 @@ public class AnimationGraphExtract
     }
     private string GetIKChainName(int ikChainIndex)
     {
-        var ikChainNames = LoadIKChainNamesFromModel();
-        return ikChainIndex >= 0 && ikChainIndex < ikChainNames.Length ? ikChainNames[ikChainIndex] : string.Empty;
+        return GetNameByIndex(LoadIKChainNamesFromModel(), ikChainIndex);
     }
     private string GetFootName(int footIndex)
     {
-        var footNames = LoadFootNamesFromModel();
-        return footIndex >= 0 && footIndex < footNames.Length ? footNames[footIndex] : string.Empty;
+        return GetNameByIndex(LoadFootNamesFromModel(), footIndex);
     }
     private string[] LoadFootNamesFromModel()
     {
@@ -1036,48 +1035,29 @@ public class AnimationGraphExtract
         try
         {
             var modelResource = ModelResource;
-
-            if (modelResource is null)
+            if (modelResource is not null)
             {
-                weightListNames[0] = "default";
-                return weightListNames;
-            }
-
-            var aseqData = GetAseqDataFromResource(modelResource);
-
-            if (aseqData is not null)
-            {
-                var localBoneMaskArray = aseqData.GetArray("m_localBoneMaskArray");
-
-                if (localBoneMaskArray is not null)
+                var aseqData = GetAseqDataFromResource(modelResource);
+                if (aseqData is not null)
                 {
-                    for (var i = 0; i < localBoneMaskArray.Length; i++)
+                    var localBoneMaskArray = aseqData.GetArray("m_localBoneMaskArray");
+                    if (localBoneMaskArray is not null && localBoneMaskArray.Length > 0)
                     {
-                        var boneMask = localBoneMaskArray[i];
-                        var weightListName = boneMask.GetStringProperty("m_sName");
-                        weightListNames[i] = !string.IsNullOrEmpty(weightListName)
-                            ? weightListName
-                            : i == 0 ? "default" : $"weightlist_{i}";
-                    }
-
-                    if (weightListNames.Count == 0 && localBoneMaskArray.Length == 0)
-                    {
-                        weightListNames[0] = "default";
+                        for (var i = 0; i < localBoneMaskArray.Length; i++)
+                        {
+                            var boneMask = localBoneMaskArray[i];
+                            var weightListName = boneMask.GetStringProperty("m_sName");
+                            weightListNames[i] = !string.IsNullOrEmpty(weightListName)
+                                ? weightListName
+                                : i == 0 ? "default" : $"weightlist_{i}";
+                        }
                     }
                 }
-                else
-                {
-                    weightListNames[0] = "default";
-                }
-            }
-            else
-            {
-                weightListNames[0] = "default";
             }
         }
         catch
         {
-            weightListNames[0] = "default";
+            // If loading fails, ensure we have a default entry
         }
 
         if (!weightListNames.ContainsKey(0))
@@ -4886,12 +4866,7 @@ public class AnimationGraphExtract
                 }
                 else if (key == "m_pChildNode")
                 {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_opFixedData")
@@ -5042,12 +5017,7 @@ public class AnimationGraphExtract
                 }
                 else if (key == "m_pChildNode")
                 {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_dataSet")
@@ -5438,12 +5408,7 @@ public class AnimationGraphExtract
                 }
                 else if (key == "m_pChildNode")
                 {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_opFixedSettings")
@@ -5564,12 +5529,7 @@ public class AnimationGraphExtract
                 }
                 else if (key == "m_pChildNode")
                 {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_eAngleMode")
@@ -5677,12 +5637,7 @@ public class AnimationGraphExtract
                 }
                 else if (key == "m_pChildNode")
                 {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_eMode")
@@ -5811,12 +5766,7 @@ public class AnimationGraphExtract
                 }
                 else if (key == "m_pChildNode")
                 {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        var connection = MakeInputConnection(childNodeId);
-                        node.AddProperty("m_inputConnection", connection);
-                    }
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_opFixedData")
