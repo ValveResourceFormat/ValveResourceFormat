@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Sledge.Formats.GameData" Version="1.1.7" />
   </ItemGroup>

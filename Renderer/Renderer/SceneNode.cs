@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 
