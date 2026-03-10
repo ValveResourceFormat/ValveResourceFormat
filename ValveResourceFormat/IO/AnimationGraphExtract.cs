@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
@@ -20,13 +21,41 @@ public class AnimationGraphExtract
     private Dictionary<int, string>? sequenceNamesCache;
     private Dictionary<long, KVObject>? compiledNodeIndexMap;
     private Dictionary<long, long>? nodeIndexToIdMap;
-    private Dictionary<string, List<ModelAttachment>>? modelAttachmentsCache;
+    private Dictionary<string, Attachment>? modelAttachments;
     private Dictionary<string, string[]>? modelBoneNamesCache;
     private Dictionary<string, string[]>? modelIKChainNamesCache;
     private Dictionary<string, string[]>? modelFootNamesCache;
     private Dictionary<string, LookAtChainInfo[]>? modelLookAtChainInfoCache;
     private List<KVObject>? footPinningItems;
     private KVObject? scriptManager;
+
+    // cached values derived from m_modelName property so we only load the resource once
+    private string? modelNameCache;
+    private Resource? modelResourceCache;
+    private bool modelResourceLoaded;
+
+    private Resource? ModelResource
+    {
+        get
+        {
+            if (!modelResourceLoaded)
+            {
+                modelResourceLoaded = true;
+                if (modelNameCache == null)
+                {
+                    modelNameCache = Graph.GetStringProperty("m_modelName");
+                }
+
+                if (!string.IsNullOrEmpty(modelNameCache))
+                {
+                    modelResourceCache = fileLoader.LoadFileCompiled(modelNameCache);
+                }
+            }
+            return modelResourceCache;
+        }
+    }
+
+    private Model? ModelData => ModelResource?.DataBlock as Model;
 
     // helper enum & mappings to reduce duplication when converting nodes/properties
     private enum PropAction
@@ -469,59 +498,22 @@ public class AnimationGraphExtract
         }
     }
 
-    private sealed class ModelAttachment
+    private void LoadModelData()
     {
-        public string Name { get; set; } = string.Empty;
-        public int BoneIndex { get; set; }
-        public Vector3 Position { get; set; }
-        public Quaternion Rotation { get; set; }
-    }
+        if (modelAttachments != null)
+        {
+            return;
+        }
 
-    private List<ModelAttachment> LoadAttachmentsFromModel()
-    {
-        var modelName = Graph.GetStringProperty("m_modelName");
-        if (string.IsNullOrEmpty(modelName))
+        var modelData = ModelData;
+        if (modelData != null)
         {
-            return [];
+            modelAttachments = modelData.Attachments;
         }
-        if (modelAttachmentsCache?.TryGetValue(modelName, out var cached) == true)
+        else
         {
-            return cached;
+            modelAttachments = [];
         }
-        var attachments = new List<ModelAttachment>();
-        try
-        {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
-            if (modelResource is null)
-            {
-                return attachments;
-            }
-            if (modelResource.DataBlock is Model modelData)
-            {
-                foreach (var attachmentPair in modelData.Attachments)
-                {
-                    var attachment = attachmentPair.Value;
-                    if (attachment.Length == 0)
-                    {
-                        continue;
-                    }
-                    var mainInfluence = attachment[^1];
-                    attachments.Add(new ModelAttachment
-                    {
-                        Name = attachment.Name,
-                        BoneIndex = -1,
-                        Position = mainInfluence.Offset,
-                        Rotation = mainInfluence.Rotation
-                    });
-                }
-            }
-        }
-        catch (Exception)
-        {
-        }
-        modelAttachmentsCache ??= [];
-        modelAttachmentsCache[modelName] = attachments;
-        return attachments;
     }
 
     private string FindMatchingAttachmentName(KVObject compiledAttachment)
@@ -531,56 +523,70 @@ public class AnimationGraphExtract
             return string.Empty;
         }
 
-        var attachments = LoadAttachmentsFromModel();
-        if (attachments.Count == 0)
+        // Try to get attachment name directly if stored as a string property
+        if (compiledAttachment.ContainsKey("m_attachmentName"))
+        {
+            return compiledAttachment.GetStringProperty("m_attachmentName");
+        }
+
+        if (compiledAttachment.ContainsKey("m_name"))
+        {
+            return compiledAttachment.GetStringProperty("m_name");
+        }
+
+        if (modelAttachments == null || modelAttachments.Count == 0)
         {
             return string.Empty;
         }
 
-        var numInfluences = compiledAttachment.GetIntegerProperty("m_numInfluences");
-        if (numInfluences != 1)
+        // not exactly the same keys as model attachment.
+        var influenceIndices = compiledAttachment.GetArray<int>("m_influenceIndices");
+        var influenceRotations = compiledAttachment.GetArray("m_influenceRotations").Select(v => v.ToQuaternion()).ToArray();
+        var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets", v => v.ToVector3());
+        var influenceWeights = compiledAttachment.GetArray<double>("m_influenceWeights");
+
+        var influenceCount = compiledAttachment.GetInt32Property("m_numInfluences");
+
+        var influences = new Attachment.Influence[influenceCount];
+        for (var i = 0; i < influenceCount; i++)
         {
-            return string.Empty;
+            var boneName = GetBoneName(influenceIndices![i]);
+            influences[i] = new Attachment.Influence
+            {
+                Name = boneName,
+                Rotation = influenceRotations![i],
+                Offset = influenceOffsets![i],
+                Weight = (float)influenceWeights![i]
+            };
         }
 
-        var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets");
-        var influenceRotations = compiledAttachment.GetArray("m_influenceRotations");
-        if (influenceOffsets.Length == 0 || influenceRotations.Length == 0)
+        foreach (var (name, attachment) in modelAttachments)
         {
-            return string.Empty;
-        }
+            if (attachment.Length != influenceCount)
+            {
+                continue;
+            }
 
-        var offset = influenceOffsets[0];
-        var offsetX = offset.ContainsKey("0") ? offset.GetFloatProperty("0") : 0f;
-        var offsetY = offset.ContainsKey("1") ? offset.GetFloatProperty("1") : 0f;
-        var offsetZ = offset.ContainsKey("2") ? offset.GetFloatProperty("2") : 0f;
-        var position = new Vector3(offsetX, offsetY, offsetZ);
+            // Some rudamentary attachment matching
+            const float epsilon = 0.001f;
+            var posDiff = Vector3.DistanceSquared(attachment[0].Offset, influences[0].Offset);
 
-        var rotation = influenceRotations[0];
-        var rotX = rotation.ContainsKey("0") ? rotation.GetFloatProperty("0") : 0f;
-        var rotY = rotation.ContainsKey("1") ? rotation.GetFloatProperty("1") : 0f;
-        var rotZ = rotation.ContainsKey("2") ? rotation.GetFloatProperty("2") : 0f;
-        var rotW = rotation.ContainsKey("3") ? rotation.GetFloatProperty("3") : 1f;
-        var quaternion = new Quaternion(rotX, rotY, rotZ, rotW);
-
-        const float epsilon = 0.001f;
-
-        foreach (var attachment in attachments)
-        {
-            var posDiff = Vector3.DistanceSquared(attachment.Position, position);
             if (posDiff > epsilon)
             {
                 continue;
             }
-            var dot = Quaternion.Dot(attachment.Rotation, quaternion);
+
+            var dot = Quaternion.Dot(attachment[0].Rotation, influences[0].Rotation);
             var absDot = Math.Abs(dot);
 
             if (Math.Abs(absDot - 1.0f) > epsilon)
             {
                 continue;
             }
-            return attachment.Name;
+
+            return name;
         }
+
         return string.Empty;
     }
 
@@ -598,12 +604,8 @@ public class AnimationGraphExtract
         var boneNames = new List<string>();
         try
         {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
-            if (modelResource is null)
-            {
-                return [];
-            }
-            if (modelResource.DataBlock is Model modelData)
+            var modelData = ModelData;
+            if (modelData != null)
             {
                 var skeleton = modelData.Skeleton;
                 foreach (var bone in skeleton.Bones)
@@ -646,29 +648,24 @@ public class AnimationGraphExtract
         var ikChainNames = new List<string>();
         try
         {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
-            if (modelResource is null)
+            var modelData = ModelData;
+            if (modelData is not null)
             {
-                return [];
-            }
-            if (modelResource.DataBlock is not Model modelData)
-            {
-                return [];
-            }
-            var keyvalues = modelData.KeyValues;
-            if (keyvalues.ContainsKey("ikdata"))
-            {
-                var ikdata = keyvalues.GetSubCollection("ikdata");
-                if (ikdata.ContainsKey("m_IKChains"))
+                var keyvalues = modelData.KeyValues;
+                if (keyvalues.ContainsKey("ikdata"))
                 {
-                    var ikChains = ikdata.GetArray("m_IKChains");
-
-                    foreach (var chain in ikChains)
+                    var ikdata = keyvalues.GetSubCollection("ikdata");
+                    if (ikdata.ContainsKey("m_IKChains"))
                     {
-                        var name = chain.GetStringProperty("m_Name");
-                        if (!string.IsNullOrEmpty(name))
+                        var ikChains = ikdata.GetArray("m_IKChains");
+
+                        foreach (var chain in ikChains)
                         {
-                            ikChainNames.Add(name);
+                            var name = chain.GetStringProperty("m_Name");
+                            if (!string.IsNullOrEmpty(name))
+                            {
+                                ikChainNames.Add(name);
+                            }
                         }
                     }
                 }
@@ -694,49 +691,44 @@ public class AnimationGraphExtract
 
         try
         {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
-            if (modelResource is null)
+            var modelData = ModelData;
+            if (modelData is not null)
             {
-                return chainBones;
-            }
-            if (modelResource.DataBlock is not Model modelData)
-            {
-                return chainBones;
-            }
-            var keyvalues = modelData.KeyValues;
-            if (keyvalues.ContainsKey("ikdata"))
-            {
-                var ikdata = keyvalues.GetSubCollection("ikdata");
-                if (ikdata.ContainsKey("m_IKChains"))
+                var keyvalues = modelData.KeyValues;
+                if (keyvalues.ContainsKey("ikdata"))
                 {
-                    var ikChains = ikdata.GetArray("m_IKChains");
-
-                    foreach (var chain in ikChains)
+                    var ikdata = keyvalues.GetSubCollection("ikdata");
+                    if (ikdata.ContainsKey("m_IKChains"))
                     {
-                        var name = chain.GetStringProperty("m_Name");
-                        if (string.IsNullOrEmpty(name))
-                        {
-                            continue;
-                        }
+                        var ikChains = ikdata.GetArray("m_IKChains");
 
-                        var boneList = new List<string>();
-                        if (chain.ContainsKey("m_Joints"))
+                        foreach (var chain in ikChains)
                         {
-                            var joints = chain.GetArray("m_Joints");
-                            foreach (var joint in joints)
+                            var name = chain.GetStringProperty("m_Name");
+                            if (string.IsNullOrEmpty(name))
                             {
-                                if (joint.ContainsKey("m_Bone"))
+                                continue;
+                            }
+
+                            var boneList = new List<string>();
+                            if (chain.ContainsKey("m_Joints"))
+                            {
+                                var joints = chain.GetArray("m_Joints");
+                                foreach (var joint in joints)
                                 {
-                                    var bone = joint.GetSubCollection("m_Bone");
-                                    var boneName = bone.GetStringProperty("m_Name");
-                                    if (!string.IsNullOrEmpty(boneName))
+                                    if (joint.ContainsKey("m_Bone"))
                                     {
-                                        boneList.Add(boneName);
+                                        var bone = joint.GetSubCollection("m_Bone");
+                                        var boneName = bone.GetStringProperty("m_Name");
+                                        if (!string.IsNullOrEmpty(boneName))
+                                        {
+                                            boneList.Add(boneName);
+                                        }
                                     }
                                 }
                             }
+                            chainBones[name] = boneList;
                         }
-                        chainBones[name] = boneList;
                     }
                 }
             }
@@ -796,25 +788,20 @@ public class AnimationGraphExtract
         var footNames = new List<string>();
         try
         {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
-            if (modelResource is null)
+            var modelData = ModelData;
+            if (modelData is not null)
             {
-                return [];
-            }
-            if (modelResource.DataBlock is not Model modelData)
-            {
-                return [];
-            }
-            var keyvalues = modelData.KeyValues;
-            if (keyvalues.ContainsKey("FeetSettings"))
-            {
-                var feetSettings = keyvalues.GetSubCollection("FeetSettings");
-
-                foreach (var (footKey, _) in feetSettings.Properties)
+                var keyvalues = modelData.KeyValues;
+                if (keyvalues.ContainsKey("FeetSettings"))
                 {
-                    if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
+                    var feetSettings = keyvalues.GetSubCollection("FeetSettings");
+
+                    foreach (var (footKey, _) in feetSettings.Properties)
                     {
-                        footNames.Add(footKey);
+                        if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
+                        {
+                            footNames.Add(footKey);
+                        }
                     }
                 }
             }
@@ -864,45 +851,40 @@ public class AnimationGraphExtract
         var lookAtChains = new List<LookAtChainInfo>();
         try
         {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
-            if (modelResource is null)
+            var modelData = ModelData;
+            if (modelData is not null)
             {
-                return [];
-            }
-            if (modelResource.DataBlock is not Model modelData)
-            {
-                return [];
-            }
-            var keyvalues = modelData.KeyValues;
-            if (keyvalues.ContainsKey("LookAtList"))
-            {
-                var lookAtList = keyvalues.GetSubCollection("LookAtList");
-                foreach (var chainEntry in lookAtList.Properties)
+                var keyvalues = modelData.KeyValues;
+                if (keyvalues.ContainsKey("LookAtList"))
                 {
-                    if (chainEntry.Value.Value is not KVObject chainData)
+                    var lookAtList = keyvalues.GetSubCollection("LookAtList");
+                    foreach (var chainEntry in lookAtList.Properties)
                     {
-                        continue;
-                    }
-                    var chain = new LookAtChainInfo
-                    {
-                        Name = chainData.GetStringProperty("name")
-                    };
-                    if (chainData.ContainsKey("bones"))
-                    {
-                        var bones = chainData.GetArray("bones");
-                        var boneNames = new List<string>();
-                        var boneWeights = new List<float>();
-
-                        foreach (var bone in bones)
+                        if (chainEntry.Value.Value is not KVObject chainData)
                         {
-                            boneNames.Add(bone.GetStringProperty("name"));
-                            boneWeights.Add(bone.GetFloatProperty("weight"));
+                            continue;
                         }
+                        var chain = new LookAtChainInfo
+                        {
+                            Name = chainData.GetStringProperty("name")
+                        };
+                        if (chainData.ContainsKey("bones"))
+                        {
+                            var bones = chainData.GetArray("bones");
+                            var boneNames = new List<string>();
+                            var boneWeights = new List<float>();
 
-                        chain.BoneNames = boneNames.ToArray();
-                        chain.BoneWeights = boneWeights.ToArray();
+                            foreach (var bone in bones)
+                            {
+                                boneNames.Add(bone.GetStringProperty("name"));
+                                boneWeights.Add(bone.GetFloatProperty("weight"));
+                            }
+
+                            chain.BoneNames = boneNames.ToArray();
+                            chain.BoneWeights = boneWeights.ToArray();
+                        }
+                        lookAtChains.Add(chain);
                     }
-                    lookAtChains.Add(chain);
                 }
             }
         }
@@ -963,6 +945,8 @@ public class AnimationGraphExtract
     /// <returns>The animation graph as a <see cref="KV3File"/> string in version 19 format.</returns>
     public string ToEditableAnimGraphVersion19()
     {
+        LoadModelData();
+
         var data = Graph.GetSubCollection("m_pSharedData");
         var compiledNodes = data.GetArray("m_nodes");
         BuildNodeIdMap(compiledNodes);
@@ -1084,7 +1068,7 @@ public class AnimationGraphExtract
 
         try
         {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            var modelResource = ModelResource;
 
             if (modelResource is null)
             {
@@ -1146,7 +1130,7 @@ public class AnimationGraphExtract
         }
         try
         {
-            var modelResource = fileLoader.LoadFileCompiled(modelName);
+            var modelResource = ModelResource;
             if (modelResource is null)
             {
                 return sequenceNames;
