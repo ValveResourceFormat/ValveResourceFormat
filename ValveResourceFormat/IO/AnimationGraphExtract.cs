@@ -261,12 +261,7 @@ public class AnimationGraphExtract
             case PropAction.TagIndex:
                 {
                     var tagIndex = compiledNode.GetIntegerProperty("m_nTagIndex");
-                    var tagId = -1L;
-                    if (tagIndex >= 0 && tagIndex < Tags.Length)
-                    {
-                        tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    }
-                    node.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
+                    node.AddProperty("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
                     if (tagIndex != -1 && !node.Properties.ContainsKey("m_selectionSource"))
                     {
                         node.AddProperty("m_selectionSource", "SelectionSource_Tag");
@@ -1304,12 +1299,9 @@ public class AnimationGraphExtract
             var startCycle = compiledTagSpan.GetFloatProperty("m_startCycle");
             var endCycle = compiledTagSpan.GetFloatProperty("m_endCycle");
             var duration = endCycle - startCycle;
-            var tagId = tagIndex >= 0 && tagIndex < Tags.Length
-                ? Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id")
-                : -1L;
 
             var tagSpan = MakeNode("CAnimTagSpan");
-            tagSpan.AddProperty("m_id", MakeNodeIdObjectValue(tagId));
+            tagSpan.AddProperty("m_id", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
             tagSpan.AddProperty("m_fStartCycle", startCycle);
             tagSpan.AddProperty("m_fDuration", duration);
             tagSpans.Add(tagSpan);
@@ -1322,6 +1314,47 @@ public class AnimationGraphExtract
         var paramType = paramHandle.GetStringProperty("m_type");
         var paramIndex = paramHandle.GetIntegerProperty("m_index");
         return ParameterIDFromIndex(paramType, paramIndex, requireFloat);
+    }
+
+    private long GetTagIdFromIndex(long tagIndex)
+    {
+        return tagIndex >= 0 && tagIndex < Tags.Length
+            ? Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id")
+            : -1L;
+    }
+
+    private KVValue ConvertTagIndicesArray(long[] tagIndices)
+    {
+        var tagIds = tagIndices.Select(tagIndex => 
+            MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)).Value as KVObject ?? new KVObject("tag", 0)
+        ).ToArray();
+        return KVValue.MakeArray(tagIds);
+    }
+
+    private static KVObject MakeDefaultDamping()
+    {
+        var damping = MakeNode("CAnimInputDamping");
+        damping.AddProperty("m_speedFunction", "NoDamping");
+        damping.AddProperty("m_fSpeedScale", 1.0f);
+        return damping;
+    }
+
+    private bool TryAddInputConnectionFromRef(KVObject node, KVObject childRef, string? propertyName = null)
+    {
+        var nodeIndex = childRef.GetIntegerProperty("m_nodeIndex");
+        if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var childNodeId) == true)
+        {
+            if (propertyName != null)
+            {
+                node.AddProperty(propertyName, MakeInputConnection(childNodeId));
+            }
+            else
+            {
+                AddInputConnection(node, childNodeId);
+            }
+            return true;
+        }
+        return false;
     }
 
     private KVObject ConvertBlendDuration(KVObject compiledBlendDuration)
@@ -1569,14 +1602,7 @@ public class AnimationGraphExtract
                         if (compiledActionData.ContainsKey("m_nTagIndex"))
                         {
                             var tagIndex = compiledActionData.GetIntegerProperty("m_nTagIndex");
-                            var tagId = -1L;
-
-                            if (tagIndex != -1 && tagIndex < Tags.Length)
-                            {
-                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                            }
-
-                            actionData.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
+                            actionData.AddProperty("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
                         }
 
                         if (compiledActionData.ContainsKey("m_hParam"))
@@ -1615,13 +1641,7 @@ public class AnimationGraphExtract
 
             if (!isComponent && stateData is not null)
             {
-                var childRef = stateData.GetSubCollection("m_pChild");
-                var nodeIndex = childRef.GetIntegerProperty("m_nodeIndex");
-                if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var childNodeId) == true)
-                {
-                    AddInputConnection(stateNode, childNodeId);
-                }
-
+                TryAddInputConnectionFromRef(stateNode, stateData.GetSubCollection("m_pChild"));
                 stateNode.AddProperty("m_bIsRootMotionExclusive", stateData.GetIntegerProperty("m_bExclusiveRootMotion") > 0);
             }
 
@@ -2741,11 +2761,7 @@ public class AnimationGraphExtract
                         if (actionKey == "m_nTagIndex")
                         {
                             var tagIndex = action.GetIntegerProperty("m_nTagIndex");
-                            var tagId = tagIndex != -1
-                                ? Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id")
-                                : -1;
-
-                            newAction.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
+                            newAction.AddProperty("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
                             continue;
                         }
 
@@ -3326,10 +3342,7 @@ public class AnimationGraphExtract
             blendNode.AddProperty("m_bLoop", true);
             blendNode.AddProperty("m_bLockWhenWaning", true);
 
-            var damping = MakeNode("CAnimInputDamping");
-            damping.AddProperty("m_speedFunction", "NoDamping");
-            damping.AddProperty("m_fSpeedScale", 1.0f);
-            blendNode.AddProperty("m_damping", damping);
+            blendNode.AddProperty("m_damping", MakeDefaultDamping());
 
             blendNode.AddProperty("m_networkMode", "ServerAuthoritative");
 
@@ -3420,10 +3433,7 @@ public class AnimationGraphExtract
                 blendNode.AddProperty("m_bLoop", true);
                 blendNode.AddProperty("m_bLockWhenWaning", true);
 
-                var damping = MakeNode("CAnimInputDamping");
-                damping.AddProperty("m_speedFunction", "NoDamping");
-                damping.AddProperty("m_fSpeedScale", 1.0f);
-                blendNode.AddProperty("m_damping", damping);
+                blendNode.AddProperty("m_damping", MakeDefaultDamping());
                 blendNode.AddProperty("m_networkMode", "ServerAuthoritative");
 
                 return blendNode;
@@ -3940,12 +3950,7 @@ public class AnimationGraphExtract
                             if (footInfo.ContainsKey("m_nTagIndex"))
                             {
                                 var tagIndex = footInfo.GetIntegerProperty("m_nTagIndex");
-                                var tagId = -1L;
-                                if (tagIndex >= 0 && tagIndex < Tags.Length)
-                                {
-                                    tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                                }
-                                convertedItem.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
+                                convertedItem.AddProperty("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
                             }
                             convertedItem.AddProperty("m_param", MakeNodeIdObjectValue(-1));
                             if (footInfo.ContainsKey("m_flMaxRotationLeft"))
@@ -4053,18 +4058,7 @@ public class AnimationGraphExtract
                             try
                             {
                                 var tagIndices = trigger.GetIntegerArray("m_tags");
-                                var tagIds = new List<KVObject>();
-
-                                foreach (var tagIndex in tagIndices)
-                                {
-                                    var tagId = -1L;
-                                    if (tagIndex >= 0 && tagIndex < Tags.Length)
-                                    {
-                                        tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                                    }
-                                    tagIds.Add(MakeNodeIdObjectValue(tagId).Value as KVObject ?? new KVObject("tag", 0));
-                                }
-                                convertedItem.AddProperty("m_tags", KVValue.MakeArray(tagIds.ToArray()));
+                                convertedItem.AddProperty("m_tags", ConvertTagIndicesArray(tagIndices));
                             }
                             catch (InvalidCastException)
                             {
@@ -4201,19 +4195,7 @@ public class AnimationGraphExtract
                     try
                     {
                         var tagIndices = compiledNode.GetIntegerArray("m_tags");
-                        var tagIds = new List<KVObject>();
-
-                        foreach (var tagIndex in tagIndices)
-                        {
-                            var tagId = -1L;
-                            if (tagIndex >= 0 && tagIndex < Tags.Length)
-                            {
-                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                            }
-                            tagIds.Add(MakeNodeIdObjectValue(tagId).Value as KVObject ?? new KVObject("tag", 0));
-                        }
-
-                        node.AddProperty("m_tagSpans", KVValue.MakeArray(tagIds.ToArray()));
+                        node.AddProperty("m_tagSpans", ConvertTagIndicesArray(tagIndices));
                     }
                     catch (InvalidCastException)
                     {
@@ -4340,11 +4322,7 @@ public class AnimationGraphExtract
                 }
                 else if (key == "m_pChildNode")
                 {
-                    var childNodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(childNodeIndex, out var childNodeId) == true)
-                    {
-                        AddInputConnection(node, childNodeId);
-                    }
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_target")
@@ -6213,19 +6191,7 @@ public class AnimationGraphExtract
                     try
                     {
                         var tagIndices = compiledNode.GetIntegerArray(key);
-                        var tagIds = new List<KVObject>();
-
-                        foreach (var tagIndex in tagIndices)
-                        {
-                            var tagId = -1L;
-                            if (tagIndex >= 0 && tagIndex < Tags.Length)
-                            {
-                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                            }
-                            tagIds.Add(MakeNodeIdObjectValue(tagId).Value as KVObject ?? new KVObject("tag", 0));
-                        }
-
-                        node.AddProperty(key, KVValue.MakeArray(tagIds.ToArray()));
+                        node.AddProperty(key, ConvertTagIndicesArray(tagIndices));
                     }
                     catch (InvalidCastException)
                     {
