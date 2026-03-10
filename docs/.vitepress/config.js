@@ -37,6 +37,7 @@ export default defineConfig({
                 { text: 'Introduction', link: '/' },
                 { text: 'Valve Resource File', link: '/guides/read-resource' },
                 { text: 'Command-line utility', link: '/guides/command-line' },
+                { text: 'Help Write Guides', link: '/guides/contributing' },
             ],
         },
 
