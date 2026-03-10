@@ -2,7 +2,6 @@ using System.Diagnostics;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
-using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.GLViewers

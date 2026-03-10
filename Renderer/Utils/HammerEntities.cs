@@ -3,7 +3,7 @@
 
 #nullable enable
 
-namespace ValveResourceFormat.Renderer;
+namespace ValveResourceFormat.Renderer.Utils;
 
 /// <summary>
 /// Provides editor visualization metadata for Hammer entity classes.

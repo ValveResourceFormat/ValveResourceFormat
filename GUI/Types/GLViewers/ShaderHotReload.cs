@@ -5,7 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
-using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Shaders;
 
 namespace GUI.Types.GLViewers;
 

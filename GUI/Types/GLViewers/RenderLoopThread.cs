@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using System.Threading;
 using System.Windows.Forms;
-using GUI.Utils;
 
 namespace GUI.Types.GLViewers
 {
@@ -21,7 +19,7 @@ namespace GUI.Types.GLViewers
             form.Activated += OnAppActivated;
 
 #if DEBUG
-            CodeHotReloadService.CodeHotReloaded += OnAppActivated;
+            GUI.Utils.CodeHotReloadService.CodeHotReloaded += OnAppActivated;
 #endif
         }
 
@@ -41,7 +39,7 @@ namespace GUI.Types.GLViewers
             }
 
 #if DEBUG
-            Log.Debug(nameof(RenderLoop), $"Registered GL instance, current count: {instances}");
+            GUI.Utils.Log.Debug(nameof(RenderLoop), $"Registered GL instance, current count: {instances}");
 #endif
         }
 
@@ -55,7 +53,7 @@ namespace GUI.Types.GLViewers
             }
 
 #if DEBUG
-            Log.Debug(nameof(RenderLoop), $"Unregistered GL instance, current count: {instances}");
+            GUI.Utils.Log.Debug(nameof(RenderLoop), $"Unregistered GL instance, current count: {instances}");
 #endif
         }
 
@@ -123,7 +121,7 @@ namespace GUI.Types.GLViewers
             var localHash = threadHash;
 
 #if DEBUG
-            Log.Debug(nameof(RenderLoop), $"Thread started (#{localHash})");
+            GUI.Utils.Log.Debug(nameof(RenderLoop), $"Thread started (#{localHash})");
 #endif
 
             while (threadHash == localHash)
@@ -175,7 +173,7 @@ namespace GUI.Types.GLViewers
             }
 
 #if DEBUG
-            Log.Debug(nameof(RenderLoop), $"Thread quit (#{localHash})");
+            GUI.Utils.Log.Debug(nameof(RenderLoop), $"Thread quit (#{localHash})");
 #endif
         }
     }

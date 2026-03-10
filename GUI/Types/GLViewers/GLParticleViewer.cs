@@ -2,6 +2,7 @@ using System.Diagnostics;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.GLViewers

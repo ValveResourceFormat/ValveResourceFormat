@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer.Utils
 {
     /// <summary>
     /// Common math utility functions for rendering and animation.

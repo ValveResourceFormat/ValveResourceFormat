@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer.Utils
 {
     /// <summary>
     /// 32-bit RGBA color with byte component storage.

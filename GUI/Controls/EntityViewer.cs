@@ -4,9 +4,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using SkiaSharp;
-using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Viewers

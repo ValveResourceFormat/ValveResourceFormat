@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.SceneNodes;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers

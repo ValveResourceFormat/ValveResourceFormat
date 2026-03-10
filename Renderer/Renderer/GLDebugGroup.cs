@@ -1,5 +1,3 @@
-using OpenTK.Graphics.OpenGL;
-
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
@@ -21,7 +19,7 @@ public ref struct GLDebugGroup
     {
         TimeQueryId = Timings?.BeginQuery(name) ?? 0;
 #if DEBUG
-        GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 0, name.Length, name);
+        OpenTK.Graphics.OpenGL.GL.PushDebugGroup(OpenTK.Graphics.OpenGL.DebugSourceExternal.DebugSourceApplication, 0, name.Length, name);
 #endif
     }
 
@@ -33,7 +31,7 @@ public ref struct GLDebugGroup
 #pragma warning restore CA1822
     {
 #if DEBUG
-        GL.PopDebugGroup();
+        OpenTK.Graphics.OpenGL.GL.PopDebugGroup();
 #endif
         Timings?.EndQuery(TimeQueryId);
     }

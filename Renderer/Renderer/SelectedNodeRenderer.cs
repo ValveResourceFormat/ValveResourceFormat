@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer
 {

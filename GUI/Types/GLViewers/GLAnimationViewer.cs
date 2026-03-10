@@ -4,6 +4,7 @@ using System.Linq;
 using GUI.Utils;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;

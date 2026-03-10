@@ -1,9 +1,12 @@
 using System.Diagnostics;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
+
+#if DEBUG
+using Microsoft.Extensions.Logging;
+#endif
 
 namespace ValveResourceFormat.Renderer
 {

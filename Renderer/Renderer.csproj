@@ -21,6 +21,9 @@
 
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />
+    <Using Include="ValveResourceFormat.Renderer.Utils" />
+    <Using Include="ValveResourceFormat.Renderer.Shaders" />
+    <Using Include="ValveResourceFormat.Renderer.Materials" />
   </ItemGroup>
 
   <ItemGroup>

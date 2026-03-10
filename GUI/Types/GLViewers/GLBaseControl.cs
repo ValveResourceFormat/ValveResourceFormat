@@ -9,6 +9,7 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Input;
 
 namespace GUI.Types.GLViewers;
 

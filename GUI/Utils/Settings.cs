@@ -1,9 +1,8 @@
-using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Utils;
 
 namespace GUI.Utils
 {

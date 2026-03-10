@@ -1,5 +1,4 @@
 using System.IO;
-using System.Linq;
 using System.Text;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;

@@ -54,7 +54,7 @@ namespace GUI
         {
             Log.Error(nameof(Program), exception.ToString());
 
-            if (exception is ValveResourceFormat.Renderer.ShaderLoader.ShaderCompilerException)
+            if (exception is ValveResourceFormat.Renderer.Shaders.ShaderLoader.ShaderCompilerException)
             {
                 MessageBox.Show(exception.Message, "Failed to compile shader", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;

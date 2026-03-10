@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
@@ -7,7 +8,7 @@ namespace ValveResourceFormat.Renderer
     /// Base class for all objects in the scene graph.
     /// </summary>
 #if DEBUG
-    [DebuggerDisplay("{DebugName,nq}")]
+    [System.Diagnostics.DebuggerDisplay("{DebugName,nq}")]
 #endif
     public abstract class SceneNode
     {

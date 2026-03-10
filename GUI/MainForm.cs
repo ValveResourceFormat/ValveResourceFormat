@@ -19,7 +19,6 @@ using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using Svg.Skia;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -1275,7 +1274,7 @@ namespace GUI
             {
                 using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
                 {
-                    APIVersion = GLEnvironment.RequiredVersion,
+                    APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
                     Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
                     StartVisible = false,
                     Title = "Source 2 Viewer Shader Validator"
@@ -1283,7 +1282,7 @@ namespace GUI
 
                 window.MakeCurrent();
 
-                ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
             };
             progressDialog.ShowDialog();
         }
