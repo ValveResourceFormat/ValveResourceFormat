@@ -226,10 +226,7 @@ public class AnimationGraphExtract
                 break;
             case PropAction.ParamRef:
                 {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    node.AddProperty(destKey, ParameterIDFromIndex(paramType, paramIndex));
+                    node.AddProperty(destKey, ExtractParameterID(subCollection.Value));
                     break;
                 }
             case PropAction.InputConnection:
@@ -251,17 +248,7 @@ public class AnimationGraphExtract
                 }
             case PropAction.BlendCurve:
                 {
-                    var compiledCurve = subCollection.Value;
-                    var blendCurve = MakeNode("CBlendCurve");
-                    blendCurve.AddProperty("m_flControlPoint1",
-                        compiledCurve.ContainsKey("m_flControlPoint1")
-                            ? compiledCurve.GetFloatProperty("m_flControlPoint1")
-                            : 0.0f);
-                    blendCurve.AddProperty("m_flControlPoint2",
-                        compiledCurve.ContainsKey("m_flControlPoint2")
-                            ? compiledCurve.GetFloatProperty("m_flControlPoint2")
-                            : 1.0f);
-                    node.AddProperty(destKey, blendCurve);
+                    node.AddProperty(destKey, MakeBlendCurve(subCollection.Value));
                     break;
                 }
             case PropAction.SequenceName:
@@ -419,14 +406,6 @@ public class AnimationGraphExtract
     {
         const long MinId = 100_000_000L;
         const long MaxId = 999_999_999L;
-
-        for (long candidate = MinId; candidate <= MaxId; candidate++)
-        {
-            if (!assignedNodeIds.Contains(candidate))
-            {
-                return candidate;
-            }
-        }
 
         for (long candidate = MinId; candidate <= MaxId; candidate++)
         {
@@ -1222,29 +1201,7 @@ public class AnimationGraphExtract
 
             var clipData = MakeNode("CAnimClipData");
             clipData.AddProperty("m_clipName", sequenceName);
-            var tagSpans = new List<KVObject>();
-
-            foreach (var compiledTagSpan in compiledTagSpans)
-            {
-                var tagIndex = compiledTagSpan.GetIntegerProperty("m_tagIndex");
-                var startCycle = compiledTagSpan.GetFloatProperty("m_startCycle");
-                var endCycle = compiledTagSpan.GetFloatProperty("m_endCycle");
-                var duration = endCycle - startCycle;
-                var tagId = -1L;
-
-                if (tagIndex >= 0 && tagIndex < Tags.Length)
-                {
-                    tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                }
-
-                var tagSpan = MakeNode("CAnimTagSpan");
-                tagSpan.AddProperty("m_id", MakeNodeIdObjectValue(tagId));
-                tagSpan.AddProperty("m_fStartCycle", startCycle);
-                tagSpan.AddProperty("m_fDuration", duration);
-                tagSpans.Add(tagSpan);
-            }
-
-            clipData.AddProperty("m_tagSpans", KVValue.MakeArray(tagSpans.ToArray()));
+            clipData.AddProperty("m_tagSpans", ConvertTagSpansArray(compiledTagSpans));
             itemTable.AddProperty(sequenceName, clipData);
         }
 
@@ -1322,6 +1279,49 @@ public class AnimationGraphExtract
     {
         var values = new object[] { x, y };
         return KVValue.MakeArray(values.Select(v => new KVValue(ValveKeyValue.KVValueType.FloatingPoint, v)).ToArray());
+    }
+
+    private static KVObject MakeBlendCurve(KVObject? compiledCurve)
+    {
+        var blendCurve = MakeNode("CBlendCurve");
+        blendCurve.AddProperty("m_flControlPoint1",
+            compiledCurve?.ContainsKey("m_flControlPoint1") == true
+                ? compiledCurve.GetFloatProperty("m_flControlPoint1")
+                : 0.0f);
+        blendCurve.AddProperty("m_flControlPoint2",
+            compiledCurve?.ContainsKey("m_flControlPoint2") == true
+                ? compiledCurve.GetFloatProperty("m_flControlPoint2")
+                : 1.0f);
+        return blendCurve;
+    }
+
+    private KVValue ConvertTagSpansArray(KVObject[] compiledTagSpans)
+    {
+        var tagSpans = new List<KVObject>();
+        foreach (var compiledTagSpan in compiledTagSpans)
+        {
+            var tagIndex = compiledTagSpan.GetIntegerProperty("m_tagIndex");
+            var startCycle = compiledTagSpan.GetFloatProperty("m_startCycle");
+            var endCycle = compiledTagSpan.GetFloatProperty("m_endCycle");
+            var duration = endCycle - startCycle;
+            var tagId = tagIndex >= 0 && tagIndex < Tags.Length
+                ? Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id")
+                : -1L;
+
+            var tagSpan = MakeNode("CAnimTagSpan");
+            tagSpan.AddProperty("m_id", MakeNodeIdObjectValue(tagId));
+            tagSpan.AddProperty("m_fStartCycle", startCycle);
+            tagSpan.AddProperty("m_fDuration", duration);
+            tagSpans.Add(tagSpan);
+        }
+        return KVValue.MakeArray(tagSpans.ToArray());
+    }
+
+    private KVValue ExtractParameterID(KVObject paramHandle, bool requireFloat = false)
+    {
+        var paramType = paramHandle.GetStringProperty("m_type");
+        var paramIndex = paramHandle.GetIntegerProperty("m_index");
+        return ParameterIDFromIndex(paramType, paramIndex, requireFloat);
     }
 
     private KVObject ConvertBlendDuration(KVObject compiledBlendDuration)
@@ -1510,27 +1510,11 @@ public class AnimationGraphExtract
 
                             if (transitionData.ContainsKey("m_curve"))
                             {
-                                var compiledCurve = transitionData.GetSubCollection("m_curve");
-                                var blendCurve = MakeNode("CBlendCurve");
-
-                                blendCurve.AddProperty("m_flControlPoint1",
-                                    compiledCurve.ContainsKey("m_flControlPoint1")
-                                        ? compiledCurve.GetFloatProperty("m_flControlPoint1")
-                                        : 0.0f);
-
-                                blendCurve.AddProperty("m_flControlPoint2",
-                                    compiledCurve.ContainsKey("m_flControlPoint2")
-                                        ? compiledCurve.GetFloatProperty("m_flControlPoint2")
-                                        : 1.0f);
-
-                                transitionNode.AddProperty("m_blendCurve", blendCurve);
+                                transitionNode.AddProperty("m_blendCurve", MakeBlendCurve(transitionData.GetSubCollection("m_curve")));
                             }
                             else
                             {
-                                var blendCurve = MakeNode("CBlendCurve");
-                                blendCurve.AddProperty("m_flControlPoint1", 0.0f);
-                                blendCurve.AddProperty("m_flControlPoint2", 1.0f);
-                                transitionNode.AddProperty("m_blendCurve", blendCurve);
+                                transitionNode.AddProperty("m_blendCurve", MakeBlendCurve(null));
                             }
                         }
                     }
@@ -1597,10 +1581,7 @@ public class AnimationGraphExtract
 
                         if (compiledActionData.ContainsKey("m_hParam"))
                         {
-                            var paramRef = compiledActionData.GetSubCollection("m_hParam");
-                            var paramType = paramRef.GetStringProperty("m_type");
-                            var paramIndex = paramRef.GetIntegerProperty("m_index");
-                            actionData.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
+                            actionData.AddProperty("m_param", ExtractParameterID(compiledActionData.GetSubCollection("m_hParam")));
                         }
 
                         if (compiledActionData.ContainsKey("m_value"))
@@ -2513,63 +2494,33 @@ public class AnimationGraphExtract
 
     private (KVObject? param, long paramId, string? paramClass) FindParameterByName(string paramName)
     {
-        for (var i = 0; i < Parameters.Length; i++)
-        {
-            var param = Parameters[i];
-            var currentParamName = param.GetStringProperty("m_name");
-            var currentParamClass = param.GetStringProperty("_class");
+        // Try exact match, then with underscores replaced by spaces
+        var namesToTry = new[] { paramName, paramName.Replace('_', ' ') };
 
-            if (currentParamName == paramName)
+        // Try case-sensitive first, then case-insensitive
+        foreach (var comparison in new[] { StringComparison.Ordinal, StringComparison.OrdinalIgnoreCase })
+        {
+            foreach (var nameToTry in namesToTry)
             {
-                var paramId = param.GetSubCollection("m_id").GetIntegerProperty("m_id");
-                return (param, paramId, currentParamClass);
+                for (var i = 0; i < Parameters.Length; i++)
+                {
+                    var param = Parameters[i];
+                    var currentParamName = param.GetStringProperty("m_name");
+
+                    if (string.Equals(currentParamName, nameToTry, comparison))
+                    {
+                        var paramId = param.GetSubCollection("m_id").GetIntegerProperty("m_id");
+                        var currentParamClass = param.GetStringProperty("_class");
+                        return (param, paramId, currentParamClass);
+                    }
+                }
             }
         }
 
-        var paramNameWithSpaces = paramName.Replace('_', ' ');
-        for (var i = 0; i < Parameters.Length; i++)
-        {
-            var param = Parameters[i];
-            var currentParamName = param.GetStringProperty("m_name");
-            var currentParamClass = param.GetStringProperty("_class");
-
-            if (currentParamName == paramNameWithSpaces)
-            {
-                var paramId = param.GetSubCollection("m_id").GetIntegerProperty("m_id");
-                return (param, paramId, currentParamClass);
-            }
-        }
-
-        for (var i = 0; i < Parameters.Length; i++)
-        {
-            var param = Parameters[i];
-            var currentParamName = param.GetStringProperty("m_name");
-            var currentParamClass = param.GetStringProperty("_class");
-
-            if (string.Equals(currentParamName, paramName, StringComparison.OrdinalIgnoreCase))
-            {
-                var paramId = param.GetSubCollection("m_id").GetIntegerProperty("m_id");
-                return (param, paramId, currentParamClass);
-            }
-        }
-
-        for (var i = 0; i < Parameters.Length; i++)
-        {
-            var param = Parameters[i];
-            var currentParamName = param.GetStringProperty("m_name");
-            var currentParamClass = param.GetStringProperty("_class");
-
-            if (string.Equals(currentParamName, paramNameWithSpaces, StringComparison.OrdinalIgnoreCase))
-            {
-                var paramId = param.GetSubCollection("m_id").GetIntegerProperty("m_id");
-                return (param, paramId, currentParamClass);
-            }
-        }
-
+        // Try stripping component suffix (e.g., "param.x" -> "param")
         if (paramName.Contains('.'))
         {
-            var baseParamName = paramName[..paramName.IndexOf('.')];
-            return FindParameterByName(baseParamName);
+            return FindParameterByName(paramName[..paramName.IndexOf('.')]);
         }
 
         return (null, -1, null);
@@ -2577,177 +2528,61 @@ public class AnimationGraphExtract
 
     private long FindTagIdByName(string tagName)
     {
-        long tagId = -1;
+        // Strip "TAG_" prefix if present
+        var strippedName = tagName.StartsWith("TAG_", StringComparison.Ordinal)
+            ? tagName["TAG_".Length..]
+            : tagName;
 
-        for (var i = 0; i < Tags.Length; i++)
+        // Generate name variations to try
+        var namesToTry = new[]
         {
-            var tag = Tags[i];
-            var currentTagName = tag.GetStringProperty("m_name");
+            tagName,                                    // Original
+            strippedName,                               // Without TAG_ prefix
+            tagName.Replace('_', ' '),                  // Underscores to spaces
+            strippedName.Replace('_', ' '),             // Prefix stripped + spaces
+            tagName.Replace(' ', '_'),                  // Spaces to underscores
+        }.Distinct().ToList();
 
-            if (currentTagName == tagName)
-            {
-                tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                return tagId;
-            }
-        }
-
-        if (tagName.StartsWith("TAG_", StringComparison.Ordinal))
+        // Try exact matches first (case-sensitive)
+        foreach (var nameVariant in namesToTry)
         {
-            var tagNameWithoutPrefix = tagName["TAG_".Length..];
-
             for (var i = 0; i < Tags.Length; i++)
             {
-                var tag = Tags[i];
-                var currentTagName = tag.GetStringProperty("m_name");
-
-                if (currentTagName == tagNameWithoutPrefix)
+                var currentTagName = Tags[i].GetStringProperty("m_name");
+                if (currentTagName == nameVariant)
                 {
-                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    return tagId;
+                    return Tags[i].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
                 }
             }
         }
 
-        if (tagName.StartsWith("TAG_", StringComparison.Ordinal))
+        // Try case-insensitive matches
+        foreach (var nameVariant in namesToTry)
         {
-            var tagNameWithoutPrefix = tagName["TAG_".Length..];
-            var tagNameWithoutPrefixSpaces = tagNameWithoutPrefix.Replace('_', ' ');
-
             for (var i = 0; i < Tags.Length; i++)
             {
-                var tag = Tags[i];
-                var currentTagName = tag.GetStringProperty("m_name");
-
-                if (currentTagName == tagNameWithoutPrefixSpaces)
+                var currentTagName = Tags[i].GetStringProperty("m_name");
+                if (string.Equals(currentTagName, nameVariant, StringComparison.OrdinalIgnoreCase))
                 {
-                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    return tagId;
+                    return Tags[i].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
                 }
             }
         }
 
-        var tagNameWithUnderscores = tagName.Replace(' ', '_');
+        // Try fuzzy alphanumeric-only match as last resort
+        var cleanInput = new string(strippedName.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
         for (var i = 0; i < Tags.Length; i++)
         {
-            var tag = Tags[i];
-            var currentTagName = tag.GetStringProperty("m_name");
+            var currentTagName = Tags[i].GetStringProperty("m_name");
+            var cleanCurrent = new string(currentTagName.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
 
-            if (currentTagName == tagNameWithUnderscores)
+            if (cleanCurrent == cleanInput || cleanCurrent.Contains(cleanInput) || cleanInput.Contains(cleanCurrent))
             {
-                tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                return tagId;
+                return Tags[i].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
             }
         }
 
-        if (tagName.StartsWith("TAG_", StringComparison.Ordinal))
-        {
-            var tagNameWithoutPrefix = tagName["TAG_".Length..];
-            var tagNameWithoutPrefixSpaces = tagNameWithoutPrefix.Replace('_', ' ');
-
-            for (var i = 0; i < Tags.Length; i++)
-            {
-                var tag = Tags[i];
-                var currentTagName = tag.GetStringProperty("m_name");
-
-                if (string.Equals(currentTagName, tagNameWithoutPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    return tagId;
-                }
-
-                if (string.Equals(currentTagName, tagNameWithoutPrefixSpaces, StringComparison.OrdinalIgnoreCase))
-                {
-                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    return tagId;
-                }
-
-                var cleanCurrentTagName = currentTagName.Replace(" ", "").Replace("_", "").ToLowerInvariant();
-                var cleanTagName = tagNameWithoutPrefix.Replace(" ", "").Replace("_", "").ToLowerInvariant();
-
-                if (cleanCurrentTagName == cleanTagName)
-                {
-                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    return tagId;
-                }
-            }
-        }
-
-        for (var i = 0; i < Tags.Length; i++)
-        {
-            var tag = Tags[i];
-            var currentTagName = tag.GetStringProperty("m_name");
-
-            if (string.Equals(currentTagName, tagName, StringComparison.OrdinalIgnoreCase))
-            {
-                tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                return tagId;
-            }
-        }
-
-        var tagNameSpacesToUnderscores = tagName.Replace(' ', '_');
-        for (var i = 0; i < Tags.Length; i++)
-        {
-            var tag = Tags[i];
-            var currentTagName = tag.GetStringProperty("m_name");
-
-            if (string.Equals(currentTagName, tagNameSpacesToUnderscores, StringComparison.OrdinalIgnoreCase))
-            {
-                tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                return tagId;
-            }
-        }
-
-        if (tagName.StartsWith("TAG_", StringComparison.Ordinal))
-        {
-            var tagNameWithoutPrefix = tagName["TAG_".Length..];
-
-            for (var i = 0; i < Tags.Length; i++)
-            {
-                var tag = Tags[i];
-                var currentTagName = tag.GetStringProperty("m_name");
-
-                if (string.Equals(currentTagName, tagNameWithoutPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    return tagId;
-                }
-            }
-        }
-
-        if (tagName.StartsWith("TAG_", StringComparison.Ordinal))
-        {
-            var tagNameWithoutPrefix = tagName["TAG_".Length..];
-            var tagNameWithoutPrefixSpaces = tagNameWithoutPrefix.Replace('_', ' ');
-
-            for (var i = 0; i < Tags.Length; i++)
-            {
-                var tag = Tags[i];
-                var currentTagName = tag.GetStringProperty("m_name");
-
-                if (string.Equals(currentTagName, tagNameWithoutPrefixSpaces, StringComparison.OrdinalIgnoreCase))
-                {
-                    tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    return tagId;
-                }
-            }
-        }
-
-        for (var i = 0; i < Tags.Length; i++)
-        {
-            var tag = Tags[i];
-            var currentTagName = tag.GetStringProperty("m_name");
-
-            var cleanCurrent = new string(currentTagName.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToLowerInvariant();
-            var cleanTag = new string(tagName.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToLowerInvariant();
-
-            if (cleanCurrent.Contains(cleanTag) || cleanTag.Contains(cleanCurrent))
-            {
-                tagId = tag.GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                return tagId;
-            }
-        }
-
-        return tagId;
+        return -1;
     }
 
     private static string ExtractConditionFromTernary(string script, int index)
@@ -2916,10 +2751,7 @@ public class AnimationGraphExtract
 
                         if (actionKey == "m_hParam")
                         {
-                            var paramRef = (KVObject)actionValue.Value!;
-                            var paramType = paramRef.GetStringProperty("m_type");
-                            var paramIndex = paramRef.GetIntegerProperty("m_index");
-                            newAction.AddProperty("m_param", ParameterIDFromIndex(paramType, paramIndex));
+                            newAction.AddProperty("m_param", ExtractParameterID((KVObject)actionValue.Value!));
                             continue;
                         }
 
@@ -2966,72 +2798,23 @@ public class AnimationGraphExtract
         if (className == "CLookComponentUpdater")
         {
             component.AddProperty("m_bNetworkLookTarget", compiledComponent.GetIntegerProperty("m_bNetworkLookTarget") > 0);
-
-            var lookHeadingParam = compiledComponent.GetSubCollection("m_hLookHeading");
-            var lookHeadingType = lookHeadingParam.GetStringProperty("m_type");
-            var lookHeadingIndex = lookHeadingParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_lookHeadingID", ParameterIDFromIndex(lookHeadingType, lookHeadingIndex));
-
-            var lookHeadingVelocityParam = compiledComponent.GetSubCollection("m_hLookHeadingVelocity");
-            var lookHeadingVelocityType = lookHeadingVelocityParam.GetStringProperty("m_type");
-            var lookHeadingVelocityIndex = lookHeadingVelocityParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_lookHeadingVelocityID", ParameterIDFromIndex(lookHeadingVelocityType, lookHeadingVelocityIndex));
-
-            var lookPitchParam = compiledComponent.GetSubCollection("m_hLookPitch");
-            var lookPitchType = lookPitchParam.GetStringProperty("m_type");
-            var lookPitchIndex = lookPitchParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_lookPitchID", ParameterIDFromIndex(lookPitchType, lookPitchIndex));
-
-            var lookDirectionParam = compiledComponent.GetSubCollection("m_hLookDirection");
-            var lookDirectionType = lookDirectionParam.GetStringProperty("m_type");
-            var lookDirectionIndex = lookDirectionParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_lookDirectionID", ParameterIDFromIndex(lookDirectionType, lookDirectionIndex));
-
-            var lookTargetParam = compiledComponent.GetSubCollection("m_hLookTarget");
-            var lookTargetType = lookTargetParam.GetStringProperty("m_type");
-            var lookTargetIndex = lookTargetParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_lookTargetID", ParameterIDFromIndex(lookTargetType, lookTargetIndex));
-
-            var lookTargetWorldSpaceParam = compiledComponent.GetSubCollection("m_hLookTargetWorldSpace");
-            var lookTargetWorldSpaceType = lookTargetWorldSpaceParam.GetStringProperty("m_type");
-            var lookTargetWorldSpaceIndex = lookTargetWorldSpaceParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_lookTargetWorldSpaceID", ParameterIDFromIndex(lookTargetWorldSpaceType, lookTargetWorldSpaceIndex));
-
+            component.AddProperty("m_lookHeadingID", ExtractParameterID(compiledComponent.GetSubCollection("m_hLookHeading")));
+            component.AddProperty("m_lookHeadingVelocityID", ExtractParameterID(compiledComponent.GetSubCollection("m_hLookHeadingVelocity")));
+            component.AddProperty("m_lookPitchID", ExtractParameterID(compiledComponent.GetSubCollection("m_hLookPitch")));
+            component.AddProperty("m_lookDirectionID", ExtractParameterID(compiledComponent.GetSubCollection("m_hLookDirection")));
+            component.AddProperty("m_lookTargetID", ExtractParameterID(compiledComponent.GetSubCollection("m_hLookTarget")));
+            component.AddProperty("m_lookTargetWorldSpaceID", ExtractParameterID(compiledComponent.GetSubCollection("m_hLookTargetWorldSpace")));
             return component;
         }
 
         if (className == "CSlopeComponentUpdater")
         {
-            var slopeangleParam = compiledComponent.GetSubCollection("m_hSlopeAngle");
-            var slopeangleType = slopeangleParam.GetStringProperty("m_type");
-            var slopeangleIndex = slopeangleParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_slopeAngleID", ParameterIDFromIndex(slopeangleType, slopeangleIndex));
-
-            var slopeanglefrontParam = compiledComponent.GetSubCollection("m_hSlopeAngleFront");
-            var slopeanglefrontType = slopeanglefrontParam.GetStringProperty("m_type");
-            var slopeanglefrontIndex = slopeanglefrontParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_slopeAngleFrontID", ParameterIDFromIndex(slopeanglefrontType, slopeanglefrontIndex));
-
-            var slopeanglesideParam = compiledComponent.GetSubCollection("m_hSlopeAngleSide");
-            var slopeanglesideType = slopeanglesideParam.GetStringProperty("m_type");
-            var slopeanglesideIndex = slopeanglesideParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_slopeAngleSideID", ParameterIDFromIndex(slopeanglesideType, slopeanglesideIndex));
-
-            var slopeheadingParam = compiledComponent.GetSubCollection("m_hSlopeHeading");
-            var slopeheadingType = slopeheadingParam.GetStringProperty("m_type");
-            var slopeheadingIndex = slopeheadingParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_slopeHeadingID", ParameterIDFromIndex(slopeheadingType, slopeheadingIndex));
-
-            var slopenormalParam = compiledComponent.GetSubCollection("m_hSlopeNormal");
-            var slopenormalType = slopenormalParam.GetStringProperty("m_type");
-            var slopenormalIndex = slopenormalParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_slopeNormalID", ParameterIDFromIndex(slopenormalType, slopenormalIndex));
-
-            var slopenormalWorldSpaceParam = compiledComponent.GetSubCollection("m_hSlopeNormal_WorldSpace");
-            var slopenormalWorldSpaceType = slopenormalWorldSpaceParam.GetStringProperty("m_type");
-            var slopenormalWorldSpaceIndex = slopenormalWorldSpaceParam.GetIntegerProperty("m_index");
-            component.AddProperty("m_slopeNormal_WorldSpaceID", ParameterIDFromIndex(slopenormalWorldSpaceType, slopenormalWorldSpaceIndex));
-
+            component.AddProperty("m_slopeAngleID", ExtractParameterID(compiledComponent.GetSubCollection("m_hSlopeAngle")));
+            component.AddProperty("m_slopeAngleFrontID", ExtractParameterID(compiledComponent.GetSubCollection("m_hSlopeAngleFront")));
+            component.AddProperty("m_slopeAngleSideID", ExtractParameterID(compiledComponent.GetSubCollection("m_hSlopeAngleSide")));
+            component.AddProperty("m_slopeHeadingID", ExtractParameterID(compiledComponent.GetSubCollection("m_hSlopeHeading")));
+            component.AddProperty("m_slopeNormalID", ExtractParameterID(compiledComponent.GetSubCollection("m_hSlopeNormal")));
+            component.AddProperty("m_slopeNormal_WorldSpaceID", ExtractParameterID(compiledComponent.GetSubCollection("m_hSlopeNormal_WorldSpace")));
             return component;
         }
 
@@ -3100,19 +2883,16 @@ public class AnimationGraphExtract
                 {
                     var newItem = new KVObject(null, 6);
                     var paramIn = item.GetSubCollection("m_hParamIn");
-                    var paramInType = paramIn.GetStringProperty("m_type");
-                    var paramInIndex = paramIn.GetIntegerProperty("m_index");
                     var paramOut = item.GetSubCollection("m_hParamOut");
-                    var paramOutType = paramOut.GetStringProperty("m_type");
-                    var paramOutIndex = paramOut.GetIntegerProperty("m_index");
+                    var paramInType = paramIn.GetStringProperty("m_type");
 
                     var valueType = paramInType == "ANIMPARAM_VECTOR" ? "VectorParameter" : "FloatParameter";
                     newItem.AddProperty("m_valueType", valueType);
 
                     if (valueType == "FloatParameter")
                     {
-                        newItem.AddProperty("m_floatParamIn", ParameterIDFromIndex(paramInType, paramInIndex));
-                        newItem.AddProperty("m_floatParamOut", ParameterIDFromIndex(paramOutType, paramOutIndex));
+                        newItem.AddProperty("m_floatParamIn", ExtractParameterID(paramIn));
+                        newItem.AddProperty("m_floatParamOut", ExtractParameterID(paramOut));
                         newItem.AddProperty("m_vectorParamIn", MakeNodeIdObjectValue(-1));
                         newItem.AddProperty("m_vectorParamOut", MakeNodeIdObjectValue(-1));
                     }
@@ -3120,8 +2900,8 @@ public class AnimationGraphExtract
                     {
                         newItem.AddProperty("m_floatParamIn", MakeNodeIdObjectValue(-1));
                         newItem.AddProperty("m_floatParamOut", MakeNodeIdObjectValue(-1));
-                        newItem.AddProperty("m_vectorParamIn", ParameterIDFromIndex(paramInType, paramInIndex));
-                        newItem.AddProperty("m_vectorParamOut", ParameterIDFromIndex(paramOutType, paramOutIndex));
+                        newItem.AddProperty("m_vectorParamIn", ExtractParameterID(paramIn));
+                        newItem.AddProperty("m_vectorParamOut", ExtractParameterID(paramOut));
                     }
 
                     newItem.AddProperty("m_damping", item.GetSubCollection("m_damping"));
@@ -3153,10 +2933,7 @@ public class AnimationGraphExtract
             {
                 if (compiledComponent.ContainsKey(paramName))
                 {
-                    var paramHandle = compiledComponent.GetSubCollection(paramName);
-                    var paramType = paramHandle.GetStringProperty("m_type");
-                    var paramIndex = paramHandle.GetIntegerProperty("m_index");
-                    component.AddProperty(paramName, ParameterIDFromIndex(paramType, paramIndex));
+                    component.AddProperty(paramName, ExtractParameterID(compiledComponent.GetSubCollection(paramName)));
                 }
             }
 
@@ -3180,27 +2957,18 @@ public class AnimationGraphExtract
                     var paramOutHandle = item.GetSubCollection("m_hParamOut");
 
                     var paramInType = paramInHandle.GetStringProperty("m_type");
-                    var paramInIndex = paramInHandle.GetIntegerProperty("m_index");
-
                     var paramOutType = paramOutHandle.GetStringProperty("m_type");
-                    var paramOutIndex = paramOutHandle.GetIntegerProperty("m_index");
 
-                    string valueType;
+                    string valueType = (paramInType == "ANIMPARAM_VECTOR" || paramOutType == "ANIMPARAM_VECTOR")
+                        ? "VectorParameter"
+                        : "FloatParameter";
 
-                    if (paramInType == "ANIMPARAM_VECTOR" || paramOutType == "ANIMPARAM_VECTOR")
-                    {
-                        valueType = "VectorParameter";
-                    }
-                    else
-                    {
-                        valueType = "FloatParameter";
-                    }
                     newItem.AddProperty("m_valueType", valueType);
 
                     if (valueType == "FloatParameter")
                     {
-                        newItem.AddProperty("m_floatParamIn", ParameterIDFromIndex(paramInType, paramInIndex));
-                        newItem.AddProperty("m_floatParamOut", ParameterIDFromIndex(paramOutType, paramOutIndex));
+                        newItem.AddProperty("m_floatParamIn", ExtractParameterID(paramInHandle));
+                        newItem.AddProperty("m_floatParamOut", ExtractParameterID(paramOutHandle));
                         newItem.AddProperty("m_vectorParamIn", MakeNodeIdObjectValue(-1));
                         newItem.AddProperty("m_vectorParamOut", MakeNodeIdObjectValue(-1));
                     }
@@ -3208,8 +2976,8 @@ public class AnimationGraphExtract
                     {
                         newItem.AddProperty("m_floatParamIn", MakeNodeIdObjectValue(-1));
                         newItem.AddProperty("m_floatParamOut", MakeNodeIdObjectValue(-1));
-                        newItem.AddProperty("m_vectorParamIn", ParameterIDFromIndex(paramInType, paramInIndex));
-                        newItem.AddProperty("m_vectorParamOut", ParameterIDFromIndex(paramOutType, paramOutIndex));
+                        newItem.AddProperty("m_vectorParamIn", ExtractParameterID(paramInHandle));
+                        newItem.AddProperty("m_vectorParamOut", ExtractParameterID(paramOutHandle));
                     }
 
                     newItem.AddProperty("m_flMinInputValue", item.GetFloatProperty("m_flMinInputValue"));
@@ -3297,10 +3065,8 @@ public class AnimationGraphExtract
 
                         if (motorKey.EndsWith("Param", StringComparison.Ordinal) && motorValue.Value is KVObject paramRef)
                         {
-                            var paramType = paramRef.GetStringProperty("m_type");
-                            var paramIndex = paramRef.GetIntegerProperty("m_index");
                             var newKey = motorKey.Replace("h", "").Replace("Param", "Param");
-                            newMotor.AddProperty(newKey, ParameterIDFromIndex(paramType, paramIndex));
+                            newMotor.AddProperty(newKey, ExtractParameterID(paramRef));
                             continue;
                         }
 
@@ -3961,30 +3727,7 @@ public class AnimationGraphExtract
                             {
                                 try
                                 {
-                                    var compiledTagSpans = item.GetArray("m_tags");
-                                    var tagSpans = new List<KVObject>();
-
-                                    foreach (var compiledTagSpan in compiledTagSpans)
-                                    {
-                                        var tagIndex = compiledTagSpan.GetIntegerProperty("m_tagIndex");
-                                        var startCycle = compiledTagSpan.GetFloatProperty("m_startCycle");
-                                        var endCycle = compiledTagSpan.GetFloatProperty("m_endCycle");
-                                        var duration = endCycle - startCycle;
-                                        var tagId = -1L;
-
-                                        if (tagIndex >= 0 && tagIndex < Tags.Length)
-                                        {
-                                            tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                                        }
-
-                                        var tagSpan = MakeNode("CAnimTagSpan");
-                                        tagSpan.AddProperty("m_id", MakeNodeIdObjectValue(tagId));
-                                        tagSpan.AddProperty("m_fStartCycle", startCycle);
-                                        tagSpan.AddProperty("m_fDuration", duration);
-                                        tagSpans.Add(tagSpan);
-                                    }
-
-                                    convertedItem.AddProperty("m_tagSpans", KVValue.MakeArray(tagSpans.ToArray()));
+                                    convertedItem.AddProperty("m_tagSpans", ConvertTagSpansArray(item.GetArray("m_tags")));
                                 }
                                 catch
                                 {
@@ -4024,30 +3767,7 @@ public class AnimationGraphExtract
                 {
                     try
                     {
-                        var compiledTagSpans = compiledNode.GetArray("m_tags");
-                        var tagSpans = new List<KVObject>();
-
-                        foreach (var compiledTagSpan in compiledTagSpans)
-                        {
-                            var tagIndex = compiledTagSpan.GetIntegerProperty("m_tagIndex");
-                            var startCycle = compiledTagSpan.GetFloatProperty("m_startCycle");
-                            var endCycle = compiledTagSpan.GetFloatProperty("m_endCycle");
-                            var duration = endCycle - startCycle;
-                            var tagId = -1L;
-
-                            if (tagIndex >= 0 && tagIndex < Tags.Length)
-                            {
-                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                            }
-
-                            var tagSpan = MakeNode("CAnimTagSpan");
-                            tagSpan.AddProperty("m_id", MakeNodeIdObjectValue(tagId));
-                            tagSpan.AddProperty("m_fStartCycle", startCycle);
-                            tagSpan.AddProperty("m_fDuration", duration);
-                            tagSpans.Add(tagSpan);
-                        }
-
-                        node.AddProperty("m_tagSpans", KVValue.MakeArray(tagSpans.ToArray()));
+                        node.AddProperty("m_tagSpans", ConvertTagSpansArray(compiledNode.GetArray("m_tags")));
                     }
                     catch
                     {
