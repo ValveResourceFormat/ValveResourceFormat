@@ -31,6 +31,10 @@ public static class GLEnvironment
     }
 
     private static ParallelShaderCompileType ParallelShaderCompileSupport = ParallelShaderCompileType.None;
+
+    /// <summary>
+    /// Indicates whether indirect count draw calls are supported by the current driver.
+    /// </summary>
     public static bool IndirectCountSupported { get; private set; }
 
     /// <summary>

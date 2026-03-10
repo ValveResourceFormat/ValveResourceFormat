@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// Cull particle when its velocity is below a certain threshold.
+    /// Kills a particle when its speed falls at or below a minimum velocity threshold.
     /// </summary>
     class VelocityDecay : ParticleFunctionOperator
     {

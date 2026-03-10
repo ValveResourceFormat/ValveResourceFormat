@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles at random positions within a sphere defined by a minimum and maximum radius,
+    /// and assigns an initial outward velocity sampled from a speed range. An optional local
+    /// coordinate system speed can add a directional bias to the velocity.
+    /// </summary>
     class CreateWithinSphere : ParticleFunctionInitializer
     {
         protected readonly INumberProvider radiusMin = new LiteralNumberProvider(0);

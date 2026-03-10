@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
+    /// <summary>
+    /// Emits a fixed number of particles in a single burst at a specified start time.
+    /// Corresponds to <c>C_OP_InstantaneousEmitter</c>.
+    /// </summary>
     class InstantaneousEmitter : ParticleFunctionEmitter
     {
         public override bool IsFinished { get; protected set; }

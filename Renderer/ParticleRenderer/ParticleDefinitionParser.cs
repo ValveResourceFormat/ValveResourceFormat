@@ -5,6 +5,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles;
 
+/// <summary>
+/// Wraps a <see cref="KVObject"/> to provide typed, default-value-aware accessors for particle system definition properties.
+/// </summary>
 record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
 {
     private readonly T GetValueOrDefault<T>(string key, Func<string, T> parsingMethod, T @default)
@@ -17,6 +20,9 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         return @default;
     }
 
+    /// <summary>
+    /// Returns an array of child parsers for the sub-collection array at <paramref name="k"/>, or an empty array if the key is absent.
+    /// </summary>
     public readonly ParticleDefinitionParser[] Array(string k)
     {
         if (!Data.ContainsKey(k))
@@ -29,31 +35,40 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
     }
 
     private readonly float Float(string k) => Data.GetFloatProperty(k);
+    /// <summary>Reads a float property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly float Float(string key, float @default = default) => GetValueOrDefault(key, Float, @default);
 
     private readonly int Int32(string k) => Data.GetInt32Property(k);
+    /// <summary>Reads an int property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly int Int32(string key, int @default = default) => GetValueOrDefault(key, Int32, @default);
 
     private readonly long Long(string k) => Data.GetIntegerProperty(k);
+    /// <summary>Reads a long property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly long Long(string key, long @default = default) => GetValueOrDefault(key, Long, @default);
 
     private readonly bool Boolean(string k) => Data.GetProperty<bool>(k);
+    /// <summary>Reads a bool property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly bool Boolean(string key, bool @default = default) => GetValueOrDefault(key, Boolean, @default);
 
     private readonly Vector3 Vector3(string k) => Data.GetSubCollection(k).ToVector3();
+    /// <summary>Reads a <see cref="System.Numerics.Vector3"/> sub-collection property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly Vector3 Vector3(string key, Vector3 @default = default) => GetValueOrDefault(key, Vector3, @default);
 
     private readonly T Enum<T>(string k) where T : Enum => Data.GetEnumValue<T>(k);
+    /// <summary>Reads an enum property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly T Enum<T>(string key, T @default = default) where T : struct, Enum
         => GetValueOrDefault(key, Enum<T>, @default);
 
     private readonly T EnumNormalized<T>(string k) where T : Enum => Data.GetEnumValue<T>(k, true);
+    /// <summary>Reads an enum property with normalized name matching, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly T EnumNormalized<T>(string key, T @default = default) where T : struct, Enum
         => GetValueOrDefault(key, EnumNormalized<T>, @default);
 
     private readonly ParticleField ParticleField(string k) => (ParticleField)Data.GetIntegerProperty(k);
+    /// <summary>Reads a particle field enum property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly ParticleField ParticleField(string key, ParticleField @default = default) => GetValueOrDefault(key, ParticleField, @default);
 
+    /// <summary>Reads an integer RGB color array into a normalized [0, 1] <see cref="System.Numerics.Vector3"/>, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly Vector3 Color24(string key, Vector3 @default = default) => GetValueOrDefault(key, Color24, @default);
     private readonly Vector3 Color24(string k)
     {
@@ -61,6 +76,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         return new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
     }
 
+    /// <summary>Reads and constructs an <see cref="INumberProvider"/> from the property at <paramref name="key"/>, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly INumberProvider NumberProvider(string key, INumberProvider @default) => GetValueOrDefault(key, NumberProvider, @default);
     private readonly INumberProvider NumberProvider(string key)
     {
@@ -122,6 +138,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         }
     }
 
+    /// <summary>Reads and constructs an <see cref="IVectorProvider"/> from the property at <paramref name="key"/>, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly IVectorProvider VectorProvider(string key, IVectorProvider @default) => GetValueOrDefault(key, VectorProvider, @default);
     private readonly IVectorProvider VectorProvider(string key)
     {
@@ -177,6 +194,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         return new LiteralVectorProvider(Vector3(key));
     }
 
+    /// <summary>Reads and constructs an <see cref="ITransformProvider"/> from the property at <paramref name="key"/>, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly ITransformProvider TransformInput(string key, ITransformProvider @default) => GetValueOrDefault(key, TransformInput, @default);
     private readonly ITransformProvider TransformInput(string key)
     {

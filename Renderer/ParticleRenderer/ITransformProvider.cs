@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles
 {
+    /// <summary>
+    /// Provides a transformation matrix that may be derived from a control point or other source.
+    /// </summary>
     interface ITransformProvider
     {
         /// <summary>
@@ -7,6 +10,9 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         Matrix4x4 NextTransform(ref Particle particle, ParticleSystemRenderState renderState);
 
+        /// <summary>
+        /// Returns a transformation matrix using system-level state only.
+        /// </summary>
         Matrix4x4 NextTransform(ParticleSystemRenderState renderState)
             => NextTransform(ref Particle.Default, renderState);
 
@@ -29,6 +35,9 @@ namespace ValveResourceFormat.Renderer.Particles
         }
     }
 
+    /// <summary>
+    /// Provides a transform derived from a control point's position and optional orientation.
+    /// </summary>
     readonly struct ControlPointTransformProvider : ITransformProvider
     {
         private readonly int controlPoint;
@@ -40,6 +49,7 @@ namespace ValveResourceFormat.Renderer.Particles
             this.useOrientation = useOrientation;
         }
 
+        /// <inheritdoc/>
         public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemRenderState renderState)
         {
             var cp = renderState.GetControlPoint(controlPoint);
@@ -66,8 +76,12 @@ namespace ValveResourceFormat.Renderer.Particles
         }
     }
 
+    /// <summary>
+    /// A transform provider that always returns the identity matrix.
+    /// </summary>
     readonly struct IdentityTransformProvider : ITransformProvider
     {
+        /// <inheritdoc/>
         public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return Matrix4x4.Identity;

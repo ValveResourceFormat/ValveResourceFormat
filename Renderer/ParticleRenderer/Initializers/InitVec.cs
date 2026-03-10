@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Sets a vector particle attribute to a value provided by a vector input. The target field and
+    /// the input value are both configurable. Corresponds to <c>C_INIT_InitVec</c>.
+    /// </summary>
     class InitVec : ParticleFunctionInitializer
     {
         private readonly ParticleField OutputField = ParticleField.Color;

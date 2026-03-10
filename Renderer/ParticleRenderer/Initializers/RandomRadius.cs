@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Sets the particle radius to a random value between a minimum and maximum, with an optional
+    /// random exponent to bias the distribution. Corresponds to <c>C_INIT_RandomRadius</c>.
+    /// </summary>
     class RandomRadius : ParticleFunctionInitializer
     {
         private readonly float radiusMin = 1;

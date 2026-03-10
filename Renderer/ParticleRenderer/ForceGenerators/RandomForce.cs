@@ -2,6 +2,10 @@ using ValveResourceFormat.Renderer.Particles.Operators;
 
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
+/// <summary>
+/// Applies a per-particle random force vector chosen uniformly between a minimum and maximum bound
+/// each frame. Corresponds to <c>C_OP_RandomForce</c>.
+/// </summary>
 class RandomForce : ParticleFunctionOperator
 {
     private readonly Vector3 Min = Vector3.Zero;

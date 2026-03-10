@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Initializes particle velocity to a random direction and speed, with independent per-axis speed ranges in a local coordinate system.
+    /// Corresponds to <c>C_INIT_VelocityRandom</c>.
+    /// </summary>
     class VelocityRandom : ParticleFunctionInitializer
     {
         private readonly IVectorProvider vectorMin = new LiteralVectorProvider(Vector3.Zero);

@@ -11,6 +11,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private static readonly Color32 NavMeshColor = new(64, 32, 255, 100);
         private static readonly Color32 NavMeshLadderColor = new(16, 255, 32, 100);
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="NavMeshSceneNode"/> class from pre-built vertex and index lists.
+        /// </summary>
+        /// <param name="scene">The scene this node belongs to.</param>
+        /// <param name="verts">The vertex data for the nav mesh geometry.</param>
+        /// <param name="inds">The index data for the nav mesh geometry.</param>
         public NavMeshSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : base(scene, verts, inds)
         {
         }
@@ -72,6 +78,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             inds.Add(int.MaxValue);
         }
 
+        /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
             if (context.RenderPass != RenderPass.Translucent)
@@ -111,8 +118,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.BindVertexArray(0);
         }
 
+        /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
 
+        /// <summary>
+        /// Parses a <see cref="NavMeshFile"/> and adds a <see cref="NavMeshSceneNode"/> per hull and one for ladders to the scene.
+        /// </summary>
         public static void AddNavNodesToScene(NavMeshFile? navMeshFile, Scene scene)
         {
             if (navMeshFile == null || scene == null)

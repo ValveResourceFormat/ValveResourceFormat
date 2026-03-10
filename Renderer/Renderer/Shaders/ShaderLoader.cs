@@ -17,12 +17,14 @@ namespace ValveResourceFormat.Renderer.Shaders
     /// </summary>
     public enum ShaderProgramType
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Vertex shader stage.</summary>
         Vertex = 0,
+        /// <summary>Fragment (pixel) shader stage.</summary>
         Fragment = 1,
+        /// <summary>Compute shader stage.</summary>
         Compute = 2,
+        /// <summary>Sentinel value equal to the number of shader stages.</summary>
         Max = 3,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     /// <summary>
@@ -40,6 +42,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         private static partial Regex Mesa3dGlslError();
 
         private readonly Dictionary<ulong, Shader> CachedShaders = [];
+
+        /// <summary>Gets the number of compiled shader variants currently held in the cache.</summary>
         public int ShaderCount => CachedShaders.Count;
 
         private static readonly Dictionary<string, byte> EmptyArgs = [];
@@ -55,13 +59,25 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// </summary>
         public class ParsedShaderData
         {
+            /// <summary>Gets the map of define names to their default byte values extracted from the shader source.</summary>
             public Dictionary<string, byte> Defines { get; } = [];
+
+            /// <summary>Gets the set of render mode names declared in the shader source.</summary>
             public HashSet<string> RenderModes { get; } = [];
+
+            /// <summary>Gets the set of sampler and vector uniform names declared in the shader source.</summary>
             public HashSet<string> Uniforms { get; } = [];
+
+            /// <summary>Gets the set of uniform names annotated with <c>// SrgbRead(true)</c>.</summary>
             public HashSet<string> SrgbUniforms { get; } = [];
+
+            /// <summary>Gets the preprocessed GLSL source text for each shader stage.</summary>
             public Dictionary<ShaderProgramType, string> Sources { get; } = [];
+
+            /// <summary>Gets the ordered list of source file names included during preprocessing, used for error reporting.</summary>
             public List<string> SourceFiles { get; } = [];
 #if DEBUG
+            /// <summary>Gets the per-file line lists used to display source lines in error messages (debug builds only).</summary>
             public List<List<string>> SourceFileLines { get; } = [];
 #endif
         }
@@ -89,17 +105,26 @@ namespace ValveResourceFormat.Renderer.Shaders
             });
         }
 
+        /// <summary>Initializes a new instance of the <see cref="ShaderLoader"/> class.</summary>
+        /// <param name="rendererContext">The renderer context that owns this loader.</param>
         public ShaderLoader(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
         }
 
+        /// <summary>Loads or retrieves a cached shader compiled with the specified static combos.</summary>
+        /// <param name="shaderName">The Source 2 shader name (e.g. <c>complex.vfx</c>).</param>
+        /// <param name="combos">Static combo name/value pairs to activate.</param>
         public Shader LoadShader(string shaderName, params (string ComboName, byte ComboValue)[] combos)
         {
             var args = combos.ToDictionary(c => c.ComboName, c => c.ComboValue);
             return LoadShader(shaderName, args);
         }
 
+        /// <summary>Loads or retrieves a cached shader compiled with the given argument dictionary.</summary>
+        /// <param name="shaderName">The Source 2 shader name (e.g. <c>complex.vfx</c>).</param>
+        /// <param name="arguments">Static combo parameter overrides, or <see langword="null"/> for defaults.</param>
+        /// <param name="blocking">When <see langword="true"/>, waits for linking to complete before returning.</param>
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte>? arguments = null, bool blocking = true)
         {
             arguments ??= EmptyArgs;
@@ -366,12 +391,18 @@ namespace ValveResourceFormat.Renderer.Shaders
             throw new ShaderCompilerException($"{errorType} {shaderFile} (original={originalShaderName}):\n\n{info}");
         }
 
+        /// <summary>Returns the bare shader name from a full shader file path by stripping the <see cref="ShaderFileExtension"/> suffix.</summary>
+        /// <param name="shaderFilePath">The full path or file name of the shader (e.g. <c>/path/complex.vert.slang</c>).</param>
+        /// <returns>The shader name without directory or extension (e.g. <c>complex</c>).</returns>
         public static string ShaderNameFromPath(string shaderFilePath)
         {
             return Path.GetFileName(shaderFilePath[..^ShaderFileExtension.Length]);
         }
 
+        /// <summary>The file extension for Slang shader source files (<c>.slang</c>).</summary>
         public const string SlangExtension = ".slang";
+
+        /// <summary>The file extension used to identify vertex shader entry points (<c>.vert.slang</c>).</summary>
         public const string ShaderFileExtension = ".vert.slang";
         const string VrfInternalShaderPrefix = "vrf.";
 
@@ -393,12 +424,15 @@ namespace ValveResourceFormat.Renderer.Shaders
             _ => "complex",
         };
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>Releases managed resources held by this loader.</summary>
+        /// <param name="disposing"><see langword="true"/> when called from <see cref="Dispose()"/>.</param>
         protected virtual void Dispose(bool disposing)
         {
             CachedShaders.Clear();
@@ -470,6 +504,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
 #if DEBUG
+        /// <summary>Recompiles all cached shaders, or only those derived from the given file if specified (debug builds only).</summary>
+        /// <param name="name">Optional shader file name that changed; when <see langword="null"/> all shaders are reloaded.</param>
         public void ReloadAllShaders(string? name = null)
         {
             Parser.ClearBuilder();
@@ -501,6 +537,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Compiles every known shader (and all their define combinations) to validate correctness (debug builds only).</summary>
+        /// <param name="progressReporter">Receives status messages as each shader variant is compiled.</param>
+        /// <param name="logger">Logger used when constructing the internal <see cref="RendererContext"/>.</param>
+        /// <param name="filter">Optional substring to restrict which shader files are validated.</param>
         public static void ValidateShaders(IProgress<string> progressReporter, ILogger logger, string? filter = null)
         {
             using var renderContext = new RendererContext(new ValveResourceFormat.IO.GameFileLoader(null, null), logger);
@@ -656,14 +696,20 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// </summary>
         public class ShaderCompilerException : Exception
         {
+            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class.</summary>
             public ShaderCompilerException()
             {
             }
 
+            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class with a message.</summary>
+            /// <param name="message">The error message describing the compilation or link failure.</param>
             public ShaderCompilerException(string message) : base(message)
             {
             }
 
+            /// <summary>Initializes a new instance of the <see cref="ShaderCompilerException"/> class with a message and an inner exception.</summary>
+            /// <param name="message">The error message describing the compilation or link failure.</param>
+            /// <param name="innerException">The exception that caused this exception.</param>
             public ShaderCompilerException(string message, Exception innerException) : base(message, innerException)
             {
             }

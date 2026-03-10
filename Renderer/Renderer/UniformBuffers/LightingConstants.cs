@@ -8,26 +8,41 @@ namespace ValveResourceFormat.Renderer.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public class LightingConstants
     {
+        /// <summary>Maximum number of dynamic lights supported per scene.</summary>
         public const int MAX_LIGHTS = 256;
+        /// <summary>Maximum number of environment map probes supported per scene.</summary>
         public const int MAX_ENVMAPS = 128;
 
+        /// <summary>UV scale applied when sampling the lightmap atlas.</summary>
         public Vector2 LightmapUvScale;
+        /// <summary>Non-zero when the current draw is part of the skybox.</summary>
         public uint IsSkybox;
+        /// <summary>Number of active barn lights in the scene.</summary>
         public uint NumBarnLights;
+        /// <summary>Per-type light counts (index matches light type enum).</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLights;
+        /// <summary>Starting shadow index for baked-shadow lights, per light type.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] public uint[] NumLightsBakedShadowIndex;
+        /// <summary>World-space position (XYZ) and type (W) for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightPosition_Type;
 
+        /// <summary>World-space direction (XYZ) and inverse range (W) for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightDirection_InvRange;
 
+        /// <summary>Transform matrix from light space to world space for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Matrix4x4[] LightToWorld;
 
+        /// <summary>Linear color (RGB) and brightness (W) for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightColor_Brightness;
+        /// <summary>Inner and outer spot cone cosines for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightSpotInnerOuterCosines;
+        /// <summary>Falloff curve parameters for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightFallOff;
 
+        /// <summary>Mip level and size constants used when sampling environment maps.</summary>
         public Vector4 EnvMapSizeConstants;
 
+        /// <summary>Initializes a new <see cref="LightingConstants"/> with all arrays allocated to their maximum sizes.</summary>
         public LightingConstants()
         {
             NumLights = new uint[4];

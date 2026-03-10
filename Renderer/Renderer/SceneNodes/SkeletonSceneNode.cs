@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public class SkeletonSceneNode : SceneNode
     {
+        /// <summary>Gets or sets whether the skeleton visualization is drawn.</summary>
         public bool Enabled { get; set; }
 
         readonly AnimationController animationController;
@@ -18,6 +19,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         readonly int vboHandle;
         int vertexCount;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SkeletonSceneNode"/> class.
+        /// </summary>
+        /// <param name="scene">The scene this node belongs to.</param>
+        /// <param name="animationController">The animation controller providing bone pose data.</param>
+        /// <param name="skeleton">The skeleton definition containing bone hierarchy.</param>
         public SkeletonSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton)
             : base(scene)
         {
@@ -38,6 +45,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 #endif
         }
 
+        /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
             if (!Enabled)
@@ -106,6 +114,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
             if (!Enabled)

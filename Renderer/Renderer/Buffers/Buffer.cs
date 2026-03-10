@@ -7,14 +7,20 @@ namespace ValveResourceFormat.Renderer.Buffers
     /// </summary>
     public abstract class Buffer
     {
+        /// <summary>Gets the OpenGL buffer target type.</summary>
         public BufferTarget Target { get; }
+        /// <summary>Gets the OpenGL buffer object handle.</summary>
         public int Handle { get; }
+        /// <summary>Gets the shader binding point index.</summary>
         public int BindingPoint { get; }
+        /// <summary>Gets the debug name for this buffer.</summary>
         public string Name { get; }
 
+        /// <summary>Gets or sets the current size of the buffer in bytes.</summary>
         public virtual int Size { get; set; }
 
 
+        /// <summary>Initializes a new buffer with the given target, binding point, and debug name.</summary>
         protected Buffer(BufferTarget target, int bindingPoint, string name)
         {
             Target = target;
@@ -28,11 +34,13 @@ namespace ValveResourceFormat.Renderer.Buffers
 #endif
         }
 
+        /// <summary>Binds this buffer to its binding point using <c>glBindBufferBase</c>.</summary>
         public void BindBufferBase()
         {
             GL.BindBufferBase((BufferRangeTarget)Target, BindingPoint, Handle);
         }
 
+        /// <summary>Sets the uniform block binding in the given shader to match this buffer's binding point.</summary>
         public void SetBlockBinding(Shader shader)
         {
             var blockIndex = shader.GetUniformBlockIndex(Name);
@@ -42,6 +50,7 @@ namespace ValveResourceFormat.Renderer.Buffers
             }
         }
 
+        /// <summary>Deletes the underlying OpenGL buffer object.</summary>
         public virtual void Delete()
         {
             GL.DeleteBuffer(Handle);

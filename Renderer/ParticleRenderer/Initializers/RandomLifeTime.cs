@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Sets the particle lifetime to a random value between a minimum and maximum, with an optional
+    /// random exponent to bias the distribution. Corresponds to <c>C_INIT_RandomLifeTime</c>.
+    /// </summary>
     class RandomLifeTime : ParticleFunctionInitializer
     {
         private readonly float lifetimeMin;

@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Integrates each particle's rotation speed into its rotation each frame. This is the only
+    /// operator that advances rotation based on the rotation speed attribute.
+    /// </summary>
     class SpinUpdate : ParticleFunctionOperator
     {
         public SpinUpdate(ParticleDefinitionParser parse) : base(parse)

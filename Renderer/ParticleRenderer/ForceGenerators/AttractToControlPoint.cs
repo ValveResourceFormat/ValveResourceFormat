@@ -2,6 +2,10 @@ using ValveResourceFormat.Renderer.Particles.Operators;
 
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
+/// <summary>
+/// Applies a gravitational pull force toward a control point, with configurable strength
+/// and distance-based falloff power. Corresponds to <c>C_OP_AttractToControlPoint</c>.
+/// </summary>
 class AttractToControlPoint : ParticleFunctionOperator
 {
     private readonly Vector3 ComponentScale = Vector3.One;

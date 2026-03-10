@@ -13,7 +13,10 @@ namespace ValveResourceFormat.Renderer.Shaders
     /// </summary>
     public partial class ShaderParser
     {
+        /// <summary>The embedded-resource namespace prefix used to locate shader files in the assembly manifest.</summary>
         public const string ShaderDirectory = "Renderer.Shaders.";
+
+        /// <summary>The GLSL version directive that must appear as the first line of every shader file.</summary>
         public const string ExpectedShaderVersion = "#version 460";
         private const string RenderModeDefinePrefix = "renderMode_";
 
@@ -31,11 +34,16 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         private readonly StringBuilder builder = new(1024);
 
+        /// <summary>Clears the internal <see cref="StringBuilder"/> so it is ready for the next preprocessing pass.</summary>
         public void ClearBuilder()
         {
             builder.Clear();
         }
 
+        /// <summary>Reads and preprocesses a shader source file, resolving includes and extracting defines, render modes, and uniform names into <paramref name="parsedData"/>.</summary>
+        /// <param name="shaderFile">The shader file path or embedded resource name (e.g. <c>complex.vert.slang</c>).</param>
+        /// <param name="parsedData">The data container that accumulates extracted metadata across all stages.</param>
+        /// <returns>The preprocessed GLSL source text ready for driver compilation.</returns>
         public string PreprocessShader(string shaderFile, ParsedShaderData parsedData)
         {
             var sourceFileNumber = parsedData.SourceFiles.Count;
@@ -246,8 +254,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             return ExtensionToProgramType.GetValueOrDefault(ext, ShaderProgramType.Max);
         }
 
+        /// <summary>Gets the map from shader base names to a bool array indicating which pipeline stages (vertex, fragment, compute) exist on disk or in the assembly manifest.</summary>
         public Dictionary<string, bool[]> AvailableShaders { get; }
 
+        /// <summary>Initializes a new instance of the <see cref="ShaderParser"/> class and discovers all available shader files.</summary>
         public ShaderParser()
         {
             AvailableShaders = GetAvailableShaders();
@@ -330,6 +340,8 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Returns the absolute path to a shader file on disk (debug builds only).</summary>
+        /// <param name="name">Relative shader file name (e.g. <c>complex.vert.slang</c>).</param>
         public static string GetShaderDiskPath(string name)
         {
             return Path.Combine(ShaderRootDirectory, name);

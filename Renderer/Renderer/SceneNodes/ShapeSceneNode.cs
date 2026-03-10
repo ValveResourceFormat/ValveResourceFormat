@@ -11,21 +11,38 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public abstract class ShapeSceneNode : SceneNode
     {
+        /// <summary>Gets whether this shape renders with transparency.</summary>
         public virtual bool IsTranslucent { get; } = true;
+
+        /// <summary>Gets or sets whether the current render mode allows translucent rendering.</summary>
         public bool IsTranslucentRenderMode { get; set; } = true;
 
         // sphere/capsule constants
         private const int SphereSegments = 8;
         private const int SphereBands = 5;
         // constants for sizes of spheres/capsules
+        /// <summary>Number of vertices in one hemisphere (used for sphere and capsule allocation).</summary>
         public const int HemisphereVerts = SphereBands * SphereSegments + 1;
+
+        /// <summary>Number of triangles in one hemisphere.</summary>
         public const int HemisphereTriangles = SphereSegments * (2 * SphereBands - 1);
+
+        /// <summary>Number of triangles in a full capsule (two hemispheres plus the connecting cylinder band).</summary>
         public const int CapsuleTriangles = 2 * HemisphereTriangles + 2 * SphereSegments;
 
+        /// <summary>Gets the shader used to render this shape.</summary>
         protected Shader shader { get; init; }
+
+        /// <summary>Gets the number of indices uploaded to the GPU index buffer.</summary>
         protected int indexCount { get; private set; }
+
+        /// <summary>Gets the OpenGL vertex array object handle.</summary>
         protected int vaoHandle { get; private set; }
+
+        /// <summary>Gets whether this shape uses normal-based shading.</summary>
         protected virtual bool Shaded { get; } = true;
+
+        /// <summary>Gets or sets an optional tool texture overlay rendered on top of the shape.</summary>
         protected RenderTexture? ToolTexture { get; set; }
 
         private ShapeSceneNode(Scene scene) : base(scene)
@@ -82,6 +99,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Init(verts, inds);
         }
 
+        /// <inheritdoc/>
         public override void SetRenderMode(string mode)
         {
             IsTranslucentRenderMode = mode is not "Color" and not "Normals" and not "VertexColor";
@@ -110,12 +128,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 #endif
         }
 
+        /// <summary>Appends two triangles forming a quad face from four vertex indices.</summary>
         protected static void AddFace(List<int> inds, int a, int b, int c, int d)
         {
             AddTriangle(inds, 0, a, b, c);
             AddTriangle(inds, 0, c, d, a);
         }
 
+        /// <summary>Appends capsule geometry (two hemispheres and a cylinder band) to the given vertex and index lists.</summary>
         protected static void AddCapsule(List<SimpleVertexNormal> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius, Color32 color)
         {
             var up = Vector3.Normalize(c0 - c1);
@@ -141,6 +161,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>Returns a unit vector perpendicular to <paramref name="a"/>.</summary>
         protected static Vector3 GetOrtogonal(Vector3 a)
         {
             // Any vector not parallel to the given vector
@@ -154,12 +175,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return GetOrtogonal(a, arbitraryVector);
         }
 
+        /// <summary>Returns a unit vector perpendicular to both <paramref name="a"/> and <paramref name="b"/>.</summary>
         protected static Vector3 GetOrtogonal(Vector3 a, Vector3 b)
         {
             var sideVector = Vector3.Cross(a, b);
             return Vector3.Normalize(sideVector);
         }
 
+        /// <summary>Appends hemisphere geometry oriented along <paramref name="up"/> to the given vertex and index lists.</summary>
         protected static void AddHemisphere(List<SimpleVertexNormal> verts, List<int> inds, Vector3 center, float radius, Vector3 up, Color32 color)
         {
             var baseVertex = verts.Count;
@@ -213,6 +236,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>Appends solid box geometry to the given vertex and index lists.</summary>
         protected static void AddBox(List<SimpleVertexNormal> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
         {
             Span<SimpleVertexNormal> boxVertices =
@@ -246,12 +270,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             AddFace(inds, 1, 0, 4, 5);
         }
 
+        /// <summary>Appends full sphere geometry (two hemispheres) to the given vertex and index lists.</summary>
         protected static void AddSphere(List<SimpleVertexNormal> verts, List<int> inds, Vector3 center, float radius, Color32 color)
         {
             AddHemisphere(verts, inds, center, radius, Vector3.UnitZ, color);
             AddHemisphere(verts, inds, center, radius, -Vector3.UnitZ, color);
         }
 
+        /// <summary>Appends a single triangle (three absolute indices offset by <paramref name="baseVertex"/>) to the index list.</summary>
         protected static void AddTriangle(List<int> inds, int baseVertex, int a, int b, int c)
         {
             inds.Add(baseVertex + a);
@@ -259,12 +285,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             inds.Add(baseVertex + c);
         }
 
+        /// <summary>Appends a line segment as two colored vertices to the given list.</summary>
         public static void AddLine(List<SimpleVertex> vertices, Vector3 from, Vector3 to, Color32 color)
         {
             vertices.Add(new SimpleVertex(from, color));
             vertices.Add(new SimpleVertex(to, color));
         }
 
+        /// <summary>Appends the 12 wireframe edges of an AABB as line segments to the given vertex list.</summary>
         public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
@@ -286,6 +314,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
         }
 
+        /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
             var isTranslucent = IsTranslucent && IsTranslucentRenderMode && context.ReplacementShader == null;
@@ -348,8 +377,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.BindVertexArray(0);
         }
 
+        /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
 
+        /// <summary>Lazily loaded env_cubemap sphere model used for light probe and env map debug visualization.</summary>
         public static Lazy<ValveResourceFormat.Resource> CubemapResource { get; } = new(() =>
         {
             using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"Renderer.Resources.env_cubemap.vmdl_c");
@@ -363,6 +394,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return resource;
         });
 
+        /// <summary>Creates a <see cref="ModelSceneNode"/> using the embedded env_cubemap sphere model.</summary>
         public static ModelSceneNode CreateEnvCubemapSphere(Scene scene)
         {
             if (ShapeSceneNode.CubemapResource.Value.DataBlock is not Model model)

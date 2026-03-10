@@ -3,50 +3,78 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.PostProcess;
 
+/// <summary>Depth-of-field post-processing renderer using a bokeh scatter approach.</summary>
 public class DOFRenderer
 {
+    /// <summary>Golden angle in radians used to distribute bokeh samples in a spiral pattern.</summary>
     public const float GOLDEN_ANGLE = 2.39996322f; // constant to 2.39996322 i think?
+    /// <summary>Maximum number of spiral bokeh samples.</summary>
     public const int MAX_DOF_SAMPLES = 256; // constant to 2.39996322 i think?
 
+    /// <summary>Gets or sets the world-space depth at which the near blur becomes fully blurred.</summary>
     public float NearBlurry { get; set; } = -100;
+    /// <summary>Gets or sets the world-space depth at which the near blur becomes fully sharp.</summary>
     public float NearCrisp { get; set; }
 
+    /// <summary>Gets or sets the world-space depth at which the far blur begins.</summary>
     public float FarCrisp { get; set; } = 180f;
+    /// <summary>Gets or sets the world-space depth at which the far blur is fully blurred.</summary>
     public float FarBlurry { get; set; } = 2000f;
 
+    /// <summary>Gets or sets the maximum bokeh radius in pixels (r_dof2_maxblursize).</summary>
     public float MaxBlurSize { get; set; } = 5.0f;
+    /// <summary>Gets or sets the initial bokeh spiral radius scale (r_dof2_radiusscale).</summary>
     public float RadScale { get; set; } = 0.25f;
 
+    /// <summary>Gets or sets the world-space focal distance from the camera.</summary>
     public float FocalDistance { get; set; } = 100f;
 
     private readonly float[] Offsets = new float[MAX_DOF_SAMPLES * 4];
 
+    /// <summary>Gets or sets a value indicating whether depth-of-field is active.</summary>
     public bool Enabled { get; set; }
 
+    /// <summary>Gets the framebuffer that holds the DOF-blurred output.</summary>
     public Framebuffer? BlurredResult { get; private set; }
+    /// <summary>Gets the DOF shader parameters used for the most recently rendered frame.</summary>
     public Dof2InputParams CurrentDofParams { get; private set; }
 
     private Shader? DOF;
+    /// <summary>Gets or sets the MSAA sample count passed to the DOF resolve shader.</summary>
     public byte MsaaSamples { get; set; }
+    /// <summary>Gets a lazily-created MSAA resolve shader variant that encodes circle-of-confusion in the alpha channel.</summary>
     public Lazy<Shader> MsaaResolveDof => new(() => RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_DOF", 1), ("D_MSAA_SAMPLES", MsaaSamples)));
 
     private readonly RendererContext RendererContext;
 
+    /// <summary>Packed per-frame shader inputs for the DOF pass.</summary>
     public record struct Dof2InputParams
     {
+        /// <summary>Gets or sets the near CoC scale factor.</summary>
         public float NearScale { get; set; }
+        /// <summary>Gets or sets the near CoC bias.</summary>
         public float NearBias { get; set; }
+        /// <summary>Gets or sets the far CoC scale factor.</summary>
         public float FarScale { get; set; }
+        /// <summary>Gets or sets the far CoC bias.</summary>
         public float FarBias { get; set; }
 
+        /// <summary>Gets or sets the maximum bokeh radius in pixels (r_dof2_maxblursize convar).</summary>
         public float MaxBlurSize { get; set; } // r_dof2_maxblursize convar (5.0)
+        /// <summary>Gets or sets the bokeh spiral radius scale (r_dof2_radiusscale convar).</summary>
         public float RadScale { get; set; } // r_dof2_radiusscale convar (0.25)
 
         // rt size
+        /// <summary>Gets or sets the render target width in pixels.</summary>
         public int Width { get; set; }
+        /// <summary>Gets or sets the render target height in pixels.</summary>
         public int Height { get; set; }
     }
 
+    /// <summary>
+    /// Initializes a new <see cref="DOFRenderer"/> using the given renderer context.
+    /// </summary>
+    /// <param name="rendererContext">The renderer context providing shader loading and mesh buffer access.</param>
     public DOFRenderer(RendererContext rendererContext)
     {
         RendererContext = rendererContext;
@@ -85,6 +113,12 @@ public class DOFRenderer
         return BlurredResult.Color!;
     }
 
+    /// <summary>
+    /// Sets depth and lens-plane uniforms on the MSAA resolve shader for circle-of-confusion encoding.
+    /// </summary>
+    /// <param name="shader">The MSAA resolve shader to configure.</param>
+    /// <param name="camera">The active camera providing view/projection matrices and position.</param>
+    /// <param name="msaaDepth">The MSAA depth texture used to reconstruct world-space depth.</param>
     public void SetDofResolveShaderUniforms(Shader shader, Camera camera, RenderTexture msaaDepth)
     {
         shader.SetTexture(2, "g_tSceneDepth", msaaDepth);
@@ -122,6 +156,9 @@ public class DOFRenderer
         return input;
     }
 
+    /// <summary>
+    /// Uploads DOF shader uniforms if the current parameters have changed since the last call.
+    /// </summary>
     public void SetShaderParams()
     {
         var newParams = CreateInputParams();

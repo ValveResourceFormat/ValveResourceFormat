@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Remaps each particle's distance from a control point into a scalar output field, mapping a distance range to a configurable output range.
+    /// </summary>
     class DistanceToCP : ParticleFunctionOperator
     {
         private readonly float distanceMin;

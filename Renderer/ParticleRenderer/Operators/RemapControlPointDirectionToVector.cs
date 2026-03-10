@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Writes the orientation direction of a control point, scaled by a factor, into a vector
+    /// particle attribute.
+    /// </summary>
     class RemapControlPointDirectionToVector : ParticleFunctionOperator
     {
         private readonly ParticleField FieldOutput = ParticleField.Position;

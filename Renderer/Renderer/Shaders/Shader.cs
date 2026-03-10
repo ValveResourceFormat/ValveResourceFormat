@@ -8,33 +8,62 @@ namespace ValveResourceFormat.Renderer.Shaders
     /// </summary>
     public class Shader
     {
+        /// <summary>Gets the shader name (typically a Source 2 <c>.vfx</c> shader name).</summary>
         public string Name { get; }
+
+        /// <summary>Gets the MurmurHash2 hash of <see cref="Name"/>.</summary>
         public uint NameHash { get; }
+
+        /// <summary>Gets or sets the OpenGL program object handle.</summary>
         public int Program { get; set; }
 
+        /// <summary>Gets a value indicating whether the shader link status has been checked.</summary>
         public bool IsLoaded { get; private set; }
+
+        /// <summary>Gets a value indicating whether the shader linked successfully and is ready for use.</summary>
         public bool IsValid { get; private set; }
 
+        /// <summary>Gets the compiled OpenGL shader stage object handles.</summary>
         public required int[] ShaderObjects { get; init; }
+
+        /// <summary>Gets the static combo parameter values used to compile this shader variant.</summary>
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
+
+        /// <summary>Gets the set of render mode names supported by this shader.</summary>
         public required HashSet<string> RenderModes { get; init; }
+
+        /// <summary>Gets the set of uniform names declared in the shader source.</summary>
         public required HashSet<string> UniformNames { get; init; }
+
+        /// <summary>Gets the set of uniform names that require sRGB-to-linear conversion when setting material values.</summary>
         public required HashSet<string> SrgbUniforms { get; init; }
+
+        /// <summary>Gets the set of reserved texture uniform names that are actively used by this shader.</summary>
         public HashSet<string> ReservedTexuresUsed { get; } = [];
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
+
+        /// <summary>Gets the default <see cref="RenderMaterial"/> whose values serve as fallbacks when a material omits a uniform.</summary>
         public RenderMaterial Default { get; init; }
+
+        /// <summary>Gets the <see cref="MaterialLoader"/> used to resolve fallback textures.</summary>
         protected MaterialLoader MaterialLoader { get; init; }
 
+        /// <summary>Gets a mapping from vertex attribute names to their OpenGL attribute locations.</summary>
         public Dictionary<string, int> Attributes { get; } = [];
 
+        /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
 
 #if DEBUG
+        /// <summary>Gets the shader file name on disk (debug builds only).</summary>
         public required string FileName { get; init; }
 #endif
 
+        /// <summary>Initializes a new instance of the <see cref="Shader"/> class.</summary>
+        /// <param name="name">The shader name, typically a Source 2 <c>.vfx</c> shader name.</param>
+        /// <param name="rendererContext">The renderer context used to access the material loader.</param>
         public Shader(string name, RendererContext rendererContext)
         {
             Name = name;
@@ -47,6 +76,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                                       or "vrf.depth_only";
         }
 
+        /// <summary>Ensures the shader program has been linked and its uniforms and attributes have been cached.</summary>
+        /// <returns><see langword="true"/> if the shader linked successfully; otherwise <see langword="false"/>.</returns>
         public bool EnsureLoaded()
         {
             if (!IsLoaded)
@@ -167,12 +198,15 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Installs this shader program as part of the current rendering state.</summary>
         public void Use()
         {
             EnsureLoaded();
             GL.UseProgram(Program);
         }
 
+        /// <summary>Enumerates all active uniforms in the program, populating the internal uniform location cache.</summary>
+        /// <returns>A sequence of tuples with each uniform's name, index, type, and array size.</returns>
         public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {
             var uniformBlockMemberIndices = new List<int>();
@@ -212,6 +246,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Queries and caches the OpenGL locations of all active vertex attributes.</summary>
         public void StoreAttributeLocations()
         {
             GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
@@ -226,6 +261,9 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Returns the OpenGL location of the named uniform, querying the driver and caching the result on first access.</summary>
+        /// <param name="name">The uniform variable name.</param>
+        /// <returns>The uniform location, or -1 if the uniform does not exist in the program.</returns>
         public int GetUniformLocation(string name)
         {
             if (Uniforms.TryGetValue(name, out var locationType))
@@ -240,6 +278,9 @@ namespace ValveResourceFormat.Renderer.Shaders
             return location;
         }
 
+        /// <summary>Returns the OpenGL index of the named uniform block, querying the driver and caching the result on first access.</summary>
+        /// <param name="name">The uniform block name.</param>
+        /// <returns>The uniform block index, or -1 if the block does not exist.</returns>
         public int GetUniformBlockIndex(string name)
         {
             if (Uniforms.TryGetValue(name, out var locationType))
@@ -254,6 +295,9 @@ namespace ValveResourceFormat.Renderer.Shaders
             return location;
         }
 
+        /// <summary>Returns the number of scalar components in the named uniform (1 for scalars, 2–4 for vectors).</summary>
+        /// <param name="name">The uniform variable name.</param>
+        /// <returns>The component count, defaulting to 4 if the uniform is not found in the cache.</returns>
         public int GetRegisterSize(string name)
         {
             if (Uniforms.TryGetValue(name, out var uniform))
@@ -270,11 +314,14 @@ namespace ValveResourceFormat.Renderer.Shaders
             return 4;
         }
 
+        /// <summary>Returns a value indicating whether the named uniform has a boolean type.</summary>
+        /// <param name="paramName">The uniform variable name.</param>
         public bool IsBooleanParameter(string paramName)
         {
             return Uniforms.TryGetValue(paramName, out var uniform) && uniform.Type == ActiveUniformType.Bool;
         }
 
+        /// <summary>Sets a scalar float uniform on this program.</summary>
         public void SetUniform1(string name, float value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -284,6 +331,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets a scalar integer uniform on this program.</summary>
         public void SetUniform1(string name, int value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -293,8 +341,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets a scalar boolean uniform on this program, encoded as 1u or 0u.</summary>
         public void SetUniform1(string name, bool value) => SetUniform1(name, value ? 1u : 0u);
 
+        /// <summary>Sets a scalar unsigned integer uniform on this program.</summary>
         public void SetUniform1(string name, uint value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -304,6 +354,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets a two-component float vector uniform on this program.</summary>
         public void SetUniform2(string name, Vector2 value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -313,6 +364,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets a three-component float vector uniform on this program.</summary>
         public void SetUniform3(string name, Vector3 value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -322,6 +374,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets a four-component float vector uniform on this program.</summary>
         public void SetUniform4(string name, Vector4 value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -331,6 +384,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets a vector material uniform, applying sRGB-to-linear conversion if needed and adapting to the actual uniform size.</summary>
         public void SetMaterialVector4Uniform(string name, Vector4 value)
         {
             if (Uniforms.TryGetValue(name, out var uniform) && uniform.Location > -1)
@@ -359,6 +413,11 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets the <c>uAnimationData</c> uniform used by skinned mesh shaders.</summary>
+        /// <param name="animated">Whether skeletal animation is active.</param>
+        /// <param name="boneOffset">Offset into the bone transform buffer.</param>
+        /// <param name="boneCount">Number of bones influencing this draw call.</param>
+        /// <param name="weightCount">Number of bone weights per vertex.</param>
         public void SetBoneAnimationData(bool animated, int boneOffset = 0, int boneCount = 0, int weightCount = 0)
         {
             var uniformLocation = GetUniformLocation("uAnimationData");
@@ -368,6 +427,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets an array of four-component float vector uniforms on this program.</summary>
+        /// <param name="name">The uniform array name.</param>
+        /// <param name="count">Number of vec4 elements to upload.</param>
+        /// <param name="value">Flat array of float values (count * 4 elements).</param>
         public void SetUniform4Array(string name, int count, float[] value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -377,6 +440,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets an array of 4×3 column-major matrix uniforms on this program.</summary>
+        /// <param name="name">The uniform array name.</param>
+        /// <param name="count">Number of matrices to upload.</param>
+        /// <param name="value">Flat array of float values (count * 12 elements).</param>
         public void SetUniformMatrix4x3Array(string name, int count, float[] value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -386,6 +453,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets a 3×4 matrix uniform (converted from a <see cref="Matrix4x4"/> by dropping the last column).</summary>
         public void SetUniform3x4(string name, Matrix4x4 value)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -396,6 +464,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Sets a 4×4 matrix uniform on this program.</summary>
+        /// <param name="name">The uniform variable name.</param>
+        /// <param name="value">The matrix value.</param>
+        /// <param name="transpose">Whether to transpose the matrix before uploading.</param>
         public void SetUniform4x4(string name, Matrix4x4 value, bool transpose = false)
         {
             var uniformLocation = GetUniformLocation(name);
@@ -406,6 +478,11 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>Binds a texture to the given texture unit and sets the named sampler uniform, returning <see langword="false"/> if the texture or uniform is absent.</summary>
+        /// <param name="slot">The texture unit index.</param>
+        /// <param name="name">The sampler uniform name.</param>
+        /// <param name="texture">The texture to bind.</param>
+        /// <returns><see langword="true"/> if the texture was successfully bound; otherwise <see langword="false"/>.</returns>
         public bool SetTexture(int slot, string name, RenderTexture? texture)
         {
             if (texture == null)
@@ -423,6 +500,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             return true;
         }
 
+        /// <summary>Binds a texture to the given texture unit and sets the sampler uniform by location.</summary>
+        /// <param name="slot">The texture unit index.</param>
+        /// <param name="uniformLocation">The pre-resolved sampler uniform location.</param>
+        /// <param name="texture">The texture to bind.</param>
         public void SetTexture(int slot, int uniformLocation, RenderTexture? texture)
         {
             if (texture == null)
@@ -434,6 +515,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
 #if DEBUG
+        /// <summary>Hot-reloads this shader by swapping it with a freshly compiled replacement (debug builds only).</summary>
+        /// <param name="shader">The newly compiled shader to replace this instance with.</param>
         public void ReplaceWith(Shader shader)
         {
             GL.DeleteProgram(Program);

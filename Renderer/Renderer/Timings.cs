@@ -28,11 +28,13 @@ public class Timings
     private readonly Lock threadLock = new();
     private int owningThreadId;
 
+    /// <summary>Initializes a new <see cref="Timings"/> instance owned by the current thread.</summary>
     public Timings()
     {
         owningThreadId = Environment.CurrentManagedThreadId;
     }
 
+    /// <summary>Gets or sets whether timing data is actively collected this frame.</summary>
     public bool Capture { get; set; }
     private bool IsNotOwningThread => Environment.CurrentManagedThreadId != owningThreadId;
 
@@ -238,6 +240,7 @@ public class Timings
         }, camera);
     }
 
+    /// <summary>Resets the query index and assigns timing ownership to the calling thread for the new frame.</summary>
     public void MarkFrameBegin()
     {
         if (Capture)

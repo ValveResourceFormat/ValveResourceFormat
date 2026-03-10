@@ -16,6 +16,9 @@ namespace ValveResourceFormat.Renderer
 
         internal StorageBuffer? OccludedBoundsDebugGpu;
 
+        /// <summary>Initializes the occlusion debug renderer and loads the debug shader.</summary>
+        /// <param name="scene">Scene to visualize occlusion for.</param>
+        /// <param name="rendererContext">Renderer context for loading shaders and GPU resources.</param>
         public OcclusionDebugRenderer(Scene scene, RendererContext rendererContext)
         {
             this.scene = scene;
@@ -24,6 +27,7 @@ namespace ValveResourceFormat.Renderer
             shader = rendererContext.ShaderLoader.LoadShader("vrf.occlusion_debug");
         }
 
+        /// <summary>Allocates (if needed) and clears the GPU buffer that receives occluded bounds from the culling shader.</summary>
         public void BindAndClearBuffer()
         {
             if (OccludedBoundsDebugGpu == null)
@@ -41,6 +45,7 @@ namespace ValveResourceFormat.Renderer
             OccludedBoundsDebugGpu.BindBufferBase();
         }
 
+        /// <summary>Renders wireframe bounding boxes for all occluded meshlets, color-coded by whether occlusion was correct.</summary>
         public void Render()
         {
             if (!scene.DrawMeshletsIndirect || !scene.EnableOcclusionCulling || OccludedBoundsDebugGpu == null)

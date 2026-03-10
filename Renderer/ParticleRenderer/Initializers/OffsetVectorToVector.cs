@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Reads a vector from an input field and writes it plus a per-component random offset into an
+    /// output field. Unlike <see cref="AddVectorToVector"/>, the output field's existing value is
+    /// not included in the sum. Corresponds to <c>C_INIT_OffsetVectorToVector</c>.
+    /// </summary>
     class OffsetVectorToVector : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldInput = ParticleField.Position;

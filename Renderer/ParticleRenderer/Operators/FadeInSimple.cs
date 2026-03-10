@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Fades a particle's alpha field in linearly over a proportional fade-in time at the start of the particle's life.
+    /// </summary>
     class FadeInSimple : ParticleFunctionOperator
     {
         private readonly float fadeInTime = 0.25f;

@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Kills a particle once its age exceeds its lifetime.
+    /// </summary>
     class Decay : ParticleFunctionOperator
     {
         public Decay(ParticleDefinitionParser parse) : base(parse)

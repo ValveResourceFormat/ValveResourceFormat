@@ -8,6 +8,7 @@ namespace ValveResourceFormat.ResourceTypes
 
     /// <summary>
     /// Represents an emphasis sample for voice modulation.
+    /// Corresponds to <c>CAudioEmphasisSample</c> in the schema.
     /// </summary>
     public readonly struct EmphasisSample
     {
@@ -24,6 +25,7 @@ namespace ValveResourceFormat.ResourceTypes
 
     /// <summary>
     /// Represents a phoneme timing tag for lip-sync animation.
+    /// Corresponds to <c>CAudioPhonemeTag</c> in the schema.
     /// </summary>
     public readonly struct PhonemeTag
     {
@@ -45,6 +47,7 @@ namespace ValveResourceFormat.ResourceTypes
 
     /// <summary>
     /// Represents a sentence with phoneme and emphasis data for voice playback.
+    /// Corresponds to <c>CAudioSentence</c> in the schema.
     /// </summary>
     public class Sentence
     {
@@ -70,6 +73,7 @@ namespace ValveResourceFormat.ResourceTypes
 
     /// <summary>
     /// Represents a sound resource containing audio data and metadata.
+    /// The compiled sound data corresponds to <c>CVSound</c> / <c>CVoiceContainerBase</c> in the schema.
     /// </summary>
     public class Sound : Block
     {
@@ -78,24 +82,28 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public enum AudioFileType
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Advanced Audio Coding container.</summary>
             AAC = 0,
+            /// <summary>Waveform Audio File Format container.</summary>
             WAV = 1,
+            /// <summary>MPEG Layer 3 container.</summary>
             MP3 = 2,
-#pragma warning restore CS1591
         }
 
         /// <summary>
         /// Specifies the audio encoding format for version 4 sound files.
+        /// Corresponds to <c>CVSoundFormat_t</c> in the schema.
         /// </summary>
         public enum AudioFormatV4
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>16-bit PCM audio.</summary>
             PCM16 = 0,
+            /// <summary>8-bit PCM audio.</summary>
             PCM8 = 1,
+            /// <summary>MPEG Layer 3 compressed audio.</summary>
             MP3 = 2,
+            /// <summary>Adaptive Differential Pulse Code Modulation compressed audio.</summary>
             ADPCM = 3,
-#pragma warning restore CS1591
         }
 
         /// <summary>
@@ -103,11 +111,12 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public enum WaveAudioFormat
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Unknown or unspecified audio encoding.</summary>
             Unknown = 0,
+            /// <summary>Uncompressed pulse-code modulation.</summary>
             PCM = 1,
+            /// <summary>Adaptive Differential Pulse Code Modulation compressed audio.</summary>
             ADPCM = 2,
-#pragma warning restore CS1591
         }
 
         /// <inheritdoc/>
@@ -236,7 +245,7 @@ namespace ValveResourceFormat.ResourceTypes
             var headerSize = reader.ReadInt32();
             StreamingDataSize = reader.ReadUInt32();
 
-            // this is likely to be m_nSeekTable
+            // m_nSeekTable (seek table for seeking compressed audio)
             if (Resource.Version >= 1)
             {
                 var d = reader.ReadUInt32();
@@ -253,7 +262,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             // v2 and v3 are the same?
-            // this is likely to be CAudioMorphData
+            // likely CAudioMorphData (m_morphData inside CAudioSentence)
             if (Resource.Version >= 2)
             {
                 var f = reader.ReadUInt32();

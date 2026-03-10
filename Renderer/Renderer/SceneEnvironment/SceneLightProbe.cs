@@ -10,36 +10,25 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment;
 /// </summary>
 public class SceneLightProbe : SceneNode
 {
+    /// <summary>Gets or sets the handshake value used to match this probe to scene nodes during precomputation.</summary>
     public int HandShake { get; set; }
 
-    /// <remarks>
-    /// Used in lighting version 6 and 8.x
-    /// </remarks>
+    /// <summary>Gets or sets the irradiance probe texture (lighting version 6 and 8.x).</summary>
     public RenderTexture? Irradiance { get; set; }
 
-    /// <remarks>
-    /// Used in lighting version 8.1
-    /// </remarks>
+    /// <summary>Gets or sets the direct light index texture (lighting version 8.1).</summary>
     public RenderTexture? DirectLightIndices { get; set; }
 
-    /// <remarks>
-    /// Used in lighting version 8.1
-    /// </remarks>
+    /// <summary>Gets or sets the direct light scalar texture (lighting version 8.1).</summary>
     public RenderTexture? DirectLightScalars { get; set; }
 
-    /// <remarks>
-    /// Used in lighting version 8.2
-    /// </remarks>
+    /// <summary>Gets or sets the direct light shadow texture (lighting version 8.2).</summary>
     public RenderTexture? DirectLightShadows { get; set; }
 
-    /// <remarks>
-    /// Used in lighting version 8.2
-    /// </remarks>
+    /// <summary>Gets or sets the probe atlas size in texels (lighting version 8.2).</summary>
     public Vector3 AtlasSize { get; set; }
 
-    /// <remarks>
-    /// Used in lighting version 8.2
-    /// </remarks>
+    /// <summary>Gets or sets the probe atlas offset in texels (lighting version 8.2).</summary>
     public Vector3 AtlasOffset { get; set; }
 
     /// <summary>
@@ -47,18 +36,29 @@ public class SceneLightProbe : SceneNode
     /// </summary>
     public int IndoorOutdoorLevel { get; init; }
 
+    /// <summary>Gets or sets the world-space size of each voxel cell in the probe grid.</summary>
     public float VoxelSize { get; set; }
 
+    /// <summary>Gets or sets the shader-side index assigned to this probe for UBO packing.</summary>
     public int ShaderIndex { get; set; }
 
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SceneLightProbe"/> class with the given local-space bounds.
+    /// </summary>
+    /// <param name="scene">The scene this node belongs to.</param>
+    /// <param name="bounds">The local-space bounds of the light probe volume.</param>
     public SceneLightProbe(Scene scene, AABB bounds) : base(scene)
     {
         LocalBoundingBox = bounds;
     }
 
+    /// <summary>Gets the aggregate scene node used to visualize the probe grid spheres, if created.</summary>
     public SceneAggregate? DebugGridSpheres { get; private set; }
 
+    /// <summary>
+    /// Creates or re-enables the debug grid sphere visualization for this light probe volume.
+    /// </summary>
     public void CrateDebugGridSpheres()
     {
         if (DebugGridSpheres != null)
@@ -118,6 +118,7 @@ public class SceneLightProbe : SceneNode
         }
     }
 
+    /// <summary>Hides the debug grid sphere visualization without destroying it.</summary>
     public void RemoveDebugGridSpheres()
     {
         if (DebugGridSpheres != null)
@@ -126,6 +127,10 @@ public class SceneLightProbe : SceneNode
         }
     }
 
+    /// <summary>
+    /// Computes the <see cref="LightProbeVolume"/> GPU data for this probe, including atlas offsets when applicable.
+    /// </summary>
+    /// <param name="isProbeAtlas">Whether the probe uses a probe atlas texture (lighting version 8.2).</param>
     public LightProbeVolume CalculateGpuProbeData(bool isProbeAtlas)
     {
         if (!Matrix4x4.Invert(Transform, out var worldToLocal))

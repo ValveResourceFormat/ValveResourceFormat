@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Fades a particle's alpha in over a configurable time window and then fades it out, killing the particle at the end of the fade-out.
+    /// </summary>
     class FadeAndKill : ParticleFunctionOperator
     {
         private readonly float startFadeInTime;

@@ -23,6 +23,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         HitboxSetData? currentSet;
         Skeleton skeleton => animationController.FrameCache.Skeleton;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HitboxSetSceneNode"/> class and builds scene nodes for all hitbox sets.
+        /// </summary>
+        /// <param name="scene">The scene this node belongs to.</param>
+        /// <param name="animationController">The animation controller providing bone pose data.</param>
+        /// <param name="hitboxSets">Named sets of hitboxes to visualize.</param>
         public HitboxSetSceneNode(Scene scene, AnimationController animationController, Dictionary<string, Hitbox[]> hitboxSets)
             : base(scene)
         {
@@ -67,6 +73,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             hitboxSets.Add(name, data);
         }
 
+        /// <summary>
+        /// Activates the named hitbox set for rendering, or clears the active set when <paramref name="set"/> is <see langword="null"/>.
+        /// </summary>
         public void SetHitboxSet(string? set)
         {
             if (set == null)
@@ -99,6 +108,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
             if (currentSet == null)
@@ -111,6 +121,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             UpdateHitboxSet(currentSet, animationController.Pose);
         }
 
+        /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
             if (currentSet == null || context.RenderPass != RenderPass.Translucent)

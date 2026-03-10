@@ -10,19 +10,34 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public class SceneAggregate : SceneNode
     {
+        /// <summary>Gets the shared renderable mesh for all fragments in this aggregate.</summary>
         public RenderableMesh RenderMesh { get; }
+
+        /// <summary>Gets the list of drawable fragments that make up this aggregate.</summary>
         public List<Fragment> Fragments { get; private set; } = [];
 
+        /// <summary>Gets or sets the byte offset into the indirect draw buffer for this aggregate's draws.</summary>
         public int IndirectDrawByteOffset { get; set; }
+
+        /// <summary>Gets or sets the number of indirect draw commands for this aggregate.</summary>
         public int IndirectDrawCount { get; set; }
+
+        /// <summary>Gets or sets the compaction buffer index used for GPU-driven draw count, or -1 if not compacted.</summary>
         public int CompactionIndex { get; set; } = -1;
+
+        /// <summary>Gets or sets whether any fragment of this aggregate is visible this frame.</summary>
         public bool AnyChildrenVisible { get; internal set; }
 
-
+        /// <summary>Gets the per-instance transform matrices used for instanced drawing.</summary>
         public List<OpenTK.Mathematics.Matrix3x4> InstanceTransforms { get; } = [];
+
+        /// <summary>Gets or sets whether this aggregate can use GPU indirect drawing.</summary>
         public bool CanDrawIndirect { get; set; }
 
+        /// <summary>Gets or sets the combined object type flags across all fragments (bitwise AND).</summary>
         public ObjectTypeFlags AllFlags { get; set; }
+
+        /// <summary>Gets or sets the combined object type flags across all fragments (bitwise OR).</summary>
         public ObjectTypeFlags AnyFlags { get; set; }
 
         /// <summary>
@@ -30,12 +45,19 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public sealed class Fragment : SceneNode
         {
+            /// <summary>Gets the aggregate that owns this fragment.</summary>
             public required SceneAggregate Parent { get; init; }
+
+            /// <summary>Gets the shared renderable mesh used to issue this fragment's draw call.</summary>
             public required RenderableMesh RenderMesh { get; init; }
+
+            /// <summary>Gets the specific draw call within the mesh that renders this fragment.</summary>
             public required DrawCall DrawCall { get; init; }
 
+            /// <summary>Gets or sets the per-fragment tint color.</summary>
             public Vector4 Tint { get; set; } = Vector4.One;
 
+            /// <inheritdoc/>
             public Fragment(Scene scene, SceneAggregate parent, AABB bounds) : base(scene)
             {
                 Parent = parent;
@@ -45,6 +67,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Initializes the scene aggregate, loading or resolving the mesh from the model.</summary>
+        /// <param name="scene">Owning scene.</param>
+        /// <param name="model">Model resource providing the embedded or referenced mesh.</param>
         public SceneAggregate(Scene scene, Model model)
             : base(scene)
         {
@@ -83,11 +108,14 @@ namespace ValveResourceFormat.Renderer
             LocalBoundingBox = RenderMesh.BoundingBox;
         }
 
+        /// <summary>Expands the aggregate's bounding box to cover the entire scene, preventing it from being frustum-culled.</summary>
         public void SetInfiniteBoundingBox()
         {
             LocalBoundingBox = new AABB(Vector3.NegativeInfinity, Vector3.PositiveInfinity);
         }
 
+        /// <summary>Parses fragment data from the scene object and adds each fragment to the scene.</summary>
+        /// <param name="aggregateSceneObject">KV3 object describing the aggregate's fragment list.</param>
         public void LoadFragments(KVObject aggregateSceneObject)
         {
             Fragments.AddRange(CreateFragments(aggregateSceneObject));
@@ -168,9 +196,11 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes() => RenderMesh.GetSupportedRenderModes();
 
 #if DEBUG
+        /// <inheritdoc/>
         public override void UpdateVertexArrayObjects() => RenderMesh.UpdateVertexArrayObjects();
 #endif
     }

@@ -5,23 +5,72 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public class Camera
     {
+        /// <summary>
+        /// World-space position of the camera.
+        /// </summary>
         public Vector3 Location { get; set; }
+
+        /// <summary>
+        /// Vertical rotation angle in radians.
+        /// </summary>
         public float Pitch { get; set; }
+
+        /// <summary>
+        /// Horizontal rotation angle in radians.
+        /// </summary>
         public float Yaw { get; set; }
 
+        /// <summary>
+        /// Unit vector pointing in the camera's look direction.
+        /// </summary>
         public Vector3 Forward { get; private set; }
+
+        /// <summary>
+        /// Unit vector pointing to the camera's right.
+        /// </summary>
         public Vector3 Right { get; private set; }
+
+        /// <summary>
+        /// Unit vector pointing upward from the camera's perspective.
+        /// </summary>
         public Vector3 Up { get; private set; }
 
         private RendererContext RendererContext;
+
+        /// <summary>
+        /// Perspective projection matrix (reverse-Z, infinite far plane).
+        /// </summary>
         public Matrix4x4 ProjectionMatrix { get; private set; }
+
+        /// <summary>
+        /// World-to-view transform matrix.
+        /// </summary>
         public Matrix4x4 CameraViewMatrix { get; private set; }
+
+        /// <summary>
+        /// Combined world-to-clip transform matrix.
+        /// </summary>
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
+
+        /// <summary>
+        /// Frustum derived from the current view-projection matrix, used for culling.
+        /// </summary>
         public Frustum ViewFrustum { get; } = new Frustum();
 
+        /// <summary>
+        /// Current viewport dimensions in pixels.
+        /// </summary>
         public Vector2 WindowSize { get; private set; }
+
+        /// <summary>
+        /// Viewport width divided by height.
+        /// </summary>
         public float AspectRatio { get; private set; }
 
+        /// <summary>
+        /// Initializes a new camera with a default position and 16:9 viewport.
+        /// </summary>
+        /// <param name="rendererContext">Renderer context used to read field-of-view settings.</param>
         public Camera(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
@@ -30,6 +79,9 @@ namespace ValveResourceFormat.Renderer
             LookAt(Vector3.Zero);
         }
 
+        /// <summary>
+        /// Recomputes view, projection, and view-projection matrices from the current location, pitch, and yaw.
+        /// </summary>
         public void RecalculateMatrices()
         {
             var (location, pitch, yaw) = (Location, Pitch, Yaw);
@@ -41,6 +93,9 @@ namespace ValveResourceFormat.Renderer
             ViewFrustum.Update(ViewProjectionMatrix);
         }
 
+        /// <summary>
+        /// Recomputes <see cref="Forward"/>, <see cref="Up"/>, and <see cref="Right"/> vectors from the current pitch and yaw.
+        /// </summary>
         public void RecalculateDirectionVectors()
         {
             var (yawSin, yawCos) = MathF.SinCos(Yaw);
@@ -56,6 +111,10 @@ namespace ValveResourceFormat.Renderer
             // Right = Vector3.Cross(Forward, Up);
         }
 
+        /// <summary>
+        /// Writes camera matrices and direction vectors into the provided view constants struct.
+        /// </summary>
+        /// <param name="viewConstants">View constants struct to populate.</param>
         public void SetViewConstants(Buffers.ViewConstants viewConstants)
         {
             viewConstants.WorldToProjection = ViewProjectionMatrix;
@@ -79,6 +138,9 @@ namespace ValveResourceFormat.Renderer
             viewConstants.ViewportMaxZ = 1.0f;
         }
 
+        /// <summary>
+        /// Updates the viewport dimensions and rebuilds the projection matrix.
+        /// </summary>
         public void SetViewportSize(int viewportWidth, int viewportHeight)
         {
             // Store window size and aspect ratio
@@ -88,6 +150,9 @@ namespace ValveResourceFormat.Renderer
             CreateProjectionMatrix();
         }
 
+        /// <summary>
+        /// Rebuilds <see cref="ProjectionMatrix"/> from the current field of view and aspect ratio.
+        /// </summary>
         public void CreateProjectionMatrix()
         {
             ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f);
@@ -110,6 +175,10 @@ namespace ValveResourceFormat.Renderer
             };
         }
 
+        /// <summary>
+        /// Copies all transform state from another camera into this one.
+        /// </summary>
+        /// <param name="fromOther">The camera to copy from.</param>
         public void CopyFrom(Camera fromOther)
         {
             AspectRatio = fromOther.AspectRatio;
@@ -123,11 +192,13 @@ namespace ValveResourceFormat.Renderer
             ViewFrustum.Update(ViewProjectionMatrix);
         }
 
+        /// <summary>Sets <see cref="Location"/> without recalculating matrices.</summary>
         public void SetLocation(Vector3 location)
         {
             Location = location;
         }
 
+        /// <summary>Sets <see cref="Location"/>, <see cref="Pitch"/>, and <see cref="Yaw"/> without recalculating matrices.</summary>
         public void SetLocationPitchYaw(Vector3 location, float pitch, float yaw)
         {
             Location = location;
@@ -135,6 +206,9 @@ namespace ValveResourceFormat.Renderer
             Yaw = yaw;
         }
 
+        /// <summary>
+        /// Orients the camera to face the given world-space target.
+        /// </summary>
         public void LookAt(Vector3 target)
         {
             var dir = Vector3.Normalize(target - Location);
@@ -145,6 +219,13 @@ namespace ValveResourceFormat.Renderer
         }
 
 
+        /// <summary>
+        /// Positions the camera so the specified bounding box fills the view.
+        /// </summary>
+        /// <param name="objectPosition">Center of the object to frame.</param>
+        /// <param name="width">Width of the object's bounding box.</param>
+        /// <param name="height">Height of the object's bounding box.</param>
+        /// <param name="depth">Depth of the object's bounding box.</param>
         public void FrameObject(Vector3 objectPosition, float width, float height, float depth)
         {
             var fov = GetFOV();
@@ -184,6 +265,15 @@ namespace ValveResourceFormat.Renderer
             LookAt(objectPosition);
         }
 
+        /// <summary>
+        /// Positions the camera at the given yaw/pitch angle so the bounding box fills the view.
+        /// </summary>
+        /// <param name="objectPosition">Center of the object to frame.</param>
+        /// <param name="width">Width of the object's bounding box.</param>
+        /// <param name="height">Height of the object's bounding box.</param>
+        /// <param name="depth">Depth of the object's bounding box.</param>
+        /// <param name="yaw">Horizontal angle in radians.</param>
+        /// <param name="pitch">Vertical angle in radians.</param>
         public void FrameObjectFromAngle(Vector3 objectPosition, float width, float height, float depth,
             float yaw, float pitch)
         {
@@ -195,6 +285,10 @@ namespace ValveResourceFormat.Renderer
             FrameObject(objectPosition, width, height, depth);
         }
 
+        /// <summary>
+        /// Sets the camera position and orientation from a transform matrix.
+        /// </summary>
+        /// <param name="matrix">Transform matrix whose translation and first row determine position and direction.</param>
         public void SetFromTransformMatrix(Matrix4x4 matrix)
         {
             Location = matrix.Translation;
@@ -205,7 +299,9 @@ namespace ValveResourceFormat.Renderer
             Pitch = MathF.Asin(dir.Z);
         }
 
-        // Prevent camera from going upside-down
+        /// <summary>
+        /// Clamps <see cref="Pitch"/> to prevent the camera from flipping upside-down.
+        /// </summary>
         public void ClampRotation()
         {
             const float PITCH_LIMIT = 89.5f * MathF.PI / 180f;

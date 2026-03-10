@@ -4,12 +4,13 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer.PostProcess;
 
 /// <summary>
-/// Fullscreen pass that draws an outline using using stencil edge detection.
+/// Fullscreen pass that draws an outline using stencil edge detection.
 /// </summary>
 public class OutlineRenderer(RendererContext rendererContext)
 {
     private Shader? outlineEdge;
 
+    /// <summary>Loads the outline edge detection shader.</summary>
     public void Load()
     {
         outlineEdge = rendererContext.ShaderLoader.LoadShader("vrf.outline_post");

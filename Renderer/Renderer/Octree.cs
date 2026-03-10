@@ -321,6 +321,9 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            /// <summary>Queries scene nodes visible within the specified view frustum, ignoring occlusion culling results.</summary>
+            /// <param name="frustum">View frustum to test against.</param>
+            /// <param name="results">List to populate with visible scene nodes.</param>
             public void QueryNoOcclusion(Frustum frustum, List<SceneNode> results)
             {
                 if (HasElements)
@@ -388,6 +391,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public bool Dirty { get; set; } = true;
 
+        /// <summary>Gets or sets an optional debug renderer that visualizes this octree.</summary>
         public OctreeDebugRenderer? DebugRenderer { get; set; }
 
         /// <summary>

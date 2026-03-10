@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Oscillates a scalar particle attribute by adding a sinusoidal delta each frame. The
+    /// oscillation rate and frequency are randomized per particle within configurable min/max ranges.
+    /// </summary>
     class OscillateScalar : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Alpha;
@@ -51,6 +55,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         }
     }
 
+    /// <summary>
+    /// Oscillates a scalar particle attribute by adding a sinusoidal delta each frame, using
+    /// fixed rate and frequency values.
+    /// </summary>
     class OscillateScalarSimple : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Alpha;

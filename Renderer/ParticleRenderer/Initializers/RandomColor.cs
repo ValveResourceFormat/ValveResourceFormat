@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Sets the particle color to a random value interpolated between two configurable colors.
+    /// Corresponds to <c>C_INIT_RandomColor</c>.
+    /// </summary>
     class RandomColor : ParticleFunctionInitializer
     {
         private readonly Vector3 colorMin = Vector3.One;

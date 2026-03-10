@@ -2,19 +2,27 @@ using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer;
 
+/// <summary>Describes the dimensions requested for a single shadow map.</summary>
 public record struct ShadowRequest(int Width, int Height);
 
+/// <summary>Describes the position and size of a shadow map region within the atlas texture.</summary>
 public record struct ShadowAtlasRegion(int X, int Y, int Width, int Height)
 {
+    /// <summary>Gets whether this region has valid non-zero dimensions.</summary>
     public readonly bool IsValid => Width > 0 && Height > 0;
 }
 
+/// <summary>Packs shadow map requests into a single atlas texture using a shelf-based bin-packing algorithm.</summary>
 public class ShadowAtlasPacker
 {
+    /// <summary>Gets the maximum number of shadow maps this packer can accommodate.</summary>
     public int MaxShadowMaps { get; }
+
     private readonly ShadowAtlasRegion[] regions;
     private readonly (int Height, int Width, int Index)[] sortBuffer;
 
+    /// <summary>Initializes the packer with a fixed capacity.</summary>
+    /// <param name="capacity">Maximum number of shadow map entries to support.</param>
     public ShadowAtlasPacker(int capacity)
     {
         MaxShadowMaps = capacity;
@@ -22,6 +30,10 @@ public class ShadowAtlasPacker
         sortBuffer = new (int, int, int)[capacity];
     }
 
+    /// <summary>Packs the given shadow map requests into an atlas of the specified size and returns the resulting regions.</summary>
+    /// <param name="atlasSize">Width and height of the square atlas texture in texels.</param>
+    /// <param name="requests">Shadow map dimension requests to pack.</param>
+    /// <returns>A span of regions in request-index order; regions that did not fit will have zero dimensions.</returns>
     public Span<ShadowAtlasRegion> Pack(int atlasSize, ReadOnlySpan<ShadowRequest> requests)
     {
         var count = requests.Length;

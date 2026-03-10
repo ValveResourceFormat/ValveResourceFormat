@@ -29,13 +29,28 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public struct TextRenderRequest()
         {
+            /// <summary>Gets or sets the screen-space X position in pixels.</summary>
             public float X { get; set; }
+
+            /// <summary>Gets or sets the screen-space Y position in pixels.</summary>
             public float Y { get; set; }
+
+            /// <summary>Gets or sets the text scale in pixels-per-em.</summary>
             public float Scale { get; set; }
+
+            /// <summary>Gets the text color.</summary>
             public Color32 Color { get; init; } = Color32.White;
+
+            /// <summary>Gets an additional pixel offset applied after positioning.</summary>
             public Vector2 TextOffset { get; init; } = Vector2.Zero;
+
+            /// <summary>Gets the string to render.</summary>
             public required string Text { get; init; }
+
+            /// <summary>Gets whether the text is centered horizontally around <see cref="X"/>.</summary>
             public bool CenterVertical { get; init; } = false;
+
+            /// <summary>Gets whether the text is centered vertically around <see cref="Y"/>.</summary>
             public bool CenterHorizontal { get; init; } = false;
         }
 
@@ -48,11 +63,15 @@ namespace ValveResourceFormat.Renderer
         private int bufferHandle;
         private int vao;
 
+        /// <summary>Initializes the text renderer.</summary>
+        /// <param name="rendererContext">Renderer context for loading shaders.</param>
+        /// <param name="camera">Camera (unused at construction; required at render time).</param>
         public TextRenderer(RendererContext rendererContext, Camera camera)
         {
             this.RendererContext = rendererContext;
         }
 
+        /// <summary>Loads the MSDF font atlas texture and compiles the font shader.</summary>
         public void Load()
         {
             using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Renderer.Resources.jetbrains_mono_msdf.png");
@@ -99,6 +118,11 @@ namespace ValveResourceFormat.Renderer
 #endif
         }
 
+        /// <summary>Projects a 3D world position to screen space and queues the text for rendering.</summary>
+        /// <param name="position">World-space position to project.</param>
+        /// <param name="textRenderRequest">Text rendering parameters.</param>
+        /// <param name="camera">Camera used for the projection.</param>
+        /// <param name="fixedScale">When <see langword="true"/>, the scale is unchanged; when <see langword="false"/>, the scale is attenuated by depth.</param>
         public void AddTextBillboard(Vector3 position, TextRenderRequest textRenderRequest, Camera camera, bool fixedScale = true)
         {
             var screenPosition = Vector4.Transform(new Vector4(position, 1.0f), camera.ViewProjectionMatrix);
@@ -120,6 +144,13 @@ namespace ValveResourceFormat.Renderer
             AddText(textRenderRequest);
         }
 
+        /// <summary>Queues text at a viewport-relative position (0–1 range) for rendering.</summary>
+        /// <param name="text">String to render.</param>
+        /// <param name="x">Horizontal position as a fraction of the viewport width.</param>
+        /// <param name="y">Vertical position as a fraction of the viewport height.</param>
+        /// <param name="scale">Text scale in pixels-per-em.</param>
+        /// <param name="color">Text color.</param>
+        /// <param name="camera">Camera providing the viewport dimensions.</param>
         public void AddTextRelative(string text, float x, float y, float scale, Color32 color, Camera camera)
         {
             var req = new TextRenderRequest
@@ -134,6 +165,9 @@ namespace ValveResourceFormat.Renderer
             AddTextRelative(req, camera);
         }
 
+        /// <summary>Queues a text render request at a viewport-relative position (0–1 range) for rendering.</summary>
+        /// <param name="textRenderRequest">Text rendering parameters; <see cref="TextRenderRequest.X"/> and <see cref="TextRenderRequest.Y"/> are treated as fractions of the viewport dimensions.</param>
+        /// <param name="camera">Camera providing the viewport dimensions.</param>
         public void AddTextRelative(TextRenderRequest textRenderRequest, Camera camera)
         {
             textRenderRequest.X = camera.WindowSize.X * MathUtils.Saturate(textRenderRequest.X);
@@ -141,11 +175,15 @@ namespace ValveResourceFormat.Renderer
             TextRenderRequests.Add(textRenderRequest);
         }
 
+        /// <summary>Queues a text render request at absolute pixel coordinates for rendering.</summary>
+        /// <param name="textRenderRequest">Text rendering parameters with pixel-space <see cref="TextRenderRequest.X"/> and <see cref="TextRenderRequest.Y"/>.</param>
         public void AddText(TextRenderRequest textRenderRequest)
         {
             TextRenderRequests.Add(textRenderRequest);
         }
 
+        /// <summary>Flushes all queued text requests to the GPU and renders them for the current frame.</summary>
+        /// <param name="camera">Camera providing the viewport dimensions for the orthographic projection.</param>
         public void Render(Camera camera)
         {
             var letters = 0;

@@ -15,12 +15,15 @@ namespace ValveResourceFormat.Renderer.Buffers
     {
         [NotNull]
         T data;
+        /// <summary>Gets or sets the structured data stored in this uniform buffer, uploading to the GPU on set.</summary>
         public T Data { get => data; set { data = value; Update(); } }
 
         // A buffer where the structure is marshalled into, before being sent to the GPU
         readonly float[] cpuBuffer;
         readonly GCHandle cpuBufferHandle;
 
+        /// <summary>Initializes a new uniform buffer at the given binding point index.</summary>
+        /// <param name="bindingPoint">The UBO binding point index.</param>
         public UniformBuffer(int bindingPoint) : base(BufferTarget.UniformBuffer, bindingPoint, typeof(T).Name)
         {
             Size = Marshal.SizeOf<T>();
@@ -34,6 +37,8 @@ namespace ValveResourceFormat.Renderer.Buffers
             Initialize();
         }
 
+        /// <summary>Initializes a new uniform buffer at the given reserved slot.</summary>
+        /// <param name="slot">The reserved buffer slot to bind to.</param>
         public UniformBuffer(ReservedBufferSlots slot) : this((int)slot) { }
 
         private void WriteToCpuBuffer()
@@ -63,18 +68,21 @@ namespace ValveResourceFormat.Renderer.Buffers
             BindBufferBase();
         }
 
+        /// <summary>Marshals <see cref="Data"/> into the intermediate CPU buffer and uploads it to the GPU.</summary>
         public void Update()
         {
             WriteToCpuBuffer();
             GL.NamedBufferSubData(Handle, IntPtr.Zero, Size, cpuBuffer);
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>Releases the pinned CPU buffer handle held by this buffer.</summary>
         protected virtual void Dispose(bool disposing)
         {
             // make sure dispose gets called, or this will leak

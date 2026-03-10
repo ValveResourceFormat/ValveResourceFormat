@@ -13,14 +13,18 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     public enum EntityType
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Directional environment light (sun/sky).</summary>
         Environment,
+        /// <summary>Omnidirectional point light.</summary>
         Omni,
+        /// <summary>Cone-shaped spot light.</summary>
         Spot,
+        /// <summary>Second-generation omnidirectional point light.</summary>
         Omni2,
+        /// <summary>Barn-door shaped area light.</summary>
         Barn,
+        /// <summary>Rectangular area light.</summary>
         Rect,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     /// <summary>
@@ -28,16 +32,21 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     public enum LightType
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Infinite directional light (no position, parallel rays).</summary>
         Directional,
+        /// <summary>Omnidirectional point light radiating in all directions.</summary>
         Point,
+        /// <summary>Cone-shaped spot light with inner and outer angles.</summary>
         Spot,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
+    /// <summary>GPU data and frustum matrix for one face of a barn or omni2 light.</summary>
     public struct BarnFaceData
     {
+        /// <summary>Gets or sets the GPU constant buffer data for this light face.</summary>
         public BarnLightConstants GpuData { get; set; }
+
+        /// <summary>Gets or sets the world-to-frustum projection matrix for shadow rendering.</summary>
         public Matrix4x4 WorldToFrustum { get; set; }
     }
 
@@ -47,50 +56,128 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     public int StationaryLightIndex { get; set; }
 
+    /// <summary>Gets or sets the world-space position of the light.</summary>
     public Vector3 Position { get; set; }
+
+    /// <summary>Gets or sets the normalized direction the light faces.</summary>
     public Vector3 Direction { get; set; }
+
+    /// <summary>Gets or sets the sRGB color of the light.</summary>
     public Vector3 Color { get; set; } = Vector3.One;
+
+    /// <summary>Gets or sets the brightness (intensity) of the light.</summary>
     public float Brightness { get; set; } = 1.0f;
+
+    /// <summary>Gets or sets the additional brightness scale multiplier.</summary>
     public float BrightnessScale { get; set; } = 1.0f;
+
+    /// <summary>Gets or sets the maximum range of the light in world units.</summary>
     public float Range { get; set; } = 512.0f;
+
+    /// <summary>Gets or sets the distance falloff skirt fraction.</summary>
     public float FallOff { get; set; } = 1.0f;
+
+    /// <summary>Gets or sets the inner cone half-angle for spot lights in degrees.</summary>
     public float SpotInnerAngle { get; set; }
+
+    /// <summary>Gets or sets the outer cone half-angle for spot lights in degrees.</summary>
     public float SpotOuterAngle { get; set; } = 45.0f;
+
+    /// <summary>Gets or sets the linear attenuation coefficient.</summary>
     public float AttenuationLinear { get; set; }
+
+    /// <summary>Gets or sets the quadratic attenuation coefficient.</summary>
     public float AttenuationQuadratic { get; set; }
+
+    /// <summary>Gets or sets the horizontal soft edge width for barn lights.</summary>
     public float SoftX { get; set; } = 0.25f;
+
+    /// <summary>Gets or sets the vertical soft edge width for barn lights.</summary>
     public float SoftY { get; set; } = 0.25f;
+
+    /// <summary>Gets or sets the near skirt distance for perspective barn lights.</summary>
     public float SkirtNear { get; set; }
+
+    /// <summary>Gets or sets the shape blend factor for barn lights.</summary>
     public float Shape { get; set; }
+
+    /// <summary>Gets or sets the 2D shear offset for barn lights.</summary>
     public Vector2 Shear { get; set; }
+
+    /// <summary>Gets or sets the half-width, half-height, and near-plane reciprocal for barn lights.</summary>
     public Vector3 SizeParams { get; set; } = new(16, 16, 0.0625f);
+
+    /// <summary>Gets or sets the luminaire (source) size used for area light calculations.</summary>
     public float LuminaireSize { get; set; } = 4f;
+
+    /// <summary>Gets or sets the luminaire anisotropy for capsule-shaped area lights.</summary>
     public float LuminaireAnisotropy { get; set; }
+
+    /// <summary>Gets or sets the luminaire shape index (0 = sphere, 1 = capsule, 2 = rect).</summary>
     public int LuminaireShape { get; set; }
+
+    /// <summary>Gets or sets the minimum roughness clamped for specular highlight calculations.</summary>
     public float MinRoughness { get; set; } = 0.04f;
+
+    /// <summary>Gets or sets the material path of the cookie texture, or <see langword="null"/> if none.</summary>
     public string? CookieTexturePath { get; set; }
+
+    /// <summary>Gets or sets the shader light type used during rendering.</summary>
     public LightType Type { get; set; }
+
+    /// <summary>Gets or sets the entity class that created this light.</summary>
     public EntityType Entity { get; set; }
+
+    /// <summary>Gets or sets the direct light contribution mode (0 = off, 1 = stationary, 2 = dynamic).</summary>
     public int DirectLight { get; set; } = 2;
+
+    /// <summary>Gets or sets whether this light casts shadows.</summary>
     public int CastShadows { get; set; } = 1;
+
+    /// <summary>Gets or sets the shadow map resolution in texels.</summary>
     public int ShadowMapSize { get; set; } = 512;
+
+    /// <summary>Gets or sets whether the precomputed OBB fields below are valid.</summary>
     public bool PrecomputedFieldsValid { get; set; }
+
+    /// <summary>Gets or sets the center of the precomputed oriented bounding box.</summary>
     public Vector3 PrecomputedObbOrigin { get; set; }
+
+    /// <summary>Gets or sets the half-extents of the precomputed oriented bounding box.</summary>
     public Vector3 PrecomputedObbExtent { get; set; }
+
+    /// <summary>Gets or sets the Euler angles of the precomputed oriented bounding box.</summary>
     public Vector3 PrecomputedObbAngles { get; set; }
+
+    /// <summary>Gets or sets the axis-aligned precomputed world bounds.</summary>
     public AABB PrecomputedBounds { get; set; }
+
+    /// <summary>Gets or sets the number of precomputed sub-frusta for omni lights.</summary>
     public int PrecomputedSubfrusta { get; set; }
+
+    /// <summary>Gets or sets the centers of the precomputed sub-OBBs, one per frustum.</summary>
     public Vector3[]? PrecomputedSubObbOrigins { get; set; }
+
+    /// <summary>Gets or sets the half-extents of the precomputed sub-OBBs, one per frustum.</summary>
     public Vector3[]? PrecomputedSubObbExtents { get; set; }
+
+    /// <summary>Gets or sets the Euler angles of the precomputed sub-OBBs, one per frustum.</summary>
     public Vector3[]? PrecomputedSubObbAngles { get; set; }
+
     // Precomputed barn light faces (1 for a barn light, 1-6 for an omni light)
+    /// <summary>Gets the precomputed face data array (1 face for barn lights, 1–6 for omni lights).</summary>
     public BarnFaceData[] BarnFaces { get; private set; } = [];
+
     // Marks a barn light dirty. This will recalculate all faces.
+    /// <summary>Gets or sets whether this light's face data needs to be recomputed.</summary>
     public bool IsDirty { get; set; } = true;
     internal bool WillDrawShadows { get; set; }
 
     internal Dictionary<int, (int FrustumHash, DepthOnlyDrawBuckets? DrawCalls)> FaceShadowCache { get; } = [];
 
+    /// <summary>
+    /// Returns whether the given entity classname is a recognized light type, and which <see cref="EntityType"/> it maps to.
+    /// </summary>
     public static (bool Accepted, EntityType Type) IsAccepted(string classname)
     {
         if (!classname.StartsWith("light_", StringComparison.OrdinalIgnoreCase))
@@ -102,6 +189,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         return (accepted, entityType);
     }
 
+    /// <summary>
+    /// Creates a <see cref="SceneLight"/> populated from entity key-value properties.
+    /// </summary>
     public static SceneLight FromEntityProperties(Scene scene, EntityType type, Entity entity)
     {
         var light = new SceneLight(scene)
@@ -237,6 +327,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         };
     }
 
+    /// <summary>
+    /// Converts Euler pitch/yaw angles to a normalized forward direction vector.
+    /// </summary>
     public static Vector3 AnglesToDirection(Vector3 angles)
     {
         var (sinPitch, cosPitch) = MathF.SinCos(angles.X);
@@ -245,6 +338,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         return Vector3.Normalize(new Vector3(cosYaw * cosPitch, sinYaw * cosPitch, sinPitch));
     }
 
+    /// <summary>
+    /// Recomputes the <see cref="BarnFaces"/> array from the current light properties.
+    /// </summary>
+    /// <param name="cookiePaths">Map from cookie material path to cookie atlas index.</param>
     public void ComputeBarnFaces(Dictionary<string, int> cookiePaths)
     {
         if (Entity == EntityType.Barn)
@@ -262,6 +359,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
     }
 
+    /// <summary>
+    /// Returns the shadow map pixel dimensions for this light, accounting for aspect ratio.
+    /// </summary>
     public (int W, int H) GetShadowFaceDimensions()
     {
         var size = ShadowMapSize;

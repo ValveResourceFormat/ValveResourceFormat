@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Initializes the particle animation sequence to a random value between a min and max sequence index.
+    /// Supports sequential (linear), shuffled (random), or weighted distribution modes.
+    /// Corresponds to <c>C_INIT_RandomSequence</c>.
+    /// </summary>
     class RandomSequence : ParticleFunctionInitializer
     {
         private readonly int sequenceMin;

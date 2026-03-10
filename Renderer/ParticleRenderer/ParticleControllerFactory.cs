@@ -10,6 +10,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles
 {
+    /// <summary>
+    /// Factory for creating particle function instances (emitters, initializers, operators, renderers) by their Source 2 class name.
+    /// </summary>
     static class ParticleControllerFactory
     {
         // These can all be found in particle.dll
@@ -140,6 +143,10 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
             };
 
+        /// <summary>
+        /// Attempts to create a particle emitter by its Source 2 class name.
+        /// </summary>
+        /// <returns><see langword="true"/> if the emitter type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateEmitter(string name, KVObject emitterInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionEmitter emitter)
         {
             if (EmitterDictionary.TryGetValue(name, out var factory))
@@ -152,6 +159,10 @@ namespace ValveResourceFormat.Renderer.Particles
             return false;
         }
 
+        /// <summary>
+        /// Attempts to create a particle initializer by its Source 2 class name.
+        /// </summary>
+        /// <returns><see langword="true"/> if the initializer type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateInitializer(string name, KVObject initializerInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionInitializer initializer)
         {
             if (InitializerDictionary.TryGetValue(name, out var factory))
@@ -164,6 +175,10 @@ namespace ValveResourceFormat.Renderer.Particles
             return false;
         }
 
+        /// <summary>
+        /// Attempts to create a particle operator by its Source 2 class name.
+        /// </summary>
+        /// <returns><see langword="true"/> if the operator type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateOperator(string name, KVObject operatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
         {
             if (OperatorDictionary.TryGetValue(name, out var factory))
@@ -176,6 +191,10 @@ namespace ValveResourceFormat.Renderer.Particles
             return false;
         }
 
+        /// <summary>
+        /// Attempts to create a particle force generator by its Source 2 class name.
+        /// </summary>
+        /// <returns><see langword="true"/> if the force generator type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
         {
             if (ForceGeneratorDictionary.TryGetValue(name, out var factory))
@@ -188,6 +207,10 @@ namespace ValveResourceFormat.Renderer.Particles
             return false;
         }
 
+        /// <summary>
+        /// Attempts to create a particle renderer by its Source 2 class name.
+        /// </summary>
+        /// <returns><see langword="true"/> if the renderer type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateRender(string name, KVObject rendererInfo, RendererContext rendererContext, [MaybeNullWhen(false)] out ParticleFunctionRenderer renderer)
         {
             if (RendererDictionary.TryGetValue(name, out var factory))
@@ -199,6 +222,10 @@ namespace ValveResourceFormat.Renderer.Particles
             renderer = default;
             return false;
         }
+        /// <summary>
+        /// Attempts to create a particle pre-emission operator by its Source 2 class name.
+        /// </summary>
+        /// <returns><see langword="true"/> if the pre-emission operator type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
         {
             if (PreEmissionOperatorDictionary.TryGetValue(name, out var factory))

@@ -16,6 +16,7 @@ namespace ValveResourceFormat.Renderer.World
         // So, currently, this list won't be used.
         //public List<ScenePostProcessVolume> PostProcessVolumes { get; set; } = [];
 
+        /// <summary>Gets or sets the master post-process volume, which overrides all others.</summary>
         public ScenePostProcessVolume? MasterPostProcessVolume { get; set; }
         /// <summary>
         /// env_tonemap_controller is a legacy entity (S1) that still has functionality, so we want to account for it.
@@ -26,8 +27,13 @@ namespace ValveResourceFormat.Renderer.World
         public SceneTonemapController? MasterTonemapController { get; set; }
 
         // Current post processing state
+        /// <summary>Gets the post-processing state computed for the current frame.</summary>
         public PostProcessState CurrentState { get; private set; } = new();
 
+        /// <summary>
+        /// Registers a post-process volume; only the first master volume is retained.
+        /// </summary>
+        /// <param name="postProcess">The post-process volume to register.</param>
         public void AddPostProcessVolume(ScenePostProcessVolume postProcess)
         {
             if (postProcess.IsMaster)
@@ -47,6 +53,11 @@ namespace ValveResourceFormat.Renderer.World
         // Because we only take the master volume currently, we don't need to do this yet.
         // The Camera variable is present but not referenced as we currently can't check collision detection.
         // Also, this needs to be guaranteed to run every frame, and before buffers
+        /// <summary>
+        /// Recalculates <see cref="CurrentState"/> from the active post-process volumes and tonemap controller.
+        /// Must be called every frame before rendering post-processing.
+        /// </summary>
+        /// <param name="camera">The active camera (reserved for future volume weighting by position).</param>
         public void UpdatePostProcessing(Camera camera)
         {
             // Recalculate post process state

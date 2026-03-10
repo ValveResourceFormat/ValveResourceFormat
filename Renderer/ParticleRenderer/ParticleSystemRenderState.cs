@@ -52,8 +52,8 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Set the value/position of a control point in the particle system.
         /// </summary>
-        /// <param name="cp"></param>
-        /// <param name="position"></param>
+        /// <param name="cp">Control point index.</param>
+        /// <param name="position">World-space position to assign.</param>
         public void SetControlPointValue(int cp, Vector3 position)
         {
             GetControlPoint(cp).Position = position;
@@ -67,8 +67,8 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Set the orientation/direction of a control point in the particle system.
         /// </summary>
-        /// <param name="cp"></param>
-        /// <param name="orientation"></param>
+        /// <param name="cp">Control point index.</param>
+        /// <param name="orientation">Orientation direction to assign.</param>
         public void SetControlPointOrientation(int cp, Vector3 orientation)
         {
             GetControlPoint(cp).Orientation = orientation;

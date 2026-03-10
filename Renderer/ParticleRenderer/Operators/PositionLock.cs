@@ -4,7 +4,9 @@ using ValveResourceFormat.Renderer;
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// This module is mostly used to stick effects onto moving components.
+    /// Locks particle positions to follow a control point, typically used to stick effects onto
+    /// moving components. Supports fade-in/fade-out time ranges per particle and optional distance
+    /// fade based on proximity to the control point.
     /// </summary>
     class PositionLock : ParticleFunctionOperator
     {

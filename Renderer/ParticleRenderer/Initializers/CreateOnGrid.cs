@@ -2,6 +2,11 @@ using Microsoft.Extensions.Logging;
 
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles on a 3-D grid with configurable per-axis cell counts and spacing.
+    /// Supports optional centering around a control point and a hollow interior mode.
+    /// Corresponds to <c>C_INIT_CreateOnGrid</c>.
+    /// </summary>
     // this single initializer delayed this release by months
     class CreateOnGrid : ParticleFunctionInitializer
     {

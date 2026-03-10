@@ -22,7 +22,10 @@ namespace ValveResourceFormat.Renderer.Materials
         private RenderTexture? ErrorTexture;
         private RenderTexture? DefaultNormal;
         private RenderTexture? DefaultMask;
+        /// <summary>Gets or sets the maximum anisotropy level applied to newly loaded textures when anisotropic filtering is enabled.</summary>
         public static float MaxTextureMaxAnisotropy { get; set; }
+
+        /// <summary>Gets the number of materials currently held in the cache.</summary>
         public int MaterialCount => Materials.Count;
 
         private readonly Dictionary<string, string[]> TextureAliases = new()
@@ -34,6 +37,8 @@ namespace ValveResourceFormat.Renderer.Materials
             ["g_tAmbientOcclusion"] = ["g_tLayer1AmbientOcclusion"],
         };
 
+        /// <summary>Initializes a new instance of the <see cref="MaterialLoader"/> class.</summary>
+        /// <param name="rendererContext">The renderer context used for file loading and shader access.</param>
         public MaterialLoader(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
@@ -41,6 +46,9 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
+        /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
+        /// <param name="name">The compiled material resource path, or <see langword="null"/> to return the error material.</param>
+        /// <param name="shaderArguments">Optional static combo overrides to pass to the shader.</param>
         public RenderMaterial GetMaterial(string? name, Dictionary<string, byte>? shaderArguments)
         {
             // HL:VR has a world node that has a draw call with no material
@@ -81,6 +89,9 @@ namespace ValveResourceFormat.Renderer.Materials
             return mat;
         }
 
+        /// <summary>Creates a <see cref="RenderMaterial"/> from an already-loaded resource, binding textures and resolving aliases.</summary>
+        /// <param name="resource">The material resource, or <see langword="null"/> to return the error material.</param>
+        /// <param name="shaderArguments">Optional static combo overrides to pass to the shader.</param>
         public RenderMaterial LoadMaterial(Resource? resource, Dictionary<string, byte>? shaderArguments = null)
         {
             if (resource == null)
@@ -136,6 +147,10 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
 
+        /// <summary>Returns a cached <see cref="RenderTexture"/> for the given path, loading it on first access.</summary>
+        /// <param name="name">The compiled texture resource path.</param>
+        /// <param name="srgbRead">Whether to interpret the texture data in sRGB color space.</param>
+        /// <param name="anisotropicFiltering">Whether to apply anisotropic filtering when <see cref="MaxTextureMaxAnisotropy"/> is sufficient.</param>
         public RenderTexture GetTexture(string name, bool srgbRead = false, bool anisotropicFiltering = false)
         {
             // TODO: Create texture view for srgb textures
@@ -170,6 +185,10 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
 #pragma warning disable CA1822 // Mark members as static
+        /// <summary>Uploads a texture resource to the GPU and returns the resulting <see cref="RenderTexture"/>.</summary>
+        /// <param name="textureResource">The loaded texture resource.</param>
+        /// <param name="srgbRead">Whether to use the sRGB internal format when available.</param>
+        /// <param name="isViewerRequest">When <see langword="true"/>, skips mip-level capping and keeps the resource alive after upload.</param>
         public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool isViewerRequest = false)
 #pragma warning restore CA1822 // Mark members as static
         {
@@ -348,6 +367,7 @@ namespace ValveResourceFormat.Renderer.Materials
             _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
         };
 
+        /// <summary>Gets the set of texture uniform names that are bound to reserved global texture slots and must not be overridden by materials.</summary>
         public static readonly HashSet<string> ReservedTextures = [.. Enum.GetNames<ReservedTextureSlots>(), "g_tLPV"];
 
         private RenderMaterial GetErrorMaterial()
@@ -356,6 +376,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return errorMat;
         }
 
+        /// <summary>Returns a lazily created 4×4 checkerboard error texture used as a fallback for missing textures.</summary>
         public RenderTexture GetErrorTexture()
         {
             if (ErrorTexture == null)
@@ -380,15 +401,22 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         private static RenderTexture CreateSolidTexture(byte r, byte g, byte b) => GenerateColorTexture(1, 1, [r, g, b]);
+        /// <summary>Returns a lazily created 1×1 flat normal map texture (127, 127, 255).</summary>
         public RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
+
+        /// <summary>Returns a lazily created 1×1 solid white mask texture.</summary>
         public RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
 
+        /// <summary>Returns the OpenGL format triple appropriate for exporting a rendered image, choosing between 8-bit BGRA and 32-bit float RGBA.</summary>
+        /// <param name="hdr">Whether to use the HDR (32-bit float) format.</param>
         public static (SizedInternalFormat SizedInternalFormat, PixelFormat PixelFormat, PixelType PixelType) GetImageExportFormat(bool hdr) => hdr switch
         {
             false => (SizedInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte),
             true => (SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
         };
 
+        /// <summary>Uploads an <see cref="SKBitmap"/> as a 2D texture and returns the resulting <see cref="RenderTexture"/>.</summary>
+        /// <param name="bitmap">The bitmap whose pixels are uploaded to the GPU.</param>
         public static RenderTexture LoadBitmapTexture(SKBitmap bitmap)
         {
             var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);

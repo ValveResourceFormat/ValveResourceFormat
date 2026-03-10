@@ -15,6 +15,10 @@ namespace ValveResourceFormat.Renderer
         private readonly bool dynamic;
         private int vertexCount;
 
+        /// <summary>Initializes the octree debug renderer and creates GPU resources.</summary>
+        /// <param name="octree">The octree to visualize.</param>
+        /// <param name="rendererContext">Renderer context for loading shaders.</param>
+        /// <param name="dynamic">When <see langword="true"/>, the vertex buffer is rebuilt every frame.</param>
         public OctreeDebugRenderer(Octree octree, RendererContext rendererContext, bool dynamic)
         {
             this.octree = octree;
@@ -59,11 +63,13 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Builds the static vertex buffer once for a non-dynamic octree visualization.</summary>
         public void StaticBuild()
         {
             Rebuild();
         }
 
+        /// <summary>Traverses the octree and uploads fresh line geometry to the GPU vertex buffer.</summary>
         public void Rebuild()
         {
             var vertices = new List<SimpleVertex>();
@@ -73,6 +79,7 @@ namespace ValveResourceFormat.Renderer
             GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
         }
 
+        /// <summary>Renders the octree visualization for the current frame, rebuilding geometry if dynamic.</summary>
         public void Render()
         {
             if (dynamic)
@@ -96,6 +103,7 @@ namespace ValveResourceFormat.Renderer
         }
 
 
+        /// <summary>Deletes the GPU vertex and vertex array objects.</summary>
         public void Delete()
         {
             GL.DeleteBuffer(vboHandle);

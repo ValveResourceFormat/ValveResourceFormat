@@ -15,8 +15,15 @@ namespace ValveResourceFormat.Renderer.World
         private readonly WorldNode node;
         private readonly ResourceExtRefList? externalReferences;
         private readonly RendererContext RendererContext;
+        /// <summary>Gets the layer names defined in this world node.</summary>
         public string[] LayerNames { get; }
 
+        /// <summary>
+        /// Initializes a new <see cref="WorldNodeLoader"/> for the given world node.
+        /// </summary>
+        /// <param name="rendererContext">The renderer context used for loading resources.</param>
+        /// <param name="node">The world node data to load objects from.</param>
+        /// <param name="externalReferences">Optional external resource reference list for parallel preloading.</param>
         public WorldNodeLoader(RendererContext rendererContext, WorldNode node, ValveResourceFormat.Blocks.ResourceExtRefList? externalReferences = null)
         {
             this.node = node;
@@ -33,6 +40,10 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>
+        /// Loads all scene objects and aggregates from the world node into the given scene.
+        /// </summary>
+        /// <param name="scene">The scene to add loaded objects to.</param>
         public void Load(Scene scene)
         {
             if (externalReferences is not null)

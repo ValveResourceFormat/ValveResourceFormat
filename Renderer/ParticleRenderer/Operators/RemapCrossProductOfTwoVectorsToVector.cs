@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Computes the cross product of two input vectors and writes the result into a vector
+    /// particle attribute, with an option to normalize the output.
+    /// </summary>
     // seriously?
     class RemapCrossProductOfTwoVectorsToVector : ParticleFunctionOperator
     {

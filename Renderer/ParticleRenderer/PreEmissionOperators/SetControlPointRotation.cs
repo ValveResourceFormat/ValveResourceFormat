@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
+    /// <summary>
+    /// Rotates a control point's orientation around a configurable axis at a specified angular rate.
+    /// Corresponds to <c>C_OP_SetControlPointRotation</c>.
+    /// </summary>
     class SetControlPointRotation : ParticleFunctionPreEmissionOperator
     {
         private readonly IVectorProvider axis = new LiteralVectorProvider(new Vector3(0, 0, 1));

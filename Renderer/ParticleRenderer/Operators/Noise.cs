@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Applies noise to a scalar particle attribute, mapping a noise value into a configurable
+    /// output range. Can operate additively or by replacing the current value.
+    /// </summary>
     class Noise : ParticleFunctionOperator
     {
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);

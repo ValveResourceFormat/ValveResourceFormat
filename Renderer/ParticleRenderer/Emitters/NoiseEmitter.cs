@@ -2,6 +2,10 @@ using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
+    /// <summary>
+    /// Emits particles at a rate modulated by 1D simplex noise, producing organic variation
+    /// between a minimum and maximum emission count. Corresponds to <c>C_OP_NoiseEmitter</c>.
+    /// </summary>
     class NoiseEmitter : ParticleFunctionEmitter
     {
         public override bool IsFinished { get; protected set; }

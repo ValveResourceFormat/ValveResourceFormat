@@ -33,17 +33,23 @@ public class UserInput
     private float TransitionDuration = 1.5f;
     private float TransitionEndTime = -1f;
     private CameraLite StartingCamera;
+    /// <summary>Gets the internal camera whose location and angles are updated by input processing.</summary>
     public Camera Camera { get; }
+    /// <summary>Gets or sets the physics world used for orbit-target and player-movement ray traces.</summary>
     public Rubikon? PhysicsWorld { get; set; }
 
     private Vector3? _orbitTarget;
     private bool _forceUpdate = true;
 
     // Orbit controls
+    /// <summary>Gets a value indicating whether the camera is currently in orbit mode.</summary>
     public bool OrbitMode => _orbitTarget != null;
+    /// <summary>Gets or sets a value indicating whether orbit mode is always active regardless of the Alt key.</summary>
     public bool OrbitModeAlways { get; set; }
+    /// <summary>Gets or sets an optional callback that provides a world-space orbit target point.</summary>
     public Func<Vector3?>? OrbitTargetProvider { get; set; }
 
+    /// <summary>Gets or sets the world-space point the camera orbits around; setting this also updates <see cref="OrbitDistance"/>.</summary>
     public Vector3? OrbitTarget
     {
         get => _orbitTarget;
@@ -54,26 +60,34 @@ public class UserInput
         }
     }
 
+    /// <summary>Gets the current distance from the camera to the orbit target.</summary>
     public float OrbitDistance { get; private set; }
     private const float MinOrbitDistance = 1f;
     private const float MaxOrbitDistance = 10000f;
     private const float OrbitZoomSpeed = 0.1f;
 
     private readonly PlayerMovement PlayerMovement;
+    /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip { get; private set; } = true;
 
     private TrackedKeys Keys;
     private TrackedKeys PreviousKeys;
+    /// <summary>Gets the current camera velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }
 
     /// <summary>
     /// Force an input update on the next tick.
     /// </summary>
     public bool ForceUpdate { get => _forceUpdate || TransitionEndTime > Renderer.Uptime; set => _forceUpdate = value; }
+    /// <summary>Gets or sets a value indicating whether mouse movement affects camera look direction.</summary>
     public bool EnableMouseLook { get; set; } = true;
     private Vector2 MouseDelta2D;
     private Vector2 MouseDeltaPitchYaw;
 
+    /// <summary>
+    /// Initializes a new <see cref="UserInput"/> attached to the given renderer.
+    /// </summary>
+    /// <param name="renderer">The renderer providing uptime and context for camera and physics setup.</param>
     public UserInput(Renderer renderer)
     {
         Renderer = renderer;
@@ -125,6 +139,13 @@ public class UserInput
         return false;
     }
 
+    /// <summary>
+    /// Processes one input frame: updates camera position/rotation based on keyboard and mouse input.
+    /// </summary>
+    /// <param name="deltaTime">Elapsed time in seconds since the last frame.</param>
+    /// <param name="keyboardState">The current keyboard and mouse button state.</param>
+    /// <param name="mouseDelta">Mouse movement delta in pixels since the last frame.</param>
+    /// <param name="renderCamera">The camera to write the final interpolated result to.</param>
     public void Tick(float deltaTime, TrackedKeys keyboardState, Vector2 mouseDelta, Camera renderCamera)
     {
         Keys = keyboardState;
@@ -223,6 +244,10 @@ public class UserInput
     private CameraLite CameraPositionAngles
         => new(Camera.Location, Camera.Pitch, Camera.Yaw);
 
+    /// <summary>
+    /// Switches to noclip mode and begins a smooth camera transition from the current position.
+    /// </summary>
+    /// <param name="transitionDuration">Duration of the transition animation in seconds.</param>
     public void SaveCameraForTransition(float transitionDuration = 1.5f)
     {
         NoClip = true;
@@ -372,6 +397,11 @@ public class UserInput
         Camera.Location = newLocation;
     }
 
+    /// <summary>
+    /// Handles a mouse wheel event, adjusting orbit zoom or free-flight speed modifier.
+    /// </summary>
+    /// <param name="delta">Positive for scroll-up, negative for scroll-down.</param>
+    /// <returns>The new orbit distance in orbit mode, or the new speed modifier in free-flight mode.</returns>
     public float OnMouseWheel(float delta)
     {
         if (OrbitMode)
@@ -446,6 +476,11 @@ public class UserInput
         Camera.Location += Velocity * deltaTime;
     }
 
+    /// <summary>
+    /// Adjusts the orbit distance by a relative delta and begins a short transition animation.
+    /// Has no effect when not in orbit mode.
+    /// </summary>
+    /// <param name="delta">Fractional zoom delta; positive zooms out, negative zooms in.</param>
     public void OrbitZoom(float delta)
     {
         if (!OrbitMode)

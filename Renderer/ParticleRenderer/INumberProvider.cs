@@ -2,8 +2,14 @@ using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles
 {
+    /// <summary>
+    /// Provides a scalar float value that may vary per particle or per frame.
+    /// </summary>
     interface INumberProvider
     {
+        /// <summary>
+        /// Returns the next number value, evaluated per particle.
+        /// </summary>
         float NextNumber(ref Particle particle, ParticleSystemRenderState renderState);
 
         /// <summary>
@@ -12,9 +18,15 @@ namespace ValveResourceFormat.Renderer.Particles
         public float NextNumber()
             => NextNumber(ref Particle.Default, ParticleSystemRenderState.Default);
 
+        /// <summary>
+        /// Returns the next number value using system-level state only.
+        /// </summary>
         public float NextNumber(ParticleSystemRenderState renderState)
             => NextNumber(ref Particle.Default, renderState);
 
+        /// <summary>
+        /// Returns the next number value truncated to an integer.
+        /// </summary>
         public int NextInt(ref Particle particle, ParticleSystemRenderState renderState)
             => (int)NextNumber(ref particle, renderState);
     }

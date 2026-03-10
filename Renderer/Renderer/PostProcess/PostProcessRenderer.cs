@@ -16,25 +16,43 @@ namespace ValveResourceFormat.Renderer.PostProcess
         private Shader? shaderPostProcessBloom;
         private readonly OutlineRenderer Outline;
 
+        /// <summary>Gets or sets the blue noise texture used for dithering in the tonemap pass.</summary>
         public RenderTexture? BlueNoise { get; set; }
         private readonly Random random = new();
 
+        /// <summary>Gets or sets the scene average luminance used for auto-exposure calculations.</summary>
         public float AverageLuminance { get; set; }
+        /// <summary>Gets or sets the current post-processing state (tonemap, bloom, exposure settings).</summary>
         public PostProcessState State { get; set; }
+        /// <summary>Gets or sets a value indicating whether post-processing is active.</summary>
         public bool Enabled { get; set; } = true;
+        /// <summary>Gets or sets a value indicating whether color correction LUT application is active.</summary>
         public bool ColorCorrectionEnabled { get; set; } = true;
+        /// <summary>Gets or sets a value indicating whether any scene objects require outline rendering this frame.</summary>
         public bool HasOutlineObjects { get; set; }
 
+        /// <summary>Gets the per-frame raw exposure scalar history used for temporal smoothing.</summary>
         public List<float> ExposureHistory { get; } = new(10);
+        /// <summary>Gets or sets a manually overridden exposure value; set to -1 to use auto-exposure.</summary>
         public float CustomExposure { get; set; } = -1;
+        /// <summary>Gets the smoothed exposure value applied in the current frame.</summary>
         public float CurrentExposure { get; private set; } = 1.0f;
+        /// <summary>Gets the target exposure value that <see cref="CurrentExposure"/> is adapting towards.</summary>
         public float TargetExposure { get; private set; }
+        /// <summary>Gets or sets the final linear tonemap scalar passed to the post-process shader.</summary>
         public float TonemapScalar { get; set; }
+        /// <summary>Gets the bloom renderer used for the multi-pass Gaussian bloom effect.</summary>
         public BloomRenderer Bloom { get; private set; }
+        /// <summary>Gets the depth-of-field renderer.</summary>
         public DOFRenderer DOF { get; private set; }
 
+        /// <summary>Gets the HDR color attachment format used by post-process framebuffers.</summary>
         public static Framebuffer.AttachmentFormat DefaultColorFormat => new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.Float);
 
+        /// <summary>
+        /// Initializes a new <see cref="PostProcessRenderer"/> using the given renderer context.
+        /// </summary>
+        /// <param name="rendererContext">The renderer context providing shader loading and mesh buffer access.</param>
         public PostProcessRenderer(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
@@ -43,6 +61,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
             Outline = new OutlineRenderer(rendererContext);
         }
 
+        /// <summary>
+        /// Loads all post-processing shaders and initializes sub-renderers for the given MSAA sample count.
+        /// </summary>
+        /// <param name="msaaSamples">The MSAA sample count used to select shader variants.</param>
         public void Load(int msaaSamples)
         {
             var msaa = (byte)msaaSamples;
@@ -212,6 +234,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
             GL.Enable(EnableCap.DepthTest);
         }
 
+        /// <summary>
+        /// Updates <see cref="TonemapScalar"/> based on auto-exposure logic or <see cref="CustomExposure"/>.
+        /// </summary>
+        /// <param name="deltaTime">Elapsed time in seconds since the last frame, used for exposure adaptation speed.</param>
         public void CalculateTonemapScalar(float deltaTime)
         {
             var exposure = 1.0f;

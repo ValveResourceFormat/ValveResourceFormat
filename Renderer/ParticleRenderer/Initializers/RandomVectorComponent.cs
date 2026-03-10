@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Initializes a single component (X, Y, or Z) of a vector particle attribute to a random scalar value between a min and max.
+    /// Corresponds to <c>C_INIT_RandomVectorComponent</c>.
+    /// </summary>
     class RandomVectorComponent : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Position;

@@ -5,13 +5,17 @@ namespace ValveResourceFormat.Renderer.Particles
     /// </summary>
     public enum ParticleOrientation // ParticleOrientationChoiceList_t
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Particle always faces the screen.</summary>
         PARTICLE_ORIENTATION_SCREEN_ALIGNED = 0,
+        /// <summary>Particle is aligned to the screen's Z axis.</summary>
         PARTICLE_ORIENTATION_SCREEN_Z_ALIGNED = 1,
+        /// <summary>Particle is aligned to the world's Z axis.</summary>
         PARTICLE_ORIENTATION_WORLD_Z_ALIGNED = 2,
+        /// <summary>Particle is aligned to the particle's normal vector.</summary>
         PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL = 3,
+        /// <summary>Particle faces the screen but is tilted toward the particle's normal vector.</summary>
         PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL = 4,
+        /// <summary>Particle uses full 3-axis rotation from its rotation fields.</summary>
         PARTICLE_ORIENTATION_FULL_3AXIS_ROTATION = 5,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 }

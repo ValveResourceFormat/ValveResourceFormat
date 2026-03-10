@@ -9,12 +9,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public class MeshSceneNode : MeshCollectionNode
     {
+        /// <inheritdoc/>
         public override Vector4 Tint
         {
             get => RenderableMeshes[0].Tint;
             set => RenderableMeshes[0].Tint = value;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MeshSceneNode"/> class from a raw mesh resource.
+        /// </summary>
+        /// <param name="scene">The scene this node belongs to.</param>
+        /// <param name="mesh">The mesh resource to render.</param>
+        /// <param name="meshIndex">The index of this mesh within its parent model.</param>
         public MeshSceneNode(Scene scene, Mesh mesh, int meshIndex)
             : base(scene)
         {
@@ -23,6 +30,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             LocalBoundingBox = meshRenderer.BoundingBox;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MeshSceneNode"/> class from an already-constructed renderable mesh.
+        /// </summary>
+        /// <param name="scene">The scene this node belongs to.</param>
+        /// <param name="renderableMesh">The pre-built renderable mesh to use.</param>
         public MeshSceneNode(Scene scene, RenderableMesh renderableMesh)
             : base(scene)
         {
@@ -30,9 +42,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             LocalBoundingBox = renderableMesh.BoundingBox;
         }
 
+        /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes() => RenderableMeshes[0].GetSupportedRenderModes();
 
 #if DEBUG
+        /// <inheritdoc/>
         public override void UpdateVertexArrayObjects() => RenderableMeshes[0].UpdateVertexArrayObjects();
 #endif
 
@@ -56,6 +70,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Creates a flat quad mesh node suitable for previewing a material, with vertex paint gradient strips.
+        /// </summary>
+        /// <param name="scene">The scene to add the node to.</param>
+        /// <param name="material">The material to display on the quad.</param>
+        /// <param name="size">The width and height of the quad in world units.</param>
         public static MeshSceneNode CreateMaterialPreviewQuad(Scene scene, RenderMaterial material, Vector2 size)
         {
             var vbib = new VBIB() { Resource = null! };

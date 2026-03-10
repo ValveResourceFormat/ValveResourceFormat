@@ -79,13 +79,16 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// </summary>
         public enum TangentType
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-            Linear, // Linear, obviously
-            Spline, // Cubic
-            Free, // Linear but both sides are independent of one another
-            Mirror, // Locks onto what the other side is doing
-            Sine // uh oh.
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Linear interpolation between adjacent control points.</summary>
+            Linear,
+            /// <summary>Cubic spline interpolation.</summary>
+            Spline,
+            /// <summary>Linear tangent with independent incoming and outgoing slopes.</summary>
+            Free,
+            /// <summary>Tangent mirrors its opposite handle.</summary>
+            Mirror,
+            /// <summary>Sine-wave tangent interpolation.</summary>
+            Sine
         };
         public static TangentType GetTangentType(string value)
         {
@@ -111,7 +114,6 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
     /// <summary>
     /// A piecewise curve used in particle systems' dynamic parameters.
-    /// Vital to the animation of many effects, but also hard as fuck to figure out how they did.
     /// </summary>
     class PiecewiseCurve
     {

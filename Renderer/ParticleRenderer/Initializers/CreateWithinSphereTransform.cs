@@ -1,5 +1,11 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Extends <see cref="CreateWithinSphere"/> by positioning particles relative to a transform
+    /// input rather than the origin, and supports a per-axis distance bias to skew the spherical
+    /// distribution. When local coordinates are enabled, the offset and velocity are rotated into
+    /// world space by the transform orientation. Corresponds to <c>C_INIT_CreateWithinSphereTransform</c>.
+    /// </summary>
     class CreateWithinSphereTransform : CreateWithinSphere
     {
         private readonly IVectorProvider distanceBias = new LiteralVectorProvider(Vector3.One);

@@ -2,10 +2,19 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles
 {
+    /// <summary>
+    /// Provides a <see cref="Vector3"/> value that may vary per particle or per frame.
+    /// </summary>
     interface IVectorProvider
     {
+        /// <summary>
+        /// Returns the next vector value, evaluated per particle.
+        /// </summary>
         Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState);
 
+        /// <summary>
+        /// Returns the next vector value using system-level state only.
+        /// </summary>
         Vector3 NextVector(ParticleSystemRenderState renderState)
             => NextVector(ref Particle.Default, renderState);
     }

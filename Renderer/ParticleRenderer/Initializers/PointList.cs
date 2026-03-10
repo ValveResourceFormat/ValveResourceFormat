@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles at positions taken from a user-defined list of control-point-relative
+    /// offsets. Optionally spaces particles evenly along the path formed by the list, with support
+    /// for closed-loop paths. Corresponds to <c>C_INIT_PointList</c>.
+    /// </summary>
     class PointList : ParticleFunctionInitializer
     {
         private class PointDefinition

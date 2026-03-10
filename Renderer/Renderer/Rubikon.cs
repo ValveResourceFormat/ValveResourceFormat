@@ -38,12 +38,19 @@ public class Rubikon
         Hull.Plane[] Planes
     );
 
+    /// <summary>Gets the triangle mesh collision shapes available for tracing.</summary>
     public PhysicsMeshData[] Meshes { get; }
+
+    /// <summary>Gets the convex hull collision shapes available for tracing.</summary>
     public PhysicsHullData[] Hulls { get; }
 
+    /// <summary>Gets the BVH acceleration structure built over <see cref="Hulls"/>.</summary>
     public Node[] HullTree { get; }
+
     private int[] HullIndices { get; }
 
+    /// <summary>Initializes Rubikon by parsing all mesh and hull shapes from the physics aggregate data.</summary>
+    /// <param name="physicsData">Source physics aggregate containing shapes and collision attributes.</param>
     public Rubikon(PhysAggregateData physicsData)
     {
         var worldMeshes = physicsData.Parts[0].Shape.Meshes
@@ -100,6 +107,7 @@ public class Rubikon
     /// </summary>
     public record struct TraceResult(bool Hit, Vector3 HitPosition, Vector3 HitNormal, float Distance, int TriangleIndex)
     {
+        /// <summary>Initializes a default <see cref="TraceResult"/> representing a miss at maximum distance.</summary>
         public TraceResult() : this(false, Vector3.Zero, Vector3.UnitZ, float.MaxValue, -1) { }
 
         /// <summary>
@@ -121,6 +129,7 @@ public class Rubikon
             return false;
         }
 
+        /// <summary>Updates this result if <paramref name="other"/> is closer, and returns <see langword="true"/> if the new hit is within the minimal-distance threshold.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MinimizeWith_EarlyExit(TraceResult other)
         {
@@ -133,13 +142,24 @@ public class Rubikon
     /// </summary>
     public readonly struct RayTraceContext
     {
+        /// <summary>Gets the ray start position.</summary>
         public Vector3 Origin { get; }
+
+        /// <summary>Gets the normalized ray direction.</summary>
         public Vector3 Direction { get; }
+
+        /// <summary>Gets the component-wise reciprocal of <see cref="Direction"/> for slab-method AABB tests.</summary>
         public Vector3 InvDirection { get; }
+
+        /// <summary>Gets the ray length.</summary>
         public float Length { get; }
 
+        /// <summary>Gets the ray end position.</summary>
         public readonly Vector3 EndPosition => Origin + Direction * Length;
 
+        /// <summary>Initializes a new ray trace context from start and end positions.</summary>
+        /// <param name="start">Ray start position.</param>
+        /// <param name="end">Ray end position.</param>
         public RayTraceContext(Vector3 start, Vector3 end)
         {
             Origin = start;
@@ -149,6 +169,10 @@ public class Rubikon
         }
     }
 
+    /// <summary>Traces a ray against all physics shapes and returns the closest hit.</summary>
+    /// <param name="from">Ray start position.</param>
+    /// <param name="to">Ray end position.</param>
+    /// <returns>The closest <see cref="TraceResult"/>, or an empty result if nothing was hit.</returns>
     public TraceResult TraceRay(Vector3 from, Vector3 to)
     {
         TraceResult closestHit = new();
@@ -175,14 +199,28 @@ public class Rubikon
         return closestHit;
     }
 
+    /// <summary>Precomputed sweep data for an axis-aligned box trace.</summary>
     public readonly struct AABBTraceContext
     {
+        /// <summary>Gets the start position of the sweep.</summary>
         public Vector3 Origin { get; }
+
+        /// <summary>Gets the end position of the sweep.</summary>
         public Vector3 End { get; }
+
+        /// <summary>Gets the normalized sweep direction.</summary>
         public Vector3 Direction { get; }
+
+        /// <summary>Gets the half-extents of the swept AABB.</summary>
         public Vector3 HalfExtents { get; }
+
+        /// <summary>Gets the total sweep length.</summary>
         public float Length { get; }
 
+        /// <summary>Initializes a new AABB trace context from start/end positions and box half-extents.</summary>
+        /// <param name="start">Sweep start position.</param>
+        /// <param name="end">Sweep end position.</param>
+        /// <param name="halfExtents">Half-extents of the swept box.</param>
         public AABBTraceContext(Vector3 start, Vector3 end, Vector3 halfExtents)
         {
             Origin = start;
@@ -193,6 +231,12 @@ public class Rubikon
         }
     }
 
+    /// <summary>Sweeps an axis-aligned bounding box through the physics world and returns the closest hit.</summary>
+    /// <param name="from">Sweep start position (center of the AABB).</param>
+    /// <param name="to">Sweep end position.</param>
+    /// <param name="aabb">Box whose size determines the half-extents of the swept volume.</param>
+    /// <param name="collisionName">Collision group name used to filter shapes (e.g. "player").</param>
+    /// <returns>The closest <see cref="TraceResult"/>, or an empty result if nothing was hit.</returns>
     public TraceResult TraceAABB(Vector3 from, Vector3 to, AABB aabb, string collisionName)
     {
         TraceResult closestHit = new();

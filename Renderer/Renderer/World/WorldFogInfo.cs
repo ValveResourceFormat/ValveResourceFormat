@@ -11,12 +11,16 @@ namespace ValveResourceFormat.Renderer.World
 
         // If we were to do this correctly, we would bin all of these entities and pick the best one at runtime.
         // We don't use triggers though, so there's isn't much of a need. So we're only storing one.
+        /// <summary>Gets or sets a value indicating whether gradient fog is active.</summary>
         public bool GradientFogActive { get; set; }
+        /// <summary>Gets or sets a value indicating whether cubemap fog is active.</summary>
         public bool CubeFogActive { get; set; }
         //public bool VolumetricFogActive { get; set; }
 
         // For now we're only using one gradient fog
+        /// <summary>Gets or sets the active gradient fog parameters.</summary>
         public SceneGradientFog? GradientFog { get; set; }
+        /// <summary>Gets or sets the active cubemap fog parameters.</summary>
         public SceneCubemapFog? CubemapFog { get; set; }
 
         /*
@@ -70,6 +74,11 @@ namespace ValveResourceFormat.Renderer.World
             }
         }*/
 
+        /// <summary>
+        /// Copies the active fog state into the provided view constants buffer.
+        /// </summary>
+        /// <param name="viewConstants">The view constants buffer to update.</param>
+        /// <param name="viewerFogEnabled">Whether fog rendering is enabled in the viewer settings.</param>
         public void SetFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled)
         {
             viewConstants.GradientFogActive = viewerFogEnabled && GradientFogActive;

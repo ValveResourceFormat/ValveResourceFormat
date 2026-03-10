@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Remaps the speed of a particle (or its control point) from an input range to a scalar output field.
+    /// When per-particle mode is enabled, the particle's own speed is used; otherwise the control point speed drives the output.
+    /// Corresponds to <c>C_INIT_RemapSpeedToScalar</c>.
+    /// </summary>
     class RemapSpeedToScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;

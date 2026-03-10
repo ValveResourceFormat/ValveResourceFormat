@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Clamps each particle's velocity to a maximum speed, optionally reading the maximum velocity
+    /// from a component of a control point.
+    /// </summary>
     class MaxVelocity : ParticleFunctionOperator
     {
         private readonly float maxVelocity;

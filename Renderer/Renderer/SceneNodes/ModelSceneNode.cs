@@ -14,6 +14,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public class ModelSceneNode : MeshCollectionNode
     {
+        /// <inheritdoc/>
         public override Vector4 Tint
         {
             get
@@ -34,13 +35,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>Gets the animation controller managing skeletal pose and flex data for this model.</summary>
         public AnimationController AnimationController { get; }
+
+        /// <summary>Gets the name of the currently active material group (skin).</summary>
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
+
+        /// <summary>Gets whether this model has at least one mesh renderer loaded.</summary>
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
         private readonly List<Animation> animations = [];
 
+        /// <summary>Gets whether this model has an active GPU bone matrix buffer (i.e., has animations loaded).</summary>
         public bool IsAnimated => boneMatricesGpu != null;
         private StorageBuffer? boneMatricesGpu;
         private readonly int boneCount;
@@ -55,6 +62,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly ulong[]? meshGroupMasks;
         private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesForLod1;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ModelSceneNode"/> class and loads its meshes and animations.
+        /// </summary>
+        /// <param name="scene">The scene this node belongs to.</param>
+        /// <param name="model">The model resource to render.</param>
+        /// <param name="skin">The material group (skin) name to activate, or <see langword="null"/> for the default.</param>
+        /// <param name="isWorldPreview">When <see langword="true"/>, only embedded animations are loaded.</param>
         public ModelSceneNode(Scene scene, Model model, string? skin = null, bool isWorldPreview = false)
             : base(scene)
         {
@@ -122,6 +136,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Detects eye materials on this model and injects bone index and bind-pose uniforms for eyeball rendering.
+        /// </summary>
         public void SetCharacterEyeRenderParams()
         {
             var eyeEnablingMaterials = meshRenderers
@@ -160,9 +177,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Returns the mesh-local bone index for the given model-level bone index within the specified mesh's remapping table slice.
+        /// </summary>
         public int GetMeshBoneIndex(int modelBoneIndex, RenderableMesh mesh)
             => remappingTable.AsSpan(mesh.MeshBoneOffset, mesh.MeshBoneCount).IndexOf(modelBoneIndex);
 
+        /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
             if (!AnimationController.Update(context.Timestep))
@@ -240,9 +261,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes()
             => meshRenderers.SelectMany(static renderer => renderer.GetSupportedRenderModes());
 
+        /// <summary>
+        /// Activates the named material group (skin), remapping all mesh materials accordingly.
+        /// </summary>
         public void SetMaterialGroup(string name)
         {
             if (materialGroups.Length == 0)
@@ -336,15 +361,21 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             boneMatricesGpu = new StorageBuffer(ReservedBufferSlots.BoneTransforms);
         }
 
+        /// <summary>Returns the names of all animations available on this model.</summary>
         public IEnumerable<string> GetSupportedAnimationNames()
             => animations.Select(a => a.Name);
 
+        /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>
         public void SetAnimation(string animationName)
         {
             var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
             SetAnimation(activeAnimation);
         }
 
+        /// <summary>
+        /// Activates the named animation for world preview mode.
+        /// </summary>
+        /// <returns><see langword="true"/> if the animation was found and activated; otherwise <see langword="false"/>.</returns>
         public bool SetAnimationForWorldPreview(string animationName)
         {
             Animation? activeAnimation = null;
@@ -366,6 +397,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return false;
         }
 
+        /// <summary>Activates the given animation instance, or clears the active animation when <see langword="null"/>.</summary>
         public void SetAnimation(Animation? activeAnimation)
         {
             AnimationController.SetAnimation(activeAnimation);
@@ -390,12 +422,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
 #pragma warning disable CA1024 // Use properties where appropriate
+        /// <summary>Returns the external reference mesh names and their LoD masks for LoD level 1.</summary>
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
             => meshNamesForLod1;
 
+        /// <summary>Returns all mesh group names defined by this model.</summary>
         public IEnumerable<string> GetMeshGroups()
             => meshGroups;
 
+        /// <summary>Returns the set of currently active mesh group names.</summary>
         public ICollection<string> GetActiveMeshGroups()
             => activeMeshGroups;
 #pragma warning restore CA1024 // Use properties where appropriate
@@ -418,6 +453,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Sets which mesh groups are active, rebuilding the renderable mesh list accordingly.
+        /// </summary>
         public void SetActiveMeshGroups(IEnumerable<string> setMeshGroups)
         {
             activeMeshGroups = new HashSet<string>(meshGroups.Intersect(setMeshGroups));
@@ -456,6 +494,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
 #if DEBUG
+        /// <inheritdoc/>
         public override void UpdateVertexArrayObjects()
         {
             foreach (var renderer in meshRenderers)
@@ -465,6 +504,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 #endif
 
+        /// <inheritdoc/>
         public override void Delete()
         {
             boneMatricesGpu?.Delete();

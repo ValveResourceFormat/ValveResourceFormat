@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Remaps each particle's current speed from an input range to an output range and writes
+    /// the result to a scalar particle attribute.
+    /// </summary>
     class RemapSpeed : ParticleFunctionOperator
     {
         private readonly INumberProvider inputMin = new LiteralNumberProvider(0);

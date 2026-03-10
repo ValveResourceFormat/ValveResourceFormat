@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
+    /// <summary>
+    /// Emits particles continuously at a fixed rate over an optional duration window.
+    /// Corresponds to <c>C_OP_ContinuousEmitter</c>.
+    /// </summary>
     class ContinuousEmitter : ParticleFunctionEmitter
     {
         public override bool IsFinished { get; protected set; }

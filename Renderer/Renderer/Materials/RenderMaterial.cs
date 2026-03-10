@@ -13,31 +13,52 @@ namespace ValveResourceFormat.Renderer.Materials
     /// </summary>
     public enum ReservedTextureSlots
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>BRDF lookup texture for PBR shading.</summary>
         BRDFLookup = 0,
+        /// <summary>Blue noise texture for dithering and randomization.</summary>
         BlueNoise,
+        /// <summary>Fog cube texture for atmospheric fog rendering.</summary>
         FogCubeTexture,
+        /// <summary>Lightmap texture channel 1.</summary>
         Lightmap1,
+        /// <summary>Lightmap texture channel 2.</summary>
         Lightmap2,
+        /// <summary>Lightmap texture channel 3.</summary>
         Lightmap3,
+        /// <summary>Lightmap texture channel 4.</summary>
         Lightmap4,
+        /// <summary>Lightmap texture channel 5.</summary>
         Lightmap5,
+        /// <summary>Lightmap texture channel 6.</summary>
         Lightmap6,
+        /// <summary>Environment cubemap for reflections.</summary>
         EnvironmentMap,
+        /// <summary>Light probe irradiance slot 1.</summary>
         Probe1,
+        /// <summary>Light probe irradiance slot 2.</summary>
         Probe2,
+        /// <summary>Light probe irradiance slot 3.</summary>
         Probe3,
+        /// <summary>Shadow depth buffer for primary shadow pass.</summary>
         ShadowDepthBufferDepth,
+        /// <summary>Shadow depth buffer for barn lights.</summary>
         BarnLightShadowDepth,
+        /// <summary>Light cookie texture (clamped wrap mode).</summary>
         LightCookieTexture,
+        /// <summary>Light cookie texture (repeat wrap mode).</summary>
         LightCookieTextureWrap,
+        /// <summary>Resolved opaque scene color for refraction.</summary>
         SceneColor,
+        /// <summary>Resolved scene depth buffer.</summary>
         SceneDepth,
+        /// <summary>Resolved scene stencil buffer.</summary>
         SceneStencil,
+        /// <summary>Hierarchical depth pyramid for occlusion culling.</summary>
         DepthPyramid,
+        /// <summary>Morph composite texture for vertex animation.</summary>
         MorphCompositeTexture,
+        /// <summary>Last reserved slot; equal to <see cref="MorphCompositeTexture"/>.</summary>
         Last = MorphCompositeTexture,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     enum BlendMode
@@ -59,18 +80,40 @@ namespace ValveResourceFormat.Renderer.Materials
     {
         private const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
 
+        /// <summary>Gets a value used to bucket this material into draw-call sort bins; derived from the shader program handle and a random offset.</summary>
         public int SortId { get; }
+
+        /// <summary>Gets the <see cref="Shaders.Shader"/> used to render this material.</summary>
         public required Shader Shader { get; init; }
+
+        /// <summary>Gets the underlying parsed <see cref="ValveResourceFormat.ResourceTypes.Material"/> data.</summary>
         public Material Material { get; }
+
+        /// <summary>Gets the map of matrix uniform names to their current values for this material.</summary>
         public Dictionary<string, Matrix4x4> Matrices { get; } = [];
+
+        /// <summary>Gets the map of texture uniform names to the bound <see cref="RenderTexture"/> objects for this material.</summary>
         public Dictionary<string, RenderTexture> Textures { get; } = [];
+
+        /// <summary>Gets or sets a value indicating whether this material is rendered as a screen-space or world-space overlay (polygon-offset, no depth write).</summary>
         public bool IsOverlay { get; set; }
+
+        /// <summary>Gets a value indicating whether this is a tools-only material that should not appear in normal rendering.</summary>
         public bool IsToolsMaterial { get; private set; }
+
+        /// <summary>Gets a value indicating whether this material uses the CS2 water rendering path.</summary>
         public bool IsCs2Water { get; private set; }
+
+        /// <summary>Gets a value indicating whether this material drives vertex animation (foliage or morph-based).</summary>
         public bool VertexAnimation { get; private set; }
+
+        /// <summary>Gets a value indicating whether geometry using this material should be excluded from shadow passes.</summary>
         public bool DoNotCastShadows { get; private set; }
 
+        /// <summary>Gets a value indicating whether this material uses any blending mode that requires back-to-front ordering.</summary>
         public bool IsTranslucent => blendMode >= BlendMode.Translucent;
+
+        /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
 
         private BlendMode blendMode;
@@ -78,6 +121,10 @@ namespace ValveResourceFormat.Renderer.Materials
         private bool hasDepthBias;
         private int textureUnit;
 
+        /// <summary>Initializes a new instance of the <see cref="RenderMaterial"/> class from a parsed material resource, loading its shader and applying render state.</summary>
+        /// <param name="material">The parsed Source 2 material data.</param>
+        /// <param name="rendererContext">The renderer context used to load shaders and textures.</param>
+        /// <param name="shaderArguments">Optional caller-supplied static combo overrides that take precedence over the material's own arguments.</param>
         [SetsRequiredMembers]
         public RenderMaterial(Material material, RendererContext rendererContext, Dictionary<string, byte>? shaderArguments)
             : this(material)
@@ -137,6 +184,8 @@ namespace ValveResourceFormat.Renderer.Materials
             SortId = GetSortId();
         }
 
+        /// <summary>Initializes a new instance of the <see cref="RenderMaterial"/> class wrapping an existing shader with an empty material.</summary>
+        /// <param name="shader">The shader to use for rendering.</param>
         [SetsRequiredMembers]
         public RenderMaterial(Shader shader) : this(new Material { Resource = null!, ShaderName = shader.Name })
         {
@@ -144,6 +193,7 @@ namespace ValveResourceFormat.Renderer.Materials
             SortId = GetSortId();
         }
 
+        /// <summary>The sort ID range allocated per unique shader program, used to group draw calls by shader while preserving random ordering within a group.</summary>
         public const int PerShaderSortIdRange = 10_000;
         private int GetSortId() => Shader.Program * PerShaderSortIdRange + Random.Shared.Next(1, 9999);
 
@@ -240,6 +290,8 @@ namespace ValveResourceFormat.Renderer.Materials
             };
         }
 
+        /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
+        /// <param name="shader">The shader to use for this draw call, or <see langword="null"/> to use <see cref="Shader"/>.</param>
         public void Render(Shader? shader = default)
         {
             textureUnit = TextureUnitStart;
@@ -362,6 +414,7 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
+        /// <summary>Restores render state and unbinds textures after the draw call for this material has completed.</summary>
         public void PostRender()
         {
             ResetRenderState();

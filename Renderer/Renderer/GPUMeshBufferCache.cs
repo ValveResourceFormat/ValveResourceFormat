@@ -21,11 +21,17 @@ namespace ValveResourceFormat.Renderer
 
         private record struct VAOKey(string MeshName, int Shader, int VertexIndex, int IndexIndex);
 
+        /// <summary>Initializes a new GPU mesh buffer cache.</summary>
+        /// <param name="rendererContext">The renderer context owning this cache.</param>
         public GPUMeshBufferCache(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
         }
 
+        /// <summary>Returns cached GPU buffers for the named mesh, uploading them if not yet present.</summary>
+        /// <param name="meshName">Unique name identifying the mesh.</param>
+        /// <param name="vbib">Vertex and index buffer data to upload on first use.</param>
+        /// <returns>The GPU buffers for the mesh.</returns>
         public GPUMeshBuffers CreateVertexIndexBuffers(string meshName, VBIB vbib)
         {
             if (!gpuBuffers.TryGetValue(meshName, out var gpuVbib))
@@ -51,6 +57,8 @@ namespace ValveResourceFormat.Renderer
             return gpuVbib;
         }
 
+        /// <summary>Deletes and removes the cached GPU buffers for the specified mesh.</summary>
+        /// <param name="meshName">Unique name identifying the mesh to delete.</param>
         public void DeleteVertexIndexBuffers(string meshName)
         {
             if (gpuBuffers.TryGetValue(meshName, out var gpuVbib))
@@ -60,6 +68,12 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Returns a cached VAO for the given mesh/shader/buffer combination, creating it if necessary.</summary>
+        /// <param name="meshName">Name of the mesh whose buffers are used.</param>
+        /// <param name="vertexBuffers">Vertex buffer bindings for the draw call.</param>
+        /// <param name="material">Material whose shader determines attribute locations.</param>
+        /// <param name="idxIndex">OpenGL handle of the index buffer.</param>
+        /// <returns>The OpenGL VAO handle.</returns>
         public int GetVertexArrayObject(string meshName, VertexDrawBuffer[] vertexBuffers, RenderMaterial material, int idxIndex)
         {
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);

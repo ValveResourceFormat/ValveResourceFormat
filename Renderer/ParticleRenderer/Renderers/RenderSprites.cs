@@ -3,6 +3,11 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
+    /// <summary>
+    /// Renders particles as camera-facing or orientation-aligned textured quads (sprites),
+    /// with support for sprite sheet animation, blend modes, and per-particle color and alpha.
+    /// Corresponds to <c>C_OP_RenderSprites</c>.
+    /// </summary>
     internal class RenderSprites : ParticleFunctionRenderer
     {
         private const string ShaderName = "vrf.particle_sprite";

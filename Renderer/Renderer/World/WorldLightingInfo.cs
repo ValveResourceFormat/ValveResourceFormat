@@ -14,11 +14,12 @@ namespace ValveResourceFormat.Renderer.World
     /// </summary>
     public enum CubemapType : byte
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>No environment cubemap data.</summary>
         None,
+        /// <summary>Each probe has its own individual cubemap texture.</summary>
         IndividualCubemaps,
+        /// <summary>All probe cubemaps are packed into a single texture array.</summary>
         CubemapArray,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     /// <summary>
@@ -26,18 +27,24 @@ namespace ValveResourceFormat.Renderer.World
     /// </summary>
     public enum LightProbeType : byte
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>No light probe data.</summary>
         None,
+        /// <summary>Each probe has its own individual irradiance texture.</summary>
         IndividualProbes,
+        /// <summary>All probe irradiance data is packed into a single atlas texture.</summary>
         ProbeAtlas,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
+    /// <summary>A single shadow-casting barn light face queued for rendering into the shadow atlas.</summary>
     public struct BinnedShadowCaster
     {
+        /// <summary>Gets or sets the world-to-frustum transform for this shadow face.</summary>
         public Matrix4x4 WorldToFrustum { get; set; }
+        /// <summary>Gets or sets the atlas region allocated for this shadow face.</summary>
         public ShadowAtlasRegion Region { get; set; }
+        /// <summary>Gets or sets the scene light that owns this shadow caster.</summary>
         public SceneLight Light { get; set; }
+        /// <summary>Gets or sets the face index within the light's barn faces array.</summary>
         public int FaceIndex { get; set; }
     }
 
@@ -46,40 +53,61 @@ namespace ValveResourceFormat.Renderer.World
     /// </summary>
     public class WorldLightingInfo(Scene scene)
     {
+        /// <summary>Gets the lightmap textures indexed by uniform name.</summary>
         public Dictionary<string, RenderTexture> Lightmaps { get; } = [];
+        /// <summary>Gets the list of scene light probes.</summary>
         public List<SceneLightProbe> LightProbes { get; } = [];
+        /// <summary>Gets the list of environment map probes.</summary>
         public List<SceneEnvMap> EnvMaps { get; } = [];
+        /// <summary>Gets the list of real-time barn lights.</summary>
         public List<SceneLight> BarnLights { get; } = [];
+        /// <summary>Gets the environment map lookup by handshake ID.</summary>
         public Dictionary<int, SceneEnvMap> EnvMapHandshakes { get; } = [];
+        /// <summary>Gets the light probe lookup by handshake ID.</summary>
         public Dictionary<int, SceneLightProbe> ProbeHandshakes { get; } = [];
+        /// <summary>Gets or sets a value indicating whether the scene has a complete and usable lightmap set.</summary>
         public bool HasValidLightmaps { get; set; }
+        /// <summary>Gets or sets a value indicating whether the scene has a complete and usable light probe set.</summary>
         public bool HasValidLightProbes { get; set; }
+        /// <summary>Gets or sets the lightmap version number from the world data.</summary>
         public int LightmapVersionNumber { get; set; }
+        /// <summary>Gets or sets the game-specific lightmap sub-version number.</summary>
         public int LightmapGameVersionNumber { get; set; }
+        /// <summary>Gets or sets the GPU lighting constants buffer for the scene.</summary>
         public LightingConstants LightingData { get; set; } = new();
 
+        /// <summary>Gets or sets the storage format used for environment map cubemaps in this scene.</summary>
         public CubemapType CubemapType
         {
             get => (CubemapType)scene.RenderAttributes.GetValueOrDefault("S_SCENE_CUBEMAP_TYPE");
             set => scene.RenderAttributes["S_SCENE_CUBEMAP_TYPE"] = (byte)value;
         }
 
+        /// <summary>Gets or sets the storage format used for light probe irradiance data in this scene.</summary>
         public LightProbeType LightProbeType
         {
             get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("S_SCENE_PROBE_TYPE");
             set => scene.RenderAttributes["S_SCENE_PROBE_TYPE"] = (byte)value;
         }
 
+        /// <summary>Gets a value indicating whether the lightmap contains baked shadow data.</summary>
         public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
+        /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>
         public bool EnableDynamicShadows { get; set; } = true;
 
+        /// <summary>Gets or sets the combined view-projection matrix used for sun shadow rendering.</summary>
         public Matrix4x4 SunViewProjection { get; internal set; }
+        /// <summary>Gets the frustum used for sun light shadow culling.</summary>
         public Frustum SunLightFrustum { get; } = new();
+        /// <summary>Gets or sets the depth bias applied to sun light shadows to reduce self-shadowing artifacts.</summary>
         public float SunLightShadowBias { get; set; } = 0.001f;
+        /// <summary>Gets or sets a scale factor applied to the sun light shadow coverage area.</summary>
         public float SunLightShadowCoverageScale { get; set; } = 1f;
+        /// <summary>Gets or sets a value indicating whether the sun light frustum is fitted to the scene bounds rather than the camera.</summary>
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
         // Barn lights
+        /// <summary>Gets or sets the pixel size of the barn light shadow atlas texture.</summary>
         public int BarnLightShadowAtlasSize { get; set; } = 4096;
         private static readonly (float MaxDistance, int MaxResolution)[] ShadowTiers =
         [
@@ -94,11 +122,16 @@ namespace ValveResourceFormat.Renderer.World
 
         private Dictionary<string, int>? BarnLightCookiePaths;
         private StorageBuffer? BarnLightStorageBuffer;
+        /// <summary>Gets the list of shadow casters produced by the most recent <see cref="BinBarnLights"/> call.</summary>
         public List<BinnedShadowCaster> BinnedShadowCasters { get; } = [];
         private RenderTexture? BarnLightCookieAtlas { get; set; }
         private int CookieSamplerClampBorder;
         private int CookieSamplerWrap;
 
+        /// <summary>
+        /// Binds lightmap, light probe, and barn light cookie textures to the given shader.
+        /// </summary>
+        /// <param name="shader">The shader to bind lightmap textures to.</param>
         public void SetLightmapTextures(Shader shader)
         {
             var i = 0;
@@ -127,6 +160,10 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>
+        /// Registers an environment map with the scene, setting the cubemap type on the first entry.
+        /// </summary>
+        /// <param name="envmap">The environment map to add.</param>
         public void AddEnvironmentMap(SceneEnvMap envmap)
         {
             if (EnvMaps.Count == 0)
@@ -160,6 +197,10 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>
+        /// Registers a light probe with the scene, validating its texture set against the lightmap version.
+        /// </summary>
+        /// <param name="lightProbe">The light probe to add.</param>
         public void AddProbe(SceneLightProbe lightProbe)
         {
             var validTextureSet = (scene.LightingInfo.LightmapGameVersionNumber, lightProbe) switch
@@ -180,6 +221,11 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>
+        /// Recalculates <see cref="SunViewProjection"/> and <see cref="SunLightFrustum"/> to fit the current camera view.
+        /// </summary>
+        /// <param name="camera">The active camera used to position the sun shadow frustum.</param>
+        /// <param name="shadowMapSize">The shadow map resolution used to compute coverage and texel snapping.</param>
         public void UpdateSunLightFrustum(Camera camera, float shadowMapSize = 512f)
         {
             var sunMatrix = LightingData.LightToWorld[0];
@@ -234,6 +280,10 @@ namespace ValveResourceFormat.Renderer.World
             SunLightFrustum.Update(SunViewProjection);
         }
 
+        /// <summary>
+        /// Stores stationary and dynamic light data into <see cref="LightingData"/> using the V1 lightmap format.
+        /// </summary>
+        /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V1(List<SceneLight> lights)
         {
             void AddLight(SceneLight light, uint index)
@@ -279,6 +329,10 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.NumLights[1] = currentLightIndex;
         }
 
+        /// <summary>
+        /// Stores environment light data and queues real-time barn lights using the V2 lightmap format.
+        /// </summary>
+        /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V2(List<SceneLight> lights)
         {
             // This loop is required for environment (sun) lights.
@@ -341,6 +395,11 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         private bool barnLightsLoggedOnce;
+        /// <summary>
+        /// Culls and bins visible barn lights for the current frame, packing their shadow faces into the atlas.
+        /// </summary>
+        /// <param name="cameraFrustum">The camera frustum used to cull lights not in view.</param>
+        /// <param name="cameraPosition">The camera world position used to select shadow map resolution tiers.</param>
         public void BinBarnLights(Frustum cameraFrustum, Vector3 cameraPosition)
         {
             LightingData.NumBarnLights = 0;
@@ -473,6 +532,7 @@ namespace ValveResourceFormat.Renderer.World
             BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, (int)LightingData.NumBarnLights * Unsafe.SizeOf<BarnLightConstants>());
         }
 
+        /// <summary>Clears cached shadow map data for all registered barn lights.</summary>
         public void ClearBarnShadowCache()
         {
             foreach (var light in BarnLights)
@@ -557,17 +617,20 @@ namespace ValveResourceFormat.Renderer.World
             GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
         }
 
+        /// <summary>Allocates the GPU storage buffer used to pass barn light data to shaders.</summary>
         public void CreateBarnLightBuffer()
         {
             BarnLightStorageBuffer = StorageBuffer.Allocate<BarnLightConstants>(
                 ReservedBufferSlots.BarnLights, BarnLightConstants.MAX_BARN_LIGHTS, BufferUsageHint.DynamicDraw);
         }
 
+        /// <summary>Binds the barn light storage buffer to its reserved shader slot.</summary>
         public void BindBarnLightBuffer()
         {
             BarnLightStorageBuffer?.BindBufferBase();
         }
 
+        /// <summary>Releases the barn light GPU buffer, cookie atlas texture, and sampler objects.</summary>
         public void DisposeBarnLights()
         {
             BarnLightStorageBuffer?.Delete();

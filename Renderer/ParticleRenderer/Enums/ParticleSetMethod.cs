@@ -5,13 +5,17 @@ namespace ValveResourceFormat.Renderer.Particles
     /// </summary>
     public enum ParticleSetMethod
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Replaces the current attribute value with the new value.</summary>
         PARTICLE_SET_REPLACE_VALUE = 0,
+        /// <summary>Multiplies the initial spawn-time attribute value by the new value.</summary>
         PARTICLE_SET_SCALE_INITIAL_VALUE = 1,
+        /// <summary>Adds the new value to the initial spawn-time attribute value.</summary>
         PARTICLE_SET_ADD_TO_INITIAL_VALUE = 2,
+        /// <summary>Adds the new value multiplied by age to the current attribute value (exponential ramp).</summary>
         PARTICLE_SET_RAMP_CURRENT_VALUE = 3,
+        /// <summary>Multiplies the current attribute value by the new value.</summary>
         PARTICLE_SET_SCALE_CURRENT_VALUE = 4,
+        /// <summary>Adds the new value to the current attribute value.</summary>
         PARTICLE_SET_ADD_TO_CURRENT_VALUE = 5,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 }

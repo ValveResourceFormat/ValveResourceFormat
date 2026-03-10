@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Remaps a scalar input particle field from one range to another and writes the result to an output field.
+    /// Corresponds to <c>C_INIT_RemapScalar</c>.
+    /// </summary>
     class RemapScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldInput = ParticleField.Alpha;

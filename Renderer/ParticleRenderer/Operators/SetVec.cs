@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Sets a vector particle attribute to a per-particle vector value, with an optional
+    /// interpolation factor that blends between the current value and the target each frame.
+    /// </summary>
     class SetVec : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Color;

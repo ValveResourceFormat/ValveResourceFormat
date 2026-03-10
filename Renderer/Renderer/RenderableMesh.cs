@@ -14,27 +14,61 @@ namespace ValveResourceFormat.Renderer
     [DebuggerDisplay("{Name}")]
     public class RenderableMesh
     {
+        /// <summary>Gets the axis-aligned bounding box of the mesh in local space.</summary>
         public AABB BoundingBox { get; }
+
+        /// <summary>Gets or sets the tint color multiplier applied to the entire mesh.</summary>
         public Vector4 Tint { get; set; } = Vector4.One;
+
+        /// <summary>Gets or sets the alpha component of <see cref="Tint"/>.</summary>
         public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
 
         private readonly RendererContext renderContext;
+
+        /// <summary>Gets the list of meshlets for GPU-driven indirect culling.</summary>
         public List<Meshlet> Meshlets { get; } = [];
+
+        /// <summary>Gets the opaque draw calls for this mesh.</summary>
         public List<DrawCall> DrawCallsOpaque { get; } = [];
+
+        /// <summary>Gets the static overlay draw calls for this mesh.</summary>
         public List<DrawCall> DrawCallsOverlay { get; } = [];
+
+        /// <summary>Gets the translucent (blended) draw calls for this mesh.</summary>
         public List<DrawCall> DrawCallsBlended { get; } = [];
+
+        /// <summary>Gets all draw calls across all render buckets.</summary>
         public IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
+        /// <summary>Gets the GPU storage buffer holding the bone matrices for skeletal animation, or <see langword="null"/> if not animated.</summary>
         public StorageBuffer? BoneMatricesGpu { get; private set; }
+
+        /// <summary>Gets the starting bone index in the model-space bone array for this mesh.</summary>
         public int MeshBoneOffset { get; private set; }
+
+        /// <summary>Gets the number of bones used by this mesh.</summary>
         public int MeshBoneCount { get; private set; }
+
+        /// <summary>Gets the number of bone weights per vertex (4 or 8).</summary>
         public int BoneWeightCount { get; private set; }
 
+        /// <summary>Gets the name of the source mesh resource.</summary>
         public string Name { get; }
+
+        /// <summary>Gets the index of this mesh within its parent model.</summary>
         public int MeshIndex { get; }
 
+        /// <summary>Gets the flex state manager for morph target animation, or <see langword="null"/> if unsupported.</summary>
         public FlexStateManager? FlexStateManager { get; }
 
+        /// <summary>Constructs a renderable mesh from a resource mesh, uploading geometry and configuring draw calls.</summary>
+        /// <param name="mesh">Source mesh resource.</param>
+        /// <param name="meshIndex">Index of this mesh within the parent model.</param>
+        /// <param name="scene">Scene providing render context and lighting info.</param>
+        /// <param name="model">Optional owning model, used for bone remapping.</param>
+        /// <param name="initialMaterialTable">Optional material name overrides.</param>
+        /// <param name="morph">Optional morph data for facial animation.</param>
+        /// <param name="isAggregate">When <see langword="true"/>, all draw calls go into the opaque bucket for aggregate rendering.</param>
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model? model = null,
             Dictionary<string, string>? initialMaterialTable = null, Morph? morph = null, bool isAggregate = false)
         {
@@ -74,11 +108,13 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Returns the union of all render mode names supported by the materials in this mesh.</summary>
         public IEnumerable<string> GetSupportedRenderModes()
             => DrawCalls
                 .SelectMany(static drawCall => drawCall.Material.Shader.RenderModes);
 
 #if DEBUG
+        /// <summary>Recreates all vertex array objects. Debug-only, used for hot-reloading shaders.</summary>
         public void UpdateVertexArrayObjects()
         {
             foreach (var call in DrawCalls)
@@ -89,6 +125,8 @@ namespace ValveResourceFormat.Renderer
         }
 #endif
 
+        /// <summary>Assigns the GPU bone matrices buffer and resets flex controllers.</summary>
+        /// <param name="buffer">The storage buffer holding bone matrices, or <see langword="null"/> to disable skinning.</param>
         public void SetBoneMatricesBuffer(StorageBuffer? buffer)
         {
             BoneMatricesGpu = buffer;
@@ -96,6 +134,8 @@ namespace ValveResourceFormat.Renderer
             FlexStateManager?.ResetControllers();
         }
 
+        /// <summary>Recompiles all draw call materials with a modified shader static combo value.</summary>
+        /// <param name="combo">The combo name and new value to apply.</param>
         public void SetMaterialCombo((string ComboName, byte ComboValue) combo)
         {
             foreach (var drawCall in DrawCalls)
@@ -117,6 +157,8 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Replaces materials on draw calls according to the provided name-to-name mapping.</summary>
+        /// <param name="materialTable">Dictionary mapping original material names to replacement material names.</param>
         public void ReplaceMaterials(Dictionary<string, string> materialTable)
         {
             foreach (var drawCall in DrawCalls)
@@ -136,6 +178,8 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Replaces all draw call materials with a single material resource for use in the material viewer.</summary>
+        /// <param name="resourceMaterial">The material resource to apply to all draw calls.</param>
         public void SetMaterialForMaterialViewer(Resource resourceMaterial)
         {
             var oldDrawCalls = DrawCalls.ToList();
@@ -455,6 +499,13 @@ namespace ValveResourceFormat.Renderer
             this.renderContext = renderContext;
         }
 
+        /// <summary>Creates a renderable mesh from raw vertex and index buffers with a single material.</summary>
+        /// <param name="name">Name for the mesh and GPU buffer labels.</param>
+        /// <param name="material">Material to assign to the single draw call.</param>
+        /// <param name="vertexIndexBuffers">Vertex and index buffer data to upload.</param>
+        /// <param name="bounds">Bounding box of the mesh.</param>
+        /// <param name="renderContext">Renderer context for uploading buffers.</param>
+        /// <returns>A new <see cref="RenderableMesh"/> with one opaque draw call.</returns>
         public static RenderableMesh CreateMesh(string name, RenderMaterial material, VBIB vertexIndexBuffers, AABB bounds, RendererContext renderContext)
         {
             var mesh = new RenderableMesh(name, bounds, renderContext);
@@ -500,14 +551,18 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public abstract class MeshCollectionNode : SceneNode
     {
+        /// <summary>Gets or sets the tint color applied to all meshes in this node.</summary>
         public abstract Vector4 Tint { get; set; }
 
+        /// <inheritdoc/>
         protected MeshCollectionNode(Scene scene) : base(scene)
         {
         }
 
+        /// <summary>Gets the list of renderable meshes owned by this node.</summary>
         public List<RenderableMesh> RenderableMeshes { get; protected init; } = [];
 
+        /// <inheritdoc/>
         public override void Delete()
         {
             foreach (var mesh in RenderableMeshes)

@@ -13,11 +13,12 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public enum PfInputMode
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Invalid input mode.</summary>
             Invalid = -1,
+            /// <summary>Input values are clamped to the defined input range.</summary>
             Clamped,
+            /// <summary>Input values wrap around within the defined input range.</summary>
             Looped,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         }
 
         /// <summary>
@@ -25,15 +26,20 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public enum PfMapType
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Invalid mapping type.</summary>
             Invalid = -1,
+            /// <summary>Passes the input value through unchanged.</summary>
             Direct,
+            /// <summary>Multiplies the input value by a constant factor.</summary>
             Mult,
+            /// <summary>Remaps the input from one range to another.</summary>
             Remap,
+            /// <summary>Remaps the input with an additional bias curve applied.</summary>
             RemapBiased,
+            /// <summary>Evaluates a piecewise curve at the input value.</summary>
             Curve,
+            /// <summary>Returns one of two output values depending on whether the input is within a range.</summary>
             Notched,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         };
 
         private readonly PfMapType MapType;

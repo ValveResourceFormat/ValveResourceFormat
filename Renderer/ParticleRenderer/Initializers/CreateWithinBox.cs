@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles at random positions within an axis-aligned box defined by a minimum and
+    /// maximum corner vector, offset by a control point. An optional scale control point can
+    /// uniformly scale the box extents. Corresponds to <c>C_INIT_CreateWithinBox</c>.
+    /// </summary>
     class CreateWithinBox : ParticleFunctionInitializer
     {
         private readonly IVectorProvider min = new LiteralVectorProvider(Vector3.Zero);

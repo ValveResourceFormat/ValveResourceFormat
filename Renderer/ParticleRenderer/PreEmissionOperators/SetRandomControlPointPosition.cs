@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
+    /// <summary>
+    /// Sets a control point to a random position within a bounding box, optionally re-randomizing
+    /// at a configurable rate and interpolating toward the new target position.
+    /// Corresponds to <c>C_OP_SetRandomControlPointPosition</c>.
+    /// </summary>
     class SetRandomControlPointPosition : ParticleFunctionPreEmissionOperator
     {
         private readonly int cp = 1;

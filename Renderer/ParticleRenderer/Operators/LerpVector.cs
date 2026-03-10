@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Lerps a vector particle attribute from its initial value toward a target vector over a
+    /// specified time window of the particle's absolute age.
+    /// </summary>
     class LerpVector : ParticleFunctionOperator
     {
         private readonly ParticleField FieldOutput = ParticleField.Position;

@@ -15,11 +15,12 @@ public class PickingTexture : Framebuffer
     /// </summary>
     public enum PickingIntent
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Select the picked object.</summary>
         Select,
+        /// <summary>Open the picked object for viewing.</summary>
         Open,
+        /// <summary>Show detail information about the picked object.</summary>
         Details,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     /// <summary>
@@ -27,7 +28,10 @@ public class PickingTexture : Framebuffer
     /// </summary>
     public readonly struct PickingResponse
     {
+        /// <summary>Gets the interaction intent that triggered this pick.</summary>
         public PickingIntent Intent { get; init; }
+
+        /// <summary>Gets the pixel data read back from the picking framebuffer.</summary>
         public PixelInfo PixelInfo { get; init; }
     }
 
@@ -38,17 +42,33 @@ public class PickingTexture : Framebuffer
     public struct PixelInfo
     {
 #pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
+        /// <summary>The scene node object ID under the cursor.</summary>
         public uint ObjectId;
+
+        /// <summary>The mesh ID within the picked object.</summary>
         public uint MeshId;
+
+        /// <summary>Non-zero when the picked pixel belongs to the skybox.</summary>
         public uint IsSkybox;
+
+        /// <summary>Reserved padding field.</summary>
         public uint Unused2;
 #pragma warning restore CS0649  // Field is never assigned to, and will always have its default value
     }
 
+    /// <summary>Raised when a pick response is ready to be consumed.</summary>
     public event EventHandler<PickingResponse> OnPicked;
+
+    /// <summary>Gets the picking shader used during the picking render pass.</summary>
     public Shader Shader { get; }
+
+    /// <summary>Gets the debug shader that visualizes the picking buffer contents on screen.</summary>
     public Shader DebugShader { get; }
+
+    /// <summary>Gets whether the current render mode has activated picking debug visualization.</summary>
     public bool IsDebugActive { get; private set; }
+
+    /// <summary>Gets whether a pick has been requested and will be resolved on the next frame.</summary>
     public bool ActiveNextFrame { get; private set; }
 
     private int CursorPositionX;
@@ -61,6 +81,9 @@ public class PickingTexture : Framebuffer
     // could share depth buffer with main framebuffer, but msaa doesn't match
     // private readonly Framebuffer depthSource;
 
+    /// <summary>Initializes the picking framebuffer, shaders, and subscribes to the pick event.</summary>
+    /// <param name="rendererContext">Renderer context for loading shaders.</param>
+    /// <param name="onPicked">Handler invoked when a pick result is available.</param>
     public PickingTexture(RendererContext rendererContext, EventHandler<PickingResponse> onPicked) : base(nameof(PickingTexture))
     {
         RendererContext = rendererContext;
@@ -79,6 +102,10 @@ public class PickingTexture : Framebuffer
         Initialize();
     }
 
+    /// <summary>Schedules a pick at the given cursor position to be resolved after the next frame renders.</summary>
+    /// <param name="x">Cursor X position in window coordinates.</param>
+    /// <param name="y">Cursor Y position in window coordinates.</param>
+    /// <param name="intent">The interaction intent for this pick request.</param>
     public void RequestNextFrame(int x, int y, PickingIntent intent)
     {
         ActiveNextFrame = true;
@@ -87,6 +114,7 @@ public class PickingTexture : Framebuffer
         Intent = intent;
     }
 
+    /// <summary>Reads back the picking pixel if a request was pending and stores the response for the next event trigger.</summary>
     public void Finish()
     {
         if (ActiveNextFrame)
@@ -101,6 +129,7 @@ public class PickingTexture : Framebuffer
         }
     }
 
+    /// <summary>Fires <see cref="OnPicked"/> with the stored response if one is available.</summary>
     public void TriggerEventIfAny()
     {
         if (Response is PickingResponse response)
@@ -127,6 +156,8 @@ public class PickingTexture : Framebuffer
         return pixelInfo;
     }
 
+    /// <summary>Updates <see cref="IsDebugActive"/> based on whether the current render mode matches the picking shader's supported modes.</summary>
+    /// <param name="renderMode">Name of the active render mode.</param>
     public void SetRenderMode(string renderMode)
     {
         IsDebugActive = Shader.RenderModes.Contains(renderMode);

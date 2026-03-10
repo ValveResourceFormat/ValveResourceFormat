@@ -5,6 +5,9 @@ using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer
 {
+    /// <summary>
+    /// Sorts and dispatches batched mesh draw calls for a render pass.
+    /// </summary>
     public static class MeshBatchRenderer
     {
         /// <summary>
@@ -16,6 +19,7 @@ namespace ValveResourceFormat.Renderer
         public record struct Request(RenderableMesh Mesh, DrawCall? Call, float DistanceFromCamera, int RenderOrder, SceneNode Node);
         record struct BatchRequest(RenderableMesh Mesh, DrawCall Call, SceneNode Node);
 
+        /// <summary>Compares two requests by shader pipeline sort ID, placing custom-render nodes at the boundary.</summary>
         public static int CompareCustomPipeline(Request a, Request b)
         {
             const int CustomRenderSortId = 500 * -RenderMaterial.PerShaderSortIdRange;
@@ -29,6 +33,7 @@ namespace ValveResourceFormat.Renderer
             };
         }
 
+        /// <summary>Compares two requests first by render order, then by shader pipeline sort ID.</summary>
         public static int CompareRenderOrderThenPipeline(Request a, Request b)
         {
             if (a.RenderOrder == b.RenderOrder)
@@ -39,11 +44,13 @@ namespace ValveResourceFormat.Renderer
             return a.RenderOrder - b.RenderOrder;
         }
 
+        /// <summary>Compares two requests by distance from camera, furthest first (back-to-front).</summary>
         public static int CompareCameraDistance(Request a, Request b)
         {
             return -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera);
         }
 
+        /// <summary>Compares two requests by alpha-test flag first, then by shader program sort ID.</summary>
         public static int CompareAlphaTestThenProgram(Request a, Request b)
         {
             Debug.Assert(a.Call != null && b.Call != null);
@@ -58,11 +65,15 @@ namespace ValveResourceFormat.Renderer
             return alphaTestA.CompareTo(alphaTestB);
         }
 
+        /// <summary>Returns <see langword="true"/> if the request is a <see cref="SceneAggregate"/> with no visible children.</summary>
         public static bool IsAggregateWithNoVisibleChildren(Request req)
         {
             return req.Node is SceneAggregate { AnyChildrenVisible: false };
         }
 
+        /// <summary>Sorts requests according to the active render pass and issues all draw calls.</summary>
+        /// <param name="requests">Draw call requests to process.</param>
+        /// <param name="context">Render context describing the current pass and scene state.</param>
         public static void Render(List<Request> requests, Scene.RenderContext context)
         {
             if (context.RenderPass == RenderPass.Opaque)

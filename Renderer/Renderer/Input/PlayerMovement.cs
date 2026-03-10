@@ -3,6 +3,9 @@ using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer.Input;
 
+/// <summary>
+/// Source engine-style FPS player movement controller with collision detection, gravity, and crouch support.
+/// </summary>
 public class PlayerMovement
 {
     // Player collision hull
@@ -40,6 +43,7 @@ public class PlayerMovement
     private const float CrouchBlendTime = 0.2f;           // Time to complete crouch/uncrouch animation (seconds)
 
     // Movement state
+    /// <summary>Gets the current player velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }
     private Vector3 AABBCenteredPosition;
     private bool OnGround;
@@ -72,10 +76,17 @@ public class PlayerMovement
     private const float WalkableSlope = 0.7f; // ~45 degrees
 
     // options
+    /// <summary>Gets or sets a value indicating whether the controller should reinitialize its position from the camera on the next tick.</summary>
     public bool Initialize { get; set; }
+    /// <summary>Gets or sets a value indicating whether bunny-hopping is allowed by holding the jump key.</summary>
     public bool AutoBunnyHop { get; set; } = true;
+    /// <summary>Gets or sets the base run speed in world units per second.</summary>
     public float RunSpeed { get; set; } = 250f;
 
+    /// <summary>
+    /// Initializes a new <see cref="PlayerMovement"/> bound to the given user input source.
+    /// </summary>
+    /// <param name="input">The user input instance used to read key state.</param>
     public PlayerMovement(UserInput input)
     {
         Input = input;

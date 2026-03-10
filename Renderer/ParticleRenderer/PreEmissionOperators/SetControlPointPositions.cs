@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
+    /// <summary>
+    /// Sets the positions of up to four control points to fixed locations, optionally offset
+    /// from a parent control point and optionally only once. Corresponds to <c>C_OP_SetControlPointPositions</c>.
+    /// </summary>
     class SetControlPointPositions : ParticleFunctionPreEmissionOperator
     {
         private readonly int CP1 = 1;

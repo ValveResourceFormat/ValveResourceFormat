@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Interpolates a particle's color toward a per-particle randomly chosen target color (between a min and max fade color) over a normalized age range.
+    /// </summary>
     class ColorInterpolateRandom : ParticleFunctionOperator
     {
         private readonly Vector3 colorFadeMin = Vector3.One;

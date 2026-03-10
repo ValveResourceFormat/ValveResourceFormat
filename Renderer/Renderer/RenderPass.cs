@@ -5,15 +5,21 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public enum RenderPass
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Depth pre-pass or shadow map pass.</summary>
         DepthOnly,
+        /// <summary>Opaque pass for GPU-driven aggregate scene nodes.</summary>
         OpaqueAggregate,
+        /// <summary>Opaque pass for individual draw calls.</summary>
         OpaqueFragments,
+        /// <summary>Standard opaque pass.</summary>
         Opaque,
+        /// <summary>Static overlay decal pass.</summary>
         StaticOverlay,
+        /// <summary>Water surface pass.</summary>
         Water,
+        /// <summary>Translucent (alpha-blended) pass.</summary>
         Translucent,
+        /// <summary>Selection outline pass.</summary>
         Outline,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 }

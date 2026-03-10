@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Scales a particle's radius by interpolating between a start scale and end scale over a
+    /// specified time window of the particle's normalized lifetime, with an optional bias applied
+    /// to the interpolation curve.
+    /// </summary>
     class InterpolateRadius : ParticleFunctionOperator
     {
         private readonly float startTime;

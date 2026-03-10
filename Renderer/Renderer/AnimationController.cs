@@ -10,11 +10,17 @@ namespace ValveResourceFormat.Renderer
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
 
+        /// <summary>Gets or sets the playback speed multiplier applied to the animation timestep.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
+
+        /// <summary>Gets the current playback time in seconds.</summary>
         public float Time { get; private set; }
         private bool forceUpdate;
 
+        /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
         public Animation? ActiveAnimation { get; private set; }
+
+        /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
 
         /// <summary>
@@ -32,9 +38,12 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public Matrix4x4[] Pose { get; }
 
+        /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
         private bool isPaused;
+
+        /// <summary>Gets or sets whether animation playback is paused. Setting to <see langword="false"/> forces an immediate pose update.</summary>
         public bool IsPaused
         {
             get => isPaused;
@@ -45,6 +54,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
             get
@@ -67,6 +77,12 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Initializes a new <see cref="AnimationController"/> for the given skeleton and flex controllers,
+        /// computing the bind pose and inverse bind pose matrices.
+        /// </summary>
+        /// <param name="skeleton">The skeleton whose bones define the rig.</param>
+        /// <param name="flexControllers">The flex controllers used for facial/morph animation.</param>
         public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
         {
             FrameCache = new(skeleton, flexControllers);
@@ -84,6 +100,11 @@ namespace ValveResourceFormat.Renderer
             BindPose.CopyTo(Pose, 0);
         }
 
+        /// <summary>
+        /// Advances the animation by <paramref name="timeStep"/> seconds and recomputes bone poses.
+        /// </summary>
+        /// <param name="timeStep">Elapsed time in seconds since the last update.</param>
+        /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> if nothing changed.</returns>
         public bool Update(float timeStep)
         {
             if ((ActiveAnimation == null || IsPaused || ActiveAnimation.FrameCount == 1) && !forceUpdate)
@@ -119,6 +140,10 @@ namespace ValveResourceFormat.Renderer
             return true;
         }
 
+        /// <summary>
+        /// Sets the active animation, resets playback to frame zero, and clears the frame cache.
+        /// </summary>
+        /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
         public void SetAnimation(Animation? animation)
         {
             FrameCache.Clear();
@@ -129,12 +154,17 @@ namespace ValveResourceFormat.Renderer
             updateHandler(ActiveAnimation, -1);
         }
 
+        /// <summary>Pauses playback and seeks to the last frame of the active animation.</summary>
         public void PauseLastFrame()
         {
             IsPaused = true;
             Frame = ActiveAnimation == null ? 0 : ActiveAnimation.FrameCount - 1;
         }
 
+        /// <summary>
+        /// Returns the animation frame for the current time, using exact frame lookup when paused or interpolation during playback.
+        /// </summary>
+        /// <returns>The current animation frame, or <see langword="null"/> if no animation is active.</returns>
         public Frame? GetFrame()
         {
             if (ActiveAnimation == null)
@@ -151,6 +181,10 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Registers a callback invoked each time the animation frame changes, receiving the active animation and frame index.
+        /// </summary>
+        /// <param name="handler">The callback to invoke on each animation update.</param>
         public void RegisterUpdateHandler(Action<Animation?, int> handler)
         {
             updateHandler = handler;

@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
+    /// <summary>
+    /// Measures the distance between two control points and remaps it into an output range,
+    /// writing the result to a field of a third control point.
+    /// Corresponds to <c>C_OP_DistanceBetweenCPsToCP</c>.
+    /// </summary>
     class DistanceBetweenCPsToCP : ParticleFunctionPreEmissionOperator
     {
         private readonly float distanceMin;

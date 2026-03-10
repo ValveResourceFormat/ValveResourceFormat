@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Sets a scalar particle attribute to a per-particle float value, with an optional
+    /// interpolation factor that blends between the current value and the target each frame.
+    /// </summary>
     class SetFloat : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Radius;

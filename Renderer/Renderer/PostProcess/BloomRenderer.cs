@@ -20,18 +20,26 @@ public class BloomRenderer
     private Framebuffer? Pong;
     private Framebuffer? Accumulation;
 
+    /// <summary>Gets the texture containing the final composited bloom result after the upsample passes.</summary>
     public RenderTexture? AccumulationResult { get; private set; }
 
+    /// <summary>Number of mip levels in the bloom accumulation buffer.</summary>
     public const int BloomMipCount = 4;
     private readonly RendererContext RendererContext;
     private readonly PostProcessRenderer PostProcessRenderer;
 
+    /// <summary>
+    /// Initializes a new <see cref="BloomRenderer"/> using the given renderer context and post-process renderer.
+    /// </summary>
+    /// <param name="rendererContext">The renderer context providing shader loading and mesh buffer access.</param>
+    /// <param name="postProcessRenderer">The owning post-process renderer, used for shared state and format.</param>
     public BloomRenderer(RendererContext rendererContext, PostProcessRenderer postProcessRenderer)
     {
         RendererContext = rendererContext;
         PostProcessRenderer = postProcessRenderer;
     }
 
+    /// <summary>Loads bloom shaders and allocates ping-pong and accumulation framebuffers.</summary>
     public void Load()
     {
         firstDownsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("vrf.downsample_bloomthreshold");

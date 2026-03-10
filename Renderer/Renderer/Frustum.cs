@@ -6,8 +6,10 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public readonly struct Frustum
     {
+        /// <summary>Gets the six clipping planes that define this frustum.</summary>
         public readonly Plane[] Planes { get; }
 
+        /// <summary>Initializes a new <see cref="Frustum"/> with six zeroed planes.</summary>
         public Frustum()
         {
             Planes = new Plane[6];

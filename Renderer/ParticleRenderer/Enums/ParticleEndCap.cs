@@ -5,10 +5,11 @@ namespace ValveResourceFormat.Renderer.Particles
     /// </summary>
     public enum ParticleEndCapMode
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>The operator always runs, regardless of endcap state.</summary>
         PARTICLE_ENDCAP_ALWAYS_ON = -1,
+        /// <summary>The operator runs only when the endcap is not active.</summary>
         PARTICLE_ENDCAP_ENDCAP_OFF = 0,
+        /// <summary>The operator runs only during the endcap phase.</summary>
         PARTICLE_ENDCAP_ENDCAP_ON = 1,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 }

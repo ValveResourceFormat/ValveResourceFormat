@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Fades a particle's alpha out over a per-particle randomly chosen duration drawn from a min/max range, with an optional bias curve applied to the fade.
+    /// </summary>
     class FadeOutRandom : ParticleFunctionOperator
     {
         private readonly float fadeOutTimeMin = 0.25f;

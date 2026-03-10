@@ -11,13 +11,28 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// </summary>
     public readonly struct TonemapSettings
     {
+        /// <summary>Gets the exposure bias in log2 stops; converted to linear via exp2 before GPU upload.</summary>
         public float ExposureBias { get; init; } // converted to linear via exp2. Kept as exposurebias for blending purposes
+
+        /// <summary>Gets the shoulder strength of the Uncharted 2 tonemapping curve.</summary>
         public float ShoulderStrength { get; init; }
+
+        /// <summary>Gets the linear section strength of the tonemapping curve.</summary>
         public float LinearStrength { get; init; }
+
+        /// <summary>Gets the linear section angle of the tonemapping curve.</summary>
         public float LinearAngle { get; init; }
+
+        /// <summary>Gets the toe strength of the tonemapping curve.</summary>
         public float ToeStrength { get; init; }
+
+        /// <summary>Gets the toe numerator of the tonemapping curve.</summary>
         public float ToeNum { get; init; }
+
+        /// <summary>Gets the toe denominator of the tonemapping curve.</summary>
         public float ToeDenom { get; init; }
+
+        /// <summary>Gets the white point value; passed through the tonemapper before GPU upload.</summary>
         public float WhitePoint { get; init; } // This is ran through the tonemapper before being given to the shader
         // The following params aren't used, I think?
         /*float LuminanceSource; // CS2
@@ -30,6 +45,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         */
 
         // Default settings (filmic)
+        /// <summary>Initializes a new <see cref="TonemapSettings"/> with default filmic curve values.</summary>
         public TonemapSettings()
         {
             ExposureBias = 0.0f;
@@ -42,6 +58,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             WhitePoint = 4.0f;
         }
 
+        /// <summary>Returns a <see cref="TonemapSettings"/> configured for linear (passthrough) tonemapping.</summary>
         public static TonemapSettings Linear()
         {
             return new TonemapSettings()
@@ -56,6 +73,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 WhitePoint = 2.83f,
             };
         }
+        /// <summary>Initializes a new <see cref="TonemapSettings"/> by reading values from a KV object.</summary>
+        /// <param name="tonemapParams">The KV object containing tonemapping parameters.</param>
         public TonemapSettings(KVObject tonemapParams)
         {
             // no "Unchecked" equivalent for KVObject
@@ -68,13 +87,11 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             ToeDenom = (float)tonemapParams.GetProperty<double>("m_flToeDenom");
             WhitePoint = (float)tonemapParams.GetProperty<double>("m_flWhitePoint");
         }
-        /// <summary>
-        /// Lerp between two tonemap settings based on a weight
-        /// </summary>
-        /// <param name="weight"></param>
-        /// <param name="TonemapSettings1"></param>
-        /// <param name="TonemapSettings2"></param>
-        /// <returns></returns>
+        /// <summary>Linearly interpolates between two <see cref="TonemapSettings"/> by a given weight.</summary>
+        /// <param name="weight">Blend factor in the range [0, 1]; 0 returns <paramref name="TonemapSettings1"/>, 1 returns <paramref name="TonemapSettings2"/>.</param>
+        /// <param name="TonemapSettings1">The first (start) tonemapping settings.</param>
+        /// <param name="TonemapSettings2">The second (end) tonemapping settings.</param>
+        /// <returns>A new <see cref="TonemapSettings"/> whose fields are component-wise lerped between the two inputs.</returns>
         public static TonemapSettings BlendTonemapSettings(float weight, TonemapSettings TonemapSettings1, TonemapSettings TonemapSettings2)
         {
             return new TonemapSettings()
@@ -89,11 +106,9 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 WhitePoint = float.Lerp(TonemapSettings1.WhitePoint, TonemapSettings2.WhitePoint, weight),
             };
         }
-        /// <summary>
-        /// CPU version of the Uncharted 2 tonemapper (the tonemapping S2 uses) used to calculate White Point
-        /// </summary>
-        /// <param name="inputValue"></param>
-        /// <returns></returns>
+        /// <summary>Applies the Uncharted 2 filmic tonemapping curve to a single input value.</summary>
+        /// <param name="inputValue">The linear HDR value to tonemap.</param>
+        /// <returns>The tonemapped LDR output value.</returns>
         public readonly float ApplyTonemapping(float inputValue) // apply exposure bias too?
         {
             var num = inputValue * (inputValue * ShoulderStrength + (LinearAngle * LinearStrength)) + (ToeStrength * ToeNum);
@@ -107,17 +122,28 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// </summary>
     public struct ExposureSettings
     {
+        /// <summary>Gets or sets whether automatic eye adaptation is active.</summary>
         public bool AutoExposureEnabled { get; set; }
 
+        /// <summary>Gets the minimum allowed exposure value.</summary>
         public float ExposureMin { get; init; }
+
+        /// <summary>Gets the maximum allowed exposure value.</summary>
         public float ExposureMax { get; init; }
 
+        /// <summary>Gets the rate at which exposure adapts toward brighter scenes.</summary>
         public float ExposureSpeedUp { get; init; }
+
+        /// <summary>Gets the rate at which exposure adapts toward darker scenes.</summary>
         public float ExposureSpeedDown { get; init; }
+
+        /// <summary>Gets the luminance smoothing range used to dampen rapid exposure changes.</summary>
         public float ExposureSmoothingRange { get; init; }
 
+        /// <summary>Gets the exposure compensation bias added on top of the adapted value.</summary>
         public float ExposureCompensation { get; init; }
 
+        /// <summary>Initializes a new <see cref="ExposureSettings"/> with default values.</summary>
         public ExposureSettings()
         {
             AutoExposureEnabled = false;
@@ -129,6 +155,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             ExposureCompensation = 0.0f;
         }
 
+        /// <summary>Creates an <see cref="ExposureSettings"/> populated from entity key-value properties.</summary>
         public static ExposureSettings LoadFromEntity(Entity entity)
         {
             var def = new ExposureSettings();
@@ -157,11 +184,12 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// </summary>
     public enum BloomBlendType
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Additively blends the bloom layer over the scene.</summary>
         BLOOM_BLEND_ADD,
+        /// <summary>Screen blends the bloom layer with the scene.</summary>
         BLOOM_BLEND_SCREEN,
+        /// <summary>Blurs the bloom layer before blending with the scene.</summary>
         BLOOM_BLEND_BLUR
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 
     /// <summary>
@@ -169,17 +197,37 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// </summary>
     public readonly struct BloomSettings()
     {
+        /// <summary>Gets the compositing blend mode used to apply bloom.</summary>
         public BloomBlendType BlendMode { get; init; } = BloomBlendType.BLOOM_BLEND_ADD;
+
+        /// <summary>Gets the additive bloom strength.</summary>
         public float AddBloomStrength { get; init; } = 1;
+
+        /// <summary>Gets the screen-blend bloom strength.</summary>
         public float ScreenBloomStrength { get; init; } = 0;
+
+        /// <summary>Gets the blur-blend bloom strength.</summary>
         public float BlurBloomStrength { get; init; } = 0;
+
+        /// <summary>Gets the luminance threshold above which pixels contribute to bloom.</summary>
         public float BloomThreshold { get; init; } = 1.05f;
+
+        /// <summary>Gets the width of the soft threshold knee for bloom.</summary>
         public float BloomThresholdWidth { get; init; } = 1.661f;
+
+        /// <summary>Gets the strength multiplier applied to skybox pixels in bloom.</summary>
         public float SkyboxBloomStrength { get; init; } = 1;
+
+        /// <summary>Gets the minimum luminance value that begins contributing to bloom.</summary>
         public float BloomStartValue { get; init; } = 1;
+
+        /// <summary>Gets the per-mip blur weights for the five blur buffers (1/2 through 1/32 resolution).</summary>
         public float[] BlurWeight { get; init; } = [0.2f, 0.2f, 0.2f, 0.2f, 0.2f];
+
+        /// <summary>Gets the per-mip color tints for the five blur buffers.</summary>
         public Vector3[] BlurTint { get; init; } = [Vector3.One, Vector3.One, Vector3.One, Vector3.One, Vector3.One];
 
+        /// <summary>Gets the effective bloom strength for the current <see cref="BlendMode"/>.</summary>
         public float BloomStrength =>
             BlendMode switch
             {
@@ -189,7 +237,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 _ => throw new InvalidOperationException("Invalid bloom blend type")
             };
 
-
+        /// <summary>Parses a <see cref="BloomSettings"/> from a KV object.</summary>
         public static BloomSettings ParseFromKVObject(KVObject data)
         {
             var settings = new BloomSettings();
@@ -229,18 +277,32 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// </summary>
     public struct PostProcessState()
     {
+        /// <summary>Gets or sets the active tonemapping curve settings.</summary>
         public TonemapSettings TonemapSettings { get; set; }
+
+        /// <summary>Gets or sets the active bloom effect settings.</summary>
         public BloomSettings BloomSettings { get; set; }
+
+        /// <summary>Gets or sets the active automatic exposure settings.</summary>
         public ExposureSettings ExposureSettings { get; set; }
 
+        /// <summary>Gets or sets whether bloom is active in this state.</summary>
         public bool HasBloom { get; set; } = false;
 
         // for blending colorcorrectionluts this would be a List with weights, right?
+        /// <summary>Gets or sets the color correction 3D LUT texture, or <see langword="null"/> if none.</summary>
         public RenderTexture? ColorCorrectionLUT { get; set; }
+
+        /// <summary>Gets or sets the blend weight for the color correction LUT.</summary>
         public float ColorCorrectionWeight { get; set; } = 1.0f;
+
+        /// <summary>Gets or sets the resolution of the color correction LUT cube (e.g. 32 for a 32x32x32 LUT).</summary>
         public int ColorCorrectionLutDimensions { get; set; } = 32;
+
+        /// <summary>Gets or sets the number of LUT layers currently active.</summary>
         public int NumLutsActive { get; set; }
 
+        /// <summary>Gets a default <see cref="PostProcessState"/> with filmic tonemapping and no bloom.</summary>
         public static PostProcessState Default { get; } = new()
         {
             TonemapSettings = new TonemapSettings(),
@@ -254,6 +316,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// </summary>
     public class SceneTonemapController(Scene scene) : SceneNode(scene)
     {
+        /// <summary>Gets or sets the exposure settings contributed by this controller.</summary>
         public ExposureSettings ControllerExposureSettings { get; set; }
     }
 
@@ -263,23 +326,41 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// </summary>
     public class ScenePostProcessVolume(Scene scene) : SceneNode(scene)
     {
+        /// <summary>Gets the fade time in seconds when transitioning into this volume.</summary>
         public float FadeTime { get; init; }
+
+        /// <summary>Gets whether this volume overrides auto-exposure settings.</summary>
         public bool UseExposure { get; init; }
 
+        /// <summary>Gets whether this is the global master post-process volume.</summary>
         public bool IsMaster { get; init; }
 
         // Don't skip if no postprocess resource. Could still affect exposure
+        /// <summary>Gets or sets the parsed post-processing resource for this volume.</summary>
         public PostProcessing? PostProcessingResource { get; set; }
+
+        /// <summary>Gets or sets the model used as the trigger volume shape.</summary>
         public Model? ModelVolume { get; set; } // dumb
 
+        /// <summary>Gets or sets whether this post-processing resource uses the HLA-era format.</summary>
         public bool IsPostHLA { get; set; }
 
+        /// <summary>Gets or sets whether this volume has bloom data.</summary>
         public bool HasBloom { get; set; }
+
+        /// <summary>Gets or sets the tonemapping settings applied by this volume.</summary>
         public TonemapSettings PostProcessTonemapSettings { get; set; } = new();
+
+        /// <summary>Gets or sets the bloom settings applied by this volume.</summary>
         public BloomSettings BloomSettings { get; set; } = new();
+
+        /// <summary>Gets or sets the exposure settings applied by this volume.</summary>
         public ExposureSettings ExposureSettings { get; set; } = new();
 
+        /// <summary>Gets or sets the color correction LUT texture for this volume.</summary>
         public RenderTexture? ColorCorrectionLUT { get; set; }
+
+        /// <summary>Gets or sets the resolution of the color correction LUT cube.</summary>
         public int ColorCorrectionLutDimensions { get; set; }
 
         // Bloom isn't implemented yet.
@@ -299,6 +380,10 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         // use local post process volumes, and can only use the master.
 
         //
+        /// <summary>
+        /// Reads tonemapping, bloom, and color correction data from the given post-processing resource.
+        /// </summary>
+        /// <param name="resource">The post-processing resource to load.</param>
         public void LoadPostProcessResource(PostProcessing resource)
         {
             PostProcessingResource = resource;

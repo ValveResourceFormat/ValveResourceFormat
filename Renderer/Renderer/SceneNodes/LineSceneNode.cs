@@ -42,6 +42,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 #endif
         }
 
+        /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
             if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline)

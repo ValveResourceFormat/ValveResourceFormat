@@ -2,19 +2,24 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles at positions interpolated along a path defined by a sequence of control
+    /// points. Supports optional random CP pair selection and a configurable midpoint bulge.
+    /// Corresponds to <c>C_INIT_CreateAlongPath</c>.
+    /// </summary>
     class CreateAlongPath : ParticleFunctionInitializer
     {
         private readonly int StartControlPointNumber;
         private readonly int EndControlPointNumber = 1;
 
         private readonly float MaxDistance;
-        private readonly bool UseRandomCPs;
+        private readonly bool UseRandomCPs; // randomly select sequential CP pairs between start and end points
 
         private readonly float MidPoint;
 
         private readonly Vector3 StartPointOffset = Vector3.Zero;
         private readonly Vector3 MidPointOffset = Vector3.Zero;
-        private readonly Vector3 EndOffset = Vector3.Zero;
+        private readonly Vector3 EndOffset = Vector3.Zero; // Offset from control point for path end
         public CreateAlongPath(ParticleDefinitionParser parse) : base(parse)
         {
             UseRandomCPs = parse.Boolean("m_bUseRandomCPs", UseRandomCPs);

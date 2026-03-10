@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Randomly flips the yaw of a particle by 180 degrees based on a configurable flip percentage.
+    /// Corresponds to <c>C_INIT_RandomYawFlip</c>.
+    /// </summary>
     class RandomYawFlip : ParticleFunctionInitializer
     {
         private readonly float percent;

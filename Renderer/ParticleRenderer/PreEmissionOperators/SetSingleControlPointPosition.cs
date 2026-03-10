@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
+    /// <summary>
+    /// Sets a single control point to a specified position, optionally offset from another control
+    /// point and optionally only once. Corresponds to <c>C_OP_SetSingleControlPointPosition</c>.
+    /// </summary>
     class SetSingleControlPointPosition : ParticleFunctionPreEmissionOperator
     {
         private readonly int CP1 = 1;

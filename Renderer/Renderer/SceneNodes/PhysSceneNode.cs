@@ -16,7 +16,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private static readonly Color32 ColorMesh = new(0.4f, 0.4f, 1f, 0.65f);
         private static readonly Color32 ColorHull = new(1.0f, 0.2f, 0.1f, 0.65f);
 
+        /// <inheritdoc/>
         public override bool LayerEnabled => Enabled && base.LayerEnabled;
+
+        /// <summary>Gets or sets whether this physics node is individually enabled for rendering.</summary>
         public bool Enabled
         {
             get => field;
@@ -26,12 +29,27 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 Scene.MarkParentOctreeDirty(this);
             }
         }
+
+        /// <summary>Gets the display name of the collision group represented by this node.</summary>
         public required string PhysGroupName { get; init; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PhysSceneNode"/> class from pre-built vertex and index lists.
+        /// </summary>
+        /// <param name="scene">The scene this node belongs to.</param>
+        /// <param name="verts">The vertex data for the collision geometry.</param>
+        /// <param name="inds">The index data for the collision geometry.</param>
         public PhysSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : base(scene, verts, inds)
         {
         }
 
+        /// <summary>
+        /// Creates one <see cref="PhysSceneNode"/> per collision attribute group from the given physics aggregate data.
+        /// </summary>
+        /// <param name="scene">The scene to add nodes to.</param>
+        /// <param name="phys">The physics aggregate data containing all collision shapes.</param>
+        /// <param name="fileName">The source file name, used for the node's <see cref="SceneNode.Name"/>.</param>
+        /// <param name="classname">Optional entity classname used to derive tool textures and names.</param>
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string? fileName, string? classname = null)
         {
             var groupCount = phys.CollisionAttributes.Count;

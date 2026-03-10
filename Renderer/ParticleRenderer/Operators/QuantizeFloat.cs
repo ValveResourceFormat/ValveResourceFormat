@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Quantizes a scalar particle attribute to the nearest multiple of a given step size,
+    /// effectively snapping the value to a grid.
+    /// </summary>
     class QuantizeFloat : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Radius;

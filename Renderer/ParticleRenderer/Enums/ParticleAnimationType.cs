@@ -5,10 +5,11 @@ namespace ValveResourceFormat.Renderer.Particles
     /// </summary>
     public enum ParticleAnimationType
     {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+        /// <summary>Animation advances at a fixed rate regardless of lifetime.</summary>
         ANIMATION_TYPE_FIXED_RATE,
+        /// <summary>Animation frame is set manually by operators.</summary>
         ANIMATION_TYPE_MANUAL_FRAMES,
+        /// <summary>Animation is stretched to fit the particle lifetime.</summary>
         ANIMATION_TYPE_FIT_LIFETIME,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
     }
 }

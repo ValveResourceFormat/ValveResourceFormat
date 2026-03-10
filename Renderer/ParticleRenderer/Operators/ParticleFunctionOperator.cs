@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Base class for particle operators that run each simulation frame to modify particle attributes.
+    /// </summary>
     abstract class ParticleFunctionOperator : ParticleFunction
     {
         protected ParticleFunctionOperator(ParticleDefinitionParser parse) : base(parse)

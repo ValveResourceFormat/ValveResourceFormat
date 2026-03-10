@@ -23,8 +23,12 @@ namespace ValveResourceFormat.Renderer
         private readonly List<SimpleVertex> vertices = new(48);
 
         private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
+
+        /// <summary>Gets or sets optional debug text rendered in the top-left corner of the viewport.</summary>
         public string ScreenDebugText { get; set; } = string.Empty;
 
+        /// <summary>Initializes the selected node renderer and creates GPU resources.</summary>
+        /// <param name="rendererContext">Renderer context for loading shaders.</param>
         public SelectedNodeRenderer(RendererContext rendererContext)
         {
             shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
@@ -41,6 +45,8 @@ namespace ValveResourceFormat.Renderer
 #endif
         }
 
+        /// <summary>Toggles selection of the given node, adding it if not selected or removing it if already selected.</summary>
+        /// <param name="node">The scene node to toggle.</param>
         public void ToggleNode(SceneNode node)
         {
             var selectedNode = selectedNodes.IndexOf(node);
@@ -67,6 +73,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Clears the selection and selects a single node, optionally disabling depth testing for its overlay.</summary>
+        /// <param name="node">Node to select, or <see langword="null"/> to clear the selection.</param>
+        /// <param name="forceDisableDepth">When <see langword="true"/>, the selection overlay is drawn without depth testing.</param>
         public void SelectNode(SceneNode? node, bool forceDisableDepth = false)
         {
             RemoveAllLightProbeDebugGrid();
@@ -89,6 +98,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Toggles the layer-enabled state of all currently selected nodes.</summary>
         public void DisableSelectedNodes()
         {
             foreach (var node in selectedNodes)
@@ -180,6 +190,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Rebuilds the wireframe geometry and text labels for all selected nodes.</summary>
+        /// <param name="renderContext">Render context providing camera and scene state.</param>
+        /// <param name="updateContext">Update context providing the text renderer.</param>
         public void Update(Scene.RenderContext renderContext, Scene.UpdateContext updateContext)
         {
             disableDepth = selectedNodes.Count > 1;
@@ -340,6 +353,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Renders the wireframe selection overlay for the current frame.</summary>
         public void Render()
         {
             if (vertexCount == 0)
@@ -369,6 +383,8 @@ namespace ValveResourceFormat.Renderer
             GL.Enable(EnableCap.DepthTest);
         }
 
+        /// <summary>Updates which debug overlays (cubemaps, light probes) are drawn based on the active render mode.</summary>
+        /// <param name="mode">The render mode name from the viewer.</param>
         public void SetRenderMode(string mode)
         {
             debugCubeMaps = mode == "Cubemaps";

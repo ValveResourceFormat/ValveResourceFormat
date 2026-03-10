@@ -5,12 +5,15 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 public enum DepthOnlyProgram
 {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    /// <summary>Static (non-animated) geometry.</summary>
     Static,
     //StaticAlphaTest,
+    /// <summary>Skinned geometry with up to 4 bone weights.</summary>
     Animated,
+    /// <summary>Skinned geometry with up to 8 bone weights.</summary>
     AnimatedEightBones,
+    /// <summary>AABB proxy used for hardware occlusion queries.</summary>
     OcclusionQueryAABBProxy,
+    /// <summary>Unspecified program type.</summary>
     Unspecified,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }

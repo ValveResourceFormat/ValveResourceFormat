@@ -1,6 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
-    // Cull when crossing sphere
+    /// <summary>
+    /// Kills particles that cross a spherical boundary around a control point, culling either inside or outside the sphere.
+    /// </summary>
     class DistanceCull : ParticleFunctionOperator
     {
         private readonly int cp;

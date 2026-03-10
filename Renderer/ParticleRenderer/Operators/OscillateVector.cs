@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Oscillates a vector particle attribute by adding a per-component sinusoidal delta each
+    /// frame. The oscillation rate and frequency vectors are randomized per particle within
+    /// configurable min/max ranges.
+    /// </summary>
     class OscillateVector : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Position;
@@ -86,6 +91,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         }
     }
 
+    /// <summary>
+    /// Oscillates a vector particle attribute by adding a per-component sinusoidal delta each
+    /// frame, using fixed rate and frequency vectors.
+    /// </summary>
     class OscillateVectorSimple : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Position;
