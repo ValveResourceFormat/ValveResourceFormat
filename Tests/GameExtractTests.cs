@@ -5,6 +5,9 @@ using SteamDatabase.ValvePak;
 
 namespace Tests;
 
+/// <summary>
+/// Manual regression tests used for large game files not included in CI.
+/// </summary>
 public class GameExtractTests
 {
     static readonly (int AppId, string Game, string AssetName)[] AnimGraphs = [
@@ -15,6 +18,17 @@ public class GameExtractTests
     [Test, TestCaseSource(nameof(AnimGraphs))]
     public void ExtractAnimGraph((int appId, string gameFolder, string assetName) testCase)
     {
+        var testLocalPath = Path.Combine("Files", "GameExtract", $"{testCase.appId}", Path.GetFileName(testCase.assetName));
+        var outputPathRepo = Path.Combine(TestContext.CurrentContext.TestDirectory, "../../", testLocalPath);
+
+        // Use this to create or update correct output files
+        var UpdateFiles = false;
+
+        if (UpdateFiles == false && !File.Exists(outputPathRepo))
+        {
+            Assert.Ignore($"Sample output file not present.");
+        }
+
         var game = GameFolderLocator.FindSteamGameByAppId(testCase.appId);
         if (!game.HasValue)
         {
@@ -33,7 +47,6 @@ public class GameExtractTests
         // Remove the test case if you hit this
         Assert.That(asset, Is.Not.Null, $"{testCase.assetName} no longer exists on {pak01}.");
 
-        var testLocalPath = Path.Combine("Files", "GameExtract", $"{testCase.appId}", Path.GetFileName(testCase.assetName));
         var outputPath = Path.Combine(TestContext.CurrentContext.TestDirectory, testLocalPath);
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
@@ -42,12 +55,8 @@ public class GameExtractTests
 
         Assert.That(content.Data, Is.Not.Null, $"Failed to extract {testCase.assetName}.");
 
-        // Use this to update test files
-        var UpdateFiles = false;
-
         if (UpdateFiles)
         {
-            var outputPathRepo = Path.Combine(TestContext.CurrentContext.TestDirectory, "../../", testLocalPath);
             Directory.CreateDirectory(Path.GetDirectoryName(outputPathRepo)!);
             using var stream = new FileStream(outputPathRepo, FileMode.Create);
             stream.Write(content.Data);
