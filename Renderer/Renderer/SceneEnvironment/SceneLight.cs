@@ -135,7 +135,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public int CastShadows { get; set; } = 1;
 
     /// <summary>Gets or sets the shadow map resolution in texels.</summary>
-    public int ShadowMapSize { get; set; } = 512;
+    public int ShadowMapSize { get; set; } = 1024;
 
     /// <summary>Gets or sets whether the precomputed OBB fields below are valid.</summary>
     public bool PrecomputedFieldsValid { get; set; }
@@ -238,10 +238,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         {
             light.DirectLight = entity.GetPropertyUnchecked("directlight", 2);
             light.CastShadows = entity.GetPropertyUnchecked("castshadows", 1);
-            light.ShadowMapSize = entity.GetPropertyUnchecked("shadowmapsize", 512);
+            light.ShadowMapSize = entity.GetPropertyUnchecked("shadowmapsize", 1024);
             if (light.ShadowMapSize <= 0)
             {
-                light.ShadowMapSize = 512;
+                light.ShadowMapSize = 1024;
             }
         }
 
@@ -528,7 +528,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
 
         var origin = light.Transform.Translation;
-        var nearPlane = 1f / MathF.Max(light.SizeParams.Z, 0.0001f);
+        var nearPlane = 1f;
         var orientationQ = Quaternion.CreateFromRotationMatrix(light.Transform);
         var linearColor = ComputeOmni2Color(light);
 

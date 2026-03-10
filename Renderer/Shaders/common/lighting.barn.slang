@@ -208,17 +208,12 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
                 shadowUV = ndc.yx * vec2(1.0, -1.0);
             }
 
-            // Custom fix for omni face seams
-            shadowUV *= 0.995;
-
             // This is only used because of no g_vShadow3x3PCFTermC0-3
             vec2 texelSize = 1.0 / vec2(textureSize(g_tBarnLightShadowDepth, 0));
             shadowUV = shadowUV * barnLight.m_vBarnLightShadowOffsetScale.zw
                      + barnLight.m_vBarnLightShadowOffsetScale.xy;
 
             const float g_flShadowCascadeReceiverDepthBias = -0.000015;
-            ndc.z += g_flShadowCascadeReceiverDepthBias;
-
             float shadowRef = saturate(ndc.z + g_flShadowCascadeReceiverDepthBias);
 
             //float shadow = ComputeBarnLightShadow(shadowUV, shadowRef);

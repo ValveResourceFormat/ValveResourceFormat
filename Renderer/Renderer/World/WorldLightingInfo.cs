@@ -116,6 +116,7 @@ namespace ValveResourceFormat.Renderer.World
             (2048f, 256),
         ];
 
+        private const int OmniShadowBorder = 2;
         private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
         private readonly List<ShadowRequest> ShadowRequests = [];
         private readonly ShadowAtlasPacker ShadowAtlas = new(64);
@@ -440,7 +441,9 @@ namespace ValveResourceFormat.Renderer.World
                     var distance = Vector3.Distance(cameraPosition, light.Position);
                     (w, h) = ApplyDistanceCap(w, h, distance);
 
-                    // Only submit shadows if all faces can be rendered
+                    w = Math.Max(w, 64);
+                    h = Math.Max(h, 64);
+
                     if (ShadowRequests.Count + light.BarnFaces.Length > ShadowAtlas.MaxShadowMaps)
                     {
                         continue;
@@ -448,9 +451,10 @@ namespace ValveResourceFormat.Renderer.World
 
                     light.WillDrawShadows = true;
 
+                    var border = light.Entity == SceneLight.EntityType.Omni2 ? OmniShadowBorder * 2 : 0;
                     for (var i = 0; i < light.BarnFaces.Length; i++)
                     {
-                        ShadowRequests.Add(new ShadowRequest(w, h));
+                        ShadowRequests.Add(new ShadowRequest(w + border, h + border));
                     }
                 }
             }
@@ -491,10 +495,19 @@ namespace ValveResourceFormat.Renderer.World
 
                         if (region.IsValid)
                         {
-                            var atlasScale = new Vector2(region.Width, region.Height) / BarnLightShadowAtlasSize;
-                            var atlasOffset = new Vector2(region.X, region.Y) / BarnLightShadowAtlasSize;
-                            var bakedScale = atlasScale * 0.5f;
-                            var bakedOffset = atlasOffset + bakedScale;
+                            var shadowMatrix = face.WorldToFrustum;
+                            var bakedScale = new Vector2(region.Width, region.Height) / BarnLightShadowAtlasSize * 0.5f;
+                            var bakedOffset = new Vector2(region.X + region.Width / 2f, region.Y + region.Height / 2f) / BarnLightShadowAtlasSize;
+
+                            if (light.Entity == SceneLight.EntityType.Omni2)
+                            {
+                                var shrink = new Vector2(
+                                    (float) (region.Width - OmniShadowBorder * 2) / region.Width,
+                                    (float) (region.Height - OmniShadowBorder * 2) / region.Height
+                                );
+                                bakedScale *= shrink;
+                                shadowMatrix *= Matrix4x4.CreateScale(shrink.X, shrink.Y, 1f);
+                            }
 
                             data.BarnLightShadowOffsetScale = new Vector4(
                                 bakedOffset.X, bakedOffset.Y,
@@ -504,7 +517,7 @@ namespace ValveResourceFormat.Renderer.World
 
                             BinnedShadowCasters.Add(new BinnedShadowCaster
                             {
-                                WorldToFrustum = face.WorldToFrustum,
+                                WorldToFrustum = shadowMatrix,
                                 Region = region,
                                 Light = light,
                                 FaceIndex = faceIndex,
