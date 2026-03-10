@@ -28,6 +28,169 @@ public class AnimationGraphExtract
     private List<KVObject>? footPinningItems;
     private KVObject? scriptManager;
 
+    // helper enum & mappings to reduce duplication when converting nodes/properties
+    private enum PropAction
+    {
+        Copy,
+        Rename,
+        ParamRef,
+        InputConnection,
+        BlendDuration,
+        BlendCurve,
+        SequenceName,
+        TagIndex,
+        TagBehavior,
+        Skip
+    }
+
+    private static readonly Dictionary<string, Dictionary<string, (PropAction Action, string? OutputKey)>> PropertyMappings
+        = new(StringComparer.Ordinal)
+        {
+            ["CMover"] = new(StringComparer.Ordinal)
+            {
+                ["m_pChildNode"] = (PropAction.InputConnection, null),
+                ["m_hMoveVecParam"] = (PropAction.ParamRef, "m_moveVectorParam"),
+                ["m_hMoveHeadingParam"] = (PropAction.ParamRef, "m_moveHeadingParam"),
+                ["m_hTurnToFaceParam"] = (PropAction.ParamRef, "m_param"),
+                ["m_facingTarget"] = (PropAction.Copy, null),
+                ["m_flTurnToFaceOffset"] = (PropAction.Copy, null),
+                ["m_flTurnToFaceLimit"] = (PropAction.Copy, null),
+                ["m_bAdditive"] = (PropAction.Copy, null),
+                ["m_bApplyMovement"] = (PropAction.Copy, null),
+                ["m_bOrientMovement"] = (PropAction.Copy, null),
+                ["m_bApplyRotation"] = (PropAction.Rename, "m_bTurnToFace"),
+                ["m_bLimitOnly"] = (PropAction.Copy, null),
+                ["m_damping"] = (PropAction.Copy, null),
+            },
+            ["CSelector"] = new(StringComparer.Ordinal)
+            {
+                ["m_eTagBehavior"] = (PropAction.TagBehavior, null),
+                ["m_flBlendTime"] = (PropAction.BlendDuration, null),
+                ["m_blendCurve"] = (PropAction.BlendCurve, null),
+                ["m_nTagIndex"] = (PropAction.TagIndex, null),
+                ["m_bResetOnChange"] = (PropAction.Copy, null),
+                ["m_bLockWhenWaning"] = (PropAction.Copy, null),
+                ["m_bSyncCyclesOnChange"] = (PropAction.Copy, null),
+            },
+            ["CBoneMask"] = new(StringComparer.Ordinal)
+            {
+                ["m_hBlendParameter"] = (PropAction.ParamRef, "m_blendParameter"),
+                ["m_nWeightListIndex"] = (PropAction.Skip, null),
+            },
+            ["CRagdoll"] = new(StringComparer.Ordinal)
+            {
+                ["m_nWeightListIndex"] = (PropAction.Skip, null),
+            },
+            ["CSequence"] = new(StringComparer.Ordinal)
+            {
+                ["m_duration"] = (PropAction.Skip, null),
+                ["m_hSequence"] = (PropAction.Skip, null),
+            }
+        };
+
+    private static readonly HashSet<string> NameToSNameClasses = new(StringComparer.Ordinal)
+    {
+        "CLeanMatrix", "CAdd", "CAimMatrix", "CBindPose", "CBlend2D", "CBlend", "CBoneMask",
+        "CChoice", "CChoreo", "CCycleControl", "CCycleControlClip", "CDirectionalBlend", "CDirectPlayback",
+        "CFollowAttachment", "CFollowPath", "CFootAdjustment", "CFootLock", "CFootStepTrigger", "CHitReact",
+        "CInputStream", "CJiggleBone", "CLookAt", "CMotionMatching", "CMover", "CPathHelper", "CRagdoll",
+        "CRoot", "CSelector", "CSequence", "CSetFacing", "CSingleFrame", "CSkeletalInput",
+        "CSlowDownonSlopes", "CSolveIKChain", "CSpeedScale", "CStateMachine", "CStopatGoal",
+        "CSubtract", "CTurnHelper", "CTwoBoneIK", "CWayPointHelper", "CZeroPose", "CFootPinning",
+        "CAimCamera", "CTargetWarp", "COrientationWarp", "CPairedSequence", "CFollowTarget"
+    };
+
+    private void HandleMappedProperty(
+        KVObject node,
+        KVObject compiledNode,
+        string key,
+        KVValue value,
+        Lazy<KVObject> subCollection,
+        List<long> outConnections,
+        PropAction action,
+        string? outputKey)
+    {
+        var destKey = outputKey ?? key;
+        switch (action)
+        {
+            case PropAction.Copy:
+                node.AddProperty(destKey, value);
+                break;
+            case PropAction.Rename:
+                node.AddProperty(destKey, value);
+                break;
+            case PropAction.ParamRef:
+                {
+                    var paramRef = subCollection.Value;
+                    var paramType = paramRef.GetStringProperty("m_type");
+                    var paramIndex = paramRef.GetIntegerProperty("m_index");
+                    node.AddProperty(destKey, ParameterIDFromIndex(paramType, paramIndex));
+                    break;
+                }
+            case PropAction.InputConnection:
+                {
+                    var nodeIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
+                    if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
+                    {
+                        outConnections.Add(nodeId);
+                        var connection = MakeInputConnection(nodeId);
+                        node.AddProperty("m_inputConnection", connection);
+                    }
+                    break;
+                }
+            case PropAction.BlendDuration:
+                {
+                    var converted = ConvertBlendDuration(subCollection.Value);
+                    node.AddProperty(destKey, converted);
+                    break;
+                }
+            case PropAction.BlendCurve:
+                {
+                    var compiledCurve = subCollection.Value;
+                    var blendCurve = MakeNode("CBlendCurve");
+                    blendCurve.AddProperty("m_flControlPoint1",
+                        compiledCurve.ContainsKey("m_flControlPoint1")
+                            ? compiledCurve.GetFloatProperty("m_flControlPoint1")
+                            : 0.0f);
+                    blendCurve.AddProperty("m_flControlPoint2",
+                        compiledCurve.ContainsKey("m_flControlPoint2")
+                            ? compiledCurve.GetFloatProperty("m_flControlPoint2")
+                            : 1.0f);
+                    node.AddProperty(destKey, blendCurve);
+                    break;
+                }
+            case PropAction.SequenceName:
+                {
+                    var sequenceIndex = compiledNode.GetIntegerProperty("m_hSequence");
+                    var sequenceName = GetSequenceName(sequenceIndex);
+                    node.AddProperty(destKey, sequenceName);
+                    break;
+                }
+            case PropAction.TagIndex:
+                {
+                    var tagIndex = compiledNode.GetIntegerProperty("m_nTagIndex");
+                    var tagId = -1L;
+                    if (tagIndex >= 0 && tagIndex < Tags.Length)
+                    {
+                        tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                    }
+                    node.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
+                    if (tagIndex != -1 && !node.Properties.ContainsKey("m_selectionSource"))
+                    {
+                        node.AddProperty("m_selectionSource", "SelectionSource_Tag");
+                    }
+                    break;
+                }
+            case PropAction.TagBehavior:
+                node.AddProperty("m_tagBehavior", value);
+                break;
+            case PropAction.Skip:
+                // intentionally ignore this property
+                break;
+        }
+    }
+
+
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
     /// </summary>
@@ -3485,14 +3648,27 @@ public class AnimationGraphExtract
             var newKey = key;
             var subCollection = new Lazy<KVObject>(() => (KVObject)value.Value!);
 
-            if (key == "m_name" && className is "CLeanMatrix" or "CAdd" or "CAimMatrix" or "CBindPose" or "CBlend2D"
-                or "CBlend" or "CBoneMask" or "CChoice" or "CChoreo" or "CCycleControl" or "CCycleControlClip"
-                or "CDirectionalBlend" or "CDirectPlayback" or "CFollowAttachment" or "CFollowPath" or "CFootAdjustment" or "CFootLock"
-                or "CFootStepTrigger" or "CHitReact" or "CInputStream" or "CJiggleBone" or "CLookAt" or "CMotionMatching" or "CMover"
-                or "CPathHelper" or "CRagdoll" or "CRoot" or "CSelector" or "CSequence" or "CSetFacing" or "CSingleFrame" or "CSkeletalInput"
-                or "CSlowDownonSlopes" or "CSolveIKChain" or "CSpeedScale" or "CStateMachine" or "CStopatGoal" or "CSubtract" or "CTurnHelper"
-                or "CTwoBoneIK" or "CWayPointHelper" or "CZeroPose" or "CFootPinning" or "CAimCamera" or "CTargetWarp" or "COrientationWarp"
-                or "CPairedSequence" or "CFollowTarget")
+            // preserve earlier semantics: always convert blend-time fields
+            if (key == "m_flBlendTime")
+            {
+                var converted = ConvertBlendDuration(subCollection.Value);
+                node.AddProperty("m_blendDuration", converted);
+                continue;
+            }
+
+            // first see whether a mapping exists for this class/key combination
+            if (PropertyMappings.TryGetValue(className, out var classMap) && classMap.TryGetValue(key, out var mapEntry))
+            {
+                if (mapEntry.Action != PropAction.Skip)
+                {
+                    HandleMappedProperty(node, compiledNode, key, value, subCollection, outConnections, mapEntry.Action, mapEntry.OutputKey);
+                    continue;
+                }
+                // Skip action: fall through to handle in manual code below
+            }
+
+            // fallback name->sName conversion for the long list of classes
+            if (key == "m_name" && NameToSNameClasses.Contains(className))
             {
                 newKey = "m_sName";
             }
@@ -3544,11 +3720,7 @@ public class AnimationGraphExtract
             }
             else if (className == "CSelector")
             {
-                if (key == "m_eTagBehavior")
-                {
-                    newKey = "m_tagBehavior";
-                }
-                else if (key == "m_hParameter")
+                if (key == "m_hParameter")
                 {
                     var paramRef = subCollection.Value;
                     var paramType = paramRef.GetStringProperty("m_type");
@@ -3573,112 +3745,8 @@ public class AnimationGraphExtract
                     }
                     continue;
                 }
-                else if (key == "m_flBlendTime")
-                {
-                    var convertedBlendDuration = ConvertBlendDuration(subCollection.Value);
-                    node.AddProperty("m_blendDuration", convertedBlendDuration);
-                    continue;
-                }
-                else if (key == "m_blendCurve")
-                {
-                    var compiledCurve = subCollection.Value;
-                    var blendCurve = MakeNode("CBlendCurve");
-                    blendCurve.AddProperty("m_flControlPoint1",
-                        compiledCurve.ContainsKey("m_flControlPoint1")
-                            ? compiledCurve.GetFloatProperty("m_flControlPoint1")
-                            : 0.0f);
-                    blendCurve.AddProperty("m_flControlPoint2",
-                        compiledCurve.ContainsKey("m_flControlPoint2")
-                            ? compiledCurve.GetFloatProperty("m_flControlPoint2")
-                            : 1.0f);
-                    node.AddProperty("m_blendCurve", blendCurve);
-                    continue;
-                }
-                else if (key == "m_nTagIndex")
-                {
-                    var tagIndex = compiledNode.GetIntegerProperty("m_nTagIndex");
-                    var tagId = -1L;
 
-                    if (tagIndex >= 0 && tagIndex < Tags.Length)
-                    {
-                        tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
-                    }
-
-                    node.AddProperty("m_tag", MakeNodeIdObjectValue(tagId));
-                    if (tagIndex != -1)
-                    {
-                        if (!node.Properties.ContainsKey("m_selectionSource"))
-                        {
-                            node.AddProperty("m_selectionSource", "SelectionSource_Tag");
-                        }
-                    }
-                    continue;
-                }
-                else if (key == "m_bResetOnChange" || key == "m_bLockWhenWaning" || key == "m_bSyncCyclesOnChange")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-            }
-            else if (className == "CMover")
-            {
-                if (key == "m_pChildNode")
-                {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    AddInputConnection(node, childNodeId);
-                    continue;
-                }
-                else if (key == "m_hMoveVecParam")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
-                    node.AddProperty("m_moveVectorParam", paramIdValue);
-                    continue;
-                }
-                else if (key == "m_hMoveHeadingParam")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
-                    node.AddProperty("m_moveHeadingParam", paramIdValue);
-                    continue;
-                }
-                else if (key == "m_hTurnToFaceParam")
-                {
-                    var paramRef = subCollection.Value;
-                    var paramType = paramRef.GetStringProperty("m_type");
-                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-                    var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
-                    node.AddProperty("m_param", paramIdValue);
-                    continue;
-                }
-                else if (key == "m_facingTarget")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_flTurnToFaceOffset" || key == "m_flTurnToFaceLimit")
-                {
-                    node.AddProperty(key, value);
-                    continue;
-                }
-                else if (key == "m_bAdditive" || key == "m_bApplyMovement" || key == "m_bOrientMovement" ||
-                         key == "m_bApplyRotation" || key == "m_bLimitOnly")
-                {
-                    if (key == "m_bApplyRotation")
-                    {
-                        node.AddProperty("m_bTurnToFace", value);
-                    }
-                    else
-                    {
-                        node.AddProperty(key, value);
-                    }
-                    continue;
-                }
-                else if (key == "m_damping")
+                if (key == "m_bResetOnChange" || key == "m_bLockWhenWaning" || key == "m_bSyncCyclesOnChange")
                 {
                     node.AddProperty(key, value);
                     continue;
