@@ -153,8 +153,11 @@ namespace ValveResourceFormat.Renderer
                 {
                     subController.Handler.SetAnimation(animation);
                     CurrentSubController = subController;
+                    return;
                 }
             }
+
+            CurrentSubController = null;
         }
 
         /// <summary>Pauses playback and seeks to the last frame of the active animation.</summary>
