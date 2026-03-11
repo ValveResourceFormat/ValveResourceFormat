@@ -1198,7 +1198,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var node in SkyboxScene.AllNodes)
             {
-                if (node.LayerName == "Entities")
+                if (node.LayerName == "Tool Entities")
                 {
                     node.Transform *= offsetTransform;
                 }
