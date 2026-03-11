@@ -103,13 +103,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 var animGraphs = model.Data.GetArray("m_animGraph2Refs");
 
-                // just in case there is any recursive references
-                var visitedGraphs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                // just in case there is any recursive or duplicate references
+                var visitedResources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var animGraphRef in animGraphs)
                 {
                     var graphName = animGraphRef.GetProperty<string>("m_hGraph");
-                    LoadAnimGraphResources(graphName, visitedGraphs);
+                    LoadAnimGraphResources(graphName, visitedResources);
                 }
             }
 
@@ -352,8 +352,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// Loads an animgraph2 clip from the file system and makes it available for playback on this model.
         /// </summary>
         /// <param name="clipName">Clip resource name.</param>
-        /// <exception cref="ArgumentException">Failure loading the clip data.</exception>
-        public void LoadAnimationClip(string clipName)
+        /// <returns><see langword="true"/> if the clip was found and loaded; otherwise <see langword="false"/>.</returns>
+        public bool LoadAnimationClip(string clipName)
         {
             if (!clipName.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase))
             {
@@ -363,31 +363,26 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var clipResource = Scene.RendererContext.FileLoader.LoadFileCompiled(clipName);
             if (clipResource?.DataBlock is not AnimationClip clip)
             {
-                throw new ArgumentException($"Failed to load clip resource: {clipName}", nameof(clipName));
+                return false;
             }
 
             var anim = new Animation(clip);
             animations.Add(anim);
+            return true;
         }
 
-        private void LoadAnimGraphResources(string graphName, HashSet<string> visited)
+        private bool LoadAnimGraphResources(string graphName, HashSet<string> visited)
         {
-            if (string.IsNullOrEmpty(graphName) || !visited.Add(graphName))
-            {
-                // already processed or invalid name
-                return;
-            }
-
             var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
             if (resource?.DataBlock is not BinaryKV3 graphData)
             {
-                return;
+                return false;
             }
 
             var graphResources = graphData.Data.GetArray<string>("m_resources");
             if (graphResources == null)
             {
-                return;
+                return false;
             }
 
             var clipExt = ResourceType.NmClip.GetExtension()!;
@@ -395,6 +390,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             foreach (var graphResource in graphResources)
             {
+                if (!visited.Add(graphResource))
+                {
+                    continue;
+                }
+
                 if (graphResource.EndsWith(clipExt, StringComparison.OrdinalIgnoreCase))
                 {
                     LoadAnimationClip(graphResource);
@@ -404,6 +404,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     LoadAnimGraphResources(graphResource, visited);
                 }
             }
+
+            return true;
         }
 
         private void LoadMeshes(Model model)
