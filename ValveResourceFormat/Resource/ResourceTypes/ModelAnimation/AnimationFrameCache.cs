@@ -14,7 +14,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// The output frame.
         /// </summary>
-        public Frame InterpolatedFrame { get; }
+        private readonly Frame InterpolatedFrame;
 
         /// <summary>
         /// Gets the skeleton associated with this frame cache.

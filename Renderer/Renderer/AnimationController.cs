@@ -212,17 +212,16 @@ namespace ValveResourceFormat.Renderer
         /// <returns>The current animation frame, or <see langword="null"/> if no animation is active.</returns>
         public Frame? GetFrame()
         {
-            if (ActiveAnimation == null)
-            {
-                return null;
-            }
-
             if (CurrentSubController is { } subController)
             {
                 return subController.Handler.GetFrame();
             }
 
-            if (IsPaused)
+            if (ActiveAnimation == null)
+            {
+                return null;
+            }
+            else if (IsPaused)
             {
                 return FrameCache.GetFrame(ActiveAnimation, Frame);
             }
