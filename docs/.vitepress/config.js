@@ -34,7 +34,6 @@ export default defineConfig({
             { text: "Guides", link: "/guides/getting-started" },
             { text: "Library", link: "/api/ValveResourceFormat" },
             { text: "Renderer", link: "/api/ValveResourceFormat.Renderer" },
-            { text: "Viewer", link: "https://s2v.app" },
             { text: "Wiki", link: "https://www.source2.wiki" },
         ],
 
