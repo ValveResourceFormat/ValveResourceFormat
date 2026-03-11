@@ -10,12 +10,6 @@
 
 // DIFFUSE LIGHTING
 
-float diffuseLobe(float NoL, float roughness)
-{
-    float diffuseExponent = (1.0 - roughness) * 0.8 + 0.6;
-    return pow(NoL, diffuseExponent) * ((diffuseExponent + 1.0) / 2.0);
-}
-
 #if (F_DIFFUSE_WRAP == 1) || (GameVfx_vr_xen_foliage != 0)
 // idea: what if we included individual features in tiny files per feature. they would all be used in #includes
 #define S_DIFFUSE_WRAP
@@ -168,7 +162,7 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
 #if defined(S_DIFFUSE_WRAP)
     vec3 diffuseLight = diffuseWrapped(mat.Normal, lightVector);
 #else
-    float diffuseLight = diffuseLobe(ClampToPositive(dot(mat.Normal, lightVector)), mat.IsometricRoughness);
+    float diffuseLight = ClampToPositive(dot(mat.Normal, lightVector));
 #endif
     vec3 specularLight = specularLighting(lightVector, mat.Normal, mat);
 
