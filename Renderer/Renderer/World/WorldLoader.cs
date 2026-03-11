@@ -390,6 +390,8 @@ namespace ValveResourceFormat.Renderer.World
             || cls == "point_camera_vertical_fov"
             || cls == "point_camera";
 
+        internal const string ToolEntitiesLayerName = "Tool Entities";
+
         private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 parentTransform)
         {
             var childEntities = entityLump.GetChildEntityNames();
@@ -1275,7 +1277,7 @@ namespace ValveResourceFormat.Renderer.World
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
                     Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
-                    LayerName = layerName,
+                    LayerName = ToolEntitiesLayerName,
                     Name = filename,
                     EntityData = entity,
                     Flags = flags,
@@ -1289,7 +1291,7 @@ namespace ValveResourceFormat.Renderer.World
                     : new ModelSceneNode(scene, modelData, null, isWorldPreview: true) { Name = filename };
 
                 modelNode.Transform = transformationMatrix;
-                modelNode.LayerName = layerName;
+                modelNode.LayerName = ToolEntitiesLayerName;
                 modelNode.EntityData = entity;
                 modelNode.Flags |= flags;
 
@@ -1301,7 +1303,7 @@ namespace ValveResourceFormat.Renderer.World
             {
                 var spriteNode = new SpriteSceneNode(scene, RendererContext, resource, transformationMatrix.Translation)
                 {
-                    LayerName = layerName,
+                    LayerName = ToolEntitiesLayerName,
                     Name = filename,
                     EntityData = entity,
                     Flags = flags,
@@ -1355,7 +1357,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     var lineNode = new LineSceneNode(scene, start, end, line.Color, line.Color)
                     {
-                        LayerName = layerName,
+                        LayerName = ToolEntitiesLayerName,
                         Transform = Matrix4x4.CreateTranslation(origin)
                     };
                     scene.Add(lineNode, true);
