@@ -139,9 +139,21 @@ namespace ValveResourceFormat.Renderer
             Frame = 0;
             updateHandler(ActiveAnimation, -1);
 
-            if (CurrentSubController is { } subController)
+            if (animation is null && CurrentSubController is { } subController)
             {
-                subController.Handler.SetAnimation(animation);
+                subController.Handler.SetAnimation(null);
+                CurrentSubController = null;
+                return;
+            }
+
+            if (animation is { Clip: { } nmClip })
+            {
+                var skeletonName = nmClip.SkeletonName;
+                if (ExternalSkeletons.TryGetValue(skeletonName, out subController))
+                {
+                    subController.Handler.SetAnimation(animation);
+                    CurrentSubController = subController;
+                }
             }
         }
 
@@ -170,7 +182,6 @@ namespace ValveResourceFormat.Renderer
 
                 if (childFrame == null)
                 {
-                    Debug.Assert(false, "Sub controller returned null frame");
                     return null; // Should not happen?
                 }
 
@@ -209,22 +220,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// The current sub animation controller that is driving animation updates.
         /// </summary>
-        public SubController? CurrentSubController
-        {
-            get
-            {
-                if (ActiveAnimation is { Clip: { } nmClip })
-                {
-                    var skeletonName = nmClip.SkeletonName;
-                    if (ExternalSkeletons.TryGetValue(skeletonName, out var subController))
-                    {
-                        return subController;
-                    }
-                }
-
-                return null;
-            }
-        }
+        public SubController? CurrentSubController { get; private set; }
 
         /// <summary>
         /// Represents a sub-animation controller that drives animation from an external skeleton.

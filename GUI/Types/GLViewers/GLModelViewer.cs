@@ -107,7 +107,11 @@ namespace GUI.Types.GLViewers
                     if (animationIndexMap.Count > i &&
                         animationIndexMap[i] is string animationId)
                     {
-                        modelSceneNode.SetAnimation(animationId);
+                        modelSceneNode.SetAnimationByName(animationId);
+                    }
+                    else
+                    {
+                        modelSceneNode.SetAnimation(null);
                     }
                 }
 

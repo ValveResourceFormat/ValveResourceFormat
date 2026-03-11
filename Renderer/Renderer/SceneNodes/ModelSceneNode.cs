@@ -436,7 +436,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             => animations.Select(a => a.Name);
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>
-        public void SetAnimation(string animationName)
+        public void SetAnimationByName(string animationName)
         {
             var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
             SetAnimation(activeAnimation);
