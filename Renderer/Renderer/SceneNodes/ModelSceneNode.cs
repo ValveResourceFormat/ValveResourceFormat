@@ -1,10 +1,12 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -85,6 +87,57 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             AnimationController = new(model.Skeleton, model.FlexControllers);
             boneCount = model.Skeleton.Bones.Length;
             remappingTable = model.Data.GetIntegerArray("m_remappingTable").Select(i => (int)i).ToArray();
+
+            if (model.Data.GetArray<string>("m_vecNmSkeletonRefs") is { Length: > 0 } nmSkelRefs)
+            {
+                foreach (var skeletonName in nmSkelRefs)
+                {
+                    var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(skeletonName);
+                    if (resource?.DataBlock is not BinaryKV3 skeletonData)
+                    {
+                        continue;
+                    }
+
+                    var skeleton = Skeleton.FromSkeletonData(skeletonData.Data);
+                    AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
+                }
+
+                var animGraphs = model.Data.GetArray("m_animGraph2Refs");
+                foreach (var animGraphRef in animGraphs)
+                {
+                    // {
+                    //     m_sIdentifier = ""
+                    //     m_hGraph = resource:"animation/graphs/chicken.vnmgraph"
+                    // },
+
+                    var identifier = animGraphRef.GetProperty<string>("m_sIdentifier");
+                    var graphName = animGraphRef.GetProperty<string>("m_hGraph");
+                    var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
+
+                    if (resource?.DataBlock is not BinaryKV3 graphData)
+                    {
+                        continue;
+                    }
+
+                    var graphResources = graphData.Data.GetArray<string>("m_resources");
+                    if (graphResources == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var graphResource in graphResources)
+                    {
+                        if (graphResource.EndsWith(ResourceType.NmClip.GetExtension()!, StringComparison.OrdinalIgnoreCase))
+                        {
+                            LoadAnimationClip(graphResource);
+                        }
+                        else if (graphResource.EndsWith(ResourceType.NmGraph.GetExtension()!, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // recursive load?
+                        }
+                    }
+                }
+            }
 
             if (skin != null)
             {
@@ -319,6 +372,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 SetupBoneMatrixBuffers();
             }
+        }
+
+        public void LoadAnimationClip(string clipName)
+        {
+            if (!clipName.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"Clip must be a {ResourceType.NmClip} resource.", nameof(clipName));
+            }
+
+            var clipResource = Scene.RendererContext.FileLoader.LoadFileCompiled(clipName);
+            if (clipResource?.DataBlock is not AnimationClip clip)
+            {
+                throw new ArgumentException($"Failed to load clip resource: {clipName}", nameof(clipName));
+            }
+
+            var anim = new Animation(clip);
+            animations.Add(anim);
         }
 
         private void LoadMeshes(Model model)

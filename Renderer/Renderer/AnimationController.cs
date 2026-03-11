@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
@@ -90,6 +91,15 @@ namespace ValveResourceFormat.Renderer
                 Time += timeStep * FrametimeMultiplier;
             }
 
+            if (CurrentSubController is { } subController)
+            {
+                var updated = subController.Handler.Update(timeStep);
+                if (!updated && !forceUpdate)
+                {
+                    return false;
+                }
+            }
+
             AnimationFrame = GetFrame();
             updateHandler(ActiveAnimation, Frame);
             forceUpdate = false;
@@ -125,6 +135,11 @@ namespace ValveResourceFormat.Renderer
             Time = 0f;
             Frame = 0;
             updateHandler(ActiveAnimation, -1);
+
+            if (CurrentSubController is { } subController)
+            {
+                subController.Handler.SetAnimation(animation);
+            }
         }
 
         /// <summary>Pauses playback and seeks to the last frame of the active animation.</summary>
@@ -144,7 +159,32 @@ namespace ValveResourceFormat.Renderer
             {
                 return null;
             }
-            else if (IsPaused)
+
+            if (CurrentSubController is { } subController)
+            {
+                var frame = FrameCache.InterpolatedFrame;
+                var childFrame = subController.Handler.AnimationFrame;
+
+                if (childFrame == null)
+                {
+                    Debug.Assert(false, "Sub controller returned null frame");
+                    return null; // Should not happen?
+                }
+
+                // Remap child frame bones to parent skeleton
+                for (var i = 0; i < frame.Bones.Length; i++)
+                {
+                    var remapIndex = subController.RemapTable[i];
+                    if (remapIndex != -1)
+                    {
+                        frame.Bones[i] = childFrame.Bones[remapIndex];
+                    }
+                }
+
+                return frame;
+            }
+
+            if (IsPaused)
             {
                 return FrameCache.GetFrame(ActiveAnimation, Frame);
             }
@@ -161,6 +201,71 @@ namespace ValveResourceFormat.Renderer
         public void RegisterUpdateHandler(Action<Animation?, int> handler)
         {
             updateHandler = handler;
+        }
+
+        /// <summary>
+        /// The current sub animation controller that is driving animation updates.
+        /// </summary>
+        public SubController? CurrentSubController
+        {
+            get
+            {
+                if (ActiveAnimation is { Clip: { } nmClip })
+                {
+                    var skeletonName = nmClip.SkeletonName;
+                    if (ExternalSkeletons.TryGetValue(skeletonName, out var subController))
+                    {
+                        return subController;
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        public record struct SubController(AnimationController Handler, int[] RemapTable, Dictionary<string, string?> DebugMap)
+        {
+            public readonly Skeleton Skeleton => Handler.FrameCache.Skeleton;
+            public readonly Dictionary<string, string?> DebugMap { get; } = DebugMap;
+        }
+
+        public Dictionary<string, SubController> ExternalSkeletons { get; } = [];
+
+        public void RegisterExternalSkeleton(string skeletonName, Skeleton skeleton)
+        {
+            var sourceBoneCount = skeleton.Bones.Length;
+            var destinationBoneCount = Skeleton.Bones.Length;
+
+            var remapTable = new int[destinationBoneCount];
+            var debugMap = new Dictionary<string, string?>(destinationBoneCount);
+
+            var nameToIndex = new Dictionary<uint, int>(sourceBoneCount);
+
+            for (var i = 0; i < sourceBoneCount; i++)
+            {
+                var name = skeleton.Bones[i].Name;
+                nameToIndex[StringToken.Store(name)] = i;
+            }
+
+            for (var i = 0; i < destinationBoneCount; i++)
+            {
+                var name = Skeleton.Bones[i].Name;
+                var hash = StringToken.Store(name);
+
+                remapTable[i] = -1;
+                debugMap[name] = null;
+
+                if (nameToIndex.TryGetValue(hash, out var idx))
+                {
+                    remapTable[i] = idx;
+                    debugMap[name] = skeleton.Bones[idx].Name;
+                }
+            }
+
+            // Could this be a simpler base type?
+            var controller = new AnimationController(skeleton, []);
+
+            ExternalSkeletons[skeletonName] = new(controller, remapTable, debugMap);
         }
     }
 }
