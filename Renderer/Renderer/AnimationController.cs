@@ -102,6 +102,44 @@ namespace ValveResourceFormat.Renderer
                 {
                     return false;
                 }
+
+                // Pose calculation from AG2 clip
+                static void ComputePoseRecursive(Bone bone, Matrix4x4 parentTransform, SubController subController, Span<Matrix4x4> pose)
+                {
+                    var remapIndex = subController.RemapTable[bone.Index];
+
+                    if (remapIndex != -1)
+                    {
+                        // Bone is animated in sub-controller, use its pose
+                        pose[bone.Index] = subController.Handler.Pose[remapIndex];
+                    }
+                    else
+                    {
+                        // Bone is not animated, compute from parent + bind pose
+                        pose[bone.Index] = bone.BindPose * parentTransform;
+                    }
+
+                    foreach (var child in bone.Children)
+                    {
+                        ComputePoseRecursive(child, pose[bone.Index], subController, pose);
+                    }
+                }
+
+                foreach (var root in Skeleton.Roots)
+                {
+                    if (root.IsProceduralCloth)
+                    {
+                        continue;
+                    }
+
+                    ComputePoseRecursive(root, Matrix4x4.Identity, subController, Pose);
+                }
+
+
+                AnimationFrame = GetFrame();
+                updateHandler(ActiveAnimation, Frame);
+                forceUpdate = false;
+                return true;
             }
 
             AnimationFrame = GetFrame();
@@ -114,7 +152,7 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
-            foreach (var root in FrameCache.Skeleton.Roots)
+            foreach (var root in Skeleton.Roots)
             {
                 if (root.IsProceduralCloth)
                 {
@@ -181,59 +219,7 @@ namespace ValveResourceFormat.Renderer
 
             if (CurrentSubController is { } subController)
             {
-                var frame = FrameCache.InterpolatedFrame;
-                frame.Clear(FrameCache.Skeleton);
-
-                var childFrame = subController.Handler.AnimationFrame;
-
-                if (childFrame == null)
-                {
-                    return null; // Should not happen?
-                }
-
-                // Bones that do not exist in the renderable skeleton should propagate
-                // their transform to children that do exist
-                // for example 'arm_upper_L' exists on both skeletons
-                // but on animation it is a parent to 'armUpperShoulder_L', which does not exist on renderable
-                static void PropagateTransformToChildren(Frame frame, int[] remapTable, Span<Bone> bones)
-                {
-                    foreach (var bone in bones)
-                    {
-                        var missing = remapTable[bone.Index] == -1;
-
-                        if (missing)
-                        {
-                            var frameBone = frame.Bones[bone.Index];
-
-                            foreach (var child in bone.Children)
-                            {
-                                var childFrameBone = frame.Bones[child.Index];
-
-                                childFrameBone.Position += frameBone.Position;
-                                childFrameBone.Angle *= frameBone.Angle;
-                                childFrameBone.Scale *= frameBone.Scale;
-
-                                frame.Bones[child.Index] = childFrameBone;
-                            }
-                        }
-
-                        PropagateTransformToChildren(frame, remapTable, CollectionsMarshal.AsSpan(bone.Children));
-                    }
-                }
-
-                //PropagateTransformToChildren(childFrame, subController.RemapTable, subController.Skeleton.Roots);
-
-                // Remap child frame bones to parent skeleton
-                for (var i = 0; i < frame.Bones.Length; i++)
-                {
-                    var remapIndex = subController.RemapTable[i];
-                    if (remapIndex != -1)
-                    {
-                        frame.Bones[i] = childFrame.Bones[remapIndex];
-                    }
-                }
-
-                return frame;
+                return subController.Handler.GetFrame();
             }
 
             if (IsPaused)
@@ -269,7 +255,7 @@ namespace ValveResourceFormat.Renderer
         public record struct SubController(AnimationController Handler, int[] RemapTable, Dictionary<string, string?> DebugMap)
         {
             /// <summary>The sub controller skeleton.</summary>
-            public readonly Skeleton Skeleton => Handler.FrameCache.Skeleton;
+            public readonly Skeleton Skeleton => Handler.Skeleton;
 
             /// <summary>Bone name mapping for debugging.</summary>
             public readonly Dictionary<string, string?> DebugMap { get; } = DebugMap;
