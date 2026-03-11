@@ -658,7 +658,8 @@ namespace ValveResourceFormat.Renderer.World
                                     if (skyEntity != null)
                                     {
                                         material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
-                                        transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(skyEntity); // steal rotation from env_sky
+                                        var rotationOnly = EntityTransformHelper.CalculateTransformationMatrix(skyEntity) with { Translation = transformationMatrix.Translation };
+                                        transformationMatrix = rotationOnly;  // steal rotation from env_sky
                                     }
                                     else
                                     {
