@@ -2,6 +2,13 @@
     scrollbar-gutter: stable;
 }
 
+/* Style category headers (Classes, Structs, Enums) as small labels */
+.VPSidebarItem .item:not(:has(.link)) > .text {
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--vp-c-green-2);
+}
+
 .dark {
     --vp-c-bg: hsl(216 40% 8%);
     --vp-c-bg-alt: hsl(216 40% 6%);

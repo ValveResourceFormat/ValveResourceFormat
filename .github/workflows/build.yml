@@ -9,10 +9,12 @@ on:
   push:
     paths-ignore:
     - '.github/*_TEMPLATE/**'
+    - 'docs/**'
     - '*.md'
   pull_request:
     paths-ignore:
     - '.github/*_TEMPLATE/**'
+    - 'docs/**'
     - '*.md'
   workflow_dispatch:
   schedule:

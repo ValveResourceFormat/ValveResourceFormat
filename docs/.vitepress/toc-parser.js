@@ -32,56 +32,80 @@ function readTitleFromMarkdown(filePath) {
     }
 }
 
-function convertItems(items, baseUrl, tocDir) {
-    const result = [];
+function isCategoryHeader(item) {
+    return item.name && !item.href && (!item.items || item.items.length === 0);
+}
 
-    for (const item of items) {
-        const entry = {};
+function convertItem(item, baseUrl, tocDir) {
+    const entry = {};
 
-        if (item.name) {
-            entry.text = item.name;
-        }
-
-        if (item.href) {
-            if (
-                item.href.startsWith("http://") ||
-                item.href.startsWith("https://")
-            ) {
-                entry.link = item.href;
-            } else if (item.href.endsWith(".md")) {
-                if (item.href.startsWith("../")) {
-                    // Resolve relative paths against the base
-                    entry.link =
-                        "/" +
-                        item.href
-                            .replace(/^(\.\.\/)+/, "")
-                            .replace(/\.md$/, "");
-                } else {
-                    entry.link = baseUrl + item.href.replace(/\.md$/, "");
-                }
-
-                // If no name specified, read the H1 from the markdown file
-                if (!entry.text) {
-                    entry.text = readTitleFromMarkdown(
-                        resolve(tocDir, item.href),
-                    );
-                }
-            }
-        }
-
-        if (item.items && item.items.length > 0) {
-            const children = convertItems(item.items, baseUrl, tocDir);
-            if (children.length > 0) {
-                entry.items = children;
-                entry.collapsed = true;
-            }
-        }
-
-        // Skip category headers without links (like "Classes", "Structs", "Enums")
-        if (!entry.link && !entry.items) continue;
-
-        result.push(entry);
+    if (item.name) {
+        // Simplify nested names: "MaterialExtract.UnpackInfo" to "UnpackInfo"
+        const dotIndex = item.name.lastIndexOf(".");
+        entry.text =
+            dotIndex >= 0 ? item.name.substring(dotIndex + 1) : item.name;
     }
 
-    return result;
+    if (item.href) {
+        if (
+            item.href.startsWith("http://") ||
+            item.href.startsWith("https://")
+        ) {
+            entry.link = item.href;
+        } else if (item.href.endsWith(".md")) {
+            if (item.href.startsWith("../")) {
+                // Resolve relative paths against the base
+                entry.link =
+                    "/" +
+                    item.href.replace(/^(\.\.\/)+/, "").replace(/\.md$/, "");
+            } else {
+                entry.link = baseUrl + item.href.replace(/\.md$/, "");
+            }
+
+            // If no name specified, read the H1 from the markdown file
+            if (!entry.text) {
+                entry.text = readTitleFromMarkdown(resolve(tocDir, item.href));
+            }
+        }
+    }
+
+    if (item.items && item.items.length > 0) {
+        const children = convertItems(item.items, baseUrl, tocDir);
+        if (children.length > 0) {
+            entry.items = children;
+            entry.collapsed = true;
+        }
+    }
+
+    return entry;
+}
+
+function convertItems(items, baseUrl, tocDir) {
+    const result = [];
+    let currentGroup = null;
+
+    for (const item of items) {
+        // Category headers (name only, no href/items) start a new group
+        if (isCategoryHeader(item)) {
+            currentGroup = { text: item.name, items: [], collapsed: false };
+            result.push(currentGroup);
+            continue;
+        }
+
+        const entry = convertItem(item, baseUrl, tocDir);
+
+        // Skip entries without links or children
+        if (!entry.link && !entry.items) continue;
+
+        if (currentGroup) {
+            currentGroup.items.push(entry);
+        } else {
+            result.push(entry);
+        }
+    }
+
+    // Remove empty groups
+    return result.filter(
+        (entry) => !entry.collapsed || entry.items?.length > 0 || entry.link,
+    );
 }
