@@ -282,10 +282,8 @@ namespace GUI.Types.GLViewers
 
                     showSkeletonCheckbox = UiControl.AddCheckBox("Show skeleton", false, isChecked =>
                     {
-                        if (skeletonSceneNode != null)
-                        {
-                            skeletonSceneNode.Enabled = isChecked;
-                        }
+                        using var lockedGl = MakeCurrent();
+                        skeletonSceneNode?.Enabled = isChecked;
                     });
                 }
 
