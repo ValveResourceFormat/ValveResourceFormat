@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
@@ -181,12 +182,46 @@ namespace ValveResourceFormat.Renderer
             if (CurrentSubController is { } subController)
             {
                 var frame = FrameCache.InterpolatedFrame;
+                frame.Clear(FrameCache.Skeleton);
+
                 var childFrame = subController.Handler.AnimationFrame;
 
                 if (childFrame == null)
                 {
                     return null; // Should not happen?
                 }
+
+                // Bones that do not exist in the renderable skeleton should propagate
+                // their transform to children that do exist
+                // for example 'arm_upper_L' exists on both skeletons
+                // but on animation it is a parent to 'armUpperShoulder_L', which does not exist on renderable
+                static void PropagateTransformToChildren(Frame frame, int[] remapTable, Span<Bone> bones)
+                {
+                    foreach (var bone in bones)
+                    {
+                        var missing = remapTable[bone.Index] == -1;
+
+                        if (missing)
+                        {
+                            var frameBone = frame.Bones[bone.Index];
+
+                            foreach (var child in bone.Children)
+                            {
+                                var childFrameBone = frame.Bones[child.Index];
+
+                                childFrameBone.Position += frameBone.Position;
+                                childFrameBone.Angle *= frameBone.Angle;
+                                childFrameBone.Scale *= frameBone.Scale;
+
+                                frame.Bones[child.Index] = childFrameBone;
+                            }
+                        }
+
+                        PropagateTransformToChildren(frame, remapTable, CollectionsMarshal.AsSpan(bone.Children));
+                    }
+                }
+
+                //PropagateTransformToChildren(childFrame, subController.RemapTable, subController.Skeleton.Roots);
 
                 // Remap child frame bones to parent skeleton
                 for (var i = 0; i < frame.Bones.Length; i++)
