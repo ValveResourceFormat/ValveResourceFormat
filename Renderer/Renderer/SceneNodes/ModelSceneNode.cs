@@ -103,34 +103,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 var animGraphs = model.Data.GetArray("m_animGraph2Refs");
+
+                // just in case there is any recursive references
+                var visitedGraphs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 foreach (var animGraphRef in animGraphs)
                 {
-                    var identifier = animGraphRef.GetProperty<string>("m_sIdentifier");
                     var graphName = animGraphRef.GetProperty<string>("m_hGraph");
-                    var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
-
-                    if (resource?.DataBlock is not BinaryKV3 graphData)
-                    {
-                        continue;
-                    }
-
-                    var graphResources = graphData.Data.GetArray<string>("m_resources");
-                    if (graphResources == null)
-                    {
-                        continue;
-                    }
-
-                    foreach (var graphResource in graphResources)
-                    {
-                        if (graphResource.EndsWith(ResourceType.NmClip.GetExtension()!, StringComparison.OrdinalIgnoreCase))
-                        {
-                            LoadAnimationClip(graphResource);
-                        }
-                        else if (graphResource.EndsWith(ResourceType.NmGraph.GetExtension()!, StringComparison.OrdinalIgnoreCase))
-                        {
-                            // recursive load?
-                        }
-                    }
+                    LoadAnimGraphResources(graphName, visitedGraphs);
                 }
             }
 
@@ -389,6 +369,42 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var anim = new Animation(clip);
             animations.Add(anim);
+        }
+
+        private void LoadAnimGraphResources(string graphName, HashSet<string> visited)
+        {
+            if (string.IsNullOrEmpty(graphName) || !visited.Add(graphName))
+            {
+                // already processed or invalid name
+                return;
+            }
+
+            var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
+            if (resource?.DataBlock is not BinaryKV3 graphData)
+            {
+                return;
+            }
+
+            var graphResources = graphData.Data.GetArray<string>("m_resources");
+            if (graphResources == null)
+            {
+                return;
+            }
+
+            var clipExt = ResourceType.NmClip.GetExtension()!;
+            var graphExt = ResourceType.NmGraph.GetExtension()!;
+
+            foreach (var graphResource in graphResources)
+            {
+                if (graphResource.EndsWith(clipExt, StringComparison.OrdinalIgnoreCase))
+                {
+                    LoadAnimationClip(graphResource);
+                }
+                else if (graphResource.EndsWith(graphExt, StringComparison.OrdinalIgnoreCase))
+                {
+                    LoadAnimGraphResources(graphResource, visited);
+                }
+            }
         }
 
         private void LoadMeshes(Model model)
