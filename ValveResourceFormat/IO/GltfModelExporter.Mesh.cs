@@ -308,13 +308,32 @@ public partial class GltfModelExporter
 
         var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
 
+        // Each vertex buffer names its TEXCOORDs/COLORs from 0 independently, so remap to a
+        // global counter here to avoid later buffers overwriting earlier ones on the primitive.
+        var texcoordCounter = 0;
+        var colorCounter = 0;
+
         foreach (var vertexBufferInfo in vertexBuffers)
         {
             var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
 
             foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
             {
-                primitive.SetVertexAccessor(attributeKey, accessor);
+                string key;
+                if (attributeKey.StartsWith("TEXCOORD_", StringComparison.Ordinal))
+                {
+                    key = $"TEXCOORD_{texcoordCounter++}";
+                }
+                else if (attributeKey.StartsWith("COLOR_", StringComparison.Ordinal))
+                {
+                    key = $"COLOR_{colorCounter++}";
+                }
+                else
+                {
+                    key = attributeKey;
+                }
+
+                primitive.SetVertexAccessor(key, accessor);
 
                 DebugValidateGLTF();
             }
