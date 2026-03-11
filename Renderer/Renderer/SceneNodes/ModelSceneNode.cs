@@ -105,11 +105,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var animGraphs = model.Data.GetArray("m_animGraph2Refs");
                 foreach (var animGraphRef in animGraphs)
                 {
-                    // {
-                    //     m_sIdentifier = ""
-                    //     m_hGraph = resource:"animation/graphs/chicken.vnmgraph"
-                    // },
-
                     var identifier = animGraphRef.GetProperty<string>("m_sIdentifier");
                     var graphName = animGraphRef.GetProperty<string>("m_hGraph");
                     var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
@@ -374,6 +369,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Loads an animgraph2 clip from the file system and makes it available for playback on this model.
+        /// </summary>
+        /// <param name="clipName">Clip resource name.</param>
+        /// <exception cref="ArgumentException">Failure loading the clip data.</exception>
         public void LoadAnimationClip(string clipName)
         {
             if (!clipName.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase))

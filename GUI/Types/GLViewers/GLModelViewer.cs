@@ -255,8 +255,7 @@ namespace GUI.Types.GLViewers
 
                 Input.OrbitTargetProvider = () => modelSceneNode.BoundingBox.Center;
 
-                var animations = modelSceneNode.GetSupportedAnimationNames()
-                    .ToArray();
+                var animations = modelSceneNode.GetSupportedAnimationNames().ToArray();
 
                 if (animations.Length > 0)
                 {

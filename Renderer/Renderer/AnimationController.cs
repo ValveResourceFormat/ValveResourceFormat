@@ -24,6 +24,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
 
+        /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
         private bool isPaused;
@@ -225,14 +226,31 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Represents a sub-animation controller that drives animation from an external skeleton.
+        /// </summary>
+        /// <param name="Handler">The animation controller managing the external skeleton.</param>
+        /// <param name="RemapTable">Bone index mapping from parent to child skeleton.</param>
+        /// <param name="DebugMap">Bone name mapping for debugging purposes.</param>
         public record struct SubController(AnimationController Handler, int[] RemapTable, Dictionary<string, string?> DebugMap)
         {
+            /// <summary>The sub controller skeleton.</summary>
             public readonly Skeleton Skeleton => Handler.FrameCache.Skeleton;
+
+            /// <summary>Bone name mapping for debugging.</summary>
             public readonly Dictionary<string, string?> DebugMap { get; } = DebugMap;
         }
 
+        /// <summary>
+        /// Gets the collection of external skeletons registered for sub-animation control, indexed by skeleton name.
+        /// </summary>
         public Dictionary<string, SubController> ExternalSkeletons { get; } = [];
 
+        /// <summary>
+        /// Registers an external skeleton for sub-animation control, creating a bone remapping table.
+        /// </summary>
+        /// <param name="skeletonName">The name identifying the external skeleton.</param>
+        /// <param name="skeleton">The external skeleton to register.</param>
         public void RegisterExternalSkeleton(string skeletonName, Skeleton skeleton)
         {
             var sourceBoneCount = skeleton.Bones.Length;

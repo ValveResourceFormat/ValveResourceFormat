@@ -27,6 +27,11 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public Matrix4x4[] Pose { get; }
 
+        /// <summary>
+        /// Initializes a new <see cref="BaseAnimationController"/> for the given skeleton,
+        /// computing the bind pose and inverse bind pose matrices.
+        /// </summary>
+        /// <param name="skeleton">The skeleton whose bones define the rig.</param>
         public BaseAnimationController(Skeleton skeleton)
         {
             Skeleton = skeleton;
@@ -43,8 +48,20 @@ namespace ValveResourceFormat.Renderer
             BindPose.CopyTo(Pose, 0);
         }
 
+        /// <summary>
+        /// Updates the animation controller, advancing the animation by the given time step.
+        /// </summary>
+        /// <param name="timeStep">Elapsed time in seconds since the last update.</param>
+        /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> otherwise.</returns>
         public virtual bool Update(float timeStep) => false;
 
+        /// <summary>
+        /// Recursively computes the world-space transformation matrix for each bone in the hierarchy.
+        /// </summary>
+        /// <param name="bone">The current bone to process.</param>
+        /// <param name="parent">The parent's world-space transformation matrix.</param>
+        /// <param name="frame">The animation frame containing bone transforms, or <see langword="null"/> to use bind pose.</param>
+        /// <param name="boneMatrices">The output array to store computed bone matrices.</param>
         protected static void GetBoneMatricesRecursive(Bone bone, Matrix4x4 parent, Frame? frame, Span<Matrix4x4> boneMatrices)
         {
             var boneTransform = bone.BindPose;
@@ -66,6 +83,12 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Recursively computes the inverse bind pose matrix for each bone in the hierarchy.
+        /// </summary>
+        /// <param name="bone">The current bone to process.</param>
+        /// <param name="parent">The accumulated inverse bind pose from the parent.</param>
+        /// <param name="boneMatrices">The output array to store computed inverse bind pose matrices.</param>
         protected static void GetInverseBindPoseRecursive(Bone bone, Matrix4x4 parent, Span<Matrix4x4> boneMatrices)
         {
             boneMatrices[bone.Index] = parent * bone.InverseBindPose;
