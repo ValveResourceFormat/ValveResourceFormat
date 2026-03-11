@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -78,6 +79,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             base.Read(reader);
 
             Name = Resource.FileName ?? string.Empty;
+
+            if (Name.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                Name = Name[..^GameFileLoader.CompiledFileSuffix.Length];
+            }
 
             ReadClip(Data);
         }

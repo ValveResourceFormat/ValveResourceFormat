@@ -10,6 +10,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         private Frame PrevFrame;
         private Frame NextFrame;
+
+        /// <summary>
+        /// The output frame.
+        /// </summary>
         private readonly Frame InterpolatedFrame;
 
         /// <summary>

@@ -76,6 +76,7 @@ public class ThemedComboBox : ComboBox
         using (var textBrush = new SolidBrush(foreColor))
         {
             var bounds = e.Bounds;
+            var flags = TextFormatFlags.Left | TextFormatFlags.PathEllipsis;
 
             //adds padding to the left of non header items
             if (themedComboBoxItem != null && !themedComboBoxItem.IsHeader)
@@ -83,9 +84,11 @@ public class ThemedComboBox : ComboBox
                 var padding = this.AdjustForDPI(8);
                 bounds.X += padding;
                 bounds.Width -= padding;
+
+                flags = TextFormatFlags.Left | TextFormatFlags.EndEllipsis;
             }
 
-            TextRenderer.DrawText(e.Graphics, text, e.Font, bounds, foreColor, Color.Transparent, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(e.Graphics, text, e.Font, bounds, foreColor, Color.Transparent, flags);
 
         }
 

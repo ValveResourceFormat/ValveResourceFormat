@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -85,6 +86,32 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             AnimationController = new(model.Skeleton, model.FlexControllers);
             boneCount = model.Skeleton.Bones.Length;
             remappingTable = model.Data.GetIntegerArray("m_remappingTable").Select(i => (int)i).ToArray();
+
+            if (model.Data.GetArray<string>("m_vecNmSkeletonRefs") is { Length: > 0 } nmSkelRefs)
+            {
+                foreach (var skeletonName in nmSkelRefs)
+                {
+                    var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(skeletonName);
+                    if (resource?.DataBlock is not BinaryKV3 skeletonData)
+                    {
+                        continue;
+                    }
+
+                    var skeleton = Skeleton.FromSkeletonData(skeletonData.Data);
+                    AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
+                }
+
+                var animGraphs = model.Data.GetArray("m_animGraph2Refs");
+
+                // just in case there is any recursive or duplicate references
+                var visitedResources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var animGraphRef in animGraphs)
+                {
+                    var graphName = animGraphRef.GetProperty<string>("m_hGraph");
+                    LoadAnimGraphResources(graphName, visitedResources);
+                }
+            }
 
             if (skin != null)
             {
@@ -321,6 +348,66 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Loads an animgraph2 clip from the file system and makes it available for playback on this model.
+        /// </summary>
+        /// <param name="clipName">Clip resource name.</param>
+        /// <returns><see langword="true"/> if the clip was found and loaded; otherwise <see langword="false"/>.</returns>
+        public bool LoadAnimationClip(string clipName)
+        {
+            if (!clipName.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"Clip must be a {ResourceType.NmClip} resource.", nameof(clipName));
+            }
+
+            var clipResource = Scene.RendererContext.FileLoader.LoadFileCompiled(clipName);
+            if (clipResource?.DataBlock is not AnimationClip clip)
+            {
+                return false;
+            }
+
+            var anim = new Animation(clip);
+            animations.Add(anim);
+            return true;
+        }
+
+        private bool LoadAnimGraphResources(string graphName, HashSet<string> visited)
+        {
+            var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
+            if (resource?.DataBlock is not BinaryKV3 graphData)
+            {
+                return false;
+            }
+
+            var graphResources = graphData.Data.GetArray<string>("m_resources");
+            if (graphResources == null)
+            {
+                return false;
+            }
+
+            var clipExt = ResourceType.NmClip.GetExtension()!;
+            var graphExt = ResourceType.NmGraph.GetExtension()!;
+
+            foreach (var graphResource in graphResources)
+            {
+                if (!visited.Add(graphResource))
+                {
+                    continue;
+                }
+
+                if (graphResource.EndsWith(clipExt, StringComparison.OrdinalIgnoreCase))
+                {
+                    LoadAnimationClip(graphResource);
+                }
+                else if (graphResource.EndsWith(graphExt, StringComparison.OrdinalIgnoreCase))
+                {
+                    LoadAnimGraphResources(graphResource, visited);
+                }
+            }
+
+            return true;
+        }
+
         private void LoadMeshes(Model model)
         {
             // Get embedded meshes
@@ -366,7 +453,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             => animations.Select(a => a.Name);
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>
-        public void SetAnimation(string animationName)
+        public void SetAnimationByName(string animationName)
         {
             var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
             SetAnimation(activeAnimation);
