@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
         /// <summary>Gets the current playback time in seconds.</summary>
-        public float Time { get; private set; }
+        public float Time { get; private set { field = value; forceUpdate = true; } }
         private bool forceUpdate;
 
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
@@ -57,7 +57,6 @@ namespace ValveResourceFormat.Renderer
                     Time = ActiveAnimation.Fps != 0
                         ? value / ActiveAnimation.Fps
                         : 0f;
-                    forceUpdate = true;
                 }
             }
         }
@@ -93,7 +92,10 @@ namespace ValveResourceFormat.Renderer
 
             if (CurrentSubController is { } subController)
             {
-                var updated = subController.Handler.Update(timeStep);
+                subController.Handler.IsPaused = IsPaused;
+                subController.Handler.Time = Time;
+
+                var updated = subController.Handler.Update(0f);
                 if (!updated && !forceUpdate)
                 {
                     return false;
