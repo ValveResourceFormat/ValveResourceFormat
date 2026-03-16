@@ -35,6 +35,7 @@ export default defineConfig({
             { text: "Library", link: "/api/ValveResourceFormat" },
             { text: "Renderer", link: "/api/ValveResourceFormat.Renderer" },
             { text: "Wiki", link: "https://www.source2.wiki" },
+            { text: "Schema Explorer", link: "https://s2v.app/SchemaExplorer/" },
         ],
 
         sidebar: {
