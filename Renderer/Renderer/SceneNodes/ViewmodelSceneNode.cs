@@ -1,4 +1,6 @@
 
+using System.Linq;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
 
@@ -13,6 +15,11 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// Toggle rendering.
     /// </summary>
     public bool Visible { get; set; }
+
+    /// <summary>
+    /// Viewmodel offset in viewmodel space (forward, right, up).
+    /// </summary>
+    public Vector3 ViewmodelOffset { get; set; } = new Vector3(-6, -2, -2);
 
     /// <summary>
     /// The player arms.
@@ -66,6 +73,12 @@ public class ViewmodelSceneNode : ModelSceneNode
             "first_or_third_person_@2_#&firstperson_default"
         ]);
 
+        viewmodel.SetAnimationByName("animation/anims/viewmodel/knife/knife_karambit/idle1_karambit.vnmclip");
+        viewmodel.LayerName = "world_layer_base";
+        viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
+
+        scene.RendererContext.Logger.LogInformation($"Loaded viewmodel");
+
         scene.Add(viewmodel, true);
         return viewmodel;
     }
@@ -78,8 +91,48 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         Visible = true;
 
-        // transform viewmodel to camera
         var camera = input.Camera;
-        Transform = Matrix4x4.CreateFromYawPitchRoll(camera.Yaw, camera.Pitch, 0) * Matrix4x4.CreateTranslation(camera.Location);
+        camera.RecalculateDirectionVectors();
+
+        // Build a stable camera orientation quaternion from direction vectors.
+        var forward = Vector3.Normalize(camera.Forward);
+        var worldUp = Vector3.UnitZ;
+
+        var right = Vector3.Normalize(Vector3.Cross(worldUp, forward));
+        if (right.LengthSquared() < 1e-4f)
+        {
+            // Looking straight up/down: fallback to camera's right vector.
+            right = Vector3.Normalize(camera.Right);
+        }
+
+        var up = Vector3.Cross(forward, right);
+
+        var cameraRotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
+            right.X, right.Y, right.Z, 0,
+            up.X, up.Y, up.Z, 0,
+            forward.X, forward.Y, forward.Z, 0,
+            0, 0, 0, 1
+        ));
+
+        // Apply a fixed viewmodel-space rotation to match the expected model orientation.
+        var viewmodelOffsetRot = Quaternion.CreateFromAxisAngle(Vector3.UnitY, -float.DegreesToRadians(90))
+            * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -float.DegreesToRadians(90));
+        var viewmodelRotation = Quaternion.Normalize(cameraRotation * viewmodelOffsetRot);
+
+        var rotationMatrix = Matrix4x4.CreateFromQuaternion(viewmodelRotation);
+        var offset = Vector3.Transform(ViewmodelOffset, viewmodelRotation);
+
+        Transform = rotationMatrix with { Translation = camera.Location + offset };
+    }
+
+    /// <summary>
+    /// Update
+    /// </summary>
+    public override void Update(Scene.UpdateContext context)
+    {
+        base.Update(context);
+
+        // Arms should always be visible if the viewmodel is visible
+        LocalBoundingBox = new AABB(Vector3.Zero, float.PositiveInfinity);
     }
 }

@@ -144,6 +144,12 @@ namespace ValveResourceFormat.Renderer
             /// </remarks>
             public void Insert(SceneNode element)
             {
+                if ((element.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
+                {
+                    InsertNoChildren(element);
+                    return;
+                }
+
                 if (!HasChildren && HasElements && ShouldSubdivide(Region.Size.X, Elements!.Count))
                 {
                     Subdivide();
@@ -179,6 +185,11 @@ namespace ValveResourceFormat.Renderer
                     return;
                 }
 
+                InsertNoChildren(element);
+            }
+
+            private void InsertNoChildren(SceneNode element)
+            {
                 if (Elements == null)
                 {
                     Elements = [element];
@@ -303,7 +314,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var element in Elements!)
                     {
-                        if (frustum.Intersects(element.BoundingBox))
+                        if (frustum.Intersects(element.BoundingBox) || (element.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
                         {
                             results.Add(element);
                         }
@@ -335,7 +346,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var element in Elements!)
                     {
-                        if (frustum.Intersects(element.BoundingBox))
+                        if (frustum.Intersects(element.BoundingBox) || (element.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
                         {
                             results.Add(element);
                         }
