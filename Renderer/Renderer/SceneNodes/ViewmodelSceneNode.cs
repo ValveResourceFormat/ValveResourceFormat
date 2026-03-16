@@ -27,12 +27,83 @@ public class ViewmodelSceneNode : ModelSceneNode
     public ModelSceneNode Arms => this;
 
     // public readonly List<ModelSceneNode?> Items = [];
-    // public int SelectedItem { get; set; }
+
+    private int PreviousSelectedItem;
+
+    public int SelectedItem
+    {
+        get => field;
+        set
+        {
+            if (field == value)
+            {
+                return;
+            }
+
+            PreviousSelectedItem = field;
+            field = value;
+            OnSelectedItemChanged();
+        }
+    }
+
+    private int CurrentAnim { get; set; }
+    private int lastAnimFrame = -1;
+    private string? lastAnimName;
+
+    private void OnSelectedItemChanged()
+    {
+        if (ItemAnimations.TryGetValue(SelectedItem, out var anim))
+        {
+            currentIdleAnim = anim.Idle;
+            currentDrawAnim = anim.Draw;
+            PlayAnimation(currentDrawAnim);
+        }
+    }
+
+    private string? currentIdleAnim;
+    private string? currentDrawAnim;
+
+    private void PlayIdleAnimation()
+    {
+        if (currentIdleAnim != null)
+        {
+            SetAnimationByName(currentIdleAnim);
+        }
+    }
+
+    private void PlayAnimation(string? animationName)
+    {
+        if (animationName != null)
+        {
+            SetAnimationByName(animationName);
+        }
+    }
 
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, null, true)
     {
     }
+
+    record struct Anim(string Idle, string Draw, string LookAt);
+
+    Dictionary<int, Anim> ItemAnimations = new()
+    {
+        [1] = new Anim(
+            "rifle/rifle_m4a4/idle1_m4a4.vnmclip",
+            "rifle/rifle_m4a4/draw_m4a4.vnmclip",
+            "rifle/rifle_m4a4/lookat01_m4a4.vnmclip"
+        ),
+        [2] = new Anim(
+            "pistol/_default_pistol/idle_pistol.vnmclip",
+            "pistol/_default_pistol/draw_karambit.vnmclip",
+            "pistol/_default_pistol/lookat01_pistol.vnmclip"
+        ),
+        [3] = new Anim(
+            "knife/knife_karambit/idle1_karambit.vnmclip",
+            "knife/knife_karambit/draw_karambit.vnmclip",
+            "knife/knife_karambit/lookat01_karambit.vnmclip"
+        ),
+    };
 
     private void AddItem(Model item)
     {
@@ -40,6 +111,11 @@ public class ViewmodelSceneNode : ModelSceneNode
         // Items.Add(model);
     }
 
+    /// <summary>
+    /// Try to load the CS2 viewmodel, returning null when the required resources are not found.
+    /// </summary>
+    /// <param name="scene"></param>
+    /// <returns></returns>
     public static ViewmodelSceneNode? TryLoadCs2Viewmodel(Scene scene)
     {
         var loader = scene.RendererContext.FileLoader;
@@ -131,6 +207,33 @@ public class ViewmodelSceneNode : ModelSceneNode
     public override void Update(Scene.UpdateContext context)
     {
         base.Update(context);
+
+        var active = AnimationController.ActiveAnimation;
+        if (active != null)
+        {
+            var frame = AnimationController.Frame;
+
+            if (lastAnimName != active.Name)
+            {
+                lastAnimName = active.Name;
+                lastAnimFrame = frame;
+            }
+            else if (!active.IsLooping && frame < lastAnimFrame)
+            {
+                // Animation just ended (non-looping). Fall back to idle.
+                PlayIdleAnimation();
+
+                lastAnimName = currentIdleAnim;
+                lastAnimFrame = 0;
+            }
+
+            lastAnimFrame = frame;
+        }
+        else
+        {
+            lastAnimName = null;
+            lastAnimFrame = -1;
+        }
 
         // Arms should always be visible if the viewmodel is visible
         LocalBoundingBox = new AABB(Vector3.Zero, float.PositiveInfinity);
