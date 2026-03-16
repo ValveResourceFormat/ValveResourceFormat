@@ -46,37 +46,49 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    private int CurrentAnim { get; set; }
+    /// <summary>
+    /// Selects the previously selected item (used for quick weapon switching).
+    /// </summary>
+    public void SelectPreviousItem()
+    {
+        SelectedItem = PreviousSelectedItem;
+    }
+
+    enum AnimationState
+    {
+        Idle,
+        Draw,
+        LookAt,
+    }
+
+    AnimationState State { get; set; } = AnimationState.Idle;
+
+    public string TargetAnimation
+    {
+        get
+        {
+            if (ItemAnimations.TryGetValue(SelectedItem, out var anim))
+            {
+                return "animation/anims/viewmodel/" + State switch
+                {
+                    AnimationState.Idle => anim.Idle,
+                    AnimationState.Draw => anim.Draw,
+                    AnimationState.LookAt => anim.LookAt,
+                    _ => throw new InvalidOperationException("Invalid animation state")
+                };
+            }
+
+            return "";
+        }
+    }
+
     private int lastAnimFrame = -1;
     private string? lastAnimName;
 
     private void OnSelectedItemChanged()
     {
-        if (ItemAnimations.TryGetValue(SelectedItem, out var anim))
-        {
-            currentIdleAnim = anim.Idle;
-            currentDrawAnim = anim.Draw;
-            PlayAnimation(currentDrawAnim);
-        }
-    }
-
-    private string? currentIdleAnim;
-    private string? currentDrawAnim;
-
-    private void PlayIdleAnimation()
-    {
-        if (currentIdleAnim != null)
-        {
-            SetAnimationByName(currentIdleAnim);
-        }
-    }
-
-    private void PlayAnimation(string? animationName)
-    {
-        if (animationName != null)
-        {
-            SetAnimationByName(animationName);
-        }
+        State = AnimationState.Draw;
+        SetAnimationByName(TargetAnimation);
     }
 
     internal ViewmodelSceneNode(Scene scene, Model model)
@@ -89,13 +101,13 @@ public class ViewmodelSceneNode : ModelSceneNode
     Dictionary<int, Anim> ItemAnimations = new()
     {
         [1] = new Anim(
-            "rifle/rifle_m4a4/idle1_m4a4.vnmclip",
+            "rifle/rifle_m4a4/idle_m4a4.vnmclip",
             "rifle/rifle_m4a4/draw_m4a4.vnmclip",
             "rifle/rifle_m4a4/lookat01_m4a4.vnmclip"
         ),
         [2] = new Anim(
             "pistol/_default_pistol/idle_pistol.vnmclip",
-            "pistol/_default_pistol/draw_karambit.vnmclip",
+            "pistol/_default_pistol/draw_pistol.vnmclip",
             "pistol/_default_pistol/lookat01_pistol.vnmclip"
         ),
         [3] = new Anim(
@@ -149,7 +161,8 @@ public class ViewmodelSceneNode : ModelSceneNode
             "first_or_third_person_@2_#&firstperson_default"
         ]);
 
-        viewmodel.SetAnimationByName("animation/anims/viewmodel/knife/knife_karambit/idle1_karambit.vnmclip");
+        viewmodel.SelectedItem = 2;
+        viewmodel.SelectedItem = 3;
         viewmodel.LayerName = "world_layer_base";
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
 
@@ -199,6 +212,30 @@ public class ViewmodelSceneNode : ModelSceneNode
         var offset = Vector3.Transform(ViewmodelOffset, viewmodelRotation);
 
         Transform = rotationMatrix with { Translation = camera.Location + offset };
+
+
+        // Weapon slot selection
+        if (input.Pressed(TrackedKeys.Slot1))
+        {
+            SelectedItem = 1;
+        }
+        else if (input.Pressed(TrackedKeys.Slot2))
+        {
+            SelectedItem = 2;
+        }
+        else if (input.Pressed(TrackedKeys.Slot3))
+        {
+            SelectedItem = 3;
+        }
+        else if (input.Pressed(TrackedKeys.Up))
+        {
+            SelectPreviousItem();
+        }
+        else if (input.Pressed(TrackedKeys.F))
+        {
+            State = AnimationState.LookAt;
+            SetAnimationByName(TargetAnimation);
+        }
     }
 
     /// <summary>
@@ -221,10 +258,9 @@ public class ViewmodelSceneNode : ModelSceneNode
             else if (!active.IsLooping && frame < lastAnimFrame)
             {
                 // Animation just ended (non-looping). Fall back to idle.
-                PlayIdleAnimation();
-
-                lastAnimName = currentIdleAnim;
+                State = AnimationState.Idle;
                 lastAnimFrame = 0;
+                SetAnimationByName(TargetAnimation);
             }
 
             lastAnimFrame = frame;
