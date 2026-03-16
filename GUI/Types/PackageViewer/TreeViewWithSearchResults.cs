@@ -374,7 +374,7 @@ namespace GUI.Types.PackageViewer
 
                             await mainListView.InvokeAsync(() =>
                             {
-                                if (cancellationToken.IsCancellationRequested || bitmap == null)
+                                if (cancellationToken.IsCancellationRequested)
                                 {
                                     return;
                                 }
@@ -383,11 +383,15 @@ namespace GUI.Types.PackageViewer
                                 {
                                     castItem.ImageIndex = imageIndex;
                                 }
-                                else
+                                else if (bitmap != null)
                                 {
                                     castItem.ImageIndex = ImageList.Images.Count;
                                     ImageList.Images.Add(bitmap);
                                     IconImageCache[entryKey] = new(bitmap, castItem.ImageIndex);
+                                }
+                                else
+                                {
+                                    return;
                                 }
 
                                 mainListView.Invalidate();
