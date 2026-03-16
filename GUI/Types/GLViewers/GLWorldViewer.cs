@@ -209,6 +209,8 @@ namespace GUI.Types.GLViewers
                     Input.Camera.SetFromTransformMatrix(CameraMatrices[0]);
                     cameraSet = true;
                 }
+
+                Input.TryLoadViewmodel(Scene);
             }
 
             if (!cameraSet)
