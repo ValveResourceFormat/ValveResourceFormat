@@ -271,6 +271,10 @@ internal abstract class GLBaseControl : IDisposable
         Keys.Menu or Keys.LMenu => TrackedKeys.Alt,
         Keys.Space => TrackedKeys.Space,
         Keys.X => TrackedKeys.X,
+        Keys.D1 => TrackedKeys.Slot1,
+        Keys.D2 => TrackedKeys.Slot2,
+        Keys.D3 => TrackedKeys.Slot3,
+        Keys.F => TrackedKeys.F,
         Keys.Escape => TrackedKeys.Escape,
         _ => TrackedKeys.None,
     };
