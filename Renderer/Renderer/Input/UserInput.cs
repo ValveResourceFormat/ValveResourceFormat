@@ -1,3 +1,7 @@
+using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.ResourceTypes;
+
 namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
@@ -227,6 +231,8 @@ public class UserInput
             CurrentSpeedModifier = 7;
         }
 
+        Viewmodel?.Visible = false;
+
         if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState, !NoClip);
@@ -242,6 +248,8 @@ public class UserInput
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.ClampRotation();
+
+            Viewmodel?.ProcessInput(this);
         }
 
         var finalCamera = GetInterpolatedCamera();
@@ -254,6 +262,8 @@ public class UserInput
 
     private CameraLite CameraPositionAngles
         => new(Camera.Location, Camera.Pitch, Camera.Yaw);
+
+    private ViewmodelSceneNode? Viewmodel { get; set; }
 
     /// <summary>
     /// Switches to noclip mode and begins a smooth camera transition from the current position.
@@ -502,5 +512,14 @@ public class UserInput
         OrbitDistance *= 1f + delta * OrbitZoomSpeed;
         OrbitDistance = Math.Clamp(OrbitDistance, MinOrbitDistance, MaxOrbitDistance);
         TransitionCamera(transitionDuration: 0.5f);
+    }
+
+    /// <summary>
+    /// Try and load a game viewmodel to display in walk mode.
+    /// </summary>
+    public bool TryLoadViewmodel(Scene scene)
+    {
+        Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene);
+        return Viewmodel != null;
     }
 }
