@@ -19,6 +19,13 @@ namespace ValveResourceFormat.Renderer
         public float Time { get; private set { field = value; forceUpdate = true; } }
         private bool forceUpdate;
 
+        /// <summary>
+        /// The parent animating transform.
+        /// </summary>
+        public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
+
+        public bool Looping { get; set; } = true;
+
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
         public Animation? ActiveAnimation { get; private set; }
 
@@ -90,6 +97,16 @@ namespace ValveResourceFormat.Renderer
             if (!IsPaused)
             {
                 Time += timeStep * FrametimeMultiplier;
+
+                if (!Looping && ActiveAnimation != null)
+                {
+                    var maxTime = ActiveAnimation.FrameCount / ActiveAnimation.Fps;
+                    if (Time >= maxTime)
+                    {
+                        Time = maxTime;
+                        IsPaused = true;
+                    }
+                }
             }
 
             if (CurrentSubController is { } subController)
@@ -132,7 +149,7 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    ComputePoseRecursive(root, Matrix4x4.Identity, subController, Pose);
+                    ComputePoseRecursive(root, Transform, subController, Pose);
                 }
 
 
@@ -159,7 +176,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, AnimationFrame, Pose);
+                GetBoneMatricesRecursive(root, Transform, AnimationFrame, Pose);
             }
 
             return true;

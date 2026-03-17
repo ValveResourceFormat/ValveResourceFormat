@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
-        private readonly List<Animation> animations = [];
+        protected readonly List<Animation> Animations = [];
 
         /// <summary>Gets whether this model has an active GPU bone matrix buffer (i.e., has animations loaded).</summary>
         public bool IsAnimated => boneMatricesGpu != null;
@@ -337,12 +337,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void LoadAnimations(Model model, bool embeddedAnimationsOnly)
         {
-            animations.AddRange(embeddedAnimationsOnly
+            Animations.AddRange(embeddedAnimationsOnly
                 ? model.GetEmbeddedAnimations()
                 : model.GetAllAnimations(Scene.RendererContext.FileLoader)
             );
 
-            if (animations.Count != 0)
+            if (Animations.Count != 0)
             {
                 SetupBoneMatrixBuffers();
             }
@@ -366,9 +366,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return false;
             }
 
-            var anim = new Animation(clip);
-            animations.Add(anim);
+            LoadAnimationClip(clip);
             return true;
+        }
+
+        public void LoadAnimationClip(AnimationClip clip)
+        {
+            var anim = new Animation(clip);
+            Animations.Add(anim);
         }
 
         private bool LoadAnimGraphResources(string graphName, HashSet<string> visited)
@@ -450,12 +455,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>Returns the names of all animations available on this model.</summary>
         public IEnumerable<string> GetSupportedAnimationNames()
-            => animations.Select(a => a.Name);
+            => Animations.Select(a => a.Name);
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>
         public void SetAnimationByName(string animationName)
         {
-            var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+            var activeAnimation = Animations.FirstOrDefault(a => a.Name == animationName);
             SetAnimation(activeAnimation);
         }
 
@@ -469,7 +474,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (animationName != null)
             {
-                activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+                activeAnimation = Animations.FirstOrDefault(a => a.Name == animationName);
             }
 
             // TODO: CS2 falls back to the first animation, but other games seemingly do not.
