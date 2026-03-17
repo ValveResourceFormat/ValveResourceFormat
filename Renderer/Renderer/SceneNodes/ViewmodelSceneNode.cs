@@ -28,9 +28,11 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     readonly List<ModelSceneNode?> Items = [];
 
+    ModelSceneNode? SelectedItem => Items.ElementAtOrDefault(SelectedSlot - 1);
+
     private int PreviousSelectedItem;
 
-    public int SelectedItem
+    public int SelectedSlot
     {
         get => field;
         set
@@ -44,14 +46,19 @@ public class ViewmodelSceneNode : ModelSceneNode
             field = value;
             OnSelectedItemChanged();
         }
-    }
+    } = 3;
+
+    SkeletonSceneNode PrimarySkeletonDebug;
+
+    private float attackCooldown;
+    private float alternateAttackCooldown;
 
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
     /// </summary>
     public void SelectPreviousItem()
     {
-        SelectedItem = PreviousSelectedItem;
+        SelectedSlot = PreviousSelectedItem;
     }
 
     enum AnimationState
@@ -59,28 +66,44 @@ public class ViewmodelSceneNode : ModelSceneNode
         Idle,
         Draw,
         LookAt,
+        Attack,
+        AlternateAttack,
     }
 
     AnimationState State { get; set; } = AnimationState.Idle;
 
+    /// <summary>
+    /// Gets the currently selected animation path based on the active slot and state.
+    /// </summary>
     public string TargetAnimation
     {
         get
         {
-            if (ItemAnimations.TryGetValue(SelectedItem, out var anim))
+            if (ItemAnimations.TryGetValue(SelectedSlot, out var anim))
             {
                 return "animation/anims/viewmodel/" + State switch
                 {
                     AnimationState.Idle => anim.Idle,
                     AnimationState.Draw => anim.Draw,
                     AnimationState.LookAt => anim.LookAt,
-                    _ => throw new InvalidOperationException("Invalid animation state")
+                    AnimationState.Attack => anim.Attack,
+                    AnimationState.AlternateAttack => anim.AltAttack,
+                    _ => string.Empty,
                 };
             }
 
-            return "";
+            return string.Empty;
         }
     }
+
+    private (float fire, float altFire) GetWeaponFireDelays()
+        => SelectedSlot switch
+        {
+            1 => (0.1f, 2f),
+            2 => (0.1f, 2f),
+            3 => (0.3f, 1f),
+            _ => (0.1f, 2f),
+        };
 
     void SetState(AnimationState newState)
     {
@@ -93,12 +116,9 @@ public class ViewmodelSceneNode : ModelSceneNode
             AnimationController.IsPaused = false;
             AnimationController.Looping = looping;
 
-            foreach (var item in Items)
-            {
-                item?.SetAnimationByName(TargetAnimation + ".secondary_0");
-                AnimationController.IsPaused = false;
-                item?.AnimationController.Looping = true;
-            }
+            SelectedItem?.SetAnimationByName(TargetAnimation + ".secondary_0");
+            SelectedItem?.AnimationController.IsPaused = false;
+            SelectedItem?.AnimationController.Looping = looping;
         }
     }
 
@@ -110,26 +130,42 @@ public class ViewmodelSceneNode : ModelSceneNode
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, null, true)
     {
+        SetState(AnimationState.Idle);
+
+        var ag2Controller = AnimationController.CurrentSubController!.Value.Handler;
+        PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Controller, ag2Controller.Skeleton)
+        {
+            LayerName = "world_layer_base",
+            Flags = ObjectTypeFlags.DisableVisCulling,
+        };
+        Scene.Add(PrimarySkeletonDebug, true);
     }
 
-    record struct Anim(string Idle, string Draw, string LookAt);
+    record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null);
 
     Dictionary<int, Anim> ItemAnimations = new()
     {
         [1] = new Anim(
             "rifle/rifle_m4a4/idle_m4a4.vnmclip",
             "rifle/rifle_m4a4/draw_m4a4.vnmclip",
-            "rifle/rifle_m4a4/lookat01_m4a4.vnmclip"
+            "rifle/rifle_m4a4/lookat01_m4a4.vnmclip",
+            "rifle/rifle_m4a4/shoot1_m4a4.vnmclip",
+            "rifle/rifle_m4a4/reload_m4a4.vnmclip"
         ),
         [2] = new Anim(
             "pistol/_default_pistol/idle_pistol.vnmclip",
             "pistol/_default_pistol/draw_pistol.vnmclip",
-            "pistol/_default_pistol/lookat01_pistol.vnmclip"
+            "pistol/_default_pistol/lookat01_pistol.vnmclip",
+            "pistol/_default_pistol/shoot1_pistol.vnmclip",
+            "pistol/_default_pistol/silencer_detach_pistol.vnmclip"
         ),
         [3] = new Anim(
             "knife/knife_karambit/idle1_karambit.vnmclip",
             "knife/knife_karambit/draw_karambit.vnmclip",
-            "knife/knife_karambit/lookat01_karambit.vnmclip"
+            "knife/knife_karambit/lookat01_karambit.vnmclip",
+            "knife/knife_karambit/light_miss1_karambit.vnmclip",
+            "knife/knife_karambit/heavy_miss1_karambit.vnmclip",
+            "knife/knife_karambit/light_miss2_karambit.vnmclip"
         ),
     };
 
@@ -140,7 +176,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             LayerName = "world_layer_base",
             Flags = ObjectTypeFlags.DisableVisCulling,
         };
-        Scene.Add(model, false);
+        Scene.Add(model, true);
         Items.Add(model);
 
         model.Parent = this;
@@ -195,8 +231,8 @@ public class ViewmodelSceneNode : ModelSceneNode
             "first_or_third_person_@2_#&firstperson_default"
         ]);
 
-        viewmodel.SelectedItem = 2;
-        viewmodel.SelectedItem = 3;
+        viewmodel.SelectedSlot = 2;
+        viewmodel.SelectedSlot = 3;
         viewmodel.LayerName = "world_layer_base";
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
 
@@ -247,19 +283,33 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         Transform = rotationMatrix with { Translation = camera.Location + offset };
 
+        var (fireDelay, altFireDelay) = GetWeaponFireDelays();
 
-        // Weapon slot selection
-        if (input.Pressed(TrackedKeys.Slot1))
+        var requestedFire = SelectedSlot == 2
+            ? input.Pressed(TrackedKeys.MouseLeft)
+            : input.Holding(TrackedKeys.MouseLeft);
+
+        if (requestedFire && attackCooldown <= 0f)
         {
-            SelectedItem = 1;
+            SetState(AnimationState.Attack);
+            attackCooldown = fireDelay;
+        }
+        else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f)
+        {
+            SetState(AnimationState.AlternateAttack);
+            alternateAttackCooldown = altFireDelay;
+        }
+        else if (input.Pressed(TrackedKeys.Slot1))
+        {
+            SelectedSlot = 1;
         }
         else if (input.Pressed(TrackedKeys.Slot2))
         {
-            SelectedItem = 2;
+            SelectedSlot = 2;
         }
         else if (input.Pressed(TrackedKeys.Slot3))
         {
-            SelectedItem = 3;
+            SelectedSlot = 3;
         }
         else if (input.Pressed(TrackedKeys.Up))
         {
@@ -276,6 +326,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// </summary>
     public override void Update(Scene.UpdateContext context)
     {
+        attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
+        alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - context.Timestep);
+
         var active = AnimationController.ActiveAnimation;
         if (active != null)
         {
@@ -285,6 +338,8 @@ public class ViewmodelSceneNode : ModelSceneNode
             {
                 SetState(AnimationState.Idle);
             }
+
+            PrimarySkeletonDebug.Transform = Transform;
         }
 
         base.Update(context);
@@ -295,7 +350,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var i = 1;
         foreach (var item in Items)
         {
-            var isSelected = i == SelectedItem;
+            var isSelected = i == SelectedSlot;
             i++;
 
             if (item != null)
