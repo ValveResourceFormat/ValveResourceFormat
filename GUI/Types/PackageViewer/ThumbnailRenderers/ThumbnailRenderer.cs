@@ -34,6 +34,8 @@ internal abstract class ThumbnailRenderer : IDisposable
 
     public bool Loaded { get; private set; }
 
+    public abstract void SetResource(Resource resource);
+
     public void Load(VrfGuiContext context)
     {
         Loaded = true;
@@ -134,8 +136,6 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         return bitmap.ToBitmap();
     }
-
-    public abstract void SetResource(Resource resource);
 
     public Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
     {
