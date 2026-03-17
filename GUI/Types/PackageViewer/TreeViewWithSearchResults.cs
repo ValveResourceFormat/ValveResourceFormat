@@ -291,12 +291,13 @@ namespace GUI.Types.PackageViewer
             _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource.Token);
         }
 
-        private readonly Dictionary<string, IThumbnailRenderer> ThumbnailRenderers = new Dictionary<string, IThumbnailRenderer>()
+        private readonly Dictionary<string, ThumbnailRenderer> ThumbnailRenderers = new Dictionary<string, ThumbnailRenderer>()
         {
             {"vmdl_c", new ThumbnailModelRenderer() },
+            {"vmat_c", new ThumbnailMaterialRenderer() },
         };
 
-        private IThumbnailRenderer? GetThumbnailRenderer(string resourceType)
+        private ThumbnailRenderer? GetThumbnailRenderer(string resourceType)
         {
             ThumbnailRenderers.TryGetValue(resourceType, out var renderer);
 
