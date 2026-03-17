@@ -375,6 +375,11 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in dynamicNodes)
             {
+                if (node.Parent != null)
+                {
+                    continue; // child nodes are updated by their parent
+                }
+
                 var oldBox = node.BoundingBox;
                 node.Update(updateContext);
 
