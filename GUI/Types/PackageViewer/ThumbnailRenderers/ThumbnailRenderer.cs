@@ -34,7 +34,10 @@ internal abstract class ThumbnailRenderer : IDisposable
 
     public bool Loaded { get; private set; }
 
-    public abstract void SetResource(Resource resource);
+    public virtual void SetResource(Resource resource)
+    {
+
+    }
 
     public void Load(VrfGuiContext context)
     {
