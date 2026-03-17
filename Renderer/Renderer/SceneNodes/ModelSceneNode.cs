@@ -395,6 +395,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return true;
         }
 
+        public void LoadAnimationClip(AnimationClip clip)
+        {
+            var anim = new Animation(clip);
+            Animations.Add(anim);
+        }
+
         private bool LoadAnimGraphResources(string graphName, HashSet<string> visited)
         {
             var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);

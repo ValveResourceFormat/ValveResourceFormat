@@ -91,6 +91,11 @@ namespace ValveResourceFormat.Renderer
         public Scene Scene { get; }
 
         /// <summary>
+        /// The parent node.
+        /// </summary>
+        public SceneNode? Parent { get; set; }
+
+        /// <summary>
         /// Gets the environment maps affecting this node.
         /// </summary>
         public List<SceneEnvMap> EnvMaps { get; private set; } = [];
