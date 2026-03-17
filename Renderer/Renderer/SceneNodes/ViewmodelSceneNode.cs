@@ -26,7 +26,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// </summary>
     public ModelSceneNode Arms => this;
 
-    // public readonly List<ModelSceneNode?> Items = [];
+    readonly List<ModelSceneNode?> Items = [];
 
     private int PreviousSelectedItem;
 
@@ -82,13 +82,29 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    private int lastAnimFrame = -1;
-    private string? lastAnimName;
+    void SetState(AnimationState newState)
+    {
+        if (true)
+        {
+            State = newState;
+            var looping = newState == AnimationState.Idle;
+
+            SetAnimationByName(TargetAnimation);
+            AnimationController.IsPaused = false;
+            AnimationController.Looping = looping;
+
+            foreach (var item in Items)
+            {
+                item?.SetAnimationByName(TargetAnimation + ".secondary_0");
+                AnimationController.IsPaused = false;
+                item?.AnimationController.Looping = true;
+            }
+        }
+    }
 
     private void OnSelectedItemChanged()
     {
-        State = AnimationState.Draw;
-        SetAnimationByName(TargetAnimation);
+        SetState(AnimationState.Draw);
     }
 
     internal ViewmodelSceneNode(Scene scene, Model model)
@@ -119,8 +135,26 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     private void AddItem(Model item)
     {
-        var model = new ModelSceneNode(Scene, item);
-        // Items.Add(model);
+        var model = new ModelSceneNode(Scene, item)
+        {
+            LayerName = "world_layer_base",
+            Flags = ObjectTypeFlags.DisableVisCulling,
+        };
+        Scene.Add(model, false);
+        Items.Add(model);
+
+        model.Parent = this;
+
+        foreach (var anim in Animations)
+        {
+            if (anim.Clip is not null)
+            {
+                if (anim.Clip.SecondaryAnimations.Length > 0)
+                {
+                    model.LoadAnimationClip(anim.Clip.SecondaryAnimations[0]);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -154,7 +188,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var viewmodel = new ViewmodelSceneNode(scene, models[0]);
         foreach (var item in models[1..])
         {
-            // viewmodel.AddItem(item);
+            viewmodel.AddItem(item);
         }
 
         viewmodel.Arms.SetActiveMeshGroups([
@@ -233,8 +267,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
         else if (input.Pressed(TrackedKeys.F))
         {
-            State = AnimationState.LookAt;
-            SetAnimationByName(TargetAnimation);
+            SetState(AnimationState.LookAt);
         }
     }
 
@@ -243,35 +276,56 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// </summary>
     public override void Update(Scene.UpdateContext context)
     {
-        base.Update(context);
-
         var active = AnimationController.ActiveAnimation;
         if (active != null)
         {
             var frame = AnimationController.Frame;
 
-            if (lastAnimName != active.Name)
+            if (State != AnimationState.Idle && AnimationController.IsPaused)
             {
-                lastAnimName = active.Name;
-                lastAnimFrame = frame;
+                SetState(AnimationState.Idle);
             }
-            else if (!active.IsLooping && frame < lastAnimFrame)
-            {
-                // Animation just ended (non-looping). Fall back to idle.
-                State = AnimationState.Idle;
-                lastAnimFrame = 0;
-                SetAnimationByName(TargetAnimation);
-            }
+        }
 
-            lastAnimFrame = frame;
-        }
-        else
-        {
-            lastAnimName = null;
-            lastAnimFrame = -1;
-        }
+        base.Update(context);
 
         // Arms should always be visible if the viewmodel is visible
         LocalBoundingBox = new AABB(Vector3.Zero, float.PositiveInfinity);
+
+        var i = 1;
+        foreach (var item in Items)
+        {
+            var isSelected = i == SelectedItem;
+            i++;
+
+            if (item != null)
+            {
+                if (!isSelected)
+                {
+                    item.Transform = Matrix4x4.CreateScale(0);
+                    continue;
+                }
+
+                var ag2Controller = AnimationController.CurrentSubController;
+
+                if (ag2Controller == null)
+                {
+                    continue;
+                }
+
+                var wpnIndex = ag2Controller.Value.Skeleton.Bones.FirstOrDefault(b => b.Name == "wpn")?.Index ?? -1;
+
+                if (wpnIndex == -1)
+                {
+                    // context.TextRenderer.AddTextRelative("not found", 0.5f, 0.5f, 13, Color32.Blue, context.Camera);
+                    continue;
+                }
+
+                var wpnTransform = ag2Controller.Value.Handler.Pose[wpnIndex];
+
+                item.Transform = wpnTransform * Transform;
+                item.Update(context);
+            }
+        }
     }
 }
