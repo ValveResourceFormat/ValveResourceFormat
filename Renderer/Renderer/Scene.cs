@@ -1752,6 +1752,12 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in AllNodes)
             {
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.LightProbeBinding = globalProbe;
+                    continue;
+                }
+
                 node.LightProbeBinding ??= globalProbe;
             }
         }
@@ -1876,6 +1882,12 @@ namespace ValveResourceFormat.Renderer
                 });
 
                 node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
+
+                // all cubemaps visible
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(LightingInfo.EnvMaps);
+                }
 
 #if DEBUG
                 if (preComputed != default)
