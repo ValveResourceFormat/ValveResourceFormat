@@ -101,10 +101,10 @@ namespace ValveResourceFormat.Renderer
                 if (!Looping && ActiveAnimation != null)
                 {
                     var maxTime = ActiveAnimation.FrameCount / ActiveAnimation.Fps;
-                    if (Time >= maxTime)
+                    if (Time >= maxTime || Frame == ActiveAnimation.FrameCount - 1)
                     {
-                        Time = maxTime;
                         IsPaused = true;
+                        Frame = ActiveAnimation.FrameCount - 1;
                     }
                 }
             }
@@ -113,6 +113,7 @@ namespace ValveResourceFormat.Renderer
             {
                 subController.Handler.IsPaused = IsPaused;
                 subController.Handler.Time = Time;
+                subController.Handler.Looping = Looping;
 
                 var updated = subController.Handler.Update(0f);
                 if (!updated && !forceUpdate)

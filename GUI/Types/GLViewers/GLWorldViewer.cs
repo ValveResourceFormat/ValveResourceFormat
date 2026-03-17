@@ -31,6 +31,7 @@ namespace GUI.Types.GLViewers
         private SavedCameraPositionsControl? savedCameraPositionsControl;
         private EntityInfoForm? entityInfoForm;
         private bool ignoreLayersChangeEvents = true;
+        private bool showSkeleton;
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
         public WorldLoader? LoadedWorld;
@@ -342,12 +343,23 @@ namespace GUI.Types.GLViewers
 
                 using (UiControl.BeginGroup("World"))
                 {
+                    UiControl.AddCheckBox("Show AG2 Skeleton", showSkeleton, v =>
+                    {
+                        using var _ = MakeCurrent();
+                        showSkeleton = v;
+                        foreach (var skeleton in Scene.AllNodes.OfType<SkeletonSceneNode>())
+                        {
+                            skeleton.Enabled = v;
+                        }
+                    });
+
                     if (Renderer.SkyboxScene != null)
                     {
                         UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
                     }
 
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
+
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
                     UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
                     UiControl.AddCheckBox("Gpu Culling", Scene.EnableIndirectDraws, v =>

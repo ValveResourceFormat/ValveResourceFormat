@@ -83,11 +83,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
         }
 
-        private static void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer, AnimationController animation)
+        private void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer, AnimationController animation)
         {
             var boneMatrix = animation.Pose[bone.Index];
 
-            textRenderer.AddTextBillboard(boneMatrix.Translation, new TextRenderer.TextRenderRequest
+            textRenderer.AddTextBillboard(Vector3.Transform(boneMatrix.Translation, Transform), new TextRenderer.TextRenderRequest
             {
                 Scale = 10f,
                 Text = bone.Name,
