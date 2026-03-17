@@ -13,8 +13,6 @@ internal class ThumbnailModelRenderer : ThumbnailRenderer
 
         Debug.Assert(SceneRenderer != null);
 
-        SceneRenderer.Scene.Clear();
-
         var modelSceneNode = new ModelSceneNode(SceneRenderer.Scene, model);
         SceneRenderer.Scene.Add(modelSceneNode, true);
 

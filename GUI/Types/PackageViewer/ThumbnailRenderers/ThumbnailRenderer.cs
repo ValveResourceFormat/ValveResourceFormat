@@ -137,21 +137,35 @@ internal abstract class ThumbnailRenderer : IDisposable
         return bitmap.ToBitmap();
     }
 
-    public Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
+    public static Resource? LoadResourceFromPackageEntry(VrfGuiContext context, PackageEntry entry)
     {
-        Debug.Assert(SceneRenderer != null);
-
-        using var stream = GameFileLoader.GetPackageEntryStream(context.CurrentPackage!, entry);
+        var stream = GameFileLoader.GetPackageEntryStream(context.CurrentPackage!, entry);
 
         if (stream == null)
         {
             return null;
         }
 
-        using var resource = new Resource { FileName = entry.GetFullPath() };
+        var resource = new Resource { FileName = entry.GetFullPath() };
         resource.Read(stream);
 
+        return resource;
+    }
+
+    public virtual Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
+    {
+        Debug.Assert(SceneRenderer != null);
+
+        using var resource = LoadResourceFromPackageEntry(context, entry);
+
+        if (resource == null)
+        {
+            return null;
+        }
+
         NativeWindow?.MakeCurrent();
+
+        SceneRenderer.Scene.Clear();
 
         SetResource(resource);
 
