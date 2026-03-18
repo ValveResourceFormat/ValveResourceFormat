@@ -46,7 +46,11 @@ public class PlayerMovement
     /// <summary>Gets the current player velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }
     private Vector3 AABBCenteredPosition;
-    private bool OnGround;
+
+    /// <summary>
+    /// Gets a value indicating whether the player is currently on the ground.
+    /// </summary>
+    public bool OnGround { get; private set; }
     private bool WasOnGroundLastFrame;
     private bool WasDuckingLastFrame;
 

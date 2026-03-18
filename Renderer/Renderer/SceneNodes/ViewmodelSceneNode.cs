@@ -50,8 +50,10 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     SkeletonSceneNode PrimarySkeletonDebug;
 
+    private Matrix4x4 TargetTransform = Matrix4x4.Identity;
     private float attackCooldown;
     private float alternateAttackCooldown;
+    private Vector3 currentBob = Vector3.Zero;
 
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
@@ -131,6 +133,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         : base(scene, model, null, true)
     {
         SetState(AnimationState.Idle);
+        TargetTransform = Transform;
 
         var ag2Controller = AnimationController.CurrentSubController!.Value.Handler;
         PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Controller, ag2Controller.Skeleton)
@@ -246,7 +249,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// Process input for the viewmodel, updating its transform to match the camera's orientation and position.
     /// </summary>
     /// <param name="input"></param>
-    public void ProcessInput(UserInput input)
+    /// <param name="uptime"></param>
+    public void ProcessInput(UserInput input, float uptime)
     {
         Visible = true;
 
@@ -278,10 +282,35 @@ public class ViewmodelSceneNode : ModelSceneNode
             * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -float.DegreesToRadians(90));
         var viewmodelRotation = Quaternion.Normalize(cameraRotation * viewmodelOffsetRot);
 
-        var rotationMatrix = Matrix4x4.CreateFromQuaternion(viewmodelRotation);
-        var offset = Vector3.Transform(ViewmodelOffset, viewmodelRotation);
 
-        Transform = rotationMatrix with { Translation = camera.Location + offset };
+        var bobInputRotation = Quaternion.Inverse(viewmodelRotation);
+
+        var targetBob = Vector3.Transform(input.Velocity * 0.005f, bobInputRotation);
+
+        targetBob.Y = -targetBob.Y; // switch sideways movement to be leading instead of trailing
+        targetBob.Z = MathF.Abs(targetBob.Z);
+        targetBob.Y *= 0.3f; // dampen sideways movement
+        targetBob.Z *= 0.3f; // dampen vertical movement
+
+        // Smooth bob transitions to avoid harsh changes
+        currentBob = Vector3.Lerp(currentBob, targetBob, 0.5f);
+
+        // Add walking bob based on uptime
+        var speed = input.Velocity.Length();
+        var bobAmplitude = MathUtils.Saturate((speed - 150f) / 150f) * 0.1f;
+
+        if (!input.PlayerMovement.OnGround)
+        {
+            bobAmplitude = 0;
+        }
+
+        var bobFrequency = 18; //float.Lerp(10f, 20f, bobAmplitude);
+        var walkBob = new Vector3(1, 0.5f, 1) * MathF.Sin(uptime * bobFrequency) * bobAmplitude;
+
+        var rotationMatrix = Matrix4x4.CreateFromQuaternion(viewmodelRotation);
+        var offset = Vector3.Transform(ViewmodelOffset - currentBob - walkBob, viewmodelRotation);
+
+        TargetTransform = rotationMatrix with { Translation = camera.Location + offset };
 
         var (fireDelay, altFireDelay) = GetWeaponFireDelays();
 
@@ -326,6 +355,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// </summary>
     public override void Update(Scene.UpdateContext context)
     {
+        Transform = TargetTransform;
+
         attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
         alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - context.Timestep);
 
