@@ -140,7 +140,9 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             LayerName = "world_layer_base",
             Flags = ObjectTypeFlags.DisableVisCulling,
+            Enabled = false,
         };
+
         Scene.Add(PrimarySkeletonDebug, true);
     }
 
@@ -375,8 +377,14 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         base.Update(context);
 
-        // Arms should always be visible if the viewmodel is visible
-        LocalBoundingBox = new AABB(Vector3.Zero, float.PositiveInfinity);
+        // LocalBoundingBox = new AABB(Vector3.Zero, float.PositiveInfinity);
+
+        static void UpdateItem(ModelSceneNode item, Scene.UpdateContext context, AABB bounds)
+        {
+            item.Update(context);
+            item.LocalBoundingBox = bounds;
+            item.Scene.DynamicOctree.Update(item, bounds);
+        }
 
         var i = 1;
         foreach (var item in Items)
@@ -389,6 +397,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 if (!isSelected)
                 {
                     item.Transform = Matrix4x4.CreateScale(0);
+                    UpdateItem(item, context, LocalBoundingBox);
                     continue;
                 }
 
@@ -410,7 +419,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 var wpnTransform = ag2Controller.Value.Handler.Pose[wpnIndex];
 
                 item.Transform = wpnTransform * Transform;
-                item.Update(context);
+                UpdateItem(item, context, LocalBoundingBox);
             }
         }
     }
