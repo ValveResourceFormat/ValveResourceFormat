@@ -11,6 +11,7 @@ using GUI.Forms;
 using GUI.Types.PackageViewer.ThumbnailRenderers;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 
 namespace GUI.Types.PackageViewer
@@ -113,6 +114,8 @@ namespace GUI.Types.PackageViewer
             mainListView.Scroll += MainListView_Scroll;
 
             Viewer = viewer;
+
+            listRadioButton.Select();
         }
 
         private void MainListView_Scroll(object? sender, ScrollEventArgs e)
@@ -153,6 +156,11 @@ namespace GUI.Types.PackageViewer
             mainTreeView.BackColor = Themer.CurrentThemeColors.AppMiddle;
             mainListView.BackColor = Themer.CurrentThemeColors.AppSoft;
             mainSplitContainer.BackColor = Themer.CurrentThemeColors.AppMiddle;
+            tableLayoutPanel2.BackColor = Themer.CurrentThemeColors.AppSoft;
+            gridSizeSlider.BackColor = Themer.CurrentThemeColors.AppSoft;
+
+            Themer.ThemeControl(gridRadioButton);
+            Themer.ThemeControl(listRadioButton);
         }
 
         private void MainSplitContainerSplitterMoved(object sender, SplitterEventArgs e)
@@ -1259,9 +1267,16 @@ namespace GUI.Types.PackageViewer
             };
             tabs.Controls.Add(tab);
 
-            rightPanel.Controls.Add(tabs);
+            var parentControl = mainListView.Parent;
 
-            foreach (Control old in rightPanel.Controls)
+            if (parentControl == null)
+            {
+                return;
+            }
+
+            parentControl.Controls.Add(tabs);
+
+            foreach (Control old in parentControl.Controls)
             {
                 if (old == tabs || old == mainListView) // TODO: dumb
                 {
@@ -1274,7 +1289,12 @@ namespace GUI.Types.PackageViewer
 
         private void DisplayMainListView()
         {
-            foreach (Control old in rightPanel.Controls)
+            if (mainListView.Parent == null)
+            {
+                return;
+            }
+
+            foreach (Control old in mainListView.Parent.Controls)
             {
                 if (old != mainListView)
                 {
@@ -1426,6 +1446,26 @@ namespace GUI.Types.PackageViewer
             ThumbnailRenderTokenSource?.Dispose();
             ThumbnailRenderQueue.Dispose();
             RenderLoopCancelationTokenSource.Dispose();
+        }
+
+        private void listRadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (listRadioButton.Checked)
+            {
+                gridSizeSlider.Enabled = false;
+                gridSizeSlider.Visible = false;
+
+                mainListView.View = View.Details;
+            }
+        }
+
+        private void gridRadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (gridRadioButton.Checked)
+            {
+                gridSizeSlider.Enabled = true;
+                gridSizeSlider.Visible = true;
+            }
         }
     }
 }
