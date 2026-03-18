@@ -285,6 +285,8 @@ namespace GUI.Types.PackageViewer
                 UpdateSearchTextBoxToCurrentPath(pkgNode);
             }
 
+            SortListViewItemsForVirtualMode();
+
             var currentThumbnailSizeInt = (int)CurrentThumbnailSizes;
 
             if (mainListView.VirtualMode)
@@ -1060,25 +1062,25 @@ namespace GUI.Types.PackageViewer
 
             if (e.Column == sorter.SortColumn)
             {
-                if (sorter.Order == SortOrder.Ascending)
-                {
-                    sorter.Order = SortOrder.Descending;
-                }
-                else
-                {
-                    sorter.Order = SortOrder.Ascending;
-                }
+                sorter.Order = sorter.Order == SortOrder.Ascending
+                    ? SortOrder.Descending
+                    : SortOrder.Ascending;
             }
             else
             {
                 sorter.SortColumn = e.Column;
-
-                // For size column, prefer descending first
                 sorter.Order = e.Column == 1 ? SortOrder.Descending : SortOrder.Ascending;
             }
 
-            mainListView.Sort();
-            mainListView.Invalidate(true);
+            if (mainListView.VirtualMode)
+            {
+                SortListViewItemsForVirtualMode();
+            }
+            else
+            {
+                mainListView.Sort();
+                mainListView.Invalidate(true);
+            }
         }
 
         /// <summary>
@@ -1479,6 +1481,24 @@ namespace GUI.Types.PackageViewer
         private int GetFolderUpImageIndex()
         {
             return mainListView.VirtualMode ? ImageIndexFolderUp : MainForm.Icons["FolderUp"];
+        }
+
+        private void SortListViewItemsForVirtualMode()
+        {
+            if (!mainListView.VirtualMode)
+            {
+                return;
+            }
+
+            if (mainListView.ListViewItemSorter is not ListViewColumnSorter sorter)
+            {
+                return;
+            }
+
+            ListViewItems.Sort((a, b) => sorter.Compare(a, b));
+
+            mainListView.VirtualListSize = ListViewItems.Count; // force refresh
+            mainListView.Invalidate(true);
         }
 
         private void MainListView_Disposed(object? sender, EventArgs e)
