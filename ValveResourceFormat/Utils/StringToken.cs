@@ -35,11 +35,24 @@ namespace ValveResourceFormat.Utils
         public static readonly ConcurrentDictionary<uint, string> InvertedTable = new(InitializeInverseLookup());
 
         /// <summary>
-        /// Computes the hash token for the given string.
+        /// Computes the hash token for the given string. The hash is case insensitive.
         /// </summary>
         /// <param name="key">The string to hash.</param>
         /// <returns>The hash token.</returns>
-        public static uint Get(string key) => MurmurHash2.Hash(key, MURMUR2SEED);
+        public static uint Get(string key)
+        {
+            var keySpan = key.AsSpan();
+            Span<char> lowerKey = stackalloc char[key.Length];
+
+            for (var i = 0; i < key.Length; i++)
+            {
+                var c = keySpan[i];
+                // ASCII lowercase: A-Z (65-90) -> a-z (97-122)
+                lowerKey[i] = (c >= 'A' && c <= 'Z') ? (char)(c | 0x20) : c;
+            }
+
+            return MurmurHash2.Hash(lowerKey, MURMUR2SEED);
+        }
 
         /// <summary>
         /// Gets a known string for the given hash, or returns an unknown key placeholder.
@@ -62,7 +75,7 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         public static uint Store(string key)
         {
-            var token = Get(key.ToLowerInvariant());
+            var token = Get(key);
 
             InvertedTable[token] = key;
             return token;

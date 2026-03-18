@@ -20,6 +20,34 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Bone[] Bones { get; private set; } = [];
 
         /// <summary>
+        /// Gets a bone by its StringToken hash.
+        /// </summary>
+        public Bone? this[uint hash]
+        {
+            get
+            {
+                var index = GetBoneIndex(hash);
+                return index != -1 ? Bones[index] : null;
+            }
+        }
+
+        /// <summary>
+        /// Gets a bone by its name.
+        /// </summary>
+        public Bone? this[string name] => this[StringToken.Get(name)];
+
+
+        /// <summary>
+        /// Gets the index of a bone by its StringToken hash, or -1 if not found.
+        /// </summary>
+        public int GetBoneIndex(uint hash) => boneHashToIndex.TryGetValue(hash, out var index) ? index : -1;
+
+        /// <summary>
+        /// Gets the index of a bone by its name, or -1 if not found.
+        /// </summary>
+        public int GetBoneIndex(string name) => GetBoneIndex(StringToken.Get(name));
+
+        /// <summary>
         /// Gets the root bone for cloth simulation, if present.
         /// </summary>
         public Bone? ClothSimulationRoot { get; private set; }
@@ -80,6 +108,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return s;
         }
 
+        readonly Dictionary<uint, int> boneHashToIndex = [];
+
         private Skeleton()
         {
         }
@@ -131,6 +161,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             Roots = [.. roots];
+
+            for (var i = 0; i < Bones.Length; i++)
+            {
+                var name = Bones[i].Name;
+                var hash = StringToken.Store(name);
+                boneHashToIndex[hash] = i;
+            }
         }
     }
 }

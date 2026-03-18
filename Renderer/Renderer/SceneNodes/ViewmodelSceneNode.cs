@@ -3,6 +3,8 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
@@ -19,7 +21,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <summary>
     /// Viewmodel offset in viewmodel space (forward, right, up).
     /// </summary>
-    public Vector3 ViewmodelOffset { get; set; } = new Vector3(-6, -2, -2);
+    public Vector3 ViewmodelOffset { get; set; } = new Vector3(-4, -2, -2);
 
     /// <summary>
     /// The player arms.
@@ -408,7 +410,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                     continue;
                 }
 
-                var wpnIndex = ag2Controller.Value.Skeleton.Bones.FirstOrDefault(b => b.Name == "wpn")?.Index ?? -1;
+                var wpnIndex = ag2Controller.Value.Skeleton.GetBoneIndex("wpn");
 
                 if (wpnIndex == -1)
                 {
