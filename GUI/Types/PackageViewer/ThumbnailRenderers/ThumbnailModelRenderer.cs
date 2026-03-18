@@ -18,10 +18,8 @@ internal class ThumbnailModelRenderer : ThumbnailRenderer
 
         var bbox = modelSceneNode.BoundingBox;
 
-        var center = bbox.Center;
         // add some padding
         var size = bbox.Size * 1.5f;
-        var biggestSide = Math.Max(size.X, Math.Max(size.Y, size.Z));
 
         SceneRenderer.Camera.RecalculateDirectionVectors();
         SceneRenderer.Camera.FrameObject(bbox.Center, size.X, size.Z, size.Y);

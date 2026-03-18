@@ -118,12 +118,18 @@ namespace GUI.Types.PackageViewer
 
         private void MainListView_Scroll(object? sender, ScrollEventArgs e)
         {
-            _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource!.Token);
+            if (ThumbnailRenderTokenSource != null)
+            {
+                _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource.Token);
+            }
         }
 
         private void MainListView_Resize(object? sender, EventArgs e)
         {
-            _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource!.Token);
+            if (ThumbnailRenderTokenSource != null)
+            {
+                _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource.Token);
+            }
         }
 
         private void RenderLoop()
@@ -1528,16 +1534,21 @@ namespace GUI.Types.PackageViewer
                 components.Dispose();
             }
 
-            base.Dispose(disposing);
-
             ThumbnailRenderTokenSource?.Cancel();
             RenderLoopCancelationTokenSource.Cancel();
             ThumbnailRenderQueue.CompleteAdding();
+
+            base.Dispose(disposing);
 
             BigIconsImageList.Dispose();
             ThumbnailRenderTokenSource?.Dispose();
             ThumbnailRenderQueue.Dispose();
             RenderLoopCancelationTokenSource.Dispose();
+
+            foreach (var renderer in ThumbnailRenderers.Values)
+            {
+                renderer.Dispose();
+            }
         }
 
         private void listRadioButton_CheckedChanged(object sender, EventArgs e)
@@ -1582,6 +1593,8 @@ namespace GUI.Types.PackageViewer
             ThumbnailRenderTokenSource = new CancellationTokenSource();
 
             // rebuild image list and clear caches
+            BigIconsImageList.Dispose();
+
             BigIconsImageList = InitThumbnailImageList();
             BigIconImageCache.Clear();
             QueuedOrRenderedThumbnailItems.Clear();
