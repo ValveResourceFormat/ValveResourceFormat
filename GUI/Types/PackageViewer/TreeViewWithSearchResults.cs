@@ -299,8 +299,8 @@ namespace GUI.Types.PackageViewer
                     if (betterListViewItem.IsFolder)
                     {
                         betterListViewItem.ImageIndex = betterListViewItem.Tag is BetterListViewItem.ParentNavigationTag
-                            ? ImageIndexFolderUp
-                            : ImageIndexFolder;
+                            ? GetFolderUpImageIndex()
+                            : GetFolderImageIndex();
                         continue;
                     }
 
@@ -1240,7 +1240,7 @@ namespace GUI.Types.PackageViewer
 
             var item = new BetterListViewItem(name)
             {
-                ImageIndex = ImageIndexFolderUp,
+                ImageIndex = GetFolderUpImageIndex(),
                 PkgNode = parentNode,
                 Tag = BetterListViewItem.ParentNavigationTag,
             };
@@ -1262,7 +1262,7 @@ namespace GUI.Types.PackageViewer
         {
             var item = new BetterListViewItem(name)
             {
-                ImageIndex = ImageIndexFolder,
+                ImageIndex = GetFolderImageIndex(),
                 PkgNode = node,
             };
 
@@ -1455,6 +1455,16 @@ namespace GUI.Types.PackageViewer
             }
 
             mainTreeView.EndUpdate();
+        }
+
+        private int GetFolderImageIndex()
+        {
+            return mainListView.VirtualMode ? ImageIndexFolder : MainForm.Icons["Folder"];
+        }
+
+        private int GetFolderUpImageIndex()
+        {
+            return mainListView.VirtualMode ? ImageIndexFolderUp : MainForm.Icons["FolderUp"];
         }
 
         private void MainListView_Disposed(object? sender, EventArgs e)
