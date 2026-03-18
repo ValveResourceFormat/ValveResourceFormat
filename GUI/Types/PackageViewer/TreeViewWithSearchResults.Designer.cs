@@ -128,7 +128,6 @@ namespace GUI.Types.PackageViewer
             listRadioButton.Name = "listRadioButton";
             listRadioButton.Size = new System.Drawing.Size(54, 34);
             listRadioButton.TabIndex = 0;
-            listRadioButton.TabStop = true;
             listRadioButton.Text = "List";
             listRadioButton.UseVisualStyleBackColor = true;
             listRadioButton.CheckedChanged += listRadioButton_CheckedChanged;
@@ -136,6 +135,7 @@ namespace GUI.Types.PackageViewer
             // gridRadioButton
             // 
             gridRadioButton.AutoSize = true;
+            gridRadioButton.Checked = true;
             gridRadioButton.Dock = System.Windows.Forms.DockStyle.Fill;
             gridRadioButton.Location = new System.Drawing.Point(71, 3);
             gridRadioButton.Name = "gridRadioButton";
@@ -155,6 +155,7 @@ namespace GUI.Types.PackageViewer
             gridSizeSlider.Size = new System.Drawing.Size(107, 34);
             gridSizeSlider.TabIndex = 2;
             gridSizeSlider.Value = 2;
+            gridSizeSlider.Scroll += gridSizeSlider_Scroll;
             // 
             // panel1
             // 
