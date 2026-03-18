@@ -11,7 +11,6 @@ using GUI.Forms;
 using GUI.Types.PackageViewer.ThumbnailRenderers;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 
 namespace GUI.Types.PackageViewer
@@ -23,7 +22,7 @@ namespace GUI.Types.PackageViewer
     /// </summary>
     partial class TreeViewWithSearchResults : UserControl
     {
-        ThumbnailSizes CurrentThumbnailSizes { get; set; } = ThumbnailSizes.Big;
+        ThumbnailSizes CurrentThumbnailSizes { get; set; } = ThumbnailSizes.Huge;
 
         private List<ListViewItem> ListViewItems = new List<ListViewItem>();
 
