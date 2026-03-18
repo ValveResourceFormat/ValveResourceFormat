@@ -305,7 +305,7 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            if (config.NeedsCubemapBinding && uniforms.EnvmapTexture != -1)
+            if (config.NeedsCubemapBinding && uniforms.EnvmapTexture != -1 && request.Node.EnvMaps.Count > 0)
             {
                 var envmap = request.Node.EnvMaps[0];
                 SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap.EnvMapTexture);
