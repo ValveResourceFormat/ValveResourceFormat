@@ -24,7 +24,7 @@ namespace GUI.Types.PackageViewer
     {
         ThumbnailSizes CurrentThumbnailSizes { get; set; } = ThumbnailSizes.Huge;
 
-        private List<ListViewItem> ListViewItems = new List<ListViewItem>();
+        private readonly List<ListViewItem> ListViewItems = [];
 
         private ImageList BigIconsImageList;
 
@@ -34,7 +34,7 @@ namespace GUI.Types.PackageViewer
         private const int ImageIndexFolder = 0;
         private const int ImageIndexFolderUp = 1;
 
-        private readonly object ImageListLock = new();
+        private readonly Lock ImageListLock = new();
 
         private record class IconImageCacheEntry(Bitmap image, int index);
 
@@ -46,7 +46,7 @@ namespace GUI.Types.PackageViewer
 
         private readonly CancellationTokenSource RenderLoopCancelationTokenSource = new();
         private readonly Thread ThumbnailRenderThread;
-        private readonly BlockingCollection<Func<Task>> ThumbnailRenderQueue = new();
+        private readonly BlockingCollection<Func<Task>> ThumbnailRenderQueue = [];
 
         private static readonly string[] Columns = ["Name", "Size", "Type"];
 
@@ -289,7 +289,7 @@ namespace GUI.Types.PackageViewer
 
             if (mainListView.VirtualMode)
             {
-                for (int i = 0; i < ListViewItems.Count; i++)
+                for (var i = 0; i < ListViewItems.Count; i++)
                 {
                     if (ListViewItems[i] is not BetterListViewItem betterListViewItem)
                     {
@@ -343,7 +343,7 @@ namespace GUI.Types.PackageViewer
             }
         }
 
-        private readonly Dictionary<string, ThumbnailRenderer> ThumbnailRenderers = new Dictionary<string, ThumbnailRenderer>()
+        private readonly Dictionary<string, ThumbnailRenderer> ThumbnailRenderers = new()
         {
             {"vmdl_c", new ThumbnailModelRenderer() },
             {"vmat_c", new ThumbnailMaterialRenderer() },
@@ -374,13 +374,13 @@ namespace GUI.Types.PackageViewer
                 var (first, last) = GetVisibleItemRange();
 
                 if (first == -1)
-                    return;
-
-                for (int i = first; i <= last; i++)
                 {
-                    var castItem = ListViewItems[i] as BetterListViewItem;
+                    return;
+                }
 
-                    if (castItem == null)
+                for (var i = first; i <= last; i++)
+                {
+                    if (ListViewItems[i] is not BetterListViewItem castItem)
                     {
                         continue;
                     }
@@ -496,7 +496,10 @@ namespace GUI.Types.PackageViewer
 
         private static string ResolveExtension(string typeName)
         {
-            if (MainForm.ExtensionSVGS.ContainsKey(typeName)) return typeName;
+            if (MainForm.ExtensionSVGS.ContainsKey(typeName))
+            {
+                return typeName;
+            }
 
             var ext = typeName;
 
@@ -505,14 +508,20 @@ namespace GUI.Types.PackageViewer
                 ext = ext[..^2];
             }
 
-            if (MainForm.ExtensionSVGS.ContainsKey(ext)) return ext;
+            if (MainForm.ExtensionSVGS.ContainsKey(ext))
+            {
+                return ext;
+            }
 
             if (ext.StartsWith('v'))
             {
                 ext = ext[1..];
             }
 
-            if (MainForm.ExtensionSVGS.ContainsKey(ext)) return ext;
+            if (MainForm.ExtensionSVGS.ContainsKey(ext))
+            {
+                return ext;
+            }
 
             return "File";
         }
@@ -520,10 +529,11 @@ namespace GUI.Types.PackageViewer
         private ImageList InitThumbnailImageList()
         {
             var currentThumbnailSize = (int)CurrentThumbnailSizes;
-            var bigIconsImageList = new ImageList();
-
-            bigIconsImageList.ImageSize = new Size(currentThumbnailSize, currentThumbnailSize);
-            bigIconsImageList.ColorDepth = ColorDepth.Depth32Bit;
+            var bigIconsImageList = new ImageList
+            {
+                ImageSize = new Size(currentThumbnailSize, currentThumbnailSize),
+                ColorDepth = ColorDepth.Depth32Bit
+            };
 
             MainForm.ExtensionSVGS.TryGetValue("Folder", out var folderSvgFile);
             MainForm.ExtensionSVGS.TryGetValue("FolderUp", out var folderUpSvgFile);
@@ -538,21 +548,25 @@ namespace GUI.Types.PackageViewer
         private (int first, int last) GetVisibleItemRange()
         {
             if (mainListView.VirtualListSize == 0)
+            {
                 return (-1, -1);
+            }
 
             var visible = mainListView.ClientRectangle;
 
-            int first = -1;
-            int last = -1;
+            var first = -1;
+            var last = -1;
 
-            for (int i = 0; i < mainListView.VirtualListSize; i++)
+            for (var i = 0; i < mainListView.VirtualListSize; i++)
             {
                 var rect = mainListView.GetItemRect(i);
 
                 if (rect.IntersectsWith(visible))
                 {
                     if (first == -1)
+                    {
                         first = i;
+                    }
 
                     last = i;
                 }
