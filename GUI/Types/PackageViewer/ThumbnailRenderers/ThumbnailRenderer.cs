@@ -51,7 +51,7 @@ internal abstract class ThumbnailRenderer : IDisposable
             ClientSize = new((int)Size, (int)Size),
             WindowBorder = WindowBorder.Hidden,
             WindowState = WindowState.Normal,
-            Title = "S2V Render Test",
+            Title = "Thumbnail Renderer",
             Flags = ContextFlags.ForwardCompatible,
             Profile = ContextProfile.Core,
             StartVisible = false,
@@ -128,7 +128,6 @@ internal abstract class ThumbnailRenderer : IDisposable
         NativeWindow?.MakeCurrent();
         using var bitmap = new SkiaSharp.SKBitmap(currentSize, currentSize, SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Opaque);
         var pixels = bitmap.GetPixels(out var length);
-
 
         Framebuffer.GLDefaultFramebuffer.Bind(FramebufferTarget.ReadFramebuffer);
         GL.ReadPixels(0, 0, currentSize, currentSize, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
