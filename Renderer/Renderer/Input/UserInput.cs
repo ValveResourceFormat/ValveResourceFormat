@@ -70,7 +70,10 @@ public class UserInput
     private const float MaxOrbitDistance = 10000f;
     private const float OrbitZoomSpeed = 0.1f;
 
-    private readonly PlayerMovement PlayerMovement;
+    /// <summary>
+    /// Gets the <see cref="PlayerMovement"/> helper that processes WASD movement in walk mode.
+    /// </summary>
+    public PlayerMovement PlayerMovement { get; }
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip { get; private set; } = true;
 
@@ -242,7 +245,7 @@ public class UserInput
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.ClampRotation();
 
-            Viewmodel?.ProcessInput(this);
+            Viewmodel?.ProcessInput(this, Renderer.Uptime);
         }
 
         var finalCamera = GetInterpolatedCamera();
