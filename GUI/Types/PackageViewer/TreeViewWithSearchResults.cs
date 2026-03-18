@@ -25,11 +25,24 @@ namespace GUI.Types.PackageViewer
         ThumbnailSizes CurrentThumbnailSizes { get; set; } = ThumbnailSizes.Big;
 
         private List<ListViewItem> ListViewItems = new List<ListViewItem>();
-        private readonly ImageList ImageList;
-        Dictionary<string, IconImageCacheEntry?> IconImageCache = [];
-        private CancellationTokenSource? ThumbnailRenderTokenSource;
-        private readonly HashSet<PackageEntry> QueuedOrRenderedTuumbnailItems = new();
 
+        private readonly ImageList ImageList;
+
+        // reserved slots in ImageList, first two slots will always be these icons, after that normal cache continues
+        private const int ImageIndexFolder = 0;
+        private const int ImageIndexFolderUp = 1;
+
+        private readonly object ImageListLock = new();
+
+        private record class IconImageCacheEntry(Bitmap image, int index);
+
+        private readonly ConcurrentDictionary<string, IconImageCacheEntry?> IconImageCache = new();
+
+        private CancellationTokenSource? ThumbnailRenderTokenSource;
+
+        private readonly ConcurrentDictionary<PackageEntry, byte> QueuedOrRenderedThumbnailItems = new();
+
+        private readonly CancellationTokenSource RenderLoopCancelationTokenSource = new();
         private readonly Thread ThumbnailRenderThread;
         private readonly BlockingCollection<Func<Task>> ThumbnailRenderQueue = new();
 
@@ -114,11 +127,16 @@ namespace GUI.Types.PackageViewer
 
         private void RenderLoop()
         {
-            // Create GL context here
-            while (true)
+            try
             {
-                var work = ThumbnailRenderQueue.Take();
-                work().GetAwaiter().GetResult();
+                while (!RenderLoopCancelationTokenSource.IsCancellationRequested)
+                {
+                    var work = ThumbnailRenderQueue.Take(RenderLoopCancelationTokenSource.Token);
+                    work().GetAwaiter().GetResult();
+                }
+            }
+            catch (OperationCanceledException)
+            {
             }
         }
 
@@ -217,8 +235,7 @@ namespace GUI.Types.PackageViewer
 
             ThumbnailRenderTokenSource = new CancellationTokenSource();
 
-
-            QueuedOrRenderedTuumbnailItems.Clear();
+            QueuedOrRenderedThumbnailItems.Clear();
 
             mainListView.BeginUpdate();
 
@@ -262,7 +279,9 @@ namespace GUI.Types.PackageViewer
 
                 if (betterListViewItem.IsFolder)
                 {
-                    betterListViewItem.ImageIndex = betterListViewItem.PkgNode?.CreatedNode != null ? 1 : 0;
+                    betterListViewItem.ImageIndex = betterListViewItem.Tag is BetterListViewItem.ParentNavigationTag
+                        ? ImageIndexFolderUp
+                        : ImageIndexFolder;
                     continue;
                 }
 
@@ -276,10 +295,19 @@ namespace GUI.Types.PackageViewer
 
 #pragma warning disable CA2000 // Bitmap lifetime is managed by ImageList, when ImageList is disposed it disposes all images too
                     var bitmap = Themer.SvgToBitmap(svgFile!, currentThumbnailSizeInt, currentThumbnailSizeInt);
-                    var index = IconImageCache.Count + 2;
-                    iconImageCacheEntry = new IconImageCacheEntry(bitmap, index);
-                    IconImageCache[extension] = iconImageCacheEntry;
-                    ImageList.Images.Add(iconImageCacheEntry.image);
+
+                    lock (ImageListLock)
+                    {
+                        // Double-checked: another thread may have inserted while we were rendering.
+                        if (!IconImageCache.TryGetValue(extension, out iconImageCacheEntry) || iconImageCacheEntry == null)
+                        {
+                            var index = ImageList.Images.Count; // authoritative, inside the lock
+                            ImageList.Images.Add(bitmap);
+                            iconImageCacheEntry = new IconImageCacheEntry(bitmap, index);
+                            IconImageCache[extension] = iconImageCacheEntry;
+                        }
+                        // else: lost the race — discard the bitmap we just created
+                    }
                 }
 
                 betterListViewItem.ImageIndex = iconImageCacheEntry.index;
@@ -340,7 +368,7 @@ namespace GUI.Types.PackageViewer
                         continue;
                     }
 
-                    if (!QueuedOrRenderedTuumbnailItems.Add(entry))
+                    if (!QueuedOrRenderedThumbnailItems.TryAdd(entry, 0))
                     {
                         continue;
                     }
@@ -351,6 +379,12 @@ namespace GUI.Types.PackageViewer
                     {
                         ThumbnailRenderQueue.Add(async () =>
                         {
+                            var context = mainListView?.VrfGuiContext;
+                            if (context == null)
+                            {
+                                return;
+                            }
+
                             var renderer = GetThumbnailRenderer(entry.TypeName);
 
                             if (renderer == null)
@@ -371,12 +405,23 @@ namespace GUI.Types.PackageViewer
                             }
                             else
                             {
-                                bitmap = renderer.Render(entry, mainListView.VrfGuiContext!, cancellationToken);
+                                bitmap = renderer.Render(entry, context, cancellationToken);
                             }
 
-                            await mainListView.InvokeAsync(() =>
+                            var listView = mainListView;
+                            if (listView == null || listView.IsDisposed)
+                            {
+                                return;
+                            }
+
+                            await listView.InvokeAsync(() =>
                             {
                                 if (cancellationToken.IsCancellationRequested)
+                                {
+                                    return;
+                                }
+
+                                if (listView.IsDisposed)
                                 {
                                     return;
                                 }
@@ -387,16 +432,27 @@ namespace GUI.Types.PackageViewer
                                 }
                                 else if (bitmap != null)
                                 {
-                                    castItem.ImageIndex = ImageList.Images.Count;
-                                    ImageList.Images.Add(bitmap);
-                                    IconImageCache[entryKey] = new(bitmap, castItem.ImageIndex);
+                                    lock (ImageListLock)
+                                    {
+                                        // double-checked, another InvokeAsync callback may have stored this entry while we were waiting to be marshalled
+                                        if (IconImageCache.TryGetValue(entryKey, out var existing) && existing != null)
+                                        {
+                                            castItem.ImageIndex = existing.index;
+                                        }
+                                        else
+                                        {
+                                            castItem.ImageIndex = ImageList.Images.Count;
+                                            ImageList.Images.Add(bitmap);
+                                            IconImageCache[entryKey] = new(bitmap, castItem.ImageIndex);
+                                        }
+                                    }
                                 }
                                 else
                                 {
                                     return;
                                 }
 
-                                mainListView.Invalidate();
+                                listView.Invalidate();
 
                             }).ConfigureAwait(false);
                         }, cancellationToken);
@@ -410,7 +466,7 @@ namespace GUI.Types.PackageViewer
             }
             catch (OperationCanceledException)
             {
-                // User navigated away, silently discard
+                // user navigated away, silently discard
             }
         }
 
@@ -436,8 +492,6 @@ namespace GUI.Types.PackageViewer
 
             return "File";
         }
-
-        private record class IconImageCacheEntry(Bitmap image, int index);
 
         private ImageList InitThumbnailImageList()
         {
@@ -1146,12 +1200,11 @@ namespace GUI.Types.PackageViewer
 
         private void AddParentNavigationItemToListView(VirtualPackageNode parentNode)
         {
-            var image = MainForm.Icons["FolderUp"];
             var name = parentNode.Parent == null ? ".." : $".. {parentNode.Name}";
 
             var item = new BetterListViewItem(name)
             {
-                ImageIndex = image,
+                ImageIndex = ImageIndexFolderUp,
                 PkgNode = parentNode,
                 Tag = BetterListViewItem.ParentNavigationTag,
             };
@@ -1166,7 +1219,7 @@ namespace GUI.Types.PackageViewer
         {
             var item = new BetterListViewItem(name)
             {
-                ImageIndex = mainTreeView.FolderImage,
+                ImageIndex = ImageIndexFolder,
                 PkgNode = node,
             };
 
@@ -1366,9 +1419,13 @@ namespace GUI.Types.PackageViewer
 
             ThumbnailRenderTokenSource?.Cancel();
 
+            RenderLoopCancelationTokenSource.Cancel();
+            ThumbnailRenderQueue.CompleteAdding();
+
             ImageList.Dispose();
             ThumbnailRenderTokenSource?.Dispose();
             ThumbnailRenderQueue.Dispose();
+            RenderLoopCancelationTokenSource.Dispose();
         }
     }
 }
