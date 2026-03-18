@@ -468,6 +468,11 @@ namespace ValveResourceFormat.Renderer
         {
             ArgumentNullException.ThrowIfNull(obj);
 
+            if ((obj.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
+            {
+                return;
+            }
+
             var (node, index) = Root.Find(obj, oldBounds);
             if (node is { Elements: not null })
             {

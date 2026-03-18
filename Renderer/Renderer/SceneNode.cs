@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Renderer
         public AABB LocalBoundingBox
         {
             get => localBoundingBox;
-            protected set
+            set
             {
                 localBoundingBox = value;
                 BoundingBox = LocalBoundingBox.Transform(transform);

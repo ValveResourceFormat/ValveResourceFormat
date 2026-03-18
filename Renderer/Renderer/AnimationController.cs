@@ -35,16 +35,15 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
-        private bool isPaused;
 
-        /// <summary>Gets or sets whether animation playback is paused. Setting to <see langword="false"/> forces an immediate pose update.</summary>
+        /// <summary>Gets or sets whether animation playback is paused. Changing the value forces a pose update.</summary>
         public bool IsPaused
         {
-            get => isPaused;
+            get => field;
             set
             {
-                isPaused = value;
-                forceUpdate = !value;
+                forceUpdate = field != value;
+                field = value;
             }
         }
 
@@ -100,11 +99,13 @@ namespace ValveResourceFormat.Renderer
 
                 if (!Looping && ActiveAnimation != null)
                 {
-                    var maxTime = ActiveAnimation.FrameCount / ActiveAnimation.Fps;
-                    if (Time >= maxTime || Frame == ActiveAnimation.FrameCount - 1)
+                    var lastFrame = ActiveAnimation.FrameCount - 1;
+                    var maxTime = lastFrame / ActiveAnimation.Fps;
+
+                    if (Time > maxTime)
                     {
                         IsPaused = true;
-                        Frame = ActiveAnimation.FrameCount - 1;
+                        Frame = lastFrame;
                     }
                 }
             }
