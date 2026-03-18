@@ -29,7 +29,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         // uniform sampler{dim} x;
         // uniform sampler{dim} a; // SrgbRead(true)
         // uniform vec{dim} b = vec3(1.0); // SrgbRead(true)
-        [GeneratedRegex("^uniform (?<Type>(?:sampler|vec)\\S+) (?<Name>\\S+)(?:\\s*=\\s*[^;]+)?;[ \t]*(?<SrgbRead>// SrgbRead\\(true\\))?")]
+        // uniform sampler{dim} c; // SrgbRead(true) Sampler(UserConfig)
+        // uniform sampler{dim} d; // Sampler(UserConfig)
+        [GeneratedRegex("^uniform (?<Type>(?:sampler|vec)\\S+) (?<Name>\\S+)(?:\\s*=\\s*[^;]+)?;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?")]
         private static partial Regex RegexUniform();
 
         private readonly StringBuilder builder = new(1024);
@@ -218,6 +220,10 @@ namespace ValveResourceFormat.Renderer.Shaders
                             if (match.Groups["SrgbRead"].Success)
                             {
                                 parsedData.SrgbUniforms.Add(uniformName);
+                            }
+                            if (match.Groups["SamplerUserConfig"].Success)
+                            {
+                                parsedData.SamplerUserConfigUniforms.Add(uniformName);
                             }
                         }
                     }

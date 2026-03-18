@@ -190,7 +190,7 @@ vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset)
     float sinRot = sin(rotation);
     float cosRot = cos(rotation);
 
-    vec2 finalOffset = (scale.xy * -0.5) * vec2(cosRot - sinRot, sinRot - cosRot) + offset + vec2(0.5);
+    vec2 finalOffset = (scale.xy * -0.5) * vec2(cosRot - sinRot, sinRot + cosRot) + offset + vec2(0.5);
     vec4 xform = scale.xxyy * vec4(cosRot, -sinRot, sinRot, cosRot);
 
     return vec2(dot(xform.xy, vectorInput.xy), dot(xform.zw, vectorInput.xy)) + finalOffset;
@@ -205,10 +205,7 @@ vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset, v
 
     vec4 xform = vec4(cosRot * scale.x, -sinRot * scale.y, sinRot * scale.x, cosRot* scale.y);
 
-    vec2 finalOffset;
-    finalOffset.x = (center.x + offset.x) + (sinRot * center.y) - (cosRot * center.x);
-    finalOffset.y = (center.y + offset.y) - (sinRot * center.x) + (cosRot * center.y);
-    // ^ all of this should be precalculated
+    vec2 finalOffset = center + offset - vec2(dot(xform.xy, center), dot(xform.zw, center));
 
     return vec2(dot(xform.xy, vectorInput.xy), dot(xform.zw, vectorInput.xy)) + finalOffset;
 }

@@ -38,6 +38,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the set of uniform names that require sRGB-to-linear conversion when setting material values.</summary>
         public required HashSet<string> SrgbUniforms { get; init; }
 
+        /// <summary>Gets the set of sampler uniform names that use material address modes via <c>// Sampler(UserConfig)</c>.</summary>
+        public required HashSet<string> SamplerUserConfigUniforms { get; init; }
+
         /// <summary>Gets the set of reserved texture uniform names that are actively used by this shader.</summary>
         public HashSet<string> ReservedTexturesUsed { get; } = [];
 

@@ -71,6 +71,9 @@ namespace ValveResourceFormat.Renderer.Shaders
             /// <summary>Gets the set of uniform names annotated with <c>// SrgbRead(true)</c>.</summary>
             public HashSet<string> SrgbUniforms { get; } = [];
 
+            /// <summary>Gets the set of sampler uniform names annotated with <c>// Sampler(UserConfig)</c>.</summary>
+            public HashSet<string> SamplerUserConfigUniforms { get; } = [];
+
             /// <summary>Gets the preprocessed GLSL source text for each shader stage.</summary>
             public Dictionary<ShaderProgramType, string> Sources { get; } = [];
 
@@ -236,7 +239,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                     ShaderObjects = shaderObjects,
                     RenderModes = parsedData.RenderModes,
                     UniformNames = parsedData.Uniforms,
-                    SrgbUniforms = parsedData.SrgbUniforms
+                    SrgbUniforms = parsedData.SrgbUniforms,
+                    SamplerUserConfigUniforms = parsedData.SamplerUserConfigUniforms
                 };
 
                 foreach (var shaderObj in shaderObjects)
