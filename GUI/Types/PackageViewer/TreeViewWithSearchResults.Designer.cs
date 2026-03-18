@@ -22,6 +22,12 @@ namespace GUI.Types.PackageViewer
             mainSplitContainer = new System.Windows.Forms.SplitContainer();
             mainTreeView = new BetterTreeView();
             rightPanel = new System.Windows.Forms.Panel();
+            tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
+            tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
+            listRadioButton = new System.Windows.Forms.RadioButton();
+            gridRadioButton = new System.Windows.Forms.RadioButton();
+            gridSizeSlider = new System.Windows.Forms.TrackBar();
+            panel1 = new System.Windows.Forms.Panel();
             mainListView = new BetterListView();
             searchTextBox = new ThemedTextBox();
             ((System.ComponentModel.ISupportInitialize)mainSplitContainer).BeginInit();
@@ -29,6 +35,10 @@ namespace GUI.Types.PackageViewer
             mainSplitContainer.Panel2.SuspendLayout();
             mainSplitContainer.SuspendLayout();
             rightPanel.SuspendLayout();
+            tableLayoutPanel1.SuspendLayout();
+            tableLayoutPanel2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)gridSizeSlider).BeginInit();
+            panel1.SuspendLayout();
             SuspendLayout();
             // 
             // mainSplitContainer
@@ -56,6 +66,7 @@ namespace GUI.Types.PackageViewer
             // mainTreeView
             // 
             mainTreeView.Dock = System.Windows.Forms.DockStyle.Fill;
+            mainTreeView.ItemHeight = 26;
             mainTreeView.Location = new System.Drawing.Point(0, 0);
             mainTreeView.Margin = new System.Windows.Forms.Padding(0);
             mainTreeView.Name = "mainTreeView";
@@ -66,12 +77,94 @@ namespace GUI.Types.PackageViewer
             // 
             // rightPanel
             // 
-            rightPanel.Controls.Add(mainListView);
+            rightPanel.Controls.Add(tableLayoutPanel1);
             rightPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             rightPanel.Location = new System.Drawing.Point(0, 0);
             rightPanel.Name = "rightPanel";
             rightPanel.Size = new System.Drawing.Size(395, 377);
             rightPanel.TabIndex = 0;
+            // 
+            // tableLayoutPanel1
+            // 
+            tableLayoutPanel1.ColumnCount = 1;
+            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel1.Controls.Add(tableLayoutPanel2, 0, 0);
+            tableLayoutPanel1.Controls.Add(panel1, 0, 1);
+            tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
+            tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
+            tableLayoutPanel1.Name = "tableLayoutPanel1";
+            tableLayoutPanel1.RowCount = 3;
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            tableLayoutPanel1.Size = new System.Drawing.Size(395, 377);
+            tableLayoutPanel1.TabIndex = 4;
+            // 
+            // tableLayoutPanel2
+            // 
+            tableLayoutPanel2.ColumnCount = 3;
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 60F));
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 60F));
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 170F));
+            tableLayoutPanel2.Controls.Add(listRadioButton, 0, 0);
+            tableLayoutPanel2.Controls.Add(gridRadioButton, 1, 0);
+            tableLayoutPanel2.Controls.Add(gridSizeSlider, 2, 0);
+            tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
+            tableLayoutPanel2.Location = new System.Drawing.Point(0, 0);
+            tableLayoutPanel2.Margin = new System.Windows.Forms.Padding(0);
+            tableLayoutPanel2.Name = "tableLayoutPanel2";
+            tableLayoutPanel2.Padding = new System.Windows.Forms.Padding(8, 0, 0, 0);
+            tableLayoutPanel2.RowCount = 1;
+            tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            tableLayoutPanel2.Size = new System.Drawing.Size(395, 40);
+            tableLayoutPanel2.TabIndex = 5;
+            // 
+            // listRadioButton
+            // 
+            listRadioButton.AutoSize = true;
+            listRadioButton.Dock = System.Windows.Forms.DockStyle.Fill;
+            listRadioButton.Location = new System.Drawing.Point(11, 3);
+            listRadioButton.Name = "listRadioButton";
+            listRadioButton.Size = new System.Drawing.Size(54, 34);
+            listRadioButton.TabIndex = 0;
+            listRadioButton.TabStop = true;
+            listRadioButton.Text = "List";
+            listRadioButton.UseVisualStyleBackColor = true;
+            listRadioButton.CheckedChanged += listRadioButton_CheckedChanged;
+            // 
+            // gridRadioButton
+            // 
+            gridRadioButton.AutoSize = true;
+            gridRadioButton.Dock = System.Windows.Forms.DockStyle.Fill;
+            gridRadioButton.Location = new System.Drawing.Point(71, 3);
+            gridRadioButton.Name = "gridRadioButton";
+            gridRadioButton.Size = new System.Drawing.Size(54, 34);
+            gridRadioButton.TabIndex = 1;
+            gridRadioButton.TabStop = true;
+            gridRadioButton.Text = "Grid";
+            gridRadioButton.UseVisualStyleBackColor = true;
+            gridRadioButton.CheckedChanged += gridRadioButton_CheckedChanged;
+            // 
+            // gridSizeSlider
+            // 
+            gridSizeSlider.LargeChange = 1;
+            gridSizeSlider.Location = new System.Drawing.Point(131, 3);
+            gridSizeSlider.Maximum = 4;
+            gridSizeSlider.Name = "gridSizeSlider";
+            gridSizeSlider.Size = new System.Drawing.Size(107, 34);
+            gridSizeSlider.TabIndex = 2;
+            gridSizeSlider.Value = 2;
+            // 
+            // panel1
+            // 
+            panel1.Controls.Add(mainListView);
+            panel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            panel1.Location = new System.Drawing.Point(0, 40);
+            panel1.Margin = new System.Windows.Forms.Padding(0);
+            panel1.Name = "panel1";
+            panel1.Size = new System.Drawing.Size(395, 317);
+            panel1.TabIndex = 4;
             // 
             // mainListView
             // 
@@ -83,7 +176,7 @@ namespace GUI.Types.PackageViewer
             mainListView.Margin = new System.Windows.Forms.Padding(0);
             mainListView.Name = "mainListView";
             mainListView.OwnerDraw = true;
-            mainListView.Size = new System.Drawing.Size(395, 377);
+            mainListView.Size = new System.Drawing.Size(395, 317);
             mainListView.TabIndex = 3;
             mainListView.UseCompatibleStateImageBehavior = false;
             mainListView.View = System.Windows.Forms.View.Details;
@@ -91,7 +184,7 @@ namespace GUI.Types.PackageViewer
             // 
             // searchTextBox
             // 
-            searchTextBox.BackColor = System.Drawing.Color.FromArgb(244, 244, 244);
+            searchTextBox.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             searchTextBox.Dock = System.Windows.Forms.DockStyle.Top;
             searchTextBox.ForeColor = System.Drawing.Color.Black;
             searchTextBox.Location = new System.Drawing.Point(0, 0);
@@ -118,6 +211,11 @@ namespace GUI.Types.PackageViewer
             ((System.ComponentModel.ISupportInitialize)mainSplitContainer).EndInit();
             mainSplitContainer.ResumeLayout(false);
             rightPanel.ResumeLayout(false);
+            tableLayoutPanel1.ResumeLayout(false);
+            tableLayoutPanel2.ResumeLayout(false);
+            tableLayoutPanel2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)gridSizeSlider).EndInit();
+            panel1.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -129,5 +227,11 @@ namespace GUI.Types.PackageViewer
         public BetterTreeView mainTreeView;
         private System.Windows.Forms.Panel rightPanel;
         private ThemedTextBox searchTextBox;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
+        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
+        private System.Windows.Forms.RadioButton listRadioButton;
+        private System.Windows.Forms.RadioButton gridRadioButton;
+        private System.Windows.Forms.TrackBar gridSizeSlider;
     }
 }
