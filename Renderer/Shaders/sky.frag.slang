@@ -28,7 +28,7 @@ out vec4 vColor;
     #define ENCODING_RGBM
 #endif
 
-uniform samplerCube g_tSkyTexture;
+uniform samplerCube g_tSkyTexture; // SrgbRead(true)
 
 uniform float g_flBrightnessExposureBias;
 uniform float g_flRenderOnlyExposureBias;
