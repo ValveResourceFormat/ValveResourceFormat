@@ -21,7 +21,7 @@ namespace GUI.Types.PackageViewer
     /// </summary>
     partial class TreeViewWithSearchResults : UserControl
     {
-        ThumbnailSizes CurrentThumbnailSizes { get; set; } = ThumbnailSizes.Huge;
+        ThumbnailSizes CurrentThumbnailSizes { get; set; } = ThumbnailSizes.Medium;
 
         private readonly List<ListViewItem> ListViewItems = [];
 
@@ -392,7 +392,7 @@ namespace GUI.Types.PackageViewer
                             }
                             else
                             {
-                                bitmap = renderer.Render(entry, context, cancellationToken);
+                                bitmap = renderer.Render(entry, context, CurrentThumbnailSizes, cancellationToken);
 
                                 if (bitmap == null)
                                 {

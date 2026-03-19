@@ -12,7 +12,7 @@ internal class ThumbnailTextureRenderer : ThumbnailRenderer
 {
     public override void SetResource(Resource resource) { }
 
-    public override Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
+    public override Bitmap? Render(PackageEntry entry, VrfGuiContext context, ThumbnailSizes Size, CancellationToken cancellationToken)
     {
         using var resource = LoadResourceFromPackageEntry(context, entry);
 

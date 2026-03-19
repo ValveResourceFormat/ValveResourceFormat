@@ -32,8 +32,6 @@ internal abstract class ThumbnailRenderer : IDisposable
     private NativeWindow? NativeWindow;
     private bool disposed;
 
-    public ThumbnailSizes Size { get; private set; } = ThumbnailSizes.Huge;
-
     public bool Loaded { get; private set; }
 
     public virtual void SetResource(Resource resource)
@@ -49,7 +47,6 @@ internal abstract class ThumbnailRenderer : IDisposable
         {
             APIVersion = GLEnvironment.RequiredVersion,
             Vsync = VSyncMode.Adaptive,
-            ClientSize = new((int)Size, (int)Size),
             WindowBorder = WindowBorder.Hidden,
             WindowState = WindowState.Normal,
             Title = "Thumbnail Renderer",
@@ -124,7 +121,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
     public Bitmap? ReadPixelsToBitmap()
     {
-        var currentSize = (int)Size;
+        var currentSize = NativeWindow?.ClientSize.X ?? 256;
 
         NativeWindow?.MakeCurrent();
         using var bitmap = new SkiaSharp.SKBitmap(currentSize, currentSize, SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Opaque);
@@ -156,7 +153,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         return resource;
     }
 
-    public virtual Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
+    public virtual Bitmap? Render(PackageEntry entry, VrfGuiContext context, ThumbnailSizes Size, CancellationToken cancellationToken)
     {
         Debug.Assert(SceneRenderer != null);
 
@@ -178,6 +175,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         var size = (int)Size;
 
+        NativeWindow?.ClientSize = new(size);
         NativeWindow?.Size = new OpenTK.Mathematics.Vector2i(size, size);
         GL.Viewport(0, 0, size, size);
         SceneRenderer?.Camera.SetViewportSize(size, size);
