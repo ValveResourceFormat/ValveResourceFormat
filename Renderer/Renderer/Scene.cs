@@ -275,6 +275,9 @@ namespace ValveResourceFormat.Renderer
             return (NodeType.Unknown, -1);
         }
 
+        /// <summary>
+        /// Removes all nodes from the scene, also disposes loaded materials and gpu mesh buffers.
+        /// </summary>
         public void Clear()
         {
             foreach (var item in dynamicNodes)
