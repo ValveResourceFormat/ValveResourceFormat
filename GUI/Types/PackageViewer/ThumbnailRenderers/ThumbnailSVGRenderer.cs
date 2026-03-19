@@ -54,8 +54,8 @@ internal class ThumbnailSVGRenderer : ThumbnailRenderer
         else
         {
             var scale = Math.Min(size / originalWidth, size / originalHeight);
-            renderWidth = (int)Math.Round(originalWidth * scale);
-            renderHeight = (int)Math.Round(originalHeight * scale);
+            renderWidth = Math.Max(1, (int)Math.Round(originalWidth * scale));
+            renderHeight = Math.Max(1, (int)Math.Round(originalHeight * scale));
         }
 
         var svgBitmap = Themer.SvgToBitmap(svg, renderWidth, renderHeight);

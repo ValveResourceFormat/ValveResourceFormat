@@ -52,8 +52,8 @@ internal class ThumbnailTextureRenderer : ThumbnailRenderer
         else
         {
             var scale = Math.Min((float)size / originalWidth, (float)size / originalHeight);
-            renderWidth = (int)Math.Round(originalWidth * scale);
-            renderHeight = (int)Math.Round(originalHeight * scale);
+            renderWidth = Math.Max(1, (int)Math.Round(originalWidth * scale));
+            renderHeight = Math.Max(1, (int)Math.Round(originalHeight * scale));
         }
 
         using var resizedBitmap = bitmap.Resize(new SKSizeI(renderWidth, renderHeight), SKSamplingOptions.Default);
