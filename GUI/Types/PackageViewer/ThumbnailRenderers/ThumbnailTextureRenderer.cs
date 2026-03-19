@@ -21,8 +21,23 @@ internal class ThumbnailTextureRenderer : ThumbnailRenderer
             return null;
         }
 
-        using var bitmap = ((Texture)(resource.DataBlock!)).GenerateBitmap();
+        var textureData = (Texture)(resource.DataBlock!);
         var size = (int)Size;
+
+        // Find the highest mip level that is still higher than the thumbnail size
+        var mipLevel = 0;
+
+        for (var i = 1; i < textureData.NumMipLevels; i++)
+        {
+            if (Math.Max(textureData.Width >> i, 1) < size || Math.Max(textureData.Height >> i, 1) < size)
+            {
+                break;
+            }
+
+            mipLevel = i;
+        }
+
+        using var bitmap = textureData.GenerateBitmap(mipLevel: (uint)mipLevel);
         using var resizedBitmap = bitmap.Resize(new SKSizeI(size, size), SKSamplingOptions.Default);
 
         return resizedBitmap.ToBitmap();
