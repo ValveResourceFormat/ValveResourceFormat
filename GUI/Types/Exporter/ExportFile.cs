@@ -223,7 +223,7 @@ namespace GUI.Types.Exporter
             }
         }
 
-        public static void ExtractFilesFromListViewNodes(BetterListView.SelectedListViewItemCollection items, VrfGuiContext vrfGuiContext, bool decompile)
+        public static void ExtractFilesFromListViewNodes(List<ListViewItem> items, VrfGuiContext vrfGuiContext, bool decompile)
         {
             var exportData = new ExportData
             {

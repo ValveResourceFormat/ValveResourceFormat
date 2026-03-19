@@ -11,6 +11,7 @@ namespace GUI.Types.PackageViewer
         public Color BorderColor { get; set; } = Color.White;
         public Color Highlight { get; set; } = Color.White;
         public VrfGuiContext? VrfGuiContext { get; set; }
+        internal List<ListViewItem>? VirtualItems { get; set; }
         private bool isAdjustingColumns;
         public event ScrollEventHandler? Scroll;
 
@@ -70,7 +71,22 @@ namespace GUI.Types.PackageViewer
             AdjustColumnWidths();
         }
 
-        private void AdjustColumnWidths(int flexibleColumnIndex = 0, int fixedColumnWidth = 100)
+        internal List<ListViewItem> GetSelectedVirtualItems()
+        {
+            var selected = new List<ListViewItem>();
+
+            if (VirtualItems != null)
+            {
+                foreach (int index in SelectedIndices)
+                {
+                    selected.Add(VirtualItems[index]);
+                }
+            }
+
+            return selected;
+        }
+
+        internal void AdjustColumnWidths(int flexibleColumnIndex = 0, int fixedColumnWidth = 100)
         {
             if (isAdjustingColumns || Columns.Count == 0 || View != View.Details)
             {

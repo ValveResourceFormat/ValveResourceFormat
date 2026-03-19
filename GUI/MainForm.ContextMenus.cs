@@ -112,17 +112,15 @@ namespace GUI
             else if (control is BetterListView listView)
             {
                 context = listView.VrfGuiContext;
-#pragma warning disable IDE0028 // Simplify collection initialization - it doesn't work
                 selectedNodes = [];
 
-                foreach (var item in listView.SelectedItems)
+                foreach (var item in listView.GetSelectedVirtualItems())
                 {
                     if (item is IBetterBaseItem selectedNode)
                     {
                         selectedNodes.Add(selectedNode);
                     }
                 }
-#pragma warning restore IDE0028
             }
             else
             {
@@ -243,7 +241,7 @@ namespace GUI
                 context = listView.VrfGuiContext;
                 selectedFiles = [];
 
-                foreach (var item in listView.SelectedItems)
+                foreach (var item in listView.GetSelectedVirtualItems())
                 {
                     if (item is not IBetterBaseItem selectedNode)
                     {
@@ -352,7 +350,8 @@ namespace GUI
             else if (control is BetterListView listView)
             {
                 guiContext = listView.VrfGuiContext;
-                selectedNode = listView.SelectedItems.Count > 0 ? listView.SelectedItems[0] as IBetterBaseItem : null;
+                var selectedItems = listView.GetSelectedVirtualItems();
+                selectedNode = selectedItems.Count > 0 ? selectedItems[0] as IBetterBaseItem : null;
             }
             else
             {
@@ -395,14 +394,16 @@ namespace GUI
                     return;
                 }
 
-                if (listView.SelectedItems.Count > 1)
+                var selectedItems = listView.GetSelectedVirtualItems();
+
+                if (selectedItems.Count > 1)
                 {
                     // We're selecting multiple files
-                    ExportFile.ExtractFilesFromListViewNodes(listView.SelectedItems, listView.VrfGuiContext, decompile);
+                    ExportFile.ExtractFilesFromListViewNodes(selectedItems, listView.VrfGuiContext, decompile);
                 }
-                else
+                else if (selectedItems.Count == 1)
                 {
-                    ExportFile.ExtractFilesFromTreeNode((IBetterBaseItem)listView.SelectedItems[0], listView.VrfGuiContext, decompile);
+                    ExportFile.ExtractFilesFromTreeNode((IBetterBaseItem)selectedItems[0], listView.VrfGuiContext, decompile);
                 }
             }
             // Clicking context menu item when right clicking a tab
