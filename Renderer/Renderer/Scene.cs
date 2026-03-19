@@ -189,7 +189,7 @@ namespace ValveResourceFormat.Renderer
             CreateBuffers();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
-            CreateInstanceTransformBuffers(); // after calculating envmap and lpv
+            CreateInstanceTransformBuffers(deletePrevious: true); // after calculating envmap and lpv
 
             UpdateBuffers();
 
@@ -394,14 +394,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Allocates GPU uniform and storage buffers for lighting, environment maps, light probes, frustum planes, and indirect draws.</summary>
         public void CreateBuffers()
         {
-            lightingBuffer = new(ReservedBufferSlots.Lighting)
-            {
-                Data = LightingInfo.LightingData
-            };
+            lightingBuffer ??= new(ReservedBufferSlots.Lighting);
+            envMapBuffer ??= new(ReservedBufferSlots.EnvironmentMap);
+            lpvBuffer ??= new(ReservedBufferSlots.LightProbe);
+            frustumBuffer ??= new(ReservedBufferSlots.FrustumPlanes);
 
-            envMapBuffer = new(ReservedBufferSlots.EnvironmentMap);
-            lpvBuffer = new(ReservedBufferSlots.LightProbe);
-            frustumBuffer = new(ReservedBufferSlots.FrustumPlanes);
+            lightingBuffer.Data = LightingInfo.LightingData;
 
             LightingInfo.CreateBarnLightBuffer();
             CreateIndirectDrawBuffers();
