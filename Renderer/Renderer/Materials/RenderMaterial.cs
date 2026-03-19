@@ -454,6 +454,12 @@ namespace ValveResourceFormat.Renderer.Materials
         private static int GetOrCreateUserConfigSampler(int addressModeU, int addressModeV)
         {
             var key = (addressModeU, addressModeV);
+
+            if (key == (0, 0))
+            {
+                return 0; // default sampler state with repeat wrap mode
+            }
+
             if (SamplerCache.TryGetValue(key, out var sampler))
             {
                 return sampler;
