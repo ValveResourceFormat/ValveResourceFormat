@@ -10,6 +10,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
