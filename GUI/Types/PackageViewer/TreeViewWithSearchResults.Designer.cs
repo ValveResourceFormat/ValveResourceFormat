@@ -154,7 +154,7 @@ namespace GUI.Types.PackageViewer
             gridSizeSlider.Name = "gridSizeSlider";
             gridSizeSlider.Size = new System.Drawing.Size(107, 34);
             gridSizeSlider.TabIndex = 2;
-            gridSizeSlider.Value = 4;
+            gridSizeSlider.Value = 2;
             gridSizeSlider.Scroll += gridSizeSlider_Scroll;
             // 
             // panel1

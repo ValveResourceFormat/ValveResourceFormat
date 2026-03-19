@@ -289,6 +289,7 @@ namespace GUI.Types.PackageViewer
             {"vmdl_c", new ThumbnailModelRenderer() },
             {"vmat_c", new ThumbnailMaterialRenderer() },
             {"vtex_c", new ThumbnailTextureRenderer() },
+            {"vsvg_c", new ThumbnailSVGRenderer() },
         };
 
         /// <summary>
