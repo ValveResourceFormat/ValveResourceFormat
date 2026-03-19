@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -41,10 +42,7 @@ public class AnimationGraphExtract
             if (!modelResourceLoaded)
             {
                 modelResourceLoaded = true;
-                if (modelNameCache == null)
-                {
-                    modelNameCache = Graph.GetStringProperty("m_modelName");
-                }
+                modelNameCache ??= Graph.GetStringProperty("m_modelName");
 
                 if (!string.IsNullOrEmpty(modelNameCache))
                 {
@@ -200,7 +198,7 @@ public class AnimationGraphExtract
         "CFollowAttachment", "CFollowPath", "CFootAdjustment", "CFootLock", "CFootStepTrigger", "CHitReact",
         "CInputStream", "CJiggleBone", "CLookAt", "CMotionMatching", "CMover", "CPathHelper", "CRagdoll",
         "CRoot", "CSelector", "CSequence", "CSetFacing", "CSingleFrame", "CSkeletalInput",
-        "CSlowDownonSlopes", "CSolveIKChain", "CSpeedScale", "CStateMachine", "CStopatGoal",
+        "CSlowDownonSlopes", "CSolveIKChain", "CSpeedScale", "CStateMachine", "CStopAtGoal",
         "CSubtract", "CTurnHelper", "CTwoBoneIK", "CWayPointHelper", "CZeroPose", "CFootPinning",
         "CAimCamera", "CTargetWarp", "COrientationWarp", "CPairedSequence", "CFollowTarget"
     };
@@ -402,7 +400,7 @@ public class AnimationGraphExtract
         const long MinId = 100_000_000L;
         const long MaxId = 999_999_999L;
 
-        for (long candidate = MinId; candidate <= MaxId; candidate++)
+        for (var candidate = MinId; candidate <= MaxId; candidate++)
         {
             if (!assignedNodeIds.Contains(candidate))
             {
@@ -593,8 +591,8 @@ public class AnimationGraphExtract
             return [];
         }
         modelBoneNamesCache ??= [];
-        modelBoneNamesCache[modelName] = boneNames.ToArray();
-        return boneNames.ToArray();
+        modelBoneNamesCache[modelName] = [.. boneNames];
+        return [.. boneNames];
     }
     private static string GetNameByIndex(string[] names, int index)
     {
@@ -654,8 +652,8 @@ public class AnimationGraphExtract
             return [];
         }
         modelIKChainNamesCache ??= [];
-        modelIKChainNamesCache[modelName] = ikChainNames.ToArray();
-        return ikChainNames.ToArray();
+        modelIKChainNamesCache[modelName] = [.. ikChainNames];
+        return [.. ikChainNames];
     }
 
     private Dictionary<string, List<string>> LoadIKChainBonesFromModel()
@@ -776,9 +774,11 @@ public class AnimationGraphExtract
         {
             return [];
         }
+
         modelFootNamesCache ??= [];
-        modelFootNamesCache[modelName] = footNames.ToArray();
-        return footNames.ToArray();
+        modelFootNamesCache[modelName] = [.. footNames];
+
+        return [.. footNames];
     }
 
     private sealed class LookAtChainInfo
@@ -787,6 +787,7 @@ public class AnimationGraphExtract
         public string[] BoneNames { get; set; } = [];
         public float[] BoneWeights { get; set; } = [];
     }
+
     private string[] GetBoneNamesFromIndices(KVObject compiledBones)
     {
         if (compiledBones is null || !compiledBones.ContainsKey("m_bones"))
@@ -796,7 +797,7 @@ public class AnimationGraphExtract
         var compiledBonesArray = compiledBones.GetArray("m_bones");
         var boneNames = new string[compiledBonesArray.Length];
 
-        for (int i = 0; i < compiledBonesArray.Length; i++)
+        for (var i = 0; i < compiledBonesArray.Length; i++)
         {
             var boneIndex = (int)compiledBonesArray[i].GetIntegerProperty("m_index");
             boneNames[i] = GetBoneName(boneIndex);
@@ -846,8 +847,8 @@ public class AnimationGraphExtract
                                 boneWeights.Add(bone.GetFloatProperty("weight"));
                             }
 
-                            chain.BoneNames = boneNames.ToArray();
-                            chain.BoneWeights = boneWeights.ToArray();
+                            chain.BoneNames = [.. boneNames];
+                            chain.BoneWeights = [.. boneWeights];
                         }
                         lookAtChains.Add(chain);
                     }
@@ -859,8 +860,8 @@ public class AnimationGraphExtract
             return [];
         }
         modelLookAtChainInfoCache ??= [];
-        modelLookAtChainInfoCache[modelName] = lookAtChains.ToArray();
-        return lookAtChains.ToArray();
+        modelLookAtChainInfoCache[modelName] = [.. lookAtChains];
+        return [.. lookAtChains];
     }
     private string FindMatchingLookAtChainName(KVObject compiledBones)
     {
@@ -878,8 +879,8 @@ public class AnimationGraphExtract
         {
             if (chain.BoneNames.Length == compiledBoneNames.Length)
             {
-                bool match = true;
-                for (int i = 0; i < chain.BoneNames.Length; i++)
+                var match = true;
+                for (var i = 0; i < chain.BoneNames.Length; i++)
                 {
                     if (chain.BoneNames[i] != compiledBoneNames[i])
                     {
@@ -1142,7 +1143,7 @@ public class AnimationGraphExtract
 
         if (kvData.ContainsKey("m_localBoneMaskArray") ||
             kvData.ContainsKey("m_localSequenceNameArray") ||
-            kvData.GetStringProperty("m_sName")?.Contains("embedded_sequence_data") == true)
+            kvData.GetStringProperty("m_sName")?.Contains("embedded_sequence_data", StringComparison.Ordinal) == true)
         {
             return kvData;
         }
@@ -1547,8 +1548,6 @@ public class AnimationGraphExtract
                         var newActionClassName = actionClassName.Replace("Updater", string.Empty, StringComparison.Ordinal);
                         var actionData = MakeNode(newActionClassName);
 
-                        bool isExpressionAction = false;
-
                         if (compiledActionData.ContainsKey("m_hScript"))
                         {
                             var scriptHandle = compiledActionData.GetSubCollection("m_hScript");
@@ -1565,7 +1564,6 @@ public class AnimationGraphExtract
 
                                     if (scriptType == "ANIMSCRIPT_FUSE_GENERAL" && !string.IsNullOrEmpty(scriptCode))
                                     {
-                                        isExpressionAction = true;
                                         actionData.AddProperty("m_expression", scriptCode);
                                     }
                                 }
@@ -1624,30 +1622,6 @@ public class AnimationGraphExtract
         return states;
     }
 
-    private static int CountQuestionMarks(string script)
-    {
-        var count = 0;
-        var inParentheses = 0;
-
-        for (var i = 0; i < script.Length; i++)
-        {
-            var c = script[i];
-            if (c == '(')
-            {
-                inParentheses++;
-            }
-            else if (c == ')')
-            {
-                inParentheses--;
-            }
-            else if (c == '?' && inParentheses == 0)
-            {
-                count++;
-            }
-        }
-
-        return count;
-    }
 
     private KVObject[]? CreateConditionsFromScript(long scriptIndex, int transitionIndex)
     {
@@ -1675,16 +1649,10 @@ public class AnimationGraphExtract
 
         if (conditions == null || conditions.Count == 0)
         {
-            var questionCount = CountQuestionMarks(scriptCode);
-            if (transitionIndex >= questionCount)
-            {
-                return null;
-            }
-
             return null;
         }
 
-        return conditions.ToArray();
+        return [.. conditions];
     }
 
     private List<KVObject>? ParseConditionScript(string scriptCode, int targetTransitionIndex)
@@ -1757,7 +1725,7 @@ public class AnimationGraphExtract
         var firstComponent = componentConditions[0].Trim();
         firstComponent = RemoveAllOuterParentheses(firstComponent);
 
-        var dotIndex = firstComponent.IndexOf('.');
+        var dotIndex = firstComponent.IndexOf('.', StringComparison.Ordinal);
         if (dotIndex == -1)
         {
             return null;
@@ -1813,7 +1781,7 @@ public class AnimationGraphExtract
 
             comparisonOp = OperatorToComparisonOp(foundOp);
 
-            var componentDotIndex = leftSide.IndexOf('.');
+            var componentDotIndex = leftSide.IndexOf('.', StringComparison.Ordinal);
             if (componentDotIndex == -1)
             {
                 continue;
@@ -1858,7 +1826,7 @@ public class AnimationGraphExtract
         comparisonValue.AddProperty("m_nType", componentType);
 
         var componentArray = new KVObject(null, isArray: true, componentValues.Length);
-        for (int i = 0; i < componentValues.Length; i++)
+        for (var i = 0; i < componentValues.Length; i++)
         {
             componentArray.AddItem(new KVValue(ValveKeyValue.KVValueType.FloatingPoint, componentValues[i]));
         }
@@ -2022,27 +1990,27 @@ public class AnimationGraphExtract
             return multiComponentCondition;
         }
 
-        if (trimmedCondition.StartsWith("GetStateWeight(") || trimmedCondition.StartsWith("GetTotalTranslation_"))
+        if (trimmedCondition.StartsWith("GetStateWeight(", StringComparison.Ordinal) || trimmedCondition.StartsWith("GetTotalTranslation_", StringComparison.Ordinal))
         {
             return ParseStateStatusCondition(trimmedCondition);
         }
 
-        if (trimmedCondition.StartsWith("IsTagActive(") || trimmedCondition.StartsWith("!IsTagActive("))
+        if (trimmedCondition.StartsWith("IsTagActive(", StringComparison.Ordinal) || trimmedCondition.StartsWith("!IsTagActive(", StringComparison.Ordinal))
         {
             return ParseTagCondition(trimmedCondition);
         }
 
-        if (trimmedCondition.Contains("GetTimeTillFinished()"))
+        if (trimmedCondition.Contains("GetTimeTillFinished()", StringComparison.Ordinal))
         {
             return ParseFinishedCondition(trimmedCondition);
         }
 
-        if (trimmedCondition.Contains("GetTimeInState()"))
+        if (trimmedCondition.Contains("GetTimeInState()", StringComparison.Ordinal))
         {
             return ParseTimeCondition(trimmedCondition);
         }
 
-        if (trimmedCondition.Contains("GetCycle()"))
+        if (trimmedCondition.Contains("GetCycle()", StringComparison.Ordinal))
         {
             return ParseCycleCondition(trimmedCondition);
         }
@@ -2065,10 +2033,10 @@ public class AnimationGraphExtract
 
         var sourceValue = leftSide switch
         {
-            var s when s.StartsWith("GetStateWeight(0)") => "SourceStateBlendWeight",
-            var s when s.StartsWith("GetStateWeight(1)") => "TargetStateBlendWeight",
-            var s when s.StartsWith("GetTotalTranslation_SourceState()") => "TotalTranslation_SourceState",
-            var s when s.StartsWith("GetTotalTranslation_TargetState()") => "TotalTranslation_TargetState",
+            var s when s.StartsWith("GetStateWeight(0)", StringComparison.Ordinal) => "SourceStateBlendWeight",
+            var s when s.StartsWith("GetStateWeight(1)", StringComparison.Ordinal) => "TargetStateBlendWeight",
+            var s when s.StartsWith("GetTotalTranslation_SourceState()", StringComparison.Ordinal) => "TotalTranslation_SourceState",
+            var s when s.StartsWith("GetTotalTranslation_TargetState()", StringComparison.Ordinal) => "TotalTranslation_TargetState",
             _ => "SourceStateBlendWeight"
         };
 
@@ -2076,14 +2044,14 @@ public class AnimationGraphExtract
 
         if (rightSide != null)
         {
-            if (rightSide.StartsWith("GetStateWeight(") || rightSide.StartsWith("GetTotalTranslation_"))
+            if (rightSide.StartsWith("GetStateWeight(", StringComparison.Ordinal) || rightSide.StartsWith("GetTotalTranslation_", StringComparison.Ordinal))
             {
                 var comparisonStateValue = rightSide switch
                 {
-                    var s when s.StartsWith("GetStateWeight(0)") => "SourceStateBlendWeight",
-                    var s when s.StartsWith("GetStateWeight(1)") => "TargetStateBlendWeight",
-                    var s when s.StartsWith("GetTotalTranslation_SourceState()") => "TotalTranslation_SourceState",
-                    var s when s.StartsWith("GetTotalTranslation_TargetState()") => "TotalTranslation_TargetState",
+                    var s when s.StartsWith("GetStateWeight(0)", StringComparison.Ordinal) => "SourceStateBlendWeight",
+                    var s when s.StartsWith("GetStateWeight(1)", StringComparison.Ordinal) => "TargetStateBlendWeight",
+                    var s when s.StartsWith("GetTotalTranslation_SourceState()", StringComparison.Ordinal) => "TotalTranslation_SourceState",
+                    var s when s.StartsWith("GetTotalTranslation_TargetState()", StringComparison.Ordinal) => "TotalTranslation_TargetState",
                     _ => "SourceStateBlendWeight"
                 };
 
@@ -2092,7 +2060,7 @@ public class AnimationGraphExtract
                 stateStatusCondition.AddProperty("m_comparisonParamID", MakeNodeIdObjectValue(uint.MaxValue));
                 stateStatusCondition.AddProperty("m_comparisonFixedValue", 0.0f);
             }
-            else if (rightSide.All(c => char.IsLetterOrDigit(c) || c == '_') && !rightSide.Contains('.'))
+            else if (rightSide.All(c => char.IsLetterOrDigit(c) || c == '_') && !rightSide.Contains('.', StringComparison.Ordinal))
             {
                 return HandleParameterComparison(stateStatusCondition, rightSide, sourceValue);
             }
@@ -2114,15 +2082,15 @@ public class AnimationGraphExtract
 
     private KVObject? ParseTagCondition(string conditionString)
     {
-        bool isTagActive = true;
+        var isTagActive = true;
         string tagName;
 
-        if (conditionString.StartsWith("!IsTagActive("))
+        if (conditionString.StartsWith("!IsTagActive(", StringComparison.Ordinal))
         {
             isTagActive = false;
             tagName = conditionString["!IsTagActive(".Length..^1].Trim();
         }
-        else if (conditionString.StartsWith("IsTagActive("))
+        else if (conditionString.StartsWith("IsTagActive(", StringComparison.Ordinal))
         {
             tagName = conditionString["IsTagActive(".Length..^1].Trim();
         }
@@ -2132,7 +2100,7 @@ public class AnimationGraphExtract
         }
 
         var tagCondition = MakeNode("CTagCondition");
-        long tagId = FindTagIdByName(tagName);
+        var tagId = FindTagIdByName(tagName);
         tagCondition.AddProperty("m_tagID", MakeNodeIdObjectValue(tagId));
         tagCondition.AddProperty("m_comparisonValue", isTagActive);
         return tagCondition;
@@ -2156,7 +2124,7 @@ public class AnimationGraphExtract
         operators ??= ComparisonOperators;
         foreach (var op in operators)
         {
-            if (expression.Contains(op))
+            if (expression.Contains(op, StringComparison.Ordinal))
             {
                 var parts = expression.Split(op, StringSplitOptions.TrimEntries);
                 if (parts.Length == 2)
@@ -2232,10 +2200,10 @@ public class AnimationGraphExtract
 
     private KVObject? ParseParameterCondition(string conditionString)
     {
-        var cleanedCondition = conditionString.Replace(" (", " ").Replace("( ", " ").Trim('(', ')').Trim();
+        var cleanedCondition = conditionString.Replace(" (", " ", StringComparison.Ordinal).Replace("( ", " ", StringComparison.Ordinal).Trim('(', ')').Trim();
 
-        if (cleanedCondition.Contains('.') && (cleanedCondition.Contains(".x") || cleanedCondition.Contains(".y") ||
-        cleanedCondition.Contains(".z") || cleanedCondition.Contains(".w")))
+        if (cleanedCondition.Contains('.', StringComparison.Ordinal) && (cleanedCondition.Contains(".x", StringComparison.Ordinal)
+            || cleanedCondition.Contains(".y", StringComparison.Ordinal) || cleanedCondition.Contains(".z", StringComparison.Ordinal) || cleanedCondition.Contains(".w", StringComparison.Ordinal)))
         {
             return null;
         }
@@ -2371,9 +2339,9 @@ public class AnimationGraphExtract
         }
 
         // Try stripping component suffix (e.g., "param.x" -> "param")
-        if (paramName.Contains('.'))
+        if (paramName.Contains('.', StringComparison.Ordinal))
         {
-            return FindParameterByName(paramName[..paramName.IndexOf('.')]);
+            return FindParameterByName(paramName[..paramName.IndexOf('.', StringComparison.Ordinal)]);
         }
 
         return (null, -1, null);
@@ -2423,13 +2391,13 @@ public class AnimationGraphExtract
         }
 
         // Try fuzzy alphanumeric-only match as last resort
-        var cleanInput = new string(strippedName.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+        var cleanInput = new string([.. strippedName.Where(char.IsLetterOrDigit)]).ToLowerInvariant();
         for (var i = 0; i < Tags.Length; i++)
         {
             var currentTagName = Tags[i].GetStringProperty("m_name");
-            var cleanCurrent = new string(currentTagName.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+            var cleanCurrent = new string([.. currentTagName.Where(char.IsLetterOrDigit)]).ToLowerInvariant();
 
-            if (cleanCurrent == cleanInput || cleanCurrent.Contains(cleanInput) || cleanInput.Contains(cleanCurrent))
+            if (cleanCurrent == cleanInput || cleanCurrent.Contains(cleanInput, StringComparison.Ordinal) || cleanInput.Contains(cleanCurrent, StringComparison.Ordinal))
             {
                 return Tags[i].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
             }
@@ -2464,7 +2432,7 @@ public class AnimationGraphExtract
             }
 
             var afterColon = currentScript[(colonPos + 1)..].Trim();
-            if (afterColon.StartsWith("(-1)"))
+            if (afterColon.StartsWith("(-1)", StringComparison.Ordinal))
             {
                 return string.Empty;
             }
@@ -2808,7 +2776,7 @@ public class AnimationGraphExtract
                     var paramInType = paramInHandle.GetStringProperty("m_type");
                     var paramOutType = paramOutHandle.GetStringProperty("m_type");
 
-                    string valueType = (paramInType == "ANIMPARAM_VECTOR" || paramOutType == "ANIMPARAM_VECTOR")
+                    var valueType = (paramInType == "ANIMPARAM_VECTOR" || paramOutType == "ANIMPARAM_VECTOR")
                         ? "VectorParameter"
                         : "FloatParameter";
 
@@ -2914,7 +2882,9 @@ public class AnimationGraphExtract
 
                         if (motorKey.EndsWith("Param", StringComparison.Ordinal) && motorValue.Value is KVObject paramRef)
                         {
-                            var newKey = motorKey.Replace("h", "").Replace("Param", "Param");
+                            var newKey = motorKey.StartsWith("m_h", StringComparison.Ordinal)
+                                ? "m_" + motorKey["m_h".Length..]
+                                : motorKey;
                             newMotor.AddProperty(newKey, ExtractParameterID(paramRef));
                             continue;
                         }
@@ -2969,7 +2939,7 @@ public class AnimationGraphExtract
 
             processedNodeIds.Add(compiledNodeId);
 
-            var newId = GenerateNewNodeId(new HashSet<long>(idMap.Values));
+            var newId = GenerateNewNodeId([.. idMap.Values]);
             idMap[compiledNodeId] = newId;
 
             var className = currentNode.GetStringProperty("_class");
@@ -3059,7 +3029,7 @@ public class AnimationGraphExtract
 
         var rootNodeId = rootNode.GetSubCollection("m_id").GetIntegerProperty("m_id");
         var rootNodeNewId = idMap[rootNodeId];
-        var rootAnimNodeId = GenerateNewNodeId(new HashSet<long>(idMap.Values));
+        var rootAnimNodeId = GenerateNewNodeId([.. idMap.Values]);
 
         var rootAnimNode = MakeNode("CRootAnimNode");
         rootAnimNode.AddProperty("m_sName", "Unnamed");
@@ -3217,7 +3187,7 @@ public class AnimationGraphExtract
 
     private KVObject ConvertToUncompiled(KVObject compiledNode, List<long> outConnections)
     {
-        footPinningItems = new List<KVObject>();
+        footPinningItems = [];
         var className = compiledNode.GetProperty<string>("_class");
         className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
 
@@ -3338,7 +3308,10 @@ public class AnimationGraphExtract
                             "ANIMPARAM_ENUM" => "SelectionSource_Enum",
                             _ => "SelectionSource_Bool",
                         };
-                        node.AddProperty("m_selectionSource", selectionSource);
+                        if (!node.Properties.ContainsKey("m_selectionSource"))
+                        {
+                            node.AddProperty("m_selectionSource", selectionSource);
+                        }
                         node.AddProperty($"m_{source.ToLowerInvariant()}ParamID", ParameterIDFromIndex(paramType, paramIndex));
                     }
                     continue;
@@ -3379,7 +3352,7 @@ public class AnimationGraphExtract
                             var (weight, blendTime, nodeId) = choice;
                             var choiceNode = new KVObject(null, 4);
                             AddInputConnection(choiceNode, nodeId);
-                            choiceNode.AddProperty("m_name", (index + 1).ToString());
+                            choiceNode.AddProperty("m_name", (index + 1).ToString(CultureInfo.InvariantCulture));
                             choiceNode.AddProperty("m_weight", weight);
                             choiceNode.AddProperty("m_blendTime", blendTime);
                             return choiceNode;
@@ -3677,7 +3650,7 @@ public class AnimationGraphExtract
                     if (poseOpFixedData.ContainsKey("m_footInfo"))
                     {
                         var footInfoArray = poseOpFixedData.GetArray("m_footInfo");
-                        footPinningItems = new List<KVObject>();
+                        footPinningItems = [];
 
                         foreach (var footInfo in footInfoArray)
                         {
@@ -3725,10 +3698,6 @@ public class AnimationGraphExtract
                             }
                             footPinningItems.Add(convertedItem);
                         }
-                        if (footPinningItems.Count > 0)
-                        {
-                            node.AddProperty("m_items", KVValue.MakeArray(footPinningItems.ToArray()));
-                        }
                     }
                     if (poseOpFixedData.ContainsKey("m_flBlendTime"))
                     {
@@ -3770,14 +3739,14 @@ public class AnimationGraphExtract
                 {
                     var paramHandles = compiledNode.GetArray("m_params");
                     var itemsArray = node.GetArray("m_items");
-                    var itemsList = itemsArray?.ToList() ?? new List<KVObject>();
+                    var itemsList = itemsArray?.ToList() ?? [];
 
                     if (itemsList.Count == 0 && footPinningItems != null && footPinningItems.Count > 0)
                     {
                         itemsList = footPinningItems;
                     }
 
-                    for (int i = 0; i < itemsList.Count; i++)
+                    for (var i = 0; i < itemsList.Count; i++)
                     {
                         if (i < paramHandles.Length)
                         {
@@ -4657,7 +4626,7 @@ public class AnimationGraphExtract
                     var firstFootHasGroundTracing = false;
                     var firstFootTraceAngleBlend = 0.0f;
 
-                    for (int i = 0; i < footSettings.Length; i++)
+                    for (var i = 0; i < footSettings.Length; i++)
                     {
                         var footSetting = footSettings[i];
                         var footInfo = footInfoArray != null && i < footInfoArray.Length ? footInfoArray[i] : null;
@@ -4872,11 +4841,9 @@ public class AnimationGraphExtract
                 else if (key == "m_opFixedData")
                 {
                     var opFixedData = subCollection.Value;
-                    var ikChainNames = LoadIKChainNamesFromModel();
                     var foundChainName = "";
 
-                    if (string.IsNullOrEmpty(foundChainName) &&
-                        opFixedData.ContainsKey("m_nFixedBoneIndex") &&
+                    if (opFixedData.ContainsKey("m_nFixedBoneIndex") &&
                         opFixedData.ContainsKey("m_nMiddleBoneIndex") &&
                         opFixedData.ContainsKey("m_nEndBoneIndex"))
                     {
@@ -5060,14 +5027,14 @@ public class AnimationGraphExtract
                                         for (var paramIdx = 0; paramIdx < parameterCount; paramIdx++)
                                         {
                                             var motionParam = MakeNode("CMotionParameter");
-                                            motionParam.AddProperty("m_name", paramIdx.ToString());
+                                            motionParam.AddProperty("m_name", paramIdx.ToString(CultureInfo.InvariantCulture));
 
-                                            var paramId = GenerateNewNodeId(new HashSet<long>());
+                                            var paramId = GenerateNewNodeId([.. motionParamIds]);
                                             motionParamIds.Add(paramId);
                                             motionParam.AddProperty("m_id", MakeNodeIdObjectValue(paramId));
 
-                                            float minValue = float.MaxValue;
-                                            float maxValue = float.MinValue;
+                                            var minValue = float.MaxValue;
+                                            var maxValue = float.MinValue;
 
                                             foreach (var config in configs)
                                             {
@@ -5154,34 +5121,7 @@ public class AnimationGraphExtract
 
                                                 if (compiledParamSpan.ContainsKey("m_hParam"))
                                                 {
-                                                    var paramRef = compiledParamSpan.GetSubCollection("m_hParam");
-                                                    var paramType = paramRef.GetStringProperty("m_type");
-                                                    var paramIndex = paramRef.GetIntegerProperty("m_index");
-
-                                                    long paramId = -1;
-                                                    for (var i = 0; i < Parameters.Length; i++)
-                                                    {
-                                                        var param = Parameters[i];
-                                                        var paramClass = param.GetStringProperty("_class");
-                                                        var paramTypeName = paramClass switch
-                                                        {
-                                                            "CFloatAnimParameter" => "ANIMPARAM_FLOAT",
-                                                            "CEnumAnimParameter" => "ANIMPARAM_ENUM",
-                                                            "CBoolAnimParameter" => "ANIMPARAM_BOOL",
-                                                            "CIntAnimParameter" => "ANIMPARAM_INT",
-                                                            "CVectorAnimParameter" => "ANIMPARAM_VECTOR",
-                                                            "CQuaternionAnimParameter" => "ANIMPARAM_QUATERNION",
-                                                            _ => paramClass.Replace("C", "").Replace("AnimParameter", "").ToUpperInvariant(),
-                                                        };
-
-                                                        if (paramTypeName == paramType)
-                                                        {
-                                                            paramId = param.GetSubCollection("m_id").GetIntegerProperty("m_id");
-                                                            break;
-                                                        }
-                                                    }
-
-                                                    paramSpan.AddProperty("m_id", MakeNodeIdObjectValue(paramId));
+                                                    paramSpan.AddProperty("m_id", ExtractParameterID(compiledParamSpan.GetSubCollection("m_hParam")));
                                                 }
                                                 else
                                                 {
@@ -5256,7 +5196,7 @@ public class AnimationGraphExtract
                     foreach (var compiledMetric in compiledMetrics)
                     {
                         var metricClassName = compiledMetric.GetStringProperty("_class");
-                        var uncompiledClassName = metricClassName.Replace("MetricEvaluator", "Metric");
+                        var uncompiledClassName = metricClassName.Replace("MetricEvaluator", "Metric", StringComparison.Ordinal);
                         var metric = MakeNode(uncompiledClassName);
 
                         metric.AddProperty("m_flWeight", compiledMetric.GetFloatProperty("m_flWeight"));
@@ -6019,6 +5959,10 @@ public class AnimationGraphExtract
             var states = ConvertStateMachine(stateMachine, stateData, transitionData, isComponent: false);
             node.AddProperty("m_states", KVValue.MakeArray(states));
         }
+        else if (className == "CFootPinning" && !node.ContainsKey("m_items") && footPinningItems is { Count: > 0 })
+        {
+            node.AddProperty("m_items", KVValue.MakeArray(footPinningItems.ToArray()));
+        }
         return node;
     }
 
@@ -6029,7 +5973,7 @@ public class AnimationGraphExtract
             return MakeNodeIdObjectValue(-1);
         }
 
-        var uncompiledType = paramType.Replace("ANIMPARAM_", "");
+        var uncompiledType = paramType.Replace("ANIMPARAM_", "", StringComparison.Ordinal);
         var currentCount = 0;
 
         for (var i = 0; i < Parameters.Length; i++)
@@ -6046,7 +5990,7 @@ public class AnimationGraphExtract
                 "CQuaternionAnimParameter" => "QUATERNION",
                 "CSymbolAnimParameter" => "SYMBOL",
                 "CVirtualAnimParameter" => "VIRTUAL",
-                _ => paramClass.Replace("C", "").Replace("AnimParameter", "").ToUpper(System.Globalization.CultureInfo.CurrentCulture),
+                _ => paramClass.TrimStart('C').Replace("AnimParameter", "", StringComparison.Ordinal).ToUpperInvariant(),
             };
 
             if (paramTypeName == uncompiledType)

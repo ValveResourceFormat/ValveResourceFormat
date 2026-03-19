@@ -1,7 +1,7 @@
 using System.IO;
 using NUnit.Framework;
-using ValveResourceFormat.IO;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat.IO;
 
 namespace Tests;
 
