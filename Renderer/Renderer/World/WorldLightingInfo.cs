@@ -633,7 +633,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Allocates the GPU storage buffer used to pass barn light data to shaders.</summary>
         public void CreateBarnLightBuffer()
         {
-            BarnLightStorageBuffer = StorageBuffer.Allocate<BarnLightConstants>(
+            BarnLightStorageBuffer ??= StorageBuffer.Allocate<BarnLightConstants>(
                 ReservedBufferSlots.BarnLights, BarnLightConstants.MAX_BARN_LIGHTS, BufferUsageHint.DynamicDraw);
         }
 
