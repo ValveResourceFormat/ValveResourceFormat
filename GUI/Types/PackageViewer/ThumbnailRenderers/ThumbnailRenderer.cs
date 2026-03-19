@@ -83,7 +83,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         // Create framebuffer for rendering
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-            Framebuffer.DepthAttachmentFormat.Depth32FStencil8);
+            Framebuffer.DepthAttachmentFormat.Depth16);
         framebuffer.Initialize();
 
         SceneRenderer.Initialize();
