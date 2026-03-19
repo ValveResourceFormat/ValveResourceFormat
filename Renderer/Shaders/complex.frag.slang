@@ -393,7 +393,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #endif
 
         blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
-    #elif defined(GameVfx_environment_blend)
+    #elif (GameVfx_environment_blend != 0)
         float blendFactor = vColorBlendValues.r;
         float revealMask = texture(g_tRevealMask2, texCoordB).r;
         blendFactor = ApplyBlendModulation(blendFactor, revealMask, g_flRevealSoftness2);
