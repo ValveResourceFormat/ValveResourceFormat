@@ -27,8 +27,52 @@ internal class ThumbnailSVGRenderer : ThumbnailRenderer
 
         using var ms = new MemoryStream(panoramaData.Data);
         using var svg = new SKSvg();
-        svg.Load(ms);
 
-        return Themer.SvgToBitmap(svg, size, size);
+        try
+        {
+            svg.Load(ms);
+        }
+        catch
+        {
+        }
+
+        if (svg == null || svg.Picture == null)
+        {
+            return null;
+        }
+
+        var originalWidth = svg.Picture.CullRect.Width;
+        var originalHeight = svg.Picture.CullRect.Height;
+
+        int renderWidth, renderHeight;
+
+        if (originalWidth <= 0 || originalHeight <= 0)
+        {
+            renderWidth = size;
+            renderHeight = size;
+        }
+        else
+        {
+            var scale = Math.Min(size / originalWidth, size / originalHeight);
+            renderWidth = (int)Math.Round(originalWidth * scale);
+            renderHeight = (int)Math.Round(originalHeight * scale);
+        }
+
+        var svgBitmap = Themer.SvgToBitmap(svg, renderWidth, renderHeight);
+
+        if (svgBitmap == null || (renderWidth == size && renderHeight == size))
+        {
+            return svgBitmap;
+        }
+
+        var result = new Bitmap(size, size, svgBitmap.PixelFormat);
+
+        using var g = Graphics.FromImage(result);
+        var offsetX = (size - renderWidth) / 2;
+        var offsetY = (size - renderHeight) / 2;
+        g.DrawImage(svgBitmap, offsetX, offsetY, renderWidth, renderHeight);
+        svgBitmap.Dispose();
+
+        return result;
     }
 }
