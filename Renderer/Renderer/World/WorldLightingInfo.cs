@@ -502,8 +502,8 @@ namespace ValveResourceFormat.Renderer.World
                             if (light.Entity == SceneLight.EntityType.Omni2)
                             {
                                 var shrink = new Vector2(
-                                    (float) (region.Width - OmniShadowBorder * 2) / region.Width,
-                                    (float) (region.Height - OmniShadowBorder * 2) / region.Height
+                                    (float)(region.Width - OmniShadowBorder * 2) / region.Width,
+                                    (float)(region.Height - OmniShadowBorder * 2) / region.Height
                                 );
                                 bakedScale *= shrink;
                                 shadowMatrix *= Matrix4x4.CreateScale(shrink.X, shrink.Y, 1f);

@@ -90,6 +90,7 @@ namespace GUI.Types.PackageViewer
             }
 
             mainListView.VirtualMode = true;
+            mainListView.VirtualItems = ListViewItems;
             mainListView.RetrieveVirtualItem += MainListView_RetrieveVirtualItem;
 
             Dock = DockStyle.Fill;
@@ -118,7 +119,7 @@ namespace GUI.Types.PackageViewer
 
         private void MainListView_Scroll(object? sender, ScrollEventArgs e)
         {
-            if (ThumbnailRenderTokenSource != null)
+            if (mainListView.View == View.LargeIcon && ThumbnailRenderTokenSource != null)
             {
                 _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource.Token);
             }
@@ -126,7 +127,7 @@ namespace GUI.Types.PackageViewer
 
         private void MainListView_Resize(object? sender, EventArgs e)
         {
-            if (ThumbnailRenderTokenSource != null)
+            if (mainListView.View == View.LargeIcon && ThumbnailRenderTokenSource != null)
             {
                 _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource.Token);
             }
@@ -254,15 +255,7 @@ namespace GUI.Types.PackageViewer
 
             mainListView.BeginUpdate();
 
-            if (mainListView.VirtualMode)
-            {
-                ListViewItems.Clear();
-            }
-            else
-            {
-                mainListView.Items.Clear();
-            }
-
+            ListViewItems.Clear();
             mainListView.VirtualListSize = 0;
 
             var sorter = mainListView.ListViewItemSorter;
@@ -291,64 +284,7 @@ namespace GUI.Types.PackageViewer
                 UpdateSearchTextBoxToCurrentPath(pkgNode);
             }
 
-            SortListViewItemsForVirtualMode();
-
-            var currentThumbnailSizeInt = (int)CurrentThumbnailSizes;
-
-            if (mainListView.VirtualMode)
-            {
-                for (var i = 0; i < ListViewItems.Count; i++)
-                {
-                    if (ListViewItems[i] is not BetterListViewItem betterListViewItem)
-                    {
-                        continue;
-                    }
-
-                    if (betterListViewItem.IsFolder)
-                    {
-                        betterListViewItem.ImageIndex = betterListViewItem.Tag is BetterListViewItem.ParentNavigationTag
-                            ? GetFolderUpImageIndex()
-                            : GetFolderImageIndex();
-                        continue;
-                    }
-
-                    var entry = betterListViewItem.PackageEntry!;
-                    var extension = ResolveExtension(entry.TypeName);
-
-                    if (!BigIconImageCache.TryGetValue(extension, out var iconImageCacheEntry) || iconImageCacheEntry == null)
-                    {
-                        MainForm.ExtensionSVGS.TryGetValue(extension, out var svgFile);
-                        svgFile ??= MainForm.ExtensionSVGS.GetValueOrDefault("File");
-
-#pragma warning disable CA2000 // Bitmap lifetime is managed by ImageList, when ImageList is disposed it disposes all images too
-                        var bitmap = Themer.SvgToBitmap(svgFile!, currentThumbnailSizeInt, currentThumbnailSizeInt);
-
-                        lock (ImageListLock)
-                        {
-                            // Double-checked: another thread may have inserted while we were rendering.
-                            if (!BigIconImageCache.TryGetValue(extension, out iconImageCacheEntry) || iconImageCacheEntry == null)
-                            {
-                                var index = BigIconsImageList.Images.Count; // authoritative, inside the lock
-                                BigIconsImageList.Images.Add(bitmap);
-                                iconImageCacheEntry = new IconImageCacheEntry(bitmap, index);
-                                BigIconImageCache[extension] = iconImageCacheEntry;
-                            }
-                            // else: lost the race — discard the bitmap we just created
-                        }
-                    }
-
-                    betterListViewItem.ImageIndex = iconImageCacheEntry.index;
-                }
-
-                mainListView.VirtualListSize = ListViewItems.Count;
-            }
-
-            mainListView.Invalidate();
-
-            if (mainListView.VirtualMode)
-            {
-                _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource.Token);
-            }
+            AssignBigIconIndicesAndRenderThumbnails();
         }
 
         private readonly Dictionary<string, ThumbnailRenderer> ThumbnailRenderers = new()
@@ -555,33 +491,58 @@ namespace GUI.Types.PackageViewer
 
         private (int first, int last) GetVisibleItemRange()
         {
-            if (mainListView.VirtualListSize == 0)
+            var count = mainListView.VirtualListSize;
+
+            if (count == 0)
             {
                 return (-1, -1);
             }
 
             var visible = mainListView.ClientRectangle;
 
+            // Binary search for the first visible item
+            var lo = 0;
+            var hi = count - 1;
             var first = -1;
-            var last = -1;
 
-            for (var i = 0; i < mainListView.VirtualListSize; i++)
+            while (lo <= hi)
+            {
+                var mid = lo + (hi - lo) / 2;
+                var rect = mainListView.GetItemRect(mid);
+
+                if (rect.Bottom <= visible.Top)
+                {
+                    lo = mid + 1;
+                }
+                else if (rect.Top >= visible.Bottom)
+                {
+                    hi = mid - 1;
+                }
+                else
+                {
+                    first = mid;
+                    hi = mid - 1; // keep searching left for the first one
+                }
+            }
+
+            if (first == -1)
+            {
+                return (-1, -1);
+            }
+
+            // Linear scan forward for the last visible item
+            var last = first;
+
+            for (var i = first + 1; i < count; i++)
             {
                 var rect = mainListView.GetItemRect(i);
 
-                if (rect.IntersectsWith(visible))
+                if (!rect.IntersectsWith(visible))
                 {
-                    if (first == -1)
-                    {
-                        first = i;
-                    }
+                    break;
+                }
 
-                    last = i;
-                }
-                else if (first != -1)
-                {
-                    break; // passed visible range
-                }
+                last = i;
             }
 
             return (first, last);
@@ -1027,17 +988,13 @@ namespace GUI.Types.PackageViewer
         {
             var results = mainTreeView.Search(searchText, selectedSearchType);
 
+            ThumbnailRenderTokenSource?.Cancel();
+            ThumbnailRenderTokenSource = new CancellationTokenSource();
+            QueuedOrRenderedThumbnailItems.Clear();
+
             mainListView.BeginUpdate();
 
-            if (mainListView.VirtualMode)
-            {
-                ListViewItems.Clear();
-            }
-            else
-            {
-                mainListView.Items.Clear();
-            }
-
+            ListViewItems.Clear();
             mainListView.VirtualListSize = 0;
 
             var sorter = mainListView.ListViewItemSorter;
@@ -1048,15 +1005,12 @@ namespace GUI.Types.PackageViewer
                 AddFileToListView(entry);
             }
 
-            if (mainListView.VirtualMode)
-            {
-                mainListView.VirtualListSize = ListViewItems.Count;
-            }
-
             mainListView.ListViewItemSorter = sorter;
 
             DisplayMainListView();
             mainListView.EndUpdate();
+
+            AssignBigIconIndicesAndRenderThumbnails();
         }
 
         private void MainListView_ColumnClick(object? sender, ColumnClickEventArgs e)
@@ -1078,15 +1032,7 @@ namespace GUI.Types.PackageViewer
                 sorter.Order = e.Column == 1 ? SortOrder.Descending : SortOrder.Ascending;
             }
 
-            if (mainListView.VirtualMode)
-            {
-                SortListViewItemsForVirtualMode();
-            }
-            else
-            {
-                mainListView.Sort();
-                mainListView.Invalidate(true);
-            }
+            SortListViewItemsForVirtualMode();
         }
 
         /// <summary>
@@ -1270,14 +1216,7 @@ namespace GUI.Types.PackageViewer
             item.SubItems.Add(HumanReadableByteSizeFormatter.Format(parentNode.TotalSize));
             item.SubItems.Add(string.Empty);
 
-            if (mainListView.VirtualMode)
-            {
-                ListViewItems.Add(item);
-            }
-            else
-            {
-                mainListView.Items.Add(item);
-            }
+            ListViewItems.Add(item);
         }
 
         private void AddFolderToListView(string name, VirtualPackageNode node)
@@ -1291,14 +1230,7 @@ namespace GUI.Types.PackageViewer
             item.SubItems.Add(HumanReadableByteSizeFormatter.Format(node.TotalSize));
             item.SubItems.Add(string.Empty);
 
-            if (mainListView.VirtualMode)
-            {
-                ListViewItems.Add(item);
-            }
-            else
-            {
-                mainListView.Items.Add(item);
-            }
+            ListViewItems.Add(item);
         }
 
         private void AddFileToListView(PackageEntry file)
@@ -1317,14 +1249,7 @@ namespace GUI.Types.PackageViewer
             item.SubItems.Add(HumanReadableByteSizeFormatter.Format(file.TotalLength));
             item.SubItems.Add(file.TypeName);
 
-            if (mainListView.VirtualMode)
-            {
-                ListViewItems.Add(item);
-            }
-            else
-            {
-                mainListView.Items.Add(item);
-            }
+            ListViewItems.Add(item);
         }
 
         public void ReplaceListViewWithControl(TabPage tab)
@@ -1342,6 +1267,7 @@ namespace GUI.Types.PackageViewer
 
             if (parentControl == null)
             {
+                tabs.Dispose();
                 return;
             }
 
@@ -1479,23 +1405,12 @@ namespace GUI.Types.PackageViewer
             mainTreeView.EndUpdate();
         }
 
-        private int GetFolderImageIndex()
-        {
-            return mainListView.VirtualMode ? ImageIndexFolder : MainForm.Icons["Folder"];
-        }
+        private static int GetFolderImageIndex() => ImageIndexFolder;
 
-        private int GetFolderUpImageIndex()
-        {
-            return mainListView.VirtualMode ? ImageIndexFolderUp : MainForm.Icons["FolderUp"];
-        }
+        private static int GetFolderUpImageIndex() => ImageIndexFolderUp;
 
         private void SortListViewItemsForVirtualMode()
         {
-            if (!mainListView.VirtualMode)
-            {
-                return;
-            }
-
             if (mainListView.ListViewItemSorter is not ListViewColumnSorter sorter)
             {
                 return;
@@ -1505,6 +1420,64 @@ namespace GUI.Types.PackageViewer
 
             mainListView.VirtualListSize = ListViewItems.Count; // force refresh
             mainListView.Invalidate(true);
+        }
+
+        private void AssignBigIconIndicesAndRenderThumbnails()
+        {
+            SortListViewItemsForVirtualMode();
+
+            var currentThumbnailSizeInt = (int)CurrentThumbnailSizes;
+
+            for (var i = 0; i < ListViewItems.Count; i++)
+            {
+                if (ListViewItems[i] is not BetterListViewItem betterListViewItem)
+                {
+                    continue;
+                }
+
+                if (betterListViewItem.IsFolder)
+                {
+                    betterListViewItem.ImageIndex = betterListViewItem.Tag is BetterListViewItem.ParentNavigationTag
+                        ? GetFolderUpImageIndex()
+                        : GetFolderImageIndex();
+                    continue;
+                }
+
+                var entry = betterListViewItem.PackageEntry!;
+                var extension = ResolveExtension(entry.TypeName);
+
+                if (!BigIconImageCache.TryGetValue(extension, out var iconImageCacheEntry) || iconImageCacheEntry == null)
+                {
+                    MainForm.ExtensionSVGS.TryGetValue(extension, out var svgFile);
+                    svgFile ??= MainForm.ExtensionSVGS.GetValueOrDefault("File");
+
+#pragma warning disable CA2000 // Bitmap lifetime is managed by ImageList, when ImageList is disposed it disposes all images too
+                    var bitmap = Themer.SvgToBitmap(svgFile!, currentThumbnailSizeInt, currentThumbnailSizeInt);
+
+                    lock (ImageListLock)
+                    {
+                        // Double-checked: another thread may have inserted while we were rendering.
+                        if (!BigIconImageCache.TryGetValue(extension, out iconImageCacheEntry) || iconImageCacheEntry == null)
+                        {
+                            var index = BigIconsImageList.Images.Count; // authoritative, inside the lock
+                            BigIconsImageList.Images.Add(bitmap);
+                            iconImageCacheEntry = new IconImageCacheEntry(bitmap, index);
+                            BigIconImageCache[extension] = iconImageCacheEntry;
+                        }
+                        // else: lost the race — discard the bitmap we just created
+                    }
+                }
+
+                betterListViewItem.ImageIndex = iconImageCacheEntry.index;
+            }
+
+            mainListView.VirtualListSize = ListViewItems.Count;
+            mainListView.Invalidate();
+
+            if (mainListView.View == View.LargeIcon)
+            {
+                _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource!.Token);
+            }
         }
 
         private void MainListView_Disposed(object? sender, EventArgs e)
@@ -1557,14 +1530,39 @@ namespace GUI.Types.PackageViewer
             {
                 gridSizeSlider.Enabled = false;
 
+                ThumbnailRenderTokenSource?.Cancel();
+                QueuedOrRenderedThumbnailItems.Clear();
+
                 mainListView.View = View.Details;
-                mainListView.VirtualMode = false;
                 mainListView.SmallImageList = MainForm.ImageList;
 
-                if (CurrentDisplayedNode != null)
+                // Reassign small icon indices for list view
+                foreach (var item in ListViewItems)
                 {
-                    MainListView_DisplayNodes(CurrentDisplayedNode);
+                    if (item is not BetterListViewItem betterItem)
+                    {
+                        continue;
+                    }
+
+                    if (betterItem.IsFolder)
+                    {
+                        betterItem.ImageIndex = betterItem.Tag is BetterListViewItem.ParentNavigationTag
+                            ? MainForm.Icons["FolderUp"]
+                            : mainTreeView.FolderImage;
+                    }
+                    else if (betterItem.PackageEntry != null
+                        && mainTreeView.ExtensionIconList.TryGetValue(betterItem.PackageEntry.TypeName, out var image))
+                    {
+                        betterItem.ImageIndex = image;
+                    }
+                    else
+                    {
+                        betterItem.ImageIndex = MainForm.Icons["File"];
+                    }
                 }
+
+                mainListView.AdjustColumnWidths();
+                mainListView.Invalidate();
             }
         }
 
@@ -1574,14 +1572,13 @@ namespace GUI.Types.PackageViewer
             {
                 gridSizeSlider.Enabled = true;
 
-                mainListView.View = View.LargeIcon;
-                mainListView.Items.Clear();
-                mainListView.VirtualMode = true;
+                ThumbnailRenderTokenSource?.Cancel();
+                ThumbnailRenderTokenSource = new CancellationTokenSource();
+                QueuedOrRenderedThumbnailItems.Clear();
 
-                if (CurrentDisplayedNode != null)
-                {
-                    MainListView_DisplayNodes(CurrentDisplayedNode);
-                }
+                mainListView.View = View.LargeIcon;
+
+                AssignBigIconIndicesAndRenderThumbnails();
             }
         }
 
@@ -1601,10 +1598,7 @@ namespace GUI.Types.PackageViewer
 
             mainListView.LargeImageList = BigIconsImageList;
 
-            if (CurrentDisplayedNode != null)
-            {
-                MainListView_DisplayNodes(CurrentDisplayedNode);
-            }
+            AssignBigIconIndicesAndRenderThumbnails();
         }
     }
 }
