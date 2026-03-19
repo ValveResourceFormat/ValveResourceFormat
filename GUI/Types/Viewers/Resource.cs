@@ -699,6 +699,10 @@ namespace GUI.Types.Viewers
             {
                 language = CodeTextBox.HighlightLanguage.XML;
             }
+            else if (resourceType == ResourceType.PanoramaVectorGraphic && block.Type == BlockType.DATA)
+            {
+                language = CodeTextBox.HighlightLanguage.XML;
+            }
             else if (resourceType == ResourceType.PanoramaStyle && block.Type == BlockType.DATA)
             {
                 language = CodeTextBox.HighlightLanguage.CSS;
