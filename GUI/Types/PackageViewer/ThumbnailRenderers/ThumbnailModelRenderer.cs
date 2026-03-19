@@ -15,7 +15,7 @@ internal class ThumbnailModelRenderer : ThumbnailRenderer
 
         Debug.Assert(SceneRenderer != null);
 
-        var modelSceneNode = new ModelSceneNode(SceneRenderer.Scene, model);
+        var modelSceneNode = new ModelSceneNode(SceneRenderer.Scene, model, isWorldPreview: true);
         SceneRenderer.Scene.Add(modelSceneNode, true);
 
         // if model has no meshes try to show physics
