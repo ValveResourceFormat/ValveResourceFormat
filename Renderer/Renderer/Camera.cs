@@ -228,6 +228,11 @@ namespace ValveResourceFormat.Renderer
         /// <param name="depth">Depth of the object's bounding box.</param>
         public void FrameObject(Vector3 objectPosition, float width, float height, float depth)
         {
+            if (width == 0 && height == 0 && depth == 0)
+            {
+                return;
+            }
+
             var fov = GetFOV();
             var halfFovVertical = fov * 0.5f;
             var halfFovHorizontal = MathF.Atan(MathF.Tan(halfFovVertical) * AspectRatio);
