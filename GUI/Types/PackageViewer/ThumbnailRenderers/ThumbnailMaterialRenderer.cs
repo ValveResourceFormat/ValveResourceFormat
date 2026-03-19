@@ -35,9 +35,8 @@ internal class ThumbnailMaterialRenderer : ThumbnailRenderer
                                                              * Matrix4x4.CreateRotationZ(float.DegreesToRadians(205));
 
             SceneRenderer.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, float.DegreesToRadians(180f), 0);
-
         }
 
         SceneRenderer.Scene.Add(planeMesh, false);
     }
-};
+}

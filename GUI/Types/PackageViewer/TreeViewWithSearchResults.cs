@@ -12,7 +12,6 @@ using GUI.Types.PackageViewer.ThumbnailRenderers;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 
-
 namespace GUI.Types.PackageViewer
 {
     /// <summary>
@@ -137,9 +136,8 @@ namespace GUI.Types.PackageViewer
         {
             try
             {
-                while (!RenderLoopCancelationTokenSource.IsCancellationRequested)
+                foreach (var work in ThumbnailRenderQueue.GetConsumingEnumerable(RenderLoopCancelationTokenSource.Token))
                 {
-                    var work = ThumbnailRenderQueue.Take(RenderLoopCancelationTokenSource.Token);
                     work().GetAwaiter().GetResult();
                 }
             }
@@ -203,7 +201,6 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-
             var realNode = (BetterTreeNode)e.Node;
 
             // if user selected a folder, show the contents of that folder in the list view
@@ -251,7 +248,7 @@ namespace GUI.Types.PackageViewer
 
             ThumbnailRenderTokenSource = new CancellationTokenSource();
 
-            QueuedOrRenderedThumbnailItems.Clear();
+            DrainThumbnailQueue();
 
             mainListView.BeginUpdate();
 
@@ -294,21 +291,35 @@ namespace GUI.Types.PackageViewer
             {"vtex_c", new ThumbnailTextureRenderer() },
         };
 
-        private ThumbnailRenderer? GetThumbnailRenderer(string resourceType)
+        /// <summary>
+        /// Drains pending lambdas from <see cref="ThumbnailRenderQueue"/> (the actual work queue
+        /// consumed by the render thread) and clears <see cref="QueuedOrRenderedThumbnailItems"/>
+        /// (the dictionary that prevents duplicate queueing). Clearing the dictionary alone would
+        /// allow items to be re-queued, but the old lambdas would still be in the BlockingCollection
+        /// waiting to execute ahead of any new work.
+        /// </summary>
+        private void DrainThumbnailQueue()
         {
-            ThumbnailRenderers.TryGetValue(resourceType, out var renderer);
-
-            if (renderer != null)
+            while (ThumbnailRenderQueue.TryTake(out _))
             {
-                if (!renderer.Loaded)
-                {
-                    renderer.Load(mainListView.VrfGuiContext!);
-                }
-
-                return renderer;
             }
 
-            return null;
+            QueuedOrRenderedThumbnailItems.Clear();
+        }
+
+        private ThumbnailRenderer? GetThumbnailRenderer(string resourceType)
+        {
+            if (!ThumbnailRenderers.TryGetValue(resourceType, out var renderer))
+            {
+                return null;
+            }
+
+            if (!renderer.Loaded)
+            {
+                renderer.Load(mainListView.VrfGuiContext!);
+            }
+
+            return renderer;
         }
 
         private async Task UpdateLargeImageListIconsAsync(CancellationToken cancellationToken)
@@ -322,6 +333,8 @@ namespace GUI.Types.PackageViewer
                     return;
                 }
 
+                DrainThumbnailQueue();
+
                 for (var i = first; i <= last; i++)
                 {
                     if (ListViewItems[i] is not BetterListViewItem castItem)
@@ -332,6 +345,12 @@ namespace GUI.Types.PackageViewer
                     var entry = castItem.PackageEntry;
 
                     if (entry == null)
+                    {
+                        continue;
+                    }
+
+                    // Already has a rendered thumbnail cached, no need to queue
+                    if (BigIconImageCache.ContainsKey(entry.GetFullPath()))
                     {
                         continue;
                     }
@@ -357,7 +376,7 @@ namespace GUI.Types.PackageViewer
 
                             if (renderer == null)
                             {
-                                return;
+                                return; // unsupported type, keep marked so we don't retry
                             }
 
                             var entryKey = entry.GetFullPath();
@@ -374,6 +393,11 @@ namespace GUI.Types.PackageViewer
                             else
                             {
                                 bitmap = renderer.Render(entry, context, cancellationToken);
+
+                                if (bitmap == null)
+                                {
+                                    return; // unrenderable, keep marked so we don't retry
+                                }
                             }
 
                             var listView = mainListView;
@@ -386,6 +410,7 @@ namespace GUI.Types.PackageViewer
                             {
                                 if (cancellationToken.IsCancellationRequested)
                                 {
+                                    QueuedOrRenderedThumbnailItems.TryRemove(entry, out _);
                                     return;
                                 }
 
@@ -990,7 +1015,7 @@ namespace GUI.Types.PackageViewer
 
             ThumbnailRenderTokenSource?.Cancel();
             ThumbnailRenderTokenSource = new CancellationTokenSource();
-            QueuedOrRenderedThumbnailItems.Clear();
+            DrainThumbnailQueue();
 
             mainListView.BeginUpdate();
 
@@ -1444,6 +1469,15 @@ namespace GUI.Types.PackageViewer
                 }
 
                 var entry = betterListViewItem.PackageEntry!;
+
+                // Check if we have a rendered thumbnail cached for this specific file
+                if (BigIconImageCache.TryGetValue(entry.GetFullPath(), out var cachedThumbnail) && cachedThumbnail != null)
+                {
+                    betterListViewItem.ImageIndex = cachedThumbnail.index;
+                    continue;
+                }
+
+                // Fall back to SVG icon for the file type
                 var extension = ResolveExtension(entry.TypeName);
 
                 if (!BigIconImageCache.TryGetValue(extension, out var iconImageCacheEntry) || iconImageCacheEntry == null)
@@ -1502,26 +1536,25 @@ namespace GUI.Types.PackageViewer
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
-            {
-                components.Dispose();
-            }
-
             ThumbnailRenderTokenSource?.Cancel();
             RenderLoopCancelationTokenSource.Cancel();
             ThumbnailRenderQueue.CompleteAdding();
 
-            base.Dispose(disposing);
-
-            BigIconsImageList.Dispose();
-            ThumbnailRenderTokenSource?.Dispose();
-            ThumbnailRenderQueue.Dispose();
-            RenderLoopCancelationTokenSource.Dispose();
-
-            foreach (var renderer in ThumbnailRenderers.Values)
+            if (disposing)
             {
-                renderer.Dispose();
+                components?.Dispose();
+                BigIconsImageList.Dispose();
+                ThumbnailRenderTokenSource?.Dispose();
+                ThumbnailRenderQueue.Dispose();
+                RenderLoopCancelationTokenSource.Dispose();
+
+                foreach (var renderer in ThumbnailRenderers.Values)
+                {
+                    renderer.Dispose();
+                }
             }
+
+            base.Dispose(disposing);
         }
 
         private void listRadioButton_CheckedChanged(object sender, EventArgs e)
@@ -1531,7 +1564,7 @@ namespace GUI.Types.PackageViewer
                 gridSizeSlider.Enabled = false;
 
                 ThumbnailRenderTokenSource?.Cancel();
-                QueuedOrRenderedThumbnailItems.Clear();
+                DrainThumbnailQueue();
 
                 mainListView.View = View.Details;
                 mainListView.SmallImageList = MainForm.ImageList;
@@ -1574,7 +1607,6 @@ namespace GUI.Types.PackageViewer
 
                 ThumbnailRenderTokenSource?.Cancel();
                 ThumbnailRenderTokenSource = new CancellationTokenSource();
-                QueuedOrRenderedThumbnailItems.Clear();
 
                 mainListView.View = View.LargeIcon;
 
@@ -1594,7 +1626,7 @@ namespace GUI.Types.PackageViewer
 
             BigIconsImageList = InitThumbnailImageList();
             BigIconImageCache.Clear();
-            QueuedOrRenderedThumbnailItems.Clear();
+            DrainThumbnailQueue();
 
             mainListView.LargeImageList = BigIconsImageList;
 

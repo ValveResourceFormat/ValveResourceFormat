@@ -166,7 +166,7 @@ public class Renderer
         scene.LightingInfo.AddEnvironmentMap(environmentMap);
         scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
 
-        scene.LightingInfo.LightingData.LightColor_Brightness[0] = Renderer.DefaultSunColor;
+        scene.LightingInfo.LightingData.LightColor_Brightness[0] = DefaultSunColor;
 
         scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(float.DegreesToRadians(DefaultSunAngles.X))
                                                              * Matrix4x4.CreateRotationZ(float.DegreesToRadians(DefaultSunAngles.Y));

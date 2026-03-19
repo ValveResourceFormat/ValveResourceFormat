@@ -32,7 +32,7 @@ internal abstract class ThumbnailRenderer : IDisposable
     private NativeWindow? NativeWindow;
     private bool disposed;
 
-    public ThumbnailSizes Size { get; private set; } = ThumbnailSizes.Big;
+    public ThumbnailSizes Size { get; private set; } = ThumbnailSizes.Huge;
 
     public bool Loaded { get; private set; }
 
@@ -239,4 +239,4 @@ internal abstract class ThumbnailRenderer : IDisposable
         Loaded = false;
         disposed = true;
     }
-};
+}
