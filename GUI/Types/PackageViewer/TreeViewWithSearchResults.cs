@@ -96,11 +96,15 @@ namespace GUI.Types.PackageViewer
 
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
+            mainListView.MouseWheel += MainListView_MouseWheel;
             mainListView.ColumnClick += MainListView_ColumnClick;
             mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
             mainListView.ListViewItemSorter = new ListViewColumnSorter();
             mainListView.View = View.LargeIcon;
+
+            mainTreeView.MouseWheel += MainListView_MouseWheel;
+            MouseWheel += MainListView_MouseWheel;
 
             mainTreeView.HideSelection = false;
             mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
@@ -129,6 +133,27 @@ namespace GUI.Types.PackageViewer
             if (mainListView.View == View.LargeIcon && ThumbnailRenderTokenSource != null)
             {
                 _ = UpdateLargeImageListIconsAsync(ThumbnailRenderTokenSource.Token);
+            }
+        }
+
+        private void MainListView_MouseWheel(object? sender, MouseEventArgs e)
+        {
+            if (!gridRadioButton.Checked
+                || gridSizeSlider.Enabled is false
+                || (Control.ModifierKeys & Keys.Control) != Keys.Control)
+            {
+                return;
+            }
+
+            if (e.Delta > 0 && gridSizeSlider.Value < gridSizeSlider.Maximum)
+            {
+                gridSizeSlider.Value++;
+                gridSizeSlider_Scroll(gridSizeSlider, EventArgs.Empty);
+            }
+            else if (e.Delta < 0 && gridSizeSlider.Value > gridSizeSlider.Minimum)
+            {
+                gridSizeSlider.Value--;
+                gridSizeSlider_Scroll(gridSizeSlider, EventArgs.Empty);
             }
         }
 
@@ -1519,14 +1544,18 @@ namespace GUI.Types.PackageViewer
         {
             mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
             mainListView.MouseDown -= MainListView_MouseDown;
+            mainListView.MouseWheel -= MainListView_MouseWheel;
             mainListView.ColumnClick -= MainListView_ColumnClick;
             mainListView.Scroll -= MainListView_Scroll;
             mainListView.Resize -= MainListView_Resize;
             mainListView.Disposed -= MainListView_Disposed;
 
+            mainTreeView.MouseWheel -= MainListView_MouseWheel;
             mainTreeView.NodeMouseDoubleClick -= MainTreeView_NodeMouseDoubleClick;
             mainTreeView.NodeMouseClick -= MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect -= MainTreeView_AfterSelect;
+
+            MouseWheel -= MainListView_MouseWheel;
 
             mainTreeView.VrfGuiContext?.Dispose();
             mainTreeView.VrfGuiContext = null;
