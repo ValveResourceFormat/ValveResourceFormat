@@ -138,10 +138,19 @@ public class Renderer
         Scene = new Scene(rendererContext);
     }
 
-    // Default environment + simple sun lighting used by viewers without lighting information
+    /// <summary>
+    /// Default sun angles for lighting used by viewers without lighting information
+    /// </summary>
     public static Vector2 DefaultSunAngles { get; } = new(80f, 170f);
+
+    /// <summary>
+    /// Default sun color for lighting used by viewers without lighting information
+    /// </summary>
     public static Vector4 DefaultSunColor { get; } = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
 
+    /// <summary>
+    /// Load default lighting, used by viewers without lighting information
+    /// </summary>
     public static void LoadDefaultLighting(Scene scene, Resource skyCubemap)
     {
         var texture = scene.RendererContext.MaterialLoader.LoadTexture(skyCubemap, true);

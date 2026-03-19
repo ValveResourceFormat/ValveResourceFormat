@@ -46,6 +46,9 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
+        /// <summary>
+        /// Disposes any caches materials and textures.
+        /// </summary>
         public void Clear()
         {
             Materials.Clear();

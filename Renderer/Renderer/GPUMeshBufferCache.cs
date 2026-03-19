@@ -57,6 +57,9 @@ namespace ValveResourceFormat.Renderer
             return gpuVbib;
         }
 
+        /// <summary>
+        /// Disposes any cached gpu buffers and frees gpu vertex arrays.
+        /// </summary>
         public void Clear()
         {
             foreach (var item in gpuBuffers)
