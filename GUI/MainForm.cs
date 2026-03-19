@@ -251,6 +251,7 @@ namespace GUI
                     var addResult = ExtensionIcons.TryAdd(line[..space], ExtensionIcons[line[(space + 1)..]]);
                     var addResultSVG = ExtensionSVGS.TryAdd(line[..space], ExtensionSVGS[line[(space + 1)..]]);
                     Debug.Assert(addResult, "Duplicate icon");
+                    Debug.Assert(addResultSVG, "Duplicate SVG icon");
                 }
             }
         }

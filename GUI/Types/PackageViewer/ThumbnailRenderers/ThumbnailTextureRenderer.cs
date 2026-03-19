@@ -3,12 +3,15 @@ using System.Threading;
 using GUI.Utils;
 using SkiaSharp;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
 internal class ThumbnailTextureRenderer : ThumbnailRenderer
 {
+    public override void SetResource(Resource resource) { }
+
     public override Bitmap? Render(PackageEntry entry, VrfGuiContext context, CancellationToken cancellationToken)
     {
         using var resource = LoadResourceFromPackageEntry(context, entry);
@@ -24,4 +27,4 @@ internal class ThumbnailTextureRenderer : ThumbnailRenderer
 
         return resizedBitmap.ToBitmap();
     }
-};
+}

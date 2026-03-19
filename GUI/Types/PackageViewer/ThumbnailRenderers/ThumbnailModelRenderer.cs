@@ -24,4 +24,4 @@ internal class ThumbnailModelRenderer : ThumbnailRenderer
         SceneRenderer.Camera.RecalculateDirectionVectors();
         SceneRenderer.Camera.FrameObject(bbox.Center, size.X, size.Z, size.Y);
     }
-};
+}

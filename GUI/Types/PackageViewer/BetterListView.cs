@@ -25,8 +25,7 @@ namespace GUI.Types.PackageViewer
 
         protected virtual void OnScroll(ScrollEventArgs e)
         {
-            ScrollEventHandler? handler = this.Scroll;
-            if (handler != null) handler(this, e);
+            Scroll?.Invoke(this, e);
         }
 
         protected override void WndProc(ref Message m)
