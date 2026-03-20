@@ -19,6 +19,13 @@ namespace ValveResourceFormat.Renderer
         public float Time { get; private set { field = value; forceUpdate = true; } }
         private bool forceUpdate;
 
+        /// <summary>
+        /// The parent animating transform.
+        /// </summary>
+        public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
+
+        public bool Looping { get; set; } = true;
+
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
         public Animation? ActiveAnimation { get; private set; }
 
@@ -28,16 +35,15 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
-        private bool isPaused;
 
-        /// <summary>Gets or sets whether animation playback is paused. Setting to <see langword="false"/> forces an immediate pose update.</summary>
+        /// <summary>Gets or sets whether animation playback is paused. Changing the value forces a pose update.</summary>
         public bool IsPaused
         {
-            get => isPaused;
+            get => field;
             set
             {
-                isPaused = value;
-                forceUpdate = !value;
+                forceUpdate = field != value;
+                field = value;
             }
         }
 
@@ -90,12 +96,25 @@ namespace ValveResourceFormat.Renderer
             if (!IsPaused)
             {
                 Time += timeStep * FrametimeMultiplier;
+
+                if (!Looping && ActiveAnimation != null)
+                {
+                    var lastFrame = ActiveAnimation.FrameCount - 1;
+                    var maxTime = lastFrame / ActiveAnimation.Fps;
+
+                    if (Time > maxTime)
+                    {
+                        IsPaused = true;
+                        Frame = lastFrame;
+                    }
+                }
             }
 
             if (CurrentSubController is { } subController)
             {
                 subController.Handler.IsPaused = IsPaused;
                 subController.Handler.Time = Time;
+                subController.Handler.Looping = Looping;
 
                 var updated = subController.Handler.Update(0f);
                 if (!updated && !forceUpdate)
@@ -132,7 +151,7 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    ComputePoseRecursive(root, Matrix4x4.Identity, subController, Pose);
+                    ComputePoseRecursive(root, Transform, subController, Pose);
                 }
 
 
@@ -159,7 +178,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, AnimationFrame, Pose);
+                GetBoneMatricesRecursive(root, Transform, AnimationFrame, Pose);
             }
 
             return true;

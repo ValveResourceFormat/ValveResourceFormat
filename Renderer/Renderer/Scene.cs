@@ -374,6 +374,11 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in dynamicNodes)
             {
+                if (node.Parent != null)
+                {
+                    continue; // child nodes are updated by their parent
+                }
+
                 var oldBox = node.BoundingBox;
                 node.Update(updateContext);
 
@@ -1698,7 +1703,8 @@ namespace ValveResourceFormat.Renderer
 
             var sortedLightProbes = LightingInfo.LightProbes
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
-                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared());
+                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
+                .ToList();
 
             var nodes = new List<SceneNode>();
 
@@ -1728,11 +1734,17 @@ namespace ValveResourceFormat.Renderer
 
             // Assign random probe to any node that does not have any light probes to fix the flickering,
             // this isn't ideal, and a proper fix would be to remove D_BAKED_LIGHTING_FROM_PROBE from the shader
-            var firstProbe = LightingInfo.LightProbes[0];
+            var globalProbe = sortedLightProbes[^1];
 
             foreach (var node in AllNodes)
             {
-                node.LightProbeBinding ??= firstProbe;
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.LightProbeBinding = globalProbe;
+                    continue;
+                }
+
+                node.LightProbeBinding ??= globalProbe;
             }
         }
 
@@ -1856,6 +1868,12 @@ namespace ValveResourceFormat.Renderer
                 });
 
                 node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
+
+                // all cubemaps visible
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(LightingInfo.EnvMaps);
+                }
 
 #if DEBUG
                 if (preComputed != default)
