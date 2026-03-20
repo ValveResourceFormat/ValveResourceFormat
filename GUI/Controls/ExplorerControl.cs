@@ -769,7 +769,7 @@ namespace GUI.Controls
 
         private static Bitmap GetAppResizedImage(string path)
         {
-            var originalImage = Image.FromFile(path);
+            using var originalImage = Image.FromFile(path);
 
             var destRect = new Rectangle(0, 0, MainForm.ImageList.ImageSize.Width, MainForm.ImageList.ImageSize.Height);
             var destImage = new Bitmap(destRect.Width, destRect.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);

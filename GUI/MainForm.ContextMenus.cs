@@ -15,7 +15,7 @@ namespace GUI
 {
     partial class MainForm
     {
-        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode, bool isFolderNode)
+        public void ShowVpkContextMenu(Control control, Point position, bool isRootNode, bool isFolderNode, bool deletedFilesRecovered)
         {
             copyFileNameToolStripMenuItem.Visible = !isRootNode;
             openWithDefaultAppToolStripMenuItem.Visible = !isRootNode && !isFolderNode;
@@ -24,7 +24,7 @@ namespace GUI
             toolStripSeparator3.Visible = isRootNode || !isFolderNode;
 
             verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
-            recoverDeletedToolStripMenuItem.Visible = isRootNode;
+            recoverDeletedToolStripMenuItem.Visible = isRootNode && !deletedFilesRecovered;
 
             vpkContextMenu.Show(control, position);
         }
@@ -136,6 +136,11 @@ namespace GUI
 
             foreach (var selectedNode in selectedNodes)
             {
+                if (sb.Length > 0)
+                {
+                    sb.AppendLine();
+                }
+
                 if (wantsFullPath)
                 {
                     sb.Append("vpk:");
@@ -190,7 +195,10 @@ namespace GUI
                 }
             }
 
-            Clipboard.SetText(sb.ToString());
+            if (sb.Length > 0)
+            {
+                Clipboard.SetText(sb.ToString());
+            }
         }
 
         private void OpenWithoutViewerToolStripMenuItem_Click(object sender, EventArgs e)
@@ -443,8 +451,6 @@ namespace GUI
 
         private void RecoverDeletedToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            recoverDeletedToolStripMenuItem.Enabled = false;
-
             if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeView)
             {
                 treeView.RecoverDeletedFiles();

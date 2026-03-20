@@ -310,7 +310,7 @@ namespace GUI
 
                             if (packageFile == null)
                             {
-                                Log.Error(nameof(MainForm), $"File '{packageFile}' does not exist in package '{file}'.");
+                                Log.Error(nameof(MainForm), $"File '{innerFile}' does not exist in package '{file}'.");
                                 continue;
                             }
                         }

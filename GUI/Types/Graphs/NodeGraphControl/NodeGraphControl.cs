@@ -204,6 +204,7 @@ namespace GUI.Types.Graphs
                 using var wirePath = DrawWire(canvas, wirePaint, xFrom, yFrom, xTo, yTo);
 
                 using var widerPaint = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 10f };
+                wire.HitTestPath?.Dispose();
                 wire.HitTestPath = widerPaint.GetFillPath(wirePath);
             }
 

@@ -44,7 +44,7 @@ public class ThemedComboBox : ComboBox
 
         e.DrawBackground();
 
-        Color backColor = backColor = (e.State & DrawItemState.Selected) == DrawItemState.Selected
+        var backColor = (e.State & DrawItemState.Selected) == DrawItemState.Selected
            ? HighlightColor
            : DropDownBackColor;
 
