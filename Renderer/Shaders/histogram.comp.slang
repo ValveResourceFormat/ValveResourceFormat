@@ -22,7 +22,7 @@ layout(binding = 3, std140) buffer Luminance { float outputLuminance; };
 
 #if D_HISTOGRAM_MODE == 0
     layout (local_size_x = 16, local_size_y = 16) in;
-#else 
+#else
     layout (local_size_x = 256) in;
 #endif
 
@@ -36,6 +36,8 @@ void main()
 #if D_HISTOGRAM_MODE == 0
 
     localHistogram[bin] = 0;
+    memoryBarrierShared();
+    barrier();
 
     if (globalID.x < imageResolution.x && globalID.y < imageResolution.y)
     {
@@ -57,8 +59,8 @@ void main()
     }
 
     // Ensure all threads finished writing
-    barrier();
     memoryBarrierShared();
+    barrier();
 
     // Accumulate shared histogram into global histogram
     if (localHistogram[bin] > 0u)
@@ -70,16 +72,16 @@ void main()
 
     // sum up weighted bin values
     localHistogram[bin] = histogram[bin] * bin;
-    barrier();
     memoryBarrierShared();
+    barrier();
     for (uint stride = 128; stride > 0; stride >>= 1)
     {
         if (bin < stride)
         {
             localHistogram[bin] += localHistogram[bin + stride];
         }
-        barrier();
         memoryBarrierShared();
+        barrier();
     }
 
     if(bin == 0)

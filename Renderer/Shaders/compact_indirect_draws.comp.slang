@@ -58,6 +58,7 @@ void main()
         g_GroupValidCounts[gl_LocalInvocationID.x] = 0;
     }
 
+    memoryBarrierShared();
     barrier();
 
     // Each Y thread copies valid draws to the output, claiming a slot via atomic increment
@@ -72,6 +73,7 @@ void main()
         }
     }
 
+    memoryBarrierShared();
     barrier();
 
     // Write final compacted count for this request
