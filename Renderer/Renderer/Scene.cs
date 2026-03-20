@@ -1696,9 +1696,19 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            var isAtlas = LightingInfo.LightProbeType == LightProbeType.ProbeAtlas;
+
+            static bool IsValid(SceneLightProbe probe, bool isAtlas) => isAtlas switch
+            {
+                true => probe is { Irradiance: not null, DirectLightShadows: not null },
+                false => true,
+            };
+
             var sortedLightProbes = LightingInfo.LightProbes
+                .Where(probe => IsValid(probe, isAtlas))
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
-                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared());
+                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
+                .ToList();
 
             var nodes = new List<SceneNode>();
 
@@ -1714,7 +1724,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 probe.ShaderIndex = i;
-                var data = probe.CalculateGpuProbeData(LightingInfo.LightProbeType == LightProbeType.ProbeAtlas);
+                var data = probe.CalculateGpuProbeData(isAtlas);
                 lpvBuffer.Data.Probes[i] = data;
 
                 nodes.Clear();
@@ -1726,13 +1736,18 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            // Assign random probe to any node that does not have any light probes to fix the flickering,
-            // this isn't ideal, and a proper fix would be to remove D_BAKED_LIGHTING_FROM_PROBE from the shader
-            var firstProbe = LightingInfo.LightProbes[0];
+            if (sortedLightProbes.Count == 0)
+            {
+                // remove baked lighting from probe attribute?
+                return;
+            }
+
+            // Fall back to the global probe
+            var globalProbe = sortedLightProbes[^1];
 
             foreach (var node in AllNodes)
             {
-                node.LightProbeBinding ??= firstProbe;
+                node.LightProbeBinding ??= globalProbe;
             }
         }
 

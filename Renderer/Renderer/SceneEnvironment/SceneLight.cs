@@ -495,7 +495,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                 BarnLightAngleFade = new Vector3(1f, 0f, 0f),
                 BarnLightShadowOffsetScale = Vector4.Zero,
                 BarnLightCookieParameters = cookieParams,
-                BarnLightBakedShadowMask = GetBakedShadowMask(light.StationaryLightIndex),
+                BarnLightBakedShadowMask = light.BakedShadowMask,
                 BarnLightMinRoughness = MathF.Max(0.04f, light.MinRoughness),
                 BarnLightShadowScale = 0f,
                 PathTraceIndex_BarnLightFlags = 0xFFFF0000u,
@@ -567,7 +567,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                     BarnLightAngleFade = new Vector3(angleBias, angleScale, angleFadeZ),
                     BarnLightShadowOffsetScale = Vector4.Zero,
                     BarnLightCookieParameters = cookieParams,
-                    BarnLightBakedShadowMask = GetBakedShadowMask(light.StationaryLightIndex),
+                    BarnLightBakedShadowMask = light.BakedShadowMask,
                     BarnLightMinRoughness = MathF.Max(0.04f, light.MinRoughness),
                     BarnLightShadowScale = 0f,
                     PathTraceIndex_BarnLightFlags = 0xFFFF0000u,
@@ -648,17 +648,17 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         return (cosOuter / denom, 1f / denom);
     }
 
-    private static Vector4 GetBakedShadowMask(int stationaryLightIndex)
+    /// <summary>
+    /// Returns the baked shadow mask for this light based on its stationary light index.
+    /// </summary>
+    public Vector4 BakedShadowMask => StationaryLightIndex switch
     {
-        return stationaryLightIndex switch
-        {
-            0 => new Vector4(1, 0, 0, 0),
-            1 => new Vector4(0, 1, 0, 0),
-            2 => new Vector4(0, 0, 1, 0),
-            3 => new Vector4(0, 0, 0, 1),
-            _ => Vector4.Zero
-        };
-    }
+        0 => new Vector4(1, 0, 0, 0),
+        1 => new Vector4(0, 1, 0, 0),
+        2 => new Vector4(0, 0, 1, 0),
+        3 => new Vector4(0, 0, 0, 1),
+        _ => Vector4.Zero
+    };
 
     private static float SphericalTriangleArea(Vector3 p1, Vector3 p2, Vector3 p3)
     {

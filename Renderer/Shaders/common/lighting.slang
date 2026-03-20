@@ -63,6 +63,7 @@ float attenuate_cusp(float s, float falloff)
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
     const float MIN_ALPHA = 0.0001;
+    vec4 dlsh = vec4(1, 1, 1, 1);
 
     #if (S_LIGHTMAP_VERSION_MINOR == 1)
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
@@ -114,8 +115,6 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
         }
 
     #elif (S_LIGHTMAP_VERSION_MINOR >= 2)
-        vec4 dlsh = vec4(1, 1, 1, 1);
-
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
             dlsh = textureLod(g_tDirectLightShadows, mat.LightmapUv, 0.0);
         #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
@@ -123,53 +122,45 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             dlsh = textureLod(g_tLPV_Shadows, vLightProbeShadowCoords, 0.0);
         #endif
 
-        for(uint uShadowIndex = 0; uShadowIndex < 4; ++uShadowIndex)
+        if (g_nNumLights[0] > 0u)
         {
-            float shadowFactor = 1.0 - dlsh[uShadowIndex];
-            if (shadowFactor <= MIN_ALPHA)
+            float visibility = saturate(1.0 - dot(dlsh, g_vSunLightBakedShadowMask));
+            
+            if (visibility > MIN_ALPHA)
             {
-                continue;
+                visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
             }
-            uint nLightIndexStart = uShadowIndex == 0 ? 0 : g_nNumLightsPerShadow[uShadowIndex - 1];
-            uint nLightCount = g_nNumLightsPerShadow[uShadowIndex];
 
-            for(uint uLightIndex = nLightIndexStart; uLightIndex < nLightCount; ++uLightIndex)
+            if (visibility > MIN_ALPHA)
             {
-                float visibility = shadowFactor;
-                vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
-
-                if (IsDirectionalLight(uLightIndex))
-                {
-                    visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
-                }
-                else
-                {
-                    continue;
-                }
+                vec3 lightVector = GetLightDirection(mat.PositionWS, 0u);
+                vec3 lightColor = GetLightColor(0u);
+                CalculateShading(lighting, lightVector, visibility * lightColor, mat);
+            }
+        }
+    #else
+        // Non lightmapped scene
+        for (uint i = g_nNumLights[0]; i < g_nNumLights[1]; i++)
+        {
+            if (IsDirectionalLight(i))
+            {
+                float visibility = CalculateSunShadowMapVisibility(mat.PositionWS);
 
                 if (visibility > MIN_ALPHA)
                 {
-                    vec3 lightColor = GetLightColor(uLightIndex);
+                    vec3 lightVector = GetLightDirection(mat.PositionWS, i);
+                    vec3 lightColor = GetLightColor(i);
                     CalculateShading(lighting, lightVector, visibility * lightColor, mat);
                 }
             }
         }
+#endif
 
-        if (g_bExperimentalLightsEnabled)
-        {
-            CalculateBarnLighting(lighting, mat, dlsh);
-        }
-    #else
-        // Non lightmapped scene
-        const uint uLightIndex = 0;
-        vec3 lightColor = GetLightColor(uLightIndex);
-        if (length(lightColor) > 0.0)
-        {
-            float visibility = CalculateSunShadowMapVisibility(mat.PositionWS);
-            vec3 lightVector = GetEnvLightDirection(uLightIndex);
-            CalculateShading(lighting, lightVector, visibility * lightColor, mat);
-        }
-    #endif
+    // 0 (dynamic scene) or lightmapped 2+ 
+    if (S_LIGHTMAP_VERSION_MINOR != 1 && g_bExperimentalLightsEnabled)
+    {
+        CalculateBarnLighting(lighting, mat, dlsh);
+    }
 }
 
 

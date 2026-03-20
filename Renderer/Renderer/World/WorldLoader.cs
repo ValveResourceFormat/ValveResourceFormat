@@ -216,11 +216,10 @@ namespace ValveResourceFormat.Renderer.World
                 LoadEntitiesFromLump(entityLump, "Entities", Matrix4x4.Identity);
             }
 
-            Action<List<SceneLight>> lightEntityStore = scene.LightingInfo.LightmapGameVersionNumber switch
+            Action<List<SceneLight>> lightEntityStore = (scene.LightingInfo.LightmapVersionNumber, scene.LightingInfo.LightmapGameVersionNumber) switch
             {
-                0 or 1 => scene.LightingInfo.StoreLightMappedLights_V1,
-                >= 2 => scene.LightingInfo.StoreLightMappedLights_V2,
-                _ => x => RendererContext.Logger.LogError("Storing lights for lightmap version {Version} is not supported", scene.LightingInfo.LightmapGameVersionNumber),
+                (6, 0) or (8, 0) or (8, 1) => scene.LightingInfo.StoreLightMappedLights_V1,
+                _ => scene.LightingInfo.StoreLightMappedLights_V2,
             };
 
             lightEntityStore.Invoke(

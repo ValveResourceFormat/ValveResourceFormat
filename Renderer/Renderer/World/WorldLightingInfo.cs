@@ -204,6 +204,11 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lightProbe">The light probe to add.</param>
         public void AddProbe(SceneLightProbe lightProbe)
         {
+            if (scene.LightingInfo.LightmapVersionNumber == 0)
+            {
+                return;
+            }
+
             var validTextureSet = (scene.LightingInfo.LightmapGameVersionNumber, lightProbe) switch
             {
                 (_, { Irradiance: null }) => false,
@@ -300,9 +305,12 @@ namespace ValveResourceFormat.Renderer.World
                 LightingData.LightFallOff[index] = new Vector4(light.FallOff, light.Range, light.AttenuationLinear, light.AttenuationQuadratic);
             }
 
+            var staticLights = lights.Where(l => l.StationaryLightIndex >= 0).OrderBy(l => l.StationaryLightIndex).ToList();
+            var dynamicLights = lights.Where(l => l.StationaryLightIndex == -1).ToList();
+
             var currentLightIndex = 0u;
 
-            foreach (var light in lights.Where(l => l.StationaryLightIndex >= 0).OrderBy(l => l.StationaryLightIndex))
+            foreach (var light in staticLights)
             {
                 currentLightIndex = (uint)light.StationaryLightIndex;
 
@@ -312,11 +320,11 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 AddLight(light, (uint)light.StationaryLightIndex);
+
+                LightingData.StaticLightCount = currentLightIndex + 1;
             }
 
-            LightingData.NumLights[0] = currentLightIndex + 1;
-
-            foreach (var light in lights.Where(l => l.StationaryLightIndex == -1))
+            foreach (var light in dynamicLights)
             {
                 if (currentLightIndex >= LightingConstants.MAX_LIGHTS)
                 {
@@ -327,7 +335,7 @@ namespace ValveResourceFormat.Renderer.World
                 AddLight(light, currentLightIndex++);
             }
 
-            LightingData.NumLights[1] = currentLightIndex;
+            LightingData.DynamicLightCount = currentLightIndex;
         }
 
         /// <summary>
@@ -336,30 +344,19 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V2(List<SceneLight> lights)
         {
-            // This loop is required for environment (sun) lights.
-            // I don't know if there can be multiple instances, but just to be safe
-            var envCount = 0u;
-            foreach (var light in lights)
+            var envLight = lights.FirstOrDefault(l => l.Entity == SceneLight.EntityType.Environment);
+
+            if (envLight != null)
             {
-                if (light.Entity != SceneLight.EntityType.Environment)
-                {
-                    continue;
-                }
+                LightingData.LightPosition_Type[0] = new Vector4(envLight.Position, (int)envLight.Type);
+                LightingData.LightDirection_InvRange[0] = new Vector4(envLight.Direction, 1.0f / envLight.Range);
+                LightingData.LightToWorld[0] = envLight.Transform;
+                LightingData.LightColor_Brightness[0] = new Vector4(ColorSpace.SrgbGammaToLinear(envLight.Color), envLight.Brightness);
+                LightingData.LightFallOff[0] = new Vector4(envLight.FallOff, envLight.Range, 0.0f, 0.0f);
+                LightingData.SunLightBakedShadowMask = envLight.BakedShadowMask;
 
-                if (envCount >= LightingConstants.MAX_LIGHTS)
-                {
-                    break;
-                }
-
-                LightingData.LightPosition_Type[envCount] = new Vector4(light.Position, (int)light.Type);
-                LightingData.LightDirection_InvRange[envCount] = new Vector4(light.Direction, 1.0f / light.Range);
-                LightingData.LightToWorld[envCount] = light.Transform;
-                LightingData.LightColor_Brightness[envCount] = new Vector4(ColorSpace.SrgbGammaToLinear(light.Color), light.Brightness);
-                LightingData.LightFallOff[envCount] = new Vector4(light.FallOff, light.Range, 0.0f, 0.0f);
-                envCount++;
+                LightingData.StaticLightCount = 1;
             }
-
-            LightingData.NumLightsBakedShadowIndex[0] = envCount;
 
             LightingData.NumBarnLights = 0; // changed dynamically
 

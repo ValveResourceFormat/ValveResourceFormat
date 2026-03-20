@@ -151,9 +151,9 @@ public class Renderer
     /// <summary>
     /// Load default lighting, used by viewers without lighting information
     /// </summary>
-    public static void LoadDefaultLighting(Scene scene, Resource skyCubemap)
+    public static void LoadDefaultLighting(Scene scene, Resource ibl)
     {
-        var texture = scene.RendererContext.MaterialLoader.LoadTexture(skyCubemap, true);
+        var texture = scene.RendererContext.MaterialLoader.LoadTexture(ibl, true);
         var environmentMap = new SceneEnvMap(scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
         {
             Transform = Matrix4x4.Identity,
@@ -166,6 +166,7 @@ public class Renderer
         scene.LightingInfo.AddEnvironmentMap(environmentMap);
         scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
 
+        scene.LightingInfo.LightingData.DynamicLightCount = 1;
         scene.LightingInfo.LightingData.LightColor_Brightness[0] = DefaultSunColor;
 
         scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(float.DegreesToRadians(DefaultSunAngles.X))
