@@ -3281,8 +3281,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_pChildNode")
                 {
-                    var finalNodeInputIndex = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    AddInputConnection(node, finalNodeInputIndex);
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
             }
@@ -4154,8 +4153,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_pChildNode")
                 {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    AddInputConnection(node, childNodeId);
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_networkMode")
@@ -4264,8 +4262,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_pChildNode")
                 {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    AddInputConnection(node, childNodeId);
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_networkMode")
@@ -4395,8 +4392,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_pChildNode")
                 {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    AddInputConnection(node, childNodeId);
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_networkMode")
@@ -4481,8 +4477,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_pChildNode")
                 {
-                    var childNodeId = subCollection.Value.GetIntegerProperty("m_nodeIndex");
-                    AddInputConnection(node, childNodeId);
+                    TryAddInputConnectionFromRef(node, subCollection.Value);
                     continue;
                 }
                 else if (key == "m_networkMode")
