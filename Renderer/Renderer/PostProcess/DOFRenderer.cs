@@ -123,7 +123,11 @@ public class DOFRenderer
     {
         shader.SetTexture(2, "g_tSceneDepth", msaaDepth);
 
-        Matrix4x4.Invert(camera.ViewProjectionMatrix, out var invViewProjMatrix);
+        if (!Matrix4x4.Invert(camera.ViewProjectionMatrix, out var invViewProjMatrix))
+        {
+            throw new InvalidOperationException("Matrix invert failed");
+        }
+
         shader.SetUniform4x4("g_invViewProjMatrix", invViewProjMatrix);
 
         var focalPoint = camera.Location + camera.Forward * FocalDistance;
