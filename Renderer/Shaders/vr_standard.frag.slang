@@ -46,7 +46,7 @@ uniform sampler2D g_tTintMask;
 
 #if (translucent || alphatest)
     uniform sampler2D g_tColor; // SrgbRead(true)
-#elif (F_SPECULAR == 1 && F_METALNESS_TEXTURE == 0 && F_METALNESS_TEXTURE == 0)
+#elif (F_SPECULAR == 1 && F_METALNESS_TEXTURE == 0)
     uniform sampler2D g_tColor1; // SrgbRead(true)
 #else
     uniform sampler2D g_tColor2; // SrgbRead(true)
@@ -198,7 +198,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.NormalMap = DecodeDxt5Normal(normalTexture);
 
-    mat.RoughnessTex.xy = vec2(1.0);
+    mat.RoughnessTex.xy = normalTexture.bb;
 
     vec3 F0 = vec3(0.04);
     #if (F_SPECULAR == 1 && F_METALNESS_TEXTURE == 0)

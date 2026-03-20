@@ -240,7 +240,7 @@ namespace GUI.Types.PackageViewer
             }
             else
             {
-                PreviewTokenSource?.Cancel();
+                PreviewTokenSource?.Dispose();
                 PreviewTokenSource = new CancellationTokenSource();
 
                 Task.Run(async () =>
@@ -269,8 +269,7 @@ namespace GUI.Types.PackageViewer
         {
             CurrentDisplayedNode = pkgNode;
 
-            ThumbnailRenderTokenSource?.Cancel();
-
+            ThumbnailRenderTokenSource?.Dispose();
             ThumbnailRenderTokenSource = new CancellationTokenSource();
 
             DrainThumbnailQueue();
@@ -436,12 +435,14 @@ namespace GUI.Types.PackageViewer
                             {
                                 if (cancellationToken.IsCancellationRequested)
                                 {
+                                    bitmap?.Dispose();
                                     QueuedOrRenderedThumbnailItems.TryRemove(entry, out _);
                                     return;
                                 }
 
                                 if (listView.IsDisposed)
                                 {
+                                    bitmap?.Dispose();
                                     return;
                                 }
 
@@ -1039,7 +1040,7 @@ namespace GUI.Types.PackageViewer
         {
             var results = mainTreeView.Search(searchText, selectedSearchType);
 
-            ThumbnailRenderTokenSource?.Cancel();
+            ThumbnailRenderTokenSource?.Dispose();
             ThumbnailRenderTokenSource = new CancellationTokenSource();
             DrainThumbnailQueue();
 
@@ -1566,15 +1567,12 @@ namespace GUI.Types.PackageViewer
 
         protected override void Dispose(bool disposing)
         {
-            ThumbnailRenderTokenSource?.Cancel();
-            RenderLoopCancelationTokenSource.Cancel();
-            ThumbnailRenderQueue.CompleteAdding();
-
             if (disposing)
             {
                 components?.Dispose();
                 BigIconsImageList.Dispose();
                 ThumbnailRenderTokenSource?.Dispose();
+                ThumbnailRenderQueue.CompleteAdding();
                 ThumbnailRenderQueue.Dispose();
                 RenderLoopCancelationTokenSource.Dispose();
 
@@ -1593,7 +1591,8 @@ namespace GUI.Types.PackageViewer
             {
                 gridSizeSlider.Enabled = false;
 
-                ThumbnailRenderTokenSource?.Cancel();
+                ThumbnailRenderTokenSource?.Dispose();
+                ThumbnailRenderTokenSource = new();
                 DrainThumbnailQueue();
 
                 mainListView.View = View.Details;
@@ -1635,7 +1634,7 @@ namespace GUI.Types.PackageViewer
             {
                 gridSizeSlider.Enabled = true;
 
-                ThumbnailRenderTokenSource?.Cancel();
+                ThumbnailRenderTokenSource?.Dispose();
                 ThumbnailRenderTokenSource = new CancellationTokenSource();
 
                 mainListView.View = View.LargeIcon;
@@ -1648,17 +1647,17 @@ namespace GUI.Types.PackageViewer
         {
             CurrentThumbnailSizes = Enum.GetValues<ThumbnailSizes>()[gridSizeSlider.Value];
 
-            ThumbnailRenderTokenSource?.Cancel();
+            ThumbnailRenderTokenSource?.Dispose();
             ThumbnailRenderTokenSource = new CancellationTokenSource();
 
             // rebuild image list and clear caches
-            BigIconsImageList.Dispose();
-
+            var oldBigIconsImageList = BigIconsImageList;
             BigIconsImageList = InitThumbnailImageList();
             BigIconImageCache.Clear();
             DrainThumbnailQueue();
 
             mainListView.LargeImageList = BigIconsImageList;
+            oldBigIconsImageList.Dispose();
 
             AssignBigIconIndicesAndRenderThumbnails();
         }

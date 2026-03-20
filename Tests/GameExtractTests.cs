@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using SteamDatabase.ValvePak;
@@ -46,14 +47,16 @@ public class GameExtractTests
 
         // Remove the test case if you hit this
         Assert.That(asset, Is.Not.Null, $"{testCase.assetName} no longer exists on {pak01}.");
+        Debug.Assert(asset != null);
 
         var outputPath = Path.Combine(TestContext.CurrentContext.TestDirectory, testLocalPath);
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-        var extractor = new AnimationGraphExtract(asset, fileLoader);
+        using var extractor = new AnimationGraphExtract(asset, fileLoader);
         var content = extractor.ToContentFile();
 
         Assert.That(content.Data, Is.Not.Null, $"Failed to extract {testCase.assetName}.");
+        Debug.Assert(content.Data != null);
 
         if (UpdateFiles)
         {

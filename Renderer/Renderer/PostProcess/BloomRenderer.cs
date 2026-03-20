@@ -21,7 +21,7 @@ public class BloomRenderer
     private Framebuffer? Accumulation;
 
     /// <summary>Gets the texture containing the final composited bloom result after the upsample passes.</summary>
-    public RenderTexture? AccumulationResult { get; private set; }
+    public RenderTexture? AccumulationResult => Accumulation!.Color!;
 
     /// <summary>Number of mip levels in the bloom accumulation buffer.</summary>
     public const int BloomMipCount = 4;
@@ -52,8 +52,6 @@ public class BloomRenderer
         Ping = CreateFramebuffer("BloomPing");
         Pong = CreateFramebuffer("BloomPong");
         Accumulation = CreateFramebuffer("BloomAccumulation", BloomMipCount);
-
-        AccumulationResult = Accumulation!.Color!;
     }
 
     private static Framebuffer CreateFramebuffer(string name, int mips = 1)

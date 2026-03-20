@@ -328,6 +328,7 @@ namespace ValveResourceFormat.Renderer.Particles
             }
 
             var newBounds = new AABB();
+            var hasBounds = false;
             var worldCenter = MainControlPoint.Position;
             var additionalBounds = ParticleBoundingBox;
 
@@ -336,12 +337,15 @@ namespace ValveResourceFormat.Renderer.Particles
                 var pos = particle.Position - worldCenter;
                 var radius = new Vector3(particle.Radius);
 
-                newBounds = newBounds.Union(new AABB(pos - radius - additionalBounds.Min, pos + radius + additionalBounds.Max));
+                var particleBounds = new AABB(pos - radius - additionalBounds.Min, pos + radius + additionalBounds.Max);
+                newBounds = hasBounds ? newBounds.Union(particleBounds) : particleBounds;
+                hasBounds = true;
             }
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                newBounds = newBounds.Union(childParticleRenderer.LocalBoundingBox);
+                newBounds = hasBounds ? newBounds.Union(childParticleRenderer.LocalBoundingBox) : childParticleRenderer.LocalBoundingBox;
+                hasBounds = true;
             }
 
             LocalBoundingBox = newBounds;

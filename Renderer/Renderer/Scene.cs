@@ -1594,12 +1594,14 @@ namespace ValveResourceFormat.Renderer
             {
                 // static octree is tightly wrapped around the scene
                 var maxBounds = new AABB();
+                var hasBounds = false;
 
                 foreach (var node in staticNodes)
                 {
                     if (node.LayerEnabled)
                     {
-                        maxBounds = maxBounds.Union(node.BoundingBox);
+                        maxBounds = hasBounds ? maxBounds.Union(node.BoundingBox) : node.BoundingBox;
+                        hasBounds = true;
                     }
                 }
 

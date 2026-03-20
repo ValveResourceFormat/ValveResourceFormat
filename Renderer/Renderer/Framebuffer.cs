@@ -354,7 +354,7 @@ public class Framebuffer
         ColorFormat = colorFormat;
         DepthFormat = depthFormat;
 
-        Resize(Width, Height);
+        CreateAttachments();
     }
 
     /// <summary>

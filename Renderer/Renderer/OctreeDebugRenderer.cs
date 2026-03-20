@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer
             this.octree = octree;
             this.dynamic = dynamic;
 
-            shader = shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
+            shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out vboHandle);

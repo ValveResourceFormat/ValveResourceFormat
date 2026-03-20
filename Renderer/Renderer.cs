@@ -742,7 +742,6 @@ public class Renderer
         if (ResolvedSceneColor!.Width != width ||
             ResolvedSceneColor.Height != height)
         {
-            // TODO: Textures list holds stale references after recreating these textures
             ResolvedSceneColor.Delete();
             ResolvedSceneColor = RenderTexture.Create(width, height, SizedInternalFormat.Rgba16f);
             ResolvedSceneColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
@@ -750,6 +749,10 @@ public class Renderer
 
             ResolvedSceneDepth!.Delete();
             ResolvedSceneDepth = RenderTexture.Create(width, height, SizedInternalFormat.R32f);
+
+            Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.SceneColor || t.Slot == ReservedTextureSlots.SceneDepth);
+            Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
+            Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
         }
     }
 

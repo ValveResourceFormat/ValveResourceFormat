@@ -963,7 +963,7 @@ namespace ValveResourceFormat.Renderer.World
                 else if (classname == "env_tonemap_controller")
                 {
                     var minExposureTC = entity.GetPropertyUnchecked<float>("minexposure");
-                    var maxExposureTC = entity.GetPropertyUnchecked<float>("minexposure");
+                    var maxExposureTC = entity.GetPropertyUnchecked<float>("maxexposure");
                     var exposureRate = entity.GetPropertyUnchecked<float>("rate");
                     //var isMasterTC = entity.GetPropertyUnchecked<bool>("master"); // master actually doesn't do anything
 
@@ -991,7 +991,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix, entityFlags);
+                    CreateDefaultEntity(entity, classname, transformationMatrix, entityFlags);
                     return;
                 }
 
@@ -1096,7 +1096,7 @@ namespace ValveResourceFormat.Renderer.World
                 else if (!modelNode.HasMeshes)
                 {
                     // If the loaded model has no meshes and has no physics, fallback to default entity
-                    CreateDefaultEntity(entity, classname, layerName, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, transformationMatrix);
                 }
             }
 
@@ -1247,7 +1247,7 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, string layerName, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None)
+        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None)
         {
             var hammerEntity = HammerEntities.Get(classname);
             string? filename = null;

@@ -176,7 +176,10 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.AnimationGraph:
-                    contentFile = new AnimationGraphExtract(resource, fileLoader).ToContentFile();
+                    {
+                        using var animGraphExtract = new AnimationGraphExtract(resource, fileLoader);
+                        contentFile = animGraphExtract.ToContentFile();
+                    }
                     break;
 
                 case ResourceType.Panorama:

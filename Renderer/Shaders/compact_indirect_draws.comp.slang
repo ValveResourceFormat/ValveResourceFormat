@@ -45,34 +45,20 @@ layout (local_size_x = 4, local_size_y = STRIDE, local_size_z = 1) in;
 void main()
 {
     uint requestIndex = gl_GlobalInvocationID.x;
+    bool isActiveRequest = requestIndex < compactRequests.length() / 2;
 
-    if (requestIndex >= compactRequests.length() / 2)
-        return;
+    uint drawCount = 0;
+    uint startIndex = 0;
+    uint outputOffset = 0;
 
-    uint drawCount = compactRequests[requestIndex * 2 + 0];
-    uint startIndex = compactRequests[requestIndex * 2 + 1];
-    uint outputOffset = startIndex;
-
-    if (REMOVE_CULLED_MESHLETS == false)
+    if (isActiveRequest)
     {
-        // Fast path: Just copy draws without compaction
-        for (uint i = gl_LocalInvocationID.y; i < drawCount; i += STRIDE)
-        {
-            uint drawIndex = startIndex + i;
-            if (drawIndex >= startIndex + drawCount)
-                break;
-
-            compactDraws[outputOffset + i] = draws[drawIndex];
-        }
-
-        if (gl_LocalInvocationID.y == 0)
-        {
-            compactDrawCounts[requestIndex] = drawCount;
-        }
-        return;
+        drawCount = compactRequests[requestIndex * 2 + 0];
+        startIndex = compactRequests[requestIndex * 2 + 1];
+        outputOffset = startIndex;
     }
 
-     // One counter per X thread
+    // One counter per X thread
     if (gl_LocalInvocationID.y == 0)
     {
         g_GroupValidCounts[gl_LocalInvocationID.x] = 0;
@@ -86,7 +72,7 @@ void main()
     for (uint i = gl_LocalInvocationID.y; i < drawCount; i += STRIDE)
     {
         uint drawIndex = startIndex + i;
-        
+
         if (drawIndex >= startIndex + drawCount)
             break;
 
@@ -104,7 +90,7 @@ void main()
     barrier();
 
     // One thread sums per-X-lane counts and writes final compacted count
-    if (gl_LocalInvocationID.y == 0 && drawCount != 0)
+    if (isActiveRequest && gl_LocalInvocationID.y == 0 && drawCount != 0)
     {
         compactDrawCounts[requestIndex] = g_GroupValidCounts[gl_LocalInvocationID.x];
     }

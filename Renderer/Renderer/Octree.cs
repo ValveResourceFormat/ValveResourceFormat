@@ -240,6 +240,11 @@ namespace ValveResourceFormat.Renderer
             /// </summary>
             public void Clear()
             {
+                foreach (var child in Children)
+                {
+                    child.Clear();
+                }
+
                 Elements = null;
                 Children = [];
 

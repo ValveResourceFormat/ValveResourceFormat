@@ -111,8 +111,8 @@ public class NmClipExtract
         const string EntityAttribute = "EntityAttribute";
         if (eventName is "EntityAttributeInt" or "EntityAttributeFloat")
         {
-            eventName = EntityAttribute;
             var attributeType = eventName[EntityAttribute.Length..];
+            eventName = EntityAttribute;
             kvDocEvent.AddProperty("m_nValueType", $"EVENT_ENTITY_ATTR_TYPE_{attributeType.ToUpperInvariant()}");
         }
 

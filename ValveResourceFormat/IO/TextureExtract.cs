@@ -725,9 +725,9 @@ public sealed class TextureExtract
         ArgumentOutOfRangeException.ThrowIfLessThan(faces.Length, 6, nameof(faces));
 
         var colorType = faces[0].Info.ColorType;
-        if (colorType != SKColorType.RgbaF16 && colorType != SKColorType.RgbaF32)
+        if (colorType != SKColorType.RgbaF32)
         {
-            throw new InvalidOperationException($"Cubemap faces must be HDR format (RgbaF16 or RgbaF32), got {colorType}");
+            throw new InvalidOperationException($"Cubemap faces must be RgbaF32 format, got {colorType}");
         }
 
         var faceWidth = faces[0].Width;

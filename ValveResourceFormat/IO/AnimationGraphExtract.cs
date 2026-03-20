@@ -12,7 +12,7 @@ namespace ValveResourceFormat.IO;
 /// <summary>
 /// Extracts and converts animation graph resources to editable format.
 /// </summary>
-public class AnimationGraphExtract
+public class AnimationGraphExtract : IDisposable
 {
     private readonly BinaryKV3 resourceData;
     private KVObject Graph => resourceData.Data;
@@ -1800,7 +1800,7 @@ public class AnimationGraphExtract
 
             foundComponents.Add(component);
             var cleanRightSide = rightSide.Trim('(', ')', ' ');
-            if (!float.TryParse(cleanRightSide, out var floatValue))
+            if (!float.TryParse(cleanRightSide, CultureInfo.InvariantCulture, out var floatValue))
             {
                 continue;
             }
@@ -2064,7 +2064,7 @@ public class AnimationGraphExtract
             {
                 return HandleParameterComparison(stateStatusCondition, rightSide, sourceValue);
             }
-            else if (float.TryParse(rightSide, out var floatValue))
+            else if (float.TryParse(rightSide, CultureInfo.InvariantCulture, out var floatValue))
             {
                 stateStatusCondition.AddProperty("m_comparisonValueType", "StateComparisonValue_FixedValue");
                 stateStatusCondition.AddProperty("m_comparisonFixedValue", floatValue);
@@ -2142,7 +2142,7 @@ public class AnimationGraphExtract
 
         var (op, _, rightSide) = ParseOperatorExpression(conditionString);
 
-        if (op != null && rightSide != null && float.TryParse(rightSide, out var value))
+        if (op != null && rightSide != null && float.TryParse(rightSide, CultureInfo.InvariantCulture, out var value))
         {
             timeCondition.AddProperty("m_option",
                 op == "<=" && value != 0.0f || op == "==" && value != 0.0f
@@ -2182,7 +2182,7 @@ public class AnimationGraphExtract
             cycleCondition.AddProperty("m_comparisonOp", OperatorToComparisonOp(foundOp));
             cycleCondition.AddProperty("m_comparisonString", rightSide);
 
-            if (float.TryParse(rightSide, out var floatValue))
+            if (float.TryParse(rightSide, CultureInfo.InvariantCulture, out var floatValue))
             {
                 cycleCondition.AddProperty("m_comparisonValue", floatValue);
             }
@@ -2250,7 +2250,7 @@ public class AnimationGraphExtract
         {
             comparisonValue.AddProperty("m_nType", 4);
 
-            if (float.TryParse(rightSide, out var floatValue))
+            if (float.TryParse(rightSide, CultureInfo.InvariantCulture, out var floatValue))
             {
                 comparisonValue.AddProperty("m_data", floatValue);
             }
@@ -2276,7 +2276,7 @@ public class AnimationGraphExtract
         {
             comparisonValue.AddProperty("m_nType", 4);
 
-            if (float.TryParse(rightSide, out var floatValue))
+            if (float.TryParse(rightSide, CultureInfo.InvariantCulture, out var floatValue))
             {
                 comparisonValue.AddProperty("m_data", floatValue);
             }
@@ -2301,7 +2301,7 @@ public class AnimationGraphExtract
         }
         else
         {
-            if (float.TryParse(paramName, out var floatValue))
+            if (float.TryParse(paramName, CultureInfo.InvariantCulture, out var floatValue))
             {
                 stateStatusCondition.AddProperty("m_comparisonValueType", "StateComparisonValue_FixedValue");
                 stateStatusCondition.AddProperty("m_comparisonFixedValue", floatValue);
@@ -6017,5 +6017,25 @@ public class AnimationGraphExtract
             }
         }
         return MakeNodeIdObjectValue(-1);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases resources used by this instance.
+    /// </summary>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            modelResourceCache?.Dispose();
+            modelResourceCache = null;
+            modelResourceLoaded = false;
+        }
     }
 }
