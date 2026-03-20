@@ -101,7 +101,6 @@ namespace GUI.Types.PackageViewer
             mainListView.Disposed += MainListView_Disposed;
             mainListView.FullRowSelect = true;
             mainListView.ListViewItemSorter = new ListViewColumnSorter();
-            mainListView.View = View.LargeIcon;
 
             mainTreeView.MouseWheel += MainListView_MouseWheel;
             MouseWheel += MainListView_MouseWheel;
@@ -110,6 +109,18 @@ namespace GUI.Types.PackageViewer
             mainTreeView.NodeMouseDoubleClick += MainTreeView_NodeMouseDoubleClick;
             mainTreeView.NodeMouseClick += MainTreeView_NodeMouseClick;
             mainTreeView.AfterSelect += MainTreeView_AfterSelect;
+
+            gridSizeSlider.Value = Settings.Config.PackageGridSize;
+            CurrentThumbnailSizes = Enum.GetValues<ThumbnailSizes>()[Settings.Config.PackageGridSize];
+
+            if (Settings.Config.PackageGridView == 0)
+            {
+                listRadioButton.Checked = true;
+            }
+            else
+            {
+                mainListView.View = View.LargeIcon;
+            }
 
             BigIconsImageList = InitThumbnailImageList();
             mainListView.LargeImageList = BigIconsImageList;
@@ -138,9 +149,7 @@ namespace GUI.Types.PackageViewer
 
         private void MainListView_MouseWheel(object? sender, MouseEventArgs e)
         {
-            if (!gridRadioButton.Checked
-                || gridSizeSlider.Enabled is false
-                || (Control.ModifierKeys & Keys.Control) != Keys.Control)
+            if (mainListView.View != View.LargeIcon || (Control.ModifierKeys & Keys.Control) != Keys.Control)
             {
                 return;
             }
@@ -305,7 +314,14 @@ namespace GUI.Types.PackageViewer
                 UpdateSearchTextBoxToCurrentPath(pkgNode);
             }
 
-            AssignBigIconIndicesAndRenderThumbnails();
+            if (mainListView.View == View.LargeIcon)
+            {
+                AssignBigIconIndicesAndRenderThumbnails();
+            }
+            else
+            {
+                AssignSmallIconIndices();
+            }
         }
 
         private readonly Dictionary<string, ThumbnailRenderer> ThumbnailRenderers = new()
@@ -431,50 +447,50 @@ namespace GUI.Types.PackageViewer
                                 return;
                             }
 
-                            await listView.InvokeAsync(() =>
+                            try
                             {
-                                if (cancellationToken.IsCancellationRequested)
+                                await listView.InvokeAsync(() =>
                                 {
-                                    bitmap?.Dispose();
-                                    QueuedOrRenderedThumbnailItems.TryRemove(entry, out _);
-                                    return;
-                                }
-
-                                if (listView.IsDisposed)
-                                {
-                                    bitmap?.Dispose();
-                                    return;
-                                }
-
-                                if (imageIndex != -1)
-                                {
-                                    castItem.ImageIndex = imageIndex;
-                                }
-                                else if (bitmap != null)
-                                {
-                                    lock (ImageListLock)
+                                    if (listView.IsDisposed || listView.View != View.LargeIcon)
                                     {
-                                        // double-checked, another InvokeAsync callback may have stored this entry while we were waiting to be marshalled
-                                        if (BigIconImageCache.TryGetValue(entryKey, out var existing) && existing != null)
+                                        bitmap?.Dispose();
+                                        return;
+                                    }
+
+                                    if (imageIndex != -1)
+                                    {
+                                        castItem.ImageIndex = imageIndex;
+                                    }
+                                    else if (bitmap != null)
+                                    {
+                                        lock (ImageListLock)
                                         {
-                                            castItem.ImageIndex = existing.index;
-                                        }
-                                        else
-                                        {
-                                            castItem.ImageIndex = BigIconsImageList.Images.Count;
-                                            BigIconsImageList.Images.Add(bitmap);
-                                            BigIconImageCache[entryKey] = new(bitmap, castItem.ImageIndex);
+                                            // double-checked, another InvokeAsync callback may have stored this entry while we were waiting to be marshalled
+                                            if (BigIconImageCache.TryGetValue(entryKey, out var existing) && existing != null)
+                                            {
+                                                castItem.ImageIndex = existing.index;
+                                            }
+                                            else
+                                            {
+                                                castItem.ImageIndex = BigIconsImageList.Images.Count;
+                                                BigIconsImageList.Images.Add(bitmap);
+                                                BigIconImageCache[entryKey] = new(bitmap, castItem.ImageIndex);
+                                            }
                                         }
                                     }
-                                }
-                                else
-                                {
-                                    return;
-                                }
+                                    else
+                                    {
+                                        return;
+                                    }
 
-                                listView.Invalidate();
+                                    listView.Invalidate();
 
-                            }).ConfigureAwait(false);
+                                }, cancellationToken).ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                bitmap?.Dispose();
+                            }
                         }, cancellationToken);
 
                     }
@@ -1589,6 +1605,8 @@ namespace GUI.Types.PackageViewer
         {
             if (listRadioButton.Checked)
             {
+                Settings.Config.PackageGridView = 0;
+
                 gridSizeSlider.Enabled = false;
 
                 ThumbnailRenderTokenSource?.Dispose();
@@ -1598,33 +1616,39 @@ namespace GUI.Types.PackageViewer
                 mainListView.View = View.Details;
                 mainListView.SmallImageList = MainForm.ImageList;
 
-                // Reassign small icon indices for list view
-                foreach (var item in ListViewItems)
-                {
-                    if (item is not BetterListViewItem betterItem)
-                    {
-                        continue;
-                    }
-
-                    if (betterItem.IsFolder)
-                    {
-                        betterItem.ImageIndex = betterItem.Tag is BetterListViewItem.ParentNavigationTag
-                            ? MainForm.Icons["FolderUp"]
-                            : mainTreeView.FolderImage;
-                    }
-                    else if (betterItem.PackageEntry != null
-                        && mainTreeView.ExtensionIconList.TryGetValue(betterItem.PackageEntry.TypeName, out var image))
-                    {
-                        betterItem.ImageIndex = image;
-                    }
-                    else
-                    {
-                        betterItem.ImageIndex = MainForm.Icons["File"];
-                    }
-                }
+                AssignSmallIconIndices();
 
                 mainListView.AdjustColumnWidths();
                 mainListView.Invalidate();
+            }
+        }
+
+        private void AssignSmallIconIndices()
+        {
+            SortListViewItemsForVirtualMode();
+
+            foreach (var item in ListViewItems)
+            {
+                if (item is not BetterListViewItem betterItem)
+                {
+                    continue;
+                }
+
+                if (betterItem.IsFolder)
+                {
+                    betterItem.ImageIndex = betterItem.Tag is BetterListViewItem.ParentNavigationTag
+                        ? MainForm.Icons["FolderUp"]
+                        : mainTreeView.FolderImage;
+                }
+                else if (betterItem.PackageEntry != null
+                    && mainTreeView.ExtensionIconList.TryGetValue(betterItem.PackageEntry.TypeName, out var image))
+                {
+                    betterItem.ImageIndex = image;
+                }
+                else
+                {
+                    betterItem.ImageIndex = MainForm.Icons["File"];
+                }
             }
         }
 
@@ -1632,6 +1656,8 @@ namespace GUI.Types.PackageViewer
         {
             if (gridRadioButton.Checked)
             {
+                Settings.Config.PackageGridView = 1;
+
                 gridSizeSlider.Enabled = true;
 
                 ThumbnailRenderTokenSource?.Dispose();
@@ -1646,6 +1672,8 @@ namespace GUI.Types.PackageViewer
         private void gridSizeSlider_Scroll(object sender, EventArgs e)
         {
             CurrentThumbnailSizes = Enum.GetValues<ThumbnailSizes>()[gridSizeSlider.Value];
+
+            Settings.Config.PackageGridSize = gridSizeSlider.Value;
 
             ThumbnailRenderTokenSource?.Dispose();
             ThumbnailRenderTokenSource = new CancellationTokenSource();
