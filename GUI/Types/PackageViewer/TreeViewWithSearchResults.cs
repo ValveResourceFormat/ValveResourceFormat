@@ -27,8 +27,6 @@ namespace GUI.Types.PackageViewer
 
         private ImageList BigIconsImageList;
 
-        private VirtualPackageNode? CurrentDisplayedNode;
-
         // reserved slots in ImageList, first two slots will always be these icons, after that normal cache continues
         private const int ImageIndexFolder = 0;
         private const int ImageIndexFolderUp = 1;
@@ -276,8 +274,6 @@ namespace GUI.Types.PackageViewer
 
         private void MainListView_DisplayNodes(VirtualPackageNode pkgNode, bool updatePath = true)
         {
-            CurrentDisplayedNode = pkgNode;
-
             ThumbnailRenderTokenSource?.Dispose();
             ThumbnailRenderTokenSource = new CancellationTokenSource();
 
