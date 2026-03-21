@@ -9,6 +9,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// <summary>
 /// Vertex shader input signature definitions.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VsInputSignatureElement_t">VsInputSignatureElement_t</seealso>
 public class VsInputSignatureElement : ShaderDataBlock
 {
     /// <summary>Gets the block index.</summary>

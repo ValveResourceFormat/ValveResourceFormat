@@ -2,8 +2,8 @@ namespace ValveResourceFormat
 {
     /// <summary>
     /// Flags describing the type and rendering behavior of a world scene object.
-    /// Corresponds to <c>ObjectTypeFlags_t</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/ObjectTypeFlags_t">ObjectTypeFlags_t</seealso>
     [Flags]
     public enum ObjectTypeFlags
     {

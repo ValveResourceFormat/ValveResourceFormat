@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
     /// <summary>
     /// Represents a capsule shape.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnCapsule_t">RnCapsule_t</seealso>
     public struct Capsule
     {
         /// <summary>

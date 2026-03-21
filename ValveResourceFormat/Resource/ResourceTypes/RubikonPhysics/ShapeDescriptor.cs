@@ -7,6 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <summary>
     /// Base descriptor for physics shapes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnShapeDesc_t">RnShapeDesc_t</seealso>
     public class ShapeDescriptor<T> where T : struct
     {
         /// <summary>
@@ -60,6 +61,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <summary>
     /// Descriptor for sphere shapes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnSphereDesc_t">RnSphereDesc_t</seealso>
     public class SphereDescriptor : ShapeDescriptor<Sphere>
     {
         /// <inheritdoc/>
@@ -69,6 +71,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <summary>
     /// Descriptor for capsule shapes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnCapsuleDesc_t">RnCapsuleDesc_t</seealso>
     public class CapsuleDescriptor : ShapeDescriptor<Capsule>
     {
         /// <inheritdoc/>
@@ -78,6 +81,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <summary>
     /// Descriptor for hull shapes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnHullDesc_t">RnHullDesc_t</seealso>
     public class HullDescriptor : ShapeDescriptor<Hull>
     {
         /// <inheritdoc/>
@@ -87,6 +91,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <summary>
     /// Descriptor for mesh shapes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnMeshDesc_t">RnMeshDesc_t</seealso>
     public class MeshDescriptor : ShapeDescriptor<Shapes.Mesh>
     {
         /// <inheritdoc/>

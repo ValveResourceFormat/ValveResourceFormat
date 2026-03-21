@@ -217,6 +217,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Represents the vertex shader input signature containing vertex attribute elements.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VsInputSignature_t">VsInputSignature_t</seealso>
         public readonly struct VsInputSignature
         {
             /// <summary>

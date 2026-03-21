@@ -4,8 +4,9 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
 /// <summary>
 /// Applies a per-particle random force vector chosen uniformly between a minimum and maximum bound
-/// each frame. Corresponds to <c>C_OP_RandomForce</c>.
+/// each frame.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RandomForce">C_OP_RandomForce</seealso>
 class RandomForce : ParticleFunctionOperator
 {
     private readonly Vector3 Min = Vector3.Zero;

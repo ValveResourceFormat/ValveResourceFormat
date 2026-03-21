@@ -3,6 +3,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <summary>
     /// Moves particles each frame by integrating velocity, applying a gravity vector and an exponential drag factor.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_BasicMovement">C_OP_BasicMovement</seealso>
     class BasicMovement : ParticleFunctionOperator
     {
         private readonly IVectorProvider gravity = new LiteralVectorProvider(Vector3.Zero);

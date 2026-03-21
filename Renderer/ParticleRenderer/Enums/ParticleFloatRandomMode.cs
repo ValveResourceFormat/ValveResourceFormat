@@ -3,7 +3,8 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>
     /// Particle random value generation modes.
     /// </summary>
-    public enum ParticleFloatRandomMode // ParticleFloatRandomMode_t
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatRandomMode_t">ParticleFloatRandomMode_t</seealso>
+    public enum ParticleFloatRandomMode
     {
         /// <summary>
         /// Invalid random mode.

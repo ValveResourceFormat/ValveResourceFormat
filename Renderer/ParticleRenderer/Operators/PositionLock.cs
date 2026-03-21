@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// moving components. Supports fade-in/fade-out time ranges per particle and optional distance
     /// fade based on proximity to the control point.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PositionLock">C_OP_PositionLock</seealso>
     class PositionLock : ParticleFunctionOperator
     {
         private readonly float startTimeMin = 1;

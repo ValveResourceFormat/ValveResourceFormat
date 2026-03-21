@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Lerps a scalar particle attribute from its initial value toward a target value over a
     /// specified time window of the particle's absolute age.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpScalar">C_OP_LerpScalar</seealso>
     class LerpScalar : ParticleFunctionOperator
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;

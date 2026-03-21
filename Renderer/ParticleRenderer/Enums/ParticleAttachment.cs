@@ -3,7 +3,8 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>
     /// Attachment modes for particle systems relative to entities.
     /// </summary>
-    public enum ParticleAttachment // ParticleAttachment_t
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/ParticleAttachment_t">ParticleAttachment_t</seealso>
+    public enum ParticleAttachment
     {
         /// <summary>Invalid attachment.</summary>
         PATTACH_INVALID = -1,

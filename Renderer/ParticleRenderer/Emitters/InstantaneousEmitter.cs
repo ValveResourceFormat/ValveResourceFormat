@@ -2,8 +2,8 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
     /// <summary>
     /// Emits a fixed number of particles in a single burst at a specified start time.
-    /// Corresponds to <c>C_OP_InstantaneousEmitter</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_InstantaneousEmitter">C_OP_InstantaneousEmitter</seealso>
     class InstantaneousEmitter : ParticleFunctionEmitter
     {
         public override bool IsFinished { get; protected set; }

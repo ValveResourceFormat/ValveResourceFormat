@@ -8,6 +8,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents physics aggregate data containing collision shapes and properties.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VPhysXAggregateData_t">VPhysXAggregateData_t</seealso>
     public class PhysAggregateData : KeyValuesOrNTRO
     {
         /// <summary>

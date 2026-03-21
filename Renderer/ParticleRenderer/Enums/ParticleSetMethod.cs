@@ -3,6 +3,7 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>
     /// Methods for modifying particle attributes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/ParticleSetMethod_t">ParticleSetMethod_t</seealso>
     public enum ParticleSetMethod
     {
         /// <summary>Replaces the current attribute value with the new value.</summary>

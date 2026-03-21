@@ -3,6 +3,7 @@ namespace ValveResourceFormat
     /// <summary>
     /// Scalar expression types used for particles.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/ScalarExpressionType_t">ScalarExpressionType_t</seealso>
     public enum ScalarExpressionType
     {
         /// <summary>Uninitialized expression; outputs zero.</summary>

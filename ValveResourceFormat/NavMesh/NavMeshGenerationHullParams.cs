@@ -4,8 +4,8 @@ namespace ValveResourceFormat.NavMesh
 {
     /// <summary>
     /// Per-hull navigation agent generation parameters.
-    /// Corresponds to <c>CNavHullVData</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/navlib/CNavHullVData">CNavHullVData</seealso>
     public class NavMeshGenerationHullParams
     {
         /// <summary>

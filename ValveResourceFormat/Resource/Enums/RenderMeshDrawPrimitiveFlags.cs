@@ -2,8 +2,8 @@ namespace ValveResourceFormat
 {
     /// <summary>
     /// Flags controlling how a render mesh draw primitive is processed and rendered.
-    /// Corresponds to <c>MeshDrawPrimitiveFlags_t</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/MeshDrawPrimitiveFlags_t">MeshDrawPrimitiveFlags_t</seealso>
     [Flags]
     public enum RenderMeshDrawPrimitiveFlags
     {

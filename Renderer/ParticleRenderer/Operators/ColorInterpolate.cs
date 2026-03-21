@@ -3,6 +3,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <summary>
     /// Interpolates a particle's color from its initial value toward a target fade color over a normalized age range.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ColorInterpolate">C_OP_ColorInterpolate</seealso>
     class ColorInterpolate : ParticleFunctionOperator
     {
         private readonly Vector3 colorFade = Vector3.One;

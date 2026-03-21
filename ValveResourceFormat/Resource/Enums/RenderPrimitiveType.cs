@@ -3,6 +3,7 @@ namespace ValveResourceFormat
     /// <summary>
     /// Render primitive types for mesh drawing.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/RenderPrimitiveType_t">RenderPrimitiveType_t</seealso>
     public enum RenderPrimitiveType //: byte
     {
 #pragma warning disable CS1591

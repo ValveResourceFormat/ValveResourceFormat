@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     /// <summary>
     /// Represents a hitbox for collision detection in a model.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CHitBox">CHitBox</seealso>
     public class Hitbox
     {
         /// <summary>

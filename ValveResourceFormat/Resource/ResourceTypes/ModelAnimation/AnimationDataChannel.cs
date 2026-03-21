@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents a data channel in an animation, mapping bones or flex controllers to animation elements.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimDataChannelDesc">CAnimDataChannelDesc</seealso>
     public class AnimationDataChannel
     {
         /// <summary>

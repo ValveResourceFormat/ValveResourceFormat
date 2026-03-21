@@ -2,8 +2,8 @@ namespace ValveResourceFormat
 {
     /// <summary>
     /// Flags describing how a bone is used within a model skeleton.
-    /// Corresponds to <c>ModelSkeletonData_t::BoneFlags_t</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/ModelSkeletonData_t::BoneFlags_t">ModelSkeletonData_t::BoneFlags_t</seealso>
     [Flags]
     public enum ModelSkeletonBoneFlags
     {

@@ -3,8 +3,8 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
     /// <summary>
     /// Evaluates a binary vector expression (add, subtract, multiply, divide, cross product, etc.)
     /// on two input vectors and writes the result to a control point.
-    /// Corresponds to <c>C_OP_SetControlPointToVectorExpression</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointToVectorExpression">C_OP_SetControlPointToVectorExpression</seealso>
     class SetControlPointToVectorExpression : ParticleFunctionPreEmissionOperator
     {
         private readonly int OutputCP = 1;

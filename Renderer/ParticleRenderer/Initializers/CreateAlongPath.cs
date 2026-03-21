@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Places particles at positions interpolated along a path defined by a sequence of control
     /// points. Supports optional random CP pair selection and a configurable midpoint bulge.
-    /// Corresponds to <c>C_INIT_CreateAlongPath</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateAlongPath">C_INIT_CreateAlongPath</seealso>
     class CreateAlongPath : ParticleFunctionInitializer
     {
         private readonly int StartControlPointNumber;

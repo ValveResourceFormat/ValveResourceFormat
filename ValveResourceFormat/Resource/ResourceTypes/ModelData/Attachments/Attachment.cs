@@ -7,6 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
     /// <summary>
     /// Represents an attachment point on a model with associated influences.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CAttachment">CAttachment</seealso>
     public class Attachment : IEnumerable<Attachment.Influence>
     {
         /// <summary>

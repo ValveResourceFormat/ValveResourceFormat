@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents a block of frames in an animation with associated segment data.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimFrameBlockAnim">CAnimFrameBlockAnim</seealso>
     public class AnimationFrameBlock
     {
         /// <summary>

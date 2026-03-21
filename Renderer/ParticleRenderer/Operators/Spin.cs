@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Continuously rotates a particle's roll angle at a constant spin rate (in degrees per second)
     /// until the particle exceeds the spin stop time.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_Spin">C_OP_Spin</seealso>
     class Spin : ParticleFunctionOperator
     {
         private readonly float spinRate;
@@ -33,6 +34,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Continuously rotates a particle's yaw angle at a constant spin rate (in degrees per second)
     /// until the particle exceeds the spin stop time.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SpinYaw">C_OP_SpinYaw</seealso>
     class SpinYaw : ParticleFunctionOperator
     {
         private readonly float spinRate;

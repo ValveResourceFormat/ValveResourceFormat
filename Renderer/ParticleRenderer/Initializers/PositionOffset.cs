@@ -2,8 +2,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Adds a per-component random offset to the particle position. When the proportional flag is
-    /// set, the offset is scaled by the particle's radius. Corresponds to <c>C_INIT_PositionOffset</c>.
+    /// set, the offset is scaled by the particle's radius.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_PositionOffset">C_INIT_PositionOffset</seealso>
     class PositionOffset : ParticleFunctionInitializer
     {
         private readonly IVectorProvider offsetMin = new LiteralVectorProvider(Vector3.Zero);

@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Remaps the particle's index within a configurable input range to a scalar output range
     /// and writes the result to a particle attribute.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapParticleCountToScalar">C_OP_RemapParticleCountToScalar</seealso>
     class OpRemapParticleCountToScalar : ParticleFunctionOperator
     {
         private readonly INumberProvider inputMin = new LiteralNumberProvider(0);

@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// Represents an animation auto layer that defines blending and timing parameters for layered animations.
     /// Auto layers allow animations to be automatically blended together based on configured parameters.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CSeqAutoLayer">CSeqAutoLayer</seealso>
     public class AnimationAutoLayer
     {
         /// <summary>

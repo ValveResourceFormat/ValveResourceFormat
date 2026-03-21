@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a world resource.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/World_t">World_t</seealso>
     public class World : KeyValuesOrNTRO
     {
         /// <summary>

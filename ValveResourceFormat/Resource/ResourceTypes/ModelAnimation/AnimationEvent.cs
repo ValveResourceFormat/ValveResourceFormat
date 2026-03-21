@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents an event that occurs at a specific frame in an animation.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimEventDefinition">CAnimEventDefinition</seealso>
     public readonly struct AnimationEvent
     {
         /// <summary>

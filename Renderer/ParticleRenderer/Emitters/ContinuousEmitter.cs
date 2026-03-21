@@ -2,8 +2,8 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
     /// <summary>
     /// Emits particles continuously at a fixed rate over an optional duration window.
-    /// Corresponds to <c>C_OP_ContinuousEmitter</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ContinuousEmitter">C_OP_ContinuousEmitter</seealso>
     class ContinuousEmitter : ParticleFunctionEmitter
     {
         public override bool IsFinished { get; protected set; }

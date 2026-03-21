@@ -7,11 +7,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
     /// <summary>
     /// Represents a convex hull shape.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnHull_t">RnHull_t</seealso>
     public readonly struct Hull
     {
         /// <summary>
         /// Represents a plane in the hull.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnPlane_t">RnPlane_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Plane
         {
@@ -37,6 +39,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Represents a half-edge in the hull mesh.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnHalfEdge_t">RnHalfEdge_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct HalfEdge
         {
@@ -72,6 +75,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Represents a face in the hull mesh.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnFace_t">RnFace_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Face
         {
@@ -92,6 +96,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Represents a region in the hull.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/CRegionSVM">CRegionSVM</seealso>
         public class Region
         {
             /// <summary>

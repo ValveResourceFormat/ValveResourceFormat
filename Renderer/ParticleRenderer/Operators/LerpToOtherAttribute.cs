@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Lerps a particle attribute toward the value of another attribute on the same particle,
     /// using a per-particle interpolation factor. The input and output fields must be of the same type.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpToOtherAttribute">C_OP_LerpToOtherAttribute</seealso>
     class LerpToOtherAttribute : ParticleFunctionOperator
     {
         private readonly ParticleField FieldInput = ParticleField.Color;

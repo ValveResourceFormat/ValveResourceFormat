@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Sets the initial particle velocity using simplex noise sampled at the current system time,
     /// mapping the noise output into a configurable minimum/maximum velocity range.
-    /// Corresponds to <c>C_INIT_InitialVelocityNoise</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitialVelocityNoise">C_INIT_InitialVelocityNoise</seealso>
     class InitialVelocityNoise : ParticleFunctionInitializer
     {
         private readonly IVectorProvider outputMin = new LiteralVectorProvider(Vector3.Zero);

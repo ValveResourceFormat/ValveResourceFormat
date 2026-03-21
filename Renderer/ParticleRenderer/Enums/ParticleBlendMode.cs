@@ -3,6 +3,7 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>
     /// Particle render output blending modes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/ParticleOutputBlendMode_t">ParticleOutputBlendMode_t</seealso>
     public enum ParticleBlendMode
     {
         /// <summary>Standard alpha blending.</summary>

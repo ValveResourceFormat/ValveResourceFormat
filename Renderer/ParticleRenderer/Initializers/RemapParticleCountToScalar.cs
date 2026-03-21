@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Remaps a particle's index within the system (or the inverse) to a scalar output field.
     /// The input particle count range is mapped to a configurable output range, with optional bias, wrap, and invert controls.
-    /// Corresponds to <c>C_INIT_RemapParticleCountToScalar</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapParticleCountToScalar">C_INIT_RemapParticleCountToScalar</seealso>
     class RemapParticleCountToScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;

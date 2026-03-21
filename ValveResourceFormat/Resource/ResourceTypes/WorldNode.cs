@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a world node resource.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/WorldNode_t">WorldNode_t</seealso>
     public class WorldNode : KeyValuesOrNTRO
     {
         /// <summary>

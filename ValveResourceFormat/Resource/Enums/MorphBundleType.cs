@@ -2,8 +2,8 @@ namespace ValveResourceFormat
 {
     /// <summary>
     /// Identifies the type of data stored in a morph bundle.
-    /// Corresponds to <c>MorphBundleType_t</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/MorphBundleType_t">MorphBundleType_t</seealso>
     public enum MorphBundleType
     {
         /// <summary>No morph bundle data.</summary>

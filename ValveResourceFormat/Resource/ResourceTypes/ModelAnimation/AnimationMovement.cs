@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents root motion movement data for an animation.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimMovement">CAnimMovement</seealso>
     public class AnimationMovement
     {
         /// <summary>

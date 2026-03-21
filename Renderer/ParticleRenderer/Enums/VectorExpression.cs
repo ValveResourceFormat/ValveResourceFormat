@@ -3,7 +3,8 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>
     /// Mathematical operation types for vector expressions.
     /// </summary>
-    public enum VectorExpression // VectorExpressionType_t
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/VectorExpressionType_t">VectorExpressionType_t</seealso>
+    public enum VectorExpression
     {
         /// <summary>Uninitialized expression; outputs zero.</summary>
         VECTOR_EXPRESSION_UNINITIALIZED = -1,

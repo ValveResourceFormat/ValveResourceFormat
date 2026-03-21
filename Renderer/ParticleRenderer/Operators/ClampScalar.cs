@@ -3,6 +3,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <summary>
     /// Clamps a scalar particle field to a configurable minimum and maximum range each frame.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ClampScalar">C_OP_ClampScalar</seealso>
     class ClampScalar : ParticleFunctionOperator
     {
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);

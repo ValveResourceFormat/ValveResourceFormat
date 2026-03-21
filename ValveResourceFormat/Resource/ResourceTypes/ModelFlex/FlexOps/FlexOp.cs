@@ -3,6 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Base class for flex operations.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CFlexOp">CFlexOp</seealso>
     public abstract class FlexOp
     {
         /// <summary>

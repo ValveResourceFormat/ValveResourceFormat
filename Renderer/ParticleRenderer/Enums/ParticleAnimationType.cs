@@ -3,6 +3,7 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>
     /// Particle animation timing modes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/AnimationType_t">AnimationType_t</seealso>
     public enum ParticleAnimationType
     {
         /// <summary>Animation advances at a fixed rate regardless of lifetime.</summary>

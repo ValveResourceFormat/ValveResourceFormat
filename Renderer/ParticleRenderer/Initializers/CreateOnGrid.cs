@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Places particles on a 3-D grid with configurable per-axis cell counts and spacing.
     /// Supports optional centering around a control point and a hollow interior mode.
-    /// Corresponds to <c>C_INIT_CreateOnGrid</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateOnGrid">C_INIT_CreateOnGrid</seealso>
     // this single initializer delayed this release by months
     class CreateOnGrid : ParticleFunctionInitializer
     {

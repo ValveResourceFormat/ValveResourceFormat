@@ -8,6 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
     /// <summary>
     /// Represents a mesh shape.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnMesh_t">RnMesh_t</seealso>
     public readonly struct Mesh
     {
         /// <summary>
@@ -26,6 +27,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Represents a node in the mesh BVH.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnNode_t">RnNode_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Node
         {
@@ -81,6 +83,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Represents a triangle in the mesh.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnTriangle_t">RnTriangle_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Triangle
         {

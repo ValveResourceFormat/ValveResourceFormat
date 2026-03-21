@@ -2,8 +2,9 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Sets the positions of up to four control points to fixed locations, optionally offset
-    /// from a parent control point and optionally only once. Corresponds to <c>C_OP_SetControlPointPositions</c>.
+    /// from a parent control point and optionally only once.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointPositions">C_OP_SetControlPointPositions</seealso>
     class SetControlPointPositions : ParticleFunctionPreEmissionOperator
     {
         private readonly int CP1 = 1;

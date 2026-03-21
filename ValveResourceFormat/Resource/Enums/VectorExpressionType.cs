@@ -3,6 +3,7 @@ namespace ValveResourceFormat
     /// <summary>
     /// Vector expression types used for particles.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/VectorExpressionType_t">VectorExpressionType_t</seealso>
     public enum VectorExpressionType
     {
         /// <summary>Uninitialized expression.</summary>

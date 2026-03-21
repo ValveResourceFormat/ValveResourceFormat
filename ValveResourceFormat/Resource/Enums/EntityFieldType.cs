@@ -3,6 +3,7 @@ namespace ValveResourceFormat
     /// <summary>
     /// Entity field data types.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/schemasystem/fieldtype_t">fieldtype_t</seealso>
     public enum EntityFieldType
     {
 #pragma warning disable CS1591

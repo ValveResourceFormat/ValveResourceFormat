@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Normalizes a vector particle attribute to unit length, then multiplies the result by a
     /// scale factor.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_NormalizeVector">C_OP_NormalizeVector</seealso>
     class NormalizeVector : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Position;

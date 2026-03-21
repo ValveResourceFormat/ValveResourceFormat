@@ -3,8 +3,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Sets the initial rotation of a particle by adding a configurable base angle to a random
     /// offset sampled between a minimum and maximum degree range, with an optional exponent bias
-    /// and random direction flip. Corresponds to <c>C_INIT_RandomRotation</c>.
+    /// and random direction flip.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomRotation">C_INIT_RandomRotation</seealso>
     class RandomRotation : ParticleFunctionInitializer
     {
         private readonly float degreesMin;

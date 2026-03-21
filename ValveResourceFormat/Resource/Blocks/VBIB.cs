@@ -32,6 +32,7 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Represents buffer data stored on disk.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/ModelMeshBufferData_t">ModelMeshBufferData_t</seealso>
         public struct OnDiskBufferData
         {
             /// <summary>
@@ -63,6 +64,7 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Represents a field in the render input layout.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/RenderInputLayoutField_t">RenderInputLayoutField_t</seealso>
         public struct RenderInputLayoutField
         {
             /// <summary>

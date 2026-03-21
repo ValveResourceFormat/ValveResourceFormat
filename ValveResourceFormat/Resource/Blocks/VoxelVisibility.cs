@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Blocks
     /// <summary>
     /// "VXVS" block.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/CVoxelVisibility">CVoxelVisibility</seealso>
     public class VoxelVisibility : Block
     {
         /// <inheritdoc/>

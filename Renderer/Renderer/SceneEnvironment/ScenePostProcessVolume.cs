@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// <summary>
     /// Filmic tonemapping curve parameters for HDR-to-LDR conversion.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/PostProcessingTonemapParameters_t">PostProcessingTonemapParameters_t</seealso>
     public readonly struct TonemapSettings
     {
         /// <summary>Gets the exposure bias in log2 stops; converted to linear via exp2 before GPU upload.</summary>
@@ -182,6 +183,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// <summary>
     /// Bloom compositing blend modes.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/BloomBlendMode_t">BloomBlendMode_t</seealso>
     public enum BloomBlendType
     {
         /// <summary>Additively blends the bloom layer over the scene.</summary>
@@ -195,6 +197,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
     /// <summary>
     /// Bloom effect parameters including threshold, intensity, and per-mip blur settings.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/materialsystem2/PostProcessingBloomParameters_t">PostProcessingBloomParameters_t</seealso>
     public readonly struct BloomSettings()
     {
         /// <summary>Gets the compositing blend mode used to apply bloom.</summary>

@@ -3,6 +3,7 @@ namespace ValveResourceFormat;
 /// <summary>
 /// Entity input/output target type specifiers.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/entity2/EntityIOTargetType_t">EntityIOTargetType_t</seealso>
 public enum EntityIOTargetType
 {
 #pragma warning disable CS1591

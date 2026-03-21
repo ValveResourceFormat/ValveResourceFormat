@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents an activity associated with an animation.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimActivity">CAnimActivity</seealso>
     public readonly struct AnimationActivity
     {
         /// <summary>

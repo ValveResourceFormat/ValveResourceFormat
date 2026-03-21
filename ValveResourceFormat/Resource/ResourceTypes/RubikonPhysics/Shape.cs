@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <summary>
     /// Represents a physics shape.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VPhysics2ShapeDef_t">VPhysics2ShapeDef_t</seealso>
     public struct Shape
     {
         /// <summary>

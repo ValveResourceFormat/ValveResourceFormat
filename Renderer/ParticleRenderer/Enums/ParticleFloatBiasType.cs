@@ -3,7 +3,8 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>
     /// Bias curve types for modulating floating-point particle parameters.
     /// </summary>
-    public enum ParticleFloatBiasType // ParticleFloatBiasType_t
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particleslib/ParticleFloatBiasType_t">ParticleFloatBiasType_t</seealso>
+    public enum ParticleFloatBiasType
     {
         /// <summary>Invalid bias type.</summary>
         PF_BIAS_TYPE_INVALID = -1,

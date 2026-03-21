@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 /// <summary>
 /// Applies a divergence-free curl noise force to particles, producing swirling turbulent motion.
 /// Noise frequency, amplitude, and overall strength are configurable.
-/// Corresponds to <c>C_OP_CurlNoiseForce</c>.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_CurlNoiseForce">C_OP_CurlNoiseForce</seealso>
 class CurlNoiseForce : ParticleFunctionOperator
 {
     private readonly IVectorProvider NoiseFrequency = new LiteralVectorProvider(Vector3.One);

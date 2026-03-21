@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents a model skeleton with bones arranged in a hierarchy.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/ModelSkeletonData_t">ModelSkeletonData_t</seealso>
     public class Skeleton
     {
         /// <summary>

@@ -5,6 +5,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// specified time window of the particle's normalized lifetime, with an optional bias applied
     /// to the interpolation curve.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_InterpolateRadius">C_OP_InterpolateRadius</seealso>
     class InterpolateRadius : ParticleFunctionOperator
     {
         private readonly float startTime;

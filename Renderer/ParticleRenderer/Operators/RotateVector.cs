@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Rotates a vector particle attribute each frame around an axis chosen randomly per particle,
     /// at a rate chosen randomly per particle within configurable min/max ranges.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RotateVector">C_OP_RotateVector</seealso>
     class RotateVector : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Normal;

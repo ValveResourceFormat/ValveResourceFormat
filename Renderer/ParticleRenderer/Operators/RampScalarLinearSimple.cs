@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Linearly ramps a scalar particle attribute by a constant rate per second within a
     /// specified age window.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RampScalarLinearSimple">C_OP_RampScalarLinearSimple</seealso>
     class RampScalarLinearSimple : ParticleFunctionOperator
     {
         private readonly float rate;

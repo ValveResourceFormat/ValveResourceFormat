@@ -2,8 +2,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Positions particles in a ring pattern around a transform, with configurable initial radius, thickness, and even or random angular distribution.
-    /// Corresponds to <c>C_INIT_RingWave</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RingWave">C_INIT_RingWave</seealso>
     class RingWave : ParticleFunctionInitializer
     {
         private readonly bool evenDistribution;

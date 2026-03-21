@@ -2,8 +2,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Initializes a scalar particle attribute to a random value between a min and max, with an optional exponent bias.
-    /// Corresponds to <c>C_INIT_RandomScalar</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomScalar">C_INIT_RandomScalar</seealso>
     class RandomScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;

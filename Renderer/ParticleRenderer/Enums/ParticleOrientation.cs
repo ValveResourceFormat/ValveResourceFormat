@@ -3,7 +3,8 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>
     /// Particle orientation modes for rendering.
     /// </summary>
-    public enum ParticleOrientation // ParticleOrientationChoiceList_t
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/ParticleOrientationChoiceList_t">ParticleOrientationChoiceList_t</seealso>
+    public enum ParticleOrientation
     {
         /// <summary>Particle always faces the screen.</summary>
         PARTICLE_ORIENTATION_SCREEN_ALIGNED = 0,

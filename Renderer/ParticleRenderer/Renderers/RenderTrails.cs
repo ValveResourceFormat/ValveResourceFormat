@@ -5,8 +5,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <summary>
     /// Renders particles as trail segments stretched between the particle's current and previous
     /// positions, with configurable length, fade-in, texture scaling, and blend modes.
-    /// Corresponds to <c>C_OP_RenderTrails</c>.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderTrails">C_OP_RenderTrails</seealso>
     internal class RenderTrails : ParticleFunctionRenderer
     {
         private const string ShaderName = "vrf.particle_trail";

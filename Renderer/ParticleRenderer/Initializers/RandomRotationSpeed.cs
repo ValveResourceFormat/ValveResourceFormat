@@ -3,8 +3,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Sets the initial rotation speed of a particle by adding a configurable base speed to a
     /// random offset sampled between a minimum and maximum degree-per-second range, with an
-    /// optional random direction flip. Corresponds to <c>C_INIT_RandomRotationSpeed</c>.
+    /// optional random direction flip.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomRotationSpeed">C_INIT_RandomRotationSpeed</seealso>
     class RandomRotationSpeed : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Roll;

@@ -4,6 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Kills particles that cross to the negative side of a plane. The plane is defined by a
     /// control point as the origin and a configurable normal direction.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PlaneCull">C_OP_PlaneCull</seealso>
     class PlaneCull : ParticleFunctionOperator
     {
         private readonly int cp;

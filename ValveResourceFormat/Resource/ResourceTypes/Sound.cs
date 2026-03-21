@@ -8,8 +8,8 @@ namespace ValveResourceFormat.ResourceTypes
 
     /// <summary>
     /// Represents an emphasis sample for voice modulation.
-    /// Corresponds to <c>CAudioEmphasisSample</c> in the schema.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CAudioEmphasisSample">CAudioEmphasisSample</seealso>
     public readonly struct EmphasisSample
     {
         /// <summary>
@@ -25,8 +25,8 @@ namespace ValveResourceFormat.ResourceTypes
 
     /// <summary>
     /// Represents a phoneme timing tag for lip-sync animation.
-    /// Corresponds to <c>CAudioPhonemeTag</c> in the schema.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CAudioPhonemeTag">CAudioPhonemeTag</seealso>
     public readonly struct PhonemeTag
     {
         /// <summary>
@@ -47,8 +47,8 @@ namespace ValveResourceFormat.ResourceTypes
 
     /// <summary>
     /// Represents a sentence with phoneme and emphasis data for voice playback.
-    /// Corresponds to <c>CAudioSentence</c> in the schema.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CAudioSentence">CAudioSentence</seealso>
     public class Sentence
     {
         /*
@@ -73,8 +73,9 @@ namespace ValveResourceFormat.ResourceTypes
 
     /// <summary>
     /// Represents a sound resource containing audio data and metadata.
-    /// The compiled sound data corresponds to <c>CVSound</c> / <c>CVoiceContainerBase</c> in the schema.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CVSound">CVSound</seealso>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CVoiceContainerBase">CVoiceContainerBase</seealso>
     public class Sound : Block
     {
         /// <summary>
@@ -92,8 +93,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Specifies the audio encoding format for version 4 sound files.
-        /// Corresponds to <c>CVSoundFormat_t</c> in the schema.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CVSoundFormat_t">CVSoundFormat_t</seealso>
         public enum AudioFormatV4
         {
             /// <summary>16-bit PCM audio.</summary>

@@ -6,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a particle system resource.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleSystemDefinition">CParticleSystemDefinition</seealso>
     public class ParticleSystem : KeyValuesOrNTRO
     {
         /// <summary>
