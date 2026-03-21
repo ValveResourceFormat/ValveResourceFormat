@@ -28,6 +28,21 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     }
 
     /// <summary>
+    ///     How direct lighting should be represented.
+    /// </summary>
+    public enum DirectLightType
+    {
+        /// <summary>No direct lighting.</summary>
+        None = 0,
+        /// <summary>Fully baked into lightmap (cheapest).</summary>
+        Static = 1,
+        /// <summary>Fully dynamic (most expensive).</summary>
+        Dynamic = 2,
+        /// <summary>Dynamic direct light with baked shadows.</summary>
+        Stationary = 3,
+    }
+
+    /// <summary>
     ///     Shader light type for rendering calculations.
     /// </summary>
     public enum LightType
@@ -128,8 +143,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the entity class that created this light.</summary>
     public EntityType Entity { get; set; }
 
-    /// <summary>Gets or sets the direct light contribution mode (0 = off, 1 = stationary, 2 = dynamic).</summary>
-    public int DirectLight { get; set; } = 2;
+    /// <summary>Gets or sets the direct lighting type.</summary>
+    public DirectLightType DirectLight { get; set; } = DirectLightType.Dynamic;
 
     /// <summary>Gets or sets whether this light casts shadows.</summary>
     public int CastShadows { get; set; } = 1;
@@ -236,7 +251,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         if (isNewLightType || type is EntityType.Environment)
         {
-            light.DirectLight = entity.GetPropertyUnchecked("directlight", 2);
+            light.DirectLight = (DirectLightType)entity.GetPropertyUnchecked("directlight", 2);
             light.CastShadows = entity.GetPropertyUnchecked("castshadows", 1);
             light.ShadowMapSize = entity.GetPropertyUnchecked("shadowmapsize", 1024);
             if (light.ShadowMapSize <= 0)
@@ -321,8 +336,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         return light.DirectLight switch
         {
-            0 => false,
-            1 => light.StationaryLightIndex is >= 0 and <= 3,
+            DirectLightType.None => false,
+            DirectLightType.Static => light.StationaryLightIndex is >= 0 and <= 3,
             _ => true
         };
     }
