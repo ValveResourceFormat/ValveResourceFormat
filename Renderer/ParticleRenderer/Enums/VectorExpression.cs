@@ -24,5 +24,7 @@ namespace ValveResourceFormat.Renderer.Particles
         VECTOR_EXPRESSION_MAX = 6,
         /// <summary>Cross product of the two input vectors.</summary>
         VECTOR_EXPRESSION_CROSSPRODUCT = 7,
+        /// <summary>Linearly interpolates between the two input vectors.</summary>
+        VECTOR_EXPRESSION_LERP = 8,
     }
 }

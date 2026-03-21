@@ -87,6 +87,7 @@ namespace ValveResourceFormat
         EngineTick = 0x4d,
         WorldGroupId = 0x4e,
         GlobalSymbol = 0x4f,
+        HNmGraphDefinition = 0x50,
 #pragma warning restore CS1591
     }
 }
