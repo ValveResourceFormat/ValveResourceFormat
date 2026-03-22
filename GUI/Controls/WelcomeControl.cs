@@ -5,14 +5,11 @@ namespace GUI.Controls
 {
     public partial class WelcomeControl : UserControl
     {
-        internal WelcomeControl(ExplorerControl? explorerControl = null)
+        internal WelcomeControl(ExplorerControl explorerControl)
         {
             InitializeComponent();
 
-            splitContainer.Panel2.Controls.Add(explorerControl ?? new ExplorerControl
-            {
-                Dock = DockStyle.Fill,
-            });
+            splitContainer.Panel2.Controls.Add(explorerControl);
         }
 
         protected override void CreateHandle()

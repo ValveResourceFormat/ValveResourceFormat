@@ -15,9 +15,6 @@ namespace GUI.Controls
         {
             if (disposing)
             {
-                disposalCts.Cancel();
-                disposalCts.Dispose();
-                handleCreated.TrySetCanceled();
                 components?.Dispose();
             }
             base.Dispose(disposing);

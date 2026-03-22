@@ -27,7 +27,6 @@ namespace GUI.Controls
 
         private const int APPID_RECENT_FILES = -1000;
         private const int APPID_BOOKMARKS = -1001;
-        private readonly CancellationTokenSource disposalCts = new();
         private readonly TaskCompletionSource handleCreated = new();
         private readonly List<TreeDataNode> TreeData = [];
         private static readonly ConcurrentDictionary<string, string> WorkshopAddons = new();
@@ -109,8 +108,7 @@ namespace GUI.Controls
             treeView.Nodes.Add(scanningTreeNode);
 
             // Scan for vpks
-            var cancellationToken = disposalCts.Token;
-            var scanTask = Task.Run(ScanForSteamGames, cancellationToken);
+            var scanTask = Task.Run(ScanForSteamGames);
             scanTask.ContinueWith(t =>
             {
                 if (t.Exception == null)
@@ -120,31 +118,17 @@ namespace GUI.Controls
 
                 Log.Error(nameof(ExplorerControl), t.Exception.ToString());
 
-                try
+                treeView.InvokeAsync(() =>
                 {
-                    treeView.InvokeAsync(() =>
-                    {
-                        scanningTreeNode.Text = t.Exception.Message;
-                    }, cancellationToken);
-                }
-                catch (Exception) when (disposalCts.IsCancellationRequested)
-                {
-                    // Control was disposed
-                }
+                    scanningTreeNode.Text = t.Exception.Message;
+                });
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
             scanTask.ContinueWith(async t =>
             {
-                try
+                await treeView.InvokeAsync(() =>
                 {
-                    await treeView.InvokeAsync(() =>
-                    {
-                        scanningTreeNode.Remove();
-                    }, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception) when (disposalCts.IsCancellationRequested)
-                {
-                    // Control was disposed
-                }
+                    scanningTreeNode.Remove();
+                }).ConfigureAwait(false);
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
         }
 
@@ -254,7 +238,7 @@ namespace GUI.Controls
                 .ToList();
 
             // Start scanning game folders immediately, runs concurrently with icon preloading
-            var scanTask = Parallel.ForEachAsync(gamesToScan, disposalCts.Token, async (game, cancellationToken) =>
+            var scanTask = Parallel.ForEachAsync(gamesToScan, async (game, cancellationToken) =>
             {
                 var (appID, appName, steamPath, gamePath) = game;
                 var foundFiles = new List<TreeNode>();
@@ -357,7 +341,7 @@ namespace GUI.Controls
                 foundFiles.Sort(SortFileNodes);
                 var foundFilesArray = foundFiles.ToArray();
 
-                var treeNodeImage = await GetOrLoadAppImage(appID, libraryAssetsKv, libraryCachePath, cancellationToken).ConfigureAwait(false);
+                var treeNodeImage = await GetOrLoadAppImage(appID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
 
                 if (treeNodeImage < 0)
                 {
@@ -417,7 +401,7 @@ namespace GUI.Controls
                 {
                     if (path.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
                     {
-                        await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath, disposalCts.Token).ConfigureAwait(false);
+                        await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
                         break;
                     }
                 }
@@ -428,7 +412,7 @@ namespace GUI.Controls
             {
                 RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
                 RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
-            }, disposalCts.Token).ConfigureAwait(false);
+            }).ConfigureAwait(false);
 
             // Wait for all game scans to complete
             await scanTask.ConfigureAwait(false);
@@ -438,7 +422,7 @@ namespace GUI.Controls
             {
                 RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
                 RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
-            }, disposalCts.Token).ConfigureAwait(false);
+            }).ConfigureAwait(false);
         }
 
         private void OnTreeViewNodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
@@ -743,7 +727,7 @@ namespace GUI.Controls
             filterTextBox.Focus();
         }
 
-        private async Task<int> GetOrLoadAppImage(int appID, KVObject? libraryAssetsKv, string libraryCachePath, CancellationToken cancellationToken = default)
+        private async Task<int> GetOrLoadAppImage(int appID, KVObject? libraryAssetsKv, string libraryCachePath)
         {
             if (MainForm.GameIcons.TryGetValue(appID, out var treeNodeImage))
             {
@@ -784,7 +768,7 @@ namespace GUI.Controls
                         MainForm.AddFixedImageToImageList(appIcon, MainForm.ImageList);
                         MainForm.GameIcons.TryAdd(appID, imageIndex);
                         return imageIndex;
-                    }, cancellationToken).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
                 }
             }
             catch (Exception)

@@ -59,7 +59,7 @@ namespace GUI
         public static ConcurrentDictionary<int, int> GameIcons { get; private set; } = new();
 
         private readonly string[] Args;
-        private ExplorerControl? explorerControl;
+        internal ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
 
@@ -85,7 +85,7 @@ namespace GUI
             // Let the explorer start scanning games before the window even spawns
             if (args.Length == 0 && (Settings.IsFirstStartup || Settings.Config.OpenExplorerOnStart != 0))
             {
-                explorerControl = new ExplorerControl { Dock = DockStyle.Fill };
+                EnsureExplorerControl();
             }
 
             Themer.ApplyTheme(this);
@@ -1146,6 +1146,12 @@ namespace GUI
 
         private void OpenExplorer_Click(object sender, EventArgs e) => OpenExplorer();
 
+        private ExplorerControl EnsureExplorerControl()
+        {
+            explorerControl ??= new ExplorerControl { Dock = DockStyle.Fill };
+            return explorerControl;
+        }
+
         private void OpenExplorer()
         {
             foreach (TabPage tabPage in mainTabs.TabPages)
@@ -1165,8 +1171,7 @@ namespace GUI
 
             try
             {
-                explorerTab.Controls.Add(explorerControl ?? new ExplorerControl { Dock = DockStyle.Fill });
-                explorerControl = null;
+                explorerTab.Controls.Add(EnsureExplorerControl());
                 mainTabs.TabPages.Insert(1, explorerTab);
                 mainTabs.SelectTab(explorerTab);
                 explorerTab = null;
@@ -1187,11 +1192,10 @@ namespace GUI
 
             try
             {
-                welcomeTab.Controls.Add(new WelcomeControl(explorerControl)
+                welcomeTab.Controls.Add(new WelcomeControl(EnsureExplorerControl())
                 {
                     Dock = DockStyle.Fill
                 });
-                explorerControl = null;
                 mainTabs.TabPages.Add(welcomeTab);
                 mainTabs.SelectTab(welcomeTab);
                 welcomeTab = null;

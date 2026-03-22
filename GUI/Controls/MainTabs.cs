@@ -157,6 +157,11 @@ internal class MainTabs : ThemedTabControl
             SelectedIndex = tabIndex - 1;
         }
 
+        if (Program.MainForm?.explorerControl is { } explorerControl && tab.Contains(explorerControl))
+        {
+            tab.Controls.Remove(explorerControl);
+        }
+
         TabPages.Remove(tab);
         tab.Dispose();
     }
