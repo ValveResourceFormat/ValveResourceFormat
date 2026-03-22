@@ -59,6 +59,7 @@ namespace GUI
         public static ConcurrentDictionary<int, int> GameIcons { get; private set; } = new();
 
         private readonly string[] Args;
+        private ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
 
@@ -80,6 +81,13 @@ namespace GUI
             Themer.InitializeTheme();
             InitializeComponent();
             LoadIcons();
+
+            // Let the explorer start scanning games before the window even spawns
+            if (args.Length == 0 && (Settings.IsFirstStartup || Settings.Config.OpenExplorerOnStart != 0))
+            {
+                explorerControl = new ExplorerControl { Dock = DockStyle.Fill };
+            }
+
             Themer.ApplyTheme(this);
 
             if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
@@ -1157,10 +1165,8 @@ namespace GUI
 
             try
             {
-                explorerTab.Controls.Add(new ExplorerControl
-                {
-                    Dock = DockStyle.Fill,
-                });
+                explorerTab.Controls.Add(explorerControl ?? new ExplorerControl { Dock = DockStyle.Fill });
+                explorerControl = null;
                 mainTabs.TabPages.Insert(1, explorerTab);
                 mainTabs.SelectTab(explorerTab);
                 explorerTab = null;
@@ -1181,10 +1187,11 @@ namespace GUI
 
             try
             {
-                welcomeTab.Controls.Add(new WelcomeControl
+                welcomeTab.Controls.Add(new WelcomeControl(explorerControl)
                 {
                     Dock = DockStyle.Fill
                 });
+                explorerControl = null;
                 mainTabs.TabPages.Add(welcomeTab);
                 mainTabs.SelectTab(welcomeTab);
                 welcomeTab = null;

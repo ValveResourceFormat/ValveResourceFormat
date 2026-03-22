@@ -27,6 +27,8 @@ namespace GUI.Controls
 
         private const int APPID_RECENT_FILES = -1000;
         private const int APPID_BOOKMARKS = -1001;
+        private readonly CancellationTokenSource disposalCts = new();
+        private readonly TaskCompletionSource handleCreated = new();
         private readonly List<TreeDataNode> TreeData = [];
         private static readonly ConcurrentDictionary<string, string> WorkshopAddons = new();
         public static readonly List<GameFolderLocator.SteamLibraryGameInfo> SteamGames = [];
@@ -107,21 +109,43 @@ namespace GUI.Controls
             treeView.Nodes.Add(scanningTreeNode);
 
             // Scan for vpks
-            Task.Run(ScanForSteamGames).ContinueWith(async t =>
+            var cancellationToken = disposalCts.Token;
+            var scanTask = Task.Run(ScanForSteamGames, cancellationToken);
+            scanTask.ContinueWith(t =>
             {
-                await treeView.InvokeAsync(() =>
+                if (t.Exception == null)
                 {
-                    if (t.Exception != null)
+                    return;
+                }
+
+                Log.Error(nameof(ExplorerControl), t.Exception.ToString());
+
+                try
+                {
+                    treeView.InvokeAsync(() =>
                     {
                         scanningTreeNode.Text = t.Exception.Message;
-                        Log.Error(nameof(ExplorerControl), t.Exception.ToString());
-                    }
-                    else
+                    }, cancellationToken);
+                }
+                catch (Exception) when (disposalCts.IsCancellationRequested)
+                {
+                    // Control was disposed
+                }
+            }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+            scanTask.ContinueWith(async t =>
+            {
+                try
+                {
+                    await treeView.InvokeAsync(() =>
                     {
                         scanningTreeNode.Remove();
-                    }
-                }).ConfigureAwait(false);
-            });
+                    }, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception) when (disposalCts.IsCancellationRequested)
+                {
+                    // Control was disposed
+                }
+            }, CancellationToken.None, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
         }
 
         private async Task ScanForSteamGames()
@@ -191,27 +215,6 @@ namespace GUI.Controls
                 SteamGames.AddRange(steamGames);
             }
 
-            // Find all games to be displayed in the recent and bookmarked files
-            // to instantly load their icons before rendering the list
-            {
-                foreach (var path in Settings.Config.RecentFiles.Concat(Settings.Config.BookmarkedFiles))
-                {
-                    foreach (var game in SteamGames)
-                    {
-                        if (path.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
-                        {
-                            await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
-                        }
-                    }
-                }
-
-                await treeView.InvokeAsync(() =>
-                {
-                    RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
-                    RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
-                }).ConfigureAwait(false);
-            }
-
             if (SteamGames.Count == 0)
             {
                 return;
@@ -250,7 +253,8 @@ namespace GUI.Controls
                 .DistinctBy(static game => game.GamePath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            await Parallel.ForEachAsync(gamesToScan, async (game, cancellationToken) =>
+            // Start scanning game folders immediately, runs concurrently with icon preloading
+            var scanTask = Parallel.ForEachAsync(gamesToScan, disposalCts.Token, async (game, cancellationToken) =>
             {
                 var (appID, appName, steamPath, gamePath) = game;
                 var foundFiles = new List<TreeNode>();
@@ -369,6 +373,7 @@ namespace GUI.Controls
                 };
                 treeNode.Nodes.AddRange(foundFilesArray);
 
+                await handleCreated.Task.ConfigureAwait(false);
                 await treeView.InvokeAsync(() =>
                 {
                     var newNode = new TreeDataNode
@@ -402,14 +407,38 @@ namespace GUI.Controls
                         OnFilterTextBoxTextChanged(null, EventArgs.Empty); // Hack: re-filter
                     }
                 }, cancellationToken).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+            });
+
+            // Find all games to be displayed in the recent and bookmarked files
+            // to instantly load their icons before rendering the list
+            foreach (var path in Settings.Config.RecentFiles.Concat(Settings.Config.BookmarkedFiles))
+            {
+                foreach (var game in SteamGames)
+                {
+                    if (path.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath, disposalCts.Token).ConfigureAwait(false);
+                        break;
+                    }
+                }
+            }
+
+            await handleCreated.Task.ConfigureAwait(false);
+            await treeView.InvokeAsync(() =>
+            {
+                RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
+                RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
+            }, disposalCts.Token).ConfigureAwait(false);
+
+            // Wait for all game scans to complete
+            await scanTask.ConfigureAwait(false);
 
             // Update bookmarks and recent files with workshop titles and app logos
             await treeView.InvokeAsync(() =>
             {
                 RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
                 RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
-            }).ConfigureAwait(false);
+            }, disposalCts.Token).ConfigureAwait(false);
         }
 
         private void OnTreeViewNodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
@@ -706,6 +735,7 @@ namespace GUI.Controls
         private void OnExplorerLoad(object sender, EventArgs e)
         {
             filterTextBox.Focus();
+            handleCreated.TrySetResult();
         }
 
         public void FocusFilter()
@@ -747,6 +777,7 @@ namespace GUI.Controls
                 {
                     using var appIcon = GetAppResizedImage(appIconPath);
 
+                    await handleCreated.Task.ConfigureAwait(false);
                     treeNodeImage = await treeView.InvokeAsync(() =>
                     {
                         var imageIndex = MainForm.ImageList.Images.Count;

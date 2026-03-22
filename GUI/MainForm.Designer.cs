@@ -27,6 +27,12 @@ namespace GUI
                 searchForm = null;
             }
 
+            if (disposing && explorerControl != null)
+            {
+                explorerControl.Dispose();
+                explorerControl = null;
+            }
+
             base.Dispose(disposing);
         }
 
