@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -26,7 +27,7 @@ namespace GUI.Controls
         private const int APPID_RECENT_FILES = -1000;
         private const int APPID_BOOKMARKS = -1001;
         private readonly List<TreeDataNode> TreeData = [];
-        private static readonly Dictionary<string, string> WorkshopAddons = [];
+        private static readonly ConcurrentDictionary<string, string> WorkshopAddons = new();
         public static readonly List<GameFolderLocator.SteamLibraryGameInfo> SteamGames = [];
 
         public ExplorerControl()
@@ -166,7 +167,6 @@ namespace GUI.Controls
             }
 
             var libraryCachePath = Path.Join(GameFolderLocator.SteamPath, "appcache", "librarycache");
-            var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
             KVDocument? libraryAssetsKv = null;
 
             try
@@ -223,10 +223,7 @@ namespace GUI.Controls
                 BufferSize = 65536,
             };
 
-            var checkedDirVpks = new Dictionary<string, bool>();
-            var scannedGamePaths = new HashSet<string>(SteamGames.Count, StringComparer.OrdinalIgnoreCase);
-
-            bool VpkPredicate(ref FileSystemEntry entry)
+            static bool VpkPredicate(ref FileSystemEntry entry)
             {
                 if (entry.IsDirectory)
                 {
@@ -245,24 +242,16 @@ namespace GUI.Controls
 
                 // If we matched dota_683.vpk, make sure dota_dir.vpk exists before excluding it from results
                 var fixedPackage = $"{entry.ToFullPath()[..^8]}_dir.vpk";
-
-                if (!checkedDirVpks.TryGetValue(fixedPackage, out var ret))
-                {
-                    ret = !File.Exists(fixedPackage);
-                    checkedDirVpks.Add(fixedPackage, ret);
-                }
-
-                return ret;
+                return !File.Exists(fixedPackage);
             }
 
-            foreach (var (appID, appName, steamPath, gamePath) in SteamGames)
-            {
-                // Skip if this game path was already scanned from another appID
-                if (!scannedGamePaths.Add(gamePath))
-                {
-                    continue;
-                }
+            var gamesToScan = SteamGames
+                .DistinctBy(static game => game.GamePath, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
+            Parallel.ForEach(gamesToScan, (game) =>
+            {
+                var (appID, appName, steamPath, gamePath) = game;
                 var foundFiles = new List<TreeNode>();
 
                 // Find all the vpks in game folder
@@ -304,17 +293,19 @@ namespace GUI.Controls
 
                 if (foundFiles.Count == 0)
                 {
-                    continue;
+                    return;
                 }
 
                 // Find workshop content
                 try
                 {
-                    KVObject workshopInfo;
                     var workshopManifest = Path.Join(steamPath, "workshop", $"appworkshop_{appID}.acf");
 
                     if (File.Exists(workshopManifest))
                     {
+                        var kvDeserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
+                        KVObject workshopInfo;
+
                         using (var stream = File.OpenRead(workshopManifest))
                         {
                             workshopInfo = kvDeserializer.Deserialize(stream);
@@ -376,17 +367,33 @@ namespace GUI.Controls
                     SelectedImageIndex = treeNodeImage,
                 };
                 treeNode.Nodes.AddRange(foundFilesArray);
-                TreeData.Add(new TreeDataNode
-                {
-                    ParentNode = treeNode,
-                    AppID = appID,
-                    Children = foundFilesArray,
-                });
 
                 InvokeWorkaround(() =>
                 {
+                    var newNode = new TreeDataNode
+                    {
+                        ParentNode = treeNode,
+                        AppID = appID,
+                        Children = foundFilesArray,
+                    };
+
+                    var dataIndex = TreeData.Count;
+                    for (var i = TreeData.Count - 1; i >= 0; i--)
+                    {
+                        if (TreeData[i].AppID > appID)
+                        {
+                            dataIndex = i;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    TreeData.Insert(dataIndex, newNode);
+
                     treeView.BeginUpdate();
-                    treeView.Nodes.Insert(treeView.Nodes.Count - 1, treeNode);
+                    treeView.Nodes.Insert(dataIndex, treeNode);
                     treeView.EndUpdate();
 
                     if (filterTextBox.Text.Length > 0)
@@ -394,7 +401,7 @@ namespace GUI.Controls
                         OnFilterTextBoxTextChanged(null, EventArgs.Empty); // Hack: re-filter
                     }
                 });
-            }
+            });
 
             // Update bookmarks and recent files with workshop titles and app logos
             InvokeWorkaround(() =>
@@ -755,7 +762,7 @@ namespace GUI.Controls
                     {
                         treeNodeImage = MainForm.ImageList.Images.Count;
                         MainForm.AddFixedImageToImageList(appIcon, MainForm.ImageList);
-                        MainForm.GameIcons.Add(appID, treeNodeImage);
+                        MainForm.GameIcons.TryAdd(appID, treeNodeImage);
                     });
                 }
             }

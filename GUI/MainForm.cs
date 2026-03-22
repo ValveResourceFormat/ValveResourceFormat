@@ -1,5 +1,6 @@
 //#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -55,7 +56,7 @@ namespace GUI
         /// <summary>
         /// Lookup a game icon by appid that are loaded by the Explorer control from Steam.
         /// </summary>
-        public static Dictionary<int, int> GameIcons { get; private set; } = [];
+        public static ConcurrentDictionary<int, int> GameIcons { get; private set; } = new();
 
         private readonly string[] Args;
 
