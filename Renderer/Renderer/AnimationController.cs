@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Manages skeletal animation playback and computes animated bone poses.
     /// </summary>
-    public class AnimationController : BaseAnimationController
+    public partial class AnimationController : BaseAnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
 
@@ -26,6 +26,11 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
         public Animation? ActiveAnimation { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the tilt-twist constraints that are applied when animations update.
+        /// </summary>
+        public TiltTwistConstraint[] TwistConstraints { get; set; } = [];
 
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
