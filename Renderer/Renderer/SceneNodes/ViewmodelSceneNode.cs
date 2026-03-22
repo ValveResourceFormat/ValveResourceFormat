@@ -21,7 +21,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <summary>
     /// Viewmodel offset in viewmodel space (forward, right, up).
     /// </summary>
-    public Vector3 ViewmodelOffset { get; set; } = new Vector3(-4, -2, -2);
+    public Vector3 ViewmodelOffset { get; set; } = new Vector3(0, -2, -2);
 
     /// <summary>
     /// The player arms.
@@ -116,13 +116,17 @@ public class ViewmodelSceneNode : ModelSceneNode
             State = newState;
             var looping = newState == AnimationState.Idle;
 
+            var timeScale = 0.3f;
+
             SetAnimationByName(TargetAnimation);
             AnimationController.IsPaused = false;
             AnimationController.Looping = looping;
+            AnimationController.FrametimeMultiplier = timeScale;
 
             SelectedItem?.SetAnimationByName(TargetAnimation + ".secondary_0");
             SelectedItem?.AnimationController.IsPaused = false;
             SelectedItem?.AnimationController.Looping = looping;
+            SelectedItem?.AnimationController.FrametimeMultiplier = timeScale;
         }
     }
 
