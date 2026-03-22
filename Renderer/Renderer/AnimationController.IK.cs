@@ -44,10 +44,24 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                var localRotation = GetLocalRotation(bone, pose);
+                Matrix4x4.Decompose(pose[bone.Index], out _, out var worldRotation, out _);
+
+                Quaternion localRotation;
+                if (bone.Parent != null)
+                {
+                    Matrix4x4.Decompose(pose[bone.Parent.Index], out _, out var parentRotation, out _);
+                    localRotation = Quaternion.Multiply(Quaternion.Inverse(parentRotation), worldRotation);
+                }
+                else
+                {
+                    localRotation = worldRotation;
+                }
+
                 var bindRotation = bone.Angle;
                 var deltaRotation = Quaternion.Multiply(Quaternion.Inverse(bindRotation), localRotation);
-                deltaRotation = Quaternion.Multiply(target.Offset, deltaRotation);
+                var offsetTransform = Matrix4x4.CreateFromQuaternion(target.Offset) * Matrix4x4.CreateTranslation(target.PositionOffset);
+                Matrix4x4.Decompose(offsetTransform, out _, out var offsetRotation, out _);
+                deltaRotation = Quaternion.Multiply(offsetRotation, deltaRotation);
                 var twist = DecomposeTwistRotation(deltaRotation, targetAxis);
 
                 if (totalWeight == 0f)
@@ -64,7 +78,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             var twistAngle = 2f * MathF.Acos(Math.Clamp(MathF.Abs(accumulatedTwist.W), 0f, 1f));
-            var twistAngleDegrees = twistAngle * 180f / MathF.PI;
+            var twistAngleDegrees = float.RadiansToDegrees(twistAngle);
 
             var slaveTwist = accumulatedTwist;
             if (constraint.TargetAxis != constraint.SlaveAxis)
@@ -82,20 +96,8 @@ namespace ValveResourceFormat.Renderer
 
                 Matrix4x4.Decompose(pose[bone.Index], out var scale, out var rotation, out var translation);
 
-                var absWeight = MathF.Abs(slave.Weight);
-                var twistToApply = slave.Weight < 0f ? Quaternion.Inverse(slaveTwist) : slaveTwist;
-
-                Quaternion weightedTwist;
-                if (MathF.Abs(absWeight - 1f) < 1e-6f)
-                {
-                    weightedTwist = twistToApply;
-                }
-                else
-                {
-                    weightedTwist = Quaternion.Slerp(Quaternion.Identity, twistToApply, absWeight);
-                }
-
-                var newRotation = Quaternion.Multiply(weightedTwist, rotation);
+                var weightedTwist = Quaternion.Slerp(Quaternion.Identity, slaveTwist, slave.Weight);
+                var newRotation = Quaternion.Multiply(rotation, weightedTwist);
 
                 pose[bone.Index] = Matrix4x4.CreateScale(scale)
                     * Matrix4x4.CreateFromQuaternion(newRotation)
