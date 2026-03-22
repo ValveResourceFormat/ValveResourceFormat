@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Enumeration;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -106,9 +107,9 @@ namespace GUI.Controls
             treeView.Nodes.Add(scanningTreeNode);
 
             // Scan for vpks
-            Task.Factory.StartNew(ScanForSteamGames).ContinueWith(t =>
+            Task.Run(ScanForSteamGames).ContinueWith(async t =>
             {
-                InvokeWorkaround(() =>
+                await treeView.InvokeAsync(() =>
                 {
                     if (t.Exception != null)
                     {
@@ -119,11 +120,11 @@ namespace GUI.Controls
                     {
                         scanningTreeNode.Remove();
                     }
-                });
+                }).ConfigureAwait(false);
             });
         }
 
-        private void ScanForSteamGames()
+        private async Task ScanForSteamGames()
         {
             if (GameFolderLocator.SteamPath == null)
             {
@@ -199,16 +200,16 @@ namespace GUI.Controls
                     {
                         if (path.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
                         {
-                            GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath);
+                            await GetOrLoadAppImage(game.AppID, libraryAssetsKv, libraryCachePath).ConfigureAwait(false);
                         }
                     }
                 }
 
-                InvokeWorkaround(() =>
+                await treeView.InvokeAsync(() =>
                 {
                     RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
                     RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
-                });
+                }).ConfigureAwait(false);
             }
 
             if (SteamGames.Count == 0)
@@ -249,7 +250,7 @@ namespace GUI.Controls
                 .DistinctBy(static game => game.GamePath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            Parallel.ForEach(gamesToScan, (game) =>
+            await Parallel.ForEachAsync(gamesToScan, async (game, cancellationToken) =>
             {
                 var (appID, appName, steamPath, gamePath) = game;
                 var foundFiles = new List<TreeNode>();
@@ -352,7 +353,7 @@ namespace GUI.Controls
                 foundFiles.Sort(SortFileNodes);
                 var foundFilesArray = foundFiles.ToArray();
 
-                var treeNodeImage = GetOrLoadAppImage(appID, libraryAssetsKv, libraryCachePath);
+                var treeNodeImage = await GetOrLoadAppImage(appID, libraryAssetsKv, libraryCachePath, cancellationToken).ConfigureAwait(false);
 
                 if (treeNodeImage < 0)
                 {
@@ -368,7 +369,7 @@ namespace GUI.Controls
                 };
                 treeNode.Nodes.AddRange(foundFilesArray);
 
-                InvokeWorkaround(() =>
+                await treeView.InvokeAsync(() =>
                 {
                     var newNode = new TreeDataNode
                     {
@@ -400,27 +401,15 @@ namespace GUI.Controls
                     {
                         OnFilterTextBoxTextChanged(null, EventArgs.Empty); // Hack: re-filter
                     }
-                });
-            });
+                }, cancellationToken).ConfigureAwait(false);
+            }).ConfigureAwait(false);
 
             // Update bookmarks and recent files with workshop titles and app logos
-            InvokeWorkaround(() =>
+            await treeView.InvokeAsync(() =>
             {
                 RedrawList(APPID_BOOKMARKS, GetBookmarkedFileNodes());
                 RedrawList(APPID_RECENT_FILES, GetRecentFileNodes());
-            });
-        }
-
-        private void InvokeWorkaround(Action action)
-        {
-            if (treeView.InvokeRequired && !treeView.IsDisposed)
-            {
-                treeView.Invoke(action);
-            }
-            else
-            {
-                action();
-            }
+            }).ConfigureAwait(false);
         }
 
         private void OnTreeViewNodeMouseDoubleClick(object sender, TreeNodeMouseClickEventArgs e)
@@ -724,7 +713,7 @@ namespace GUI.Controls
             filterTextBox.Focus();
         }
 
-        private int GetOrLoadAppImage(int appID, KVObject? libraryAssetsKv, string libraryCachePath)
+        private async Task<int> GetOrLoadAppImage(int appID, KVObject? libraryAssetsKv, string libraryCachePath, CancellationToken cancellationToken = default)
         {
             if (MainForm.GameIcons.TryGetValue(appID, out var treeNodeImage))
             {
@@ -758,12 +747,13 @@ namespace GUI.Controls
                 {
                     using var appIcon = GetAppResizedImage(appIconPath);
 
-                    InvokeWorkaround(() =>
+                    treeNodeImage = await treeView.InvokeAsync(() =>
                     {
-                        treeNodeImage = MainForm.ImageList.Images.Count;
+                        var imageIndex = MainForm.ImageList.Images.Count;
                         MainForm.AddFixedImageToImageList(appIcon, MainForm.ImageList);
-                        MainForm.GameIcons.TryAdd(appID, treeNodeImage);
-                    });
+                        MainForm.GameIcons.TryAdd(appID, imageIndex);
+                        return imageIndex;
+                    }, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception)
