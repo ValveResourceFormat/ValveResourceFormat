@@ -116,17 +116,19 @@ public class ViewmodelSceneNode : ModelSceneNode
             State = newState;
             var looping = newState == AnimationState.Idle;
 
-            var timeScale = 0.3f;
+            var timeScale = 1f; // 0.3f;
 
-            SetAnimationByName(TargetAnimation);
+            var fadeIn = newState is AnimationState.Draw or AnimationState.Attack ? 0f : 0.35f;
+
             AnimationController.IsPaused = false;
             AnimationController.Looping = looping;
             AnimationController.FrametimeMultiplier = timeScale;
+            SetAnimationByName(TargetAnimation, fadeIn);
 
-            SelectedItem?.SetAnimationByName(TargetAnimation + ".secondary_0");
             SelectedItem?.AnimationController.IsPaused = false;
             SelectedItem?.AnimationController.Looping = looping;
             SelectedItem?.AnimationController.FrametimeMultiplier = timeScale;
+            SelectedItem?.SetAnimationByName(TargetAnimation + ".secondary_0", fadeIn);
         }
     }
 
