@@ -368,7 +368,7 @@ namespace GUI.Types.GLViewers
                 // Clear mouse wheel events after processing (they're one-time events)
                 CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
 
-                GrabbedMouse = !Input.NoClip && Form.ActiveForm != null;
+                GrabbedMouse = !Input.NoClip && !Paused;
             }
         }
 
