@@ -19,19 +19,17 @@ namespace ValveResourceFormat.Renderer
             var pose = Pose.AsSpan();
 
             // boolean value blinking every second
-            var time = DateTime.Now;
-            var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
+            //var time = DateTime.Now;
+            //var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
+            //if (blink)
+            //{
+            //    foreach (var constraint in TwistConstraints)
+            //    {
+            //        EvaluateTiltTwistConstraint(constraint, skeleton, pose);
+            //    }
+            //}
 
-            if (blink)
-            {
-                EvaluateViewmodelConstraints(skeleton, pose);
-                return;
-            }
-
-            foreach (var constraint in TwistConstraints)
-            {
-                EvaluateTiltTwistConstraint(constraint, skeleton, pose);
-            }
+            EvaluateViewmodelConstraints(skeleton, pose);
         }
 
         private static void EvaluateViewmodelConstraints(Skeleton skeleton, Span<Matrix4x4> pose)
