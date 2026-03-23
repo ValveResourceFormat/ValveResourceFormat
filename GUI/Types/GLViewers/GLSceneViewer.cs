@@ -366,7 +366,7 @@ namespace GUI.Types.GLViewers
                 Input.Tick(frameTime, pressedKeys, new Vector2(mouseDelta.X, mouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = mouseDelta;
 
-                GrabbedMouse = !Input.NoClip && Form.ActiveForm != null;
+                GrabbedMouse = !Input.NoClip && !Paused;
             }
         }
 
