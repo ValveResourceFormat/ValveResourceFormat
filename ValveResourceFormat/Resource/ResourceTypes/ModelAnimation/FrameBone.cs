@@ -77,5 +77,51 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var angle = Quaternion.Slerp(Angle, targetAngle, t);
             return new(positionScale, angle);
         }
+
+        /// <summary>
+        /// Combines two transforms.
+        /// </summary>
+        public static FrameBone operator *(FrameBone lhs, FrameBone rhs)
+        {
+            // todo: multiply without matrix
+
+            var rhsMatrix = rhs.ToMatrix();
+            var lhsMatrix = lhs.ToMatrix();
+            var resultMatrix = lhsMatrix * rhsMatrix;
+
+            // Decompose to extract components
+            Matrix4x4.Decompose(resultMatrix, out var scale, out var rotation, out var translation);
+
+            return new FrameBone(translation, scale.X, Quaternion.Normalize(rotation));
+        }
+
+        /// <summary>
+        /// Combines two transforms.
+        /// </summary>
+        public static FrameBone Multiply(FrameBone left, FrameBone right)
+        {
+            return left * right;
+        }
+
+        /// <summary>
+        /// Converts the transform to a matrix.
+        /// </summary>
+        public readonly Matrix4x4 ToMatrix()
+        {
+            var scaleMatrix = Matrix4x4.CreateScale(Scale);
+            var rotationMatrix = Matrix4x4.CreateFromQuaternion(Angle);
+            var translationMatrix = Matrix4x4.CreateTranslation(Position);
+
+            return scaleMatrix * rotationMatrix * translationMatrix;
+        }
+
+        /// <summary>
+        /// Converts the transform to a matrix.
+        /// </summary>
+        public static FrameBone FromMatrix(Matrix4x4 matrix)
+        {
+            Matrix4x4.Decompose(matrix, out var scale, out var rotation, out var translation);
+            return new FrameBone(translation, scale.X, Quaternion.Normalize(rotation));
+        }
     }
 }
