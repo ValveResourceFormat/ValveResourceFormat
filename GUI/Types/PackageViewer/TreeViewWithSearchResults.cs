@@ -302,6 +302,7 @@ namespace GUI.Types.PackageViewer
                 AddFileToListView(file);
             }
 
+            mainListView.VirtualListSize = ListViewItems.Count;
             mainListView.ListViewItemSorter = sorter;
             mainListView.EndUpdate();
 
@@ -311,6 +312,11 @@ namespace GUI.Types.PackageViewer
             }
 
             AssignIcons();
+
+            if (ListViewItems.Count > 0)
+            {
+                mainListView.EnsureVisible(0);
+            }
         }
 
         private void AssignIcons()
@@ -1056,29 +1062,11 @@ namespace GUI.Types.PackageViewer
         {
             var results = mainTreeView.Search(searchText, selectedSearchType);
 
-            ThumbnailRenderTokenSource?.Dispose();
-            ThumbnailRenderTokenSource = new CancellationTokenSource();
-            DrainThumbnailQueue();
-
-            mainListView.BeginUpdate();
-
-            ListViewItems.Clear();
-            mainListView.VirtualListSize = 0;
-
-            var sorter = mainListView.ListViewItemSorter;
-            mainListView.ListViewItemSorter = null;
-
-            foreach (var entry in results)
-            {
-                AddFileToListView(entry);
-            }
-
-            mainListView.ListViewItemSorter = sorter;
+            var node = new VirtualPackageNode(string.Empty, 0, null);
+            node.Files.AddRange(results);
 
             DisplayMainListView();
-            mainListView.EndUpdate();
-
-            AssignIcons();
+            MainListView_DisplayNodes(node, updatePath: false);
         }
 
         private void MainListView_ColumnClick(object? sender, ColumnClickEventArgs e)
