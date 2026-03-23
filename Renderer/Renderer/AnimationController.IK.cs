@@ -1,3 +1,4 @@
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer
@@ -17,10 +18,93 @@ namespace ValveResourceFormat.Renderer
             var skeleton = Skeleton;
             var pose = Pose.AsSpan();
 
+            // boolean value blinking every second
+            var time = DateTime.Now;
+            var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
+
+            if (blink)
+            {
+                EvaluateViewmodelConstraints(skeleton, pose);
+                return;
+            }
+
             foreach (var constraint in TwistConstraints)
             {
                 EvaluateTiltTwistConstraint(constraint, skeleton, pose);
             }
+        }
+
+        private static void EvaluateViewmodelConstraints(Skeleton skeleton, Span<Matrix4x4> pose)
+        {
+            Span<(string Target, string Twist, string Twist1, float Side)> constraints =
+            [
+                ("hand_r", "arm_lower_r_twist", "arm_lower_r_twist1", 1.0f),
+                ("hand_l", "arm_lower_l_twist", "arm_lower_l_twist1", -1.0f),
+                ("arm_lower_r", "arm_upper_r_twist", "arm_upper_r_twist1", 1.0f),
+                ("arm_lower_l", "arm_upper_l_twist", "arm_upper_l_twist1", -1.0f),
+            ];
+
+            foreach (var constraint in constraints)
+            {
+                var target = skeleton[constraint.Target];
+                var twist = skeleton[constraint.Twist];
+                var twist1 = skeleton[constraint.Twist1];
+
+                if (target != null && twist != null && twist1 != null)
+                {
+                    ApplyTwistIK(pose, target, twist, twist1, constraint.Side);
+                }
+            }
+        }
+
+        private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone twist, Bone twist1, float side)
+        {
+            // Extract hand rotation and calculate twist rotation
+            Matrix4x4.Decompose(pose[hand.Index], out _, out var handRotation, out _);
+            var handEuler = Vector3.RadiansToDegrees(QuaternionToEuler(handRotation)); // ModelExtract.ToEulerAngles(handRotation);
+            var handTwist = Quaternion.CreateFromAxisAngle(Vector3.UnitX, float.DegreesToRadians(handEuler.X - 65f) * side);
+            handTwist = Quaternion.Slerp(Quaternion.Identity, handTwist, 1.0f);
+
+            // Rotate in local space
+            Matrix4x4.Decompose(pose[twist1.Index], out var scale, out var rotation, out var translation);
+            pose[twist1.Index] = Matrix4x4.CreateScale(scale)
+                * Matrix4x4.CreateFromQuaternion(rotation * handTwist)
+                * Matrix4x4.CreateTranslation(translation);
+
+            // Apply to twist bone
+            Matrix4x4.Decompose(pose[twist1.Index], out scale, out rotation, out translation);
+
+            pose[twist.Index] = Matrix4x4.CreateScale(scale)
+                * Matrix4x4.CreateFromQuaternion(rotation * handTwist)
+                * Matrix4x4.CreateTranslation(translation);
+        }
+
+        private static Vector3 QuaternionToEuler(Quaternion q)
+        {
+            var euler = new Vector3();
+
+            // Roll (x-axis rotation)
+            var sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
+            var cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+            euler.X = MathF.Atan2(sinr_cosp, cosr_cosp);
+
+            // Pitch (y-axis rotation)
+            var sinp = 2 * (q.W * q.Y - q.Z * q.X);
+            if (MathF.Abs(sinp) >= 1)
+            {
+                euler.Y = MathF.CopySign(MathF.PI / 2, sinp);
+            }
+            else
+            {
+                euler.Y = MathF.Asin(sinp);
+            }
+
+            // Yaw (z-axis rotation)
+            var siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
+            var cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+            euler.Z = MathF.Atan2(siny_cosp, cosy_cosp);
+
+            return euler;
         }
 
         private readonly struct ConstraintEvaluation
