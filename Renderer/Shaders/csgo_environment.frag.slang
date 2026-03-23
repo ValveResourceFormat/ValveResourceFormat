@@ -33,7 +33,7 @@ uniform sampler2D g_tNormal1;
     uniform sampler2D g_tNormalDetail1;
 #endif
 
-uniform bool g_bMetalness1;
+uniform bool g_bMetalness1 = true;
 uniform bool g_bModelTint1 = true;
 uniform int g_nColorCorrectionMode1 = 0;
 uniform float g_fTextureNormalContrast1 = 1.0;
@@ -75,7 +75,7 @@ uniform mat4 g_mTextureAdjust1;
         // ...
     #endif
 
-    uniform bool g_bMetalness2;
+    uniform bool g_bMetalness2 = true;
     uniform bool g_bModelTint2 = true;
     uniform int g_nColorCorrectionMode2 = 0;
     uniform float g_fTextureNormalContrast2 = 1.0;
@@ -99,7 +99,7 @@ uniform mat4 g_mTextureAdjust1;
         uniform sampler2D g_tHeight3;
         uniform sampler2D g_tNormal3;
 
-        uniform bool g_bMetalness3;
+        uniform bool g_bMetalness3 = true;
         uniform bool g_bModelTint3 = true;
         uniform int g_nColorCorrectionMode3 = 0;
         uniform float g_fTextureNormalContrast3 = 1.0;
