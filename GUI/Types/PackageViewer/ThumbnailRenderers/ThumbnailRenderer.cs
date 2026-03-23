@@ -53,13 +53,13 @@ internal abstract class ThumbnailRenderer : IDisposable
             Flags = ContextFlags.ForwardCompatible,
             Profile = ContextProfile.Core,
             StartVisible = false,
+            StartFocused = false,
         };
 
         NativeWindow = new NativeWindow(nativeWindowSettings);
         RendererContext = new RendererContext(context, VrfGuiContext.Logger)
         {
             FieldOfView = 75,
-            MaxTextureSize = 1024,
         };
 
         NativeWindow.MakeCurrent();
@@ -153,7 +153,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         return resource;
     }
 
-    public virtual Bitmap? Render(PackageEntry entry, VrfGuiContext context, ThumbnailSizes Size, CancellationToken cancellationToken)
+    public virtual Bitmap? Render(PackageEntry entry, VrfGuiContext context, ThumbnailSizes thumbnailSize, CancellationToken cancellationToken)
     {
         Debug.Assert(SceneRenderer != null);
 
@@ -164,7 +164,13 @@ internal abstract class ThumbnailRenderer : IDisposable
             return null;
         }
 
-        NativeWindow?.MakeCurrent();
+        Debug.Assert(NativeWindow != null, "NativeWindow is not created.");
+        Debug.Assert(RendererContext != null, "RendererContext is not created.");
+        Debug.Assert(SceneRenderer != null, "SceneRenderer is not loaded.");
+        Debug.Assert(framebuffer is not null, "Framebuffer is not created.");
+        Debug.Assert(textRenderer != null, "TextRenderer is not created.");
+
+        NativeWindow.MakeCurrent();
 
         SceneRenderer.Scene.Clear();
 
@@ -173,15 +179,16 @@ internal abstract class ThumbnailRenderer : IDisposable
         // Initialize scene (creates lighting buffers, octrees, etc.)
         SceneRenderer.Scene.Initialize();
 
-        var size = (int)Size;
+        var size = (int)thumbnailSize;
 
-        NativeWindow?.ClientSize = new(size);
-        NativeWindow?.Size = new OpenTK.Mathematics.Vector2i(size, size);
+        RendererContext.MaxTextureSize = size;
+        NativeWindow.ClientSize = new(size);
+        NativeWindow.Size = new OpenTK.Mathematics.Vector2i(size, size);
         GL.Viewport(0, 0, size, size);
-        SceneRenderer?.Camera.SetViewportSize(size, size);
-        framebuffer?.Resize(size, size);
+        SceneRenderer.Camera.SetViewportSize(size, size);
+        framebuffer.Resize(size, size);
 
-        NativeWindow?.MakeCurrent();
+        NativeWindow.MakeCurrent();
 
         var updateContext = new Scene.UpdateContext
         {
@@ -194,10 +201,6 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         GL.ClearColor(Color.Green);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-        Debug.Assert(SceneRenderer != null, "SceneRenderer is not loaded.");
-        Debug.Assert(framebuffer is not null, "Framebuffer is not created.");
-        Debug.Assert(textRenderer != null, "TextRenderer is not created.");
 
         SceneRenderer.Render(framebuffer);
         framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
