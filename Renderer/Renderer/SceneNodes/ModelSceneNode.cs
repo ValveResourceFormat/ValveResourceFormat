@@ -488,6 +488,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             SetAnimation(activeAnimation);
         }
 
+        /// <summary>Activates the animation with the given name with a blend-in time, or stops animation if not found.</summary>
+        /// <param name="animationName">The name of the animation to activate.</param>
+        /// <param name="blendTime">The time in seconds to blend from the current animation to the new one.</param>
+        public void SetAnimationByName(string animationName, float blendTime)
+        {
+            var activeAnimation = Animations.FirstOrDefault(a => a.Name == animationName);
+            SetAnimation(activeAnimation, blendTime);
+        }
+
         /// <summary>
         /// Activates the named animation for world preview mode.
         /// </summary>
@@ -516,7 +525,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Activates the given animation instance, or clears the active animation when <see langword="null"/>.</summary>
         public void SetAnimation(Animation? activeAnimation)
         {
-            AnimationController.SetAnimation(activeAnimation);
+            SetAnimation(activeAnimation, 0f);
+        }
+
+        /// <summary>Activates the given animation instance with a blend-in time, or clears the active animation when <see langword="null"/>.</summary>
+        /// <param name="activeAnimation">The animation to activate, or <see langword="null"/> to clear.</param>
+        /// <param name="blendTime">The time in seconds to blend from the current animation to the new one.</param>
+        public void SetAnimation(Animation? activeAnimation, float blendTime)
+        {
+            AnimationController.SetAnimation(activeAnimation, blendTime);
             UpdateBoundingBox();
 
             if (activeAnimation != default)
