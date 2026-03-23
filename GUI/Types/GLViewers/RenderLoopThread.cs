@@ -145,8 +145,8 @@ namespace GUI.Types.GLViewers
 
                 if (!isPaused && Form.ActiveForm == null)
                 {
-                    isPaused = false;
-                    //renderSignal.Reset();
+                    isPaused = true;
+                    renderSignal.Reset();
                 }
 
                 control.Draw(isPaused);
