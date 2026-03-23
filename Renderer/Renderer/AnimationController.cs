@@ -22,6 +22,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
 
+        /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
         public bool Looping { get; set; } = true;
 
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
@@ -116,10 +117,11 @@ namespace ValveResourceFormat.Renderer
             if (CurrentSubController is { } subController)
             {
                 subController.Handler.IsPaused = IsPaused;
-                subController.Handler.Time = Time;
+                // subController.Handler.Time = Time;
                 subController.Handler.Looping = Looping;
+                subController.Handler.FrametimeMultiplier = FrametimeMultiplier;
 
-                var updated = subController.Handler.Update(0f);
+                var updated = subController.Handler.Update(timeStep);
                 if (!updated && !forceUpdate)
                 {
                     return false;
