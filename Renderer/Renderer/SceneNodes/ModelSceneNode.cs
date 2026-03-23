@@ -220,7 +220,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            AnimationController.ApplyConstraints();
+            var time = DateTime.Now;
+            // boolean value ticking every second
+            var tick = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
+            if (tick)
+            {
+                AnimationController.ApplyConstraints();
+            }
 
             if (IsAnimated)
             {
