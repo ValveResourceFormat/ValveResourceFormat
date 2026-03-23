@@ -39,9 +39,10 @@ namespace ValveResourceFormat.Renderer
             Span<(string Target, string Twist, string Twist1, float Side)> constraints =
             [
                 ("hand_r", "arm_lower_r_twist", "arm_lower_r_twist1", 1.0f),
-                ("hand_l", "arm_lower_l_twist", "arm_lower_l_twist1", -1.0f),
                 ("arm_lower_r", "arm_upper_r_twist", "arm_upper_r_twist1", 1.0f),
-                ("arm_lower_l", "arm_upper_l_twist", "arm_upper_l_twist1", -1.0f),
+
+                ("hand_l", "arm_lower_l_twist", "arm_lower_l_twist1", -0.4f),
+                ("arm_lower_l", "arm_upper_l_twist", "arm_upper_l_twist1", -0.4f),
             ];
 
             foreach (var constraint in constraints)
@@ -50,14 +51,14 @@ namespace ValveResourceFormat.Renderer
                 var twist = skeleton[constraint.Twist];
                 var twist1 = skeleton[constraint.Twist1];
 
-                if (target != null && twist != null && twist1 != null)
+                if (target != null && twist1 != null)
                 {
                     ApplyTwistIK(pose, target, twist, twist1, constraint.Side);
                 }
             }
         }
 
-        private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone twist, Bone twist1, float side)
+        private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone? twist, Bone twist1, float side)
         {
             // Extract hand rotation and calculate twist rotation
             Matrix4x4.Decompose(pose[hand.Index], out _, out var handRotation, out _);
@@ -74,9 +75,12 @@ namespace ValveResourceFormat.Renderer
             // Apply to twist bone
             Matrix4x4.Decompose(pose[twist1.Index], out scale, out rotation, out translation);
 
-            pose[twist.Index] = Matrix4x4.CreateScale(scale)
-                * Matrix4x4.CreateFromQuaternion(rotation * handTwist)
-                * Matrix4x4.CreateTranslation(translation);
+            if (twist != null)
+            {
+                pose[twist.Index] = Matrix4x4.CreateScale(scale)
+                    * Matrix4x4.CreateFromQuaternion(rotation * handTwist)
+                    * Matrix4x4.CreateTranslation(translation);
+            }
         }
 
         private static Vector3 QuaternionToEuler(Quaternion q)
