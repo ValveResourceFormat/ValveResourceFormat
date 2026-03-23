@@ -53,7 +53,7 @@ namespace GUI.Controls
             groupBox1 = new ThemedGroupBox();
             groupBox2 = new ThemedGroupBox();
             setFovTo4by3Button = new ThemedButton();
-            shadowResolutionInput = new ThemedIntNumeric() { MaxValue = 4096, MinValue = 16 };
+            shadowQualityComboBox = new ThemedComboBox();
             shadowResolutionLabel = new System.Windows.Forms.Label();
             groupBox3 = new ThemedGroupBox();
             textViewerFontSizeLabel = new System.Windows.Forms.Label();
@@ -77,7 +77,7 @@ namespace GUI.Controls
             // 
             vsyncCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             vsyncCheckBox.AutoSize = true;
-            vsyncCheckBox.Location = new System.Drawing.Point(15, 227);
+            vsyncCheckBox.Location = new System.Drawing.Point(15, 250);
             vsyncCheckBox.Name = "vsyncCheckBox";
             vsyncCheckBox.Size = new System.Drawing.Size(104, 23);
             vsyncCheckBox.TabIndex = 8;
@@ -260,7 +260,7 @@ namespace GUI.Controls
             // 
             displayFpsCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             displayFpsCheckBox.AutoSize = true;
-            displayFpsCheckBox.Location = new System.Drawing.Point(15, 274);
+            displayFpsCheckBox.Location = new System.Drawing.Point(15, 282);
             displayFpsCheckBox.Name = "displayFpsCheckBox";
             displayFpsCheckBox.Size = new System.Drawing.Size(98, 23);
             displayFpsCheckBox.TabIndex = 9;
@@ -301,7 +301,7 @@ namespace GUI.Controls
             groupBox2.Controls.Add(mouseSensitivitySlider);
             groupBox2.Controls.Add(mouseSensitivityValueLabel);
             groupBox2.Controls.Add(mouseSensitivityLabel);
-            groupBox2.Controls.Add(shadowResolutionInput);
+            groupBox2.Controls.Add(shadowQualityComboBox);
             groupBox2.Controls.Add(shadowResolutionLabel);
             groupBox2.Controls.Add(antiAliasingLabel);
             groupBox2.Controls.Add(antiAliasingComboBox);
@@ -333,26 +333,32 @@ namespace GUI.Controls
             setFovTo4by3Button.UseVisualStyleBackColor = true;
             setFovTo4by3Button.Click += OnSetFovTo4by3ButtonClick;
             // 
-            // shadowResolutionInput
+            // shadowQualityComboBox
             // 
-            shadowResolutionInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            shadowResolutionInput.Increment = 64;
-            shadowResolutionInput.Location = new System.Drawing.Point(170, 180);
-            shadowResolutionInput.Name = "shadowResolutionInput";
-            shadowResolutionInput.Size = new System.Drawing.Size(100, 25);
-            shadowResolutionInput.TabIndex = 12;
-            shadowResolutionInput.Value = 2048;
-            shadowResolutionInput.ValueChanged += OnShadowResolutionValueChanged;
+            shadowQualityComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            shadowQualityComboBox.BackColor = System.Drawing.Color.FromArgb(34, 39, 51);
+            shadowQualityComboBox.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            shadowQualityComboBox.DropDownBackColor = System.Drawing.Color.FromArgb(34, 39, 51);
+            shadowQualityComboBox.DropDownForeColor = System.Drawing.Color.White;
+            shadowQualityComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            shadowQualityComboBox.ForeColor = System.Drawing.Color.White;
+            shadowQualityComboBox.HeaderColor = System.Drawing.Color.FromArgb(51, 57, 74);
+            shadowQualityComboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            shadowQualityComboBox.Location = new System.Drawing.Point(170, 215);
+            shadowQualityComboBox.Name = "shadowQualityComboBox";
+            shadowQualityComboBox.Size = new System.Drawing.Size(100, 26);
+            shadowQualityComboBox.TabIndex = 12;
+            shadowQualityComboBox.SelectedIndexChanged += OnShadowQualityChanged;
             // 
             // shadowResolutionLabel
             // 
             shadowResolutionLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             shadowResolutionLabel.AutoSize = true;
-            shadowResolutionLabel.Location = new System.Drawing.Point(15, 182);
+            shadowResolutionLabel.Location = new System.Drawing.Point(15, 217);
             shadowResolutionLabel.Name = "shadowResolutionLabel";
             shadowResolutionLabel.Size = new System.Drawing.Size(125, 19);
             shadowResolutionLabel.TabIndex = 11;
-            shadowResolutionLabel.Text = "Shadow resolution:";
+            shadowResolutionLabel.Text = "Shadow quality:";
             // 
             // groupBox3
             // 
@@ -538,7 +544,7 @@ namespace GUI.Controls
         private System.Windows.Forms.CheckBox quickPreviewSoundsCheckbox;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
         private System.Windows.Forms.Label shadowResolutionLabel;
-        private ThemedIntNumeric shadowResolutionInput;
+        private ThemedComboBox shadowQualityComboBox;
         private System.Windows.Forms.Label themeLabel;
         private System.Windows.Forms.Label textViewerFontSizeLabel;
         private ThemedIntNumeric textViewerFontSize;

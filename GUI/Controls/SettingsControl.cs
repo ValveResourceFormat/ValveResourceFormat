@@ -10,6 +10,8 @@ namespace GUI.Controls
     partial class SettingsControl : UserControl
     {
         private static readonly int[] AntiAliasingSampleOptions = [0, 2, 4, 8, 16];
+        private static readonly int[] ShadowQualityResolutions = [512, 1024, 2048, 4096];
+        private static readonly string[] ShadowQualityNames = ["Low", "Medium", "High", "Very High"];
 
         public SettingsControl()
         {
@@ -24,10 +26,24 @@ namespace GUI.Controls
             }
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
-            shadowResolutionInput.Value = Settings.Config.ShadowResolution;
             fovInput.Value = Settings.Config.FieldOfView;
             mouseSensitivitySlider.Value = (int)(Settings.Config.MouseSensitivity * 10f);
             mouseSensitivityValueLabel.Text = Settings.Config.MouseSensitivity.ToString("0.0");
+
+            shadowQualityComboBox.Items.AddRange(ShadowQualityNames);
+            var currentShadowResolution = Settings.Config.ShadowResolution;
+            var shadowQualityIndex = ShadowQualityResolutions.Length - 1;
+
+            for (var i = 0; i < ShadowQualityResolutions.Length; i++)
+            {
+                if (currentShadowResolution <= ShadowQualityResolutions[i])
+                {
+                    shadowQualityIndex = i;
+                    break;
+                }
+            }
+
+            shadowQualityComboBox.SelectedIndex = shadowQualityIndex;
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
@@ -139,14 +155,14 @@ namespace GUI.Controls
             Settings.Config.MaxTextureSize = maxTextureSizeInput.Value;
         }
 
-        private void OnShadowResolutionValueChanged(object sender, EventArgs e)
+        private void OnShadowQualityChanged(object sender, EventArgs e)
         {
-            if (!IsHandleCreated)
+            if (!IsHandleCreated || shadowQualityComboBox.SelectedIndex < 0)
             {
                 return;
             }
 
-            Settings.Config.ShadowResolution = shadowResolutionInput.Value;
+            Settings.Config.ShadowResolution = ShadowQualityResolutions[shadowQualityComboBox.SelectedIndex];
         }
 
         private void OnFovValueChanged(object sender, EventArgs e)
