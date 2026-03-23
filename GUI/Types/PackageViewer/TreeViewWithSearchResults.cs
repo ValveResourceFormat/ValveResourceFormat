@@ -1319,6 +1319,7 @@ namespace GUI.Types.PackageViewer
         public void ReplaceListViewWithControl(TabPage tab)
         {
             mainListView.Visible = false;
+            SetGridModeToolbarVisible(false);
 
             var tabs = new ThemedTabControl
             {
@@ -1348,6 +1349,12 @@ namespace GUI.Types.PackageViewer
             }
         }
 
+        private void SetGridModeToolbarVisible(bool visible)
+        {
+            tableLayoutPanel2.Visible = visible;
+            tableLayoutPanel1.RowStyles[0].Height = visible ? 40F : 0F;
+        }
+
         private void DisplayMainListView()
         {
             if (mainListView.Parent == null)
@@ -1363,6 +1370,7 @@ namespace GUI.Types.PackageViewer
                 }
             }
 
+            SetGridModeToolbarVisible(true);
             mainListView.Visible = true;
         }
 
