@@ -1,3 +1,4 @@
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.ResourceTypes;
 
@@ -18,12 +19,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="particleSystem">The particle system resource to simulate and render.</param>
-        public ParticleSceneNode(Scene scene, ParticleSystem particleSystem)
+        /// <param name="particleSnapshot">Optional snapshot to provide initial particle data (e.g. from a map entity).</param>
+        public ParticleSceneNode(Scene scene, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null)
             : base(scene)
         {
-            particleRenderer = new ParticleRenderer(particleSystem, Scene.RendererContext);
+            particleRenderer = new ParticleRenderer(particleSystem, Scene.RendererContext, particleSnapshot);
             LocalBoundingBox = particleRenderer.LocalBoundingBox;
         }
+
+        /// <summary>
+        /// Restarts the particle system from the beginning.
+        /// </summary>
+        public void Restart() => particleRenderer.Restart();
 
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
@@ -34,8 +41,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             particleRenderer.MainControlPoint.Position = Transform.Translation;
-            particleRenderer.Update(context.Timestep * FrametimeMultiplier);
-            LocalBoundingBox = particleRenderer.LocalBoundingBox;
+
+            var frameTime = context.Timestep * FrametimeMultiplier;
+
+            if (frameTime > 0f)
+            {
+                particleRenderer.Update(frameTime);
+                LocalBoundingBox = particleRenderer.LocalBoundingBox;
+            }
 
             // Restart if all emitters are done and all particles expired
             if (particleRenderer.IsFinished())

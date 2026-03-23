@@ -143,7 +143,7 @@ namespace GUI.Types.GLViewers
             slowmodeTrackBar = UiControl.AddTrackBar(value =>
             {
                 animationController.FrametimeMultiplier = value;
-            });
+            }, animationController.FrametimeMultiplier);
 
             animationPlayPause.Enabled = false;
             animationTrackBar.Enabled = false;

@@ -870,13 +870,27 @@ namespace ValveResourceFormat.Renderer.World
 
                         try
                         {
-                            var particleNode = new ParticleSceneNode(scene, particleSystem)
+                            ParticleSnapshot? particleSnapshot = null;
+                            var snapshotFile = entity.GetProperty<string>("snapshot_file");
+
+                            if (!string.IsNullOrEmpty(snapshotFile))
+                            {
+                                var snapshotResource = RendererContext.FileLoader.LoadFileCompiled(snapshotFile);
+
+                                if (snapshotResource?.GetBlockByType(BlockType.SNAP) is ParticleSnapshot snapshot)
+                                {
+                                    particleSnapshot = snapshot;
+                                }
+                            }
+
+                            var particleNode = new ParticleSceneNode(scene, particleSystem, particleSnapshot)
                             {
                                 Name = particle,
                                 Transform = Matrix4x4.CreateTranslation(origin),
                                 LayerName = "Particles",
                                 EntityData = entity,
                             };
+
                             scene.Add(particleNode, true);
                         }
                         catch (Exception e)

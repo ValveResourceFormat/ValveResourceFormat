@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Particles.Emitters;
 using ValveResourceFormat.Renderer.Particles.Initializers;
 using ValveResourceFormat.Renderer.Particles.Operators;
@@ -60,10 +61,12 @@ namespace ValveResourceFormat.Renderer.Particles
         private bool hasStarted;
 
         private readonly ParticleCollection particleCollection;
+        private readonly Dictionary<int, ParticleSnapshot> controlPointSnapshots = [];
+        private readonly int snapshotControlPoint;
         private int particlesEmitted;
         private ParticleSystemRenderState systemRenderState;
 
-        public ParticleRenderer(ParticleSystem particleSystem, RendererContext rendererContext)
+        public ParticleRenderer(ParticleSystem particleSystem, RendererContext rendererContext, ParticleSnapshot? particleSnapshot = null)
         {
             emitParticleAction = EmitParticle;
 
@@ -91,6 +94,27 @@ namespace ValveResourceFormat.Renderer.Particles
                 EndEarly = false
             };
 
+            snapshotControlPoint = parse.Int32("m_nSnapshotControlPoint", 0);
+
+            if (particleSnapshot != null)
+            {
+                controlPointSnapshots[snapshotControlPoint] = particleSnapshot;
+            }
+            else if (parse.Data.ContainsKey("m_hSnapshot"))
+            {
+                var snapshotPath = parse.Data.GetProperty<string>("m_hSnapshot");
+
+                if (!string.IsNullOrEmpty(snapshotPath))
+                {
+                    var snapshotResource = RendererContext.FileLoader.LoadFileCompiled(snapshotPath);
+
+                    if (snapshotResource?.GetBlockByType(BlockType.SNAP) is ParticleSnapshot snap)
+                    {
+                        controlPointSnapshots[snapshotControlPoint] = snap;
+                    }
+                }
+            }
+
             Name = particleSystem.Resource?.FileName ?? "<unnamed>";
 
             SetupEmitters(particleSystem.GetEmitters());
@@ -103,6 +127,15 @@ namespace ValveResourceFormat.Renderer.Particles
             SetupChildParticles(particleSystem.GetChildParticleNames(true));
 
             CalculateBounds();
+        }
+
+        /// <summary>
+        /// Gets the particle snapshot associated with the given control point, or null if none exists.
+        /// </summary>
+        internal ParticleSnapshot? GetControlPointSnapshot(int controlPoint)
+        {
+            controlPointSnapshots.TryGetValue(controlPoint, out var snap);
+            return snap;
         }
 
         public void Start()
@@ -168,6 +201,8 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             Stop();
             systemRenderState.Age = 0;
+            systemRenderState.ParticleCount = 0;
+            particlesEmitted = 0;
             particleCollection.Clear();
             Start();
 

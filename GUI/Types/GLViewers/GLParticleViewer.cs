@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
@@ -16,6 +17,7 @@ namespace GUI.Types.GLViewers
         private readonly ParticleSystem particleSystem;
         private ParticleSceneNode? particleSceneNode;
         private GLViewerSliderControl? slowmodeTrackBar;
+        private ThemedButton? restartButton;
 
         private bool ShowRenderBounds { get; set; }
 
@@ -29,6 +31,7 @@ namespace GUI.Types.GLViewers
             base.Dispose();
 
             slowmodeTrackBar?.Dispose();
+            restartButton?.Dispose();
         }
 
         protected override void LoadScene()
@@ -56,10 +59,22 @@ namespace GUI.Types.GLViewers
             AddRenderModeSelectionControl();
             AddBaseGridControl();
 
+            restartButton = new ThemedButton
+            {
+                Text = "Restart",
+                AutoSize = true,
+            };
+            restartButton.Click += (_, _) =>
+            {
+                using var lockedGl = MakeCurrent();
+                particleSceneNode?.Restart();
+            };
+            UiControl.AddControl(restartButton);
+
             slowmodeTrackBar = UiControl.AddTrackBar(value =>
             {
                 particleSceneNode?.FrametimeMultiplier = value;
-            });
+            }, particleSceneNode?.FrametimeMultiplier ?? 1f);
 
             UiControl.AddCheckBox("Show render bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
 

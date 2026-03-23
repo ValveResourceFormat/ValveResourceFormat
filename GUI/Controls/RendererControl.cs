@@ -121,9 +121,10 @@ partial class RendererControl : UserControl
         return selectionControl.CheckedListBox;
     }
 
-    public GLViewerSliderControl AddTrackBar(Action<float> changeCallback)
+    public GLViewerSliderControl AddTrackBar(Action<float> changeCallback, float defaultValue = 0f)
     {
         var trackBar = new GLViewerSliderControl();
+        trackBar.Slider.Value = defaultValue;
         trackBar.Slider.ValueChanged = changeCallback;
 
         ControlsPanel.Controls.Add(trackBar);
