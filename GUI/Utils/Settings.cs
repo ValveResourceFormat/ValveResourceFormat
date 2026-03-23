@@ -11,7 +11,7 @@ namespace GUI.Utils
     /// </summary>
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 13;
+        private const int SettingsFileCurrentVersion = 14;
         private const int RecentFilesLimit = 20;
 
         /// <summary>
@@ -66,6 +66,8 @@ namespace GUI.Utils
             public int ShadowResolution { get; set; }
             /// <summary>Gets or sets the camera field of view in degrees.</summary>
             public float FieldOfView { get; set; }
+            /// <summary>Gets or sets the mouse look sensitivity.</summary>
+            public float MouseSensitivity { get; set; }
             /// <summary>Gets or sets the number of MSAA samples used for anti-aliasing.</summary>
             public int AntiAliasingSamples { get; set; }
             /// <summary>Gets or sets the top edge position of the main window.</summary>
@@ -262,6 +264,11 @@ namespace GUI.Utils
             {
                 Config.PackageGridView = 1;
                 Config.PackageGridSize = 2;
+            }
+
+            if (currentVersion < 14) // version 14: added mouse sensitivity
+            {
+                Config.MouseSensitivity = 4f;
             }
 
             if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)

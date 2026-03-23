@@ -317,7 +317,11 @@ namespace ValveResourceFormat.Renderer
             Pitch = Math.Clamp(Pitch, -PITCH_LIMIT, PITCH_LIMIT);
         }
 
-        private float GetFOV()
+        /// <summary>
+        /// Returns the field of view in radians, as read from the renderer context settings.
+        /// </summary>
+        /// <returns></returns>
+        public float GetFOV()
         {
             return float.DegreesToRadians(RendererContext.FieldOfView);
         }

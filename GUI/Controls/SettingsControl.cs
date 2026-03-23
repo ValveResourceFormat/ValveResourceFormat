@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Utils;
@@ -25,6 +26,8 @@ namespace GUI.Controls
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
             shadowResolutionInput.Value = Settings.Config.ShadowResolution;
             fovInput.Value = Settings.Config.FieldOfView;
+            mouseSensitivitySlider.Value = (int)(Settings.Config.MouseSensitivity * 10f);
+            mouseSensitivityValueLabel.Text = Settings.Config.MouseSensitivity.ToString("0.0");
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
@@ -160,6 +163,18 @@ namespace GUI.Controls
         {
             Settings.Config.FieldOfView = float.RadiansToDegrees(2f * MathF.Atan(3f / 4f));
             fovInput.Value = Settings.Config.FieldOfView;
+        }
+
+        private void OnMouseSensitivitySliderValueChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            var sensitivity = mouseSensitivitySlider.Value / 10f;
+            Settings.Config.MouseSensitivity = sensitivity;
+            mouseSensitivityValueLabel.Text = sensitivity.ToString("0.0", CultureInfo.InvariantCulture);
         }
 
         private void OnOpenExplorerOnStartValueChanged(object sender, EventArgs e)

@@ -345,6 +345,8 @@ namespace GUI.Types.GLViewers
 
             if (MouseOverRenderArea || Input.ForceUpdate)
             {
+                Input.MouseSensitivity = Settings.Config.MouseSensitivity;
+
                 var pressedKeys = CurrentlyPressedKeys;
                 var modifierKeys = Control.ModifierKeys;
 
@@ -358,6 +360,7 @@ namespace GUI.Types.GLViewers
                     pressedKeys |= TrackedKeys.Alt;
                 }
 
+                Input.MouseSensitivity = Settings.Config.MouseSensitivity;
                 Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = MouseDelta;
                 MouseDelta = System.Drawing.Point.Empty;

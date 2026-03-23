@@ -43,6 +43,9 @@ namespace GUI.Controls
             maxTextureSizeInput = new ThemedIntNumeric() { MaxValue = 10240, MinValue = 16 };
             fovInput = new ThemedFloatNumeric() { MaxValue = 170, MinValue = 1 };
             fovLabel = new System.Windows.Forms.Label();
+            mouseSensitivityLabel = new System.Windows.Forms.Label();
+            mouseSensitivitySlider = new System.Windows.Forms.TrackBar();
+            mouseSensitivityValueLabel = new System.Windows.Forms.Label();
             antiAliasingLabel = new System.Windows.Forms.Label();
             antiAliasingComboBox = new ThemedComboBox();
             registerAssociationButton = new ThemedButton();
@@ -167,6 +170,40 @@ namespace GUI.Controls
             fovInput.Value = 90;
             fovInput.ValueChanged += OnFovValueChanged;
             // 
+            // mouseSensitivityLabel
+            // 
+            mouseSensitivityLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            mouseSensitivityLabel.AutoSize = true;
+            mouseSensitivityLabel.Location = new System.Drawing.Point(15, 173);
+            mouseSensitivityLabel.Name = "mouseSensitivityLabel";
+            mouseSensitivityLabel.Size = new System.Drawing.Size(108, 19);
+            mouseSensitivityLabel.TabIndex = 5;
+            mouseSensitivityLabel.Text = "Mouse sensitivity:";
+            // 
+            // mouseSensitivitySlider
+            // 
+            mouseSensitivitySlider.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            mouseSensitivitySlider.Location = new System.Drawing.Point(170, 170);
+            mouseSensitivitySlider.Maximum = 80;
+            mouseSensitivitySlider.Minimum = 0;
+            mouseSensitivitySlider.SmallChange = 1;
+            mouseSensitivitySlider.LargeChange = 2;
+            mouseSensitivitySlider.Size = new System.Drawing.Size(160, 45);
+            mouseSensitivitySlider.TabIndex = 7;
+            mouseSensitivitySlider.TickFrequency = 5;
+            mouseSensitivitySlider.Value = 40;
+            mouseSensitivitySlider.ValueChanged += OnMouseSensitivitySliderValueChanged;
+            // 
+            // mouseSensitivityValueLabel
+            // 
+            mouseSensitivityValueLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            mouseSensitivityValueLabel.AutoSize = true;
+            mouseSensitivityValueLabel.Location = new System.Drawing.Point(340, 176);
+            mouseSensitivityValueLabel.Name = "mouseSensitivityValueLabel";
+            mouseSensitivityValueLabel.Size = new System.Drawing.Size(24, 19);
+            mouseSensitivityValueLabel.TabIndex = 8;
+            mouseSensitivityValueLabel.Text = "4.0";
+            // 
             // fovLabel
             // 
             fovLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
@@ -261,6 +298,9 @@ namespace GUI.Controls
             groupBox2.Controls.Add(vsyncCheckBox);
             groupBox2.Controls.Add(fovInput);
             groupBox2.Controls.Add(fovLabel);
+            groupBox2.Controls.Add(mouseSensitivitySlider);
+            groupBox2.Controls.Add(mouseSensitivityValueLabel);
+            groupBox2.Controls.Add(mouseSensitivityLabel);
             groupBox2.Controls.Add(shadowResolutionInput);
             groupBox2.Controls.Add(shadowResolutionLabel);
             groupBox2.Controls.Add(antiAliasingLabel);
@@ -502,6 +542,9 @@ namespace GUI.Controls
         private System.Windows.Forms.Label themeLabel;
         private System.Windows.Forms.Label textViewerFontSizeLabel;
         private ThemedIntNumeric textViewerFontSize;
+        private System.Windows.Forms.Label mouseSensitivityLabel;
+        private System.Windows.Forms.TrackBar mouseSensitivitySlider;
+        private System.Windows.Forms.Label mouseSensitivityValueLabel;
         private System.Windows.Forms.Label footerLabel;
         private System.Windows.Forms.Panel footerPanel;
         private ThemedButton gamePathsAdd;
