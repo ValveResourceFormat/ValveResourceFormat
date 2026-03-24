@@ -340,6 +340,17 @@ vec3 oct_to_float32x3(vec2 e)
     return normalize(v);
 }
 
+// Safe normalize that handles degenerate normals from zero-scaled bones
+vec3 safeNormalize(vec3 v)
+{
+    float len2 = dot(v, v);
+    if (len2 < 1e-8)
+    {
+        return vec3(0.0, 0.0, 1.0);
+    }
+    return v * inversesqrt(len2);
+}
+
 // Unpack HemiOct normal map
 vec3 DecodeHemiOctahedronNormal(vec2 vHemiOct)
 {
