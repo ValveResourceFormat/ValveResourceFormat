@@ -61,7 +61,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         private Clip? activeClip;
-        private readonly List<Clip> previousClips = [];
+        private Clip? previousClip;
+        private readonly Dictionary<string, Clip> clips = [];
         private readonly Frame BlendedFrame;
         private float currentBlendTime;
 
@@ -156,56 +157,47 @@ namespace ValveResourceFormat.Renderer
                 IsPaused = activeClip.IsPaused;
                 Frame = activeClip.Frame;
 
-                // Update time for previous clips so they continue playing during blend
-                foreach (var prevClip in previousClips)
+                // Update time for all other clips
+                foreach (var clip in clips.Values)
                 {
-                    if (!prevClip.IsPaused)
+                    if (clip != activeClip && !clip.IsPaused)
                     {
-                        prevClip.Time += timeStep;
+                        clip.Time += timeStep;
                     }
                 }
 
-                if (previousClips.Count > 0 && previousClips[0].IsTimeBasedTransition)
+                if (activeClip.IsTimeBasedTransition && previousClip != null)
                 {
-                    // Distribute blend weights over time
-                    if (previousClips.Count > 0)
+                    // Distribute blend weights between previous clip and active clip only.
+                    currentBlendTime -= timeStep;
+
+                    if (currentBlendTime <= 0f)
                     {
-                        currentBlendTime -= timeStep;
-
-                        if (currentBlendTime <= 0f)
-                        {
-                            previousClips.Clear();
-                            activeClip.Weight = 1f;
-                        }
-                        else
-                        {
-                            // Calculate blend progress (0 = start of blend, 1 = end of blend)
-                            var t = previousClips[0].BlendTime > 0f
-                                ? 1f - Math.Clamp(currentBlendTime / previousClips[0].BlendTime, 0f, 1f)
-                                : 1f;
-
-                            // Apply smoothstep for smoother weight transition
-                            var blendProgress = t * t * (3f - 2f * t);
-
-                            // Active animation weight increases from 0 to 1
-                            activeClip.Weight = blendProgress;
-
-                            // Previous animations weight decreases from 1 to 0
-                            var remainingWeight = 1f - blendProgress;
-                            var weightPerPrevious = remainingWeight / previousClips.Count;
-
-                            foreach (var prevClip in previousClips)
-                            {
-                                prevClip.Weight = weightPerPrevious;
-                            }
-                        }
+                        previousClip.Weight = 0f;
+                        activeClip.Weight = 1f;
+                        previousClip = null;
                     }
                     else
                     {
-                        activeClip.Weight = 1f;
+                        var t = activeClip.BlendTime > 0f
+                            ? 1f - Math.Clamp(currentBlendTime / activeClip.BlendTime, 0f, 1f)
+                            : 1f;
+
+                        var blendProgress = t * t * (3f - 2f * t);
+
+                        activeClip.Weight = blendProgress;
+                        previousClip.Weight = 1f - blendProgress;
+
+                        foreach (var clip in clips.Values)
+                        {
+                            if (clip != activeClip && clip != previousClip)
+                            {
+                                clip.Weight = 0f;
+                            }
+                        }
                     }
 
-                    var sum = activeClip.Weight + previousClips.Sum(c => c.Weight);
+                    var sum = clips.Values.Sum(c => c.Weight);
                     Debug.Assert(sum > 0f, "Total blend weight should be greater than zero.");
                     Debug.Assert(Math.Abs(sum - 1f) < 0.01f, $"Total blend weight should be approximately 1. Found: {sum}");
                 }
@@ -321,7 +313,7 @@ namespace ValveResourceFormat.Renderer
                 CurrentSubController = null;
                 ActiveAnimation = null;
                 activeClip = null;
-                previousClips.Clear();
+                clips.Clear();
                 FrameCache.Clear();
                 forceUpdate = true;
                 updateHandler(ActiveAnimation, -1);
@@ -347,24 +339,105 @@ namespace ValveResourceFormat.Renderer
             CurrentSubController = null;
             FrameCache.PurgeCache();
 
-            // Handle blending
-            if (blendTime is > 0f or -1 && activeClip != null)
+            ActiveAnimation = animation;
+
+            if (animation != null)
             {
-                // Move current clip to previous clips for blending
-                previousClips.Clear();
-                activeClip.BlendTime = blendTime;
-                previousClips.Add(activeClip);
-                currentBlendTime = blendTime;
+                var animName = animation.Name;
+
+                // Check if clip already exists
+                if (!clips.TryGetValue(animName, out var newClip))
+                {
+                    newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime };
+                    clips[animName] = newClip;
+                }
+                else
+                {
+                    // Update existing clip properties
+                    newClip.Looping = Looping;
+                    newClip.BlendTime = blendTime;
+
+                    newClip.IsPaused = false;
+                    newClip.Frame = 0;
+                }
+
+                // Handle blending
+                if (activeClip == newClip)
+                {
+                    // Re-setting the same animation should not create a self-blend transition.
+                    previousClip = null;
+
+                    foreach (var clip in clips.Values)
+                    {
+                        clip.Weight = 0f;
+                    }
+
+                    newClip.Weight = 1f;
+
+                    if (blendTime == 0f)
+                    {
+                        FrameCache.Clear();
+                    }
+                }
+                else if (blendTime > 0f && activeClip != null)
+                {
+                    // Time-based transition: only blend from previous clip -> active clip.
+                    previousClip = activeClip;
+                    previousClip.Weight = 1f;
+
+                    // Set all other clips to zero immediately.
+                    foreach (var clip in clips.Values)
+                    {
+                        if (clip != previousClip && clip != newClip)
+                        {
+                            clip.Weight = 0f;
+                        }
+                    }
+
+                    newClip.Weight = 0f;
+                    currentBlendTime = blendTime;
+                }
+                else if (blendTime == -1f && activeClip != null)
+                {
+                    // Manual blend: keep previous clip, user may set weights manually.
+                    previousClip = activeClip;
+                    previousClip.Weight = 1f;
+
+                    foreach (var clip in clips.Values)
+                    {
+                        if (clip != previousClip && clip != newClip)
+                        {
+                            clip.Weight = 0f;
+                        }
+                    }
+
+                    newClip.Weight = 0f;
+                }
+                else
+                {
+                    // No blending - disable previous clip and all other clips.
+                    previousClip = null;
+
+                    foreach (var clip in clips.Values)
+                    {
+                        clip.Weight = 0f;
+                    }
+
+                    newClip.Weight = 1f;
+
+                    if (blendTime == 0f)
+                    {
+                        FrameCache.Clear();
+                    }
+                }
+
+                activeClip = newClip;
             }
             else
             {
-                // No blending - clear previous clips
-                previousClips.Clear();
-                FrameCache.Clear();
+                activeClip = null;
             }
 
-            ActiveAnimation = animation;
-            activeClip = animation != null ? new Clip(animation) { Looping = Looping } : null;
             forceUpdate = true;
             updateHandler(ActiveAnimation, -1);
         }
@@ -392,47 +465,40 @@ namespace ValveResourceFormat.Renderer
                 return null;
             }
 
-            // Get active animation frame
-            var activeFrame = SampleFrame(activeClip);
+            // Check if blending is needed
+            var needsBlending = clips.Values.Any(c => c != activeClip && c.Weight > 0f);
 
-            // No blending needed if no previous clips
-            if (previousClips.Count == 0)
+            if (!needsBlending)
             {
-                return activeFrame;
+                return SampleFrame(activeClip);
             }
 
-            // Use pre-calculated weights from Update
-            BlendedFrame.FrameIndex = activeFrame.FrameIndex;
+            BlendedFrame.FrameIndex = -1;
+            BlendedFrame.Bones.AsSpan().Clear();
+            BlendedFrame.Datas.AsSpan().Clear();
 
-            // Start with active animation
-            for (var i = 0; i < activeFrame.Bones.Length; i++)
+            var totalWeight = 0f;
+            foreach (var clip in clips.Values)
             {
-                BlendedFrame.Bones[i] = activeFrame.Bones[i];
-            }
-
-            for (var i = 0; i < activeFrame.Datas.Length; i++)
-            {
-                BlendedFrame.Datas[i] = activeFrame.Datas[i];
-            }
-
-            // Blend in previous clips using their pre-calculated weights
-            var totalWeight = activeClip.Weight;
-            foreach (var prevClip in previousClips)
-            {
-                var prevFrame = SampleFrame(prevClip);
-                var blendFactor = prevClip.Weight / (totalWeight + prevClip.Weight);
-
-                for (var i = 0; i < prevFrame.Bones.Length; i++)
+                if (clip.Weight <= 0f)
                 {
-                    BlendedFrame.Bones[i] = BlendedFrame.Bones[i].Blend(prevFrame.Bones[i], blendFactor);
+                    continue;
                 }
 
-                for (var i = 0; i < prevFrame.Datas.Length; i++)
+                var frame = SampleFrame(clip);
+                var blendFactor = clip.Weight / (totalWeight + clip.Weight);
+
+                for (var i = 0; i < frame.Bones.Length; i++)
                 {
-                    BlendedFrame.Datas[i] = float.Lerp(BlendedFrame.Datas[i], prevFrame.Datas[i], blendFactor);
+                    BlendedFrame.Bones[i] = BlendedFrame.Bones[i].Blend(frame.Bones[i], blendFactor);
                 }
 
-                totalWeight += prevClip.Weight;
+                for (var i = 0; i < frame.Datas.Length; i++)
+                {
+                    BlendedFrame.Datas[i] = float.Lerp(BlendedFrame.Datas[i], frame.Datas[i], blendFactor);
+                }
+
+                totalWeight += clip.Weight;
             }
 
             return BlendedFrame;
@@ -545,19 +611,9 @@ namespace ValveResourceFormat.Renderer
         /// <param name="weight">The weight value (0.0 to 1.0).</param>
         public void SetAnimationWeight(string name, float weight)
         {
-            if (activeClip?.Animation.Name == name)
+            if (clips.TryGetValue(name, out var clip))
             {
-                activeClip.Weight = weight;
-                return;
-            }
-
-            foreach (var clip in previousClips)
-            {
-                if (clip.Animation.Name == name)
-                {
-                    clip.Weight = weight;
-                    return;
-                }
+                clip.Weight = weight;
             }
         }
     }
