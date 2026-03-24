@@ -5,6 +5,15 @@ namespace ValveResourceFormat.Renderer
 {
     public partial class AnimationController
     {
+        public void ApplyFirstpersonLegs()
+        {
+            var spine0 = Skeleton.GetBoneIndex("spine_0");
+            if (spine0 != -1)
+            {
+                ZeroBoneAndChildren(Pose, Skeleton.Bones[spine0]);
+            }
+        }
+
         /// <summary>
         /// Applies tilt-twist constraints configured in the controller to the current pose.
         /// </summary>
@@ -53,6 +62,24 @@ namespace ValveResourceFormat.Renderer
                 {
                     ApplyTwistIK(pose, target, twist, twist1, constraint.Side);
                 }
+            }
+        }
+
+        private static void ZeroBoneAndChildren(Span<Matrix4x4> pose, Bone bone)
+        {
+            // Collapse bone to parent's transform and scale to zero to hide it
+            if (bone.Parent != null)
+            {
+                pose[bone.Index] = Matrix4x4.CreateScale(0f) * pose[bone.Parent.Index];
+            }
+            else
+            {
+                pose[bone.Index] = Matrix4x4.CreateScale(0f);
+            }
+
+            foreach (var child in bone.Children)
+            {
+                ZeroBoneAndChildren(pose, child);
             }
         }
 
