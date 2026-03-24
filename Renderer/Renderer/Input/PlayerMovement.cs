@@ -48,6 +48,11 @@ public class PlayerMovement
     private Vector3 AABBCenteredPosition;
 
     /// <summary>
+    /// Gets the current player position at feet level (where the AABB touches the ground).
+    /// </summary>
+    public Vector3 Position => AABBCenteredPosition - new Vector3(0, 0, Hull.Size.Z / 2); // Convert from AABB center to feet position
+
+    /// <summary>
     /// Gets a value indicating whether the player is currently on the ground.
     /// </summary>
     public bool OnGround { get; private set; }

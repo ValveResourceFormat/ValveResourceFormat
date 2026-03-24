@@ -28,6 +28,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// </summary>
     public ModelSceneNode Arms => this;
 
+    public ModelSceneNode? Legs { get; set; }
+
     readonly List<ModelSceneNode?> Items = [];
 
     ModelSceneNode? SelectedItem => Items.ElementAtOrDefault(SelectedSlot - 1);
@@ -54,6 +56,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     ParticleSceneNode? muzzleFlashParticle;
 
     private Matrix4x4 TargetTransform = Matrix4x4.Identity;
+    private Matrix4x4 PlayerTransform = Matrix4x4.Identity;
     private float attackCooldown;
     private float alternateAttackCooldown;
     private Vector3 currentBob = Vector3.Zero;
@@ -153,6 +156,17 @@ public class ViewmodelSceneNode : ModelSceneNode
         };
 
         Scene.Add(PrimarySkeletonDebug, true);
+
+        Legs = new ModelSceneNode(Scene, model)
+        {
+            LayerName = "world_layer_base",
+            Flags = ObjectTypeFlags.DisableVisCulling,
+        };
+        Scene.Add(Legs, true);
+
+        Legs.SetAnimationByName("tools_preview");
+        Legs.AnimationController.TwistConstraints = [];
+        Legs.IsFirstpersonLegs = true;
     }
 
     record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null);
@@ -335,6 +349,11 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         TargetTransform = rotationMatrix with { Translation = camera.Location + offset };
 
+        // Keep legs oriented with player yaw only (ignore camera pitch) to avoid pitch-tilt on leg model.
+        var playerYawRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, camera.Yaw);
+        var playerRotation = Quaternion.Normalize(playerYawRotation);
+        PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
+
         var (fireDelay, altFireDelay) = GetWeaponFireDelays();
 
         var requestedFire = SelectedSlot == 2
@@ -380,6 +399,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     public override void Update(Scene.UpdateContext context)
     {
         Transform = TargetTransform;
+
+        Legs?.Transform = PlayerTransform;
 
         attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
         alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - context.Timestep);
