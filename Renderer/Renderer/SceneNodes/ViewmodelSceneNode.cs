@@ -172,6 +172,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         Legs.AnimationController.Looping = true;
         Legs.SetAnimationByName("walk_new_rifle_stopped", -1); // center
         Legs.SetAnimationByName("crouch_new_rifle_stopped", -1); // center
+        Legs.SetAnimationByName("walk_new_knife_n", -1);
+        Legs.SetAnimationByName("crouch_new_knife_n", -1);
     }
 
     private void LoadAnimsetAnimations(ModelSceneNode legs)
@@ -370,11 +372,19 @@ public class ViewmodelSceneNode : ModelSceneNode
         var playerRotation = Quaternion.Normalize(playerYawRotation);
         PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
 
-        // Blend between walk and crouch animations based on crouch state
         if (Legs?.AnimationController is { } legsController)
         {
-            legsController.SetAnimationWeight("walk_new_rifle_stopped", 1f - input.PlayerMovement.CrouchBlend);
-            legsController.SetAnimationWeight("crouch_new_rifle_stopped", input.PlayerMovement.CrouchBlend);
+            var crouched = input.PlayerMovement.CrouchBlend;
+            var standing = 1f - crouched;
+
+            var walking = MathUtils.Saturate(input.Velocity.Length() / 250f);
+            var stopped = 1f - walking;
+
+            legsController.SetAnimationWeight("walk_new_rifle_stopped", stopped * standing);
+            legsController.SetAnimationWeight("crouch_new_rifle_stopped", stopped * crouched);
+
+            legsController.SetAnimationWeight("walk_new_knife_n", walking * standing);
+            legsController.SetAnimationWeight("crouch_new_knife_n", walking * crouched);
         }
 
         var (fireDelay, altFireDelay) = GetWeaponFireDelays();
