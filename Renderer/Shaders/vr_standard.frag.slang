@@ -201,7 +201,9 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.RoughnessTex.xy = normalTexture.bb;
 
     vec3 F0 = vec3(0.04);
-    #if (F_SPECULAR == 1 && F_METALNESS_TEXTURE == 0)
+    // When alphatest/translucent, color.a is opacity (from g_tColor), not reflectance.
+    // Reflectance is in g_tColor1.a which is only available in the non-alphatest path.
+    #if (F_SPECULAR == 1 && F_METALNESS_TEXTURE == 0 && !(translucent || alphatest))
         F0 = color.aaa;
     #endif
 
