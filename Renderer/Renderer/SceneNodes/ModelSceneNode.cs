@@ -64,6 +64,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private readonly List<RenderableMesh> meshRenderers = [];
 
+        public bool IsFirstpersonLegs { get; set; }
+
         /// <summary>Gets whether this model has an active GPU bone matrix buffer (i.e., has animations loaded).</summary>
         public bool IsAnimated => boneMatricesGpu != null;
         private StorageBuffer? boneMatricesGpu;
@@ -238,6 +240,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             AnimationController.ApplyConstraints();
 
+            if (IsFirstpersonLegs)
+            {
+                AnimationController.ApplyFirstpersonLegs();
+            }
+            
             if (IsAnimated)
             {
                 Debug.Assert(boneMatricesGpu != null, "boneMatricesGpu should not be null when IsAnimated is true");
