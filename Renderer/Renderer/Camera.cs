@@ -237,6 +237,15 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
+            // Previous operation might have corrupted our angles
+            if (float.IsNaN(Yaw) || float.IsNaN(Pitch))
+            {
+                Yaw = 0;
+                Pitch = 0;
+            }
+
+            RecalculateDirectionVectors();
+
             var fov = GetFOV();
             var halfFovVertical = fov * 0.5f;
             var halfFovHorizontal = MathF.Atan(MathF.Tan(halfFovVertical) * AspectRatio);

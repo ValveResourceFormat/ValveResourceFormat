@@ -564,5 +564,25 @@ namespace ValveResourceFormat.Renderer.Particles
                 childRenderer.SetWireframe(isWireframe);
             }
         }
+
+        public void Delete()
+        {
+            foreach (var renderer in Renderers)
+            {
+                if (renderer is RenderSprites sprites)
+                {
+                    sprites.Delete();
+                }
+                else if (renderer is RenderTrails trails)
+                {
+                    trails.Delete();
+                }
+            }
+
+            foreach (var childRenderer in childParticleRenderers)
+            {
+                childRenderer.Delete();
+            }
+        }
     }
 }

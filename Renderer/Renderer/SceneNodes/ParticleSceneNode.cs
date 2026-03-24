@@ -73,5 +73,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <inheritdoc/>
         public override void SetRenderMode(string mode) => particleRenderer.SetRenderMode(mode);
+
+        /// <inheritdoc/>
+        public override void Delete()
+        {
+            particleRenderer.Delete();
+        }
     }
 }

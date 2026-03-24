@@ -43,7 +43,6 @@ internal class ThumbnailModelRenderer : ThumbnailRenderer
         // add some padding
         var size = bbox.Size * (phys == null ? 1.5f : 1);
 
-        SceneRenderer.Camera.RecalculateDirectionVectors();
         SceneRenderer.Camera.FrameObject(bbox.Center, size.X, size.Z, size.Y);
     }
 }

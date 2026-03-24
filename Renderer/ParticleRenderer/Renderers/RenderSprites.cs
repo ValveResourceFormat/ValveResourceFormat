@@ -314,5 +314,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public override void SetRenderMode(string renderMode)
         {
         }
+
+        public void Delete()
+        {
+            GL.DeleteVertexArray(vaoHandle);
+            GL.DeleteBuffer(vertexBufferHandle);
+        }
     }
 }

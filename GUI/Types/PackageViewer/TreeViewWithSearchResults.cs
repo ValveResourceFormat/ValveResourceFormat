@@ -336,6 +336,7 @@ namespace GUI.Types.PackageViewer
             {"vmat_c", new ThumbnailMaterialRenderer() },
             {"vtex_c", new ThumbnailTextureRenderer() },
             {"vsvg_c", new ThumbnailSVGRenderer() },
+            {"vpcf_c", new ThumbnailParticleRenderer() },
         };
 
         /// <summary>

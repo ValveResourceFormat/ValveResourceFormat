@@ -14,6 +14,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly Shader shader;
         private readonly RendererContext RendererContext;
         private readonly int vaoHandle;
+        private readonly int bufferHandle;
         private readonly RenderTexture texture;
 
         private readonly float animationRate = 0.1f;
@@ -38,6 +39,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // The same quad is reused for all particles
             var (quadVao, quadBuffer) = SetupQuadBuffer();
             vaoHandle = quadVao;
+            bufferHandle = quadBuffer;
 
             string? textureName = null;
 
@@ -224,6 +226,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public override void SetRenderMode(string renderMode)
         {
+        }
+
+        public void Delete()
+        {
+            GL.DeleteVertexArray(vaoHandle);
+            GL.DeleteBuffer(bufferHandle);
         }
     }
 }
