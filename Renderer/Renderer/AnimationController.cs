@@ -153,6 +153,15 @@ namespace ValveResourceFormat.Renderer
                 IsPaused = activeClip.IsPaused;
                 Frame = activeClip.Frame;
 
+                // Update time for previous clips so they continue playing during blend
+                foreach (var prevClip in previousClips)
+                {
+                    if (!prevClip.IsPaused)
+                    {
+                        prevClip.Time += timeStep;
+                    }
+                }
+
                 // Distribute blend weights over time
                 if (previousClips.Count > 0)
                 {
@@ -170,9 +179,8 @@ namespace ValveResourceFormat.Renderer
                             ? 1f - Math.Clamp(currentBlendTime / previousClips[0].BlendTime, 0f, 1f)
                             : 1f;
 
-                        // Apply ease out quint for smoother weight transition
-                        var oneMinusT = 1f - t;
-                        var blendProgress = 1f - oneMinusT * oneMinusT * oneMinusT * oneMinusT * oneMinusT;
+                        // Apply smoothstep for smoother weight transition
+                        var blendProgress = t * t * (3f - 2f * t);
 
                         // Active animation weight increases from 0 to 1
                         activeClip.Weight = blendProgress;
