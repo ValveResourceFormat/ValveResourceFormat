@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles
         // These can all be found in particle.dll
 
         // Register particle emitters
-        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>> EmitterDictionary
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>> EmitterDictionary
             = new()
             {
                 ["C_OP_InstantaneousEmitter"] = (emitterInfo) => new InstantaneousEmitter(emitterInfo),
@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles
             };
 
         // Register particle initializers
-        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionInitializer>> InitializerDictionary
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionInitializer>> InitializerDictionary
             = new()
             {
                 ["C_INIT_AddVectorToVector"] = initializerInfo => new AddVectorToVector(initializerInfo),
@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Renderer.Particles
             };
 
         // Register particle operators
-        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> OperatorDictionary
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> OperatorDictionary
             = new()
             {
                 ["C_OP_AlphaDecay"] = operatorInfo => new AlphaDecay(operatorInfo),
@@ -114,7 +114,7 @@ namespace ValveResourceFormat.Renderer.Particles
             };
 
         // Register particle force generators
-        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> ForceGeneratorDictionary
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> ForceGeneratorDictionary
             = new()
             {
                 ["C_OP_AttractToControlPoint"] = forceGeneratorInfo => new AttractToControlPoint(forceGeneratorInfo),
@@ -123,7 +123,7 @@ namespace ValveResourceFormat.Renderer.Particles
             };
 
         // Register particle renderers
-        private static readonly Dictionary<string, Func<ParticleDefinitionParser, RendererContext, ParticleFunctionRenderer>> RendererDictionary
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, RendererContext, ParticleFunctionRenderer>> RendererDictionary
             = new()
             {
                 ["C_OP_RenderSprites"] = (rendererInfo, rendererContext) => new RenderSprites(rendererInfo, rendererContext),
@@ -131,7 +131,7 @@ namespace ValveResourceFormat.Renderer.Particles
             };
 
         // Register particle pre-emission operators (mostly stuff with control points)
-        private static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
             = new()
             {
                 ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
