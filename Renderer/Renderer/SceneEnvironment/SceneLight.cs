@@ -347,8 +347,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// </summary>
     public static Vector3 AnglesToDirection(Vector3 angles)
     {
-        var (sinPitch, cosPitch) = MathF.SinCos(angles.X);
-        var (sinYaw, cosYaw) = MathF.SinCos(angles.Y);
+        var (sinPitch, cosPitch) = MathF.SinCos(float.DegreesToRadians(angles.X));
+        var (sinYaw, cosYaw) = MathF.SinCos(float.DegreesToRadians(angles.Y));
 
         return Vector3.Normalize(new Vector3(cosYaw * cosPitch, sinYaw * cosPitch, sinPitch));
     }

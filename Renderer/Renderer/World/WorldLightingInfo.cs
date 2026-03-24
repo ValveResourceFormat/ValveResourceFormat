@@ -308,21 +308,21 @@ namespace ValveResourceFormat.Renderer.World
             var staticLights = lights.Where(l => l.StationaryLightIndex >= 0).OrderBy(l => l.StationaryLightIndex).ToList();
             var dynamicLights = lights.Where(l => l.StationaryLightIndex == -1).ToList();
 
-            var currentLightIndex = 0u;
-
             foreach (var light in staticLights)
             {
-                currentLightIndex = (uint)light.StationaryLightIndex;
+                var index = (uint)light.StationaryLightIndex;
 
-                if (currentLightIndex >= LightingConstants.MAX_LIGHTS)
+                if (index >= LightingConstants.MAX_LIGHTS)
                 {
                     continue;
                 }
 
-                AddLight(light, (uint)light.StationaryLightIndex);
+                AddLight(light, index);
 
-                LightingData.StaticLightCount = currentLightIndex + 1;
+                LightingData.StaticLightCount = index + 1;
             }
+
+            var currentLightIndex = LightingData.StaticLightCount;
 
             foreach (var light in dynamicLights)
             {
@@ -336,6 +336,14 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             LightingData.DynamicLightCount = currentLightIndex;
+
+            var envLight = lights.FirstOrDefault(l => l.Entity == SceneLight.EntityType.Environment);
+            if (envLight != null)
+            {
+                LightingData.LightToWorld[0] = envLight.Transform;
+                LightingData.LightPosition_Type[0] = new Vector4(envLight.Position, (int)envLight.Type);
+                LightingData.LightColor_Brightness[0] = new Vector4(ColorSpace.SrgbGammaToLinear(envLight.Color), envLight.Brightness);
+            }
         }
 
         /// <summary>
