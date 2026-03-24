@@ -51,6 +51,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     } = 3;
 
     SkeletonSceneNode PrimarySkeletonDebug;
+    ParticleSceneNode? muzzleFlashParticle;
 
     private Matrix4x4 TargetTransform = Matrix4x4.Identity;
     private float attackCooldown;
@@ -249,6 +250,18 @@ public class ViewmodelSceneNode : ModelSceneNode
         viewmodel.LayerName = "world_layer_base";
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
 
+        // Load muzzle flash particle
+        var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle.vpcf");
+        if (muzzleFlashResource?.DataBlock is ParticleSystem particleSystem)
+        {
+            viewmodel.muzzleFlashParticle = new ParticleSceneNode(scene, particleSystem)
+            {
+                LayerName = "world_layer_base",
+                Flags = ObjectTypeFlags.DisableVisCulling,
+            };
+            scene.Add(viewmodel.muzzleFlashParticle, true);
+        }
+
         scene.RendererContext.Logger.LogInformation($"Loaded viewmodel");
 
         scene.Add(viewmodel, true);
@@ -332,6 +345,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             SetState(AnimationState.Attack);
             attackCooldown = fireDelay;
+            muzzleFlashParticle?.Restart();
         }
         else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f)
         {
@@ -428,6 +442,17 @@ public class ViewmodelSceneNode : ModelSceneNode
 
                 item.Transform = wpnTransform * Transform;
                 UpdateItem(item, context, LocalBoundingBox);
+
+                // Update muzzle flash particle transform to wpnTip bone
+                if (muzzleFlashParticle != null && isSelected)
+                {
+                    var wpnTipIndex = ag2Controller.Value.Skeleton.GetBoneIndex("wpnTip");
+                    if (wpnTipIndex != -1)
+                    {
+                        var wpnTipTransform = ag2Controller.Value.Handler.Pose[wpnTipIndex];
+                        muzzleFlashParticle.Transform = wpnTipTransform * Transform;
+                    }
+                }
             }
         }
     }
