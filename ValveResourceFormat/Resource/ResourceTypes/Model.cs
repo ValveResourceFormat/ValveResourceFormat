@@ -418,8 +418,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets animations referenced from other models.
         /// </summary>
         /// <param name="fileLoader">The file loader to use.</param>
+        /// <param name="skeleton">The skeleton to use for the animations.</param>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<Animation> GetReferencedAnimations(IFileLoader fileLoader)
+        public IEnumerable<Animation> GetReferencedAnimations(IFileLoader fileLoader, Skeleton? skeleton = default)
         {
             var refAnimModels = Data.GetArray<string>("m_refAnimIncludeModels");
             if (refAnimModels == null || refAnimModels.Length == 0)

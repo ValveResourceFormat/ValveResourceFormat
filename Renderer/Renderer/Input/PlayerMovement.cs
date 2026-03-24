@@ -65,7 +65,7 @@ public class PlayerMovement
     private UserInput Input { get; }
     private Rubikon? Physics => Input.PhysicsWorld;
 
-    private float CrouchBlend; // 0 = standing, 1 = fully ducked
+    public float CrouchBlend; // 0 = standing, 1 = fully ducked
     private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
 

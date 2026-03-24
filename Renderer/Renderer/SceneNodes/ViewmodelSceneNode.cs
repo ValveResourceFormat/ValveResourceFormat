@@ -164,9 +164,25 @@ public class ViewmodelSceneNode : ModelSceneNode
         };
         Scene.Add(Legs, true);
 
-        Legs.SetAnimationByName("tools_preview");
         Legs.AnimationController.TwistConstraints = [];
         Legs.IsFirstpersonLegs = true;
+
+        // Load additional animations from animset_ct
+        LoadAnimsetAnimations(Legs);
+        Legs.AnimationController.Looping = true;
+        Legs.SetAnimationByName("walk_new_rifle_stopped", -1); // center
+        Legs.SetAnimationByName("crouch_new_rifle_stopped", -1); // center
+    }
+
+    private void LoadAnimsetAnimations(ModelSceneNode legs)
+    {
+        var animsetResource = Scene.RendererContext.FileLoader.LoadFileCompiled("characters/models/shared/animsets/animset_ct.vmdl");
+        if (animsetResource?.DataBlock is not Model animsetModel)
+        {
+            return;
+        }
+
+        legs.Animations.AddRange(Model.LoadEmbeddedAnimationsWithSkeleton(Scene.RendererContext.FileLoader, legs.AnimationController.Skeleton, animsetModel));
     }
 
     record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null);
@@ -353,6 +369,13 @@ public class ViewmodelSceneNode : ModelSceneNode
         var playerYawRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, camera.Yaw);
         var playerRotation = Quaternion.Normalize(playerYawRotation);
         PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
+
+        // Blend between walk and crouch animations based on crouch state
+        if (Legs?.AnimationController is { } legsController)
+        {
+            legsController.SetAnimationWeight("walk_new_rifle_stopped", 1f - input.PlayerMovement.CrouchBlend);
+            legsController.SetAnimationWeight("crouch_new_rifle_stopped", input.PlayerMovement.CrouchBlend);
+        }
 
         var (fireDelay, altFireDelay) = GetWeaponFireDelays();
 

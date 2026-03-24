@@ -40,6 +40,9 @@ namespace ValveResourceFormat.Renderer
             public float Weight { get; set; } = 1f;
             public float BlendTime { get; set; }
 
+            public bool IsTimeBasedTransition => BlendTime > 0f;
+            public bool IsManualBlend => BlendTime == -1;
+
             public int Frame
             {
                 get
@@ -162,47 +165,50 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-                // Distribute blend weights over time
-                if (previousClips.Count > 0)
+                if (previousClips.Count > 0 && previousClips[0].IsTimeBasedTransition)
                 {
-                    currentBlendTime -= timeStep;
-
-                    if (currentBlendTime <= 0f)
+                    // Distribute blend weights over time
+                    if (previousClips.Count > 0)
                     {
-                        previousClips.Clear();
-                        activeClip.Weight = 1f;
+                        currentBlendTime -= timeStep;
+
+                        if (currentBlendTime <= 0f)
+                        {
+                            previousClips.Clear();
+                            activeClip.Weight = 1f;
+                        }
+                        else
+                        {
+                            // Calculate blend progress (0 = start of blend, 1 = end of blend)
+                            var t = previousClips[0].BlendTime > 0f
+                                ? 1f - Math.Clamp(currentBlendTime / previousClips[0].BlendTime, 0f, 1f)
+                                : 1f;
+
+                            // Apply smoothstep for smoother weight transition
+                            var blendProgress = t * t * (3f - 2f * t);
+
+                            // Active animation weight increases from 0 to 1
+                            activeClip.Weight = blendProgress;
+
+                            // Previous animations weight decreases from 1 to 0
+                            var remainingWeight = 1f - blendProgress;
+                            var weightPerPrevious = remainingWeight / previousClips.Count;
+
+                            foreach (var prevClip in previousClips)
+                            {
+                                prevClip.Weight = weightPerPrevious;
+                            }
+                        }
                     }
                     else
                     {
-                        // Calculate blend progress (0 = start of blend, 1 = end of blend)
-                        var t = previousClips[0].BlendTime > 0f
-                            ? 1f - Math.Clamp(currentBlendTime / previousClips[0].BlendTime, 0f, 1f)
-                            : 1f;
-
-                        // Apply smoothstep for smoother weight transition
-                        var blendProgress = t * t * (3f - 2f * t);
-
-                        // Active animation weight increases from 0 to 1
-                        activeClip.Weight = blendProgress;
-
-                        // Previous animations weight decreases from 1 to 0
-                        var remainingWeight = 1f - blendProgress;
-                        var weightPerPrevious = remainingWeight / previousClips.Count;
-
-                        foreach (var prevClip in previousClips)
-                        {
-                            prevClip.Weight = weightPerPrevious;
-                        }
+                        activeClip.Weight = 1f;
                     }
-                }
-                else
-                {
-                    activeClip.Weight = 1f;
-                }
 
-                var sum = activeClip.Weight + previousClips.Sum(c => c.Weight);
-                Debug.Assert(sum > 0f, "Total blend weight should be greater than zero.");
-                Debug.Assert(Math.Abs(sum - 1f) < 0.01f, $"Total blend weight should be approximately 1. Found: {sum}");
+                    var sum = activeClip.Weight + previousClips.Sum(c => c.Weight);
+                    Debug.Assert(sum > 0f, "Total blend weight should be greater than zero.");
+                    Debug.Assert(Math.Abs(sum - 1f) < 0.01f, $"Total blend weight should be approximately 1. Found: {sum}");
+                }
             }
 
             if (CurrentSubController is { } subController)
@@ -342,7 +348,7 @@ namespace ValveResourceFormat.Renderer
             FrameCache.PurgeCache();
 
             // Handle blending
-            if (blendTime > 0f && activeClip != null)
+            if (blendTime is > 0f or -1 && activeClip != null)
             {
                 // Move current clip to previous clips for blending
                 previousClips.Clear();
@@ -530,6 +536,29 @@ namespace ValveResourceFormat.Renderer
             var controller = new AnimationController(skeleton, []);
 
             ExternalSkeletons[skeletonName] = new(controller, remapTable, debugMap);
+        }
+
+        /// <summary>
+        /// Sets the blend weight for a clip with the specified animation name.
+        /// </summary>
+        /// <param name="name">The name of the animation.</param>
+        /// <param name="weight">The weight value (0.0 to 1.0).</param>
+        public void SetAnimationWeight(string name, float weight)
+        {
+            if (activeClip?.Animation.Name == name)
+            {
+                activeClip.Weight = weight;
+                return;
+            }
+
+            foreach (var clip in previousClips)
+            {
+                if (clip.Animation.Name == name)
+                {
+                    clip.Weight = weight;
+                    return;
+                }
+            }
         }
     }
 }
