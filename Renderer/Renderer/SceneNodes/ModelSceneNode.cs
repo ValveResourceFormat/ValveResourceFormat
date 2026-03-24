@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
-        protected readonly List<Animation> Animations = [];
+        public readonly List<Animation> Animations = [];
 
         public bool IsFirstpersonLegs { get; set; }
 

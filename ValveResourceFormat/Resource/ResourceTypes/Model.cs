@@ -397,8 +397,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets animations referenced from other models.
         /// </summary>
         /// <param name="fileLoader">The file loader to use.</param>
+        /// <param name="skeleton">The skeleton to use for the animations.</param>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<Animation> GetReferencedAnimations(IFileLoader fileLoader)
+        public IEnumerable<Animation> GetReferencedAnimations(IFileLoader fileLoader, Skeleton? skeleton = default)
         {
             var refAnimModels = Data.GetArray<string>("m_refAnimIncludeModels");
             if (refAnimModels == null || refAnimModels.Length == 0)
@@ -420,12 +421,18 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                model.cachedSkeleton = Skeleton;
-                var anims = model.GetAllAnimations(fileLoader);
+                var anims = LoadEmbeddedAnimationsWithSkeleton(fileLoader, skeleton ?? Skeleton, model);
                 allAnims.AddRange(anims);
             }
 
             return allAnims;
+        }
+
+        public static IEnumerable<Animation> LoadEmbeddedAnimationsWithSkeleton(IFileLoader fileLoader, Skeleton skeleton, Model model)
+        {
+            model.cachedSkeleton = skeleton;
+            var anims = model.GetAllAnimations(fileLoader);
+            return anims;
         }
 
         /// <summary>
