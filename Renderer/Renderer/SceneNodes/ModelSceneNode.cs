@@ -237,7 +237,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 AnimationController.ApplyFirstpersonLegs();
             }
-            
+
             if (IsAnimated)
             {
                 Debug.Assert(boneMatricesGpu != null, "boneMatricesGpu should not be null when IsAnimated is true");
@@ -493,7 +493,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="blendTime">The time in seconds to blend from the current animation to the new one.</param>
         public void SetAnimationByName(string animationName, float blendTime)
         {
-            var activeAnimation = Animations.FirstOrDefault(a => a.Name == animationName);
+            Animations.TryGetValue(animationName, out var activeAnimation);
             SetAnimation(activeAnimation, blendTime);
         }
 
