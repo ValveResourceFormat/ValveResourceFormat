@@ -21,28 +21,14 @@ namespace GUI.Types.Viewers
             var folder = Path.GetDirectoryName(guiContext.FileName);
             var filePath = entry.GetFullPath();
 
-            if (guiContext.ToolsAssetInfo == null)
-            {
-                var path = Path.Join(folder, "readonly_tools_asset_info.bin");
+            var toolsAssetInfo = guiContext.GetOrLoadToolsAssetInfo();
+            ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.File? assetInfo = null;
 
-                if (!File.Exists(path)) // Check parent folder if trying to load asset info in /maps/
-                {
-                    path = Path.Join(Path.GetDirectoryName(folder), "readonly_tools_asset_info.bin");
-                }
-
-                guiContext.ToolsAssetInfo = new ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo();
-
-                if (File.Exists(path))
-                {
-                    guiContext.ToolsAssetInfo.Read(path);
-                }
-            }
-
-            if (!guiContext.ToolsAssetInfo.Files.TryGetValue(filePath, out var assetInfo))
+            if (toolsAssetInfo != null && !toolsAssetInfo.Files.TryGetValue(filePath, out assetInfo))
             {
                 var gameRootPath = string.Concat(Path.GetFileName(folder), "/", filePath);
 
-                foreach (var (filePathTemp, assetInfoTemp) in guiContext.ToolsAssetInfo.Files)
+                foreach (var (filePathTemp, assetInfoTemp) in toolsAssetInfo.Files)
                 {
                     if (assetInfoTemp.SearchPathsGameRoot.Exists(f => f.Filename == gameRootPath))
                     {
@@ -54,15 +40,15 @@ namespace GUI.Types.Viewers
             }
 
             // If we didn't find exact match in the tools info, try to find the same file without the "_c" suffix
-            if (assetInfo == null && filePath.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+            if (assetInfo == null && toolsAssetInfo != null && filePath.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
                 var filePathUncompiled = filePath[..^2];
 
-                if (!guiContext.ToolsAssetInfo.Files.TryGetValue(filePathUncompiled, out assetInfo))
+                if (!toolsAssetInfo.Files.TryGetValue(filePathUncompiled, out assetInfo))
                 {
                     var gameRootPath = string.Concat(Path.GetFileName(folder), "/", filePathUncompiled);
 
-                    foreach (var (filePathTemp, assetInfoTemp) in guiContext.ToolsAssetInfo.Files)
+                    foreach (var (filePathTemp, assetInfoTemp) in toolsAssetInfo.Files)
                     {
                         if (assetInfoTemp.SearchPathsGameRoot.Exists(f => f.Filename == gameRootPath))
                         {
@@ -94,7 +80,7 @@ namespace GUI.Types.Viewers
 
             var fileControl = new CodeTextBox(fileInfo.ToString());
 
-            if (assetInfo == null)
+            if (assetInfo == null || toolsAssetInfo == null)
             {
                 fileControl.Dock = DockStyle.Fill;
                 parentTab.Controls.Add(fileControl);
@@ -119,7 +105,7 @@ namespace GUI.Types.Viewers
 
             var referencedBy = new List<FileReference>();
 
-            foreach (var (filePathTemp, assetInfoTemp) in guiContext.ToolsAssetInfo.Files)
+            foreach (var (filePathTemp, assetInfoTemp) in toolsAssetInfo.Files)
             {
                 if (assetInfoTemp.ChildResources.Contains(filePath))
                 {

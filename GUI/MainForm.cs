@@ -1105,13 +1105,15 @@ namespace GUI
             if (package != null)
             {
                 searchForm ??= new();
+                searchForm.SetSearchableUserDataKeys(package.GetSearchDataKeysAsync());
                 var result = searchForm.ShowDialog();
                 if (result == DialogResult.OK)
                 {
                     var searchText = searchForm.SearchText;
-                    if (!string.IsNullOrEmpty(searchText))
+                    var filterKey = searchForm.SelectedFilterKey;
+                    if (!string.IsNullOrEmpty(searchText) || filterKey != null)
                     {
-                        package.SearchAndFillResults(searchText, searchForm.SelectedSearchType);
+                        package.SearchAndFillResults(searchText, searchForm.SelectedSearchType, filterKey, searchForm.SelectedFilterValue);
                     }
                 }
                 return;
