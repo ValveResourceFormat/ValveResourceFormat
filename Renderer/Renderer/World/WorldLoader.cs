@@ -751,7 +751,7 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         var cubemapTextureName = entity.GetProperty<string>("cubemaptexture");
                         var envMapTexture = cubemapTextureName != null
-                            ? RendererContext.MaterialLoader.GetTexture(cubemapTextureName)
+                            ? RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true)
                             : null;
 
                         if (envMapTexture != null)

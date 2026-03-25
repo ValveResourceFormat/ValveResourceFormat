@@ -40,10 +40,10 @@ layout(std140, binding = 2) uniform EnvMapArray
 #if (S_SCENE_CUBEMAP_TYPE == 0)
     // ...
 #elif (S_SCENE_CUBEMAP_TYPE == 1)
-    uniform samplerCube g_tEnvironmentMap;
+    uniform samplerCube g_tEnvironmentMap; // SrgbRead(true)
     flat in uvec4 g_nEnvMapVisibility;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
-    uniform samplerCubeArray g_tEnvironmentMap;
+    uniform samplerCubeArray g_tEnvironmentMap; // SrgbRead(true)
     flat in uvec4 g_nEnvMapVisibility;
 #endif
 
