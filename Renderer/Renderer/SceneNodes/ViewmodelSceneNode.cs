@@ -61,6 +61,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     private float alternateAttackCooldown;
     private Vector3 currentBob = Vector3.Zero;
 
+    private Vector2 currentWalkDirection = new(0, 1);
+    private const float WalkDirectionLerpRate = 0.35f;
+
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
     /// </summary>
@@ -76,6 +79,82 @@ public class ViewmodelSceneNode : ModelSceneNode
         LookAt,
         Attack,
         AlternateAttack,
+    }
+
+    private enum Posture
+    {
+        Standing,
+        Crouching,
+    }
+
+    private enum MovementState
+    {
+        Stopped,
+        Walking,
+        Running,
+    }
+
+    private enum Heading
+    {
+        North,
+        South,
+        East,
+        West,
+        NorthEast,
+        SouthEast,
+        SouthWest,
+        NorthWest,
+        Center,
+    }
+
+    private static readonly Dictionary<Heading, Vector2> HeadingVectors = new()
+    {
+        [Heading.North] = new(0, 1),
+        [Heading.NorthEast] = Vector2.Normalize(new(1, 1)),
+        [Heading.East] = new(1, 0),
+        [Heading.SouthEast] = Vector2.Normalize(new(1, -1)),
+        [Heading.South] = new(0, -1),
+        [Heading.SouthWest] = Vector2.Normalize(new(-1, -1)),
+        [Heading.West] = new(-1, 0),
+        [Heading.NorthWest] = Vector2.Normalize(new(-1, 1)),
+        [Heading.Center] = new(0, 0),
+    };
+
+    private static string GetThirdpersonAnim(Posture posture, MovementState movement, Heading heading = Heading.Center)
+    {
+        const string item = "rifle";
+
+        var run = posture == Posture.Crouching
+            ? "crouch"
+            : movement == MovementState.Running ? "run" : "walk";
+
+        var direction = heading switch
+        {
+            Heading.North => "n",
+            Heading.South => "s",
+            Heading.East => "e",
+            Heading.West => "w",
+            Heading.NorthEast => "ne",
+            Heading.SouthEast => "se",
+            Heading.SouthWest => "sw",
+            Heading.NorthWest => "nw",
+            Heading.Center => "center",
+            _ => throw new ArgumentOutOfRangeException(nameof(heading), heading, null)
+        };
+
+        if (movement == MovementState.Stopped)
+        {
+            direction = "stopped";
+        }
+
+        var anim = $"{run}_new_{item}_{direction}";
+
+        // const string walkRifleStopped = "walk_new_rifle_stopped";
+        // const string crouchRifleStopped = "crouch_new_rifle_stopped";
+        // const string walkKnifeN = "walk_new_rifle_n";
+        // const string crouchKnifeN = "crouch_new_rifle_n";
+
+        return anim;
     }
 
     AnimationState State { get; set; } = AnimationState.Idle;
@@ -170,10 +249,17 @@ public class ViewmodelSceneNode : ModelSceneNode
         // Load additional animations from animset_ct
         LoadAnimsetAnimations(Legs);
         Legs.AnimationController.Looping = true;
-        Legs.SetAnimationByName("walk_new_rifle_stopped", -1); // center
-        Legs.SetAnimationByName("crouch_new_rifle_stopped", -1); // center
-        Legs.SetAnimationByName("walk_new_knife_n", -1);
-        Legs.SetAnimationByName("crouch_new_knife_n", -1);
+
+        foreach (var posture in Enum.GetValues<Posture>())
+        {
+            foreach (var movement in Enum.GetValues<MovementState>())
+            {
+                foreach (var heading in Enum.GetValues<Heading>())
+                {
+                    Legs.SetAnimationByName(GetThirdpersonAnim(posture, movement, heading), -1);
+                }
+            }
+        }
     }
 
     private void LoadAnimsetAnimations(ModelSceneNode legs)
@@ -377,14 +463,81 @@ public class ViewmodelSceneNode : ModelSceneNode
             var crouched = input.PlayerMovement.CrouchBlend;
             var standing = 1f - crouched;
 
-            var walking = MathUtils.Saturate(input.Velocity.Length() / 250f);
-            var stopped = 1f - walking;
+            Vector2 walkRun = new(float.Lerp(84f, 120f, standing), 250f);
 
-            legsController.SetAnimationWeight("walk_new_rifle_stopped", stopped * standing);
-            legsController.SetAnimationWeight("crouch_new_rifle_stopped", stopped * crouched);
+            var running = MathUtils.Saturate((speed - walkRun.X) / (walkRun.Y - walkRun.X));
+            var walking = MathUtils.Saturate(speed / walkRun.X) * (1f - running);
+            var stopped = MathF.Max(0f, 1f - running - walking);
 
-            legsController.SetAnimationWeight("walk_new_knife_n", walking * standing);
-            legsController.SetAnimationWeight("crouch_new_knife_n", walking * crouched);
+            // Calculate movement direction relative to the camera for directional blending.
+            var desiredWalkDir = Vector2.Zero;
+            var velocity2D = new Vector2(input.Velocity.X, input.Velocity.Y);
+            if (velocity2D.LengthSquared() > 1e-4f)
+            {
+                var cameraForward2 = new Vector2(camera.Forward.X, camera.Forward.Y);
+                var cameraRight2 = new Vector2(camera.Right.X, camera.Right.Y);
+
+                if (cameraForward2.LengthSquared() > 1e-6f)
+                {
+                    cameraForward2 = Vector2.Normalize(cameraForward2);
+                }
+
+                if (cameraRight2.LengthSquared() > 1e-6f)
+                {
+                    cameraRight2 = Vector2.Normalize(cameraRight2);
+                }
+
+                var camRelative = new Vector2(
+                    Vector2.Dot(velocity2D, cameraRight2),
+                    Vector2.Dot(velocity2D, cameraForward2)
+                );
+
+                if (camRelative.LengthSquared() > 1e-6f)
+                {
+                    desiredWalkDir = Vector2.Normalize(camRelative);
+                }
+            }
+
+            if (desiredWalkDir.LengthSquared() > 1e-6f)
+            {
+                currentWalkDirection = Vector2.Lerp(currentWalkDirection, desiredWalkDir, WalkDirectionLerpRate);
+            }
+
+            if (currentWalkDirection.LengthSquared() < 1e-6f)
+            {
+                currentWalkDirection = new(0, 1);
+            }
+
+            var headingWeights = new Dictionary<Heading, float>();
+            var headingTotal = 0f;
+            foreach (var heading in HeadingVectors.Keys.Where(h => h != Heading.Center))
+            {
+                var weight = MathF.Max(0f, Vector2.Dot(currentWalkDirection, HeadingVectors[heading]));
+                headingWeights[heading] = weight;
+                headingTotal += weight;
+            }
+
+            if (headingTotal > 0f)
+            {
+                foreach (var heading in headingWeights.Keys.ToList())
+                {
+                    headingWeights[heading] /= headingTotal;
+                }
+            }
+
+            legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Crouching, MovementState.Stopped), stopped * crouched);
+            legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Standing, MovementState.Stopped), stopped * standing);
+
+            foreach (var heading in HeadingVectors.Keys.Where(h => h != Heading.Center))
+            {
+                var headingWeight = headingWeights.TryGetValue(heading, out var w) ? w : 0f;
+
+                legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Crouching, MovementState.Walking, heading), walking * crouched * headingWeight);
+                legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Standing, MovementState.Walking, heading), walking * standing * headingWeight);
+
+                // crouch cannot run
+                legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Standing, MovementState.Running, heading), running * standing * headingWeight);
+            }
         }
 
         var (fireDelay, altFireDelay) = GetWeaponFireDelays();
