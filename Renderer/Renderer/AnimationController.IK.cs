@@ -12,6 +12,52 @@ namespace ValveResourceFormat.Renderer
             {
                 ZeroBoneAndChildren(Pose, Skeleton.Bones[spine0]);
             }
+
+            var time = DateTime.Now;
+            var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
+
+            if (blink)
+            {
+                return;
+            }
+
+            var pelvis = Skeleton.GetBoneIndex("pelvis");
+            var ball_r = Skeleton.GetBoneIndex("ball_r");
+            var ball_l = Skeleton.GetBoneIndex("ball_l");
+
+            if (pelvis != -1 && (ball_r != -1 || ball_l != -1))
+            {
+                const float legStretchMin = 5f;
+                const float legStretchMax = 50f;
+                const float basePelvisOffsetX = -30f;
+                const float basePelvisYawDegrees = -35f;
+
+                var pelvisPos = Pose[pelvis].Translation;
+                var minLegDist = float.MaxValue;
+
+                if (ball_r != -1)
+                {
+                    var rPos = Pose[ball_r].Translation;
+                    minLegDist = MathF.Min(minLegDist, Vector2.Distance(new Vector2(pelvisPos.X, pelvisPos.Y), new Vector2(rPos.X, rPos.Y)));
+                }
+
+                if (ball_l != -1)
+                {
+                    var lPos = Pose[ball_l].Translation;
+                    minLegDist = MathF.Min(minLegDist, Vector2.Distance(new Vector2(pelvisPos.X, pelvisPos.Y), new Vector2(lPos.X, lPos.Y)));
+                }
+
+                minLegDist = MathF.Max(minLegDist, 1f);
+
+                var legStretchWeight = MathUtils.Saturate((minLegDist - legStretchMin) / (legStretchMax - legStretchMin));
+
+                var maxPelvisOffsetX = basePelvisOffsetX * legStretchWeight;
+                var maxPelvisYaw = basePelvisYawDegrees * (MathF.PI / 180f) * legStretchWeight;
+
+                var fadeDistance = MathF.Max(minLegDist, 1f);
+                ApplyFirstpersonLegsPelvisOffset(Pose, Skeleton.Bones[pelvis], pelvisPos, fadeDistance, maxPelvisOffsetX, maxPelvisYaw);
+            }
+
         }
 
         /// <summary>
@@ -82,6 +128,57 @@ namespace ValveResourceFormat.Renderer
                 ZeroBoneAndChildren(pose, child);
             }
         }
+
+        private static void ApplyFirstpersonLegsPelvisOffset(Span<Matrix4x4> pose, Bone bone, Vector3 pelvisPos, float fadeDistance, float maxPelvisOffsetX, float maxPelvisYaw)
+        {
+            // Apply a small X-axis pelvis offset and yaw rotation in first-person legs mode.
+            // Weight fades to zero at 'fadeDistance' units below pelvis on Z axis.
+            fadeDistance = MathF.Max(fadeDistance, 1f);
+
+            var pelvisZ = pelvisPos.Z;
+            var boneZ = pose[bone.Index].M43;
+            var downFromPelvis = pelvisZ - boneZ;
+            var weight = MathUtils.Saturate(1f - downFromPelvis / fadeDistance);
+
+            if (weight <= 0f)
+            {
+                foreach (var child in bone.Children)
+                {
+                    ApplyFirstpersonLegsPelvisOffset(pose, child, pelvisPos, fadeDistance, maxPelvisOffsetX, maxPelvisYaw);
+                }
+                return;
+            }
+
+            var offsetX = maxPelvisOffsetX * weight;
+            var yaw = maxPelvisYaw * weight;
+
+            var parentGlobal = bone.Parent != null ? pose[bone.Parent.Index] : Matrix4x4.Identity;
+            var parentInverse = Matrix4x4.Identity;
+            if (bone.Parent != null && !Matrix4x4.Invert(parentGlobal, out parentInverse))
+            {
+                parentInverse = Matrix4x4.Identity;
+            }
+
+            var currentGlobal = pose[bone.Index];
+            var local = parentInverse * currentGlobal;
+
+            Matrix4x4.Decompose(local, out var localScale, out var localRotation, out var localTranslation);
+
+            var newLocalTranslation = localTranslation + new Vector3(offsetX, 0f, 0f);
+            var newLocalRotation = Quaternion.Normalize(localRotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, yaw));
+
+            var newLocal = Matrix4x4.CreateScale(localScale)
+                * Matrix4x4.CreateFromQuaternion(newLocalRotation)
+                * Matrix4x4.CreateTranslation(newLocalTranslation);
+
+            pose[bone.Index] = parentGlobal * newLocal;
+
+            foreach (var child in bone.Children)
+            {
+                ApplyFirstpersonLegsPelvisOffset(pose, child, pelvisPos, fadeDistance, maxPelvisOffsetX, maxPelvisYaw);
+            }
+        }
+
 
         private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone? twist, Bone twist1, float side)
         {
