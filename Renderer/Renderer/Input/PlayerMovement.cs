@@ -56,7 +56,7 @@ public class PlayerMovement
     /// Gets a value indicating whether the player is currently on the ground.
     /// </summary>
     public bool OnGround { get; private set; }
-    private bool WasOnGroundLastFrame;
+    public bool WasOnGroundLastFrame { get; private set; }
     private bool WasDuckingLastFrame;
 
     private bool HoldingCtrl => Input.Holding(TrackedKeys.Control);

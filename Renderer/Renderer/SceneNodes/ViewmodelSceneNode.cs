@@ -92,6 +92,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         Stopped,
         Walking,
         Running,
+        Jumping,
     }
 
     private enum Heading
@@ -123,6 +124,11 @@ public class ViewmodelSceneNode : ModelSceneNode
     private static string GetThirdpersonAnim(Posture posture, MovementState movement, Heading heading = Heading.Center)
     {
         const string item = "rifle";
+
+        if (movement == MovementState.Jumping)
+        {
+            return posture == Posture.Standing ? "jump_stand" : "sh_jump_crouched_stand";
+        }
 
         var run = posture == Posture.Crouching
             ? "crouch"
@@ -469,6 +475,25 @@ public class ViewmodelSceneNode : ModelSceneNode
             var walking = MathUtils.Saturate(speed / walkRun.X) * (1f - running);
             var stopped = MathF.Max(0f, 1f - running - walking);
 
+            var jumping = 0f;
+            var justJumped = false;
+
+            if (!input.PlayerMovement.OnGround)
+            {
+                jumping = 1f;
+                running = 0f;
+                walking = 0f;
+                stopped = 0f;
+
+                justJumped = input.PlayerMovement.WasOnGroundLastFrame;
+
+                if (justJumped)
+                {
+                    legsController.SetAnimationProperties(GetThirdpersonAnim(Posture.Standing, MovementState.Jumping), 0f, looping: false);
+                    legsController.SetAnimationProperties(GetThirdpersonAnim(Posture.Crouching, MovementState.Jumping), 0f, looping: false);
+                }
+            }
+
             // Calculate movement direction relative to the camera for directional blending.
             var desiredWalkDir = Vector2.Zero;
             var velocity2D = new Vector2(input.Velocity.X, input.Velocity.Y);
@@ -525,8 +550,13 @@ public class ViewmodelSceneNode : ModelSceneNode
                 }
             }
 
-            legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Crouching, MovementState.Stopped), stopped * crouched);
-            legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Standing, MovementState.Stopped), stopped * standing);
+            foreach (var posture in Enum.GetValues<Posture>())
+            {
+                var t = posture == Posture.Standing ? standing : crouched;
+
+                legsController.SetAnimationWeight(GetThirdpersonAnim(posture, MovementState.Stopped), stopped * t);
+                legsController.SetAnimationWeight(GetThirdpersonAnim(posture, MovementState.Jumping), jumping * t);
+            }
 
             foreach (var heading in HeadingVectors.Keys.Where(h => h != Heading.Center))
             {
