@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Renderer
         public Animation? ActiveAnimation { get; private set; }
 
         /// <summary>Represents an animation clip with its playback state.</summary>
-        private record class Clip(Animation Animation)
+        public record class Clip(Animation Animation)
         {
             public float Time { get; set; }
             public bool IsPaused { get; set; }
@@ -154,7 +154,7 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-                IsPaused = activeClip.IsPaused;
+                IsPaused = activeClip.IsPaused && clips.Values.All(c => c.IsPaused);
                 Frame = activeClip.Frame;
 
                 // Update time for all other clips
@@ -600,6 +600,23 @@ namespace ValveResourceFormat.Renderer
             if (clips.TryGetValue(name, out var clip))
             {
                 clip.Weight = weight;
+            }
+        }
+
+
+        public void SetAnimationProperties(string name, float? time = null, bool? looping = null)
+        {
+            if (clips.TryGetValue(name, out var clip))
+            {
+                if (time.HasValue)
+                {
+                    clip.Time = time.Value;
+                }
+
+                if (looping.HasValue)
+                {
+                    clip.Looping = looping.Value;
+                }
             }
         }
     }
