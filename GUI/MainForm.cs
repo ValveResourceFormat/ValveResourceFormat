@@ -62,6 +62,7 @@ namespace GUI
         internal ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
+        private IPC.IpcWindow? ipcWindow;
 
         static MainForm()
         {
@@ -296,6 +297,7 @@ namespace GUI
                         if (!File.Exists(dirFile))
                         {
                             Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
+                            mainTabs.OpenTab("Console");
                             continue;
                         }
 
@@ -320,6 +322,7 @@ namespace GUI
                             if (packageFile == null)
                             {
                                 Log.Error(nameof(MainForm), $"File '{innerFile}' does not exist in package '{file}'.");
+                                mainTabs.OpenTab("Console");
                                 continue;
                             }
                         }
@@ -357,6 +360,7 @@ namespace GUI
                 if (!File.Exists(file))
                 {
                     Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
+                    mainTabs.OpenTab("Console");
                     continue;
                 }
 
@@ -422,6 +426,8 @@ namespace GUI
             {
                 OpenExplorer();
             }
+
+            ipcWindow = new();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -441,6 +447,8 @@ namespace GUI
                 Settings.Config.WindowState = (int)(placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED ? FormWindowState.Maximized : FormWindowState.Normal);
             }
 #endif
+
+            ipcWindow?.DestroyHandle();
 
             Settings.Save();
             base.OnFormClosing(e);
@@ -1156,13 +1164,9 @@ namespace GUI
 
         private void OpenExplorer()
         {
-            foreach (TabPage tabPage in mainTabs.TabPages)
+            if (mainTabs.OpenTab("Explorer"))
             {
-                if (tabPage.Text == "Explorer")
-                {
-                    mainTabs.SelectTab(tabPage);
-                    return;
-                }
+                return;
             }
 
             var explorerTab = new ThemedTabPage("Explorer")

@@ -1,11 +1,14 @@
+AllowSetForegroundWindow
 AppendMenu
 CreateDIBSection
 DWM_WINDOW_CORNER_PREFERENCE
 DwmDefWindowProc
+FindWindowEx
 DwmGetWindowAttribute
 DwmSetWindowAttribute
 GetComboBoxInfo
 GetSystemMenu
+GetWindowThreadProcessId
 GetSystemMetricsForDpi
 GetWindowPlacement
 HTCAPTION
@@ -23,6 +26,8 @@ MENU_ITEM_FLAGS
 NCCALCSIZE_PARAMS
 PostMessage
 SendMessage
+SendMessageTimeout
+SEND_MESSAGE_TIMEOUT_FLAGS
 SetParent
 SetWindowLongPtr
 SetWindowPlacement
@@ -36,6 +41,7 @@ TrackPopupMenu
 WINDOW_EX_STYLE
 WINDOW_STYLE
 WM_CLOSE
+WM_COPYDATA
 WM_NCCALCSIZE
 WM_NCHITTEST
 WM_NCLBUTTONDOWN
