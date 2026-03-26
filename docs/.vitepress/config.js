@@ -35,7 +35,10 @@ export default defineConfig({
             { text: "Library", link: "/api/ValveResourceFormat" },
             { text: "Renderer", link: "/api/ValveResourceFormat.Renderer" },
             { text: "Wiki", link: "https://www.source2.wiki" },
-            { text: "Schema Explorer", link: "https://s2v.app/SchemaExplorer/" },
+            {
+                text: "Schema Explorer",
+                link: "https://s2v.app/SchemaExplorer/",
+            },
         ],
 
         sidebar: {
@@ -118,5 +121,17 @@ export default defineConfig({
 
     sitemap: {
         hostname: "https://s2v.app/ValveResourceFormat/",
+    },
+
+    transformPageData(pageData) {
+        const canonicalUrl = `https://s2v.app/ValveResourceFormat/${pageData.relativePath}`
+            .replace(/index\.md$/, "")
+            .replace(/\.md$/, ".html");
+
+        pageData.frontmatter.head ??= [];
+        pageData.frontmatter.head.push([
+            "link",
+            { rel: "canonical", href: canonicalUrl },
+        ]);
     },
 });
