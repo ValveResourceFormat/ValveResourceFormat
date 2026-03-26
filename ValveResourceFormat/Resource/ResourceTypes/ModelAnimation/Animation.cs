@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Runtime.InteropServices;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;

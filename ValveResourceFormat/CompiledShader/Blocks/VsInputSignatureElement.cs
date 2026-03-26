@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.Material;
 
@@ -29,7 +30,7 @@ public class VsInputSignatureElement : ShaderDataBlock
 
         for (var i = 0; i < data.Count; i++)
         {
-            var definition = (KVObject)data[i].Value!;
+            var definition = new KVObject(null, data[i]);
             SymbolsDefinition[i] = new(definition);
         }
     }

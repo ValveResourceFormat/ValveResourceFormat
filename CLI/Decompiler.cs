@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ConsoleAppFramework;
 using SteamDatabase.ValvePak;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
@@ -1550,13 +1551,13 @@ namespace CLI
 
                         foreach (var entity in entities)
                         {
-                            foreach (var property in entity.Properties)
+                            foreach (var property in entity.Properties.Children)
                             {
-                                if (!knownEntityKeys.Contains(property.Key))
+                                if (!knownEntityKeys.Contains(property.Name))
                                 {
                                     lock (unknownEntityKeys)
                                     {
-                                        unknownEntityKeys.Add(property.Key["vrf_unknown_key_".Length..]);
+                                        unknownEntityKeys.Add(property.Name["vrf_unknown_key_".Length..]);
                                     }
                                 }
                             }

@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Renderer.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps;
@@ -90,22 +91,22 @@ namespace ValveResourceFormat.ResourceTypes
             //Some vmorf_c may be another old struct(NTROValue, eg: models/heroes/faceless_void/faceless_void_body.vmdl_c).
             //the latest struct is KVObject.
             var morphDatas = GetMorphKeyValueCollection(Data, "m_morphDatas");
-            if (morphDatas == null || morphDatas.Count == 0)
+            if (morphDatas.Length == 0)
             {
                 return flexData;
             }
 
-            var bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv.Value)).ToArray();
-            flexData.EnsureCapacity(morphDatas.Count);
+            var bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv)).ToArray();
+            flexData.EnsureCapacity(morphDatas.Length);
 
-            foreach (var pair in morphDatas)
+            foreach (var morphData in morphDatas)
             {
-                if (pair.Value is not KVObject morphData)
+                if (morphData.Value is not KVCollectionValue)
                 {
                     continue;
                 }
 
-                var morphName = morphData.GetProperty<string>("m_name");
+                var morphName = morphData.GetStringProperty("m_name");
                 if (string.IsNullOrEmpty(morphName))
                 {
                     //Exist some empty names may need skip.
@@ -115,19 +116,17 @@ namespace ValveResourceFormat.ResourceTypes
                 var rectData = new Vector3[height * width];
                 rectData.Initialize();
 
-                var morphRectDatas = morphData.GetSubCollection("m_morphRectDatas");
-                foreach (var morphRectData in morphRectDatas)
+                foreach (var rect in morphData.GetArray("m_morphRectDatas") ?? [])
                 {
-                    var rect = morphRectData.Value as KVObject;
                     var xLeftDst = rect.GetInt32Property("m_nXLeftDst");
                     var yTopDst = rect.GetInt32Property("m_nYTopDst");
                     var rectWidth = (int)MathF.Round(rect.GetFloatProperty("m_flUWidthSrc") * texWidth, 0);
                     var rectHeight = (int)MathF.Round(rect.GetFloatProperty("m_flVHeightSrc") * texHeight, 0);
-                    var bundleDatas = rect.GetSubCollection("m_bundleDatas");
+                    var bundleDatas = rect.GetArray("m_bundleDatas") ?? [];
 
-                    foreach (var bundleData in bundleDatas)
+                    for (var bundleKey = 0; bundleKey < bundleDatas.Length; bundleKey++)
                     {
-                        var bundleKey = int.Parse(bundleData.Key, CultureInfo.InvariantCulture);
+                        var bundleData = bundleDatas[bundleKey];
 
                         // We currently only support Position.
                         // TODO: Add Normal support for gltf
@@ -136,11 +135,10 @@ namespace ValveResourceFormat.ResourceTypes
                             continue;
                         }
 
-                        var bundle = bundleData.Value as KVObject;
-                        var rectU = (int)MathF.Round(bundle.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
-                        var rectV = (int)MathF.Round(bundle.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
-                        var ranges = new Vector4(bundle.GetFloatArray("m_ranges"));
-                        var offsets = new Vector4(bundle.GetFloatArray("m_offsets"));
+                        var rectU = (int)MathF.Round(bundleData.GetFloatProperty("m_flULeftSrc") * texWidth, 0);
+                        var rectV = (int)MathF.Round(bundleData.GetFloatProperty("m_flVTopSrc") * texHeight, 0);
+                        var ranges = new Vector4(bundleData.GetFloatArray("m_ranges"));
+                        var offsets = new Vector4(bundleData.GetFloatArray("m_offsets"));
 
                         for (var row = rectV; row < rectV + rectHeight; row++)
                         {
@@ -188,21 +186,16 @@ namespace ValveResourceFormat.ResourceTypes
             Texture = (Texture)TextureResource.DataBlock;
 
             FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
-                .Select(kv => ParseFlexRule(kv.Value))
+                .Select(kv => ParseFlexRule(kv))
                 .ToArray();
 
             FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
-                .Select(kv => ParseFlexController(kv.Value))
+                .Select(kv => ParseFlexController(kv))
                 .ToArray();
         }
 
-        private static FlexController ParseFlexController(object obj)
+        private static FlexController ParseFlexController(KVObject kv)
         {
-            if (obj is not KVObject kv)
-            {
-                throw new ArgumentException("Parameter is not KVObject");
-            }
-
             var name = kv.GetStringProperty("m_szName");
             var type = kv.GetStringProperty("m_szType");
             var min = kv.GetFloatProperty("min");
@@ -211,17 +204,12 @@ namespace ValveResourceFormat.ResourceTypes
             return new FlexController(name, type, min, max);
         }
 
-        private static FlexRule ParseFlexRule(object obj)
+        private static FlexRule ParseFlexRule(KVObject kv)
         {
-            if (obj is not KVObject kv)
-            {
-                throw new ArgumentException("Parameter is not KVObject");
-            }
-
             var flexId = kv.GetInt32Property("m_nFlex");
 
-            var flexOps = kv.GetSubCollection("m_FlexOps")
-                .Select(flexOp => ParseFlexOp(flexOp.Value))
+            var flexOps = (kv.GetArray("m_FlexOps") ?? [])
+                .Select(flexOp => ParseFlexOp(flexOp))
                 .ToArray();
 
             if (flexOps.Any(op => op == null))
@@ -233,27 +221,23 @@ namespace ValveResourceFormat.ResourceTypes
             return new FlexRule(flexId, flexOps);
         }
 
-        private static FlexOp ParseFlexOp(object obj)
+        private static FlexOp ParseFlexOp(KVObject kv)
         {
-            if (obj is not KVObject kv)
-            {
-                throw new ArgumentException("Parameter is not KVObject");
-            }
-
             var opCode = kv.GetStringProperty("m_OpCode");
             var data = kv.GetInt32Property("m_Data");
             return FlexOp.Build(opCode, data);
         }
 
-        private static MorphBundleType ParseBundleType(object bundleType)
+        private static MorphBundleType ParseBundleType(KVObject bundleType)
         {
-            if (bundleType is uint bundleTypeEnum)
+            if (bundleType.Value.ValueType is KVValueType.UInt32 or KVValueType.Int32 or KVValueType.UInt64 or KVValueType.Int64)
             {
-                return (MorphBundleType)bundleTypeEnum;
+                return (MorphBundleType)(int)bundleType.Value;
             }
 
-            if (bundleType is string bundleTypeString)
+            if (bundleType.Value.ValueType == KVValueType.String)
             {
+                var bundleTypeString = (string)bundleType.Value;
                 return bundleTypeString switch
                 {
                     "MORPH_BUNDLE_TYPE_POSITION_SPEED" => MorphBundleType.PositionSpeed,
@@ -266,16 +250,15 @@ namespace ValveResourceFormat.ResourceTypes
             throw new NotImplementedException("Unhandled bundle type");
         }
 
-        private static KVObject GetMorphKeyValueCollection(KVObject data, string name)
+        private static KVObject[] GetMorphKeyValueCollection(KVObject data, string name)
         {
-            var kvObj = data.GetProperty<object>(name);
-            return kvObj as KVObject;
+            return data.GetArray(name) ?? [];
         }
 
         /// <summary>
         /// Gets the morph data collection.
         /// </summary>
-        public KVObject GetMorphDatas()
+        public KVObject[] GetMorphDatas()
         {
             return GetMorphKeyValueCollection(Data, "m_morphDatas");
         }

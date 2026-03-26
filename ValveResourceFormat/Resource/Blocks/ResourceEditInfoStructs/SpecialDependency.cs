@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
@@ -45,8 +46,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         /// </summary>
         public SpecialDependency(KVObject data)
         {
-            String = data.GetProperty("m_String", string.Empty);
-            CompilerIdentifier = data.GetProperty("m_CompilerIdentifier", string.Empty);
+            String = data.GetStringProperty("m_String") ?? string.Empty;
+            CompilerIdentifier = data.GetStringProperty("m_CompilerIdentifier") ?? string.Empty;
             Fingerprint = data.GetUInt32Property("m_nFingerprint");
             UserData = data.GetUInt32Property("m_nUserData");
         }

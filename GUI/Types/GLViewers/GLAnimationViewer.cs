@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;

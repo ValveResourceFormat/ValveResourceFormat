@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;

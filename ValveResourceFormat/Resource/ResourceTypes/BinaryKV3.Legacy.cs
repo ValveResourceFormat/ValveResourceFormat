@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -145,78 +146,78 @@ namespace ValveResourceFormat.ResourceTypes
             switch (datatype)
             {
                 case KV3BinaryNodeType.NULL:
-                    parent.AddProperty(name, MakeValue(datatype, null, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, null, flagInfo));
                     break;
                 case KV3BinaryNodeType.BOOLEAN:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadBoolean(), flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, reader.ReadBoolean(), flagInfo));
                     break;
                 case KV3BinaryNodeType.BOOLEAN_TRUE:
-                    parent.AddProperty(name, MakeValue(datatype, true, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, true, flagInfo));
                     break;
                 case KV3BinaryNodeType.BOOLEAN_FALSE:
-                    parent.AddProperty(name, MakeValue(datatype, false, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, false, flagInfo));
                     break;
                 case KV3BinaryNodeType.INT64_ZERO:
-                    parent.AddProperty(name, MakeValue(datatype, 0L, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, 0L, flagInfo));
                     break;
                 case KV3BinaryNodeType.INT64_ONE:
-                    parent.AddProperty(name, MakeValue(datatype, 1L, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, 1L, flagInfo));
                     break;
                 case KV3BinaryNodeType.INT64:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadInt64(), flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, reader.ReadInt64(), flagInfo));
                     break;
                 case KV3BinaryNodeType.UINT64:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt64(), flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, reader.ReadUInt64(), flagInfo));
                     break;
                 case KV3BinaryNodeType.INT32:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadInt32(), flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, reader.ReadInt32(), flagInfo));
                     break;
                 case KV3BinaryNodeType.UINT32:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadUInt32(), flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, reader.ReadUInt32(), flagInfo));
                     break;
                 case KV3BinaryNodeType.DOUBLE:
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, reader.ReadDouble(), flagInfo));
                     break;
                 case KV3BinaryNodeType.DOUBLE_ZERO:
-                    parent.AddProperty(name, MakeValue(datatype, 0.0D, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, 0.0D, flagInfo));
                     break;
                 case KV3BinaryNodeType.DOUBLE_ONE:
-                    parent.AddProperty(name, MakeValue(datatype, 1.0D, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, 1.0D, flagInfo));
                     break;
                 case KV3BinaryNodeType.STRING:
                     var id = reader.ReadInt32();
-                    parent.AddProperty(name, MakeValue(datatype, id == -1 ? string.Empty : context.Strings[id], flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, id == -1 ? string.Empty : context.Strings[id], flagInfo));
                     break;
                 case KV3BinaryNodeType.BINARY_BLOB:
                     var length = reader.ReadInt32();
-                    parent.AddProperty(name, MakeValue(datatype, reader.ReadBytes(length), flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, reader.ReadBytes(length), flagInfo));
                     break;
                 case KV3BinaryNodeType.ARRAY:
                     var arrayLength = reader.ReadInt32();
-                    var array = new KVObject(name, isArray: true, capacity: arrayLength);
+                    var array = new KVObject(name, Array.Empty<KVValue>());
 
                     for (var i = 0; i < arrayLength; i++)
                     {
                         LegacyParseBinaryKV3(context, reader, array, true);
                     }
 
-                    parent.AddProperty(name, MakeValue(datatype, array, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, array, flagInfo));
                     break;
                 case KV3BinaryNodeType.ARRAY_TYPED:
                     var typeArrayLength = reader.ReadInt32();
                     var (subType, subFlagInfo) = LegacyReadType(reader);
-                    var typedArray = new KVObject(name, isArray: true, capacity: typeArrayLength);
+                    var typedArray = new KVObject(name, Array.Empty<KVValue>());
 
                     for (var i = 0; i < typeArrayLength; i++)
                     {
                         LegacyReadBinaryValue(context, name, subType, subFlagInfo, reader, typedArray);
                     }
 
-                    parent.AddProperty(name, MakeValue(datatype, typedArray, flagInfo));
+                    AddToParent(parent, name, MakeValue(datatype, typedArray, flagInfo));
                     break;
                 case KV3BinaryNodeType.OBJECT:
                     var objectLength = reader.ReadInt32();
-                    var newObject = new KVObject(name, isArray: false, capacity: objectLength);
+                    var newObject = new KVObject(name);
 
                     for (var i = 0; i < objectLength; i++)
                     {
@@ -229,7 +230,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                     else
                     {
-                        parent.AddProperty(name, MakeValue(datatype, newObject, flagInfo));
+                        AddToParent(parent, name, MakeValue(datatype, newObject, flagInfo));
                     }
 
                     break;

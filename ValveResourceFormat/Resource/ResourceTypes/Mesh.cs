@@ -1,4 +1,5 @@
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelData;
@@ -155,6 +156,7 @@ namespace ValveResourceFormat.ResourceTypes
             return flags switch
             {
                 string flagsString => flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.InvariantCulture),
+                int flagsInt => ((RenderMeshDrawPrimitiveFlags)flagsInt & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
                 long flagsLong => ((RenderMeshDrawPrimitiveFlags)flagsLong & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
                 byte flagsByte => ((RenderMeshDrawPrimitiveFlags)flagsByte & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
                 _ => false

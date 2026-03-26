@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -1178,22 +1179,25 @@ public sealed class MapExtract
         var textureName = Path.ChangeExtension(materialName, ".png");
 
         var root = new ValveKeyValue.KVObject("Layer0",
-        [
+        (IEnumerable<ValveKeyValue.KVObject>)new ValveKeyValue.KVObject[]
+        {
             new("shader", "generic.vfx"),
             new("F_TRANSLUCENT", 1),
             new("TextureTranslucency", $"[{0.700000f:N6} {0.700000f:N6} {0.700000f:N6} {0.000000f:N6}]"),
             new("TextureColor", textureName),
             new("Attributes",
-            [
+            (IEnumerable<ValveKeyValue.KVObject>)new ValveKeyValue.KVObject[]
+            {
                 new("mapbuilder.nodraw", 1),
                 new("tools.toolsmaterial", 1),
                 new("physics.nodefaultsimplification", 1),
-            ]),
+            }),
             new("SystemAttributes",
-            [
+            (IEnumerable<ValveKeyValue.KVObject>)new ValveKeyValue.KVObject[]
+            {
                 new("PhysicsSurfaceProperties", surfaceProperty),
-            ]),
-        ]);
+            }),
+        });
 
         using var ms = new MemoryStream();
         ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
@@ -1410,9 +1414,9 @@ public sealed class MapExtract
     private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var (key, value) in compiledEntity.Properties)
+        foreach (var child in compiledEntity.Properties.Children)
         {
-            var propertyKey = key.ToLowerInvariant();
+            var propertyKey = child.Name.ToLowerInvariant();
 
             if (TryHandleSpecialProperty(propertyKey, compiledEntity, mapEntity, ref entityLineage))
             {
@@ -1424,7 +1428,7 @@ public sealed class MapExtract
                 continue;
             }
 
-            var editString = ToEditString(value);
+            var editString = ToEditString(child.Value);
             editString = RemoveTargetnamePrefix(editString);
 
             mapEntity.EntityProperties.Add(propertyKey, editString);
@@ -1473,7 +1477,7 @@ public sealed class MapExtract
         {
             try
             {
-                var hammerUniqueIdString = ToEditString(compiledEntity.GetProperty(key).Value);
+                var hammerUniqueIdString = ToEditString(compiledEntity.GetProperty(key));
                 if (!string.IsNullOrEmpty(hammerUniqueIdString))
                 {
                     lineage = Array.ConvertAll(hammerUniqueIdString.Split(':'), int.Parse);
@@ -1528,9 +1532,20 @@ public sealed class MapExtract
                 return string.Join(' ', kvObject.Select(p => p.Value.ToString() ?? string.Empty));
             }
 
-            using var writer = new IndentedTextWriter();
-            kvObject.Serialize(writer);
-            return writer.ToString();
+            using var ms = new MemoryStream();
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, kvObject);
+            return System.Text.Encoding.UTF8.GetString(ms.ToArray());
+        }
+
+        if (data is KVValue kvValue)
+        {
+            return kvValue.ValueType switch
+            {
+                KVValueType.String => (string)kvValue,
+                KVValueType.Boolean => StringBool((bool)kvValue),
+                KVValueType.Null => string.Empty,
+                _ => kvValue.ToString(),
+            };
         }
 
         return data switch

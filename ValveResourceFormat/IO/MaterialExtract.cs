@@ -203,7 +203,7 @@ public sealed class MaterialExtract
     /// </summary>
     public string ToValveMaterial()
     {
-        var root = new KVObject("Layer0", [])
+        var root = new KVObject("Layer0", (IEnumerable<KVObject>)[])
         {
             new KVObject("shader", material.ShaderName)
         };
@@ -223,7 +223,7 @@ public sealed class MaterialExtract
             root.Add(new KVObject(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
         }
 
-        var originalTextures = new KVObject("Compiled Textures", []);
+        var originalTextures = new KVObject("Compiled Textures", (IEnumerable<KVObject>)[]);
         foreach (var (key, value) in material.TextureParams)
         {
             using var textureResource = fileLoader?.LoadFileCompiled(value);
@@ -240,7 +240,7 @@ public sealed class MaterialExtract
 
         if (material.DynamicExpressions.Count > 0)
         {
-            var dynamicExpressionsNode = new KVObject("DynamicParams", []);
+            var dynamicExpressionsNode = new KVObject("DynamicParams", (IEnumerable<KVObject>)[]);
             root.Add(dynamicExpressionsNode);
             foreach (var (key, value) in material.DynamicExpressions)
             {
@@ -307,13 +307,13 @@ public sealed class MaterialExtract
         }
 
         var subrectDefinition = editInfo?.SearchableUserData
-            .FirstOrDefault(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).Value;
+            .FirstOrDefault(x => x.Name.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase))?.Value;
 
-        if (subrectDefinition is string def)
+        if (subrectDefinition?.ValueType == KVValueType.String)
         {
             var toolattributes = new List<KVObject>()
                 {
-                    new("SubrectDefinition", def)
+                    new("SubrectDefinition", subrectDefinition)
                 };
 
             root.Add(new KVObject("ToolAttributes", toolattributes));

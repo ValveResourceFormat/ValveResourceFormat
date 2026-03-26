@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
+using ValveKeyValue;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -798,9 +799,9 @@ namespace ValveResourceFormat.IO
 
             if (entity != null && ExportExtras)
             {
-                foreach (var (key, value) in entity.Properties)
+                foreach (var child in entity.Properties.Children)
                 {
-                    exportedMesh.Extras[key] = value as string;
+                    exportedMesh.Extras[child.Name] = child.Value.ValueType == KVValueType.String ? (string)child.Value : child.Value.ToString();
                 }
             }
 

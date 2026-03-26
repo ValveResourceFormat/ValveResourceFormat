@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -292,16 +293,17 @@ namespace ValveResourceFormat.Blocks
             var inputLayoutFields = data.GetArray("m_inputLayoutFields");
             buffer.InputLayoutFields = [.. inputLayoutFields.Select(static il =>
             {
-                var semanticName = il.Properties["m_pSemanticName"];
+                var semanticName = il["m_pSemanticName"];
                 var semanticNameStr = string.Empty;
 
-                if (semanticName.Value is string str)
+                if (semanticName.ValueType == KVValueType.String)
                 {
-                    semanticNameStr = str;
+                    semanticNameStr = (string)semanticName;
                 }
-                else if (semanticName.Value is byte[] bytes)
+                else if (semanticName.ValueType == KVValueType.BinaryBlob)
                 {
-                    semanticNameStr = Encoding.UTF8.GetString(bytes.AsSpan().TrimEnd((byte)0));
+                    var blob = (KVBinaryBlob)semanticName;
+                    semanticNameStr = Encoding.UTF8.GetString(blob.Bytes.Span.TrimEnd((byte)0));
                 }
                 else
                 {

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -41,7 +42,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
 
             var mode = (name, shader, ComboName: string.Empty, ComboValue: -1);
 
-            var settings = modeObj.GetArray<KVObject>("m_staticComboSettings")!;
+            var settings = modeObj.GetArray("m_staticComboSettings")!;
             if (settings.Length > 0)
             {
                 Debug.Assert(settings.Length <= 1, "CVfxModeSettings with more than one combo.");

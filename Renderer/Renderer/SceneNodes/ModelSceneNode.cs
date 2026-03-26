@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using ValveKeyValue;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;

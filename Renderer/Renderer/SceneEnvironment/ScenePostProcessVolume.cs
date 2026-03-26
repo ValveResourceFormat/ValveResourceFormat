@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;

@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
@@ -79,39 +80,39 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (Events.Length > 0)
             {
-                var events = new KVObject(null, isArray: true);
+                var events = new KVObject(null, Array.Empty<KVValue>());
                 foreach (var choreoEvent in Events)
                 {
-                    events.AddProperty(null, choreoEvent.ToKeyValues());
+                    events.Add(choreoEvent.ToKeyValues().Value);
                 }
 
-                kv.AddProperty("events", events);
+                kv.AddProperty("events", events.Value);
             }
 
             if (Actors.Length > 0)
             {
-                var actors = new KVObject(null, isArray: true);
+                var actors = new KVObject(null, Array.Empty<KVValue>());
                 foreach (var actor in Actors)
                 {
-                    actors.AddItem(actor.ToKeyValues());
+                    actors.Add(actor.ToKeyValues().Value);
                 }
 
-                kv.AddProperty("actors", actors);
+                kv.AddProperty("actors", actors.Value);
             }
 
             if (Ramp != null)
             {
                 if (Ramp.LeftEdge != null)
                 {
-                    kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
+                    kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
                 }
                 if (Ramp.RightEdge != null)
                 {
-                    kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
+                    kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues().Value);
                 }
                 if (Ramp.Samples.Length > 0)
                 {
-                    kv.AddProperty("scene_ramp", Ramp.ToKeyValues());
+                    kv.AddProperty("scene_ramp", Ramp.ToKeyValues().Value);
                 }
             }
 

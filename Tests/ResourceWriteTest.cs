@@ -1,5 +1,6 @@
 using System.IO;
 using NUnit.Framework;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -47,11 +48,10 @@ namespace Tests
             var outputPath = $"{TestContext.CurrentContext.WorkDirectory}/{NewName}_c";
 
             var modelInfo = (Model)resource.DataBlock!;
-            var meshGroupMasks = (KVObject)modelInfo.Data.Properties["m_refMeshGroupMasks"].Value!;
-            meshGroupMasks.Properties["0"] = new KVValue(1337);
-            meshGroupMasks.Properties["1"] = new KVValue(1338);
+            var meshGroupMasks = (KVArrayValue)modelInfo.Data.GetChild("m_refMeshGroupMasks").Value;
+            meshGroupMasks[0] = (KVValue)(ulong)1337;
 
-            modelInfo.Data.Properties["m_name"] = new KVValue(NewName);
+            ((KVCollectionValue)modelInfo.Data.Value).Set("m_name", (KVValue)NewName);
 
             using (var fs = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.Write))
             {

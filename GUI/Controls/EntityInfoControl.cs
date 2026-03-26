@@ -1,5 +1,6 @@
 using System.Windows.Forms;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
@@ -58,9 +59,9 @@ namespace GUI.Forms
 
         public void PopulateFromEntity(Entity entity)
         {
-            foreach (var (key, value) in entity.Properties)
+            foreach (var child in entity.Properties.Children)
             {
-                AddProperty(key, StringifyValue(value));
+                AddProperty(child.Name, StringifyValue(child.Value));
             }
 
             if (entity.Connections != null)

@@ -1,3 +1,7 @@
+using System.IO;
+using ValveKeyValue;
+using ValveKeyValue.KeyValues3;
+
 namespace ValveResourceFormat.Serialization.KeyValues
 {
     /// <summary>
@@ -8,17 +12,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Gets the encoding identifier.
         /// </summary>
-        // <!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
-        public KV3ID Encoding { get; private set; }
+        public KV3ID Encoding { get; }
+
         /// <summary>
         /// Gets the format identifier.
         /// </summary>
-        public KV3ID Format { get; private set; }
+        public KV3ID Format { get; }
 
         /// <summary>
         /// Gets the root object.
         /// </summary>
-        public KVObject Root { get; private set; }
+        public KVObject Root { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="KV3File"/> class.
@@ -34,18 +38,32 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
+        /// Parses a KeyValues3 file from the specified stream.
+        /// </summary>
+        public static KV3File Parse(Stream stream)
+        {
+            var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+            var doc = serializer.Deserialize(stream);
+            KV3ID? encoding = doc.Header?.Encoding.Name != null ? new KV3ID(doc.Header.Encoding.Name, doc.Header.Encoding.Id) : null;
+            KV3ID? format = doc.Header?.Format.Name != null ? new KV3ID(doc.Header.Format.Name, doc.Header.Format.Id) : null;
+            return new KV3File(doc, encoding, format);
+        }
+
+        /// <summary>
+        /// Parses a KeyValues3 file from the specified filename.
+        /// </summary>
+        public static KV3File Parse(string filename)
+        {
+            using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+            return Parse(fileStream);
+        }
+
+        /// <summary>
         /// Writes the KV3 file as text.
         /// </summary>
         public void WriteText(IndentedTextWriter writer)
         {
-            writer.WriteLine($"<!-- kv3 encoding:{Encoding} format:{Format} -->");
-
-            if (Format.Name == "vrfunknown")
-            {
-                writer.WriteLine($"// this format guid is not known to Source 2 Viewer, make a pull request to update KV3IDLookup file");
-            }
-
-            Root.Serialize(writer);
+            writer.Write(ToString());
         }
 
         /// <inheritdoc/>
@@ -54,9 +72,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </remarks>
         public override string ToString()
         {
-            using var writer = new IndentedTextWriter();
-            WriteText(writer);
-            return writer.ToString();
+            using var ms = new MemoryStream();
+            var header = new KVHeader { Encoding = Encoding, Format = Format };
+            var doc = new KVDocument(header, Root.Name, Root.Value);
+            var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+            serializer.Serialize(ms, doc);
+            ms.Position = 0;
+            using var reader = new StreamReader(ms);
+            return reader.ReadToEnd();
         }
     }
 }

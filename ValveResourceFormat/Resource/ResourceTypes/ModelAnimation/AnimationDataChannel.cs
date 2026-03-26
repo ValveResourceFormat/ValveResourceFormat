@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization.KeyValues;
 

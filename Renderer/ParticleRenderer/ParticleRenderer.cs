@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Particles.Emitters;
 using ValveResourceFormat.Renderer.Particles.Initializers;

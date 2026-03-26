@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using ValveKeyValue;
 using ValveResourceFormat.Renderer.Particles.Emitters;
 using ValveResourceFormat.Renderer.Particles.ForceGenerators;
 using ValveResourceFormat.Renderer.Particles.Initializers;

@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
@@ -44,13 +45,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             var kv = new KVObject(null);
             kv.AddProperty("name", Name);
 
-            var channels = new KVObject(null, isArray: true);
+            var channels = new KVObject(null, Array.Empty<KVValue>());
             foreach (var channel in Channels)
             {
-                channels.AddItem(channel.ToKeyValues());
+                channels.Add(channel.ToKeyValues().Value);
             }
 
-            kv.AddProperty("channels", channels);
+            kv.AddProperty("channels", channels.Value);
             kv.AddProperty("active", IsActive);
 
             return kv;

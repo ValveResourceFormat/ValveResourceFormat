@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
@@ -27,11 +28,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this event flex.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null, true, Tracks.Length);
+            var kv = new KVObject(null, Array.Empty<KVValue>());
 
             foreach (var track in Tracks)
             {
-                kv.AddProperty(null, track.ToKeyValues());
+                kv.Add(track.ToKeyValues().Value);
             }
 
             return kv;

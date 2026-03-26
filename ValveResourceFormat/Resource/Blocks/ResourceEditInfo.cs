@@ -1,5 +1,7 @@
 using System.IO;
+using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -81,15 +83,22 @@ namespace ValveResourceFormat.Blocks
             void ReadKeyValues<T>(KVObject kvObject, Func<BinaryReader, T> valueReader)
             {
                 var count = AdvanceGetCount();
-                kvObject.Properties.EnsureCapacity(kvObject.Properties.Count + count);
-
                 for (var i = 0; i < count; i++)
                 {
                     var key = reader.ReadOffsetString(Encoding.UTF8);
                     var value = valueReader.Invoke(reader);
 
                     // Note: we may override existing keys
-                    kvObject.Properties[key] = new KVValue(value);
+                    KVValue kvValue = value switch
+                    {
+                        string s => (KVValue)s,
+                        long l => (KVValue)l,
+                        double d => (KVValue)d,
+                        float f => (KVValue)f,
+                        int n => (KVValue)n,
+                        _ => (KVValue)value!.ToString()!,
+                    };
+                    kvObject[key] = kvValue;
                 }
             }
 
@@ -132,7 +141,7 @@ namespace ValveResourceFormat.Blocks
                 SpecialDependencies,
                 AdditionalRelatedFiles,
                 ChildResourceList,
-                SearchableUserData,
+                SearchableUserData = SearchableUserData.Children.Select(c => new { Key = c.Name, Value = c.Value?.ToString() ?? string.Empty }),
             };
 
             serializer.Serialize(ms, serializedProps, "ResourceEditInfo");

@@ -1,4 +1,5 @@
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation

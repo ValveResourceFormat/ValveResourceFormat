@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
@@ -44,13 +45,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             var kv = new KVObject(null);
             kv.AddProperty("name", Name);
 
-            var events = new KVObject(null, isArray: true);
+            var events = new KVObject(null, Array.Empty<KVValue>());
             foreach (var choreoEvent in Events)
             {
-                events.AddItem(choreoEvent.ToKeyValues());
+                events.Add(choreoEvent.ToKeyValues().Value);
             }
 
-            kv.AddProperty("events", events);
+            kv.AddProperty("events", events.Value);
             kv.AddProperty("active", IsActive);
 
             return kv;

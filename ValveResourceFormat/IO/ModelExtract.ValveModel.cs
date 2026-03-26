@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
@@ -41,18 +42,17 @@ partial class ModelExtract
                 var value = sourceObject.GetFloatArray(sourceName);
                 var rot = new Quaternion(value[0], value[1], value[2], value[3]);
                 var angles = ToEulerAngles(rot);
-                targetObject.AddProperty(targetName, angles);
+                targetObject.AddProperty(targetName, ToKVValue(angles));
             }
             else if (typeof(T) == typeof(Vector3))
             {
                 var value = sourceObject.GetFloatArray(sourceName);
                 var pos = new Vector3(value[0], value[1], value[2]);
-                targetObject.AddProperty(targetName, pos);
+                targetObject.AddProperty(targetName, ToKVValue(pos));
             }
             else
             {
-                var value = sourceObject.GetProperty<T>(sourceName);
-                targetObject.AddProperty(targetName, value);
+                targetObject.AddProperty(targetName, sourceObject[sourceName]);
             }
         }
     }
@@ -124,7 +124,7 @@ partial class ModelExtract
             var rot = new Quaternion(rotArray[0], rotArray[1], rotArray[2], rotArray[3]);
             var angles = ToEulerAngles(rot);
             angles = new Vector3(angles.Z, angles.X, angles.Y);
-            node.AddProperty("rotation_offset_xyz", angles);
+            node.AddProperty("rotation_offset_xyz", ToKVValue(angles));
         }
         else
         {
@@ -135,12 +135,12 @@ partial class ModelExtract
             children = slaves.Concat(targets);
         }
 
-        var childrenKV = new KVObject(null, true);
+        var childrenKV = new KVObject(null, Array.Empty<KVValue>());
         foreach (var child in children)
         {
-            childrenKV.AddItem(child);
+            childrenKV.Add(child.Value);
         }
-        node.AddProperty("children", childrenKV);
+        node.AddProperty("children", childrenKV.Value);
     }
 
     static KVObject? ProcessBoneConstraint(KVObject? boneConstraint)
@@ -202,19 +202,19 @@ partial class ModelExtract
 
         StringToken.Store(stringTokenKeys);
 
-        var childrenKV = new KVObject(null, true, boneConstraintsList.Length);
+        var childrenKV = new KVObject(null, Array.Empty<KVValue>());
 
         foreach (var boneConstraint in boneConstraintsList)
         {
             var constraint = ProcessBoneConstraint(boneConstraint);
             if (constraint != null)
             {
-                childrenKV.AddItem(constraint);
+                childrenKV.Add(constraint.Value);
             }
         }
 
         var constraintListNode = MakeNode("AnimConstraintList",
-            ("children", childrenKV)
+            ("children", childrenKV.Value)
         );
 
         return constraintListNode;
@@ -255,18 +255,18 @@ partial class ModelExtract
         {
             var boneDefinitionNode = MakeNode(
                 "Bone",
-                ("name", bone.Name),
-                ("origin", bone.Position),
-                ("angles", ToEulerAngles(bone.Angle)),
-                ("do_not_discard", true)
+                ("name", (KVValue)bone.Name),
+                ("origin", ToKVValue(bone.Position)),
+                ("angles", ToKVValue(ToEulerAngles(bone.Angle))),
+                ("do_not_discard", (KVValue)true)
             );
 
-            parent.AddItem(boneDefinitionNode);
+            parent.Add(boneDefinitionNode.Value);
 
             if (bone.Children.Count > 0)
             {
-                var childBones = new KVObject(null, isArray: true);
-                boneDefinitionNode.AddProperty("children", childBones);
+                var childBones = new KVObject(null, Array.Empty<KVValue>());
+                boneDefinitionNode.AddProperty("children", childBones.Value);
                 AddBonesRecursive(bone.Children, childBones);
             }
         }
@@ -324,14 +324,14 @@ partial class ModelExtract
         var kv = new KVObject(null);
 
         var root = MakeListNode("RootNode");
-        kv.AddProperty("rootNode", root.Node);
+        kv.AddProperty("rootNode", root.Node.Value);
 
         Lazy<KVObject> MakeLazyList(string className)
         {
             return new Lazy<KVObject>(() =>
             {
                 var list = MakeListNode(className);
-                root.Children.AddItem(list.Node);
+                root.Children.Add(list.Node.Value);
 
                 return list.Children;
             });
@@ -353,7 +353,7 @@ partial class ModelExtract
         var animGraph2List = MakeLazyList("AnimGraph2List");
 
         var boneMarkupList = MakeListNode("BoneMarkupList");
-        root.Children.AddItem(boneMarkupList.Node);
+        root.Children.Add(boneMarkupList.Node.Value);
         boneMarkupList.Node.AddProperty("bone_cull_type", "None");
 
         if (RenderMeshesToExtract.Count != 0)
@@ -371,13 +371,13 @@ partial class ModelExtract
                     var importFilter = new KVObject("import_filter");
                     {
                         importFilter.AddProperty("exclude_by_default", renderMesh.ImportFilter.ExcludeByDefault);
-                        importFilter.AddProperty("exception_list", KVValue.MakeArray(renderMesh.ImportFilter.Filter));
+                        importFilter.AddProperty("exception_list", MakeArray([.. renderMesh.ImportFilter.Filter.Select(s => (KVValue)s)]));
                     }
 
-                    renderMeshFile.AddProperty("import_filter", importFilter);
+                    renderMeshFile.AddProperty("import_filter", importFilter.Value);
                 }
 
-                renderMeshList.Value.AddItem(renderMeshFile);
+                renderMeshList.Value.Add(renderMeshFile.Value);
             }
 
             {
@@ -411,10 +411,10 @@ partial class ModelExtract
 
                 foreach (var (groupName, choices) in groupedChoices)
                 {
-                    var choiceList = new KVObject(null, isArray: true, choices.Count);
+                    var choiceList = new KVObject(null, Array.Empty<KVValue>());
                     var bodyGroup = MakeNode("BodyGroup",
                         ("name", groupName),
-                        ("children", choiceList)
+                        ("children", choiceList.Value)
                     );
 
                     if (hideInTools.Contains(groupName))
@@ -437,8 +437,8 @@ partial class ModelExtract
                             meshGroupChoice.AddProperty("hide_in_tools", true);
                         }
 
-                        var meshes = new KVObject(null, isArray: true);
-                        meshGroupChoice.AddProperty("meshes", meshes);
+                        var meshes = new KVObject(null, Array.Empty<KVValue>());
+                        meshGroupChoice.AddProperty("meshes", meshes.Value);
 
                         foreach (var renderMesh in RenderMeshesToExtract)
                         {
@@ -450,14 +450,14 @@ partial class ModelExtract
                                 continue;
                             }
 
-                            meshes.AddProperty(null, renderMesh.Name);
+                            meshes.Add((KVValue)renderMesh.Name);
                         }
 
-                        choiceList.AddItem(meshGroupChoice);
+                        choiceList.Add(meshGroupChoice.Value);
                         i++;
                     }
 
-                    bodyGroupList.Value.AddItem(bodyGroup);
+                    bodyGroupList.Value.Add(bodyGroup.Value);
                 }
             }
 
@@ -472,30 +472,30 @@ partial class ModelExtract
                     ("name", attachment.Name),
                     ("ignore_rotation", attachment.IgnoreRotation),
                     ("parent_bone", mainInfluence.Name),
-                    ("relative_origin", mainInfluence.Offset),
-                    ("relative_angles", ToEulerAngles(mainInfluence.Rotation)),
+                    ("relative_origin", ToKVValue(mainInfluence.Offset)),
+                    ("relative_angles", ToKVValue(ToEulerAngles(mainInfluence.Rotation))),
                     ("weight", mainInfluence.Weight)
                 );
 
                 if (attachment.Length > 1)
                 {
-                    var children = new KVObject(null, true, attachment.Length - 1);
+                    var children = new KVObject(null, Array.Empty<KVValue>());
                     for (var i = 0; i < attachment.Length - 1; i++)
                     {
                         var influence = attachment[i];
                         var childNode = MakeNode("AttachmentInfluence",
                             ("parent_bone", influence.Name),
-                            ("relative_origin", influence.Offset),
-                            ("relative_angles", ToEulerAngles(influence.Rotation)),
+                            ("relative_origin", ToKVValue(influence.Offset)),
+                            ("relative_angles", ToKVValue(ToEulerAngles(influence.Rotation))),
                             ("weight", influence.Weight)
                         );
 
-                        children.AddItem(childNode);
+                        children.Add(childNode.Value);
                     }
-                    node.AddProperty("children", children);
+                    node.AddProperty("children", children.Value);
                 }
 
-                attachmentList.Value.AddItem(node);
+                attachmentList.Value.Add(node.Value);
             }
         }
 
@@ -529,12 +529,12 @@ partial class ModelExtract
                 {
                     foreach (var folder in faceposerFolders)
                     {
-                        var folderName = folder.Key;
+                        var folderName = folder.Name;
                         var animationNames = faceposerFolders.GetArray<string>(folderName);
 
                         var (folderNode, children) = MakeListNode("Folder");
                         folderNode.AddProperty("name", folderName);
-                        animationList.Value.AddItem(folderNode);
+                        animationList.Value.Add(folderNode.Value);
 
                         foreach (var animationName in animationNames!)
                         {
@@ -547,7 +547,7 @@ partial class ModelExtract
             void AddToFolderOrRoot(string name, KVObject node)
             {
                 var folderOrRoot = animationToFolder.GetValueOrDefault(name, animationList.Value);
-                folderOrRoot.AddItem(node);
+                folderOrRoot.Add(node.Value);
             }
 
             foreach (var (name, aseq) in additionalSequenceData)
@@ -592,7 +592,7 @@ partial class ModelExtract
                     animationFile.AddProperty("activity_weight", activity.Weight);
                 }
 
-                var childrenKV = new KVObject(null, true, 1);
+                var childrenKV = new KVObject(null, Array.Empty<KVValue>());
                 if (animation.Anim.HasMovementData())
                 {
                     var flags = animation.Anim.Movements[0].MotionFlags;
@@ -606,7 +606,7 @@ partial class ModelExtract
                         ("motion_type", "uniform")
                     );
 
-                    childrenKV.AddItem(extractMotion);
+                    childrenKV.Add(extractMotion.Value);
                 }
                 foreach (var animEvent in animation.Anim.Events)
                 {
@@ -617,9 +617,9 @@ partial class ModelExtract
 
                     if (animEvent.EventData != null)
                     {
-                        animEventNode.AddProperty("event_keys", animEvent.EventData);
+                        animEventNode.AddProperty("event_keys", animEvent.EventData.Value);
                     }
-                    childrenKV.AddItem(animEventNode);
+                    childrenKV.Add(animEventNode.Value);
                 }
 
                 if (sequenceLocalReferenceArray != null && poseParamNames != null)
@@ -627,14 +627,14 @@ partial class ModelExtract
                     foreach (var autoLayer in animation.Anim.AutoLayers)
                     {
                         var layerNode = ProcessAnimationAutoLayer(animation.Anim, autoLayer, sequenceLocalReferenceArray, poseParamNames);
-                        childrenKV.AddItem(layerNode);
+                        childrenKV.Add(layerNode.Value);
                     }
                 }
 
                 if (animation.Anim.Autoplay)
                 {
                     var autoLayer = MakeNode("AnimAutoLayer", []);
-                    childrenKV.AddItem(autoLayer);
+                    childrenKV.Add(autoLayer.Value);
                 }
 
                 if (poseParamNames != null && animation.Anim.Fetch != null && animation.Anim.Fetch.Value.LocalCyclePoseParameter != -1)
@@ -646,7 +646,7 @@ partial class ModelExtract
                         ("cycle_type", "Pose To Cycle"),
                         ("pose_param_name", poseParam),
                     ]);
-                    childrenKV.AddItem(autoLayer);
+                    childrenKV.Add(autoLayer.Value);
                 }
 
                 if (animation.Anim.Realtime)
@@ -655,7 +655,7 @@ partial class ModelExtract
                         ("cycle_type", "Auto Cycle"),
                         ("pose_param_name", ""),
                     ]);
-                    childrenKV.AddItem(autoLayer);
+                    childrenKV.Add(autoLayer.Value);
                 }
 
                 if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var animSequenceData))
@@ -668,14 +668,14 @@ partial class ModelExtract
 
                         if (sequenceKeys.GetSubCollection("AnimGameplayTiming") is KVObject animGameplayTiming)
                         {
-                            childrenKV.AddItem(MakeNode("AnimGameplayTiming", animGameplayTiming));
+                            childrenKV.Add(MakeNode("AnimGameplayTiming", animGameplayTiming).Value);
                         }
                     }
                 }
 
                 if (childrenKV.Count > 0)
                 {
-                    animationFile.AddProperty("children", childrenKV);
+                    animationFile.AddProperty("children", childrenKV.Value);
                 }
 
                 AddToFolderOrRoot(animation.Anim.Name, animationFile);
@@ -740,11 +740,11 @@ partial class ModelExtract
                         ("surface_prop", PhysicsSurfaceNames[sphere.SurfacePropertyIndex]),
                         ("collision_tags", string.Join(" ", PhysicsCollisionTags[sphere.CollisionAttributeIndex])),
                         ("radius", sphere.Shape.Radius),
-                        ("center", sphere.Shape.Center),
+                        ("center", ToKVValue(sphere.Shape.Center)),
                         ("name", sphere.UserFriendlyName ?? string.Empty)
                     );
 
-                    physicsShapeList.Value.AddItem(physicsShapeSphere);
+                    physicsShapeList.Value.Add(physicsShapeSphere.Value);
                 }
 
                 foreach (var capsule in physicsPart.Shape.Capsules)
@@ -755,19 +755,19 @@ partial class ModelExtract
                         ("surface_prop", PhysicsSurfaceNames[capsule.SurfacePropertyIndex]),
                         ("collision_tags", string.Join(" ", PhysicsCollisionTags[capsule.CollisionAttributeIndex])),
                         ("radius", capsule.Shape.Radius),
-                        ("point0", capsule.Shape.Center[0]),
-                        ("point1", capsule.Shape.Center[1]),
+                        ("point0", ToKVValue(capsule.Shape.Center[0])),
+                        ("point1", ToKVValue(capsule.Shape.Center[1])),
                         ("name", capsule.UserFriendlyName ?? string.Empty)
                     );
 
-                    physicsShapeList.Value.AddItem(physicsShapeCapsule);
+                    physicsShapeList.Value.Add(physicsShapeCapsule.Value);
                 }
             }
         }
 
         if (Translation != Vector3.Zero)
         {
-            modelModifierList.Value.AddItem(MakeNode("ModelModifier_Translate", ("translation", Translation)));
+            modelModifierList.Value.Add(MakeNode("ModelModifier_Translate", ("translation", ToKVValue(Translation))).Value);
         }
 
 
@@ -782,7 +782,7 @@ partial class ModelExtract
 
             if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
             {
-                renderMeshList.Value.AddItem(MakeNode("RenderMeshFile", ("filename", fileName)));
+                renderMeshList.Value.Add(MakeNode("RenderMeshFile", ("filename", fileName)).Value);
                 return;
             }
 
@@ -804,7 +804,7 @@ partial class ModelExtract
                 ("name", shapeName)
             );
 
-            physicsShapeList.Value.AddItem(physicsShapeFile);
+            physicsShapeList.Value.Add(physicsShapeFile.Value);
         }
 
         void RemapMaterials(
@@ -812,14 +812,14 @@ partial class ModelExtract
             bool globalReplace = false,
             string globalDefault = "materials/tools/toolsnodraw.vmat")
         {
-            var remaps = new KVObject(null, isArray: true);
-            materialGroupList.Value.AddItem(
+            var remaps = new KVObject(null, Array.Empty<KVValue>());
+            materialGroupList.Value.Add(
                 MakeNode(
                     "DefaultMaterialGroup",
-                    ("remaps", remaps),
+                    ("remaps", remaps.Value),
                     ("use_global_default", globalReplace),
                     ("global_default_material", globalDefault)
-                )
+                ).Value
             );
 
             if (globalReplace || remapTable == null)
@@ -832,7 +832,7 @@ partial class ModelExtract
                 var remap = new KVObject(null);
                 remap.AddProperty("from", from);
                 remap.AddProperty("to", to);
-                remaps.AddItem(remap);
+                remaps.Add(remap.Value);
             }
         }
 
@@ -841,16 +841,16 @@ partial class ModelExtract
             var node = hitbox.ShapeType switch
             {
                 Hitbox.HitboxShape.Box => MakeNode("Hitbox",
-                    ("hitbox_mins", hitbox.MinBounds),
-                    ("hitbox_maxs", hitbox.MaxBounds)
+                    ("hitbox_mins", ToKVValue(hitbox.MinBounds)),
+                    ("hitbox_maxs", ToKVValue(hitbox.MaxBounds))
                 ),
                 Hitbox.HitboxShape.Capsule => MakeNode("HitboxCapsule",
                     ("radius", hitbox.ShapeRadius),
-                    ("point0", hitbox.MinBounds),
-                    ("point1", hitbox.MaxBounds)
+                    ("point0", ToKVValue(hitbox.MinBounds)),
+                    ("point1", ToKVValue(hitbox.MaxBounds))
                 ),
                 Hitbox.HitboxShape.Sphere => MakeNode("HitboxSphere",
-                    ("center", hitbox.MinBounds),
+                    ("center", ToKVValue(hitbox.MinBounds)),
                     ("radius", hitbox.ShapeRadius)
                 ),
                 _ => throw new NotImplementedException($"Unknown hitbox shape type: {hitbox.ShapeType}")
@@ -874,22 +874,22 @@ partial class ModelExtract
 
             foreach (var pair in model.HitboxSets)
             {
-                var children = new KVObject(null, true, pair.Value.Length);
-                var hitboxSet = MakeNode("HitboxSet", ("name", pair.Key), ("children", children));
+                var children = new KVObject(null, Array.Empty<KVValue>());
+                var hitboxSet = MakeNode("HitboxSet", ("name", pair.Key), ("children", children.Value));
 
                 foreach (var hitbox in pair.Value)
                 {
                     var hitboxNode = GetHitboxNode(hitbox);
-                    children.AddItem(hitboxNode);
+                    children.Add(hitboxNode.Value);
                 }
 
-                hitboxSetList.Value.AddItem(hitboxSet);
+                hitboxSetList.Value.Add(hitboxSet.Value);
             }
         }
 
         void ExtractSequenceData(KeyValuesOrNTRO sequenceData)
         {
-            var boneMasks = sequenceData.Data.GetArray<KVObject>("m_localBoneMaskArray");
+            var boneMasks = sequenceData.Data.GetArray("m_localBoneMaskArray");
             var boneNames = sequenceData.Data.GetArray<string>("m_localBoneNameArray");
 
             foreach (var boneMask in boneMasks!)
@@ -905,23 +905,23 @@ partial class ModelExtract
                     continue;
                 }
 
-                var weights = new KVObject(null, isArray: true, boneArray.Length);
+                var weights = new KVObject(null, Array.Empty<KVValue>());
                 var weightListNode = MakeNode("WeightList",
                     ("name", name),
-                    ("weights", weights)
+                    ("weights", weights.Value)
                 );
 
                 foreach (var (boneIndex, boneWeight) in boneArray.Zip(boneWeights))
                 {
-                    var weightDefinition = new KVObject(null, 2);
+                    var weightDefinition = new KVObject(null);
                     var boneName = boneNames![boneIndex];
 
                     weightDefinition.AddProperty("bone", boneName);
                     weightDefinition.AddProperty("weight", boneWeight);
-                    weights.AddItem(weightDefinition);
+                    weights.Add(weightDefinition.Value);
                 }
 
-                weightLists.Value.AddItem(weightListNode);
+                weightLists.Value.Add(weightListNode.Value);
             }
         }
 
@@ -944,7 +944,7 @@ partial class ModelExtract
                     ("poseparam_loop", loop)
                 );
 
-                poseParamList.Value.AddItem(poseParamNode);
+                poseParamList.Value.Add(poseParamNode.Value);
             }
         }
 
@@ -954,7 +954,7 @@ partial class ModelExtract
             {
                 foreach (var animIncludeModel in model.Data.GetArray<string>("m_refAnimIncludeModels")!)
                 {
-                    animationList.Value.AddItem(MakeNode("AnimIncludeModel", ("model", animIncludeModel)));
+                    animationList.Value.Add(MakeNode("AnimIncludeModel", ("model", animIncludeModel)).Value);
                 }
             }
 
@@ -962,13 +962,13 @@ partial class ModelExtract
             {
                 foreach (var skeletonRef in model.Data.GetArray<string>("m_vecNmSkeletonRefs"))
                 {
-                    nmskelList.Value.AddItem(MakeNode("NmSkeletonReference", ("filename", skeletonRef)));
+                    nmskelList.Value.Add(MakeNode("NmSkeletonReference", ("filename", skeletonRef)).Value);
                 }
             }
 
             if (model.Data.ContainsKey("m_animGraph2Refs"))
             {
-                var animGraph2Refs = model.Data.GetArray<KVObject>("m_animGraph2Refs");
+                var animGraph2Refs = model.Data.GetArray("m_animGraph2Refs");
                 for (int i = 0; i < animGraph2Refs.Length; i++)
                 {
                     var refObj = animGraph2Refs[i];
@@ -977,11 +977,11 @@ partial class ModelExtract
 
                     if (i == 0)
                     {
-                        animGraph2List.Value.AddItem(MakeNode("DefaultAnimGraph2", ("filename", graphPath)));
+                        animGraph2List.Value.Add(MakeNode("DefaultAnimGraph2", ("filename", graphPath)).Value);
                     }
                     else
                     {
-                        animGraph2List.Value.AddItem(MakeNode("AnimGraph2", ("name", identifier), ("filename", graphPath)));
+                        animGraph2List.Value.Add(MakeNode("AnimGraph2", ("name", identifier), ("filename", graphPath)).Value);
                     }
                 }
             }
@@ -1005,7 +1005,7 @@ partial class ModelExtract
             {
                 var boneConstraintListData = keyvalues.GetArray("BoneConstraintList");
                 var boneConstraintList = ExtractBoneConstraints(boneConstraintListData);
-                root.Children.AddItem(boneConstraintList);
+                root.Children.Add(boneConstraintList.Value);
             }
 
             var genericDataClasses = new string[] {
@@ -1091,7 +1091,7 @@ partial class ModelExtract
                 var dataKey = genericDataClass.ListKey;
                 if (keyvalues.ContainsKey(dataKey))
                 {
-                    var genericDataList = keyvalues.GetArray<KVObject>(dataKey);
+                    var genericDataList = keyvalues.GetArray(dataKey);
                     foreach (var genericData in genericDataList!)
                     {
                         AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData);
@@ -1104,9 +1104,9 @@ partial class ModelExtract
                 var lookAtList = keyvalues.GetSubCollection("LookAtList");
                 foreach (var item in lookAtList)
                 {
-                    if (item.Value is KVObject lookAtChain)
+                    if (item.Value is KVCollectionValue)
                     {
-                        AddGenericGameData(gameDataList.Value, "LookAtChain", lookAtChain, "lookat_chain");
+                        AddGenericGameData(gameDataList.Value, "LookAtChain", item, "lookat_chain");
                     }
                 }
             }
@@ -1123,22 +1123,22 @@ partial class ModelExtract
                 var feetNode = ConvertFeetSettings(feetSettings!);
                 if (feetNode != null)
                 {
-                    gameDataList.Value.AddItem(feetNode);
+                    gameDataList.Value.Add(feetNode.Value);
                 }
             }
 
             if (keyvalues.ContainsKey("break_list"))
             {
-                foreach (var breakPiece in keyvalues.GetArray<KVObject>("break_list")!)
+                foreach (var breakPiece in keyvalues.GetArray("break_list")!)
                 {
                     var breakPieceFile = MakeNode("BreakPieceExternal", breakPiece);
-                    breakPieceList.Value.AddItem(breakPieceFile);
+                    breakPieceList.Value.Add(breakPieceFile.Value);
                 }
             }
 
             static KVObject? ConvertFeetSettings(KVObject feetSettings)
             {
-                var children = new KVObject(null, isArray: true);
+                var children = new KVObject(null, Array.Empty<KVValue>());
 
                 // Field mappings from compiled to source names
                 var footFieldMappings = new (string CompiledName, string SourceName)[]
@@ -1153,9 +1153,9 @@ partial class ModelExtract
                 };
 
                 // Convert each foot entry to a Foot child node
-                foreach (var footEntry in feetSettings.Properties)
+                foreach (var footEntry in feetSettings.Children)
                 {
-                    if (footEntry.Value.Value is not KVObject footData)
+                    if (footEntry.Value is not KVCollectionValue)
                     {
                         continue;
                     }
@@ -1165,16 +1165,16 @@ partial class ModelExtract
                     // Map compiled field names to source field names
                     foreach (var (compiledName, sourceName) in footFieldMappings)
                     {
-                        if (footData.Properties.TryGetValue(compiledName, out var value))
+                        if (footEntry.ContainsKey(compiledName))
                         {
-                            footNode.AddProperty(sourceName, value);
+                            footNode.AddProperty(sourceName, footEntry[compiledName]);
                         }
                     }
 
                     // autolevel is typically true by default in source format
                     footNode.AddProperty("autolevel", true);
 
-                    children.AddItem(footNode);
+                    children.Add(footNode.Value);
                 }
 
                 if (children.Count == 0)
@@ -1183,7 +1183,7 @@ partial class ModelExtract
                 }
 
                 // Create the Feet node
-                var feetNode = MakeNode("Feet", ("children", children));
+                var feetNode = MakeNode("Feet", ("children", children.Value));
 
                 // Parent-level field mappings
                 var parentFieldMappings = new (string CompiledName, string SourceName)[]
@@ -1196,9 +1196,9 @@ partial class ModelExtract
                 // Add parent-level properties if they exist
                 foreach (var (compiledName, sourceName) in parentFieldMappings)
                 {
-                    if (feetSettings.Properties.TryGetValue(compiledName, out var value))
+                    if (feetSettings.ContainsKey(compiledName))
                     {
-                        feetNode.AddProperty(sourceName, value);
+                        feetNode.AddProperty(sourceName, feetSettings[compiledName]);
                     }
                 }
 
@@ -1212,21 +1212,18 @@ partial class ModelExtract
                     return;
                 }
 
-                // Remove quotes from keys
-                genericData.Properties.Keys.ToList().ForEach(k =>
+                // Remove quotes from keys by rebuilding the object
+                var cleanedData = new KVObject(null);
+                foreach (var child in genericData.Children)
                 {
-                    var trimmed = k.Trim('"');
-                    if (trimmed != k)
-                    {
-                        genericData.Properties[trimmed] = genericData.Properties[k];
-                        genericData.Properties.Remove(k);
-                    }
-                });
+                    var trimmed = child.Name?.Trim('"');
+                    cleanedData.AddProperty(trimmed, child.Value);
+                }
 
                 var name = "";
-                if (genericData.ContainsKey("name"))
+                if (cleanedData.ContainsKey("name"))
                 {
-                    name = genericData.GetStringProperty("name");
+                    name = cleanedData.GetStringProperty("name");
                 }
 
                 KVObject genericGameData;
@@ -1235,18 +1232,18 @@ partial class ModelExtract
                     genericGameData = MakeNode("GenericGameData",
                         ("name", name),
                         ("game_class", genericDataClass),
-                        ("game_keys", genericData)
+                        ("game_keys", cleanedData.Value)
                     );
                 }
                 else
                 {
                     genericGameData = MakeNode(genericDataClass,
                         ("name", name),
-                        (dataKey, genericData)
+                        (dataKey, cleanedData.Value)
                     );
                 }
 
-                gameDataList.AddItem(genericGameData);
+                gameDataList.Add(genericGameData.Value);
             }
         }
         #endregion

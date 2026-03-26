@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
@@ -54,7 +55,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
         public readonly KVValue ToKeyValue()
         {
             var curveType = $"curve_{InTypeName}_to_curve_{OutTypeName}";
-            return new KVValue(curveType);
+            return (KVValue)curveType;
         }
     }
 }

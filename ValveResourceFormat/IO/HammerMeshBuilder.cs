@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Datamodel;
+using ValveKeyValue;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes;

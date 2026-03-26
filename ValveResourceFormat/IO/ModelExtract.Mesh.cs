@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using Datamodel;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;

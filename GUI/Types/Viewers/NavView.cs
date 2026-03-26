@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.GLViewers;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.ThirdParty;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;

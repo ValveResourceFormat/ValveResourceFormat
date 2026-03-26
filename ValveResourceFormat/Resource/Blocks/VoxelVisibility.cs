@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -39,7 +40,7 @@ namespace ValveResourceFormat.Blocks
             // m_nPVSBytesPerCluster = 4
 
             // NodeBlock
-            var block = (KVObject)data.Properties["m_NodeBlock"].Value!;
+            var block = data.GetChild("m_NodeBlock");
             var offset = block.GetIntegerProperty("m_nOffset");
             var count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var nodeBlocks = new (int, int)[count];
@@ -54,7 +55,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // RegionBlock
-            block = (KVObject)data.Properties["m_RegionBlock"].Value!;
+            block = data.GetChild("m_RegionBlock");
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var regionBlocks = new (int, int)[count];
@@ -69,7 +70,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // EnclosedClusterListBlock
-            block = (KVObject)data.Properties["m_EnclosedClusterListBlock"].Value!;
+            block = data.GetChild("m_EnclosedClusterListBlock");
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var enclosedClusterList = new (int, int)[count];
@@ -84,7 +85,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // EnclosedClustersBlock
-            block = (KVObject)data.Properties["m_EnclosedClustersBlock"].Value!;
+            block = data.GetChild("m_EnclosedClustersBlock");
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var clustersData = new short[count];
@@ -99,7 +100,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // MasksBlock
-            block = (KVObject)data.Properties["m_MasksBlock"].Value!;
+            block = data.GetChild("m_MasksBlock");
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var masksBlocks = new (int, int)[count];
@@ -114,7 +115,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // VisBlocks
-            block = (KVObject)data.Properties["m_nVisBlocks"].Value!;
+            block = data.GetChild("m_nVisBlocks");
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var visBlocksData = new byte[count];

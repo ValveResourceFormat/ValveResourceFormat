@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -112,15 +113,15 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var resource in Resources)
             {
-                var arr = new KVObject(null, isArray: true);
+                var arr = new KVObject(null, Array.Empty<KVValue>());
 
                 foreach (var file in resource)
                 {
-                    arr.AddItem(file);
+                    arr.Add((KVValue)file);
                 }
 
                 var key = index > 0 ? $"resourceManifest{index}" : "resourceManifest";
-                root.AddProperty(key, arr);
+                root.AddProperty(key, arr.Value);
                 index++;
             }
 

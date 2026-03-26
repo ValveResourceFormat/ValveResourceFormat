@@ -2,9 +2,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
-using KVValueType = ValveKeyValue.KVValueType;
 
 #nullable disable
 
@@ -114,7 +114,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     if (offset == 0)
                     {
-                        structEntry.AddProperty(field.FieldName, null); // :shrug:
+                        structEntry.AddProperty(field.FieldName, new KVNullValue()); // :shrug:
 
                         return;
                     }
@@ -153,14 +153,14 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (arrayCount == 0)
                     {
-                        structEntry.AddProperty(field.FieldName, new KVValue(new KVObject(field.FieldName, isArray: true)));
+                        structEntry.AddProperty(field.FieldName, new KVObject(field.FieldName, Array.Empty<KVValue>()).Value);
                         return;
                     }
 
                     Reader.BaseStream.Position += arrayOffset - 8;
 
                     // Array of pointers
-                    var arrayValues = new KVObject(field.FieldName, isArray: true, capacity: (int)arrayCount);
+                    var arrayValues = new KVObject(field.FieldName, Array.Empty<KVValue>());
 
                     for (var i = 0; i < arrayCount; i++)
                     {
@@ -168,20 +168,20 @@ namespace ValveResourceFormat.ResourceTypes
 
                         if (pointerOffset == 0)
                         {
-                            arrayValues.AddProperty(null, new KVValue(null));
+                            arrayValues.Add(new KVNullValue());
                         }
                         else
                         {
                             var pointerPrevOffset = Reader.BaseStream.Position;
                             Reader.BaseStream.Position += pointerOffset - 4;
 
-                            arrayValues.AddProperty(null, ReadField(field));
+                            arrayValues.Add(ReadField(field));
 
                             Reader.BaseStream.Position = pointerPrevOffset;
                         }
                     }
 
-                    structEntry.AddProperty(field.FieldName, new KVValue(arrayValues));
+                    structEntry.AddProperty(field.FieldName, arrayValues.Value);
                     Reader.BaseStream.Position = prevOffset;
 
                     return;
@@ -210,19 +210,19 @@ namespace ValveResourceFormat.ResourceTypes
                     };
 
                     //special case for byte arrays for faster access
-                    fieldValue = new KVValue(KVValueType.BinaryBlob, Reader.ReadBytes((int)count / size));
+                    fieldValue = new KVBinaryBlob(Reader.ReadBytes((int)count / size));
                 }
                 else
                 {
                     //var ntroValues = new NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
-                    var ntroValues = new KVObject(field.FieldName, isArray: true, capacity: (int)count);
+                    var ntroValues = new KVObject(field.FieldName, Array.Empty<KVValue>());
 
                     for (var i = 0; i < count; i++)
                     {
-                        ntroValues.AddProperty(null, ReadField(field));
+                        ntroValues.Add(ReadField(field));
                     }
 
-                    fieldValue = new KVValue(ntroValues);
+                    fieldValue = ntroValues.Value;
                 }
             }
             else
@@ -245,38 +245,38 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 case SchemaFieldType.Struct:
                     var newStruct = IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
-                    return new KVValue(KVValueType.Collection, ReadStructure(newStruct, Reader.BaseStream.Position));
+                    return ReadStructure(newStruct, Reader.BaseStream.Position).Value;
 
                 case SchemaFieldType.Enum:
                     // TODO: Lookup in ReferencedEnums
-                    return new KVValue(KVValueType.UInt32, Reader.ReadUInt32());
+                    return (KVValue)(uint)Reader.ReadUInt32();
 
                 case SchemaFieldType.SByte:
-                    return new KVValue(KVValueType.Int32, (int)Reader.ReadSByte());
+                    return (KVValue)(int)Reader.ReadSByte();
 
                 case SchemaFieldType.Byte:
-                    return new KVValue(KVValueType.UInt32, (uint)Reader.ReadByte());
+                    return (KVValue)(uint)Reader.ReadByte();
 
                 case SchemaFieldType.Boolean:
-                    return new KVValue(KVValueType.Boolean, Reader.ReadBoolean());
+                    return (KVValue)Reader.ReadBoolean();
 
                 case SchemaFieldType.Int16:
-                    return new KVValue(KVValueType.Int32, (int)Reader.ReadInt16()); // TODO: Could actually be int16
+                    return (KVValue)(int)Reader.ReadInt16(); // TODO: Could actually be int16
 
                 case SchemaFieldType.UInt16:
-                    return new KVValue(KVValueType.UInt32, (uint)Reader.ReadUInt16()); // TODO: Could actually be uint16
+                    return (KVValue)(uint)Reader.ReadUInt16(); // TODO: Could actually be uint16
 
                 case SchemaFieldType.Int32:
-                    return new KVValue(KVValueType.Int32, Reader.ReadInt32());
+                    return (KVValue)Reader.ReadInt32();
 
                 case SchemaFieldType.UInt32:
-                    return new KVValue(KVValueType.UInt32, Reader.ReadUInt32());
+                    return (KVValue)(uint)Reader.ReadUInt32();
 
                 case SchemaFieldType.Float:
-                    return new KVValue(KVValueType.FloatingPoint64, (double)Reader.ReadSingle()); // TODO: Could actually be float
+                    return (KVValue)(double)Reader.ReadSingle(); // TODO: Could actually be float
 
                 case SchemaFieldType.Int64:
-                    return new KVValue(KVValueType.Int64, Reader.ReadInt64());
+                    return (KVValue)Reader.ReadInt64();
 
                 case SchemaFieldType.ExternalReference:
                     var id = Reader.ReadUInt64();
@@ -286,21 +286,23 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (value == null)
                     {
-                        return new KVValue(null);
+                        return new KVNullValue();
                     }
 
-                    return new KVValue(KVValueType.String, KVFlag.ResourceName, value);
+                    KVValue resourceNameValue = value;
+                    resourceNameValue.Flag = KVFlag.ResourceName;
+                    return resourceNameValue;
 
                 case SchemaFieldType.UInt64:
-                    return new KVValue(KVValueType.UInt64, Reader.ReadUInt64());
+                    return (KVValue)(ulong)Reader.ReadUInt64();
 
                 case SchemaFieldType.Vector3D:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), isArray: true);
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        return new KVValue(KVValueType.Array, arrayObject);
+                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        return arrayObject.Value;
                     }
 
                 case SchemaFieldType.Quaternion:
@@ -308,69 +310,71 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.Vector4D:
                 case SchemaFieldType.FourVectors:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), isArray: true);
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        return new KVValue(KVValueType.Array, arrayObject);
+                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        return arrayObject.Value;
                     }
 
                 case SchemaFieldType.Color:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), isArray: true);
-                        arrayObject.AddProperty(null, new KVValue(KVValueType.Int32, (int)Reader.ReadByte()));
-                        arrayObject.AddProperty(null, new KVValue(KVValueType.Int32, (int)Reader.ReadByte()));
-                        arrayObject.AddProperty(null, new KVValue(KVValueType.Int32, (int)Reader.ReadByte()));
-                        arrayObject.AddProperty(null, new KVValue(KVValueType.Int32, (int)Reader.ReadByte()));
-                        return new KVValue(KVValueType.Array, arrayObject);
+                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        arrayObject.Add((KVValue)(int)Reader.ReadByte());
+                        arrayObject.Add((KVValue)(int)Reader.ReadByte());
+                        arrayObject.Add((KVValue)(int)Reader.ReadByte());
+                        arrayObject.Add((KVValue)(int)Reader.ReadByte());
+                        return arrayObject.Value;
                     }
 
                 case SchemaFieldType.Char:
-                    return new KVValue(KVValueType.String, Reader.ReadOffsetString(Encoding.UTF8));
+                    return (KVValue)Reader.ReadOffsetString(Encoding.UTF8);
 
                 case SchemaFieldType.ResourceString:
-                    return new KVValue(KVValueType.String, KVFlag.Resource, Reader.ReadOffsetString(Encoding.UTF8));
+                    KVValue resourceValue = Reader.ReadOffsetString(Encoding.UTF8);
+                    resourceValue.Flag = KVFlag.Resource;
+                    return resourceValue;
 
                 case SchemaFieldType.Vector2D:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), isArray: true);
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        return new KVValue(KVValueType.Array, arrayObject);
+                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        return arrayObject.Value;
                     }
 
                 case SchemaFieldType.Matrix3x4:
                 case SchemaFieldType.Matrix3x4a:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), isArray: true);
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        return new KVValue(KVValueType.Array, arrayObject);
+                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        return arrayObject.Value;
                     }
 
                 case SchemaFieldType.Transform:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), isArray: true);
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        arrayObject.AddProperty(null, new KVValue(Reader.ReadSingle()));
-                        return new KVValue(KVValueType.Array, arrayObject);
+                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        arrayObject.Add((KVValue)Reader.ReadSingle());
+                        return arrayObject.Value;
                     }
 
                 default:

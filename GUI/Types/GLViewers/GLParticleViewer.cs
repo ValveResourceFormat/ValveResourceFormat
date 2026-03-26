@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;

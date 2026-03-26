@@ -1,4 +1,5 @@
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable

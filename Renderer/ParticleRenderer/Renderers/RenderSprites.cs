@@ -1,5 +1,6 @@
 using System.Buffers;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -22,8 +23,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public Matrix4x4[] BindPose
            => Data.GetArray("m_bindPose")
-                .Select(v => Matrix4x4FromArray(v
-                    .Select(m => Convert.ToSingle(m.Value, CultureInfo.InvariantCulture))
+                .Select(v => Matrix4x4FromArray(v.ChildrenValues
+                    .Select(m => Convert.ToSingle(m, CultureInfo.InvariantCulture))
                     .ToArray()))
                 .ToArray();
 

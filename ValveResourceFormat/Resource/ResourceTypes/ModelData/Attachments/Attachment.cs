@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments

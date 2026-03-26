@@ -229,7 +229,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
         /// <summary>
         /// Gets the KV3 segment data, if present.
         /// </summary>
-        public Serialization.KeyValues.KVObject? KV3Segment { get; private set; }
+        public ValveKeyValue.KVObject? KV3Segment { get; private set; }
 
         /// <summary>
         /// Opens and reads the given filename.

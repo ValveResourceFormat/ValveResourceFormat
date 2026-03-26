@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -52,11 +53,11 @@ public class NmClipExtract
         if (skeletonResource != null)
         {
             var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
-            var modelSpaceSamplingChain = clip.Data.GetArray<KVObject>("m_modelSpaceSamplingChain");
+            var modelSpaceSamplingChain = clip.Data.GetArray("m_modelSpaceSamplingChain");
             // The array below indexes into the bone sampling chain, which in turn indexes into the skeleton bones.
             var modelSpaceBoneSamplingIndices = clip.Data.GetIntegerArray("m_modelSpaceBoneSamplingIndices");
 
-            var bonesToSampleInModelSpace = new KVObject("m_bonesToSampleInModelSpace", true, modelSpaceBoneSamplingIndices.Length);
+            var bonesToSampleInModelSpace = new KVObject("m_bonesToSampleInModelSpace", Array.Empty<KVValue>());
             foreach (var chainIdx in modelSpaceBoneSamplingIndices)
             {
                 if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain!.Length)
@@ -64,17 +65,17 @@ public class NmClipExtract
                     throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain!.Length - 1}).");
                 }
                 var boneIdx = modelSpaceSamplingChain[chainIdx]!.GetInt32Property("m_nBoneIdx");
-                bonesToSampleInModelSpace.AddItem(skeleton.Bones[boneIdx].Name);
+                bonesToSampleInModelSpace.Add((KVValue)skeleton.Bones[boneIdx].Name);
             }
-            kv.AddProperty("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
+            kv.AddProperty("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace.Value);
 
             contentFile.AddSubFile(Path.GetFileName(sourceFileName) ?? "animation.dmx", () =>
             {
                 return ModelExtract.ToDmxAnim(skeleton, [], animation);
             });
         }
-        var events = clip.Data.GetArray<KVObject>("m_events")!;
-        var docEventTracks = new KVObject("m_eventTracks", true, events.Length);
+        var events = clip.Data.GetArray("m_events")!;
+        var docEventTracks = new KVObject("m_eventTracks", Array.Empty<KVValue>());
         foreach (var ev in events!)
         {
             var docEventTrack = BuildDocEventBasedOnEventClass(ev, ev.GetStringProperty("_class"));
@@ -82,14 +83,14 @@ public class NmClipExtract
             var startTimeSeconds = startTimeObj?.GetFloatProperty("m_flValue") ?? 0f;
             var durationObj = ev.GetSubCollection("m_flDuration");
             var durationSeconds = durationObj?.GetFloatProperty("m_flValue") ?? 0f;
-            var eventList = docEventTrack!.GetArray<KVObject>("m_events")!.First();
+            var eventList = docEventTrack!.GetArray("m_events")!.First();
             // Doc file event time stamps are given in frames they can be technically floats, but based on recompilation tests
             // these seem inconsistent, unless they're floored to int, then it matches up.
             eventList.AddProperty("m_flStartTime", Math.Floor(startTimeSeconds * animation.FrameCount));
             eventList.AddProperty("m_flDuration", Math.Floor(durationSeconds * animation.FrameCount));
-            docEventTracks.AddItem(docEventTrack);
+            docEventTracks.Add(docEventTrack.Value);
         }
-        kv.AddProperty("m_eventTracks", docEventTracks);
+        kv.AddProperty("m_eventTracks", docEventTracks.Value);
         contentFile.Data = Encoding.UTF8.GetBytes(new KV3File(kv).ToString());
         return contentFile;
     }
@@ -121,28 +122,31 @@ public class NmClipExtract
         kvDocEventTrack.AddProperty("m_eventClassName", docEventClass);
         kvDocEvent.AddProperty("_class", docEventClass);
 
-        foreach (var (key, value) in kvCompiledEvent)
+        foreach (var child in kvCompiledEvent.Children)
         {
+            var key = child.Name;
+            var value = child.Value;
+
             // These were already handled and shouldn't be copied over.
             if (key is "_class" or "m_flStartTimeSeconds" or "m_flDurationSeconds")
             {
                 continue;
             }
 
-            var (newKey, newValue) = (eventName, key) switch
+            var newKey = (eventName, key) switch
             {
-                ("Particle", "m_hParticleSystem") => ("m_particleSystem", value),
-                ("Legacy", "m_animEventClassName") => ("m_eventClass", value),
-                ("Transition", "m_ID") => ("m_optionalID", value),
-                _ => (key, value),
+                ("Particle", "m_hParticleSystem") => "m_particleSystem",
+                ("Legacy", "m_animEventClassName") => "m_eventClass",
+                ("Transition", "m_ID") => "m_optionalID",
+                _ => key,
             };
 
-            kvDocEvent.AddProperty(newKey, newValue);
+            kvDocEvent.AddProperty(newKey, value);
         }
 
-        var eventsArray = new KVObject("m_events", true, 1);
-        eventsArray.AddItem(kvDocEvent);
-        kvDocEventTrack.AddProperty("m_events", eventsArray);
+        var eventsArray = new KVObject("m_events", Array.Empty<KVValue>());
+        eventsArray.Add(kvDocEvent.Value);
+        kvDocEventTrack.AddProperty("m_events", eventsArray.Value);
         return kvDocEventTrack;
     }
 }

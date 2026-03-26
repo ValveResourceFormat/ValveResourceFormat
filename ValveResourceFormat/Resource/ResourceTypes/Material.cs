@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization.VfxEval;
 
@@ -199,10 +200,13 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            if (Resource.EditInfo?.SearchableUserData.FirstOrDefault(x => x.Key == "VSInputSignature").Value is not string inputSignatureString)
+            var inputSignatureValue = Resource.EditInfo?.SearchableUserData.FirstOrDefault(x => x.Name == "VSInputSignature")?.Value;
+            if (inputSignatureValue?.ValueType != KVValueType.String)
             {
                 return null;
             }
+
+            var inputSignatureString = (string)inputSignatureValue;
 
             if (!inputSignatureString.StartsWith("<!-- kv3", StringComparison.InvariantCulture))
             {
@@ -211,7 +215,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(inputSignatureString));
 
-            return KeyValues3.ParseKVFile(ms).Root;
+            return KV3File.Parse(ms).Root;
         }
 
         /// <summary>

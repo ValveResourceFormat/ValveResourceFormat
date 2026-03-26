@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -210,15 +211,15 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (Ramp?.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
+                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
             }
             if (Ramp?.RightEdge != null)
             {
-                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
+                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues().Value);
             }
             if (Ramp.Samples.Length > 0)
             {
-                kv.AddProperty("event_ramp", Ramp.ToKeyValues());
+                kv.AddProperty("event_ramp", Ramp.ToKeyValues().Value);
             }
 
             AddTagArrayToKV(kv, "flextimingtags", FlexTimingTags);
@@ -231,7 +232,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 //If samples_use_time is 1, samples in the flex animations are interpreted as real time (probably meaning values are not clamped to 0.0-1.0)
                 //They're stored as real time in the vcd, so this has to be set to true
                 kv.AddProperty("samples_use_time", true);
-                kv.AddProperty("flexanimations", EventFlex.ToKeyValues());
+                kv.AddProperty("flexanimations", EventFlex.ToKeyValues().Value);
             }
 
             if (PreferredName != null)
@@ -249,7 +250,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 return;
             }
 
-            var tagList = new KVObject(null, true, tags.Length);
+            var tagList = new KVObject(null, Array.Empty<KVValue>());
 
             foreach (var tag in tags)
             {
@@ -257,10 +258,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 tagKV.AddProperty("name", tag.Name);
                 tagKV.AddProperty("fraction", tag.Fraction);
 
-                tagList.AddItem(tagKV);
+                tagList.Add(tagKV.Value);
             }
 
-            parent.AddProperty(name, tagList);
+            parent.AddProperty(name, tagList.Value);
         }
 
         private static void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)

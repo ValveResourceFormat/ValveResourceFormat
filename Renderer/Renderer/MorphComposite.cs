@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -157,49 +158,48 @@ namespace ValveResourceFormat.Renderer
         {
             var morphDatas = morph.GetMorphDatas();
 
-            if (morphDatas == null)
+            if (morphDatas == null || morphDatas.Length == 0)
             {
                 allVertices = [];
                 morphRects = [];
                 return;
             }
 
-            var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount((KVObject)morphData.Value));
+            var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount(morphData));
 
             allVertices = new float[bundleCount * 4 * VertexSize];
             morphCount = morph.GetMorphCount();
             morphRects = new List<int>[morphCount];
 
             var rectCount = 0;
-            foreach (var pair in morphDatas)
+            for (var morphId = 0; morphId < morphDatas.Length; morphId++)
             {
-                var morphId = int.Parse(pair.Key, CultureInfo.InvariantCulture);
+                var morphDataChild = morphDatas[morphId];
                 morphRects[morphId] = new List<int>(10);
 
-                if (pair.Value is not KVObject morphData)
+                if (morphDataChild.Value is not KVCollectionValue)
                 {
                     continue;
                 }
 
-                var morphRectDatas = morphData.GetSubCollection("m_morphRectDatas");
+                var morphRectDatas = morphDataChild.GetArray("m_morphRectDatas") ?? [];
 
                 foreach (var rectPair in morphRectDatas)
                 {
                     morphRects[morphId].Add(rectCount);
 
-                    var morphRectData = (KVObject)rectPair.Value;
                     //TODO: Implement normal/wrinkle bundle type (second bundle data usually, if exists)
-                    var bundleData = (KVObject)morphRectData.GetSubCollection("m_bundleDatas").First().Value;
+                    var bundleData = (rectPair.GetArray("m_bundleDatas") ?? [])[0];
 
                     var offsets = bundleData.GetFloatArray("m_offsets");
                     var ranges = bundleData.GetFloatArray("m_ranges");
 
                     var vertexData = new MorphCompositeRectData
                     {
-                        LeftX = morphRectData.GetInt32Property("m_nXLeftDst"),
-                        TopY = morphRectData.GetInt32Property("m_nYTopDst"),
-                        WidthU = morphRectData.GetFloatProperty("m_flUWidthSrc"),
-                        HeightV = morphRectData.GetFloatProperty("m_flVHeightSrc"),
+                        LeftX = rectPair.GetInt32Property("m_nXLeftDst"),
+                        TopY = rectPair.GetInt32Property("m_nYTopDst"),
+                        WidthU = rectPair.GetFloatProperty("m_flUWidthSrc"),
+                        HeightV = rectPair.GetFloatProperty("m_flVHeightSrc"),
 
                         LeftU = bundleData.GetFloatProperty("m_flULeftSrc"),
                         TopV = bundleData.GetFloatProperty("m_flVTopSrc"),

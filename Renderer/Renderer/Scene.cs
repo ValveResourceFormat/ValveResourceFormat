@@ -347,9 +347,10 @@ namespace ValveResourceFormat.Renderer
                     return false;
                 }
 
-                return node.EntityData.Properties.Properties.TryGetValue(keyToFind, out var value)
-                    && value.Value is string outString
-                    && valueToFind.Equals(outString, StringComparison.OrdinalIgnoreCase);
+                var value = node.EntityData.Properties[keyToFind];
+                return value != null
+                    && value.ValueType == ValveKeyValue.KVValueType.String
+                    && valueToFind.Equals((string)value, StringComparison.OrdinalIgnoreCase);
             }
 
             return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);

@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;

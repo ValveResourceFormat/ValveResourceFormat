@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -172,6 +173,10 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var refLODGroupMasks = Data.GetIntegerArray("m_refLODGroupMasks");
             var refMeshes = Data.GetArray<string>("m_refMeshes");
+            if (refMeshes == null)
+            {
+                return [];
+            }
             var result = new List<(int MeshIndex, string MeshName, long LoDMask)>(refMeshes.Length);
 
             for (var meshIndex = 0; meshIndex < refMeshes.Length; meshIndex++)
@@ -180,7 +185,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (!string.IsNullOrEmpty(refMesh))
                 {
-                    result.Add((meshIndex, refMesh, refLODGroupMasks[meshIndex]));
+                    var lodMask = meshIndex < refLODGroupMasks.Length ? refLODGroupMasks[meshIndex] : 0L;
+                    result.Add((meshIndex, refMesh, lodMask));
                 }
             }
 
@@ -336,7 +342,7 @@ namespace ValveResourceFormat.ResourceTypes
             var animationToFolder = new Dictionary<string, string>();
             foreach (var folder in faceposerFolders)
             {
-                var folderName = folder.Key;
+                var folderName = folder.Name;
                 var animationNames = faceposerFolders.GetArray<string>(folderName);
 
                 if (animationNames != null)
@@ -473,7 +479,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <returns>Enumerable of material group names and their materials.</returns>
         public IEnumerable<(string Name, string[] Materials)> GetMaterialGroups()
-           => Data.GetArray<KVObject>("m_materialGroups")
+           => Data.GetArray("m_materialGroups")
                 .Select(group => (group.GetProperty<string>("m_name"), group.GetArray<string>("m_materials")));
 
         /// <summary>
@@ -503,7 +509,7 @@ namespace ValveResourceFormat.ResourceTypes
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString));
             try
             {
-                keyvalues = KeyValues3.ParseKVFile(ms).Root;
+                keyvalues = KV3File.Parse(ms).Root;
             }
             catch (Exception e)
             {

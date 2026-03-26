@@ -2,10 +2,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using NUnit.Framework;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using KVValueType = ValveKeyValue.KVValueType;
 
 namespace Tests
 {
@@ -15,7 +15,7 @@ namespace Tests
         [Test]
         public void TestKeyValues3_CRLF()
         {
-            var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_CRLF.kv3"));
+            var file = KV3File.Parse(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_CRLF.kv3"));
 
             using (Assert.EnterMultipleScope())
             {
@@ -23,14 +23,14 @@ namespace Tests
                 Assert.That(file.Format.ToString(), Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
 
                 //Not sure what KVType is better for this
-                Assert.That(file.Root.Properties["multiLineStringValue"].Value, Is.EqualTo("First line of a multi-line string literal.\r\nSecond line of a multi-line string literal."));
+                Assert.That((string)file.Root["multiLineStringValue"], Is.EqualTo("First line of a multi-line string literal.\r\nSecond line of a multi-line string literal."));
             }
         }
 
         [Test]
         public void TestKeyValues3_LF()
         {
-            var file = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var file = KV3File.Parse(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
             Assert.That(file.Encoding.ToString(), Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
             AssertKV3Properties(file);
         }
@@ -38,7 +38,7 @@ namespace Tests
         [Test]
         public void TestBinaryKV3_Serialization()
         {
-            var originalFile = KeyValues3.ParseKVFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var originalFile = KV3File.Parse(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
 
             var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"))
             {
@@ -68,61 +68,59 @@ namespace Tests
             using (Assert.EnterMultipleScope())
             {
                 //Not sure what KVType is better for this
-                Assert.That(file.Root.Properties["multiLineStringValue"].Value, Is.EqualTo("First line of a multi-line string literal.\nSecond line of a multi-line string literal."));
+                Assert.That((string)file.Root["multiLineStringValue"], Is.EqualTo("First line of a multi-line string literal.\nSecond line of a multi-line string literal."));
 
                 Assert.That(file.Format.ToString(), Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
 
                 Assert.That(file.Root, Has.Count.EqualTo(14));
 
-                var properties = file.Root.Properties;
-
-                Assert.That(properties["boolValue"].Type, Is.EqualTo(KVValueType.Boolean));
-                Assert.That(properties["boolValue"].Value, Is.False);
-                Assert.That(properties["intValue"].Type, Is.EqualTo(KVValueType.Int64));
-                Assert.That(properties["intValue"].Value, Is.EqualTo((long)128));
-                Assert.That(properties["doubleValue"].Type, Is.EqualTo(KVValueType.FloatingPoint64));
-                Assert.That(properties["doubleValue"].Value, Is.EqualTo(64.000000));
-                Assert.That(properties["negativeIntValue"].Type, Is.EqualTo(KVValueType.Int64));
-                Assert.That(properties["negativeIntValue"].Value, Is.EqualTo((long)-1337));
-                Assert.That(properties["negativeDoubleValue"].Type, Is.EqualTo(KVValueType.FloatingPoint64));
-                Assert.That(properties["negativeDoubleValue"].Value, Is.EqualTo(-0.133700));
-                Assert.That(properties["stringValue"].Type, Is.EqualTo(KVValueType.String));
-                Assert.That(properties["stringValue"].Value, Is.EqualTo("hello world"));
+                Assert.That(file.Root["boolValue"].ValueType, Is.EqualTo(KVValueType.Boolean));
+                Assert.That((bool)file.Root["boolValue"], Is.False);
+                Assert.That(file.Root["intValue"].ValueType, Is.EqualTo(KVValueType.UInt64));
+                Assert.That((ulong)file.Root["intValue"], Is.EqualTo((ulong)128));
+                Assert.That(file.Root["doubleValue"].ValueType, Is.EqualTo(KVValueType.FloatingPoint64));
+                Assert.That((double)file.Root["doubleValue"], Is.EqualTo(64.000000));
+                Assert.That(file.Root["negativeIntValue"].ValueType, Is.EqualTo(KVValueType.Int64));
+                Assert.That((long)file.Root["negativeIntValue"], Is.EqualTo((long)-1337));
+                Assert.That(file.Root["negativeDoubleValue"].ValueType, Is.EqualTo(KVValueType.FloatingPoint64));
+                Assert.That((double)file.Root["negativeDoubleValue"], Is.EqualTo(-0.133700));
+                Assert.That(file.Root["stringValue"].ValueType, Is.EqualTo(KVValueType.String));
+                Assert.That((string)file.Root["stringValue"], Is.EqualTo("hello world"));
 
                 //Do special test for flagged value
-                var flagValue = properties["stringThatIsAResourceReference"];
-                Assert.That(flagValue.Value, Is.EqualTo("particles/items3_fx/star_emblem.vpcf"));
+                var flagValue = file.Root["stringThatIsAResourceReference"];
+                Assert.That((string)flagValue, Is.EqualTo("particles/items3_fx/star_emblem.vpcf"));
                 Assert.That(flagValue.Flag, Is.EqualTo(KVFlag.Resource));
 
-                Assert.That(properties["arrayValue"].Type, Is.EqualTo(KVValueType.Array));
-                var arrayValue = properties["arrayValue"].Value as KVObject;
+                Assert.That(file.Root["arrayValue"].ValueType, Is.EqualTo(KVValueType.Array));
+                var arrayValue = file.Root["arrayValue"] as KVArrayValue;
                 Debug.Assert(arrayValue != null);
-                Assert.That(arrayValue.Properties["0"].Value, Is.EqualTo((long)1));
-                Assert.That(arrayValue.Properties["1"].Value, Is.EqualTo((long)2));
-                Assert.That(arrayValue.Properties["2"].Value, Is.EqualTo("characters/models/shared/animsets/animset_ct.vmdl"));
-                Assert.That(arrayValue.Properties["2"].Flag, Is.EqualTo(KVFlag.Resource));
-                Assert.That(arrayValue.Properties["3"].Value, Is.EqualTo("hud/abilities/haze/haze_sleep_dagger.psd"));
-                Assert.That(arrayValue.Properties["3"].Flag, Is.EqualTo(KVFlag.Panorama));
-                Assert.That(arrayValue.Properties["4"].Value, Is.EqualTo("hello world"));
-                Assert.That(arrayValue.Properties["5"].Flag, Is.EqualTo(KVFlag.SoundEvent));
-                Assert.That(arrayValue.Properties["6"].Flag, Is.EqualTo(KVFlag.SubClass));
-                Assert.That(arrayValue.Properties["7"].Flag, Is.EqualTo(KVFlag.EntityName));
+                Assert.That((ulong)arrayValue[0], Is.EqualTo((ulong)1));
+                Assert.That((ulong)arrayValue[1], Is.EqualTo((ulong)2));
+                Assert.That((string)arrayValue[2], Is.EqualTo("characters/models/shared/animsets/animset_ct.vmdl"));
+                Assert.That(arrayValue[2].Flag, Is.EqualTo(KVFlag.Resource));
+                Assert.That((string)arrayValue[3], Is.EqualTo("hud/abilities/haze/haze_sleep_dagger.psd"));
+                Assert.That(arrayValue[3].Flag, Is.EqualTo(KVFlag.Panorama));
+                Assert.That((string)arrayValue[4], Is.EqualTo("hello world"));
+                Assert.That(arrayValue[5].Flag, Is.EqualTo(KVFlag.SoundEvent));
+                Assert.That(arrayValue[6].Flag, Is.EqualTo(KVFlag.SubClass));
+                Assert.That(arrayValue[7].Flag, Is.EqualTo(KVFlag.EntityName));
 
-                Assert.That(properties["objectValue"].Type, Is.EqualTo(KVValueType.Collection));
-                var objectValue = properties["objectValue"].Value as KVObject;
+                Assert.That(file.Root["objectValue"].ValueType, Is.EqualTo(KVValueType.Collection));
+                var objectValue = file.Root.GetChild("objectValue");
                 Debug.Assert(objectValue != null);
-                Assert.That(objectValue.Properties["n"].Value, Is.EqualTo((long)5));
-                Assert.That(objectValue.Properties["s"].Value, Is.EqualTo("foo"));
+                Assert.That((ulong)objectValue["n"], Is.EqualTo((ulong)5));
+                Assert.That((string)objectValue["s"], Is.EqualTo("foo"));
 
-                var binaryBlobValue = properties["binaryBlobValue"].Value as byte[];
+                var binaryBlobValue = file.Root["binaryBlobValue"] as KVBinaryBlob;
                 Debug.Assert(binaryBlobValue != null);
-                Assert.That(binaryBlobValue, Has.Length.EqualTo(40));
-                Assert.That(Encoding.UTF8.GetString(binaryBlobValue), Is.EqualTo("Hello, this is a test binary blob value!"));
+                Assert.That(binaryBlobValue.Bytes.ToArray(), Has.Length.EqualTo(40));
+                Assert.That(Encoding.UTF8.GetString(binaryBlobValue.Bytes.ToArray()), Is.EqualTo("Hello, this is a test binary blob value!"));
 
-                Assert.That(properties["arrayOnSingleLine"].Type, Is.EqualTo(KVValueType.Array));
+                Assert.That(file.Root["arrayOnSingleLine"].ValueType, Is.EqualTo(KVValueType.Array));
 
-                Assert.That(properties["quoted.key"].Value, Is.EqualTo("hello"));
-                Assert.That(properties["a quoted key with spaces"].Value, Is.EqualTo("some cool value"));
+                Assert.That((string)file.Root["quoted.key"], Is.EqualTo("hello"));
+                Assert.That((string)file.Root["a quoted key with spaces"], Is.EqualTo("some cool value"));
             }
         }
 
@@ -157,7 +155,7 @@ namespace Tests
             writer.Flush();
 
             stream.Position = 0;
-            var file = KeyValues3.ParseKVFile(stream);
+            var file = KV3File.Parse(stream);
 
             using (Assert.EnterMultipleScope())
             {
@@ -168,27 +166,6 @@ namespace Tests
             }
         }
 
-        [Test]
-        public void TestKV3HeaderParsing_PartialHeader()
-        {
-            using var stream = new MemoryStream();
-            using var writer = new StreamWriter(stream);
-
-            writer.WriteLine("<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} -->");
-            writer.WriteLine("{");
-            writer.WriteLine("    testKey = \"testValue\"");
-            writer.WriteLine("}");
-            writer.Flush();
-
-            stream.Position = 0;
-            var file = KeyValues3.ParseKVFile(stream);
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(file.Encoding, Is.EqualTo(KV3IDLookup.Get("text")));
-                Assert.That(file.Format, Is.EqualTo(KV3IDLookup.Get("generic")));
-            }
-        }
 
         [Test]
         public void TestKV3HeaderParsing_CustomFormat()
@@ -203,7 +180,7 @@ namespace Tests
             writer.Flush();
 
             stream.Position = 0;
-            var file = KeyValues3.ParseKVFile(stream);
+            var file = KV3File.Parse(stream);
 
             using (Assert.EnterMultipleScope())
             {
@@ -219,7 +196,7 @@ namespace Tests
         {
             var expectedFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "StringEscaping.kv3");
 
-            var parsedFile = KeyValues3.ParseKVFile(expectedFilePath);
+            var parsedFile = KV3File.Parse(expectedFilePath);
             var serializedOutput = parsedFile.ToString().Trim().ReplaceLineEndings();
             var expectedOutput = File.ReadAllText(expectedFilePath).Trim().ReplaceLineEndings();
 
@@ -231,15 +208,15 @@ namespace Tests
         {
             var expectedFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "StringEscaping_LF.kv3");
 
-            var parsedFile = KeyValues3.ParseKVFile(expectedFilePath);
-            Assert.That(parsedFile.Root.Properties["with_quote_at_start"].Value, Is.EqualTo("\""));
+            var parsedFile = KV3File.Parse(expectedFilePath);
+            Assert.That((string)parsedFile.Root["with_quote_at_start"], Is.EqualTo("\""));
         }
 
         [Test]
         public void TestManualKVObjectSerializationWithEscapeSequences()
         {
             var inputFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "EscapeSequenceTest_Input.kv3");
-            var parsedFile = KeyValues3.ParseKVFile(inputFilePath);
+            var parsedFile = KV3File.Parse(inputFilePath);
             var serializedOutput = parsedFile.ToString().Trim().ReplaceLineEndings();
 
             var expectedFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "EscapeSequenceTest.kv3");

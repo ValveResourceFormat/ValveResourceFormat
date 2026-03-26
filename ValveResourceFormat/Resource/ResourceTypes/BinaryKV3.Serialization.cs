@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
-using KVValueType = ValveKeyValue.KVValueType;
 
 #nullable disable
 
@@ -150,11 +150,11 @@ namespace ValveResourceFormat.ResourceTypes
             Debug.Assert(!obj.IsArray); // The reader does not support non-object roots properly.
 
             WriteType(context, KV3BinaryNodeType.OBJECT, KVFlag.None);
-            context.Bytes4Writer.Write(obj.Properties.Count);
+            context.Bytes4Writer.Write(obj.Count);
 
-            foreach (var property in obj.Properties)
+            foreach (var property in obj.Children)
             {
-                WriteProperty(property.Key, property.Value, context);
+                WriteProperty(property.Name, property.Value, context);
             }
         }
 
@@ -166,9 +166,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void WriteValueRecursive(KVValue value, SerializationContext context)
         {
-            if (value.Type == KVValueType.Boolean)
+            if (value.ValueType == KVValueType.Boolean)
             {
-                if ((bool)value.Value)
+                if ((bool)value)
                 {
                     WriteType(context, KV3BinaryNodeType.BOOLEAN_TRUE, value.Flag);
                 }
@@ -179,9 +179,9 @@ namespace ValveResourceFormat.ResourceTypes
 
                 return;
             }
-            else if (value.Type == KVValueType.Int64)
+            else if (value.ValueType == KVValueType.Int64)
             {
-                var writeValue = Convert.ToInt64(value.Value, CultureInfo.InvariantCulture);
+                var writeValue = (long)value;
 
                 if (writeValue == 0)
                 {
@@ -198,9 +198,9 @@ namespace ValveResourceFormat.ResourceTypes
                 context.Bytes8Writer.Write(writeValue);
                 return;
             }
-            else if (value.Type == KVValueType.FloatingPoint64)
+            else if (value.ValueType == KVValueType.FloatingPoint64)
             {
-                var writeValue = Convert.ToDouble(value.Value, CultureInfo.InvariantCulture);
+                var writeValue = (double)value;
 
                 if (writeValue == 0.0)
                 {
@@ -222,63 +222,69 @@ namespace ValveResourceFormat.ResourceTypes
             var nodeType = GetKV3BinaryNodeType(value);
             WriteType(context, nodeType, value.Flag);
 
-            switch (value.Type)
+            switch (value.ValueType)
             {
                 case KVValueType.Null:
                     break;
                 case KVValueType.Int16:
-                    context.Bytes2Writer.Write(Convert.ToInt16(value.Value, CultureInfo.InvariantCulture));
+                    context.Bytes2Writer.Write((short)value);
                     break;
                 case KVValueType.UInt16:
-                    context.Bytes2Writer.Write(Convert.ToUInt16(value.Value, CultureInfo.InvariantCulture));
+                    context.Bytes2Writer.Write((ushort)value);
                     break;
                 case KVValueType.Int32:
-                    context.Bytes4Writer.Write(Convert.ToInt32(value.Value, CultureInfo.InvariantCulture));
+                    context.Bytes4Writer.Write((int)value);
                     break;
                 case KVValueType.UInt32:
-                    context.Bytes4Writer.Write(Convert.ToUInt32(value.Value, CultureInfo.InvariantCulture));
+                    context.Bytes4Writer.Write((uint)value);
                     break;
                 case KVValueType.UInt64:
-                    context.Bytes8Writer.Write(Convert.ToUInt64(value.Value, CultureInfo.InvariantCulture));
+                    context.Bytes8Writer.Write((ulong)value);
                     break;
                 case KVValueType.FloatingPoint:
-                    context.Bytes4Writer.Write(Convert.ToSingle(value.Value, CultureInfo.InvariantCulture));
+                    context.Bytes4Writer.Write((float)value);
                     break;
                 case KVValueType.String:
-                    context.Bytes4Writer.Write(context.GetStringId((string)value.Value));
+                    context.Bytes4Writer.Write(context.GetStringId((string)value));
                     break;
                 case KVValueType.BinaryBlob:
-                    var bytes = (byte[])value.Value;
-                    context.BinaryBlobLengths.Add(bytes.Length);
-                    if (bytes.Length > 0)
+                    var blobBytes = ((KVBinaryBlob)value).Bytes;
+                    context.BinaryBlobLengths.Add(blobBytes.Length);
+                    if (blobBytes.Length > 0)
                     {
-                        context.BinaryBlobsWriter.Write(bytes);
+                        context.BinaryBlobsWriter.Write(blobBytes.Span);
                     }
                     break;
                 case KVValueType.Collection:
-                    context.Bytes4Writer.Write(((KVObject)value.Value).Properties.Count);
-
-                    foreach (var property in ((KVObject)value.Value).Properties)
                     {
-                        WriteProperty(property.Key, property.Value, context);
+                        var collection = (KVCollectionValue)value;
+                        context.Bytes4Writer.Write(collection.Count);
+
+                        foreach (var property in collection)
+                        {
+                            WriteProperty(property.Name, property.Value, context);
+                        }
                     }
                     break;
                 case KVValueType.Array:
-                    context.Bytes4Writer.Write(((KVObject)value.Value).Properties.Count);
-
-                    foreach (var property in ((KVObject)value.Value).Properties)
                     {
-                        WriteValueRecursive(property.Value, context);
+                        var array = (KVArrayValue)value;
+                        context.Bytes4Writer.Write(array.Count);
+
+                        foreach (var item in array)
+                        {
+                            WriteValueRecursive(item, context);
+                        }
                     }
                     break;
                 default:
-                    throw new NotSupportedException($"Unsupported value type: {value.Type}");
+                    throw new NotSupportedException($"Unsupported value type: {value.ValueType}");
             }
         }
 
         private static KV3BinaryNodeType GetKV3BinaryNodeType(KVValue value)
         {
-            return value.Type switch
+            return value.ValueType switch
             {
                 KVValueType.Null => KV3BinaryNodeType.NULL,
                 //KVValueType.Boolean => KV3BinaryNodeType.BOOLEAN,
@@ -294,7 +300,7 @@ namespace ValveResourceFormat.ResourceTypes
                 KVValueType.BinaryBlob => KV3BinaryNodeType.BINARY_BLOB,
                 KVValueType.Array => KV3BinaryNodeType.ARRAY,
                 KVValueType.Collection => KV3BinaryNodeType.OBJECT,
-                _ => throw new NotSupportedException($"Unsupported value type: {value.Type}")
+                _ => throw new NotSupportedException($"Unsupported value type: {value.ValueType}")
             };
         }
 

@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
@@ -43,11 +44,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         //Maybe return an array of kvobjects instead? That'd be different from the other choreo classes though.
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null, true, Samples.Length);
+            var kv = new KVObject(null, Array.Empty<KVValue>());
 
             foreach (var sample in Samples)
             {
-                kv.AddItem(sample.ToKeyValues());
+                kv.Add(sample.ToKeyValues().Value);
             }
 
             return kv;

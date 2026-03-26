@@ -1,8 +1,7 @@
 using System.Globalization;
-using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
-using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.Serialization.KeyValues
 {
@@ -24,48 +23,70 @@ namespace ValveResourceFormat.Serialization.KeyValues
     }
 
     /// <summary>
-    /// Extension methods for KVObject.
+    /// VRF-specific extension methods for KVObject.
+    /// These provide the same behavior as the old VRF KVObject property getters.
     /// </summary>
     public static class KVObjectExtensions
     {
         /// <summary>
-        /// Gets a sub-collection from the key-value object.
+        /// Gets a child <see cref="KVObject"/> (sub-collection) by name.
         /// </summary>
-        public static KVObject GetSubCollection(this KVObject collection, string name)
-            => collection.GetProperty<KVObject>(name);
-
-        /// <summary>
-        /// Gets an array from the key-value object and maps each element.
-        /// </summary>
-        public static T[] GetArray<T>(this KVObject collection, string name, Func<KVObject, T> mapper)
-            => collection.GetArray<KVObject>(name)
-                .Select(mapper)
-                .ToArray();
+        public static KVObject GetSubCollection(this KVObject obj, string name)
+            => obj.GetChild(name);
 
         /// <summary>
         /// Gets a string property from the key-value object.
         /// </summary>
-        public static string GetStringProperty(this KVObject collection, string name)
-           => collection.GetProperty<string>(name);
-
-        /// <summary>
-        /// Gets an integer property from the key-value object.
-        /// </summary>
-        public static long GetIntegerProperty(this KVObject collection, string name)
-            => Convert.ToInt64(collection.GetProperty<object>(name), CultureInfo.InvariantCulture);
-
-        /// <summary>
-        /// Gets an unsigned integer property from the key-value object.
-        /// </summary>
-        public static ulong GetUnsignedIntegerProperty(this KVObject collection, string name)
+        public static string GetStringProperty(this KVObject obj, string name)
         {
-            var value = collection.GetProperty<object>(name);
+            var value = obj[name];
+            return value != null ? (string)value : default!;
+        }
 
-            if (value is int i)
+        /// <summary>
+        /// Gets an Int32 property from the key-value object.
+        /// </summary>
+        public static int GetInt32Property(this KVObject obj, string name)
+        {
+            var value = obj[name];
+            return value != null ? Convert.ToInt32(value, CultureInfo.InvariantCulture) : default;
+        }
+
+        /// <summary>
+        /// Gets a UInt32 property from the key-value object.
+        /// </summary>
+        public static uint GetUInt32Property(this KVObject obj, string name)
+        {
+            var value = obj[name];
+            return value != null ? Convert.ToUInt32(value, CultureInfo.InvariantCulture) : default;
+        }
+
+        /// <summary>
+        /// Gets a 64-bit integer property from the key-value object.
+        /// </summary>
+        public static long GetIntegerProperty(this KVObject obj, string name)
+        {
+            var value = obj[name];
+            return value != null ? Convert.ToInt64(value, CultureInfo.InvariantCulture) : default;
+        }
+
+        /// <summary>
+        /// Gets an unsigned integer property, with unchecked int-to-ulong conversion for binary KV3 compatibility.
+        /// </summary>
+        public static ulong GetUnsignedIntegerProperty(this KVObject obj, string name)
+        {
+            var value = obj[name];
+
+            if (value == null)
+            {
+                return default;
+            }
+
+            if (value.ValueType == KVValueType.Int32)
             {
                 unchecked
                 {
-                    return (ulong)i;
+                    return (ulong)Convert.ToInt32(value, CultureInfo.InvariantCulture);
                 }
             }
 
@@ -73,112 +94,187 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
-        /// Gets an Int32 property from the key-value object.
-        /// </summary>
-        public static int GetInt32Property(this KVObject collection, string name)
-            => Convert.ToInt32(collection.GetProperty<object>(name), CultureInfo.InvariantCulture);
-
-        /// <summary>
-        /// Gets a UInt32 property from the key-value object.
-        /// </summary>
-        public static uint GetUInt32Property(this KVObject collection, string name)
-            => Convert.ToUInt32(collection.GetProperty<object>(name), CultureInfo.InvariantCulture);
-
-        /// <summary>
         /// Gets a double property from the key-value object.
         /// </summary>
-        public static double GetDoubleProperty(this KVObject collection, string name)
-            => Convert.ToDouble(collection.GetProperty<object>(name), CultureInfo.InvariantCulture);
+        public static double GetDoubleProperty(this KVObject obj, string name)
+        {
+            var value = obj[name];
+            return value != null ? Convert.ToDouble(value, CultureInfo.InvariantCulture) : default;
+        }
 
         /// <summary>
         /// Gets a float property from the key-value object.
         /// </summary>
-        public static float GetFloatProperty(this KVObject collection, string name)
-            => (float)GetDoubleProperty(collection, name);
+        public static float GetFloatProperty(this KVObject obj, string name)
+            => (float)GetDoubleProperty(obj, name);
 
         /// <summary>
         /// Gets a byte property from the key-value object.
         /// </summary>
-        public static byte GetByteProperty(this KVObject collection, string name)
-            => Convert.ToByte(collection.GetProperty<object>(name), CultureInfo.InvariantCulture);
-
-        /// <summary>
-        /// Gets an integer array from the key-value object.
-        /// </summary>
-        public static long[] GetIntegerArray(this KVObject collection, string name)
-            => collection.GetArray<object>(name)
-                .Select(x => Convert.ToInt64(x, CultureInfo.InvariantCulture))
-                .ToArray();
-
-        /// <summary>
-        /// Gets a float array from the key-value object.
-        /// </summary>
-        public static float[] GetFloatArray(this KVObject collection, string name)
-            => collection.GetArray<object>(name)
-                .Select(x => Convert.ToSingle(x, CultureInfo.InvariantCulture))
-                .ToArray();
-
-        /// <summary>
-        /// Gets an unsigned integer array from the key-value object.
-        /// </summary>
-        public static ulong[] GetUnsignedIntegerArray(this KVObject collection, string name)
+        public static byte GetByteProperty(this KVObject obj, string name)
         {
-            var array = collection.GetArray<object>(name);
+            var value = obj[name];
+            return value != null ? Convert.ToByte(value, CultureInfo.InvariantCulture) : default;
+        }
 
-            if (array.Length == 0)
+        /// <summary>
+        /// Gets a boolean property from the key-value object.
+        /// </summary>
+        public static bool GetBooleanProperty(this KVObject obj, string name)
+        {
+            var value = obj[name];
+            return value != null && (bool)value;
+        }
+
+        /// <summary>
+        /// Gets an array of sub-objects by name.
+        /// Each array element is wrapped in a <see cref="KVObject"/>.
+        /// </summary>
+        public static KVObject[] GetArray(this KVObject obj, string name)
+        {
+            var child = obj.GetChild(name);
+
+            if (child?.Value is not KVArrayValue array)
+            {
+                return null!;
+            }
+
+            // TODO: Each element is wrapped in a KVObject to match the old VRF API surface.
+            // This allocates per call — consider a lighter-weight approach if this becomes a bottleneck.
+            var result = new KVObject[array.Count];
+
+            for (var i = 0; i < array.Count; i++)
+            {
+                result[i] = new KVObject(null, array[i]);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets an array of sub-objects by name and maps each element.
+        /// </summary>
+        public static T[] GetArray<T>(this KVObject obj, string name, Func<KVObject, T> mapper)
+        {
+            var items = GetArray(obj, name);
+
+            if (items == null)
+            {
+                return null!;
+            }
+
+            var result = new T[items.Length];
+
+            for (var i = 0; i < items.Length; i++)
+            {
+                result[i] = mapper(items[i]);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets a typed array of primitive values by name.
+        /// Also handles binary blobs when T is byte.
+        /// </summary>
+        public static T[] GetArray<T>(this KVObject obj, string name)
+        {
+            if (typeof(T) == typeof(KVObject))
+            {
+                return (T[])(object)GetArray(obj, name);
+            }
+
+            var child = obj.GetChild(name);
+
+            if (typeof(T) == typeof(byte) && child?.Value is KVBinaryBlob blob)
+            {
+                return (T[])(object)blob.Bytes.ToArray();
+            }
+
+            if (child?.Value is not KVArrayValue array)
+            {
+                return null!;
+            }
+
+            var result = new T[array.Count];
+
+            for (var i = 0; i < array.Count; i++)
+            {
+                if (array[i] is KVNullValue or KVCollectionValue or KVArrayValue)
+                {
+                    result[i] = default!;
+                    continue;
+                }
+
+                result[i] = (T)Convert.ChangeType(array[i], typeof(T), CultureInfo.InvariantCulture);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Gets an unsigned integer array, with unchecked int-to-ulong conversion for binary KV3 compatibility.
+        /// </summary>
+        public static ulong[] GetUnsignedIntegerArray(this KVObject obj, string name)
+        {
+            var child = obj.GetChild(name);
+
+            if (child?.Value is not KVArrayValue array)
             {
                 return [];
             }
 
-            if (array[0] is int)
+            var result = new ulong[array.Count];
+
+            for (var i = 0; i < array.Count; i++)
             {
-                return array.Select(x => unchecked((ulong)(int)x)).ToArray();
+                if (array[i].ValueType == KVValueType.Int32)
+                {
+                    unchecked
+                    {
+                        result[i] = (ulong)(int)array[i];
+                    }
+                }
+                else
+                {
+                    result[i] = (ulong)array[i];
+                }
             }
 
-            return array.Select(x => Convert.ToUInt64(x, CultureInfo.InvariantCulture)).ToArray();
+            return result;
         }
-
-        /// <summary>
-        /// Gets an array of KVObjects from the key-value object.
-        /// </summary>
-        public static KVObject[] GetArray(this KVObject collection, string name)
-            => collection.GetArray<KVObject>(name);
 
         /// <summary>
         /// Gets an enum value from the key-value object.
         /// </summary>
-        public static TEnum GetEnumValue<TEnum>(this KVObject collection, string name, bool normalize = false, string stripExtension = "Flags")
+        public static TEnum GetEnumValue<TEnum>(this KVObject obj, string name, bool normalize = false, string stripExtension = "Flags")
             where TEnum : Enum
         {
-            var rawValue = collection.GetProperty<object>(name);
+            var value = obj[name];
 
-            if (rawValue is int)
+            switch (value.ValueType)
             {
-                return (TEnum)rawValue;
-            }
-            else if (rawValue is uint u) // NTRO byte enums are upconverted to uint
-            {
-                return (TEnum)(object)(int)u;
-            }
-            else if (rawValue is long l)
-            {
-                return (TEnum)(object)(int)l;
+                case KVValueType.Int32:
+                    return (TEnum)(object)(int)value;
+                case KVValueType.UInt32:
+                    return (TEnum)(object)(int)(uint)value;
+                case KVValueType.Int64:
+                    return (TEnum)(object)(int)(long)value;
             }
 
-            var enumString = (string)rawValue;
+            var enumString = (string)value;
+
             if (normalize)
             {
                 enumString = NormalizeEnumName<TEnum>(enumString, stripExtension);
             }
 
-            if (Enum.TryParse(typeof(TEnum), enumString, false, out var value))
+            if (Enum.TryParse(typeof(TEnum), enumString, false, out var result))
             {
-                return (TEnum)value;
+                return (TEnum)result;
             }
-            else
-            {
-                throw new ArgumentException($"Unable to map {enumString} to a member of enum {typeof(TEnum).Name}");
-            }
+
+            throw new ArgumentException($"Unable to map {enumString} to a member of enum {typeof(TEnum).Name}");
         }
 
         /// <summary>
@@ -229,43 +325,118 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
+        /// Gets a typed property value by name.
+        /// </summary>
+        public static T GetProperty<T>(this KVObject obj, string name)
+        {
+            var value = obj[name];
+
+            if (value == null || value.ValueType == KVValueType.Null)
+            {
+                return default!;
+            }
+
+            if (typeof(T) == typeof(KVObject))
+            {
+                return (T)(object)obj.GetChild(name);
+            }
+
+            if (typeof(T) == typeof(byte[]))
+            {
+                if (value is KVBinaryBlob blob)
+                {
+                    return (T)(object)blob.Bytes.ToArray();
+                }
+
+                // Array of byte values
+                var child = obj.GetChild(name);
+                if (child?.Value is KVArrayValue array)
+                {
+                    var result = new byte[array.Count];
+                    for (var i = 0; i < array.Count; i++)
+                    {
+                        result[i] = (byte)array[i];
+                    }
+                    return (T)(object)result;
+                }
+
+                return default!;
+            }
+
+            if (typeof(T) == typeof(object))
+            {
+                if (value.ValueType == KVValueType.Collection || value is KVArrayValue)
+                {
+                    return (T)(object)obj.GetChild(name);
+                }
+
+                return value.ValueType switch
+                {
+                    KVValueType.String => (T)(object)(string)value,
+                    KVValueType.Int32 => (T)(object)(int)value,
+                    KVValueType.Int64 => (T)(object)(long)value,
+                    KVValueType.UInt32 => (T)(object)(uint)value,
+                    KVValueType.UInt64 => (T)(object)(ulong)value,
+                    KVValueType.FloatingPoint => (T)(object)(float)value,
+                    KVValueType.FloatingPoint64 => (T)(object)(double)value,
+                    KVValueType.Boolean => (T)(object)(bool)value,
+                    _ => default!,
+                };
+            }
+
+            return (T)Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Gets an array of long integers by name.
+        /// </summary>
+        public static long[] GetIntegerArray(this KVObject obj, string name)
+            => obj.GetArray<long>(name) ?? [];
+
+        /// <summary>
+        /// Gets an array of floats by name.
+        /// </summary>
+        public static float[] GetFloatArray(this KVObject obj, string name)
+            => obj.GetArray<float>(name) ?? [];
+
+        /// <summary>
         /// Determines whether the specified key contains an array (not a blob type).
         /// </summary>
-        public static bool IsNotBlobType(this KVObject collection, string key)
-            => collection.Properties[key].Type == KVValueType.Array;
+        public static bool IsNotBlobType(this KVObject obj, string key)
+            => obj[key].ValueType == KVValueType.Array;
 
         /// <summary>
         /// Converts the key-value object to a Vector2.
         /// </summary>
-        public static Vector2 ToVector2(this KVObject collection) => new(
-            collection.GetFloatProperty("0"),
-            collection.GetFloatProperty("1"));
+        public static Vector2 ToVector2(this KVObject obj) => new(
+            (float)obj[0],
+            (float)obj[1]);
 
         /// <summary>
         /// Converts the key-value object to a Vector3.
         /// </summary>
-        public static Vector3 ToVector3(this KVObject collection) => new(
-            collection.GetFloatProperty("0"),
-            collection.GetFloatProperty("1"),
-            collection.GetFloatProperty("2"));
+        public static Vector3 ToVector3(this KVObject obj) => new(
+            (float)obj[0],
+            (float)obj[1],
+            (float)obj[2]);
 
         /// <summary>
         /// Converts the key-value object to a Vector4.
         /// </summary>
-        public static Vector4 ToVector4(this KVObject collection) => new(
-            collection.GetFloatProperty("0"),
-            collection.GetFloatProperty("1"),
-            collection.GetFloatProperty("2"),
-            collection.GetFloatProperty("3"));
+        public static Vector4 ToVector4(this KVObject obj) => new(
+            (float)obj[0],
+            (float)obj[1],
+            (float)obj[2],
+            (float)obj[3]);
 
         /// <summary>
         /// Converts the key-value object to a Quaternion.
         /// </summary>
-        public static Quaternion ToQuaternion(this KVObject collection) => new(
-            collection.GetFloatProperty("0"),
-            collection.GetFloatProperty("1"),
-            collection.GetFloatProperty("2"),
-            collection.GetFloatProperty("3"));
+        public static Quaternion ToQuaternion(this KVObject obj) => new(
+            (float)obj[0],
+            (float)obj[1],
+            (float)obj[2],
+            (float)obj[3]);
 
         /// <summary>
         /// Converts an array of key-value objects to a Matrix4x4.
@@ -286,13 +457,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public static Matrix4x4 ToMatrix4x4(this KVObject array)
         {
             var column4 = array.Count > 12
-                ? new Vector4(array.GetFloatProperty("12"), array.GetFloatProperty("13"), array.GetFloatProperty("14"), array.GetFloatProperty("15"))
+                ? new Vector4((float)array[12], (float)array[13], (float)array[14], (float)array[15])
                 : new Vector4(0, 0, 0, 1);
             return new Matrix4x4(
-                array.GetFloatProperty("0"), array.GetFloatProperty("4"), array.GetFloatProperty("8"), column4.X,
-                array.GetFloatProperty("1"), array.GetFloatProperty("5"), array.GetFloatProperty("9"), column4.Y,
-                array.GetFloatProperty("2"), array.GetFloatProperty("6"), array.GetFloatProperty("10"), column4.Z,
-                array.GetFloatProperty("3"), array.GetFloatProperty("7"), array.GetFloatProperty("11"), column4.W
+                (float)array[0], (float)array[4], (float)array[8], column4.X,
+                (float)array[1], (float)array[5], (float)array[9], column4.Y,
+                (float)array[2], (float)array[6], (float)array[10], column4.Z,
+                (float)array[3], (float)array[7], (float)array[11], column4.W
             );
         }
     }

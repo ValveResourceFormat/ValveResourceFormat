@@ -253,9 +253,9 @@ namespace GUI.Types.Viewers
 
         private static bool ContainsKey(Entity entity, string key)
         {
-            foreach (var prop in entity.Properties)
+            foreach (var prop in entity.Properties.Children)
             {
-                if (prop.Key.Contains(key, StringComparison.OrdinalIgnoreCase))
+                if (prop.Name.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -291,11 +291,11 @@ namespace GUI.Types.Viewers
 
         private bool ContainsKeyValue(Entity entity, string key, string value)
         {
-            foreach (var prop in entity.Properties)
+            foreach (var prop in entity.Properties.Children)
             {
                 var stringValue = prop.Value?.ToString() ?? string.Empty;
 
-                if (prop.Key.Contains(key, StringComparison.OrdinalIgnoreCase))
+                if (prop.Name.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
                     if (KeyValue_MatchWholeValue.Checked)
                     {

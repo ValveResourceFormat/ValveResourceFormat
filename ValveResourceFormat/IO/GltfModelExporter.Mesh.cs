@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;

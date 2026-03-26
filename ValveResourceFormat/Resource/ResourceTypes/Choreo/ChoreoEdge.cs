@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
 using ValveResourceFormat.Serialization.KeyValues;
 

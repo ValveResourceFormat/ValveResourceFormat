@@ -27,7 +27,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
-            if (SourceMap != default && SourceMap.Data.GetProperty<object>("DBITSLC") is not null)
+            if (SourceMap != default && SourceMap.Data.ContainsKey("DBITSLC"))
             {
 #if false
                 var sourceBytes = PanoramaSourceMapDecoder.Decode(Data, SourceMap.AsKeyValueCollection());

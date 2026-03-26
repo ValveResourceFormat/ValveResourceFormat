@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
@@ -61,14 +62,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
             var inKV = new KVObject(null);
             inKV.AddProperty("deg", InDegrees);
             inKV.AddProperty("weight", InWeight);
-            kv.AddProperty("in", inKV);
+            kv.AddProperty("in", inKV.Value);
 
             var outKV = new KVObject(null);
             outKV.AddProperty("deg", OutDegrees);
             outKV.AddProperty("weight", OutWeight);
-            kv.AddProperty("out", outKV);
+            kv.AddProperty("out", outKV.Value);
 
-            return new KVValue(ValveKeyValue.KVValueType.Collection, kv);
+            return kv.Value;
         }
     }
 }

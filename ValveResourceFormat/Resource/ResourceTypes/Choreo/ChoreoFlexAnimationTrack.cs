@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -83,20 +84,20 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             //Edges are the same for both curves
             if (Ramp?.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
+                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
             }
             if (Ramp?.RightEdge != null)
             {
-                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
+                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues().Value);
             }
 
             if (Ramp?.Samples.Length > 0)
             {
-                kv.AddProperty("samples", Ramp.ToKeyValues());
+                kv.AddProperty("samples", Ramp.ToKeyValues().Value);
             }
             if (isCombo && ComboRamp?.Samples.Length > 0)
             {
-                kv.AddProperty("stereo", ComboRamp.ToKeyValues());
+                kv.AddProperty("stereo", ComboRamp.ToKeyValues().Value);
             }
 
             return kv;

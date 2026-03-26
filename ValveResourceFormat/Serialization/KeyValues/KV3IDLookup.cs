@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using ValveKeyValue.KeyValues3;
 
 namespace ValveResourceFormat.Serialization.KeyValues;
 
@@ -13,12 +14,12 @@ namespace ValveResourceFormat.Serialization.KeyValues;
 //
 
 /// <summary>
-/// Provides lookup for <see cref="KeyValues3"/> identifiers.
+/// Provides lookup for KV3 identifiers.
 /// </summary>
 public static class KV3IDLookup
 {
     /// <summary>
-    /// Gets the mapping of <see cref="KV3ID"/> names to their GUIDs.
+    /// Gets the mapping of KV3ID names to their GUIDs.
     /// </summary>
     public static readonly FrozenDictionary<string, Guid> Table = new Dictionary<string, Guid>()
     {

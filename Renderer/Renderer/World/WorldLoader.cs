@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
@@ -1333,12 +1334,13 @@ namespace ValveResourceFormat.Renderer.World
             {
                 foreach (var line in hammerEntity.Lines)
                 {
-                    if (!entity.Properties.Properties.TryGetValue(line.StartValueKey, out var value))
+                    var startKeyValue = entity.Properties[line.StartValueKey];
+                    if (startKeyValue == null)
                     {
                         continue;
                     }
 
-                    var startEntity = FindEntityByKeyValue(line.StartKey, (string)value.Value!);
+                    var startEntity = FindEntityByKeyValue(line.StartKey, (string)startKeyValue);
 
                     if (startEntity == null)
                     {
@@ -1350,12 +1352,13 @@ namespace ValveResourceFormat.Renderer.World
 
                     if (line.EndKey != null && line.EndValueKey != null)
                     {
-                        if (!entity.Properties.Properties.TryGetValue(line.EndValueKey, out value))
+                        var endKeyValue = entity.Properties[line.EndValueKey];
+                        if (endKeyValue == null)
                         {
                             continue;
                         }
 
-                        var endEntity = FindEntityByKeyValue(line.EndKey, (string)value.Value!);
+                        var endEntity = FindEntityByKeyValue(line.EndKey, (string)endKeyValue);
 
                         if (endEntity == null)
                         {
@@ -1439,9 +1442,10 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var entity in Entities)
             {
-                if (entity.Properties.Properties.TryGetValue(keyToFind, out var value)
-                    && value.Value is string outString
-                    && valueToFind.Equals(outString, StringComparison.OrdinalIgnoreCase))
+                var propertyValue = entity.Properties[keyToFind];
+                if (propertyValue != null
+                    && propertyValue.ValueType == ValveKeyValue.KVValueType.String
+                    && valueToFind.Equals((string)propertyValue, StringComparison.OrdinalIgnoreCase))
                 {
                     return entity;
                 }

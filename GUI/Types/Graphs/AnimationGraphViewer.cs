@@ -6,6 +6,7 @@ using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
 using Svg.Skia;
+using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -398,12 +399,12 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             }
             else if (node.NodeType.EndsWith("Math", StringComparison.Ordinal))
             {
-                var inputNodeIdxA = data.GetProperty("m_nInputValueNodeIdxA", -1);
-                var inputNodeIdxB = data.GetProperty("m_nInputValueNodeIdxB", -1);
+                var inputNodeIdxA = data.ContainsKey("m_nInputValueNodeIdxA") ? data.GetInt32Property("m_nInputValueNodeIdxA") : -1;
+                var inputNodeIdxB = data.ContainsKey("m_nInputValueNodeIdxB") ? data.GetInt32Property("m_nInputValueNodeIdxB") : -1;
 
                 CreateInputAndChild<Value>(node, 2, inputNodeIdxA, "A");
 
-                var @operator = data.GetProperty<string>("m_operator");
+                var @operator = data.GetStringProperty("m_operator");
                 node.AddText(@operator);
 
                 if (inputNodeIdxB != -1)

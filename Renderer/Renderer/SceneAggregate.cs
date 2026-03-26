@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
