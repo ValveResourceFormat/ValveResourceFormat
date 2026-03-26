@@ -82,22 +82,28 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
         var resourceName = SVGImageResourceName;
         Stream? svgResource = null;
 
+        // Sip svg icons in decign mode, program.assembly and themer dont exist
+
         // Try loading light variant if in light mode
-        if (Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic)
+        if (!DesignMode)
         {
-            var lightVariantName = $"{resourceName.AsSpan()[..^4]}_light.svg";
-            svgResource = Program.Assembly.GetManifestResourceStream(lightVariantName);
-        }
+            // Try loading light variant if in light mode
+            if (Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic)
+            {
+                var lightVariantName = $"{resourceName.AsSpan()[..^4]}_light.svg";
+                svgResource = Program.Assembly.GetManifestResourceStream(lightVariantName);
+            }
 
-        svgResource
-            ??= Program.Assembly.GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException($"Failed to find resource `{resourceName}` for SVG icon in ${nameof(ThemedToolStripMenuItem)}.");
+            svgResource
+                ??= Program.Assembly.GetManifestResourceStream(resourceName)
+                ?? throw new InvalidOperationException($"Failed to find resource `{resourceName}` for SVG icon in ${nameof(ThemedToolStripMenuItem)}.");
 
-        using (svgResource)
-        {
-            using var svg = new SKSvg();
-            svg.Load(svgResource);
-            Image = Themer.SvgToBitmap(svg, Owner.ImageScalingSize.Width, Owner.ImageScalingSize.Height);
+            using (svgResource)
+            {
+                using var svg = new SKSvg();
+                svg.Load(svgResource);
+                Image = Themer.SvgToBitmap(svg, Owner.ImageScalingSize.Width, Owner.ImageScalingSize.Height);
+            }
         }
     }
 }

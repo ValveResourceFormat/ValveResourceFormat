@@ -4,7 +4,7 @@ using GUI.Utils;
 
 namespace GUI.Controls;
 
-public partial class MainFormBottomPanel : UserControl
+public partial class MainFormBottomPanel : Panel
 {
     public MainFormBottomPanel()
     {
