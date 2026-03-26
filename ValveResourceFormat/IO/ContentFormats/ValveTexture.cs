@@ -103,12 +103,12 @@ public class CDmeInputTexture : DMElement
     /// <summary>
     /// Gets or sets the name of the input texture.
     /// </summary>
-    public required new string Name { get; init; }
+    public new string Name { get; set; }  = string.Empty;
 
     /// <summary>
     /// Gets or sets the file name of the input texture.
     /// </summary>
-    public required string FileName { get; init; }
+    public string FileName { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the color space of the input texture.
