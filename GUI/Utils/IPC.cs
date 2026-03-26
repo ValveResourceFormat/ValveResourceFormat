@@ -8,15 +8,14 @@ using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace GUI.Utils;
 
-internal class IPC
+internal class Ipc
 {
     private const string IpcWindowTitle = "Source2Viewer_IPC";
-    private static readonly nint HWND_MESSAGE = -3;
 
     public static unsafe bool TryForwardToExistingInstance(string[] args)
     {
         var hwnd = PInvoke.FindWindowEx(
-            new HWND(HWND_MESSAGE),
+            HWND.HWND_MESSAGE,
             HWND.Null,
             null,
             IpcWindowTitle
@@ -86,7 +85,7 @@ internal class IPC
             CreateHandle(new CreateParams
             {
                 Caption = IpcWindowTitle,
-                Parent = HWND_MESSAGE
+                Parent = HWND.HWND_MESSAGE
             });
         }
 

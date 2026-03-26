@@ -34,7 +34,7 @@ namespace GUI
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
-            if (args.Length > 0 && IPC.TryForwardToExistingInstance(args))
+            if (args.Length > 0 && Ipc.TryForwardToExistingInstance(args))
             {
                 return;
             }

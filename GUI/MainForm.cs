@@ -62,7 +62,7 @@ namespace GUI
         internal ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
-        private IPC.IpcWindow? ipcWindow;
+        private Ipc.IpcWindow? ipcWindow;
 
         static MainForm()
         {
