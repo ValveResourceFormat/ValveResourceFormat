@@ -42,6 +42,20 @@ internal class MainTabs : ThemedTabControl
         tooltipTimer.Tick += TooltipTimer_Tick;
     }
 
+    public bool OpenTab(string tabName)
+    {
+        foreach (TabPage tabPage in TabPages)
+        {
+            if (tabPage.Text == tabName)
+            {
+                SelectTab(tabPage);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void TooltipTimer_Tick(object? sender, EventArgs e)
     {
         tooltipTimer.Stop();
