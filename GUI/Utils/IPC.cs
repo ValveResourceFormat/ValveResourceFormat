@@ -10,14 +10,6 @@ namespace GUI.Utils;
 
 internal class IPC
 {
-    [StructLayout(LayoutKind.Sequential)]
-    private struct COPYDATASTRUCT
-    {
-        public nint dwData;
-        public int cbData;
-        public nint lpData;
-    }
-
     private const string IpcWindowTitle = "Source2Viewer_IPC";
     private static readonly nint HWND_MESSAGE = -3;
 
@@ -26,8 +18,9 @@ internal class IPC
         var hwnd = PInvoke.FindWindowEx(
             new HWND(HWND_MESSAGE),
             HWND.Null,
-            lpszClass: null,
-            IpcWindowTitle);
+            null,
+            IpcWindowTitle
+        );
 
         if (hwnd.IsNull)
         {
@@ -35,16 +28,16 @@ internal class IPC
         }
 
         // cwd may be different in the other process than the current one, convert to canonical
+        var absoluteArgs = new string[args.Length];
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i].StartsWith("vpk:", StringComparison.InvariantCulture))
+            if (!args[i].StartsWith("vpk:", StringComparison.InvariantCulture) && File.Exists(args[i]))
             {
-                continue;
+                absoluteArgs[i] = Path.GetFullPath(args[i]);
             }
-
-            if (File.Exists(args[i]))
+            else
             {
-                args[i] = Path.GetFullPath(args[i]);
+                absoluteArgs[i] = args[i];
             }
         }
 
@@ -57,16 +50,16 @@ internal class IPC
 
         PInvoke.AllowSetForegroundWindow(processId);
 
-        var message = string.Join('\0', args);
+        var message = string.Join('\0', absoluteArgs);
         var messageBytes = Encoding.UTF8.GetBytes(message);
 
         fixed (byte* ptr = messageBytes)
         {
-            var cds = new COPYDATASTRUCT
+            var cds = new Windows.Win32.System.DataExchange.COPYDATASTRUCT
             {
                 dwData = 0,
-                cbData = messageBytes.Length,
-                lpData = (IntPtr)ptr,
+                cbData = (uint)messageBytes.Length,
+                lpData = ptr,
             };
             var result = PInvoke.SendMessageTimeout(
                 hwnd,
@@ -97,12 +90,12 @@ internal class IPC
             });
         }
 
-        protected override void WndProc(ref Message m)
+        protected override unsafe void WndProc(ref Message m)
         {
             if (m.Msg == PInvoke.WM_COPYDATA)
             {
-                var cds = Marshal.PtrToStructure<COPYDATASTRUCT>(m.LParam);
-                var message = Marshal.PtrToStringUTF8(cds.lpData, cds.cbData);
+                var cds = Marshal.PtrToStructure<Windows.Win32.System.DataExchange.COPYDATASTRUCT>(m.LParam);
+                var message = Marshal.PtrToStringUTF8((IntPtr)cds.lpData, (int)cds.cbData);
                 var args = message.Split('\0', StringSplitOptions.RemoveEmptyEntries);
 
                 if (args.Length > 0)
