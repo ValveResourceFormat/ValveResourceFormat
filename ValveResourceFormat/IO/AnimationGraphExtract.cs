@@ -3449,9 +3449,8 @@ public class AnimationGraphExtract : IDisposable
 
                     foreach (var item in items)
                     {
-                        var hasSequence = item.ContainsKey("m_hSequence") && item.GetIntegerProperty("m_hSequence") != -1;
-                        var hasChild = item.ContainsKey("m_pChild") &&
-                                       item.GetSubCollection("m_pChild")?.GetIntegerProperty("m_nodeIndex") != -1;
+                        var hasSequence = item.GetIntegerProperty("m_hSequence", -1) != -1;
+                        var hasChild = item.GetSubCollection("m_pChild")?.GetIntegerProperty("m_nodeIndex", -1) is > -1;
 
                         var itemClass = (hasSequence, hasChild) switch
                         {
@@ -5708,7 +5707,7 @@ public class AnimationGraphExtract : IDisposable
                     var targetSettings = new KVObject(null);
 
                     string targetSource;
-                    if (opFixedData.ContainsKey("m_bBoneTarget") && opFixedData.GetIntegerProperty("m_bBoneTarget") > 0)
+                    if (opFixedData.GetIntegerProperty("m_bBoneTarget", 0) > 0)
                     {
                         targetSource = "Bone";
                     }
@@ -5731,7 +5730,7 @@ public class AnimationGraphExtract : IDisposable
                     targetSettings.AddProperty("m_Bone", boneNameAndIndex.Value);
 
                     string targetCoordSystem;
-                    if (opFixedData.ContainsKey("m_bWorldCoodinateTarget") && opFixedData.GetIntegerProperty("m_bWorldCoodinateTarget") > 0)
+                    if (opFixedData.GetIntegerProperty("m_bWorldCoodinateTarget", 0) > 0)
                     {
                         targetCoordSystem = "World";
                     }

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using ValveKeyValue;
@@ -37,49 +38,49 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Gets a string property from the key-value object.
         /// </summary>
-        public static string GetStringProperty(this KVObject obj, string name)
+        public static string GetStringProperty(this KVObject obj, string name, string? defaultValue = null)
         {
             var value = obj[name];
-            return value != null ? (string)value : default!;
+            return value != null ? (string)value : defaultValue!;
         }
 
         /// <summary>
         /// Gets an Int32 property from the key-value object.
         /// </summary>
-        public static int GetInt32Property(this KVObject obj, string name)
+        public static int GetInt32Property(this KVObject obj, string name, int defaultValue = 0)
         {
             var value = obj[name];
-            return value != null ? Convert.ToInt32(value, CultureInfo.InvariantCulture) : default;
+            return value != null ? Convert.ToInt32(value, CultureInfo.InvariantCulture) : defaultValue;
         }
 
         /// <summary>
         /// Gets a UInt32 property from the key-value object.
         /// </summary>
-        public static uint GetUInt32Property(this KVObject obj, string name)
+        public static uint GetUInt32Property(this KVObject obj, string name, uint defaultValue = 0)
         {
             var value = obj[name];
-            return value != null ? Convert.ToUInt32(value, CultureInfo.InvariantCulture) : default;
+            return value != null ? Convert.ToUInt32(value, CultureInfo.InvariantCulture) : defaultValue;
         }
 
         /// <summary>
         /// Gets a 64-bit integer property from the key-value object.
         /// </summary>
-        public static long GetIntegerProperty(this KVObject obj, string name)
+        public static long GetIntegerProperty(this KVObject obj, string name, long defaultValue = 0)
         {
             var value = obj[name];
-            return value != null ? Convert.ToInt64(value, CultureInfo.InvariantCulture) : default;
+            return value != null ? Convert.ToInt64(value, CultureInfo.InvariantCulture) : defaultValue;
         }
 
         /// <summary>
         /// Gets an unsigned integer property, with unchecked int-to-ulong conversion for binary KV3 compatibility.
         /// </summary>
-        public static ulong GetUnsignedIntegerProperty(this KVObject obj, string name)
+        public static ulong GetUnsignedIntegerProperty(this KVObject obj, string name, ulong defaultValue = 0)
         {
             var value = obj[name];
 
             if (value == null)
             {
-                return default;
+                return defaultValue;
             }
 
             if (value.ValueType == KVValueType.Int32)
@@ -96,17 +97,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Gets a double property from the key-value object.
         /// </summary>
-        public static double GetDoubleProperty(this KVObject obj, string name)
+        public static double GetDoubleProperty(this KVObject obj, string name, double defaultValue = 0)
         {
             var value = obj[name];
-            return value != null ? Convert.ToDouble(value, CultureInfo.InvariantCulture) : default;
+            return value != null ? Convert.ToDouble(value, CultureInfo.InvariantCulture) : defaultValue;
         }
 
         /// <summary>
         /// Gets a float property from the key-value object.
         /// </summary>
-        public static float GetFloatProperty(this KVObject obj, string name)
-            => (float)GetDoubleProperty(obj, name);
+        public static float GetFloatProperty(this KVObject obj, string name, float defaultValue = 0)
+            => (float)GetDoubleProperty(obj, name, defaultValue);
 
         /// <summary>
         /// Gets a byte property from the key-value object.
@@ -327,13 +328,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Gets a typed property value by name.
         /// </summary>
-        public static T GetProperty<T>(this KVObject obj, string name)
+        public static T GetProperty<T>(this KVObject obj, string name, T defaultValue = default!)
         {
             var value = obj[name];
 
             if (value == null || value.ValueType == KVValueType.Null)
             {
-                return default!;
+                return defaultValue;
             }
 
             if (typeof(T) == typeof(KVObject))
@@ -360,7 +361,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     return (T)(object)result;
                 }
 
-                return default!;
+                return defaultValue;
             }
 
             if (typeof(T) == typeof(object))
@@ -380,7 +381,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     KVValueType.FloatingPoint => (T)(object)(float)value,
                     KVValueType.FloatingPoint64 => (T)(object)(double)value,
                     KVValueType.Boolean => (T)(object)(bool)value,
-                    _ => default!,
+                    _ => defaultValue,
                 };
             }
 

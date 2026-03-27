@@ -399,8 +399,8 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             }
             else if (node.NodeType.EndsWith("Math", StringComparison.Ordinal))
             {
-                var inputNodeIdxA = data.ContainsKey("m_nInputValueNodeIdxA") ? data.GetInt32Property("m_nInputValueNodeIdxA") : -1;
-                var inputNodeIdxB = data.ContainsKey("m_nInputValueNodeIdxB") ? data.GetInt32Property("m_nInputValueNodeIdxB") : -1;
+                var inputNodeIdxA = data.GetInt32Property("m_nInputValueNodeIdxA", -1);
+                var inputNodeIdxB = data.GetInt32Property("m_nInputValueNodeIdxB", -1);
 
                 CreateInputAndChild<Value>(node, 2, inputNodeIdxA, "A");
 

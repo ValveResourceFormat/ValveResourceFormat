@@ -60,7 +60,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (enabledOnly)
             {
-                children = children.Where(c => !c.ContainsKey("m_bDisableChild") || !c.GetProperty<bool>("m_bDisableChild"));
+                children = children.Where(c => !c.GetProperty<bool>("m_bDisableChild", false));
             }
 
             return children.Select(c => c.GetProperty<string>("m_ChildRef")).ToList();

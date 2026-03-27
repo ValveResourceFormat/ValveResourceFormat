@@ -45,9 +45,10 @@ public class GameExtractTests
         using var fileLoader = new GameFileLoader(archive, null);
         using var asset = fileLoader.LoadFileCompiled(testCase.assetName);
 
-        // Remove the test case if you hit this
-        Assert.That(asset, Is.Not.Null, $"{testCase.assetName} no longer exists on {pak01}.");
-        Debug.Assert(asset != null);
+        if (asset == null)
+        {
+            Assert.Ignore($"{testCase.assetName} no longer exists on {pak01}.");
+        }
 
         var outputPath = Path.Combine(TestContext.CurrentContext.TestDirectory, testLocalPath);
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
