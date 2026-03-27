@@ -447,7 +447,15 @@ namespace GUI.Types.PackageViewer
                             }
                             else
                             {
-                                bitmap = renderer.Render(entry, context, CurrentThumbnailSizes, cancellationToken);
+                                try
+                                {
+                                    bitmap = renderer.Render(entry, context, CurrentThumbnailSizes, cancellationToken);
+                                }
+                                catch (Exception ex) when (ex is not OperationCanceledException)
+                                {
+                                    Log.Error(nameof(TreeViewWithSearchResults), $"Failed to render thumbnail for {entry.GetFullPath()}: {ex.Message}");
+                                    return;
+                                }
 
                                 if (bitmap == null)
                                 {
