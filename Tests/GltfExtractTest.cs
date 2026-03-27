@@ -1,12 +1,8 @@
 using System.IO;
-using System.Linq;
 using NUnit.Framework;
-using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
 {

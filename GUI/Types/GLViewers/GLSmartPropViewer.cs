@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using GUI.Utils;
-using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;

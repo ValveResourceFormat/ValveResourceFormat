@@ -9,7 +9,6 @@ using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.GLViewers
 {

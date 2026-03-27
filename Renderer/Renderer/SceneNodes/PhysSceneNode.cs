@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
-using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;

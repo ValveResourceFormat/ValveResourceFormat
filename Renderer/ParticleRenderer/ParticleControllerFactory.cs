@@ -7,7 +7,6 @@ using ValveResourceFormat.Renderer.Particles.Initializers;
 using ValveResourceFormat.Renderer.Particles.Operators;
 using ValveResourceFormat.Renderer.Particles.PreEmissionOperators;
 using ValveResourceFormat.Renderer.Particles.Renderers;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles
 {

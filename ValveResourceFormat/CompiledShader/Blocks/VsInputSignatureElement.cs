@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
-using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.CompiledShader;

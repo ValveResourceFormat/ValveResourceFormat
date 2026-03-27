@@ -1,7 +1,6 @@
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 using ValveResourceFormat.Serialization.KeyValues;

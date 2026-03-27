@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;

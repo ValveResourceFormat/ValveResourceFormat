@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 

@@ -8,7 +8,6 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
-using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.Utils;
 using static ValveResourceFormat.Renderer.PickingTexture;
 

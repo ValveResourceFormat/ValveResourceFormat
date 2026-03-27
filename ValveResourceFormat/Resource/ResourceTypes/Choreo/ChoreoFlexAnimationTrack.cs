@@ -1,6 +1,5 @@
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {

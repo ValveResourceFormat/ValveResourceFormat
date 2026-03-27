@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Collections;
 using System.IO;
 using System.Linq;
-using ValveKeyValue;
 using ValveResourceFormat.Compression;
 using ValveResourceFormat.Serialization.KeyValues;
 

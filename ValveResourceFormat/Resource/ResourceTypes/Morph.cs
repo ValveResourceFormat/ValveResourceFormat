@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.IO;

@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
-using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;

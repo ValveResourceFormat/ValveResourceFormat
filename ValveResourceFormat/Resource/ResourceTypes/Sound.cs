@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes

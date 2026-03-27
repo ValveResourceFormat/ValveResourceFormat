@@ -3,7 +3,6 @@ using System.Linq;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks
 {

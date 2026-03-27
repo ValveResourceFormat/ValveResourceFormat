@@ -12,7 +12,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using ConsoleAppFramework;
 using SteamDatabase.ValvePak;
-using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
