@@ -24,7 +24,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.2" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.3" />
     <PackageReference Include="TinyBCSharp" Version="0.1.2" />
-    <PackageReference Include="ValveKeyValue" Version="0.30.1.456" />
+    <PackageReference Include="ValveKeyValue" Version="0.31.0.460" />
     <PackageReference Include="ValvePak" Version="4.0.0.142" />
     <PackageReference Include="Vortice.SpirvCross" Version="1.5.4" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.7" />

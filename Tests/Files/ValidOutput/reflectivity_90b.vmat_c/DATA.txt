@@ -1,90 +1,47 @@
 <!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
-
 {
 	m_materialName = resource:"dev/helper/reflectivity_90b.vmat"
 	m_shaderName = resource:"global_lit_simple.vfx"
-	m_intParams = 
-	[
-	]
-	m_floatParams = 
-	[
-	]
+	m_intParams = [  ]
+	m_floatParams = [  ]
 	m_vectorParams = 
 	[
-		
 		{
-			m_value = 
-			[
-				1.000000,
-				1.000000,
-				1.000000,
-				0.000000,
-			]
+			m_value = [ 1.0, 1.0, 1.0, 0.0 ]
 			m_name = resource:"g_vColorTint"
 		},
-		
 		{
-			m_value = 
-			[
-				0.000000,
-				0.000000,
-				0.000000,
-				0.000000,
-			]
+			m_value = [ 0.0, 0.0, 0.0, 0.0 ]
 			m_name = resource:"g_vTexCoordOffset"
 		},
-		
 		{
-			m_value = 
-			[
-				1.000000,
-				1.000000,
-				0.000000,
-				0.000000,
-			]
+			m_value = [ 1.0, 1.0, 0.0, 0.0 ]
 			m_name = resource:"g_vTexCoordScale"
 		},
 	]
 	m_textureParams = 
 	[
-		
 		{
 			m_pValue = resource_name:"dev/helper/reflectivity_90b_color_tga_88186957.vtex"
 			m_name = resource:"g_tColor"
 		},
 	]
-	m_dynamicParams = 
-	[
-	]
-	m_dynamicTextureParams = 
-	[
-	]
+	m_dynamicParams = [  ]
+	m_dynamicTextureParams = [  ]
 	m_intAttributes = 
 	[
-		
 		{
 			m_nValue = 32
 			m_name = resource:"RepresentativeTextureWidth"
 		},
-		
 		{
 			m_nValue = 32
 			m_name = resource:"RepresentativeTextureHeight"
 		},
 	]
-	m_floatAttributes = 
-	[
-	]
-	m_vectorAttributes = 
-	[
-	]
-	m_textureAttributes = 
-	[
-	]
-	m_stringAttributes = 
-	[
-	]
-	m_renderAttributesUsed = 
-	[
-	]
+	m_floatAttributes = [  ]
+	m_vectorAttributes = [  ]
+	m_textureAttributes = [  ]
+	m_stringAttributes = [  ]
+	m_renderAttributesUsed = [  ]
 }

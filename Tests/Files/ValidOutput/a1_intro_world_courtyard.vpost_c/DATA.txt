@@ -1,89 +1,51 @@
 <!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
-
 {
 	m_bHasTonemapParams = true
 	m_toneMapParams = 
 	{
-		m_flExposureBias = 0.419200
-		m_flShoulderStrength = 0.147600
-		m_flLinearStrength = 0.500000
-		m_flLinearAngle = 0.100000
-		m_flToeStrength = 0.200000
-		m_flToeNum = 0.020000
-		m_flToeDenom = 0.300000
-		m_flWhitePoint = 3.999600
+		m_flExposureBias = 0.4192
+		m_flShoulderStrength = 0.1476
+		m_flLinearStrength = 0.5
+		m_flLinearAngle = 0.1
+		m_flToeStrength = 0.2
+		m_flToeNum = 0.02
+		m_flToeDenom = 0.3
+		m_flWhitePoint = 3.9996
 	}
 	m_bHasBloomParams = true
 	m_bloomParams = 
 	{
 		m_blendMode = 1
-		m_flBloomStrength = 0.000000
-		m_flScreenBloomStrength = 0.500000
-		m_flBlurBloomStrength = 0.000000
-		m_flBloomThreshold = 1.021000
-		m_flBloomThresholdWidth = 4.543000
-		m_flSkyboxBloomStrength = 1.000000
-		m_flBloomStartValue = 1.000000
+		m_flBloomStrength = 0.0
+		m_flScreenBloomStrength = 0.5
+		m_flBlurBloomStrength = 0.0
+		m_flBloomThreshold = 1.021
+		m_flBloomThresholdWidth = 4.543
+		m_flSkyboxBloomStrength = 1.0
+		m_flBloomStartValue = 1.0
 		m_flBlurWeight = 
 		[
-			0.303444,
-			0.097861,
-			0.084843,
-			0.233257,
+			0.303444, 0.097861, 0.084843, 0.233257,
 			0.280595,
 		]
 		m_vBlurTint = 
 		[
-			
-			[
-				1.000000,
-				1.000000,
-				1.000000,
-			],
-			
-			[
-				1.000000,
-				1.000000,
-				1.000000,
-			],
-			
-			[
-				1.000000,
-				1.000000,
-				1.000000,
-			],
-			
-			[
-				1.000000,
-				1.000000,
-				1.000000,
-			],
-			
-			[
-				1.000000,
-				1.000000,
-				1.000000,
-			],
+			[ 1.0, 1.0, 1.0 ],
+			[ 1.0, 1.0, 1.0 ],
+			[ 1.0, 1.0, 1.0 ],
+			[ 1.0, 1.0, 1.0 ],
+			[ 1.0, 1.0, 1.0 ],
 		]
 	}
 	m_bHasVignetteParams = false
 	m_vignetteParams = 
 	{
-		m_flVignetteStrength = 0.000000
-		m_vCenter = 
-		[
-			0.000000,
-			0.000000,
-		]
-		m_flRadius = 0.500000
-		m_flRoundness = 1.000000
-		m_flFeather = 0.500000
-		m_vColorTint = 
-		[
-			1.000000,
-			1.000000,
-			1.000000,
-		]
+		m_flVignetteStrength = 0.0
+		m_vCenter = [ 0.0, 0.0 ]
+		m_flRadius = 0.5
+		m_flRoundness = 1.0
+		m_flFeather = 0.5
+		m_vColorTint = [ 1.0, 1.0, 1.0 ]
 	}
 	m_nColorCorrectionVolumeDim = 32
 	m_colorCorrectionVolumeData = 
