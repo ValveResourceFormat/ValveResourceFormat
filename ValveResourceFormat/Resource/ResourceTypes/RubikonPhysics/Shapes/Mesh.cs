@@ -145,7 +145,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             Data = data;
             Min = data.GetSubCollection("m_vMin").ToVector3();
             Max = data.GetSubCollection("m_vMax").ToVector3();
-            Materials = data.GetArray<object>("m_Materials")!.Select(Convert.ToInt32).ToArray();
+
+            var materials = data.GetArray<object>("m_Materials"); // This might be binary blob or an array in different models
+            if (materials != null)
+            {
+                Materials = [.. materials.Select(Convert.ToInt32)];
+            }
+            else
+            {
+                Materials = [];
+            }
+
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
         }
 

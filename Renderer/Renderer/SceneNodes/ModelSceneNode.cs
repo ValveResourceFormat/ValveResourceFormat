@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private readonly (string Name, string[] Materials)[] materialGroups;
         private readonly string[] meshGroups;
-        private readonly ulong[]? meshGroupMasks;
+        private readonly long[]? meshGroupMasks;
         private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesForLod1;
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (meshGroups.Length > 1)
             {
-                meshGroupMasks = model.Data.GetUnsignedIntegerArray("m_refMeshGroupMasks");
+                meshGroupMasks = model.Data.GetIntegerArray("m_refMeshGroupMasks");
             }
 
             meshNamesForLod1 = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
@@ -533,7 +533,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var groupIndex = Array.IndexOf(meshGroups, groupName);
             if (groupIndex >= 0)
             {
-                return meshGroupMasks.Select(mask => (mask & 1UL << groupIndex) != 0);
+                return meshGroupMasks.Select(mask => (mask & 1L << groupIndex) != 0);
             }
             else
             {
