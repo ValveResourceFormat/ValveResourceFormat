@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Renderer
         public AABB LocalBoundingBox
         {
             get => localBoundingBox;
-            protected set
+            set
             {
                 localBoundingBox = value;
                 BoundingBox = LocalBoundingBox.Transform(transform);
@@ -89,6 +89,11 @@ namespace ValveResourceFormat.Renderer
         /// Gets the scene this node belongs to.
         /// </summary>
         public Scene Scene { get; }
+
+        /// <summary>
+        /// The parent node.
+        /// </summary>
+        public SceneNode? Parent { get; set; }
 
         /// <summary>
         /// Gets the environment maps affecting this node.

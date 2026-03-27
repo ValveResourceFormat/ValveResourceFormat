@@ -46,8 +46,17 @@ public class PlayerMovement
     /// <summary>Gets the current player velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }
     private Vector3 AABBCenteredPosition;
-    private bool OnGround;
-    private bool WasOnGroundLastFrame;
+
+    /// <summary>
+    /// Gets the current player position at feet level (where the AABB touches the ground).
+    /// </summary>
+    public Vector3 Position => AABBCenteredPosition - new Vector3(0, 0, Hull.Size.Z / 2); // Convert from AABB center to feet position
+
+    /// <summary>
+    /// Gets a value indicating whether the player is currently on the ground.
+    /// </summary>
+    public bool OnGround { get; private set; }
+    public bool WasOnGroundLastFrame { get; private set; }
     private bool WasDuckingLastFrame;
 
     private bool HoldingCtrl => Input.Holding(TrackedKeys.Control);
@@ -56,7 +65,7 @@ public class PlayerMovement
     private UserInput Input { get; }
     private Rubikon? Physics => Input.PhysicsWorld;
 
-    private float CrouchBlend; // 0 = standing, 1 = fully ducked
+    public float CrouchBlend; // 0 = standing, 1 = fully ducked
     private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
 

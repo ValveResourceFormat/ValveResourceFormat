@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
@@ -8,7 +9,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Manages skeletal animation playback and computes animated bone poses.
     /// </summary>
-    public class AnimationController : BaseAnimationController
+    public partial class AnimationController : BaseAnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
 
@@ -19,8 +20,56 @@ namespace ValveResourceFormat.Renderer
         public float Time { get; private set { field = value; forceUpdate = true; } }
         private bool forceUpdate;
 
+        /// <summary>
+        /// The parent animating transform.
+        /// </summary>
+        public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
+
+        /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
+        public bool Looping { get; set; }
+
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
         public Animation? ActiveAnimation { get; private set; }
+
+        /// <summary>Represents an animation clip with its playback state.</summary>
+        public record class Clip(Animation Animation)
+        {
+            public float Time { get; set; }
+            public bool IsPaused { get; set; }
+            public bool Looping { get; set; }
+            public float Weight { get; set; } = 1f;
+            public float BlendTime { get; set; }
+
+            public bool IsTimeBasedTransition => BlendTime > 0f;
+            public bool IsManualBlend => BlendTime == -1;
+
+            public int Frame
+            {
+                get
+                {
+                    if (Animation.FrameCount > 1)
+                    {
+                        return (int)MathF.Round(Time * Animation.Fps) % Animation.FrameCount;
+                    }
+                    return 0;
+                }
+                set
+                {
+                    Time = Animation.Fps != 0 ? value / Animation.Fps : 0f;
+                }
+            }
+        }
+
+        private Clip? activeClip;
+        private Clip? previousClip;
+        private readonly Dictionary<string, Clip> clips = [];
+        private readonly Frame BlendedFrame;
+        private float currentBlendTime;
+
+        /// <summary>
+        /// Gets or sets the tilt-twist constraints that are applied when animations update.
+        /// </summary>
+        public TiltTwistConstraint[] TwistConstraints { get; set; } = [];
 
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
@@ -28,16 +77,15 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
-        private bool isPaused;
 
-        /// <summary>Gets or sets whether animation playback is paused. Setting to <see langword="false"/> forces an immediate pose update.</summary>
+        /// <summary>Gets or sets whether animation playback is paused. Changing the value forces a pose update.</summary>
         public bool IsPaused
         {
-            get => isPaused;
+            get => field;
             set
             {
-                isPaused = value;
-                forceUpdate = !value;
+                forceUpdate = field != value;
+                field = value;
             }
         }
 
@@ -73,6 +121,7 @@ namespace ValveResourceFormat.Renderer
             : base(skeleton)
         {
             FrameCache = new(skeleton, flexControllers);
+            BlendedFrame = new Frame(skeleton, flexControllers);
         }
 
         /// <summary>
@@ -87,17 +136,80 @@ namespace ValveResourceFormat.Renderer
                 return false;
             }
 
-            if (!IsPaused)
+            timeStep *= FrametimeMultiplier;
+
+            if (!IsPaused && activeClip != null)
             {
-                Time += timeStep * FrametimeMultiplier;
+                activeClip.Time += timeStep;
+
+                if (!activeClip.Looping)
+                {
+                    var lastFrame = ActiveAnimation!.FrameCount - 1;
+                    var maxTime = lastFrame / ActiveAnimation.Fps;
+
+                    if (activeClip.Time > maxTime)
+                    {
+                        activeClip.IsPaused = true;
+                        activeClip.Frame = lastFrame;
+                    }
+                }
+
+                IsPaused = activeClip.IsPaused && clips.Values.All(c => c.IsPaused);
+                Frame = activeClip.Frame;
+
+                // Update time for all other clips
+                foreach (var clip in clips.Values)
+                {
+                    if (clip != activeClip && !clip.IsPaused)
+                    {
+                        clip.Time += timeStep;
+                    }
+                }
+
+                if (activeClip.IsTimeBasedTransition && previousClip != null)
+                {
+                    // Distribute blend weights between previous clip and active clip only.
+                    currentBlendTime -= timeStep;
+
+                    if (currentBlendTime <= 0f)
+                    {
+                        previousClip.Weight = 0f;
+                        activeClip.Weight = 1f;
+                        previousClip = null;
+                    }
+                    else
+                    {
+                        var t = activeClip.BlendTime > 0f
+                            ? 1f - Math.Clamp(currentBlendTime / activeClip.BlendTime, 0f, 1f)
+                            : 1f;
+
+                        var blendProgress = t * t * (3f - 2f * t);
+
+                        activeClip.Weight = blendProgress;
+                        previousClip.Weight = 1f - blendProgress;
+
+                        foreach (var clip in clips.Values)
+                        {
+                            if (clip != activeClip && clip != previousClip)
+                            {
+                                clip.Weight = 0f;
+                            }
+                        }
+                    }
+
+                    var sum = clips.Values.Sum(c => c.Weight);
+                    Debug.Assert(sum > 0f, "Total blend weight should be greater than zero.");
+                    Debug.Assert(Math.Abs(sum - 1f) < 0.01f, $"Total blend weight should be approximately 1. Found: {sum}");
+                }
             }
 
             if (CurrentSubController is { } subController)
             {
                 subController.Handler.IsPaused = IsPaused;
-                subController.Handler.Time = Time;
+                // subController.Handler.Time = Time;
+                subController.Handler.Looping = Looping;
 
-                var updated = subController.Handler.Update(0f);
+                var updated = subController.Handler.Update(timeStep);
                 if (!updated && !forceUpdate)
                 {
                     return false;
@@ -132,7 +244,7 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    ComputePoseRecursive(root, Matrix4x4.Identity, subController, Pose);
+                    ComputePoseRecursive(root, Transform, subController, Pose);
                 }
 
 
@@ -159,7 +271,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, AnimationFrame, Pose);
+                GetBoneMatricesRecursive(root, Transform, AnimationFrame, Pose);
             }
 
             return true;
@@ -171,17 +283,26 @@ namespace ValveResourceFormat.Renderer
         /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
         public void SetAnimation(Animation? animation)
         {
-            FrameCache.Clear();
-            ActiveAnimation = animation;
-            forceUpdate = true;
-            Time = 0f;
-            Frame = 0;
-            updateHandler(ActiveAnimation, -1);
+            SetAnimation(animation, 0f);
+        }
 
+        /// <summary>
+        /// Sets the active animation with a blend-in time for smooth transitions.
+        /// </summary>
+        /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
+        /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
+        public void SetAnimation(Animation? animation, float blendTime)
+        {
             if (animation is null && CurrentSubController is { } subController)
             {
                 subController.Handler.SetAnimation(null);
                 CurrentSubController = null;
+                ActiveAnimation = null;
+                activeClip = null;
+                clips.Clear();
+                FrameCache.Clear();
+                forceUpdate = true;
+                updateHandler(ActiveAnimation, -1);
                 return;
             }
 
@@ -190,13 +311,121 @@ namespace ValveResourceFormat.Renderer
                 var skeletonName = nmClip.SkeletonName;
                 if (ExternalSkeletons.TryGetValue(skeletonName, out subController))
                 {
-                    subController.Handler.SetAnimation(animation);
+                    subController.Handler.SetAnimation(animation, blendTime);
                     CurrentSubController = subController;
+                    ActiveAnimation = animation;
+                    forceUpdate = true;
+                    Time = 0f;
+                    Frame = 0;
+                    updateHandler(ActiveAnimation, -1);
                     return;
                 }
             }
 
             CurrentSubController = null;
+            FrameCache.PurgeCache();
+
+            ActiveAnimation = animation;
+
+            if (animation != null)
+            {
+                var animName = animation.Name;
+
+                // Check if clip already exists
+                if (!clips.TryGetValue(animName, out var newClip))
+                {
+                    newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime };
+                    clips[animName] = newClip;
+                }
+                else
+                {
+                    // Update existing clip properties
+                    newClip.Looping = Looping;
+                    newClip.BlendTime = blendTime;
+
+                    newClip.IsPaused = false;
+                    newClip.Frame = 0;
+                }
+
+                // Handle blending
+                if (activeClip == newClip)
+                {
+                    // Re-setting the same animation should not create a self-blend transition.
+                    previousClip = null;
+
+                    foreach (var clip in clips.Values)
+                    {
+                        clip.Weight = 0f;
+                    }
+
+                    newClip.Weight = 1f;
+
+                    if (blendTime == 0f)
+                    {
+                        FrameCache.Clear();
+                    }
+                }
+                else if (blendTime > 0f && activeClip != null)
+                {
+                    // Time-based transition: only blend from previous clip -> active clip.
+                    previousClip = activeClip;
+                    previousClip.Weight = 1f;
+
+                    // Set all other clips to zero immediately.
+                    foreach (var clip in clips.Values)
+                    {
+                        if (clip != previousClip && clip != newClip)
+                        {
+                            clip.Weight = 0f;
+                        }
+                    }
+
+                    newClip.Weight = 0f;
+                    currentBlendTime = blendTime;
+                }
+                else if (blendTime == -1f && activeClip != null)
+                {
+                    // Manual blend: keep previous clip, user may set weights manually.
+                    previousClip = activeClip;
+                    previousClip.Weight = 1f;
+
+                    foreach (var clip in clips.Values)
+                    {
+                        if (clip != previousClip && clip != newClip)
+                        {
+                            clip.Weight = 0f;
+                        }
+                    }
+
+                    newClip.Weight = 0f;
+                }
+                else
+                {
+                    // No blending - disable previous clip and all other clips.
+                    previousClip = null;
+
+                    foreach (var clip in clips.Values)
+                    {
+                        clip.Weight = 0f;
+                    }
+
+                    newClip.Weight = 1f;
+
+                    if (blendTime == 0f)
+                    {
+                        FrameCache.Clear();
+                    }
+                }
+
+                activeClip = newClip;
+            }
+            else
+            {
+                activeClip = null;
+            }
+
+            forceUpdate = true;
+            updateHandler(ActiveAnimation, -1);
         }
 
         /// <summary>Pauses playback and seeks to the last frame of the active animation.</summary>
@@ -217,17 +446,71 @@ namespace ValveResourceFormat.Renderer
                 return subController.Handler.GetFrame();
             }
 
-            if (ActiveAnimation == null)
+            if (activeClip == null)
             {
                 return null;
             }
-            else if (IsPaused)
+
+            // Check if blending is needed
+            var needsBlending = clips.Values.Any(c => c != activeClip && c.Weight > 0f);
+
+            if (!needsBlending)
             {
-                return FrameCache.GetFrame(ActiveAnimation, Frame);
+                return SampleFrame(activeClip);
             }
-            else
+
+            BlendedFrame.FrameIndex = -1;
+            BlendedFrame.Bones.AsSpan().Clear();
+            BlendedFrame.Datas.AsSpan().Clear();
+
+            var totalWeight = 0f;
+            foreach (var clip in clips.Values)
             {
-                return FrameCache.GetInterpolatedFrame(ActiveAnimation, Time);
+                if (clip.Weight <= 0f)
+                {
+                    continue;
+                }
+
+                var frame = SampleFrame(clip);
+                var blendFactor = clip.Weight / (totalWeight + clip.Weight);
+
+                for (var i = 0; i < frame.Bones.Length; i++)
+                {
+                    BlendedFrame.Bones[i] = BlendedFrame.Bones[i].Blend(frame.Bones[i], blendFactor);
+                }
+
+                for (var i = 0; i < frame.Datas.Length; i++)
+                {
+                    BlendedFrame.Datas[i] = float.Lerp(BlendedFrame.Datas[i], frame.Datas[i], blendFactor);
+                }
+
+                totalWeight += clip.Weight;
+            }
+
+            return BlendedFrame;
+        }
+
+        private Frame SampleFrame(Clip clip)
+        {
+            var ignoreCache = clip.Animation != ActiveAnimation;
+
+            try
+            {
+                if (ignoreCache)
+                {
+                    FrameCache.PurgeCache();
+                }
+
+                return clip.IsPaused
+                    ? FrameCache.GetFrame(clip.Animation, clip.Frame)
+                    : FrameCache.GetInterpolatedFrame(clip.Animation, clip.Time);
+            }
+            finally
+            {
+                if (ignoreCache)
+                {
+                    FrameCache.PurgeCache();
+                }
             }
         }
 
@@ -305,6 +588,36 @@ namespace ValveResourceFormat.Renderer
             var controller = new AnimationController(skeleton, []);
 
             ExternalSkeletons[skeletonName] = new(controller, remapTable, debugMap);
+        }
+
+        /// <summary>
+        /// Sets the blend weight for a clip with the specified animation name.
+        /// </summary>
+        /// <param name="name">The name of the animation.</param>
+        /// <param name="weight">The weight value (0.0 to 1.0).</param>
+        public void SetAnimationWeight(string name, float weight)
+        {
+            if (clips.TryGetValue(name, out var clip))
+            {
+                clip.Weight = weight;
+            }
+        }
+
+
+        public void SetAnimationProperties(string name, float? time = null, bool? looping = null)
+        {
+            if (clips.TryGetValue(name, out var clip))
+            {
+                if (time.HasValue)
+                {
+                    clip.Time = time.Value;
+                }
+
+                if (looping.HasValue)
+                {
+                    clip.Looping = looping.Value;
+                }
+            }
         }
     }
 }
