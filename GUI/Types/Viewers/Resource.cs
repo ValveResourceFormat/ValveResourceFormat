@@ -707,7 +707,7 @@ namespace GUI.Types.Viewers
             {
                 language = CodeTextBox.HighlightLanguage.CSS;
             }
-            else if (resourceType == ResourceType.PanoramaScript && block.Type == BlockType.DATA)
+            else if ((resourceType == ResourceType.PanoramaScript || resourceType == ResourceType.PanoramaTypescript) && block.Type == BlockType.DATA)
             {
                 language = CodeTextBox.HighlightLanguage.JS;
             }
