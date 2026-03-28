@@ -175,7 +175,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         /// <summary>
         /// Gets a typed array of primitive values by name.
-        /// Also handles binary blobs when T is byte.
+        /// Also handles binary blobs.
         /// </summary>
         public static T[] GetArray<T>(this KVObject obj, string name)
         {
@@ -186,12 +186,30 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             var child = obj.GetChild(name);
 
-            if (typeof(T) == typeof(byte) && child?.Value is KVBinaryBlob blob)
+            if (child == null)
             {
-                return (T[])(object)blob.Bytes.ToArray();
+                return null!; // TODO
             }
 
-            if (child?.Value is not KVArrayValue array)
+            if (child.Value is KVBinaryBlob blob)
+            {
+                if (typeof(T) == typeof(byte))
+                {
+                    return (T[])(object)blob.Bytes.ToArray();
+                }
+
+                var bytes = blob.Bytes.Span;
+                var resultBytes = new T[bytes.Length];
+
+                for (var i = 0; i < bytes.Length; i++)
+                {
+                    resultBytes[i] = (T)Convert.ChangeType(bytes[i], typeof(T), CultureInfo.InvariantCulture);
+                }
+
+                return resultBytes;
+            }
+
+            if (child.Value is not KVArrayValue array)
             {
                 return null!;
             }
