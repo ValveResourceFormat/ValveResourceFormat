@@ -184,6 +184,7 @@ namespace ValveResourceFormat.Renderer.World
             LoadEntities();
             LoadWorldNodes();
             LoadWorldPhysics();
+            LoadWorldVisibility();
 
             navMeshTask.Wait();
         }
@@ -298,6 +299,26 @@ namespace ValveResourceFormat.Renderer.World
 
                 scene.PhysicsWorld = new Rubikon(phys);
             }
+        }
+
+        public void LoadWorldVisibility()
+        {
+            var visResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_visibility.vvis_c");
+            if (visResource == null)
+            {
+                return;
+            }
+
+            if (visResource.GetBlockByType(BlockType.VXVS) is not VoxelVisibility { BaseClusterCount: > 0 } voxelVisibility)
+            {
+                return;
+            }
+
+            var visNode = new VisibilitySceneNode(scene, voxelVisibility)
+            {
+                LayerName = "Visibility clusters",
+            };
+            scene.Add(visNode, false);
         }
 
         private readonly Dictionary<string, string> LightmapNameToUniformName = new()

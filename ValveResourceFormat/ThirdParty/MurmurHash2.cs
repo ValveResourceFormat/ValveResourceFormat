@@ -17,6 +17,29 @@ namespace ValveResourceFormat.ThirdParty
         public static uint Hash(string data, uint seed) => Hash(data.AsSpan(), seed);
 
         /// <summary>
+        /// Computes a MurmurHash2 hash for a single integer.
+        /// </summary>
+        /// <param name="data">The integer to hash.</param>
+        /// <param name="seed">The hash seed.</param>
+        /// <returns>The hash value.</returns>
+        public static uint Hash(uint data, uint seed)
+        {
+            var h = (seed ^ 4) * M;
+
+            var k = data * M;
+            k ^= k >> R;
+            k *= M;
+
+            h ^= k;
+
+            h ^= h >> 13;
+            h *= M;
+            h ^= h >> 15;
+
+            return h;
+        }
+
+        /// <summary>
         /// Computes a MurmurHash2 hash for the given character span.
         /// </summary>
         /// <param name="data">The character span to hash.</param>
