@@ -46,9 +46,7 @@ void main()
     vColor.rgb = DecodeYCoCg(skyTexel);
     vColor.rgb = SrgbGammaToLinear(vColor.rgb);
 #elif defined(ENCODING_RGBM)
-    const float MaxRange = 6.0;
-    vColor.rgb = skyTexel.rgb * (skyTexel.a * MaxRange);
-    vColor.rgb *= vColor.rgb;
+    vColor.rgb = DecodeRGBM(skyTexel);
 #else
     vColor.rgb = skyTexel.rgb;
 #endif

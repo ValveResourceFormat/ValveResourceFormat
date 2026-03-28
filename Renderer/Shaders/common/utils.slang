@@ -173,6 +173,12 @@ vec3 DecodeYCoCg(vec4 color)
     return vec3(R, G, B);
 }
 
+vec3 DecodeRGBM(vec4 color)
+{
+    const float MaxRange = 6.0;
+    return color.rgb * (color.a * MaxRange);
+}
+
 vec2 Resize2D(float Base, vec4 StartPos_Size)
 {
 	return StartPos_Size.xy + Base * StartPos_Size.zw;

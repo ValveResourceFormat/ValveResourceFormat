@@ -249,6 +249,11 @@ void main()
         vColor.a = 1.0;
     }
 
+    if ((g_nDecodeFlags & RGBM) != 0)
+    {
+        vColor.rgb = DecodeRGBM(vColor);
+    }
+
     if ((g_nDecodeFlags & ColorSpace_Srgb) != 0)
     {
         vColor.rgb = SrgbGammaToLinear(vColor.rgb);
