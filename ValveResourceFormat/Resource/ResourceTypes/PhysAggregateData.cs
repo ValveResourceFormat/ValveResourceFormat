@@ -22,7 +22,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the bind pose transformation matrices.
         /// </summary>
         public Matrix4x4[] BindPose
-           => Data.GetArray("m_bindPose")
+           => bindPose ??= Data.GetArray("m_bindPose")
                 .Select(v => Matrix4x4FromArray(v.ChildrenValues
                     .Select(m => Convert.ToSingle(m, CultureInfo.InvariantCulture))
                     .ToArray()))
@@ -38,15 +38,18 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the surface property hashes for collision materials.
         /// </summary>
         public uint[] SurfacePropertyHashes
-            => Data.GetArray<object>("m_surfacePropertyHashes").Select(Convert.ToUInt32).ToArray();
+            => surfacePropertyHashes ??= Data.GetArray<object>("m_surfacePropertyHashes").Select(Convert.ToUInt32).ToArray();
 
         /// <summary>
         /// Gets the collision attributes.
         /// </summary>
         public IReadOnlyList<KVObject> CollisionAttributes
-            => Data.GetArray("m_collisionAttributes");
+            => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
+        private Matrix4x4[]? bindPose;
         private Part[]? parts;
+        private uint[]? surfacePropertyHashes;
+        private KVObject[]? collisionAttributes;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysAggregateData"/> class.

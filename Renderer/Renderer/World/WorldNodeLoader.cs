@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.World
         private readonly ResourceExtRefList? externalReferences;
         private readonly RendererContext RendererContext;
         /// <summary>Gets the layer names defined in this world node.</summary>
-        public string[] LayerNames { get; }
+        public IReadOnlyList<string> LayerNames { get; }
 
         /// <summary>
         /// Initializes a new <see cref="WorldNodeLoader"/> for the given world node.
@@ -29,15 +29,7 @@ namespace ValveResourceFormat.Renderer.World
             this.node = node;
             this.externalReferences = externalReferences;
             RendererContext = rendererContext;
-
-            if (node.Data.ContainsKey("m_layerNames"))
-            {
-                LayerNames = node.Data.GetArray<string>("m_layerNames") ?? [];
-            }
-            else
-            {
-                LayerNames = [];
-            }
+            LayerNames = node.LayerNames;
         }
 
         /// <summary>
@@ -63,10 +55,11 @@ namespace ValveResourceFormat.Renderer.World
 
             var i = 0;
             var defaultLightingOrigin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
             // Output is WorldNode_t we need to iterate m_sceneObjects inside it
             foreach (var sceneObject in node.SceneObjects)
             {
-                var layerIndex = (int)(node.SceneObjectLayerIndices?[i++] ?? -1);
+                var layerIndex = (int)(sceneObjectLayerIndices?[i++] ?? -1);
 
                 // m_vCubeMapOrigin in older files
                 var lightingOrigin = sceneObject.ContainsKey("m_vLightingOrigin") ? sceneObject.GetSubCollection("m_vLightingOrigin").ToVector3() : defaultLightingOrigin;
@@ -103,7 +96,7 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = layerIndex > -1 ? node.LayerNames[layerIndex] : "No layer",
+                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderableModel,
                         LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : lightingOrigin,
                         OverlayRenderOrder = overlayRenderOrder,
@@ -132,7 +125,7 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Transform = matrix,
                         Tint = tintColor,
-                        LayerName = layerIndex > -1 ? node.LayerNames[layerIndex] : "No layer",
+                        LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderable,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
@@ -161,7 +154,7 @@ namespace ValveResourceFormat.Renderer.World
                     var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
                     var aggregate = new SceneAggregate(scene, model)
                     {
-                        LayerName = node.LayerNames[(int)layerIndex],
+                        LayerName = LayerNames[(int)layerIndex],
                         Name = renderableModel,
                         AllFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true),
                         AnyFlags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true),

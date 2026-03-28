@@ -389,7 +389,8 @@ public sealed class MapExtract
         var phys = LoadWorldPhysics();
         if (phys != null)
         {
-            var worldPhysMeshes = phys.Parts[0].Shape.Meshes.Where(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
+            var collisionAttributes = phys.CollisionAttributes;
+            var worldPhysMeshes = phys.Parts[0].Shape.Meshes.Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
             PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMeshes.ToArray());
 
@@ -805,8 +806,9 @@ public sealed class MapExtract
 
     private void HandleWorldNode(WorldNode node)
     {
-        var layerNodes = new List<MapNode>(node.LayerNames.Count);
-        foreach (var layerName in node.LayerNames)
+        var layerNames = node.LayerNames;
+        var layerNodes = new List<MapNode>(layerNames.Count);
+        foreach (var layerName in layerNames)
         {
             if (layerName == "world_layer_base")
             {
@@ -1144,10 +1146,12 @@ public sealed class MapExtract
             }
         }
 
-        for (var i = 0; i < node.SceneObjects.Count; i++)
+        var sceneObjects = node.SceneObjects;
+        var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
+        for (var i = 0; i < sceneObjects.Count; i++)
         {
-            var sceneObject = node.SceneObjects[i];
-            var layerIndex = (int)(node.SceneObjectLayerIndices?[i] ?? -1);
+            var sceneObject = sceneObjects[i];
+            var layerIndex = (int)(sceneObjectLayerIndices?[i] ?? -1);
             ProcessSceneObject(sceneObject, layerIndex, layerNodes);
         }
 
