@@ -205,6 +205,14 @@ namespace GUI.Types.Viewers
                     }
                     break;
 
+                case ResourceType.WorldVisibility:
+                    if (resource.GetBlockByType(BlockType.VXVS) is VoxelVisibility { BaseClusterCount: > 0 } vxvs)
+                    {
+                        GLViewer = new GLVoxelVisibilityViewer(vrfGuiContext, rendererContext, vxvs);
+                        GLViewerTabName = "VISIBILITY";
+                    }
+                    break;
+
                 case ResourceType.PostProcessing:
                     if (resource.DataBlock is PostProcessing postProcessing && postProcessing.Data.ContainsKey("m_colorCorrectionVolumeData"))
                     {
