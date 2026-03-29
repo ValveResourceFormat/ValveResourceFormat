@@ -6,34 +6,45 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 {
     public class VisibilitySceneNode : SceneNode
     {
+        private readonly record struct ClusterDrawRange(int Start, int Count, ushort ClusterId);
+
         private readonly Shader shader;
         private readonly int vaoHandle;
-        private readonly int vertexCount;
+        private readonly int totalVertexCount;
+        private readonly ClusterDrawRange[] clusterDrawRanges;
 
         public VisibilitySceneNode(Scene scene, VoxelVisibility voxelVisibility) : base(scene)
         {
             shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.default");
 
             var vertices = new List<SimpleVertex>();
-            var clusterChildren = voxelVisibility.BuildClusterChildBounds();
+            var ranges = new List<ClusterDrawRange>();
 
-            foreach (var (clusterId, children) in clusterChildren)
+            foreach (var (clusterId, children) in voxelVisibility.BuildClusterChildBounds())
             {
+                var start = vertices.Count;
                 var color = GetClusterColor(clusterId);
+
                 foreach (var (min, max) in children)
                 {
                     ShapeSceneNode.AddBox(vertices, new AABB(min, max), color);
                 }
+
+                if (vertices.Count > start)
+                {
+                    ranges.Add(new(start, vertices.Count - start, clusterId));
+                }
             }
 
-            vertexCount = vertices.Count;
+            clusterDrawRanges = [.. ranges];
+            totalVertexCount = vertices.Count;
 
             GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);
             GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
             SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
-            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes,
+            GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.SizeInBytes,
                 ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
 
 #if DEBUG
@@ -48,7 +59,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
-            if (vertexCount == 0 || context.RenderPass is not RenderPass.Translucent and not RenderPass.Outline)
+            if (totalVertexCount == 0 || context.RenderPass is not RenderPass.Translucent and not RenderPass.Outline)
             {
                 return;
             }
@@ -60,13 +71,25 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             GL.DepthMask(false);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
             GL.BindVertexArray(vaoHandle);
-            GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, vertexCount, 1, Id);
+
+            if (Scene.CurrentFramePvs == null)
+            {
+                GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, totalVertexCount, 1, Id);
+            }
+            else
+            {
+                foreach (var range in clusterDrawRanges)
+                {
+                    if (range.ClusterId < (uint)(Scene.CurrentFramePvs.Length * 8) && (Scene.CurrentFramePvs[range.ClusterId >> 3] & (1 << (range.ClusterId & 7))) != 0)
+                    {
+                        GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, range.Start, range.Count, 1, Id);
+                    }
+                }
+            }
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
-
             GL.DepthMask(true);
         }
 

@@ -52,6 +52,8 @@ namespace ValveResourceFormat.Blocks
         public ulong[] Masks { get; private set; } = [];
         public byte[] VisBlocks { get; private set; } = [];
 
+        private byte[]? pvsBuffer;
+
         private static ReadOnlySpan<byte> SubGridLevel1 => [0, 2, 8, 10, 32, 34, 40, 42];
         private static ReadOnlySpan<byte> SubGridLevel2 => [0, 1, 4, 5, 16, 17, 20, 21];
 
@@ -227,6 +229,55 @@ namespace ValveResourceFormat.Blocks
             }
 
             return 0;
+        }
+
+        /// Native function fills the entire buffer with 0xFF instead of returning null
+        public byte[]? GetPVSForPoint(Vector3 point)
+        {
+            if (Nodes.Length == 0 || PVSBytesPerCluster == 0)
+            {
+                return null;
+            }
+
+            var min = MinBounds;
+            var max = MaxBounds;
+            var leafIndex = FindLeafNode(point, ref min, ref max);
+            if (leafIndex < 0 || Nodes[leafIndex].RegionCount == 0)
+            {
+                return null;
+            }
+
+            pvsBuffer ??= new byte[PVSBytesPerCluster];
+
+            var node = Nodes[leafIndex];
+            var spatialMask = ComputeSpatialMask(point, min, max);
+            var regionCount = Math.Min(node.RegionCount, (uint)Regions.Length - node.Offset);
+
+            var found = false;
+            foreach (var region in Regions.AsSpan((int)node.Offset, (int)regionCount))
+            {
+                if ((spatialMask & Masks[region.MaskIndex]) == 0 || region.ClusterId >= BaseClusterCount)
+                {
+                    continue;
+                }
+
+                var row = VisBlocks.AsSpan((int)(region.ClusterId * PVSBytesPerCluster), (int)PVSBytesPerCluster);
+
+                if (!found)
+                {
+                    row.CopyTo(pvsBuffer);
+                    found = true;
+                }
+                else
+                {
+                    for (var i = 0; i < row.Length; i++)
+                    {
+                        pvsBuffer[i] |= row[i];
+                    }
+                }
+            }
+
+            return found ? pvsBuffer : null;
         }
 
         private void QueryOctreeBox(uint nodeIndex, Vector3 nodeMin, Vector3 nodeMax,

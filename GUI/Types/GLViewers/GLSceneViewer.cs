@@ -93,6 +93,7 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
                 {
                     Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
+                    Renderer.LockedCullPosition = v ? Renderer.Camera.Location : null;
                 });
 
                 UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
@@ -539,16 +540,29 @@ namespace GUI.Types.GLViewers
 
             if (showVisDebug && Scene.VoxelVisibility != null)
             {
-                var cluster = Scene.VoxelVisibility.GetClusterForPosition(Renderer.Camera.Location);
-                var clusterText = cluster <= 1 ? "No PVS at this position" : $"PVS cluster {cluster}";
-                TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                var pvsPos = Renderer.LockedCullPosition ?? Renderer.Camera.Location;
+                var cluster = Scene.VoxelVisibility.GetClusterForPosition(pvsPos);
+                var y = 18f;
+
+                void AddLine(string text, Color32 color)
                 {
-                    X = 4f,
-                    Y = 18f,
-                    Scale = 14f,
-                    Color = cluster <= 1 ? new Color32(255, 0, 0) : Color32.White,
-                    Text = clusterText,
-                });
+                    TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                    {
+                        X = 4f, Y = y, Scale = 14f, Color = color, Text = text,
+                    });
+                    y += 16f;
+                }
+
+                AddLine(
+                    cluster <= 1 ? "No PVS at this position" : $"PVS cluster {cluster}",
+                    cluster <= 1 ? new Color32(255, 0, 0) : Color32.White
+                );
+
+                if (Scene.CurrentFramePvs != null)
+                {
+                    var visCount = Scene.CurrentFramePvs.Sum(b => BitOperations.PopCount(b));
+                    AddLine($"PVS visible: {visCount}/{Scene.VoxelVisibility.BaseClusterCount} clusters", Color32.White);
+                }
             }
 
             if (Renderer.Timings.Capture)

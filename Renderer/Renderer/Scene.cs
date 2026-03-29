@@ -76,6 +76,9 @@ namespace ValveResourceFormat.Renderer
 
         public VoxelVisibility? VoxelVisibility { get; set; }
 
+        public bool EnablePvsCulling { get; set; }
+        public byte[]? CurrentFramePvs { get; set; }
+
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;

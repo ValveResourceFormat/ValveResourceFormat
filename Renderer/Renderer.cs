@@ -110,6 +110,8 @@ public class Renderer
     /// </summary>
     public Frustum? LockedCullFrustum { get; set; }
 
+    public Vector3? LockedCullPosition { get; set; }
+
     // options
     /// <summary>
     /// Width and height in texels of the shadow depth buffers.
@@ -842,6 +844,16 @@ public class Renderer
         if (LockedCullFrustum == null)
         {
             Scene.GetOcclusionTestResults();
+        }
+
+        if (Scene is { EnablePvsCulling: true, VoxelVisibility: not null })
+        {
+            var pvsPosition = LockedCullPosition ?? updateContext.Camera.Location;
+            Scene.CurrentFramePvs = Scene.VoxelVisibility.GetPVSForPoint(pvsPosition);
+        }
+        else
+        {
+            Scene.CurrentFramePvs = null;
         }
 
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);

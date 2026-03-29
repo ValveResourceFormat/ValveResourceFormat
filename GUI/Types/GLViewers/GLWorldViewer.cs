@@ -348,6 +348,11 @@ namespace GUI.Types.GLViewers
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
                     UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+
+                    if (Scene.VoxelVisibility != null)
+                    {
+                        UiControl.AddCheckBox("PVS Culling", Scene.EnablePvsCulling, v => Scene.EnablePvsCulling = v);
+                    }
                     UiControl.AddCheckBox("Gpu Culling", Scene.EnableIndirectDraws, v =>
                     {
                         Scene.EnableIndirectDraws = v;
