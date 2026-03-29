@@ -32,6 +32,7 @@ namespace GUI.Types.GLViewers
 
         private bool showStaticOctree;
         private bool showDynamicOctree;
+        private bool showVisDebug;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
@@ -103,9 +104,14 @@ namespace GUI.Types.GLViewers
                     SkyboxScene?.ShowToolsMaterials = v;
                 });
 
-                if (this is GLWorldViewer worldViewer)
+                if (this is GLWorldViewer)
                 {
                     UiControl.AddCheckBox("Show Occluded Bounds", Scene.OcclusionDebugEnabled, (v) => Scene.OcclusionDebugEnabled = v);
+
+                    if (Scene.VoxelVisibility != null)
+                    {
+                        UiControl.AddCheckBox("Show Vis Debug", showVisDebug, v => showVisDebug = v);
+                    }
                 }
 
                 UiControl.AddCheckBox("Show Render Timings", Renderer.Timings.Capture, (v) => Renderer.Timings.Capture = v);
@@ -528,6 +534,20 @@ namespace GUI.Types.GLViewers
                     Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
                     CenterHorizontal = true,
                 }, Renderer.Camera);
+            }
+
+            if (showVisDebug && Scene.VoxelVisibility != null)
+            {
+                var cluster = Scene.VoxelVisibility.GetClusterForPosition(Renderer.Camera.Location);
+                var clusterText = cluster <= 1 ? "No PVS at this position" : $"PVS cluster {cluster}";
+                TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 4f,
+                    Y = 18f,
+                    Scale = 14f,
+                    Color = cluster <= 1 ? new Color32(255, 0, 0) : Color32.White,
+                    Text = clusterText,
+                });
             }
 
             if (Renderer.Timings.Capture)

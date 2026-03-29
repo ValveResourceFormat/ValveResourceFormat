@@ -52,6 +52,9 @@ namespace ValveResourceFormat.Blocks
         public ulong[] Masks { get; private set; } = [];
         public byte[] VisBlocks { get; private set; } = [];
 
+        private static ReadOnlySpan<byte> SubGridLevel1 => [0, 2, 8, 10, 32, 34, 40, 42];
+        private static ReadOnlySpan<byte> SubGridLevel2 => [0, 1, 4, 5, 16, 17, 20, 21];
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
@@ -169,6 +172,281 @@ namespace ValveResourceFormat.Blocks
         //
         //    return clusterChildren;
         //}
+
+        public int GetClusterForPosition(Vector3 position)
+        {
+            if (Nodes.Length == 0)
+            {
+                return 0;
+            }
+
+            var min = MinBounds;
+            var max = MaxBounds;
+            var leafIndex = FindLeafNode(position, ref min, ref max);
+
+            if (leafIndex >= 0)
+            {
+                var node = Nodes[leafIndex];
+                if (node.RegionCount > 0)
+                {
+                    var spatialMask = ComputeSpatialMask(position, min, max);
+                    var regionStart = node.Offset;
+
+                    for (uint r = 0; r < node.RegionCount; r++)
+                    {
+                        var regionIndex = regionStart + r;
+                        if (regionIndex >= Regions.Length)
+                        {
+                            break;
+                        }
+
+                        var region = Regions[regionIndex];
+                        if ((spatialMask & Masks[region.MaskIndex]) != 0)
+                        {
+                            return region.ClusterId;
+                        }
+                    }
+                }
+            }
+
+            var halfGrid = GridSize * 0.5f + 0.03125f;
+            var boxMin = position - new Vector3(halfGrid);
+            var boxMax = position + new Vector3(halfGrid);
+
+            Span<uint> bitfield = stackalloc uint[128];
+            bitfield.Clear();
+            QueryOctreeBox(0, MinBounds, MaxBounds, boxMin, boxMax, bitfield, halfGrid * 2f >= 1024f);
+
+            for (var i = 0; i < 128; i++)
+            {
+                var word = bitfield[i];
+                if (word != 0)
+                {
+                    return BitOperations.TrailingZeroCount(word) + 32 * i;
+                }
+            }
+
+            return 0;
+        }
+
+        private void QueryOctreeBox(uint nodeIndex, Vector3 nodeMin, Vector3 nodeMax,
+            Vector3 boxMin, Vector3 boxMax, Span<uint> bitfield, bool useEnclosedShortcut)
+        {
+            if (nodeIndex >= Nodes.Length)
+            {
+                return;
+            }
+
+            var node = Nodes[nodeIndex];
+
+            if (useEnclosedShortcut && node.IsEnclosedCluster)
+            {
+                var (offset, count) = EnclosedClusterList[node.EnclosedListIndex];
+                for (var i = 0; i < count; i++)
+                {
+                    var clusterId = (uint)EnclosedClusters[offset + i];
+                    bitfield[(int)(clusterId >> 5)] |= 1u << (int)(clusterId & 0x1F);
+                }
+
+                return;
+            }
+
+            if (node.IsLeaf)
+            {
+                var boxSpatialMask = ComputeBoxSpatialMask(boxMin, boxMax, nodeMin, nodeMax);
+                if (boxSpatialMask == 0)
+                {
+                    return;
+                }
+
+                var regionStart = node.Offset;
+                for (uint r = 0; r < node.RegionCount; r++)
+                {
+                    var regionIndex = regionStart + r;
+                    if (regionIndex >= Regions.Length)
+                    {
+                        break;
+                    }
+
+                    var region = Regions[regionIndex];
+                    if ((boxSpatialMask & Masks[region.MaskIndex]) == 0)
+                    {
+                        continue;
+                    }
+
+                    var clusterId = (uint)region.ClusterId;
+                    bitfield[(int)(clusterId >> 5)] |= 1u << (int)(clusterId & 0x1F);
+                }
+
+                return;
+            }
+
+            var childBase = node.Offset;
+            var midX = (nodeMin.X + nodeMax.X) * 0.5f;
+            var midY = (nodeMin.Y + nodeMax.Y) * 0.5f;
+            var midZ = (nodeMin.Z + nodeMax.Z) * 0.5f;
+
+            var xLow = boxMin.X <= midX;
+            var xHigh = boxMax.X >= midX;
+            var yLow = boxMin.Y <= midY;
+            var yHigh = boxMax.Y >= midY;
+            var zLow = boxMin.Z <= midZ;
+            var zHigh = boxMax.Z >= midZ;
+
+            for (uint octant = 0; octant < 8; octant++)
+            {
+                if (!((octant & 1) != 0 ? xHigh : xLow))
+                {
+                    continue;
+                }
+
+                if (!((octant & 2) != 0 ? yHigh : yLow))
+                {
+                    continue;
+                }
+
+                if (!((octant & 4) != 0 ? zHigh : zLow))
+                {
+                    continue;
+                }
+
+                var childMin = nodeMin;
+                var childMax = nodeMax;
+                if ((octant & 1) != 0) { childMin.X = midX; } else { childMax.X = midX; }
+                if ((octant & 2) != 0) { childMin.Y = midY; } else { childMax.Y = midY; }
+                if ((octant & 4) != 0) { childMin.Z = midZ; } else { childMax.Z = midZ; }
+
+                QueryOctreeBox(childBase + octant, childMin, childMax, boxMin, boxMax, bitfield, useEnclosedShortcut);
+            }
+        }
+
+        private int FindLeafNode(Vector3 point, ref Vector3 min, ref Vector3 max)
+        {
+            if (point.X < min.X || point.Y < min.Y || point.Z < min.Z || point.X > max.X || point.Y > max.Y || point.Z > max.Z)
+            {
+                return -1;
+            }
+
+            var nodeIndex = 0;
+
+            if (Nodes[0].IsLeaf)
+            {
+                return 0;
+            }
+
+            while (true)
+            {
+                var node = Nodes[nodeIndex];
+                var childBase = node.IsLeaf ? -1 : (int)node.Offset;
+
+                var midX = (min.X + max.X) * 0.5f;
+                var midY = (min.Y + max.Y) * 0.5f;
+                var midZ = (min.Z + max.Z) * 0.5f;
+
+                var octant = 0;
+                if (midX < point.X)
+                {
+                    octant |= 1;
+                }
+
+                if (midY < point.Y)
+                {
+                    octant |= 2;
+                }
+
+                if (midZ < point.Z)
+                {
+                    octant |= 4;
+                }
+
+                nodeIndex = octant + childBase;
+
+                if ((octant & 1) != 0) { min.X = midX; } else { max.X = midX; }
+                if ((octant & 2) != 0) { min.Y = midY; } else { max.Y = midY; }
+                if ((octant & 4) != 0) { min.Z = midZ; } else { max.Z = midZ; }
+
+                if ((uint)nodeIndex >= Nodes.Length)
+                {
+                    return -1;
+                }
+
+                if (Nodes[nodeIndex].IsLeaf)
+                {
+                    return nodeIndex;
+                }
+            }
+        }
+
+        private static ulong ComputeSpatialMask(Vector3 point, Vector3 min, Vector3 max)
+        {
+            var midX = (min.X + max.X) * 0.5f;
+            var midY = (min.Y + max.Y) * 0.5f;
+            var midZ = (min.Z + max.Z) * 0.5f;
+
+            var octant1 = 0;
+            if (midX < point.X)
+            {
+                octant1 |= 1;
+            }
+
+            if (midY < point.Y)
+            {
+                octant1 |= 2;
+            }
+
+            if (midZ < point.Z)
+            {
+                octant1 |= 4;
+            }
+
+            if ((octant1 & 1) != 0) { min.X = midX; } else { max.X = midX; }
+            if ((octant1 & 2) != 0) { min.Y = midY; } else { max.Y = midY; }
+            if ((octant1 & 4) != 0) { min.Z = midZ; } else { max.Z = midZ; }
+
+            var mid2X = (min.X + max.X) * 0.5f;
+            var mid2Y = (min.Y + max.Y) * 0.5f;
+            var mid2Z = (min.Z + max.Z) * 0.5f;
+
+            var octant2 = 0;
+            if (mid2X < point.X)
+            {
+                octant2 |= 1;
+            }
+
+            if (mid2Y < point.Y)
+            {
+                octant2 |= 2;
+            }
+
+            if (mid2Z < point.Z)
+            {
+                octant2 |= 4;
+            }
+
+            return 1UL << (SubGridLevel1[octant1] + SubGridLevel2[octant2]);
+        }
+
+        private static ulong ComputeBoxSpatialMask(Vector3 boxMin, Vector3 boxMax, Vector3 leafMin, Vector3 leafMax)
+        {
+            var cellSize = (leafMax.X - leafMin.X) * 0.25f;
+            if (cellSize <= 0)
+            {
+                return 0;
+            }
+
+            var xMin = Math.Clamp((int)((boxMin.X - leafMin.X) / cellSize), 0, 3);
+            var xMax = Math.Clamp((int)((boxMax.X - leafMin.X) / cellSize), 0, 3);
+            var yMin = Math.Clamp((int)((boxMin.Y - leafMin.Y) / cellSize), 0, 3);
+            var yMax = Math.Clamp((int)((boxMax.Y - leafMin.Y) / cellSize), 0, 3);
+            var zMin = Math.Clamp((int)((boxMin.Z - leafMin.Z) / cellSize), 0, 3);
+            var zMax = Math.Clamp((int)((boxMax.Z - leafMin.Z) / cellSize), 0, 3);
+
+            var xMask = (ulong)((1 << (xMax + 1)) - (1 << xMin)) * 0x1111111111111111UL;
+            var yMask = ((1UL << (4 * (yMax + 1))) - (1UL << (4 * yMin))) * 0x0001000100010001UL;
+            var zMask = (zMax >= 3 ? 0UL : 1UL << (16 * (zMax + 1))) - (1UL << (16 * zMin));
+
+            return xMask & yMask & zMask;
+        }
 
         public Dictionary<ushort, List<(Vector3 Min, Vector3 Max)>> BuildClusterChildBounds()
         {
