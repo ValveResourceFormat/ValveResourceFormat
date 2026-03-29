@@ -314,6 +314,8 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
+            scene.VoxelVisibility = voxelVisibility;
+
             var visNode = new VisibilitySceneNode(scene, voxelVisibility)
             {
                 LayerName = "Visibility clusters",
