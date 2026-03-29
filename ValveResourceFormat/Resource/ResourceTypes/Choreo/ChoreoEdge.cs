@@ -37,8 +37,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         {
             var kv = new KVObject(null);
 
-            kv.AddProperty("type", CurveType.ToKeyValue());
-            kv.AddProperty("zero_value", ZeroValue);
+            kv.Add("type", CurveType.ToKeyValue());
+            kv.Add("zero_value", ZeroValue);
 
             return kv;
         }

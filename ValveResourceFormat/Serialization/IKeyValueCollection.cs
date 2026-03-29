@@ -134,18 +134,16 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             var child = obj.GetChild(name);
 
-            if (child?.Value is not KVArrayValue array)
+            if (child == null || !child.IsArray)
             {
                 return null!;
             }
 
-            // TODO: Each element is wrapped in a KVObject to match the old VRF API surface.
-            // This allocates per call — consider a lighter-weight approach if this becomes a bottleneck.
-            var result = new KVObject[array.Count];
+            var result = new KVObject[child.Count];
 
-            for (var i = 0; i < array.Count; i++)
+            for (var i = 0; i < child.Count; i++)
             {
-                result[i] = new KVObject(null, array[i]);
+                result[i] = child[i]!;
             }
 
             return result;
@@ -191,14 +189,14 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return null!; // TODO
             }
 
-            if (child.Value is KVBinaryBlob blob)
+            if (child.ValueType == KVValueType.BinaryBlob)
             {
                 if (typeof(T) == typeof(byte))
                 {
-                    return (T[])(object)blob.Bytes.ToArray();
+                    return (T[])(object)child.Value.AsBlob();
                 }
 
-                var bytes = blob.Bytes.Span;
+                var bytes = child.Value.AsSpan();
                 var resultBytes = new T[bytes.Length];
 
                 for (var i = 0; i < bytes.Length; i++)
@@ -209,22 +207,24 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return resultBytes;
             }
 
-            if (child.Value is not KVArrayValue array)
+            if (!child.IsArray)
             {
                 return null!;
             }
 
-            var result = new T[array.Count];
+            var result = new T[child.Count];
 
-            for (var i = 0; i < array.Count; i++)
+            for (var i = 0; i < child.Count; i++)
             {
-                if (array[i] is KVNullValue or KVCollectionValue or KVArrayValue)
+                var elem = child[i]!;
+
+                if (elem.ValueType is KVValueType.Null or KVValueType.Collection or KVValueType.Array)
                 {
                     result[i] = default!;
                     continue;
                 }
 
-                result[i] = (T)Convert.ChangeType(array[i], typeof(T), CultureInfo.InvariantCulture);
+                result[i] = (T)Convert.ChangeType(elem, typeof(T), CultureInfo.InvariantCulture);
             }
 
             return result;
@@ -237,25 +237,27 @@ namespace ValveResourceFormat.Serialization.KeyValues
         {
             var child = obj.GetChild(name);
 
-            if (child?.Value is not KVArrayValue array)
+            if (child == null || !child.IsArray)
             {
                 return [];
             }
 
-            var result = new ulong[array.Count];
+            var result = new ulong[child.Count];
 
-            for (var i = 0; i < array.Count; i++)
+            for (var i = 0; i < child.Count; i++)
             {
-                if (array[i].ValueType == KVValueType.Int32)
+                var elem = child[i]!;
+
+                if (elem.ValueType == KVValueType.Int32)
                 {
                     unchecked
                     {
-                        result[i] = (ulong)(int)array[i];
+                        result[i] = (ulong)(int)elem;
                     }
                 }
                 else
                 {
-                    result[i] = (ulong)array[i];
+                    result[i] = (ulong)elem;
                 }
             }
 
@@ -361,19 +363,19 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             if (typeof(T) == typeof(byte[]))
             {
-                if (value is KVBinaryBlob blob)
+                if (value.ValueType == KVValueType.BinaryBlob)
                 {
-                    return (T)(object)blob.Bytes.ToArray();
+                    return (T)(object)value.Value.AsBlob();
                 }
 
                 // Array of byte values
                 var child = obj.GetChild(name);
-                if (child?.Value is KVArrayValue array)
+                if (child?.IsArray == true)
                 {
-                    var result = new byte[array.Count];
-                    for (var i = 0; i < array.Count; i++)
+                    var result = new byte[child.Count];
+                    for (var i = 0; i < child.Count; i++)
                     {
-                        result[i] = (byte)array[i];
+                        result[i] = (byte)child[i]!;
                     }
                     return (T)(object)result;
                 }
@@ -383,7 +385,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             if (typeof(T) == typeof(object))
             {
-                if (value.ValueType == KVValueType.Collection || value is KVArrayValue)
+                if (value.ValueType is KVValueType.Collection or KVValueType.Array)
                 {
                     return (T)(object)obj.GetChild(name);
                 }

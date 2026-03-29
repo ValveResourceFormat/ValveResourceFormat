@@ -313,7 +313,7 @@ public sealed class MaterialExtract
         {
             var toolattributes = new List<KVObject>()
                 {
-                    new("SubrectDefinition", subrectDefinition)
+                    new("SubrectDefinition", subrectDefinition.Value)
                 };
 
             root.Add(new KVObject("ToolAttributes", toolattributes));

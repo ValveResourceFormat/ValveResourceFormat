@@ -95,7 +95,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var child in libraryFoldersKv.Children)
             {
-                var steamAppsPath = Path.GetFullPath(Path.Join(child["path"].ToString(CultureInfo.InvariantCulture), "steamapps"));
+                var steamAppsPath = Path.GetFullPath(Path.Join((string)child["path"], "steamapps"));
 
                 if (Directory.Exists(steamAppsPath))
                 {
@@ -189,9 +189,9 @@ namespace ValveResourceFormat.IO
 
         private static SteamLibraryGameInfo ToGameInfo(string steamPath, KVObject appManifestKv)
         {
-            var appID = appManifestKv["appid"].ToInt32(CultureInfo.InvariantCulture);
-            var appName = appManifestKv["name"].ToString(CultureInfo.InvariantCulture);
-            var installDir = appManifestKv["installdir"].ToString(CultureInfo.InvariantCulture);
+            var appID = (int)appManifestKv["appid"];
+            var appName = (string)appManifestKv["name"];
+            var installDir = (string)appManifestKv["installdir"];
 
             // Intentionally append separator to the end to avoid issues when one game is a prefix of another game,
             // e.g. "Artifact" and "Artifact 2.0"

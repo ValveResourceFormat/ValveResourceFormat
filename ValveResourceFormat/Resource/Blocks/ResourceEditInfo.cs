@@ -97,7 +97,7 @@ namespace ValveResourceFormat.Blocks
                         int n => (KVValue)n,
                         _ => (KVValue)value!.ToString()!,
                     };
-                    kvObject[key] = kvValue;
+                    kvObject[key] = new KVObject(key, kvValue);
                 }
             }
 
@@ -140,7 +140,7 @@ namespace ValveResourceFormat.Blocks
                 SpecialDependencies,
                 AdditionalRelatedFiles,
                 ChildResourceList,
-                SearchableUserData = SearchableUserData.Children.Select(c => new { Key = c.Name, Value = c.Value?.ToString() ?? string.Empty }),
+                SearchableUserData = SearchableUserData.Children.Select(c => new { Key = c.Name, Value = c.Value.ToString() ?? string.Empty }),
             };
 
             serializer.Serialize(ms, serializedProps, "ResourceEditInfo");

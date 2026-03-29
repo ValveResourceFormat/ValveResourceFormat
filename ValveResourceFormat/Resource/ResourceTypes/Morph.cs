@@ -100,7 +100,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var morphData in morphDatas)
             {
-                if (morphData.Value is not KVCollectionValue)
+                if (morphData.ValueType != KVValueType.Collection)
                 {
                     continue;
                 }
@@ -229,14 +229,14 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static MorphBundleType ParseBundleType(KVObject bundleType)
         {
-            if (bundleType.Value.ValueType is KVValueType.UInt32 or KVValueType.Int32 or KVValueType.UInt64 or KVValueType.Int64)
+            if (bundleType.ValueType is KVValueType.UInt32 or KVValueType.Int32 or KVValueType.UInt64 or KVValueType.Int64)
             {
-                return (MorphBundleType)(int)bundleType.Value;
+                return (MorphBundleType)(int)bundleType;
             }
 
-            if (bundleType.Value.ValueType == KVValueType.String)
+            if (bundleType.ValueType == KVValueType.String)
             {
-                var bundleTypeString = (string)bundleType.Value;
+                var bundleTypeString = (string)bundleType;
                 return bundleTypeString switch
                 {
                     "MORPH_BUNDLE_TYPE_POSITION_SPEED" => MorphBundleType.PositionSpeed,

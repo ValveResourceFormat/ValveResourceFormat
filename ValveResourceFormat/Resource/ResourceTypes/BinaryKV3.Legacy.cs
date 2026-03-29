@@ -194,7 +194,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KV3BinaryNodeType.ARRAY:
                     var arrayLength = reader.ReadInt32();
-                    var array = new KVObject(name, Array.Empty<KVValue>());
+                    var array = KVObject.Array(name);
 
                     for (var i = 0; i < arrayLength; i++)
                     {
@@ -206,7 +206,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case KV3BinaryNodeType.ARRAY_TYPED:
                     var typeArrayLength = reader.ReadInt32();
                     var (subType, subFlagInfo) = LegacyReadType(reader);
-                    var typedArray = new KVObject(name, Array.Empty<KVValue>());
+                    var typedArray = KVObject.Array(name);
 
                     for (var i = 0; i < typeArrayLength; i++)
                     {

@@ -90,21 +90,21 @@ namespace Tests
                 //Do special test for flagged value
                 var flagValue = file.Root["stringThatIsAResourceReference"];
                 Assert.That((string)flagValue, Is.EqualTo("particles/items3_fx/star_emblem.vpcf"));
-                Assert.That(flagValue.Flag, Is.EqualTo(KVFlag.Resource));
+                Assert.That(flagValue.Value.Flag, Is.EqualTo(KVFlag.Resource));
 
                 Assert.That(file.Root["arrayValue"].ValueType, Is.EqualTo(KVValueType.Array));
-                var arrayValue = file.Root["arrayValue"] as KVArrayValue;
+                var arrayValue = file.Root.GetChild("arrayValue");
                 Debug.Assert(arrayValue != null);
-                Assert.That((ulong)arrayValue[0], Is.EqualTo((ulong)1));
-                Assert.That((ulong)arrayValue[1], Is.EqualTo((ulong)2));
-                Assert.That((string)arrayValue[2], Is.EqualTo("characters/models/shared/animsets/animset_ct.vmdl"));
-                Assert.That(arrayValue[2].Flag, Is.EqualTo(KVFlag.Resource));
-                Assert.That((string)arrayValue[3], Is.EqualTo("hud/abilities/haze/haze_sleep_dagger.psd"));
-                Assert.That(arrayValue[3].Flag, Is.EqualTo(KVFlag.Panorama));
-                Assert.That((string)arrayValue[4], Is.EqualTo("hello world"));
-                Assert.That(arrayValue[5].Flag, Is.EqualTo(KVFlag.SoundEvent));
-                Assert.That(arrayValue[6].Flag, Is.EqualTo(KVFlag.SubClass));
-                Assert.That(arrayValue[7].Flag, Is.EqualTo(KVFlag.EntityName));
+                Assert.That((ulong)arrayValue[0]!, Is.EqualTo((ulong)1));
+                Assert.That((ulong)arrayValue[1]!, Is.EqualTo((ulong)2));
+                Assert.That((string)arrayValue[2]!, Is.EqualTo("characters/models/shared/animsets/animset_ct.vmdl"));
+                Assert.That(arrayValue[2]!.Value.Flag, Is.EqualTo(KVFlag.Resource));
+                Assert.That((string)arrayValue[3]!, Is.EqualTo("hud/abilities/haze/haze_sleep_dagger.psd"));
+                Assert.That(arrayValue[3]!.Value.Flag, Is.EqualTo(KVFlag.Panorama));
+                Assert.That((string)arrayValue[4]!, Is.EqualTo("hello world"));
+                Assert.That(arrayValue[5]!.Value.Flag, Is.EqualTo(KVFlag.SoundEvent));
+                Assert.That(arrayValue[6]!.Value.Flag, Is.EqualTo(KVFlag.SubClass));
+                Assert.That(arrayValue[7]!.Value.Flag, Is.EqualTo(KVFlag.EntityName));
 
                 Assert.That(file.Root["objectValue"].ValueType, Is.EqualTo(KVValueType.Collection));
                 var objectValue = file.Root.GetChild("objectValue");
@@ -112,10 +112,10 @@ namespace Tests
                 Assert.That((ulong)objectValue["n"], Is.EqualTo((ulong)5));
                 Assert.That((string)objectValue["s"], Is.EqualTo("foo"));
 
-                var binaryBlobValue = file.Root["binaryBlobValue"] as KVBinaryBlob;
-                Debug.Assert(binaryBlobValue != null);
-                Assert.That(binaryBlobValue.Bytes.ToArray(), Has.Length.EqualTo(40));
-                Assert.That(Encoding.UTF8.GetString(binaryBlobValue.Bytes.ToArray()), Is.EqualTo("Hello, this is a test binary blob value!"));
+                var binaryBlobValue = file.Root["binaryBlobValue"].Value;
+                Assert.That(binaryBlobValue.ValueType, Is.EqualTo(KVValueType.BinaryBlob));
+                Assert.That(binaryBlobValue.AsBlob(), Has.Length.EqualTo(40));
+                Assert.That(Encoding.UTF8.GetString(binaryBlobValue.AsBlob()), Is.EqualTo("Hello, this is a test binary blob value!"));
 
                 Assert.That(file.Root["arrayOnSingleLine"].ValueType, Is.EqualTo(KVValueType.Array));
 

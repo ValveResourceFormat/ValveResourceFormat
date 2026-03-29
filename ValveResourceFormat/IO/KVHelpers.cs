@@ -7,7 +7,7 @@ internal class KVHelpers
     internal static KVObject MakeNode(string className, KVObject @object)
     {
         var node = new KVObject(className);
-        node.AddProperty("_class", (KVValue)className);
+        node.Add("_class", (KVValue)className);
 
         foreach (var child in @object.Children)
         {
@@ -24,43 +24,49 @@ internal class KVHelpers
     internal static KVObject MakeNode(string className, params (string Name, KVValue Value)[] properties)
     {
         var node = new KVObject(className);
-        node.AddProperty("_class", (KVValue)className);
+        node.Add("_class", (KVValue)className);
         foreach (var prop in properties)
         {
-            node.AddProperty(prop.Name, prop.Value);
+            node.Add(prop.Name, prop.Value);
         }
         return node;
     }
 
     internal static (KVObject Node, KVObject Children) MakeListNode(string className, string containerName = "children")
     {
-        var children = new KVObject(null, Array.Empty<KVValue>());
+        var children = KVObject.Array(null);
         var node = MakeNode(className, (containerName, children.Value));
         return (node, children);
     }
 
     internal static KVValue MakeArray(params KVValue[] values)
     {
-        var arr = new KVArrayValue();
-        arr.AddRange(values);
-        return arr;
+        var arr = KVObject.Array(null);
+        foreach (var v in values)
+        {
+            arr.Add(v);
+        }
+        return arr.Value;
     }
 
     internal static KVValue MakeArray(IEnumerable<KVValue> values)
     {
-        var arr = new KVArrayValue();
-        arr.AddRange(values);
-        return arr;
+        var arr = KVObject.Array(null);
+        foreach (var v in values)
+        {
+            arr.Add(v);
+        }
+        return arr.Value;
     }
 
     internal static KVValue MakeArray(KVObject[] objects)
     {
-        var arr = new KVArrayValue();
+        var arr = KVObject.Array(null);
         for (var i = 0; i < objects.Length; i++)
         {
             arr.Add(objects[i].Value);
         }
-        return arr;
+        return arr.Value;
     }
 
     internal static KVValue ToKVValue(Vector3 v)

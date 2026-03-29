@@ -27,7 +27,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this event flex.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null, Array.Empty<KVValue>());
+            var kv = KVObject.Array(null);
 
             foreach (var track in Tracks)
             {

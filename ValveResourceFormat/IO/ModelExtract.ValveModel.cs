@@ -42,17 +42,17 @@ partial class ModelExtract
                 var value = sourceObject.GetFloatArray(sourceName);
                 var rot = new Quaternion(value[0], value[1], value[2], value[3]);
                 var angles = ToEulerAngles(rot);
-                targetObject.AddProperty(targetName, ToKVValue(angles));
+                targetObject.Add(targetName, ToKVValue(angles));
             }
             else if (typeof(T) == typeof(Vector3))
             {
                 var value = sourceObject.GetFloatArray(sourceName);
                 var pos = new Vector3(value[0], value[1], value[2]);
-                targetObject.AddProperty(targetName, ToKVValue(pos));
+                targetObject.Add(targetName, ToKVValue(pos));
             }
             else
             {
-                targetObject.AddProperty(targetName, sourceObject[sourceName]);
+                targetObject.Add(targetName, sourceObject[sourceName].Value);
             }
         }
     }
@@ -124,7 +124,7 @@ partial class ModelExtract
             var rot = new Quaternion(rotArray[0], rotArray[1], rotArray[2], rotArray[3]);
             var angles = ToEulerAngles(rot);
             angles = new Vector3(angles.Z, angles.X, angles.Y);
-            node.AddProperty("rotation_offset_xyz", ToKVValue(angles));
+            node.Add("rotation_offset_xyz", ToKVValue(angles));
         }
         else
         {
@@ -135,12 +135,12 @@ partial class ModelExtract
             children = slaves.Concat(targets);
         }
 
-        var childrenKV = new KVObject(null, Array.Empty<KVValue>());
+        var childrenKV = KVObject.Array(null);
         foreach (var child in children)
         {
             childrenKV.Add(child.Value);
         }
-        node.AddProperty("children", childrenKV.Value);
+        node.Add("children", childrenKV.Value);
     }
 
     static KVObject? ProcessBoneConstraint(KVObject? boneConstraint)
@@ -202,7 +202,7 @@ partial class ModelExtract
 
         StringToken.Store(stringTokenKeys);
 
-        var childrenKV = new KVObject(null, Array.Empty<KVValue>());
+        var childrenKV = KVObject.Array(null);
 
         foreach (var boneConstraint in boneConstraintsList)
         {
@@ -265,8 +265,8 @@ partial class ModelExtract
 
             if (bone.Children.Count > 0)
             {
-                var childBones = new KVObject(null, Array.Empty<KVValue>());
-                boneDefinitionNode.AddProperty("children", childBones.Value);
+                var childBones = KVObject.Array(null);
+                boneDefinitionNode.Add("children", childBones.Value);
                 AddBonesRecursive(bone.Children, childBones);
             }
         }
@@ -324,7 +324,7 @@ partial class ModelExtract
         var kv = new KVObject(null);
 
         var root = MakeListNode("RootNode");
-        kv.AddProperty("rootNode", root.Node.Value);
+        kv.Add("rootNode", root.Node.Value);
 
         Lazy<KVObject> MakeLazyList(string className)
         {
@@ -354,7 +354,7 @@ partial class ModelExtract
 
         var boneMarkupList = MakeListNode("BoneMarkupList");
         root.Children.Add(boneMarkupList.Node.Value);
-        boneMarkupList.Node.AddProperty("bone_cull_type", "None");
+        boneMarkupList.Node.Add("bone_cull_type", "None");
 
         if (RenderMeshesToExtract.Count != 0)
         {
@@ -370,11 +370,11 @@ partial class ModelExtract
                 {
                     var importFilter = new KVObject("import_filter");
                     {
-                        importFilter.AddProperty("exclude_by_default", renderMesh.ImportFilter.ExcludeByDefault);
-                        importFilter.AddProperty("exception_list", MakeArray([.. renderMesh.ImportFilter.Filter.Select(s => (KVValue)s)]));
+                        importFilter.Add("exclude_by_default", renderMesh.ImportFilter.ExcludeByDefault);
+                        importFilter.Add("exception_list", MakeArray([.. renderMesh.ImportFilter.Filter.Select(s => (KVValue)s)]));
                     }
 
-                    renderMeshFile.AddProperty("import_filter", importFilter.Value);
+                    renderMeshFile.Add("import_filter", importFilter.Value);
                 }
 
                 renderMeshList.Value.Add(renderMeshFile.Value);
@@ -411,7 +411,7 @@ partial class ModelExtract
 
                 foreach (var (groupName, choices) in groupedChoices)
                 {
-                    var choiceList = new KVObject(null, Array.Empty<KVValue>());
+                    var choiceList = KVObject.Array(null);
                     var bodyGroup = MakeNode("BodyGroup",
                         ("name", groupName),
                         ("children", choiceList.Value)
@@ -419,7 +419,7 @@ partial class ModelExtract
 
                     if (hideInTools.Contains(groupName))
                     {
-                        bodyGroup.AddProperty("hidden_in_tools", true);
+                        bodyGroup.Add("hidden_in_tools", true);
                     }
 
                     var i = 0;
@@ -429,16 +429,16 @@ partial class ModelExtract
 
                         if (name != i.ToString(CultureInfo.InvariantCulture))
                         {
-                            meshGroupChoice.AddProperty("name", name);
+                            meshGroupChoice.Add("name", name);
                         }
 
                         if (hideInTools.Contains(key))
                         {
-                            meshGroupChoice.AddProperty("hide_in_tools", true);
+                            meshGroupChoice.Add("hide_in_tools", true);
                         }
 
-                        var meshes = new KVObject(null, Array.Empty<KVValue>());
-                        meshGroupChoice.AddProperty("meshes", meshes.Value);
+                        var meshes = KVObject.Array(null);
+                        meshGroupChoice.Add("meshes", meshes.Value);
 
                         foreach (var renderMesh in RenderMeshesToExtract)
                         {
@@ -479,7 +479,7 @@ partial class ModelExtract
 
                 if (attachment.Length > 1)
                 {
-                    var children = new KVObject(null, Array.Empty<KVValue>());
+                    var children = KVObject.Array(null);
                     for (var i = 0; i < attachment.Length - 1; i++)
                     {
                         var influence = attachment[i];
@@ -492,7 +492,7 @@ partial class ModelExtract
 
                         children.Add(childNode.Value);
                     }
-                    node.AddProperty("children", children.Value);
+                    node.Add("children", children.Value);
                 }
 
                 attachmentList.Value.Add(node.Value);
@@ -533,7 +533,7 @@ partial class ModelExtract
                         var animationNames = faceposerFolders.GetArray<string>(folderName);
 
                         var (folderNode, children) = MakeListNode("Folder");
-                        folderNode.AddProperty("name", folderName);
+                        folderNode.Add("name", folderName);
                         animationList.Value.Add(folderNode.Value);
 
                         foreach (var animationName in animationNames!)
@@ -588,11 +588,11 @@ partial class ModelExtract
                 if (animation.Anim.Activities.Length > 0)
                 {
                     var activity = animation.Anim.Activities[0];
-                    animationFile.AddProperty("activity_name", activity.Name);
-                    animationFile.AddProperty("activity_weight", activity.Weight);
+                    animationFile.Add("activity_name", activity.Name);
+                    animationFile.Add("activity_weight", activity.Weight);
                 }
 
-                var childrenKV = new KVObject(null, Array.Empty<KVValue>());
+                var childrenKV = KVObject.Array(null);
                 if (animation.Anim.HasMovementData())
                 {
                     var flags = animation.Anim.Movements[0].MotionFlags;
@@ -617,7 +617,7 @@ partial class ModelExtract
 
                     if (animEvent.EventData != null)
                     {
-                        animEventNode.AddProperty("event_keys", animEvent.EventData.Value);
+                        animEventNode.Add("event_keys", animEvent.EventData.Value);
                     }
                     childrenKV.Add(animEventNode.Value);
                 }
@@ -675,7 +675,7 @@ partial class ModelExtract
 
                 if (childrenKV.Count > 0)
                 {
-                    animationFile.AddProperty("children", childrenKV.Value);
+                    animationFile.Add("children", childrenKV.Value);
                 }
 
                 AddToFolderOrRoot(animation.Anim.Name, animationFile);
@@ -812,7 +812,7 @@ partial class ModelExtract
             bool globalReplace = false,
             string globalDefault = "materials/tools/toolsnodraw.vmat")
         {
-            var remaps = new KVObject(null, Array.Empty<KVValue>());
+            var remaps = KVObject.Array(null);
             materialGroupList.Value.Add(
                 MakeNode(
                     "DefaultMaterialGroup",
@@ -830,8 +830,8 @@ partial class ModelExtract
             foreach (var (from, to) in remapTable)
             {
                 var remap = new KVObject(null);
-                remap.AddProperty("from", from);
-                remap.AddProperty("to", to);
+                remap.Add("from", from);
+                remap.Add("to", to);
                 remaps.Add(remap.Value);
             }
         }
@@ -856,11 +856,11 @@ partial class ModelExtract
                 _ => throw new NotImplementedException($"Unknown hitbox shape type: {hitbox.ShapeType}")
             };
 
-            node.AddProperty("name", hitbox.Name);
-            node.AddProperty("parent_bone", hitbox.BoneName);
-            node.AddProperty("surface_property", hitbox.SurfaceProperty);
-            node.AddProperty("translation_only", hitbox.TranslationOnly);
-            node.AddProperty("group_id", hitbox.GroupId);
+            node.Add("name", hitbox.Name);
+            node.Add("parent_bone", hitbox.BoneName);
+            node.Add("surface_property", hitbox.SurfaceProperty);
+            node.Add("translation_only", hitbox.TranslationOnly);
+            node.Add("group_id", hitbox.GroupId);
 
             return node;
         }
@@ -874,7 +874,7 @@ partial class ModelExtract
 
             foreach (var pair in model.HitboxSets)
             {
-                var children = new KVObject(null, Array.Empty<KVValue>());
+                var children = KVObject.Array(null);
                 var hitboxSet = MakeNode("HitboxSet", ("name", pair.Key), ("children", children.Value));
 
                 foreach (var hitbox in pair.Value)
@@ -905,7 +905,7 @@ partial class ModelExtract
                     continue;
                 }
 
-                var weights = new KVObject(null, Array.Empty<KVValue>());
+                var weights = KVObject.Array(null);
                 var weightListNode = MakeNode("WeightList",
                     ("name", name),
                     ("weights", weights.Value)
@@ -916,8 +916,8 @@ partial class ModelExtract
                     var weightDefinition = new KVObject(null);
                     var boneName = boneNames![boneIndex];
 
-                    weightDefinition.AddProperty("bone", boneName);
-                    weightDefinition.AddProperty("weight", boneWeight);
+                    weightDefinition.Add("bone", boneName);
+                    weightDefinition.Add("weight", boneWeight);
                     weights.Add(weightDefinition.Value);
                 }
 
@@ -998,7 +998,7 @@ partial class ModelExtract
 
             if (keyvalues.ContainsKey("anim_graph_resource"))
             {
-                rootNode.AddProperty("anim_graph_name", keyvalues.GetProperty<string>("anim_graph_resource"));
+                rootNode.Add("anim_graph_name", keyvalues.GetProperty<string>("anim_graph_resource"));
             }
 
             if (keyvalues.ContainsKey("BoneConstraintList"))
@@ -1104,7 +1104,7 @@ partial class ModelExtract
                 var lookAtList = keyvalues.GetSubCollection("LookAtList");
                 foreach (var item in lookAtList)
                 {
-                    if (item.Value is KVCollectionValue)
+                    if (item.ValueType == KVValueType.Collection)
                     {
                         AddGenericGameData(gameDataList.Value, "LookAtChain", item, "lookat_chain");
                     }
@@ -1138,7 +1138,7 @@ partial class ModelExtract
 
             static KVObject? ConvertFeetSettings(KVObject feetSettings)
             {
-                var children = new KVObject(null, Array.Empty<KVValue>());
+                var children = KVObject.Array(null);
 
                 // Field mappings from compiled to source names
                 var footFieldMappings = new (string CompiledName, string SourceName)[]
@@ -1155,7 +1155,7 @@ partial class ModelExtract
                 // Convert each foot entry to a Foot child node
                 foreach (var footEntry in feetSettings.Children)
                 {
-                    if (footEntry.Value is not KVCollectionValue)
+                    if (footEntry.ValueType != KVValueType.Collection)
                     {
                         continue;
                     }
@@ -1167,12 +1167,12 @@ partial class ModelExtract
                     {
                         if (footEntry.ContainsKey(compiledName))
                         {
-                            footNode.AddProperty(sourceName, footEntry[compiledName]);
+                            footNode.Add(sourceName, footEntry[compiledName].Value);
                         }
                     }
 
                     // autolevel is typically true by default in source format
-                    footNode.AddProperty("autolevel", true);
+                    footNode.Add("autolevel", true);
 
                     children.Add(footNode.Value);
                 }
@@ -1198,7 +1198,7 @@ partial class ModelExtract
                 {
                     if (feetSettings.ContainsKey(compiledName))
                     {
-                        feetNode.AddProperty(sourceName, feetSettings[compiledName]);
+                        feetNode.Add(sourceName, feetSettings[compiledName].Value);
                     }
                 }
 
@@ -1217,7 +1217,7 @@ partial class ModelExtract
                 foreach (var child in genericData.Children)
                 {
                     var trimmed = child.Name?.Trim('"');
-                    cleanedData.AddProperty(trimmed, child.Value);
+                    cleanedData.Add(trimmed, child.Value);
                 }
 
                 var name = "";

@@ -79,43 +79,43 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (Events.Length > 0)
             {
-                var events = new KVObject(null, Array.Empty<KVValue>());
+                var events = KVObject.Array(null);
                 foreach (var choreoEvent in Events)
                 {
                     events.Add(choreoEvent.ToKeyValues().Value);
                 }
 
-                kv.AddProperty("events", events.Value);
+                kv.Add("events", events.Value);
             }
 
             if (Actors.Length > 0)
             {
-                var actors = new KVObject(null, Array.Empty<KVValue>());
+                var actors = KVObject.Array(null);
                 foreach (var actor in Actors)
                 {
                     actors.Add(actor.ToKeyValues().Value);
                 }
 
-                kv.AddProperty("actors", actors.Value);
+                kv.Add("actors", actors.Value);
             }
 
             if (Ramp != null)
             {
                 if (Ramp.LeftEdge != null)
                 {
-                    kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
+                    kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
                 }
                 if (Ramp.RightEdge != null)
                 {
-                    kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues().Value);
+                    kv.Add("right_edge", Ramp.RightEdge.ToKeyValues().Value);
                 }
                 if (Ramp.Samples.Length > 0)
                 {
-                    kv.AddProperty("scene_ramp", Ramp.ToKeyValues().Value);
+                    kv.Add("scene_ramp", Ramp.ToKeyValues().Value);
                 }
             }
 
-            kv.AddProperty("ignorePhonemes", IgnorePhonemes);
+            kv.Add("ignorePhonemes", IgnorePhonemes);
 
             return kv;
         }

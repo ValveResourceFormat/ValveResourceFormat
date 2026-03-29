@@ -293,7 +293,7 @@ namespace GUI.Types.Viewers
         {
             foreach (var prop in entity.Properties.Children)
             {
-                var stringValue = prop.Value?.ToString() ?? string.Empty;
+                var stringValue = prop.Value.ToString() ?? string.Empty;
 
                 if (prop.Name.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {

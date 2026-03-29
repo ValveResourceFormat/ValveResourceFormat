@@ -246,19 +246,19 @@ namespace ValveResourceFormat.ResourceTypes
                     context.Bytes4Writer.Write(context.GetStringId((string)value));
                     break;
                 case KVValueType.BinaryBlob:
-                    var blobBytes = ((KVBinaryBlob)value).Bytes;
+                    var blobBytes = value.AsBlob();
                     context.BinaryBlobLengths.Add(blobBytes.Length);
                     if (blobBytes.Length > 0)
                     {
-                        context.BinaryBlobsWriter.Write(blobBytes.Span);
+                        context.BinaryBlobsWriter.Write(blobBytes);
                     }
                     break;
                 case KVValueType.Collection:
                     {
-                        var collection = (KVCollectionValue)value;
+                        var collection = new KVObject(null, value);
                         context.Bytes4Writer.Write(collection.Count);
 
-                        foreach (var property in collection)
+                        foreach (var property in collection.Children)
                         {
                             WriteProperty(property.Name, property.Value, context);
                         }
@@ -266,12 +266,12 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVValueType.Array:
                     {
-                        var array = (KVArrayValue)value;
+                        var array = new KVObject(null, value);
                         context.Bytes4Writer.Write(array.Count);
 
-                        foreach (var item in array)
+                        foreach (var item in array.Children)
                         {
-                            WriteValueRecursive(item, context);
+                            WriteValueRecursive(item.Value, context);
                         }
                     }
                     break;

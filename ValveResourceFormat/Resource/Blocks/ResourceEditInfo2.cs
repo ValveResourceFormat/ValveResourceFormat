@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Blocks
             {
                 foreach (var child in searchableData.Children)
                 {
-                    SearchableUserData.AddProperty(child.Name, child.Value);
+                    SearchableUserData.Add(child.Name, child.Value);
                 }
             }
 
@@ -106,16 +106,16 @@ namespace ValveResourceFormat.Blocks
 
                 foreach (var property in subassetReferences.Children)
                 {
-                    if (property.Value is not KVCollectionValue perTypeCollection)
+                    if (property.ValueType != KVValueType.Collection)
                     {
                         continue;
                     }
 
-                    var perTypeReferences = new Dictionary<string, int>(capacity: perTypeCollection.Count);
+                    var perTypeReferences = new Dictionary<string, int>(capacity: property.Count);
 
-                    foreach (var child in perTypeCollection)
+                    foreach (var child in property.Children)
                     {
-                        perTypeReferences.Add(child.Name, Convert.ToInt32(child.Value, CultureInfo.InvariantCulture));
+                        perTypeReferences.Add(child.Name, Convert.ToInt32(child, CultureInfo.InvariantCulture));
                     }
 
                     SubassetReferences.Add(property.Name, perTypeReferences);
@@ -129,15 +129,15 @@ namespace ValveResourceFormat.Blocks
 
                 foreach (var property in subassetDefinitions.Children)
                 {
-                    if (property.Value is not KVArrayValue array)
+                    if (property.ValueType != KVValueType.Array)
                     {
                         continue;
                     }
 
-                    var definitions = new string[array.Count];
-                    for (var i = 0; i < array.Count; i++)
+                    var definitions = new string[property.Count];
+                    for (var i = 0; i < property.Count; i++)
                     {
-                        definitions[i] = (string)array[i];
+                        definitions[i] = (string)property[i]!.Value;
                     }
 
                     SubassetDefinitions.Add(property.Name, definitions);

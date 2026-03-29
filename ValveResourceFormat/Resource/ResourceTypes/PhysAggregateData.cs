@@ -23,7 +23,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public Matrix4x4[] BindPose
            => bindPose ??= Data.GetArray("m_bindPose")
-                .Select(v => Matrix4x4FromArray(v.ChildrenValues
+                .Select(v => Matrix4x4FromArray(v.Children.Select(c => c.Value)
                     .Select(m => Convert.ToSingle(m, CultureInfo.InvariantCulture))
                     .ToArray()))
                 .ToArray();

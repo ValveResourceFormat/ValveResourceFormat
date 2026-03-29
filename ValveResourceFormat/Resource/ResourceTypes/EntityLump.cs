@@ -91,7 +91,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// </summary>
             /// <param name="name">The property name.</param>
             /// <returns>The property value or the default <see cref="KVValue"/> (with <see cref="KVValueType.Null"/>) if not found.</returns>
-            public KVValue GetProperty(string name) => Properties[name];
+            public KVValue GetProperty(string name) => Properties[name]?.Value ?? default;
 
             /// <summary>
             /// Determines whether the entity contains a property with the specified name.
@@ -233,30 +233,25 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
-        private static void ReadValues(Entity entity, KVValue values)
+        private static void ReadValues(Entity entity, KVObject? values)
         {
-            if (values == null || values.ValueType == KVValueType.Null || values is KVNullValue)
+            if (values == null || values.ValueType == KVValueType.Null)
             {
                 return;
             }
 
             if (values.ValueType != KVValueType.Collection)
             {
-                throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.ValueType, nameof(values.ValueType));
+                throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.ValueType, nameof(values));
             }
 
-            if (values is not KVCollectionValue collection)
-            {
-                throw new InvalidDataException("Expected KVCollectionValue for entity values");
-            }
-
-            foreach (var child in collection)
+            foreach (var child in values.Children)
             {
                 // All entity property keys will be stored in lowercase
                 var lowercaseKey = child.Name.ToLowerInvariant();
 
                 var hash = StringToken.Store(lowercaseKey);
-                entity.Properties.AddProperty(lowercaseKey, child.Value);
+                entity.Properties.Add(lowercaseKey, child.Value);
             }
         }
 
@@ -309,7 +304,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                entity.Properties.AddProperty(keyName, entityProperty);
+                entity.Properties.Add(keyName, entityProperty);
             }
 
             for (var i = 0; i < hashedFieldsCount; i++)
@@ -448,16 +443,16 @@ namespace ValveResourceFormat.ResourceTypes
                         continue;
                     }
 
-                    if (property.Value.ValueType == KVValueType.String && key == "model")
+                    if (property.ValueType == KVValueType.String && key == "model")
                     {
-                        var model = (string)property.Value;
+                        var model = (string)property;
                         if (model.Contains("/entities/", StringComparison.Ordinal) || model.Contains("\\entities\\", StringComparison.Ordinal))
                         {
                             brushEntities.Add(classname);
                         }
                     }
 
-                    entityProperties.Add((key, property.Value.ValueType));
+                    entityProperties.Add((key, property.ValueType));
                 }
 
                 if (entity.Connections != null)
@@ -545,7 +540,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 if (kvObject.IsArray)
                 {
-                    valueStr = string.Join(' ', kvObject.ChildrenValues.Select(v => v.ToString() ?? string.Empty));
+                    valueStr = string.Join(' ', kvObject.Children.Select(c => c.Value.ToString() ?? string.Empty));
                 }
                 else
                 {

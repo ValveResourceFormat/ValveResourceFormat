@@ -114,7 +114,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     if (offset == 0)
                     {
-                        structEntry.AddProperty(field.FieldName, new KVNullValue()); // :shrug:
+                        structEntry.Add(field.FieldName, default(KVValue)); // :shrug:
 
                         return;
                     }
@@ -153,14 +153,14 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (arrayCount == 0)
                     {
-                        structEntry.AddProperty(field.FieldName, new KVObject(field.FieldName, Array.Empty<KVValue>()).Value);
+                        structEntry.Add(field.FieldName, KVObject.Array(field.FieldName).Value);
                         return;
                     }
 
                     Reader.BaseStream.Position += arrayOffset - 8;
 
                     // Array of pointers
-                    var arrayValues = new KVObject(field.FieldName, Array.Empty<KVValue>());
+                    var arrayValues = KVObject.Array(field.FieldName);
 
                     for (var i = 0; i < arrayCount; i++)
                     {
@@ -168,7 +168,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         if (pointerOffset == 0)
                         {
-                            arrayValues.Add(new KVNullValue());
+                            arrayValues.Add(default(KVValue));
                         }
                         else
                         {
@@ -181,7 +181,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
-                    structEntry.AddProperty(field.FieldName, arrayValues.Value);
+                    structEntry.Add(field.FieldName, arrayValues.Value);
                     Reader.BaseStream.Position = prevOffset;
 
                     return;
@@ -210,12 +210,12 @@ namespace ValveResourceFormat.ResourceTypes
                     };
 
                     //special case for byte arrays for faster access
-                    fieldValue = new KVBinaryBlob(Reader.ReadBytes((int)count / size));
+                    fieldValue = KVValue.Blob(Reader.ReadBytes((int)count / size));
                 }
                 else
                 {
                     //var ntroValues = new NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
-                    var ntroValues = new KVObject(field.FieldName, Array.Empty<KVValue>());
+                    var ntroValues = KVObject.Array(field.FieldName);
 
                     for (var i = 0; i < count; i++)
                     {
@@ -231,7 +231,7 @@ namespace ValveResourceFormat.ResourceTypes
                 fieldValue = ReadField(field);
             }
 
-            structEntry.AddProperty(field.FieldName, fieldValue);
+            structEntry.Add(field.FieldName, fieldValue);
 
             if (prevOffset > 0)
             {
@@ -286,19 +286,18 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (value == null)
                     {
-                        return new KVNullValue();
+                        return default(KVValue);
                     }
 
                     KVValue resourceNameValue = value;
-                    resourceNameValue.Flag = KVFlag.ResourceName;
-                    return resourceNameValue;
+                    return resourceNameValue with { Flag = KVFlag.ResourceName };
 
                 case SchemaFieldType.UInt64:
                     return (KVValue)(ulong)Reader.ReadUInt64();
 
                 case SchemaFieldType.Vector3D:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        var arrayObject = KVObject.Array(field.Type.ToString());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
@@ -310,7 +309,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.Vector4D:
                 case SchemaFieldType.FourVectors:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        var arrayObject = KVObject.Array(field.Type.ToString());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
@@ -320,7 +319,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case SchemaFieldType.Color:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        var arrayObject = KVObject.Array(field.Type.ToString());
                         arrayObject.Add((KVValue)(int)Reader.ReadByte());
                         arrayObject.Add((KVValue)(int)Reader.ReadByte());
                         arrayObject.Add((KVValue)(int)Reader.ReadByte());
@@ -333,12 +332,11 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case SchemaFieldType.ResourceString:
                     KVValue resourceValue = Reader.ReadOffsetString(Encoding.UTF8);
-                    resourceValue.Flag = KVFlag.Resource;
-                    return resourceValue;
+                    return resourceValue with { Flag = KVFlag.Resource };
 
                 case SchemaFieldType.Vector2D:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        var arrayObject = KVObject.Array(field.Type.ToString());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         return arrayObject.Value;
@@ -347,7 +345,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.Matrix3x4:
                 case SchemaFieldType.Matrix3x4a:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        var arrayObject = KVObject.Array(field.Type.ToString());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
@@ -365,7 +363,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case SchemaFieldType.Transform:
                     {
-                        var arrayObject = new KVObject(field.Type.ToString(), Array.Empty<KVValue>());
+                        var arrayObject = KVObject.Array(field.Type.ToString());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());
                         arrayObject.Add((KVValue)Reader.ReadSingle());

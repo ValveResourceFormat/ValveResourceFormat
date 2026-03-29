@@ -81,17 +81,17 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         {
             var kv = new KVObject(null);
 
-            kv.AddProperty("time", Time);
-            kv.AddProperty("value", Value);
+            kv.Add("time", Time);
+            kv.Add("value", Value);
 
             if (Curve != null)
             {
-                kv.AddProperty("curvetype", Curve.Value.ToKeyValue());
+                kv.Add("curvetype", Curve.Value.ToKeyValue());
             }
 
             if (Bezier != null)
             {
-                kv.AddProperty("bezier", Bezier.Value.ToKeyValue());
+                kv.Add("bezier", Bezier.Value.ToKeyValue());
             }
 
             return kv;

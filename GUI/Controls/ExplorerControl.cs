@@ -748,7 +748,7 @@ namespace GUI.Controls
 
                     if (filename != null)
                     {
-                        appIconPath = Path.Join(libraryCachePath, appIDStr, filename.ToString());
+                        appIconPath = Path.Join(libraryCachePath, appIDStr, (string)filename);
 
                         if (!File.Exists(appIconPath))
                         {

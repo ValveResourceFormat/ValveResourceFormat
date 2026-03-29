@@ -54,19 +54,19 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
             var kv = new KVObject(null);
 
             var unified = Flags.HasFlag(BezierFlags.Unified);
-            kv.AddProperty("unified", unified);
+            kv.Add("unified", unified);
             var unweighted = Flags.HasFlag(BezierFlags.Unweighted);
-            kv.AddProperty("unweighted", unweighted);
+            kv.Add("unweighted", unweighted);
 
             var inKV = new KVObject(null);
-            inKV.AddProperty("deg", InDegrees);
-            inKV.AddProperty("weight", InWeight);
-            kv.AddProperty("in", inKV.Value);
+            inKV.Add("deg", InDegrees);
+            inKV.Add("weight", InWeight);
+            kv.Add("in", inKV.Value);
 
             var outKV = new KVObject(null);
-            outKV.AddProperty("deg", OutDegrees);
-            outKV.AddProperty("weight", OutWeight);
-            kv.AddProperty("out", outKV.Value);
+            outKV.Add("deg", OutDegrees);
+            outKV.Add("weight", OutWeight);
+            kv.Add("out", outKV.Value);
 
             return kv.Value;
         }

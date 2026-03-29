@@ -113,7 +113,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var resource in Resources)
             {
-                var arr = new KVObject(null, Array.Empty<KVValue>());
+                var arr = KVObject.Array(null);
 
                 foreach (var file in resource)
                 {
@@ -121,7 +121,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
 
                 var key = index > 0 ? $"resourceManifest{index}" : "resourceManifest";
-                root.AddProperty(key, arr.Value);
+                root.Add(key, arr.Value);
                 index++;
             }
 

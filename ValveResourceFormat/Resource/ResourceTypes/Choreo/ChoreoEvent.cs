@@ -144,14 +144,14 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             var kv = new KVObject(null);
 
             var type = TypeToKVString();
-            kv.AddProperty("type", type);
+            kv.Add("type", type);
 
-            kv.AddProperty("name", Name);
-            kv.AddProperty("start_time", StartTime);
-            kv.AddProperty("end_time", EndTime);
-            kv.AddProperty("param", Param1);
-            kv.AddProperty("param2", Param2);
-            kv.AddProperty("param3", Param3);
+            kv.Add("name", Name);
+            kv.Add("start_time", StartTime);
+            kv.Add("end_time", EndTime);
+            kv.Add("param", Param1);
+            kv.Add("param2", Param2);
+            kv.Add("param3", Param3);
 
             if (ClosedCaptionsType != ChoreoClosedCaptionsType.None)
             {
@@ -162,8 +162,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                     ChoreoClosedCaptionsType.Disabled => "cc_disabled",
                     _ => ""
                 };
-                kv.AddProperty("cctype", ccType);
-                kv.AddProperty("cctoken", ClosedCaptionsToken);
+                kv.Add("cctype", ccType);
+                kv.Add("cctoken", ClosedCaptionsToken);
             }
 
             AddKVFlag(kv, "cc_noattenuate", SpeakFlags, ChoreoSpeakFlags.SuppressingCaptionAttenuation, false);
@@ -171,7 +171,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             AddKVFlag(kv, "cc_combinedusesgender", SpeakFlags, ChoreoSpeakFlags.CombinedUsingGenderToken, false);
             AddKVFlag(kv, "hardstopspeakevent", SpeakFlags, ChoreoSpeakFlags.HardStopSpeakEvent, false);
             AddKVFlag(kv, "volumematcheseventramp", SpeakFlags, ChoreoSpeakFlags.VolumeMatchesEventRamp, false);
-            kv.AddProperty("startdelay", SoundStartDelay);
+            kv.Add("startdelay", SoundStartDelay);
 
             AddKVFlag(kv, "resumecondition", Flags, ChoreoFlags.ResumeCondition, false);
             AddKVFlag(kv, "active", Flags, ChoreoFlags.IsActive, true);
@@ -183,42 +183,42 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             if (Type == ChoreoEventType.Loop)
             {
                 var loopCount = LoopCount == byte.MaxValue ? -1 : LoopCount;
-                kv.AddProperty("loopcount", loopCount);
+                kv.Add("loopcount", loopCount);
             }
             else if (Type == ChoreoEventType.Gesture)
             {
-                kv.AddProperty("sequenceduration", SequenceDuration);
+                kv.Add("sequenceduration", SequenceDuration);
             }
 
             if (RelativeTag != null)
             {
-                kv.AddProperty("relativetag_name", RelativeTag.Name);
-                kv.AddProperty("relativetag_sound", RelativeTag.SoundName);
+                kv.Add("relativetag_name", RelativeTag.Name);
+                kv.Add("relativetag_sound", RelativeTag.SoundName);
             }
 
             if (DistanceToTarget != 0.0f)
             {
-                kv.AddProperty("distancetotarget", DistanceToTarget);
+                kv.Add("distancetotarget", DistanceToTarget);
             }
 
             if (ConstrainedEventId != 0)
             {
-                kv.AddProperty("constrainedEventID", ConstrainedEventId);
+                kv.Add("constrainedEventID", ConstrainedEventId);
             }
 
-            kv.AddProperty("eventID", Id);
+            kv.Add("eventID", Id);
 
             if (Ramp?.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
+                kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
             }
             if (Ramp?.RightEdge != null)
             {
-                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues().Value);
+                kv.Add("right_edge", Ramp.RightEdge.ToKeyValues().Value);
             }
             if (Ramp.Samples.Length > 0)
             {
-                kv.AddProperty("event_ramp", Ramp.ToKeyValues().Value);
+                kv.Add("event_ramp", Ramp.ToKeyValues().Value);
             }
 
             AddTagArrayToKV(kv, "flextimingtags", FlexTimingTags);
@@ -230,13 +230,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             {
                 //If samples_use_time is 1, samples in the flex animations are interpreted as real time (probably meaning values are not clamped to 0.0-1.0)
                 //They're stored as real time in the vcd, so this has to be set to true
-                kv.AddProperty("samples_use_time", true);
-                kv.AddProperty("flexanimations", EventFlex.ToKeyValues().Value);
+                kv.Add("samples_use_time", true);
+                kv.Add("flexanimations", EventFlex.ToKeyValues().Value);
             }
 
             if (PreferredName != null)
             {
-                kv.AddProperty("preferred_name", PreferredName);
+                kv.Add("preferred_name", PreferredName);
             }
 
             return kv;
@@ -249,18 +249,18 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 return;
             }
 
-            var tagList = new KVObject(null, Array.Empty<KVValue>());
+            var tagList = KVObject.Array(null);
 
             foreach (var tag in tags)
             {
                 var tagKV = new KVObject(null);
-                tagKV.AddProperty("name", tag.Name);
-                tagKV.AddProperty("fraction", tag.Fraction);
+                tagKV.Add("name", tag.Name);
+                tagKV.Add("fraction", tag.Fraction);
 
                 tagList.Add(tagKV.Value);
             }
 
-            parent.AddProperty(name, tagList.Value);
+            parent.Add(name, tagList.Value);
         }
 
         private static void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)
@@ -271,7 +271,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 return;
             }
 
-            kv.AddProperty(name, set);
+            kv.Add(name, set);
         }
 
         private string TypeToKVString()

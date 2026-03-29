@@ -176,7 +176,7 @@ namespace ValveResourceFormat.Renderer
                 var morphDataChild = morphDatas[morphId];
                 morphRects[morphId] = new List<int>(10);
 
-                if (morphDataChild.Value is not KVCollectionValue)
+                if (morphDataChild.ValueType != KVValueType.Collection)
                 {
                     continue;
                 }

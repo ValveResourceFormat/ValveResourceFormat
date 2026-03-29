@@ -123,9 +123,9 @@ namespace ValveResourceFormat.ResourceTypes
         public string ToValvePostProcessing(bool preloadLookupTable = false, string lutFileName = "")
         {
             var outKV3 = new KVObject(null);
-            outKV3.AddProperty("_class", "CPostProcessData");
+            outKV3.Add("_class", "CPostProcessData");
 
-            var layers = new KVObject("m_layers", Array.Empty<KVValue>());
+            var layers = KVObject.Array("m_layers");
 
             var tonemapParams = GetTonemapParams();
             var bloomParams = GetBloomParams();
@@ -136,19 +136,19 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var tonemappingLayer = new KVObject(null);
                 {
-                    tonemappingLayer.AddProperty("_class", "CToneMappingLayer");
-                    tonemappingLayer.AddProperty("m_name", "Tone Mapping");
-                    tonemappingLayer.AddProperty("m_nOpacityPercent", 100);
-                    tonemappingLayer.AddProperty("m_bVisible", true);
-                    tonemappingLayer.AddProperty("m_pLayerMask", new KVNullValue());
+                    tonemappingLayer.Add("_class", "CToneMappingLayer");
+                    tonemappingLayer.Add("m_name", "Tone Mapping");
+                    tonemappingLayer.Add("m_nOpacityPercent", 100);
+                    tonemappingLayer.Add("m_bVisible", true);
+                    tonemappingLayer.Add("m_pLayerMask", default(KVValue));
 
                     var tonemappingLayerParams = new KVObject("m_params");
                     foreach (var kv in tonemapParams.Children)
                     {
-                        tonemappingLayerParams.AddProperty(kv.Name, kv.Value);
+                        tonemappingLayerParams.Add(kv.Name, kv.Value);
                     }
 
-                    tonemappingLayer.AddProperty(tonemappingLayerParams.Name, tonemappingLayerParams.Value);
+                    tonemappingLayer.Add(tonemappingLayerParams.Name, tonemappingLayerParams.Value);
                 }
 
                 layers.Add(tonemappingLayer.Value);
@@ -158,19 +158,19 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var bloomLayer = new KVObject(null);
                 {
-                    bloomLayer.AddProperty("_class", "CBloomLayer");
-                    bloomLayer.AddProperty("m_name", "Bloom");
-                    bloomLayer.AddProperty("m_nOpacityPercent", 100);
-                    bloomLayer.AddProperty("m_bVisible", true);
-                    bloomLayer.AddProperty("m_pLayerMask", new KVNullValue());
+                    bloomLayer.Add("_class", "CBloomLayer");
+                    bloomLayer.Add("m_name", "Bloom");
+                    bloomLayer.Add("m_nOpacityPercent", 100);
+                    bloomLayer.Add("m_bVisible", true);
+                    bloomLayer.Add("m_pLayerMask", default(KVValue));
 
                     var bloomLayerParams = new KVObject("m_params");
                     foreach (var kv in bloomParams.Children)
                     {
-                        bloomLayerParams.AddProperty(kv.Name, kv.Value);
+                        bloomLayerParams.Add(kv.Name, kv.Value);
                     }
 
-                    bloomLayer.AddProperty(bloomLayerParams.Name, bloomLayerParams.Value);
+                    bloomLayer.Add(bloomLayerParams.Name, bloomLayerParams.Value);
                 }
 
                 layers.Add(bloomLayer.Value);
@@ -191,14 +191,14 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var ccLayer = new KVObject(null);
                 {
-                    ccLayer.AddProperty("_class", "CColorLookupColorCorrectionLayer");
-                    ccLayer.AddProperty("m_name", "VRF Extracted Lookup Table");
-                    ccLayer.AddProperty("m_nOpacityPercent", 100);
-                    ccLayer.AddProperty("m_bVisible", true);
-                    ccLayer.AddProperty("m_pLayerMask", new KVNullValue());
-                    ccLayer.AddProperty("m_fileName", lutFileName);
+                    ccLayer.Add("_class", "CColorLookupColorCorrectionLayer");
+                    ccLayer.Add("m_name", "VRF Extracted Lookup Table");
+                    ccLayer.Add("m_nOpacityPercent", 100);
+                    ccLayer.Add("m_bVisible", true);
+                    ccLayer.Add("m_pLayerMask", default(KVValue));
+                    ccLayer.Add("m_fileName", lutFileName);
 
-                    var lut = new KVObject("m_lut", Array.Empty<KVValue>());
+                    var lut = KVObject.Array("m_lut");
 
                     if (preloadLookupTable)
                     {
@@ -208,14 +208,14 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
-                    ccLayer.AddProperty(lut.Name, lut.Value);
-                    ccLayer.AddProperty("m_nDim", GetColorCorrectionLUTDimension());
+                    ccLayer.Add(lut.Name, lut.Value);
+                    ccLayer.Add("m_nDim", GetColorCorrectionLUTDimension());
                 }
 
                 layers.Add(ccLayer.Value);
             }
 
-            outKV3.AddProperty(layers.Name, layers.Value);
+            outKV3.Add(layers.Name, layers.Value);
 
             return new KV3File(outKV3).ToString();
         }

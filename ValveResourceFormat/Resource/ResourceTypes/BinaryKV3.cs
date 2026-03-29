@@ -950,7 +950,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
 
-                        var array = new KVObject(name, Array.Empty<KVValue>());
+                        var array = KVObject.Array(name);
 
                         for (var i = 0; i < arrayLength; i++)
                         {
@@ -978,7 +978,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
 
                         var (subType, subFlagInfo) = ReadType(context);
-                        var typedArray = new KVObject(name, Array.Empty<KVValue>());
+                        var typedArray = KVObject.Array(name);
 
                         for (var i = 0; i < arrayLength; i++)
                         {
@@ -997,7 +997,7 @@ namespace ValveResourceFormat.ResourceTypes
                         buffer.Bytes1 = buffer.Bytes1[1..];
 
                         var (subType, subFlagInfo) = ReadType(context);
-                        var typedArray = new KVObject(name, Array.Empty<KVValue>());
+                        var typedArray = KVObject.Array(name);
 
                         // Swap the buffers and simply call read again instead of reimplementing the switch here
                         (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
@@ -1105,7 +1105,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             KVValue value = data switch
             {
-                null => new KVNullValue(),
+                null => default(KVValue),
                 bool b => b,
                 int i => i,
                 uint u => u,
@@ -1116,12 +1116,11 @@ namespace ValveResourceFormat.ResourceTypes
                 float f => f,
                 double d => d,
                 string s => s,
-                byte[] bytes => new KVBinaryBlob(bytes),
+                byte[] bytes => KVValue.Blob(bytes),
                 KVObject obj => obj.Value,
                 _ => throw new NotImplementedException($"MakeValue does not support {data.GetType()}")
             };
-            value.Flag = flag;
-            return value;
+            return flag != KVFlag.None ? value with { Flag = flag } : value;
         }
 
         private static void AddToParent(KVObject parent, string name, KVValue value)
@@ -1132,7 +1131,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                parent.AddProperty(name, value);
+                parent.Add(name, value);
             }
         }
 
