@@ -779,25 +779,25 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 // Hardcoded values
                 case KV3BinaryNodeType.NULL:
-                    AddToParent(parent, name, MakeValue(datatype, null, flagInfo));
+                    AddValue(parent, name, KVObject.Null(), flagInfo);
                     break;
                 case KV3BinaryNodeType.BOOLEAN_TRUE:
-                    AddToParent(parent, name, MakeValue(datatype, true, flagInfo));
+                    AddValue(parent, name, true, flagInfo);
                     break;
                 case KV3BinaryNodeType.BOOLEAN_FALSE:
-                    AddToParent(parent, name, MakeValue(datatype, false, flagInfo));
+                    AddValue(parent, name, false, flagInfo);
                     break;
                 case KV3BinaryNodeType.INT64_ZERO:
-                    AddToParent(parent, name, MakeValue(datatype, 0L, flagInfo));
+                    AddValue(parent, name, 0L, flagInfo);
                     break;
                 case KV3BinaryNodeType.INT64_ONE:
-                    AddToParent(parent, name, MakeValue(datatype, 1L, flagInfo));
+                    AddValue(parent, name, 1L, flagInfo);
                     break;
                 case KV3BinaryNodeType.DOUBLE_ZERO:
-                    AddToParent(parent, name, MakeValue(datatype, 0.0D, flagInfo));
+                    AddValue(parent, name, 0.0D, flagInfo);
                     break;
                 case KV3BinaryNodeType.DOUBLE_ONE:
-                    AddToParent(parent, name, MakeValue(datatype, 1.0D, flagInfo));
+                    AddValue(parent, name, 1.0D, flagInfo);
                     break;
 
                 // 1 byte values
@@ -806,7 +806,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = buffer.Bytes1[0] == 1;
                         buffer.Bytes1 = buffer.Bytes1[1..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
                 // TODO: 22 might be INT32_AS_BYTE, and 23 is UINT32_AS_BYTE
@@ -817,7 +817,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = (int)buffer.Bytes1[0];
                         buffer.Bytes1 = buffer.Bytes1[1..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
 
@@ -829,7 +829,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = MemoryMarshal.Read<short>(buffer.Bytes2);
                         buffer.Bytes2 = buffer.Bytes2[sizeof(short)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.UINT16:
@@ -839,7 +839,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = MemoryMarshal.Read<ushort>(buffer.Bytes2);
                         buffer.Bytes2 = buffer.Bytes2[sizeof(ushort)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
 
@@ -849,7 +849,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.UINT32:
@@ -857,7 +857,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = MemoryMarshal.Read<uint>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(uint)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.FLOAT:
@@ -867,7 +867,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = MemoryMarshal.Read<float>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(float)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
 
@@ -877,7 +877,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = MemoryMarshal.Read<long>(buffer.Bytes8);
                         buffer.Bytes8 = buffer.Bytes8[sizeof(long)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.UINT64:
@@ -885,7 +885,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = MemoryMarshal.Read<ulong>(buffer.Bytes8);
                         buffer.Bytes8 = buffer.Bytes8[sizeof(ulong)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.DOUBLE:
@@ -893,7 +893,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var value = MemoryMarshal.Read<double>(buffer.Bytes8);
                         buffer.Bytes8 = buffer.Bytes8[sizeof(double)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, value, flagInfo));
+                        AddValue(parent, name, value, flagInfo);
                     }
                     break;
 
@@ -903,7 +903,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var id = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
 
-                        AddToParent(parent, name, MakeValue(datatype, id == -1 ? string.Empty : context.Strings[id], flagInfo));
+                        AddValue(parent, name, id == -1 ? string.Empty : context.Strings[id], flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.BINARY_BLOB when context.Version < 2:
@@ -922,7 +922,7 @@ namespace ValveResourceFormat.ResourceTypes
                             output = [];
                         }
 
-                        AddToParent(parent, name, MakeValue(datatype, output, flagInfo));
+                        AddValue(parent, name, output, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.BINARY_BLOB:
@@ -941,7 +941,7 @@ namespace ValveResourceFormat.ResourceTypes
                             output = [];
                         }
 
-                        AddToParent(parent, name, MakeValue(datatype, output, flagInfo));
+                        AddValue(parent, name, output, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.ARRAY:
@@ -956,8 +956,7 @@ namespace ValveResourceFormat.ResourceTypes
                             ParseBinaryKV3(context, array, true);
                         }
 
-
-                        AddToParent(parent, name, MakeValue(datatype, array, flagInfo));
+                        AddValue(parent, name, array, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.ARRAY_TYPED:
@@ -984,8 +983,7 @@ namespace ValveResourceFormat.ResourceTypes
                             ReadBinaryValue(context, name, subType, subFlagInfo, typedArray);
                         }
 
-
-                        AddToParent(parent, name, MakeValue(datatype, typedArray, flagInfo));
+                        AddValue(parent, name, typedArray, flagInfo);
                     }
                     break;
                 case KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER:
@@ -1009,7 +1007,7 @@ namespace ValveResourceFormat.ResourceTypes
                         (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
 
 
-                        AddToParent(parent, name, MakeValue(datatype, typedArray, flagInfo));
+                        AddValue(parent, name, typedArray, flagInfo);
                     }
                     break;
 
@@ -1041,7 +1039,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                         else
                         {
-                            AddToParent(parent, name, MakeValue(datatype, newObject, flagInfo));
+                            AddValue(parent, name, newObject, flagInfo);
                         }
                     }
                     break;
@@ -1052,84 +1050,13 @@ namespace ValveResourceFormat.ResourceTypes
             return parent;
         }
 
-        private static KVValueType ConvertBinaryOnlyKVType(KV3BinaryNodeType type)
+        private static void AddValue(KVObject parent, string name, KVObject value, KVFlag flag = KVFlag.None)
         {
-            // TODO: Why we are upcasting (u)int32 to 64
-#pragma warning disable IDE0066 // Convert switch statement to expression
-            switch (type)
-            {
-                case KV3BinaryNodeType.BOOLEAN:
-                case KV3BinaryNodeType.BOOLEAN_TRUE:
-                case KV3BinaryNodeType.BOOLEAN_FALSE:
-                    return KVValueType.Boolean;
-                case KV3BinaryNodeType.INT16:
-                    return KVValueType.Int16;
-                case KV3BinaryNodeType.UINT16:
-                    return KVValueType.UInt16;
-                case KV3BinaryNodeType.INT64:
-                case KV3BinaryNodeType.INT32:
-                case KV3BinaryNodeType.INT64_ZERO:
-                case KV3BinaryNodeType.INT64_ONE:
-                case KV3BinaryNodeType.INT32_AS_BYTE:
-                    return KVValueType.Int64;
-                case KV3BinaryNodeType.UINT64:
-                case KV3BinaryNodeType.UINT32:
-                    return KVValueType.UInt64;
-                case KV3BinaryNodeType.FLOAT:
-                    return KVValueType.FloatingPoint;
-                case KV3BinaryNodeType.DOUBLE:
-                case KV3BinaryNodeType.DOUBLE_ZERO:
-                case KV3BinaryNodeType.DOUBLE_ONE:
-                    return KVValueType.FloatingPoint64;
-                case KV3BinaryNodeType.ARRAY:
-                case KV3BinaryNodeType.ARRAY_TYPED:
-                case KV3BinaryNodeType.ARRAY_TYPE_BYTE_LENGTH:
-                case KV3BinaryNodeType.ARRAY_TYPE_AUXILIARY_BUFFER:
-                    return KVValueType.Array;
-                case KV3BinaryNodeType.OBJECT:
-                    return KVValueType.Collection;
-                case KV3BinaryNodeType.STRING:
-                    return KVValueType.String;
-                case KV3BinaryNodeType.BINARY_BLOB:
-                    return KVValueType.BinaryBlob;
-                case KV3BinaryNodeType.NULL:
-                    return KVValueType.Null;
-                default:
-                    throw new NotImplementedException($"Unknown type {type}");
-            }
-#pragma warning restore IDE0066 // Convert switch statement to expression
-        }
-
-        private static KVObject MakeValue(KV3BinaryNodeType type, object data, KVFlag flag = KVFlag.None)
-        {
-            KVObject value = data switch
-            {
-                null => KVObject.Null(),
-                bool b => b,
-                int i => i,
-                uint u => u,
-                short s => s,
-                ushort us => us,
-                long l => l,
-                ulong ul => ul,
-                float f => f,
-                double d => d,
-                string s => s,
-                byte[] bytes => KVObject.Blob(bytes),
-                KVObject obj => obj,
-                _ => throw new NotImplementedException($"MakeValue does not support {data.GetType()}")
-            };
-
             if (flag != KVFlag.None)
             {
                 value.Flag = flag;
             }
 
-            return value;
-        }
-
-        private static void AddToParent(KVObject parent, string name, KVObject value)
-        {
             if (parent.IsArray)
             {
                 parent.Add(value);
