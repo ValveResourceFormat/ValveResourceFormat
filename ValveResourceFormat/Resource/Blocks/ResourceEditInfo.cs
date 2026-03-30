@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Gets the searchable user data.
         /// </summary>
-        public KVObject SearchableUserData { get; } = new("m_SearchableUserData"); // Maybe these should be split..
+        public KVObject SearchableUserData { get; } = KVObject.Collection();
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -88,16 +88,16 @@ namespace ValveResourceFormat.Blocks
                     var value = valueReader.Invoke(reader);
 
                     // Note: we may override existing keys
-                    KVValue kvValue = value switch
+                    KVObject kvValue = value switch
                     {
-                        string s => (KVValue)s,
-                        long l => (KVValue)l,
-                        double d => (KVValue)d,
-                        float f => (KVValue)f,
-                        int n => (KVValue)n,
-                        _ => (KVValue)value!.ToString()!,
+                        string s => s,
+                        long l => l,
+                        double d => d,
+                        float f => f,
+                        int n => n,
+                        _ => value!.ToString()!,
                     };
-                    kvObject[key] = new KVObject(key, kvValue);
+                    kvObject[key] = kvValue;
                 }
             }
 
@@ -140,7 +140,7 @@ namespace ValveResourceFormat.Blocks
                 SpecialDependencies,
                 AdditionalRelatedFiles,
                 ChildResourceList,
-                SearchableUserData = SearchableUserData.Children.Select(c => new { Key = c.Name, Value = c.Value.ToString() ?? string.Empty }),
+                SearchableUserData = SearchableUserData.Select(c => new { c.Key, Value = c.Value.ToString() ?? string.Empty }),
             };
 
             serializer.Serialize(ms, serializedProps, "ResourceEditInfo");

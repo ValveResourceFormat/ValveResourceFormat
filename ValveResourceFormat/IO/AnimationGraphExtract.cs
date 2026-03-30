@@ -208,7 +208,7 @@ public class AnimationGraphExtract : IDisposable
         KVObject node,
         KVObject compiledNode,
         string key,
-        KVValue value,
+        KVObject value,
         Lazy<KVObject> subCollection,
         List<long> outConnections,
         PropAction action,
@@ -242,12 +242,12 @@ public class AnimationGraphExtract : IDisposable
             case PropAction.BlendDuration:
                 {
                     var converted = ConvertBlendDuration(subCollection.Value);
-                    node.Add(destKey, converted.Value);
+                    node.Add(destKey, converted);
                     break;
                 }
             case PropAction.BlendCurve:
                 {
-                    node.Add(destKey, MakeBlendCurve(subCollection.Value).Value);
+                    node.Add(destKey, MakeBlendCurve(subCollection.Value));
                     break;
                 }
             case PropAction.SequenceName:
@@ -748,13 +748,13 @@ public class AnimationGraphExtract : IDisposable
         }
 
         var footIndices = compiledSource.GetIntegerArray("m_footIndices");
-        var feetArray = KVObject.Array(null);
+        var feetArray = KVObject.Array();
         foreach (var footIndex in footIndices)
         {
             var footName = GetFootName((int)footIndex);
-            feetArray.Add((KVValue)footName);
+            feetArray.Add(footName);
         }
-        target.Add("m_feet", feetArray.Value);
+        target.Add("m_feet", feetArray);
     }
 
     private string[] LoadFootNamesFromModel()
@@ -779,11 +779,11 @@ public class AnimationGraphExtract : IDisposable
                 {
                     var feetSettings = keyvalues.GetSubCollection("FeetSettings");
 
-                    foreach (var footChild in feetSettings.Children)
+                    foreach (var (footKey, _) in feetSettings.Children)
                     {
-                        if (!string.IsNullOrEmpty(footChild.Name) && footChild.Name != "_class")
+                        if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
                         {
-                            footNames.Add(footChild.Name);
+                            footNames.Add(footKey);
                         }
                     }
                 }
@@ -844,19 +844,19 @@ public class AnimationGraphExtract : IDisposable
                 if (keyvalues.ContainsKey("LookAtList"))
                 {
                     var lookAtList = keyvalues.GetSubCollection("LookAtList");
-                    foreach (var chainEntry in lookAtList.Children)
+                    foreach (var (_, chainEntryValue) in lookAtList.Children)
                     {
-                        if (chainEntry.ValueType != KVValueType.Collection)
+                        if (chainEntryValue.ValueType != KVValueType.Collection)
                         {
                             continue;
                         }
                         var chain = new LookAtChainInfo
                         {
-                            Name = chainEntry.GetStringProperty("name")
+                            Name = chainEntryValue.GetStringProperty("name")
                         };
-                        if (chainEntry.ContainsKey("bones"))
+                        if (chainEntryValue.ContainsKey("bones"))
                         {
-                            var bones = chainEntry.GetArray("bones");
+                            var bones = chainEntryValue.GetArray("bones");
                             var boneNames = new List<string>();
                             var boneWeights = new List<float>();
 
@@ -958,7 +958,7 @@ public class AnimationGraphExtract : IDisposable
 
         var clipDataManager = tagManager.ContainsKey("sequence_tag_spans")
             ? ConvertClipDataManager(tagManager.GetArray("sequence_tag_spans"))
-            : MakeNode("CAnimClipDataManager", ("m_itemTable", default(KVValue)));
+            : MakeNode("CAnimClipDataManager", ("m_itemTable", KVObject.Null()));
 
         var nodeManager = MakeListNode("CAnimNodeManager", "m_nodes");
         var componentList = new List<KVObject>();
@@ -1012,10 +1012,10 @@ public class AnimationGraphExtract : IDisposable
 
         foreach (var (nodeId, nodeData) in createdNodes)
         {
-            var nodeManagerItem = new KVObject(null);
+            var nodeManagerItem = new KVObject();
             nodeManagerItem.Add("key", MakeNodeIdObjectValue(nodeId));
-            nodeManagerItem.Add("value", nodeData.Value);
-            nodeManager.Children.Add(nodeManagerItem.Value);
+            nodeManagerItem.Add("value", nodeData);
+            nodeManager.Children.Add(nodeManagerItem);
         }
 
         var localParameters = MakeArray(Parameters);
@@ -1026,16 +1026,16 @@ public class AnimationGraphExtract : IDisposable
         var kv = MakeNode(
             "CAnimationGraph",
             [
-                ("m_nodeManager", nodeManager.Node.Value),
-                ("m_componentManager", componentManager.Value),
+                ("m_nodeManager", nodeManager.Node),
+                ("m_componentManager", componentManager),
                 ("m_localParameters", localParameters),
                 ("m_localTags", localTags),
                 // ("m_referencedParamGroups", referencedParamGroups),
                 // ("m_referencedTagGroups", referencedTagGroups),
                 // ("m_referencedAnimGraphs", referencedAnimGraphs),
                 // ("m_pSettingsManager", settingsManager),
-                ("m_clipDataManager", clipDataManager.Value),
-                ("m_modelName", (KVValue)Graph.GetProperty<string>("m_modelName")),
+                ("m_clipDataManager", clipDataManager),
+                ("m_modelName", Graph.GetProperty<string>("m_modelName")),
             ]);
 
         return new KV3File(kv, format: KV3IDLookup.Get("animgraph19")).ToString();
@@ -1175,7 +1175,7 @@ public class AnimationGraphExtract : IDisposable
     private KVObject ConvertClipDataManager(KVObject[] sequenceTagSpans)
     {
         var clipDataManager = MakeNode("CAnimClipDataManager");
-        var itemTable = new KVObject(null);
+        var itemTable = new KVObject();
 
         foreach (var sequenceSpan in sequenceTagSpans)
         {
@@ -1190,10 +1190,10 @@ public class AnimationGraphExtract : IDisposable
             var clipData = MakeNode("CAnimClipData");
             clipData.Add("m_clipName", sequenceName);
             clipData.Add("m_tagSpans", ConvertTagSpansArray(compiledTagSpans));
-            itemTable.Add(sequenceName, clipData.Value);
+            itemTable.Add(sequenceName, clipData);
         }
 
-        clipDataManager.Add("m_itemTable", itemTable.Value);
+        clipDataManager.Add("m_itemTable", itemTable);
         return clipDataManager;
     }
 
@@ -1239,22 +1239,22 @@ public class AnimationGraphExtract : IDisposable
         }
         return string.Empty;
     }
-    private static KVValue MakeNodeIdObjectValue(long nodeId)
+    private static KVObject MakeNodeIdObjectValue(long nodeId)
     {
-        var nodeIdObject = new KVObject(null);
-        nodeIdObject.Add("m_id", (KVValue)unchecked((uint)nodeId));
-        return nodeIdObject.Value;
+        var nodeIdObject = new KVObject();
+        nodeIdObject.Add("m_id", unchecked((uint)nodeId));
+        return nodeIdObject;
     }
 
-    private static KVValue MakeInputConnection(long nodeId)
+    private static KVObject MakeInputConnection(long nodeId)
     {
         var nodeIdObject = MakeNodeIdObjectValue(nodeId);
-        var inputConnection = new KVObject(null);
+        var inputConnection = new KVObject();
 
         inputConnection.Add("m_nodeID", nodeIdObject);
         inputConnection.Add("m_outputID", nodeIdObject);
 
-        return inputConnection.Value;
+        return inputConnection;
     }
 
     private static void AddInputConnection(KVObject node, long childNodeId)
@@ -1263,10 +1263,10 @@ public class AnimationGraphExtract : IDisposable
         node.Add("m_inputConnection", inputConnection);
     }
 
-    private static KVValue MakeVector2(float x, float y)
+    private static KVObject MakeVector2(float x, float y)
     {
         var values = new object[] { x, y };
-        return MakeArray(values.Select(v => (KVValue)(float)v).ToArray());
+        return MakeArray(values.Select(v => (KVObject)(float)v).ToArray());
     }
 
     private static KVObject MakeBlendCurve(KVObject? compiledCurve)
@@ -1283,7 +1283,7 @@ public class AnimationGraphExtract : IDisposable
         return blendCurve;
     }
 
-    private KVValue ConvertTagSpansArray(KVObject[] compiledTagSpans)
+    private KVObject ConvertTagSpansArray(KVObject[] compiledTagSpans)
     {
         var tagSpans = new List<KVObject>();
         foreach (var compiledTagSpan in compiledTagSpans)
@@ -1302,7 +1302,7 @@ public class AnimationGraphExtract : IDisposable
         return MakeArray(tagSpans.ToArray());
     }
 
-    private KVValue ExtractParameterID(KVObject paramHandle, bool requireFloat = false)
+    private KVObject ExtractParameterID(KVObject paramHandle, bool requireFloat = false)
     {
         var paramType = paramHandle.GetStringProperty("m_type");
         var paramIndex = paramHandle.GetIntegerProperty("m_index");
@@ -1316,7 +1316,7 @@ public class AnimationGraphExtract : IDisposable
             : -1L;
     }
 
-    private KVValue ConvertTagIndicesArray(long[] tagIndices)
+    private KVObject ConvertTagIndicesArray(long[] tagIndices)
     {
         var tagIds = tagIndices.Select(tagIndex =>
             MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex))
@@ -1363,8 +1363,7 @@ public class AnimationGraphExtract : IDisposable
         var paramIdValue = ParameterIDFromIndex(paramType, paramIndex, requireFloat: true);
         blendDuration.Add("m_paramID", paramIdValue);
 
-        var paramIdObject = new KVObject(null, paramIdValue);
-        var paramId = paramIdObject.GetIntegerProperty("m_id");
+        var paramId = paramIdValue.GetIntegerProperty("m_id");
         var source = paramId == uint.MaxValue ? "Constant" : "Parameter";
 
         blendDuration.Add("m_eSource", source);
@@ -1429,7 +1428,7 @@ public class AnimationGraphExtract : IDisposable
 
             stateNode.Add("m_position", MakeVector2(stateX, stateY));
             stateNode.Add("m_name", compiledState.GetStringProperty("m_name"));
-            stateNode.Add("m_stateID", compiledState.GetSubCollection("m_stateID").Value);
+            stateNode.Add("m_stateID", compiledState.GetSubCollection("m_stateID"));
             stateNode.Add("m_bIsStartState", compiledState.GetIntegerProperty("m_bIsStartState") > 0);
             stateNode.Add("m_bIsEndtState", compiledState.GetIntegerProperty("m_bIsEndState") > 0);
             stateNode.Add("m_bIsPassthrough", compiledState.GetIntegerProperty("m_bIsPassthrough") > 0);
@@ -1459,8 +1458,8 @@ public class AnimationGraphExtract : IDisposable
                     var srcStateID = compiledStates[srcStateIndex].GetSubCollection("m_stateID");
                     var destStateID = compiledStates[destStateIndex].GetSubCollection("m_stateID");
 
-                    transitionNode.Add("m_srcState", srcStateID.Value);
-                    transitionNode.Add("m_destState", destStateID.Value);
+                    transitionNode.Add("m_srcState", srcStateID);
+                    transitionNode.Add("m_destState", destStateID);
                     transitionNode.Add("m_bDisabled", compiledTransition.GetIntegerProperty("m_bDisabled") > 0);
 
                     var conditionList = MakeNode("CConditionContainer");
@@ -1482,7 +1481,7 @@ public class AnimationGraphExtract : IDisposable
                     }
 
                     conditionList.Add("m_conditions", MakeArray(conditions.ToArray()));
-                    transitionNode.Add("m_conditionList", conditionList.Value);
+                    transitionNode.Add("m_conditionList", conditionList);
 
                     if (!isComponent)
                     {
@@ -1519,7 +1518,7 @@ public class AnimationGraphExtract : IDisposable
                                 if (blendDuration is not null)
                                 {
                                     var convertedBlendDuration = ConvertBlendDuration(blendDuration);
-                                    transitionNode.Add("m_blendDuration", convertedBlendDuration.Value);
+                                    transitionNode.Add("m_blendDuration", convertedBlendDuration);
                                 }
                             }
 
@@ -1530,17 +1529,17 @@ public class AnimationGraphExtract : IDisposable
                                 if (resetcycleValue is not null)
                                 {
                                     var convertedfixedcycleValue = ConvertBlendDuration(resetcycleValue);
-                                    transitionNode.Add("m_flFixedCycleValue", convertedfixedcycleValue.Value);
+                                    transitionNode.Add("m_flFixedCycleValue", convertedfixedcycleValue);
                                 }
                             }
 
                             if (transitionData.ContainsKey("m_curve"))
                             {
-                                transitionNode.Add("m_blendCurve", MakeBlendCurve(transitionData.GetSubCollection("m_curve")).Value);
+                                transitionNode.Add("m_blendCurve", MakeBlendCurve(transitionData.GetSubCollection("m_curve")));
                             }
                             else
                             {
-                                transitionNode.Add("m_blendCurve", MakeBlendCurve(null).Value);
+                                transitionNode.Add("m_blendCurve", MakeBlendCurve(null));
                             }
                         }
                     }
@@ -1602,20 +1601,20 @@ public class AnimationGraphExtract : IDisposable
 
                         if (compiledActionData.ContainsKey("m_value"))
                         {
-                            actionData.Add("m_value", compiledActionData.GetSubCollection("m_value").Value);
+                            actionData.Add("m_value", compiledActionData.GetSubCollection("m_value"));
                         }
 
-                        foreach (var child in compiledActionData.Children)
+                        foreach (var (childKey, childValue) in compiledActionData.Children)
                         {
-                            if (child.Name is "_class" or "m_nTagIndex" or "m_hParam" or "m_value" or "m_hScript" or "m_eScriptType" or "m_code")
+                            if (childKey is "_class" or "m_nTagIndex" or "m_hParam" or "m_value" or "m_hScript" or "m_eScriptType" or "m_code")
                             {
                                 continue;
                             }
 
-                            actionData.Add(child.Name, child.Value);
+                            actionData.Add(childKey, childValue);
                         }
 
-                        action.Add("m_pAction", actionData.Value);
+                        action.Add("m_pAction", actionData);
                     }
 
                     if (compiledAction.ContainsKey("m_eBehavior"))
@@ -1841,17 +1840,17 @@ public class AnimationGraphExtract : IDisposable
         paramCondition.Add("m_comparisonOp", comparisonOp);
         paramCondition.Add("m_comparisonString", "");
 
-        var comparisonValue = new KVObject(null);
+        var comparisonValue = new KVObject();
         comparisonValue.Add("m_nType", componentType);
 
-        var componentArray = KVObject.Array(null);
+        var componentArray = KVObject.Array();
         for (var i = 0; i < componentValues.Length; i++)
         {
-            componentArray.Add((KVValue)(float)componentValues[i]);
+            componentArray.Add((float)componentValues[i]);
         }
 
-        comparisonValue.Add("m_data", componentArray.Value);
-        paramCondition.Add("m_comparisonValue", comparisonValue.Value);
+        comparisonValue.Add("m_data", componentArray);
+        paramCondition.Add("m_comparisonValue", comparisonValue);
 
         return paramCondition;
     }
@@ -2245,7 +2244,7 @@ public class AnimationGraphExtract : IDisposable
         paramCondition.Add("m_paramID", MakeNodeIdObjectValue(paramId));
         paramCondition.Add("m_comparisonOp", OperatorToComparisonOp(foundOp));
 
-        var comparisonValue = new KVObject(null);
+        var comparisonValue = new KVObject();
 
         if (paramClass == "CEnumAnimParameter")
         {
@@ -2301,7 +2300,7 @@ public class AnimationGraphExtract : IDisposable
             }
         }
 
-        paramCondition.Add("m_comparisonValue", comparisonValue.Value);
+        paramCondition.Add("m_comparisonValue", comparisonValue);
         return paramCondition;
     }
 
@@ -2551,7 +2550,7 @@ public class AnimationGraphExtract : IDisposable
         var component = MakeNode(newClassName);
 
         component.Add("m_group", "");
-        component.Add("m_id", compiledComponent.GetSubCollection("m_id").Value);
+        component.Add("m_id", compiledComponent.GetSubCollection("m_id"));
         component.Add("m_bStartEnabled", compiledComponent.GetIntegerProperty("m_bStartEnabled") > 0);
         component.Add("m_nPriority", 100);
 
@@ -2571,29 +2570,29 @@ public class AnimationGraphExtract : IDisposable
                     var newActionClassName = actionClassName.Replace("Updater", string.Empty, StringComparison.Ordinal);
                     var newAction = MakeNode(newActionClassName);
 
-                    foreach (var actionChild in action.Children)
+                    foreach (var (actionChildKey, actionChildValue) in action.Children)
                     {
-                        if (actionChild.Name == "_class")
+                        if (actionChildKey == "_class")
                         {
                             continue;
                         }
 
-                        if (actionChild.Name == "m_nTagIndex")
+                        if (actionChildKey == "m_nTagIndex")
                         {
                             var tagIndex = action.GetIntegerProperty("m_nTagIndex");
                             newAction.Add("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
                             continue;
                         }
 
-                        if (actionChild.Name == "m_hParam")
+                        if (actionChildKey == "m_hParam")
                         {
-                            newAction.Add("m_param", ExtractParameterID(actionChild));
+                            newAction.Add("m_param", ExtractParameterID(actionChildValue));
                             continue;
                         }
 
-                        if (actionChild.Name == "m_hScript")
+                        if (actionChildKey == "m_hScript")
                         {
-                            var scriptIndex = actionChild.GetIntegerProperty("m_id");
+                            var scriptIndex = actionChildValue.GetIntegerProperty("m_id");
 
                             if (scriptIndex >= 0 && scriptManager != null)
                             {
@@ -2613,12 +2612,12 @@ public class AnimationGraphExtract : IDisposable
                             continue;
                         }
 
-                        if (actionChild.Name is "m_eScriptType" or "m_code")
+                        if (actionChildKey is "m_eScriptType" or "m_code")
                         {
                             continue;
                         }
 
-                        newAction.Add(actionChild.Name, actionChild.Value);
+                        newAction.Add(actionChildKey, actionChildValue);
                     }
 
                     return newAction;
@@ -2672,19 +2671,19 @@ public class AnimationGraphExtract : IDisposable
                     }
 
                     var weightListNode = MakeNode("CRigidBodyWeightList", ("m_name", weightListName));
-                    var weightsArray = KVObject.Array(null);
+                    var weightsArray = KVObject.Array();
 
                     for (var i = 0; i < weightArray.Length; i++)
                     {
-                        var weightDefinition = new KVObject(null);
+                        var weightDefinition = new KVObject();
                         var boneName = i < boneNames.Length ? boneNames[i] : $"bone_{i}";
 
                         weightDefinition.Add("m_name", boneName);
                         weightDefinition.Add("m_flWeight", weightArray[i]);
-                        weightsArray.Add(weightDefinition.Value);
+                        weightsArray.Add(weightDefinition);
                     }
 
-                    weightListNode.Add("m_weights", weightsArray.Value);
+                    weightListNode.Add("m_weights", weightsArray);
                     convertedWeightLists.Add(weightListNode);
                 }
 
@@ -2716,7 +2715,7 @@ public class AnimationGraphExtract : IDisposable
                 var items = compiledComponent.GetArray("m_items");
                 var convertedItems = items.Select(item =>
                 {
-                    var newItem = new KVObject(null);
+                    var newItem = new KVObject();
                     var paramIn = item.GetSubCollection("m_hParamIn");
                     var paramOut = item.GetSubCollection("m_hParamOut");
                     var paramInType = paramIn.GetStringProperty("m_type");
@@ -2739,7 +2738,7 @@ public class AnimationGraphExtract : IDisposable
                         newItem.Add("m_vectorParamOut", ExtractParameterID(paramOut));
                     }
 
-                    newItem.Add("m_damping", item.GetSubCollection("m_damping").Value);
+                    newItem.Add("m_damping", item.GetSubCollection("m_damping"));
                     return newItem;
                 });
 
@@ -2786,7 +2785,7 @@ public class AnimationGraphExtract : IDisposable
 
                 foreach (var item in items)
                 {
-                    var newItem = new KVObject(null);
+                    var newItem = new KVObject();
 
                     var paramInHandle = item.GetSubCollection("m_hParamIn");
                     var paramOutHandle = item.GetSubCollection("m_hParamOut");
@@ -2846,17 +2845,17 @@ public class AnimationGraphExtract : IDisposable
             if (compiledComponent.ContainsKey("m_scriptsToRun"))
             {
                 var scriptsArray = compiledComponent.GetArray("m_scriptsToRun");
-                var convertedScripts = new List<KVValue>();
+                var convertedScripts = new List<KVObject>();
                 foreach (var script in scriptsArray)
                 {
                     var scriptName = script.GetStringProperty("") ?? string.Empty;
-                    convertedScripts.Add((KVValue)scriptName);
+                    convertedScripts.Add(scriptName);
                 }
                 component.Add("m_scriptsToRun", MakeArray(convertedScripts.ToArray()));
             }
             else
             {
-                component.Add("m_scriptsToRun", MakeArray(Array.Empty<KVValue>()));
+                component.Add("m_scriptsToRun", MakeArray(Array.Empty<KVObject>()));
             }
             return component;
         }
@@ -2875,14 +2874,14 @@ public class AnimationGraphExtract : IDisposable
             return component;
         }
 
-        foreach (var child in compiledComponent.Children)
+        foreach (var (childKey, childValue) in compiledComponent.Children)
         {
-            if (child.Name is "_class" or "m_paramHandles" or "m_name" or "m_id" or "m_bStartEnabled" or "m_networkMode")
+            if (childKey is "_class" or "m_paramHandles" or "m_name" or "m_id" or "m_bStartEnabled" or "m_networkMode")
             {
                 continue;
             }
 
-            if (child.Name == "m_motors")
+            if (childKey == "m_motors")
             {
                 var motors = compiledComponent.GetArray("m_motors");
                 var convertedMotors = motors.Select(motor =>
@@ -2891,33 +2890,33 @@ public class AnimationGraphExtract : IDisposable
                     var newMotorClassName = motorClassName.Replace("Updater", string.Empty, StringComparison.Ordinal);
                     var newMotor = MakeNode(newMotorClassName);
 
-                    foreach (var motorChild in motor.Children)
+                    foreach (var (motorChildKey, motorChildValue) in motor.Children)
                     {
-                        if (motorChild.Name == "_class")
+                        if (motorChildKey == "_class")
                         {
                             continue;
                         }
 
-                        if (motorChild.Name.EndsWith("Param", StringComparison.Ordinal) && motorChild.ValueType == KVValueType.Collection)
+                        if (motorChildKey.EndsWith("Param", StringComparison.Ordinal) && motorChildValue.ValueType == KVValueType.Collection)
                         {
-                            var newKey = motorChild.Name.StartsWith("m_h", StringComparison.Ordinal)
-                                ? "m_" + motorChild.Name["m_h".Length..]
-                                : motorChild.Name;
-                            newMotor.Add(newKey, ExtractParameterID(motorChild));
+                            var newKey = motorChildKey.StartsWith("m_h", StringComparison.Ordinal)
+                                ? "m_" + motorChildKey["m_h".Length..]
+                                : motorChildKey;
+                            newMotor.Add(newKey, ExtractParameterID(motorChildValue));
                             continue;
                         }
 
-                        newMotor.Add(motorChild.Name, motorChild.Value);
+                        newMotor.Add(motorChildKey, motorChildValue);
                     }
 
                     return newMotor;
                 });
 
-                component.Add(child.Name, MakeArray(convertedMotors.ToArray()));
+                component.Add(childKey, MakeArray(convertedMotors.ToArray()));
                 continue;
             }
 
-            component.Add(child.Name, child.Value);
+            component.Add(childKey, childValue);
         }
 
         if (compiledComponent.ContainsKey("m_paramHandles"))
@@ -3010,9 +3009,9 @@ public class AnimationGraphExtract : IDisposable
             var uncompiledNode = ConvertMotionNode(currentNode, motionParamIds, idMap);
             uncompiledNode.Add("m_nNodeID", MakeNodeIdObjectValue(newNodeId));
 
-            var nodeItem = new KVObject(null);
+            var nodeItem = new KVObject();
             nodeItem.Add("key", MakeNodeIdObjectValue(newNodeId));
-            nodeItem.Add("value", uncompiledNode.Value);
+            nodeItem.Add("value", uncompiledNode);
             nodes.Add(nodeItem);
 
             var className = currentNode.GetStringProperty("_class");
@@ -3062,9 +3061,9 @@ public class AnimationGraphExtract : IDisposable
         var inputConnection = MakeInputConnection(rootNodeNewId);
         rootAnimNode.Add("m_inputConnection", inputConnection);
 
-        var rootAnimNodeItem = new KVObject(null);
+        var rootAnimNodeItem = new KVObject();
         rootAnimNodeItem.Add("key", MakeNodeIdObjectValue(rootAnimNodeId));
-        rootAnimNodeItem.Add("value", rootAnimNode.Value);
+        rootAnimNodeItem.Add("value", rootAnimNode);
         nodes.Add(rootAnimNodeItem);
 
         return nodes;
@@ -3093,8 +3092,8 @@ public class AnimationGraphExtract : IDisposable
         sequenceNode.Add("m_playbackSpeed", playbackSpeed);
 
         sequenceNode.Add("m_bLoop", compiledMotionNode.GetIntegerProperty("m_bLoop") > 0);
-        sequenceNode.Add("m_tagSpans", MakeArray(Array.Empty<KVValue>()));
-        sequenceNode.Add("m_paramSpans", MakeArray(Array.Empty<KVValue>()));
+        sequenceNode.Add("m_tagSpans", MakeArray(Array.Empty<KVObject>()));
+        sequenceNode.Add("m_paramSpans", MakeArray(Array.Empty<KVObject>()));
         sequenceNode.Add("m_networkMode", "ServerAuthoritative");
 
         return sequenceNode;
@@ -3159,7 +3158,7 @@ public class AnimationGraphExtract : IDisposable
         blendNode.Add("m_bSyncCycles", true);
         blendNode.Add("m_bLoop", true);
         blendNode.Add("m_bLockWhenWaning", true);
-        blendNode.Add("m_damping", MakeDefaultDamping().Value);
+        blendNode.Add("m_damping", MakeDefaultDamping());
         blendNode.Add("m_networkMode", "ServerAuthoritative");
 
         return blendNode;
@@ -3196,8 +3195,8 @@ public class AnimationGraphExtract : IDisposable
         defaultNode.Add("m_sequenceName", "");
         defaultNode.Add("m_playbackSpeed", 1.0f);
         defaultNode.Add("m_bLoop", false);
-        defaultNode.Add("m_tagSpans", MakeArray(Array.Empty<KVValue>()));
-        defaultNode.Add("m_paramSpans", MakeArray(Array.Empty<KVValue>()));
+        defaultNode.Add("m_tagSpans", MakeArray(Array.Empty<KVObject>()));
+        defaultNode.Add("m_paramSpans", MakeArray(Array.Empty<KVObject>()));
         defaultNode.Add("m_networkMode", "ServerAuthoritative");
 
         return defaultNode;
@@ -3224,23 +3223,21 @@ public class AnimationGraphExtract : IDisposable
             outConnections.AddRange(inputNodeIds);
         }
 
-        foreach (var child in compiledNode.Children)
+        foreach (var (key, value) in compiledNode.Children)
         {
-            if (child.Name is "_class" or "m_nodePath")
+            if (key is "_class" or "m_nodePath")
             {
                 continue;
             }
 
-            var key = child.Name;
-            var value = child.Value;
             var newKey = key;
-            var subCollection = new Lazy<KVObject>(() => child);
+            var subCollection = new Lazy<KVObject>(() => value);
 
             // preserve earlier semantics: always convert blend-time fields
             if (key == "m_flBlendTime")
             {
                 var converted = ConvertBlendDuration(subCollection.Value);
-                node.Add("m_blendDuration", converted.Value);
+                node.Add("m_blendDuration", converted);
                 continue;
             }
 
@@ -3263,7 +3260,7 @@ public class AnimationGraphExtract : IDisposable
 
             if (key is "m_pChildNode" or "m_pChild1" or "m_pChild2" or "m_pChild" && value.ValueType == KVValueType.Collection)
             {
-                var nodeIndex = child.GetIntegerProperty("m_nodeIndex");
+                var nodeIndex = value.GetIntegerProperty("m_nodeIndex");
                 if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
                 {
                     outConnections.Add(nodeId);
@@ -3369,7 +3366,7 @@ public class AnimationGraphExtract : IDisposable
                         var newInputs = weights.Zip(blendTimes, inputNodeIds).Select((choice, index) =>
                         {
                             var (weight, blendTime, nodeId) = choice;
-                            var choiceNode = new KVObject(null);
+                            var choiceNode = new KVObject();
                             AddInputConnection(choiceNode, nodeId);
                             choiceNode.Add("m_name", (index + 1).ToString(CultureInfo.InvariantCulture));
                             choiceNode.Add("m_weight", weight);
@@ -3459,12 +3456,10 @@ public class AnimationGraphExtract : IDisposable
                             _ => "CSequenceBlend2DItem"
                         };
 
-                        var convertedItem = new KVObject(null);
+                        var convertedItem = new KVObject();
 
-                        foreach (var itemChild in item.Children)
+                        foreach (var (itemKey, itemValue) in item.Children)
                         {
-                            var itemKey = itemChild.Name;
-                            var itemValue = itemChild.Value;
                             if (itemKey == "m_hSequence")
                             {
                                 var sequenceIndex = item.GetIntegerProperty("m_hSequence");
@@ -3496,7 +3491,7 @@ public class AnimationGraphExtract : IDisposable
                                 }
                                 catch
                                 {
-                                    convertedItem.Add("m_tagSpans", MakeArray(Array.Empty<KVValue>()));
+                                    convertedItem.Add("m_tagSpans", MakeArray(Array.Empty<KVObject>()));
                                 }
                                 continue;
                             }
@@ -3536,7 +3531,7 @@ public class AnimationGraphExtract : IDisposable
                     }
                     catch
                     {
-                        node.Add("m_tagSpans", MakeArray(Array.Empty<KVValue>()));
+                        node.Add("m_tagSpans", MakeArray(Array.Empty<KVObject>()));
                     }
                     continue;
                 }
@@ -3561,7 +3556,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedSettings.ContainsKey("m_damping"))
                     {
-                        node.Add("m_damping", opFixedSettings.GetSubCollection("m_damping").Value);
+                        node.Add("m_damping", opFixedSettings.GetSubCollection("m_damping"));
                     }
 
                     if (opFixedSettings.ContainsKey("m_flMaxYawAngle"))
@@ -3650,7 +3645,7 @@ public class AnimationGraphExtract : IDisposable
                 {
                     var clipIndices = compiledNode.GetIntegerArray("m_clips");
                     var clipNames = clipIndices.Select(idx => GetSequenceName(idx)).ToArray();
-                    node.Add("m_clips", MakeArray(clipNames.Select(name => (KVValue)name).ToArray()));
+                    node.Add("m_clips", MakeArray(clipNames.Select(name => (KVObject)name).ToArray()));
                     continue;
                 }
                 else if (key == "m_hBasePoseCacheHandle")
@@ -3674,7 +3669,7 @@ public class AnimationGraphExtract : IDisposable
 
                         foreach (var footInfo in footInfoArray)
                         {
-                            var convertedItem = new KVObject(null);
+                            var convertedItem = new KVObject();
                             if (footInfo.ContainsKey("m_nFootIndex"))
                             {
                                 var footIndex = (int)footInfo.GetIntegerProperty("m_nFootIndex");
@@ -3774,7 +3769,7 @@ public class AnimationGraphExtract : IDisposable
                             var paramType = paramHandle.GetStringProperty("m_type");
                             var paramIndex = paramHandle.GetIntegerProperty("m_index");
                             var paramIdValue = ParameterIDFromIndex(paramType, paramIndex);
-                            itemsList[i]["m_param"] = new KVObject("m_param", paramIdValue);
+                            itemsList[i]["m_param"] = paramIdValue;
                         }
                     }
 
@@ -3790,7 +3785,7 @@ public class AnimationGraphExtract : IDisposable
                     var convertedItems = new List<KVObject>();
                     foreach (var trigger in triggers)
                     {
-                        var convertedItem = new KVObject(null);
+                        var convertedItem = new KVObject();
                         if (trigger.ContainsKey("m_nFootIndex"))
                         {
                             var footIndex = (int)trigger.GetIntegerProperty("m_nFootIndex");
@@ -3813,12 +3808,12 @@ public class AnimationGraphExtract : IDisposable
                             }
                             catch (InvalidCastException)
                             {
-                                convertedItem.Add("m_tags", MakeArray(Array.Empty<KVValue>()));
+                                convertedItem.Add("m_tags", MakeArray(Array.Empty<KVObject>()));
                             }
                         }
                         else
                         {
-                            convertedItem.Add("m_tags", MakeArray(Array.Empty<KVValue>()));
+                            convertedItem.Add("m_tags", MakeArray(Array.Empty<KVObject>()));
                         }
                         convertedItems.Add(convertedItem);
                     }
@@ -3837,7 +3832,7 @@ public class AnimationGraphExtract : IDisposable
                         var convertedItems = new List<KVObject>();
                         foreach (var boneSetting in boneSettingsArray)
                         {
-                            var convertedItem = new KVObject(null);
+                            var convertedItem = new KVObject();
                             if (boneSetting.ContainsKey("m_nBoneIndex"))
                             {
                                 var boneIndex = (int)boneSetting.GetIntegerProperty("m_nBoneIndex");
@@ -3874,11 +3869,11 @@ public class AnimationGraphExtract : IDisposable
                             }
                             if (boneSetting.ContainsKey("m_vBoundsMaxLS"))
                             {
-                                convertedItem.Add("m_vBoundsMaxLS", boneSetting.GetSubCollection("m_vBoundsMaxLS").Value);
+                                convertedItem.Add("m_vBoundsMaxLS", boneSetting.GetSubCollection("m_vBoundsMaxLS"));
                             }
                             if (boneSetting.ContainsKey("m_vBoundsMinLS"))
                             {
-                                convertedItem.Add("m_vBoundsMinLS", boneSetting.GetSubCollection("m_vBoundsMinLS").Value);
+                                convertedItem.Add("m_vBoundsMinLS", boneSetting.GetSubCollection("m_vBoundsMinLS"));
                             }
                             convertedItems.Add(convertedItem);
                         }
@@ -3950,7 +3945,7 @@ public class AnimationGraphExtract : IDisposable
                     }
                     catch (InvalidCastException)
                     {
-                        node.Add("m_tagSpans", MakeArray(Array.Empty<KVValue>()));
+                        node.Add("m_tagSpans", MakeArray(Array.Empty<KVObject>()));
                     }
                     continue;
                 }
@@ -3971,7 +3966,7 @@ public class AnimationGraphExtract : IDisposable
 
                                 if (compiledSpan.ContainsKey("m_samples"))
                                 {
-                                    paramSpan.Add("m_samples", compiledSpan.GetSubCollection("m_samples").Value);
+                                    paramSpan.Add("m_samples", compiledSpan.GetSubCollection("m_samples"));
                                 }
 
                                 if (compiledSpan.ContainsKey("m_hParam"))
@@ -4000,12 +3995,12 @@ public class AnimationGraphExtract : IDisposable
                         }
                         else
                         {
-                            node.Add("m_paramSpans", MakeArray(Array.Empty<KVValue>()));
+                            node.Add("m_paramSpans", MakeArray(Array.Empty<KVObject>()));
                         }
                     }
                     catch
                     {
-                        node.Add("m_paramSpans", MakeArray(Array.Empty<KVValue>()));
+                        node.Add("m_paramSpans", MakeArray(Array.Empty<KVObject>()));
                     }
                     continue;
                 }
@@ -4155,7 +4150,7 @@ public class AnimationGraphExtract : IDisposable
                     }
                     if (opFixedSettings.ContainsKey("m_damping"))
                     {
-                        node.Add("m_damping", opFixedSettings.GetSubCollection("m_damping").Value);
+                        node.Add("m_damping", opFixedSettings.GetSubCollection("m_damping"));
                     }
                     continue;
                 }
@@ -4223,7 +4218,7 @@ public class AnimationGraphExtract : IDisposable
                     {
                         if (opFixedSettings.ContainsKey(settingKey))
                         {
-                            node.Add(settingKey, opFixedSettings[settingKey].Value);
+                            node.Add(settingKey, opFixedSettings[settingKey]);
                         }
                     }
                     continue;
@@ -4308,7 +4303,7 @@ public class AnimationGraphExtract : IDisposable
                         var chainData = chainsToSolveData[i];
                         var targetHandle = i < targetHandles.Length ? targetHandles[i] : null;
 
-                        var ikChain = new KVObject(null);
+                        var ikChain = new KVObject();
                         ikChain.Add("_class", "CSolveIKChainAnimNodeChainData");
 
                         if (chainData.ContainsKey("m_nChainIndex"))
@@ -4323,14 +4318,14 @@ public class AnimationGraphExtract : IDisposable
                         if (chainData.ContainsKey("m_SolverSettings"))
                         {
                             var solverSettings = chainData.GetSubCollection("m_SolverSettings");
-                            var overrideSolverSettings = new KVObject(null);
+                            var overrideSolverSettings = new KVObject();
 
                             if (solverSettings.ContainsKey("m_SolverType"))
                             {
                                 overrideSolverSettings.Add("m_SolverType", solverSettings.GetProperty<string>("m_SolverType"));
                             }
 
-                            ikChain.Add("m_OverrideSolverSettings", overrideSolverSettings.Value);
+                            ikChain.Add("m_OverrideSolverSettings", overrideSolverSettings);
                         }
 
                         ikChain.Add("m_TargetSettingSource", "SOLVEIKCHAINANIMNODESETTINGSOURCE_Default");
@@ -4338,7 +4333,7 @@ public class AnimationGraphExtract : IDisposable
                         if (chainData.ContainsKey("m_TargetSettings"))
                         {
                             var targetSettings = chainData.GetSubCollection("m_TargetSettings");
-                            var overrideTargetSettings = new KVObject(null);
+                            var overrideTargetSettings = new KVObject();
 
                             if (targetSettings.ContainsKey("m_TargetSource"))
                             {
@@ -4348,9 +4343,9 @@ public class AnimationGraphExtract : IDisposable
                             if (targetSettings.ContainsKey("m_Bone"))
                             {
                                 var boneSettings = targetSettings.GetSubCollection("m_Bone");
-                                var boneNameObj = new KVObject(null);
+                                var boneNameObj = new KVObject();
                                 boneNameObj.Add("m_Name", boneSettings.GetStringProperty("m_Name"));
-                                overrideTargetSettings.Add("m_Bone", boneNameObj.Value);
+                                overrideTargetSettings.Add("m_Bone", boneNameObj);
                             }
 
                             if (targetHandle != null)
@@ -4378,7 +4373,7 @@ public class AnimationGraphExtract : IDisposable
                                 overrideTargetSettings.Add("m_TargetCoordSystem", targetSettings.GetProperty<string>("m_TargetCoordSystem"));
                             }
 
-                            ikChain.Add("m_OverrideTargetSettings", overrideTargetSettings.Value);
+                            ikChain.Add("m_OverrideTargetSettings", overrideTargetSettings);
                         }
 
                         if (chainData.ContainsKey("m_DebugSetting"))
@@ -4393,7 +4388,7 @@ public class AnimationGraphExtract : IDisposable
 
                         if (chainData.ContainsKey("m_vDebugOffset"))
                         {
-                            ikChain.Add("m_vDebugOffset", chainData.GetSubCollection("m_vDebugOffset").Value);
+                            ikChain.Add("m_vDebugOffset", chainData.GetSubCollection("m_vDebugOffset"));
                         }
 
                         ikChainsArray.Add(ikChain);
@@ -4627,7 +4622,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedSettings.ContainsKey("m_hipDampingSettings"))
                     {
-                        node.Add("m_hipDampingSettings", opFixedSettings.GetSubCollection("m_hipDampingSettings").Value);
+                        node.Add("m_hipDampingSettings", opFixedSettings.GetSubCollection("m_hipDampingSettings"));
                     }
                     continue;
                 }
@@ -4647,7 +4642,7 @@ public class AnimationGraphExtract : IDisposable
                         var footSetting = footSettings[i];
                         var footInfo = footInfoArray != null && i < footInfoArray.Length ? footInfoArray[i] : null;
 
-                        var item = new KVObject(null);
+                        var item = new KVObject();
 
                         if (footSetting.ContainsKey("m_nFootIndex"))
                         {
@@ -4752,12 +4747,12 @@ public class AnimationGraphExtract : IDisposable
                 }
                 else if (key == "m_hipShiftDamping")
                 {
-                    node.Add("m_hipShiftDamping", subCollection.Value.Value);
+                    node.Add("m_hipShiftDamping", subCollection.Value);
                     continue;
                 }
                 else if (key == "m_rootHeightDamping")
                 {
-                    node.Add("m_rootHeightDamping", subCollection.Value.Value);
+                    node.Add("m_rootHeightDamping", subCollection.Value);
                     continue;
                 }
                 else if (key == "m_flStrideCurveScale")
@@ -5078,7 +5073,7 @@ public class AnimationGraphExtract : IDisposable
                                     }
 
                                     paramManager.Add("m_params", MakeArray(motionParams.ToArray()));
-                                    motion.Add("m_paramManager", paramManager.Value);
+                                    motion.Add("m_paramManager", paramManager);
 
                                     if (motionGraph.ContainsKey("m_pRootNode"))
                                     {
@@ -5088,7 +5083,7 @@ public class AnimationGraphExtract : IDisposable
                                         var motionNodes = ConvertMotionNodeHierarchy(rootNode, motionParamIds);
                                         nodeManager.Add("m_nodes", MakeArray(motionNodes.ToArray()));
 
-                                        motion.Add("m_nodeManager", nodeManager.Value);
+                                        motion.Add("m_nodeManager", nodeManager);
                                     }
 
                                     if (motionGraph.ContainsKey("m_tags"))
@@ -5119,7 +5114,7 @@ public class AnimationGraphExtract : IDisposable
                                     }
                                     else
                                     {
-                                        motion.Add("m_tagSpans", MakeArray(Array.Empty<KVValue>()));
+                                        motion.Add("m_tagSpans", MakeArray(Array.Empty<KVObject>()));
                                     }
 
                                     if (motionGraph.ContainsKey("m_paramSpans"))
@@ -5149,7 +5144,7 @@ public class AnimationGraphExtract : IDisposable
 
                                                 if (compiledParamSpan.ContainsKey("m_samples"))
                                                 {
-                                                    paramSpan.Add("m_samples", compiledParamSpan.GetSubCollection("m_samples").Value);
+                                                    paramSpan.Add("m_samples", compiledParamSpan.GetSubCollection("m_samples"));
                                                 }
 
                                                 paramSpans.Add(paramSpan);
@@ -5160,7 +5155,7 @@ public class AnimationGraphExtract : IDisposable
                                     }
                                     else
                                     {
-                                        motion.Add("m_paramSpans", MakeArray(Array.Empty<KVValue>()));
+                                        motion.Add("m_paramSpans", MakeArray(Array.Empty<KVObject>()));
                                     }
 
                                     motions.Add(motion);
@@ -5190,7 +5185,7 @@ public class AnimationGraphExtract : IDisposable
                                             {
                                                 var conditionContainer = MakeNode("CConditionContainer");
                                                 conditionContainer.Add("m_conditions", MakeArray(conditions.ToArray()));
-                                                group.Add("m_conditions", conditionContainer.Value);
+                                                group.Add("m_conditions", conditionContainer);
                                             }
                                         }
                                     }
@@ -5255,12 +5250,12 @@ public class AnimationGraphExtract : IDisposable
                             if (compiledMetric.ContainsKey("m_pathTimeSamples"))
                             {
                                 var timeSamples = compiledMetric.GetFloatArray("m_pathTimeSamples");
-                                var pathSamplesArray = KVObject.Array(null);
+                                var pathSamplesArray = KVObject.Array();
                                 foreach (var sample in timeSamples)
                                 {
-                                    pathSamplesArray.Add((KVValue)(float)sample);
+                                    pathSamplesArray.Add((float)sample);
                                 }
-                                metric.Add("m_pathSamples", pathSamplesArray.Value);
+                                metric.Add("m_pathSamples", pathSamplesArray);
                             }
                             metric.Add("m_bExtrapolateMovement", compiledMetric.GetIntegerProperty("m_bExtrapolateMovement") > 0);
                             metric.Add("m_flMinExtrapolationSpeed", compiledMetric.GetFloatProperty("m_flMinExtrapolationSpeed"));
@@ -5301,7 +5296,7 @@ public class AnimationGraphExtract : IDisposable
                     var blendCurve = MakeNode("CBlendCurve");
                     blendCurve.Add("m_flControlPoint1", compiledCurve.GetFloatProperty("m_flControlPoint1"));
                     blendCurve.Add("m_flControlPoint2", compiledCurve.GetFloatProperty("m_flControlPoint2"));
-                    node.Add("m_blendCurve", blendCurve.Value);
+                    node.Add("m_blendCurve", blendCurve);
                     continue;
                 }
                 else if (key == "m_distanceScale_Damping")
@@ -5372,7 +5367,7 @@ public class AnimationGraphExtract : IDisposable
 
                         foreach (var jointIndex in propJointIndices)
                         {
-                            var propJoint = new KVObject(null);
+                            var propJoint = new KVObject();
                             var boneName = GetBoneName((int)jointIndex);
                             propJoint.Add("m_jointName", boneName);
                             propJoints.Add(propJoint);
@@ -5704,7 +5699,7 @@ public class AnimationGraphExtract : IDisposable
                         node.Add("m_boneName", boneName);
                     }
 
-                    var targetSettings = new KVObject(null);
+                    var targetSettings = new KVObject();
 
                     string targetSource;
                     if (opFixedData.GetIntegerProperty("m_bBoneTarget", 0) > 0)
@@ -5717,7 +5712,7 @@ public class AnimationGraphExtract : IDisposable
                     }
                     targetSettings.Add("m_TargetSource", targetSource);
 
-                    var boneNameAndIndex = new KVObject(null);
+                    var boneNameAndIndex = new KVObject();
                     if (opFixedData.ContainsKey("m_boneTargetIndex"))
                     {
                         var boneTargetIndex = (int)opFixedData.GetIntegerProperty("m_boneTargetIndex");
@@ -5727,7 +5722,7 @@ public class AnimationGraphExtract : IDisposable
                             boneNameAndIndex.Add("m_Name", targetBoneName);
                         }
                     }
-                    targetSettings.Add("m_Bone", boneNameAndIndex.Value);
+                    targetSettings.Add("m_Bone", boneNameAndIndex);
 
                     string targetCoordSystem;
                     if (opFixedData.GetIntegerProperty("m_bWorldCoodinateTarget", 0) > 0)
@@ -5740,7 +5735,7 @@ public class AnimationGraphExtract : IDisposable
                     }
                     targetSettings.Add("m_TargetCoordSystem", targetCoordSystem);
 
-                    node.Add("m_TargetSettings", targetSettings.Value);
+                    node.Add("m_TargetSettings", targetSettings);
 
                     if (opFixedData.ContainsKey("m_bMatchTargetOrientation"))
                     {
@@ -5758,11 +5753,11 @@ public class AnimationGraphExtract : IDisposable
 
                     if (!node.ContainsKey("m_TargetSettings"))
                     {
-                        var targetSettings = new KVObject(null);
+                        var targetSettings = new KVObject();
                         targetSettings.Add("m_TargetSource", "AnimgraphParameter");
-                        targetSettings.Add("m_Bone", default(KVValue));
+                        targetSettings.Add("m_Bone", KVObject.Null());
                         targetSettings.Add("m_TargetCoordSystem", "Model");
-                        node.Add("m_TargetSettings", targetSettings.Value);
+                        node.Add("m_TargetSettings", targetSettings);
                     }
 
                     var targetSettingsObj = node.GetSubCollection("m_TargetSettings");
@@ -5779,11 +5774,11 @@ public class AnimationGraphExtract : IDisposable
 
                     if (!node.ContainsKey("m_TargetSettings"))
                     {
-                        var targetSettings = new KVObject(null);
+                        var targetSettings = new KVObject();
                         targetSettings.Add("m_TargetSource", "AnimgraphParameter");
-                        targetSettings.Add("m_Bone", default(KVValue));
+                        targetSettings.Add("m_Bone", KVObject.Null());
                         targetSettings.Add("m_TargetCoordSystem", "Model");
-                        node.Add("m_TargetSettings", targetSettings.Value);
+                        node.Add("m_TargetSettings", targetSettings);
                     }
 
                     var targetSettingsObj = node.GetSubCollection("m_TargetSettings");
@@ -5838,7 +5833,7 @@ public class AnimationGraphExtract : IDisposable
                     }
                     catch
                     {
-                        node.Add("m_tagSpans", MakeArray(Array.Empty<KVValue>()));
+                        node.Add("m_tagSpans", MakeArray(Array.Empty<KVObject>()));
                     }
                     continue;
                 }
@@ -5851,7 +5846,7 @@ public class AnimationGraphExtract : IDisposable
                     }
                     catch (InvalidCastException)
                     {
-                        node.Add(key, MakeArray(Array.Empty<KVValue>()));
+                        node.Add(key, MakeArray(Array.Empty<KVObject>()));
                     }
                     continue;
                 }
@@ -5887,7 +5882,7 @@ public class AnimationGraphExtract : IDisposable
 
                             if (compiledSpan.ContainsKey("m_samples"))
                             {
-                                paramSpan.Add("m_samples", compiledSpan.GetSubCollection("m_samples").Value);
+                                paramSpan.Add("m_samples", compiledSpan.GetSubCollection("m_samples"));
                             }
 
                             if (compiledSpan.ContainsKey("m_hParam"))
@@ -5917,7 +5912,7 @@ public class AnimationGraphExtract : IDisposable
                 }
                 catch
                 {
-                    node.Add("m_paramSpans", MakeArray(Array.Empty<KVValue>()));
+                    node.Add("m_paramSpans", MakeArray(Array.Empty<KVObject>()));
                 }
 
                 continue;
@@ -5950,7 +5945,7 @@ public class AnimationGraphExtract : IDisposable
         return node;
     }
 
-    private KVValue ParameterIDFromIndex(string paramType, long paramIndex, bool requireFloat = false)
+    private KVObject ParameterIDFromIndex(string paramType, long paramIndex, bool requireFloat = false)
     {
         if (paramIndex == 255)
         {

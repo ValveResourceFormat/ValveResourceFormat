@@ -35,7 +35,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this edge.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
 
             kv.Add("type", CurveType.ToKeyValue());
             kv.Add("zero_value", ZeroValue);

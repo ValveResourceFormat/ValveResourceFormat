@@ -34,7 +34,7 @@ public class NmClipExtract
     {
         var contentFile = new ContentFile();
 
-        var kv = new KVObject(null);
+        var kv = KVObject.Collection();
         var sourceFileName = Path.ChangeExtension(resource.FileName, ".dmx");
         kv.Add("m_sourceFilename", sourceFileName);
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
@@ -57,7 +57,7 @@ public class NmClipExtract
             // The array below indexes into the bone sampling chain, which in turn indexes into the skeleton bones.
             var modelSpaceBoneSamplingIndices = clip.Data.GetIntegerArray("m_modelSpaceBoneSamplingIndices");
 
-            var bonesToSampleInModelSpace = KVObject.Array("m_bonesToSampleInModelSpace");
+            var bonesToSampleInModelSpace = KVObject.Array();
             foreach (var chainIdx in modelSpaceBoneSamplingIndices)
             {
                 if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain!.Length)
@@ -65,9 +65,9 @@ public class NmClipExtract
                     throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain!.Length - 1}).");
                 }
                 var boneIdx = modelSpaceSamplingChain[chainIdx]!.GetInt32Property("m_nBoneIdx");
-                bonesToSampleInModelSpace.Add((KVValue)skeleton.Bones[boneIdx].Name);
+                bonesToSampleInModelSpace.Add(skeleton.Bones[boneIdx].Name);
             }
-            kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace.Value);
+            kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
             contentFile.AddSubFile(Path.GetFileName(sourceFileName) ?? "animation.dmx", () =>
             {
@@ -75,7 +75,7 @@ public class NmClipExtract
             });
         }
         var events = clip.Data.GetArray("m_events")!;
-        var docEventTracks = KVObject.Array("m_eventTracks");
+        var docEventTracks = KVObject.Array();
         foreach (var ev in events!)
         {
             var docEventTrack = BuildDocEventBasedOnEventClass(ev, ev.GetStringProperty("_class"));
@@ -88,9 +88,9 @@ public class NmClipExtract
             // these seem inconsistent, unless they're floored to int, then it matches up.
             eventList.Add("m_flStartTime", Math.Floor(startTimeSeconds * animation.FrameCount));
             eventList.Add("m_flDuration", Math.Floor(durationSeconds * animation.FrameCount));
-            docEventTracks.Add(docEventTrack.Value);
+            docEventTracks.Add(docEventTrack);
         }
-        kv.Add("m_eventTracks", docEventTracks.Value);
+        kv.Add("m_eventTracks", docEventTracks);
         contentFile.Data = Encoding.UTF8.GetBytes(new KV3File(kv).ToString());
         return contentFile;
     }
@@ -100,8 +100,8 @@ public class NmClipExtract
     {
         // From testing one event track in doc seems to correspond to one event in compiled asset
         // even though m_events is an array inside each track.
-        var kvDocEventTrack = new KVObject(null);
-        var kvDocEvent = new KVObject("m_event");
+        var kvDocEventTrack = KVObject.Collection();
+        var kvDocEvent = KVObject.Collection();
 
         kvDocEventTrack.Add("m_type", "Duration"); // Doesn't seem to matter?
         kvDocEventTrack.Add("m_bIsSyncTrack", kvCompiledEvent.ContainsKey("m_syncID"));
@@ -122,10 +122,8 @@ public class NmClipExtract
         kvDocEventTrack.Add("m_eventClassName", docEventClass);
         kvDocEvent.Add("_class", docEventClass);
 
-        foreach (var child in kvCompiledEvent.Children)
+        foreach (var (key, value) in kvCompiledEvent.Children)
         {
-            var key = child.Name;
-            var value = child.Value;
 
             // These were already handled and shouldn't be copied over.
             if (key is "_class" or "m_flStartTimeSeconds" or "m_flDurationSeconds")
@@ -144,9 +142,9 @@ public class NmClipExtract
             kvDocEvent.Add(newKey, value);
         }
 
-        var eventsArray = KVObject.Array("m_events");
-        eventsArray.Add(kvDocEvent.Value);
-        kvDocEventTrack.Add("m_events", eventsArray.Value);
+        var eventsArray = KVObject.Array();
+        eventsArray.Add(kvDocEvent);
+        kvDocEventTrack.Add("m_events", eventsArray);
         return kvDocEventTrack;
     }
 }

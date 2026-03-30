@@ -21,7 +21,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <summary>
             /// Gets the entity properties collection.
             /// </summary>
-            public KVObject Properties { get; } = new(null);
+            public KVObject Properties { get; } = KVObject.Collection();
             // public KVObject Attributes { get; } = new(null);
             /// <summary>
             /// Gets or sets the entity connections (inputs/outputs).
@@ -90,8 +90,8 @@ namespace ValveResourceFormat.ResourceTypes
             /// Gets a property value by name.
             /// </summary>
             /// <param name="name">The property name.</param>
-            /// <returns>The property value or the default <see cref="KVValue"/> (with <see cref="KVValueType.Null"/>) if not found.</returns>
-            public KVValue GetProperty(string name) => Properties[name]?.Value ?? default;
+            /// <returns>The property value or the default <see cref="KVObject"/> (with <see cref="KVValueType.Null"/>) if not found.</returns>
+            public KVObject GetProperty(string name) => Properties[name] ?? KVObject.Null();
 
             /// <summary>
             /// Determines whether the entity contains a property with the specified name.
@@ -233,6 +233,9 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
+        private static KVObject MakeColor32(byte[] bytes)
+            => KVObject.Array(bytes.Select(b => (KVObject)(long)b));
+
         private static void ReadValues(Entity entity, KVObject? values)
         {
             if (values == null || values.ValueType == KVValueType.Null)
@@ -248,7 +251,7 @@ namespace ValveResourceFormat.ResourceTypes
             foreach (var child in values.Children)
             {
                 // All entity property keys will be stored in lowercase
-                var lowercaseKey = child.Name.ToLowerInvariant();
+                var lowercaseKey = child.Key.ToLowerInvariant();
 
                 var hash = StringToken.Store(lowercaseKey);
                 entity.Properties.Add(lowercaseKey, child.Value);
@@ -275,17 +278,17 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var type = (EntityFieldType)dataReader.ReadUInt32();
 
-                KVValue entityProperty = type switch
+                KVObject entityProperty = type switch
                 {
-                    EntityFieldType.Boolean => (KVValue)dataReader.ReadBoolean(),
-                    EntityFieldType.Float => (KVValue)(double)dataReader.ReadSingle(),
-                    EntityFieldType.Float64 => (KVValue)dataReader.ReadDouble(),
-                    EntityFieldType.Color32 => new KVObject("", dataReader.ReadBytes(4).Select(c => (KVValue)(long)c)).Value,
-                    EntityFieldType.Integer => (KVValue)(long)dataReader.ReadInt32(),
-                    EntityFieldType.UInt => (KVValue)(ulong)dataReader.ReadUInt32(),
-                    EntityFieldType.Integer64 => (KVValue)dataReader.ReadUInt64(), // Is this supposed to be ReadInt64?
-                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVValue)$"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}",
-                    EntityFieldType.CString => (KVValue)dataReader.ReadNullTermString(Encoding.UTF8),
+                    EntityFieldType.Boolean => dataReader.ReadBoolean(),
+                    EntityFieldType.Float => (double)dataReader.ReadSingle(),
+                    EntityFieldType.Float64 => dataReader.ReadDouble(),
+                    EntityFieldType.Color32 => MakeColor32(dataReader.ReadBytes(4)),
+                    EntityFieldType.Integer => (long)dataReader.ReadInt32(),
+                    EntityFieldType.UInt => (ulong)dataReader.ReadUInt32(),
+                    EntityFieldType.Integer64 => dataReader.ReadUInt64(), // Is this supposed to be ReadInt64?
+                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVObject)$"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}",
+                    EntityFieldType.CString => dataReader.ReadNullTermString(Encoding.UTF8),
                     _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
                 };
 
@@ -346,7 +349,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var value = StringifyValue(property.Value);
 
-                    builder.AppendLine(CultureInfo.InvariantCulture, $"{property.Name,-30} {value}");
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"{property.Key,-30} {value}");
                 }
 
                 if (entity.Connections != null)
@@ -436,23 +439,23 @@ namespace ValveResourceFormat.ResourceTypes
 
                 foreach (var property in entity.Properties.Children)
                 {
-                    var key = property.Name;
+                    var key = property.Key;
 
                     if (key is "hammeruniqueid" or "classname" or "angles" or "scales" or "origin")
                     {
                         continue;
                     }
 
-                    if (property.ValueType == KVValueType.String && key == "model")
+                    if (property.Value.ValueType == KVValueType.String && key == "model")
                     {
-                        var model = (string)property;
+                        var model = (string)property.Value;
                         if (model.Contains("/entities/", StringComparison.Ordinal) || model.Contains("\\entities\\", StringComparison.Ordinal))
                         {
                             brushEntities.Add(classname);
                         }
                     }
 
-                    entityProperties.Add((key, property.ValueType));
+                    entityProperties.Add((key, property.Value.ValueType));
                 }
 
                 if (entity.Connections != null)
@@ -546,10 +549,6 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     valueStr = new KV3File(kvObject).ToString();
                 }
-            }
-            else if (value is KVValue kvValue)
-            {
-                valueStr = kvValue.ToString() ?? string.Empty;
             }
             else if (value is not null)
             {

@@ -48,15 +48,15 @@ namespace Tests
 
             var modelInfo = (Model)resource.DataBlock!;
             var meshGroupMasks = modelInfo.Data.GetChild("m_refMeshGroupMasks");
-            var newMasks = KVObject.Array("m_refMeshGroupMasks");
-            newMasks.Add((KVValue)(ulong)1337);
+            var newMasks = KVObject.Array();
+            newMasks.Add((ulong)1337);
             for (var i = 1; i < meshGroupMasks.Count; i++)
             {
-                newMasks.Add(meshGroupMasks[i]!.Value);
+                newMasks.Add(meshGroupMasks[i]!);
             }
             modelInfo.Data["m_refMeshGroupMasks"] = newMasks;
 
-            modelInfo.Data["m_name"] = new KVObject("m_name", (KVValue)NewName);
+            modelInfo.Data["m_name"] = new KVObject(NewName);
 
             using (var fs = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.Write))
             {

@@ -200,7 +200,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            var inputSignatureValue = Resource.EditInfo?.SearchableUserData.FirstOrDefault(x => x.Name == "VSInputSignature")?.Value;
+            var inputSignatureValue = Resource.EditInfo?.SearchableUserData["VSInputSignature"];
             if (inputSignatureValue?.ValueType != KVValueType.String)
             {
                 return null;

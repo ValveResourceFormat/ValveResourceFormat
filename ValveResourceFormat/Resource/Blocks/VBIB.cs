@@ -302,7 +302,7 @@ namespace ValveResourceFormat.Blocks
                 }
                 else if (semanticName.ValueType == KVValueType.BinaryBlob)
                 {
-                    semanticNameStr = Encoding.UTF8.GetString(semanticName.Value.AsSpan().TrimEnd((byte)0));
+                    semanticNameStr = Encoding.UTF8.GetString(semanticName.AsSpan().TrimEnd((byte)0));
                 }
                 else
                 {

@@ -27,11 +27,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this event flex.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = KVObject.Array(null);
+            var kv = KVObject.Array();
 
             foreach (var track in Tracks)
             {
-                kv.Add(track.ToKeyValues().Value);
+                kv.Add(track.ToKeyValues());
             }
 
             return kv;

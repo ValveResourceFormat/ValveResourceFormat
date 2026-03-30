@@ -203,52 +203,50 @@ public sealed class MaterialExtract
     /// </summary>
     public string ToValveMaterial()
     {
-        var root = new KVObject("Layer0", (IEnumerable<KVObject>)[])
-        {
-            new KVObject("shader", material.ShaderName)
-        };
+        var root = KVObject.ListCollection();
+        root.Add("shader", material.ShaderName);
 
         foreach (var (key, value) in material.IntParams)
         {
-            root.Add(new KVObject(key, value));
+            root.Add(key, value);
         }
 
         foreach (var (key, value) in material.FloatParams)
         {
-            root.Add(new KVObject(key, value));
+            root.Add(key, value);
         }
 
         foreach (var (key, value) in material.VectorParams)
         {
-            root.Add(new KVObject(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
+            root.Add(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]");
         }
 
-        var originalTextures = new KVObject("Compiled Textures", (IEnumerable<KVObject>)[]);
+        var originalTextures = KVObject.ListCollection();
         foreach (var (key, value) in material.TextureParams)
         {
             using var textureResource = fileLoader?.LoadFileCompiled(value);
             var textureData = textureResource?.DataBlock as Texture;
             foreach (var unpackInfo in GetTextureUnpackInfos(key, value, textureData, false, true))
             {
-                root.Add(new KVObject(unpackInfo.TextureType, unpackInfo.FileName));
+                root.Add(unpackInfo.TextureType, unpackInfo.FileName);
             }
 
-            originalTextures.Add(new KVObject(key, value));
+            originalTextures.Add(key, value);
         }
 
-        root.Add(originalTextures);
+        root.Add("Compiled Textures", originalTextures);
 
         if (material.DynamicExpressions.Count > 0)
         {
-            var dynamicExpressionsNode = new KVObject("DynamicParams", (IEnumerable<KVObject>)[]);
-            root.Add(dynamicExpressionsNode);
+            var dynamicExpressionsNode = KVObject.ListCollection();
+            root.Add("DynamicParams", dynamicExpressionsNode);
             foreach (var (key, value) in material.DynamicExpressions)
             {
-                dynamicExpressionsNode.Add(new KVObject(key, value));
+                dynamicExpressionsNode.Add(key, value);
             }
         }
 
-        var attributes = new List<KVObject>();
+        var attributes = new List<KeyValuePair<string, KVObject>>();
 
         foreach (var (key, value) in material.IntAttributes)
         {
@@ -258,24 +256,24 @@ public sealed class MaterialExtract
             {
                 continue;
             }
-            attributes.Add(new KVObject(key, value));
+            attributes.Add(new(key, value));
         }
 
         foreach (var (key, value) in material.FloatAttributes)
         {
             // Skip `int` definition if there is a `float` definition
-            attributes = attributes.Where(existing_key => existing_key.Name != key).ToList();
-            attributes.Add(new KVObject(key, value));
+            attributes = attributes.Where(existing_key => existing_key.Key != key).ToList();
+            attributes.Add(new(key, value));
         }
 
         foreach (var (key, value) in material.VectorAttributes)
         {
-            attributes.Add(new KVObject(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
+            attributes.Add(new(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
         }
 
         foreach (var (key, value) in material.StringAttributes)
         {
-            attributes.Add(new KVObject(key, value ?? string.Empty));
+            attributes.Add(new(key, value ?? string.Empty));
         }
 
         var attributesThatAreSystemAttributes = new HashSet<string>
@@ -292,35 +290,33 @@ public sealed class MaterialExtract
         if (attributes.Count > 0)
         {
             // Some attributes are actually SystemAttributes
-            var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Name.ToLowerInvariant())).ToList();
+            var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Key.ToLowerInvariant())).ToList();
             attributes = attributes.Except(systemAttributes).ToList();
 
             if (attributes.Count > 0)
             {
-                root.Add(new KVObject("Attributes", attributes));
+                root.Add("Attributes", KVObject.ListCollection(attributes));
             }
 
             if (systemAttributes.Count > 0)
             {
-                root.Add(new KVObject("SystemAttributes", systemAttributes));
+                root.Add("SystemAttributes", KVObject.ListCollection(systemAttributes));
             }
         }
 
         var subrectDefinition = editInfo?.SearchableUserData
-            .FirstOrDefault(x => x.Name.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase))?.Value;
+            .FirstOrDefault(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).Value;
 
         if (subrectDefinition?.ValueType == KVValueType.String)
         {
-            var toolattributes = new List<KVObject>()
-                {
-                    new("SubrectDefinition", subrectDefinition.Value)
-                };
+            var toolattributes = KVObject.ListCollection();
+            toolattributes.Add("SubrectDefinition", (string)subrectDefinition);
 
-            root.Add(new KVObject("ToolAttributes", toolattributes));
+            root.Add("ToolAttributes", toolattributes);
         }
 
         using var ms = new MemoryStream();
-        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
+        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(default, "Layer0", root));
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 

@@ -206,8 +206,8 @@ namespace ValveResourceFormat.IO
                         // TODO: Refactor this into a SoundExtract?
                         if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                         {
-                            var wrappedData = new KVObject("root");
-                            wrappedData.Add("VrfExportedSound", ctrlData.Data.Value);
+                            var wrappedData = KVObject.Collection();
+                            wrappedData.Add("VrfExportedSound", ctrlData.Data);
                             contentFile.AdditionalFiles.Add(new ContentFile
                             {
                                 FileName = Path.ChangeExtension(resource.FileName, "vsnd") ?? "exported.vsnd",
@@ -218,8 +218,8 @@ namespace ValveResourceFormat.IO
                     else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                     {
                         // TODO: We may want to cleanup m_vSound (recursively) since it contains random garbage if not actually used
-                        var wrappedData = new KVObject("root");
-                        wrappedData.Add("VrfExportedSound", ctrlData.Data.Value);
+                        var wrappedData = KVObject.Collection();
+                        wrappedData.Add("VrfExportedSound", ctrlData.Data);
                         contentFile.Data = Encoding.UTF8.GetBytes(new KV3File(wrappedData).ToString());
                     }
 

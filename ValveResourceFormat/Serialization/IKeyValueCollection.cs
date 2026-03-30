@@ -193,10 +193,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 if (typeof(T) == typeof(byte))
                 {
-                    return (T[])(object)child.Value.AsBlob();
+                    return (T[])(object)child.AsBlob();
                 }
 
-                var bytes = child.Value.AsSpan();
+                var bytes = child.AsSpan();
                 var resultBytes = new T[bytes.Length];
 
                 for (var i = 0; i < bytes.Length; i++)
@@ -365,7 +365,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 if (value.ValueType == KVValueType.BinaryBlob)
                 {
-                    return (T)(object)value.Value.AsBlob();
+                    return (T)(object)value.AsBlob();
                 }
 
                 // Array of byte values

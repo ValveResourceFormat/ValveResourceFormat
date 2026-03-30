@@ -139,8 +139,7 @@ namespace ValveResourceFormat.ResourceTypes
             // We don't support non-object roots properly, so this is a hack to handle "null" kv3
             if (datatype != KV3BinaryNodeType.OBJECT && parent == null)
             {
-                name ??= "root";
-                parent ??= new KVObject(name);
+                parent ??= KVObject.Collection();
             }
 
             switch (datatype)
@@ -194,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KV3BinaryNodeType.ARRAY:
                     var arrayLength = reader.ReadInt32();
-                    var array = KVObject.Array(name);
+                    var array = KVObject.Array();
 
                     for (var i = 0; i < arrayLength; i++)
                     {
@@ -206,7 +205,7 @@ namespace ValveResourceFormat.ResourceTypes
                 case KV3BinaryNodeType.ARRAY_TYPED:
                     var typeArrayLength = reader.ReadInt32();
                     var (subType, subFlagInfo) = LegacyReadType(reader);
-                    var typedArray = KVObject.Array(name);
+                    var typedArray = KVObject.Array();
 
                     for (var i = 0; i < typeArrayLength; i++)
                     {
@@ -217,7 +216,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KV3BinaryNodeType.OBJECT:
                     var objectLength = reader.ReadInt32();
-                    var newObject = new KVObject(name);
+                    var newObject = KVObject.Collection();
 
                     for (var i = 0; i < objectLength; i++)
                     {

@@ -300,15 +300,15 @@ namespace GUI.Controls
                             workshopInfo = kvDeserializer.Deserialize(stream);
                         }
 
-                        foreach (var item in (IEnumerable<KVObject>)workshopInfo["WorkshopItemsInstalled"])
+                        foreach (var item in workshopInfo["WorkshopItemsInstalled"].Children)
                         {
-                            var addonPath = Path.Join(steamPath, "workshop", "content", appID.ToString(CultureInfo.InvariantCulture), item.Name);
+                            var addonPath = Path.Join(steamPath, "workshop", "content", appID.ToString(CultureInfo.InvariantCulture), item.Key);
                             var publishDataPath = Path.Join(addonPath, "publish_data.txt");
-                            var vpk = Path.Join(addonPath, $"{item.Name}.vpk");
+                            var vpk = Path.Join(addonPath, $"{item.Key}.vpk");
 
                             if (!File.Exists(vpk))
                             {
-                                vpk = Path.Join(addonPath, $"{item.Name}_dir.vpk");
+                                vpk = Path.Join(addonPath, $"{item.Key}_dir.vpk");
 
                                 if (!File.Exists(vpk))
                                 {
@@ -319,7 +319,7 @@ namespace GUI.Controls
                             using var stream = File.OpenRead(publishDataPath);
                             var publishData = kvDeserializer.Deserialize(stream);
                             var addonTitle = publishData["title"];
-                            var displayTitle = $"[Workshop {item.Name}] {addonTitle}";
+                            var displayTitle = $"[Workshop {item.Key}] {addonTitle}";
 
                             foundFiles.Add(new TreeNode(displayTitle)
                             {

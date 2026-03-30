@@ -342,7 +342,7 @@ namespace ValveResourceFormat.ResourceTypes
             var animationToFolder = new Dictionary<string, string>();
             foreach (var folder in faceposerFolders)
             {
-                var folderName = folder.Name;
+                var folderName = folder.Key;
                 var animationNames = faceposerFolders.GetArray<string>(folderName);
 
                 if (animationNames != null)

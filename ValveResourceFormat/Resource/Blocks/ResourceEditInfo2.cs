@@ -93,9 +93,9 @@ namespace ValveResourceFormat.Blocks
             var searchableData = kv3.Data.GetProperty<KVObject>("m_SearchableUserData");
             if (searchableData is not null)
             {
-                foreach (var child in searchableData.Children)
+                foreach (var (key, child) in searchableData)
                 {
-                    SearchableUserData.Add(child.Name, child.Value);
+                    SearchableUserData.Add(key, child);
                 }
             }
 
@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Blocks
             {
                 SubassetReferences = new(capacity: subassetReferences.Count);
 
-                foreach (var property in subassetReferences.Children)
+                foreach (var (propertyKey, property) in subassetReferences)
                 {
                     if (property.ValueType != KVValueType.Collection)
                     {
@@ -113,12 +113,12 @@ namespace ValveResourceFormat.Blocks
 
                     var perTypeReferences = new Dictionary<string, int>(capacity: property.Count);
 
-                    foreach (var child in property.Children)
+                    foreach (var (childKey, child) in property)
                     {
-                        perTypeReferences.Add(child.Name, Convert.ToInt32(child, CultureInfo.InvariantCulture));
+                        perTypeReferences.Add(childKey, Convert.ToInt32(child, CultureInfo.InvariantCulture));
                     }
 
-                    SubassetReferences.Add(property.Name, perTypeReferences);
+                    SubassetReferences.Add(propertyKey, perTypeReferences);
                 }
             }
 
@@ -127,7 +127,7 @@ namespace ValveResourceFormat.Blocks
             {
                 SubassetDefinitions = new(capacity: subassetDefinitions.Count);
 
-                foreach (var property in subassetDefinitions.Children)
+                foreach (var (propertyKey, property) in subassetDefinitions)
                 {
                     if (property.ValueType != KVValueType.Array)
                     {
@@ -137,10 +137,10 @@ namespace ValveResourceFormat.Blocks
                     var definitions = new string[property.Count];
                     for (var i = 0; i < property.Count; i++)
                     {
-                        definitions[i] = (string)property[i]!.Value;
+                        definitions[i] = (string)property[i]!;
                     }
 
-                    SubassetDefinitions.Add(property.Name, definitions);
+                    SubassetDefinitions.Add(propertyKey, definitions);
                 }
             }
         }

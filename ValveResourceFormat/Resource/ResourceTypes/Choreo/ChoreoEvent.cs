@@ -141,7 +141,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this event.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
 
             var type = TypeToKVString();
             kv.Add("type", type);
@@ -210,15 +210,15 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (Ramp?.LeftEdge != null)
             {
-                kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
+                kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues());
             }
             if (Ramp?.RightEdge != null)
             {
-                kv.Add("right_edge", Ramp.RightEdge.ToKeyValues().Value);
+                kv.Add("right_edge", Ramp.RightEdge.ToKeyValues());
             }
             if (Ramp.Samples.Length > 0)
             {
-                kv.Add("event_ramp", Ramp.ToKeyValues().Value);
+                kv.Add("event_ramp", Ramp.ToKeyValues());
             }
 
             AddTagArrayToKV(kv, "flextimingtags", FlexTimingTags);
@@ -231,7 +231,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 //If samples_use_time is 1, samples in the flex animations are interpreted as real time (probably meaning values are not clamped to 0.0-1.0)
                 //They're stored as real time in the vcd, so this has to be set to true
                 kv.Add("samples_use_time", true);
-                kv.Add("flexanimations", EventFlex.ToKeyValues().Value);
+                kv.Add("flexanimations", EventFlex.ToKeyValues());
             }
 
             if (PreferredName != null)
@@ -249,18 +249,18 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 return;
             }
 
-            var tagList = KVObject.Array(null);
+            var tagList = KVObject.Array();
 
             foreach (var tag in tags)
             {
-                var tagKV = new KVObject(null);
+                var tagKV = KVObject.Collection();
                 tagKV.Add("name", tag.Name);
                 tagKV.Add("fraction", tag.Fraction);
 
-                tagList.Add(tagKV.Value);
+                tagList.Add(tagKV);
             }
 
-            parent.Add(name, tagList.Value);
+            parent.Add(name, tagList);
         }
 
         private static void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)

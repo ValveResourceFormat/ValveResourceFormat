@@ -43,11 +43,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         //Maybe return an array of kvobjects instead? That'd be different from the other choreo classes though.
         public KVObject ToKeyValues()
         {
-            var kv = KVObject.Array(null);
+            var kv = KVObject.Array();
 
             foreach (var sample in Samples)
             {
-                kv.Add(sample.ToKeyValues().Value);
+                kv.Add(sample.ToKeyValues());
             }
 
             return kv;

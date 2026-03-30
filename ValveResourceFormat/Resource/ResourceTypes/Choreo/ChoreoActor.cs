@@ -41,16 +41,16 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this actor.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
             kv.Add("name", Name);
 
-            var channels = KVObject.Array(null);
+            var channels = KVObject.Array();
             foreach (var channel in Channels)
             {
-                channels.Add(channel.ToKeyValues().Value);
+                channels.Add(channel.ToKeyValues());
             }
 
-            kv.Add("channels", channels.Value);
+            kv.Add("channels", channels);
             kv.Add("active", IsActive);
 
             return kv;

@@ -1552,11 +1552,11 @@ namespace CLI
                         {
                             foreach (var property in entity.Properties.Children)
                             {
-                                if (!knownEntityKeys.Contains(property.Name))
+                                if (!knownEntityKeys.Contains(property.Key))
                                 {
                                     lock (unknownEntityKeys)
                                     {
-                                        unknownEntityKeys.Add(property.Name["vrf_unknown_key_".Length..]);
+                                        unknownEntityKeys.Add(property.Key["vrf_unknown_key_".Length..]);
                                     }
                                 }
                             }

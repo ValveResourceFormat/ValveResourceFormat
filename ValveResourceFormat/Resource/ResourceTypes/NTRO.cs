@@ -61,7 +61,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private KVObject ReadStructure(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, long startingOffset)
         {
-            var structEntry = new KVObject(refStruct.Name);
+            var structEntry = KVObject.Collection();
 
             foreach (var field in refStruct.FieldIntrospection)
             {
@@ -114,7 +114,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     if (offset == 0)
                     {
-                        structEntry.Add(field.FieldName, default(KVValue)); // :shrug:
+                        structEntry.Add(field.FieldName, KVObject.Null()); // :shrug:
 
                         return;
                     }
@@ -153,14 +153,14 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (arrayCount == 0)
                     {
-                        structEntry.Add(field.FieldName, KVObject.Array(field.FieldName).Value);
+                        structEntry.Add(field.FieldName, KVObject.Array());
                         return;
                     }
 
                     Reader.BaseStream.Position += arrayOffset - 8;
 
                     // Array of pointers
-                    var arrayValues = KVObject.Array(field.FieldName);
+                    var arrayValues = KVObject.Array();
 
                     for (var i = 0; i < arrayCount; i++)
                     {
@@ -168,7 +168,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         if (pointerOffset == 0)
                         {
-                            arrayValues.Add(default(KVValue));
+                            arrayValues.Add(KVObject.Null());
                         }
                         else
                         {
@@ -181,7 +181,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
                     }
 
-                    structEntry.Add(field.FieldName, arrayValues.Value);
+                    structEntry.Add(field.FieldName, arrayValues);
                     Reader.BaseStream.Position = prevOffset;
 
                     return;
@@ -196,7 +196,7 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new NotImplementedException($"More than 2 levels of indirection not supported (found {field.Indirections.Count})");
             }
 
-            KVValue fieldValue;
+            KVObject fieldValue;
 
             if (field.Count > 0 || field.Indirections.Count == 1 && (SchemaIndirectionType)field.Indirections[0] == SchemaIndirectionType.ResourceArray)
             {
@@ -210,19 +210,19 @@ namespace ValveResourceFormat.ResourceTypes
                     };
 
                     //special case for byte arrays for faster access
-                    fieldValue = KVValue.Blob(Reader.ReadBytes((int)count / size));
+                    fieldValue = KVObject.Blob(Reader.ReadBytes((int)count / size));
                 }
                 else
                 {
                     //var ntroValues = new NTROArray(field.Type, (int)count, pointer, field.Indirections.Count > 0);
-                    var ntroValues = KVObject.Array(field.FieldName);
+                    var ntroValues = KVObject.Array();
 
                     for (var i = 0; i < count; i++)
                     {
                         ntroValues.Add(ReadField(field));
                     }
 
-                    fieldValue = ntroValues.Value;
+                    fieldValue = ntroValues;
                 }
             }
             else
@@ -239,44 +239,44 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private KVValue ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
+        private KVObject ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
         {
             switch (field.Type)
             {
                 case SchemaFieldType.Struct:
                     var newStruct = IntrospectionManifest.ReferencedStructs.First(x => x.Id == field.TypeData);
-                    return ReadStructure(newStruct, Reader.BaseStream.Position).Value;
+                    return ReadStructure(newStruct, Reader.BaseStream.Position);
 
                 case SchemaFieldType.Enum:
                     // TODO: Lookup in ReferencedEnums
-                    return (KVValue)(uint)Reader.ReadUInt32();
+                    return (uint)Reader.ReadUInt32();
 
                 case SchemaFieldType.SByte:
-                    return (KVValue)(int)Reader.ReadSByte();
+                    return (int)Reader.ReadSByte();
 
                 case SchemaFieldType.Byte:
-                    return (KVValue)(uint)Reader.ReadByte();
+                    return (uint)Reader.ReadByte();
 
                 case SchemaFieldType.Boolean:
-                    return (KVValue)Reader.ReadBoolean();
+                    return Reader.ReadBoolean();
 
                 case SchemaFieldType.Int16:
-                    return (KVValue)(int)Reader.ReadInt16(); // TODO: Could actually be int16
+                    return (int)Reader.ReadInt16(); // TODO: Could actually be int16
 
                 case SchemaFieldType.UInt16:
-                    return (KVValue)(uint)Reader.ReadUInt16(); // TODO: Could actually be uint16
+                    return (uint)Reader.ReadUInt16(); // TODO: Could actually be uint16
 
                 case SchemaFieldType.Int32:
-                    return (KVValue)Reader.ReadInt32();
+                    return Reader.ReadInt32();
 
                 case SchemaFieldType.UInt32:
-                    return (KVValue)(uint)Reader.ReadUInt32();
+                    return (uint)Reader.ReadUInt32();
 
                 case SchemaFieldType.Float:
-                    return (KVValue)(double)Reader.ReadSingle(); // TODO: Could actually be float
+                    return (double)Reader.ReadSingle(); // TODO: Could actually be float
 
                 case SchemaFieldType.Int64:
-                    return (KVValue)Reader.ReadInt64();
+                    return Reader.ReadInt64();
 
                 case SchemaFieldType.ExternalReference:
                     var id = Reader.ReadUInt64();
@@ -286,22 +286,23 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (value == null)
                     {
-                        return default(KVValue);
+                        return KVObject.Null();
                     }
 
-                    KVValue resourceNameValue = value;
-                    return resourceNameValue with { Flag = KVFlag.ResourceName };
+                    KVObject resourceNameValue = value;
+                    resourceNameValue.Flag = KVFlag.ResourceName;
+                    return resourceNameValue;
 
                 case SchemaFieldType.UInt64:
-                    return (KVValue)(ulong)Reader.ReadUInt64();
+                    return (ulong)Reader.ReadUInt64();
 
                 case SchemaFieldType.Vector3D:
                     {
-                        var arrayObject = KVObject.Array(field.Type.ToString());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        return arrayObject.Value;
+                        var arrayObject = KVObject.Array();
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        return arrayObject;
                     }
 
                 case SchemaFieldType.Quaternion:
@@ -309,70 +310,71 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.Vector4D:
                 case SchemaFieldType.FourVectors:
                     {
-                        var arrayObject = KVObject.Array(field.Type.ToString());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        return arrayObject.Value;
+                        var arrayObject = KVObject.Array();
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        return arrayObject;
                     }
 
                 case SchemaFieldType.Color:
                     {
-                        var arrayObject = KVObject.Array(field.Type.ToString());
-                        arrayObject.Add((KVValue)(int)Reader.ReadByte());
-                        arrayObject.Add((KVValue)(int)Reader.ReadByte());
-                        arrayObject.Add((KVValue)(int)Reader.ReadByte());
-                        arrayObject.Add((KVValue)(int)Reader.ReadByte());
-                        return arrayObject.Value;
+                        var arrayObject = KVObject.Array();
+                        arrayObject.Add((int)Reader.ReadByte());
+                        arrayObject.Add((int)Reader.ReadByte());
+                        arrayObject.Add((int)Reader.ReadByte());
+                        arrayObject.Add((int)Reader.ReadByte());
+                        return arrayObject;
                     }
 
                 case SchemaFieldType.Char:
-                    return (KVValue)Reader.ReadOffsetString(Encoding.UTF8);
+                    return Reader.ReadOffsetString(Encoding.UTF8);
 
                 case SchemaFieldType.ResourceString:
-                    KVValue resourceValue = Reader.ReadOffsetString(Encoding.UTF8);
-                    return resourceValue with { Flag = KVFlag.Resource };
+                    KVObject resourceValue = Reader.ReadOffsetString(Encoding.UTF8);
+                    resourceValue.Flag = KVFlag.Resource;
+                    return resourceValue;
 
                 case SchemaFieldType.Vector2D:
                     {
-                        var arrayObject = KVObject.Array(field.Type.ToString());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        return arrayObject.Value;
+                        var arrayObject = KVObject.Array();
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        return arrayObject;
                     }
 
                 case SchemaFieldType.Matrix3x4:
                 case SchemaFieldType.Matrix3x4a:
                     {
-                        var arrayObject = KVObject.Array(field.Type.ToString());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        return arrayObject.Value;
+                        var arrayObject = KVObject.Array();
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        return arrayObject;
                     }
 
                 case SchemaFieldType.Transform:
                     {
-                        var arrayObject = KVObject.Array(field.Type.ToString());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        arrayObject.Add((KVValue)Reader.ReadSingle());
-                        return arrayObject.Value;
+                        var arrayObject = KVObject.Array();
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        arrayObject.Add(Reader.ReadSingle());
+                        return arrayObject;
                     }
 
                 default:

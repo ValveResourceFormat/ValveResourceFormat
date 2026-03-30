@@ -61,7 +61,7 @@ namespace GUI.Forms
         {
             foreach (var child in entity.Properties.Children)
             {
-                AddProperty(child.Name, StringifyValue(child.Value));
+                AddProperty(child.Key, StringifyValue(child.Value));
             }
 
             if (entity.Connections != null)

@@ -29,7 +29,7 @@ public class VsInputSignatureElement : ShaderDataBlock
 
         for (var i = 0; i < data.Count; i++)
         {
-            var definition = new KVObject(null, data[i]);
+            var definition = data[i];
             SymbolsDefinition[i] = new(definition);
         }
     }

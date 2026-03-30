@@ -30,24 +30,24 @@ public class NmSkeletonExtract
     /// </summary>
     public ContentFile ToContentFile()
     {
-        var kv = new KVObject(null);
+        var kv = KVObject.Collection();
         var skel = Skeleton.FromSkeletonData(kvSkeleton);
         var dmxFile = Path.ChangeExtension(resource.FileName, "dmx");
         kv.Add("m_sourceFileName", dmxFile);
         kv.Add("m_rootBoneName", "");
         kv.Add("m_flGlobalScale", 1.0f);
         kv.Add("m_bIsAttachableProp", kvSkeleton.GetProperty<bool>("m_bIsPropSkeleton"));
-        kv.Add("m_secondarySkeletons", kvSkeleton.GetChild("m_secondarySkeletons").Value);
+        kv.Add("m_secondarySkeletons", kvSkeleton.GetChild("m_secondarySkeletons"));
         var numLowLODBones = kvSkeleton.GetInt32Property("m_numBonesToSampleAtLowLOD");
         var boneIDs = kvSkeleton.GetArray<string>("m_boneIDs")![numLowLODBones..];
-        var highLODBones = KVObject.Array(null);
+        var highLODBones = KVObject.Array();
         foreach (var boneID in boneIDs)
         {
-            highLODBones.Add((KVValue)boneID);
+            highLODBones.Add(boneID);
         }
-        kv.Add("m_highLODBones", highLODBones.Value);
+        kv.Add("m_highLODBones", highLODBones);
         // Mask definitions seem to be 1:1 to the source.
-        kv.Add("m_boneMaskSetDefinitions", kvSkeleton.GetChild("m_maskDefinitions").Value);
+        kv.Add("m_boneMaskSetDefinitions", kvSkeleton.GetChild("m_maskDefinitions"));
 
         var contentFile = new ContentFile
         {

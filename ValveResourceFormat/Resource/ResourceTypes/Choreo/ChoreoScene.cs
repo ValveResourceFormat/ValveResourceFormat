@@ -75,43 +75,43 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this scene.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
 
             if (Events.Length > 0)
             {
-                var events = KVObject.Array(null);
+                var events = KVObject.Array();
                 foreach (var choreoEvent in Events)
                 {
-                    events.Add(choreoEvent.ToKeyValues().Value);
+                    events.Add(choreoEvent.ToKeyValues());
                 }
 
-                kv.Add("events", events.Value);
+                kv.Add("events", events);
             }
 
             if (Actors.Length > 0)
             {
-                var actors = KVObject.Array(null);
+                var actors = KVObject.Array();
                 foreach (var actor in Actors)
                 {
-                    actors.Add(actor.ToKeyValues().Value);
+                    actors.Add(actor.ToKeyValues());
                 }
 
-                kv.Add("actors", actors.Value);
+                kv.Add("actors", actors);
             }
 
             if (Ramp != null)
             {
                 if (Ramp.LeftEdge != null)
                 {
-                    kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues().Value);
+                    kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues());
                 }
                 if (Ramp.RightEdge != null)
                 {
-                    kv.Add("right_edge", Ramp.RightEdge.ToKeyValues().Value);
+                    kv.Add("right_edge", Ramp.RightEdge.ToKeyValues());
                 }
                 if (Ramp.Samples.Length > 0)
                 {
-                    kv.Add("scene_ramp", Ramp.ToKeyValues().Value);
+                    kv.Add("scene_ramp", Ramp.ToKeyValues());
                 }
             }
 

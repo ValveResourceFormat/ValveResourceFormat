@@ -7,22 +7,22 @@ namespace ValveResourceFormat.Serialization.KeyValues
     /// <summary>
     /// Represents a KeyValues3 file.
     /// </summary>
-    public class KV3File
+    public class KV3File : KVDocument
     {
         /// <summary>
         /// Gets the encoding identifier.
         /// </summary>
-        public KV3ID Encoding { get; }
+        public KV3ID Encoding => Header.Encoding;
 
         /// <summary>
         /// Gets the format identifier.
         /// </summary>
-        public KV3ID Format { get; }
+        public KV3ID Format => Header.Format;
 
         /// <summary>
-        /// Gets the root object.
+        /// Gets the root object. Returns this instance for backward compatibility.
         /// </summary>
-        public KVObject Root { get; }
+        public KV3File Root => this;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="KV3File"/> class.
@@ -31,10 +31,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
             KVObject root,
             KV3ID? encoding = null,
             KV3ID? format = null)
+            : base(
+                new KVHeader
+                {
+                    Encoding = encoding ?? KV3IDLookup.Get("text"),
+                    Format = format ?? KV3IDLookup.Get("generic"),
+                },
+                string.Empty,
+                root)
         {
-            Root = root;
-            Encoding = encoding ?? KV3IDLookup.Get("text");
-            Format = format ?? KV3IDLookup.Get("generic");
         }
 
         /// <summary>
@@ -73,10 +78,8 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public override string ToString()
         {
             using var ms = new MemoryStream();
-            var header = new KVHeader { Encoding = Encoding, Format = Format };
-            var doc = new KVDocument(header, Root.Name, Root.Value);
             var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
-            serializer.Serialize(ms, doc);
+            serializer.Serialize(ms, (KVDocument)this);
             ms.Position = 0;
             using var reader = new StreamReader(ms);
             return reader.ReadToEnd();

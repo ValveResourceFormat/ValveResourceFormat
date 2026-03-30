@@ -799,9 +799,9 @@ namespace ValveResourceFormat.IO
 
             if (entity != null && ExportExtras)
             {
-                foreach (var child in entity.Properties.Children)
+                foreach (var (key, value) in entity.Properties.Children)
                 {
-                    exportedMesh.Extras[child.Name] = child.Value.ValueType == KVValueType.String ? (string)child.Value : child.Value.ToString();
+                    exportedMesh.Extras[key] = value.ValueType == KVValueType.String ? (string)value : value.ToString();
                 }
             }
 

@@ -187,9 +187,9 @@ namespace ValveResourceFormat.IO
 
                         if (dependencies != null)
                         {
-                            foreach (var dependency in (IEnumerable<KVObject>)dependencies)
+                            foreach (var (_, dependency) in dependencies)
                             {
-                                var dependencyId = (uint)dependency.Value;
+                                var dependencyId = (uint)dependency;
                                 var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
 
                                 if (File.Exists(dependencyVpkPath))
@@ -422,15 +422,15 @@ namespace ValveResourceFormat.IO
 
             Console.WriteLine($"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
 
-            foreach (var searchPath in (IEnumerable<KVObject>)gameInfo["FileSystem"]["SearchPaths"])
+            foreach (var (key, searchPath) in gameInfo["FileSystem"]["SearchPaths"])
             {
-                if (searchPath.Name == "Game")
+                if (key == "Game")
                 {
-                    folders.Add(Path.Combine(gameRoot, searchPath.Value.ToString()!));
+                    folders.Add(Path.Combine(gameRoot, searchPath.ToString()!));
                 }
-                else if (searchPath.Name == "OfficialAddonRoot")
+                else if (key == "OfficialAddonRoot")
                 {
-                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.Value.ToString()!));
+                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
                 }
             }
         }

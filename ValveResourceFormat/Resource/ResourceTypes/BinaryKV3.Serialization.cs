@@ -150,19 +150,19 @@ namespace ValveResourceFormat.ResourceTypes
             WriteType(context, KV3BinaryNodeType.OBJECT, KVFlag.None);
             context.Bytes4Writer.Write(obj.Count);
 
-            foreach (var property in obj.Children)
+            foreach (var (key, property) in obj)
             {
-                WriteProperty(property.Name, property.Value, context);
+                WriteProperty(key, property, context);
             }
         }
 
-        private void WriteProperty(string name, KVValue value, SerializationContext context)
+        private void WriteProperty(string name, KVObject value, SerializationContext context)
         {
             context.Bytes4Writer.Write(context.GetStringId(name));
             WriteValueRecursive(value, context);
         }
 
-        private void WriteValueRecursive(KVValue value, SerializationContext context)
+        private void WriteValueRecursive(KVObject value, SerializationContext context)
         {
             if (value.ValueType == KVValueType.Boolean)
             {
@@ -255,23 +255,21 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVValueType.Collection:
                     {
-                        var collection = new KVObject(null, value);
-                        context.Bytes4Writer.Write(collection.Count);
+                        context.Bytes4Writer.Write(value.Count);
 
-                        foreach (var property in collection.Children)
+                        foreach (var (key, property) in value)
                         {
-                            WriteProperty(property.Name, property.Value, context);
+                            WriteProperty(key, property, context);
                         }
                     }
                     break;
                 case KVValueType.Array:
                     {
-                        var array = new KVObject(null, value);
-                        context.Bytes4Writer.Write(array.Count);
+                        context.Bytes4Writer.Write(value.Count);
 
-                        foreach (var item in array.Children)
+                        foreach (var (_, item) in value)
                         {
-                            WriteValueRecursive(item.Value, context);
+                            WriteValueRecursive(item, context);
                         }
                     }
                     break;
@@ -280,7 +278,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        private static KV3BinaryNodeType GetKV3BinaryNodeType(KVValue value)
+        private static KV3BinaryNodeType GetKV3BinaryNodeType(KVObject value)
         {
             return value.ValueType switch
             {

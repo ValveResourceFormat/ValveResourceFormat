@@ -770,8 +770,7 @@ namespace ValveResourceFormat.ResourceTypes
             // We don't support non-object roots properly, so this is a hack to handle "null" kv3
             if (datatype != KV3BinaryNodeType.OBJECT && parent == null)
             {
-                name ??= "root";
-                parent ??= new KVObject(name);
+                parent ??= KVObject.Collection();
             }
 
             var buffer = context.Buffer;
@@ -950,7 +949,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
 
-                        var array = KVObject.Array(name);
+                        var array = KVObject.Array();
 
                         for (var i = 0; i < arrayLength; i++)
                         {
@@ -978,7 +977,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
 
                         var (subType, subFlagInfo) = ReadType(context);
-                        var typedArray = KVObject.Array(name);
+                        var typedArray = KVObject.Array();
 
                         for (var i = 0; i < arrayLength; i++)
                         {
@@ -997,7 +996,7 @@ namespace ValveResourceFormat.ResourceTypes
                         buffer.Bytes1 = buffer.Bytes1[1..];
 
                         var (subType, subFlagInfo) = ReadType(context);
-                        var typedArray = KVObject.Array(name);
+                        var typedArray = KVObject.Array();
 
                         // Swap the buffers and simply call read again instead of reimplementing the switch here
                         (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
@@ -1029,7 +1028,7 @@ namespace ValveResourceFormat.ResourceTypes
                             buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
                         }
 
-                        var newObject = new KVObject(name);
+                        var newObject = KVObject.Collection();
 
                         for (var i = 0; i < objectLength; i++)
                         {
@@ -1101,11 +1100,11 @@ namespace ValveResourceFormat.ResourceTypes
 #pragma warning restore IDE0066 // Convert switch statement to expression
         }
 
-        private static KVValue MakeValue(KV3BinaryNodeType type, object data, KVFlag flag = KVFlag.None)
+        private static KVObject MakeValue(KV3BinaryNodeType type, object data, KVFlag flag = KVFlag.None)
         {
-            KVValue value = data switch
+            KVObject value = data switch
             {
-                null => default(KVValue),
+                null => KVObject.Null(),
                 bool b => b,
                 int i => i,
                 uint u => u,
@@ -1116,14 +1115,20 @@ namespace ValveResourceFormat.ResourceTypes
                 float f => f,
                 double d => d,
                 string s => s,
-                byte[] bytes => KVValue.Blob(bytes),
-                KVObject obj => obj.Value,
+                byte[] bytes => KVObject.Blob(bytes),
+                KVObject obj => obj,
                 _ => throw new NotImplementedException($"MakeValue does not support {data.GetType()}")
             };
-            return flag != KVFlag.None ? value with { Flag = flag } : value;
+
+            if (flag != KVFlag.None)
+            {
+                value.Flag = flag;
+            }
+
+            return value;
         }
 
-        private static void AddToParent(KVObject parent, string name, KVValue value)
+        private static void AddToParent(KVObject parent, string name, KVObject value)
         {
             if (parent.IsArray)
             {
@@ -1131,6 +1136,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
+                name ??= string.Empty;
                 parent.Add(name, value);
             }
         }

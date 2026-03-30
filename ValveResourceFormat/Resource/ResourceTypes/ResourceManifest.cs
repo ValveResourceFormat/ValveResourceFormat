@@ -108,20 +108,20 @@ namespace ValveResourceFormat.ResourceTypes
 
         private KV3File GetPrintabaleObject()
         {
-            var root = new KVObject(null);
+            var root = new KVObject();
             var index = 0;
 
             foreach (var resource in Resources)
             {
-                var arr = KVObject.Array(null);
+                var arr = KVObject.Array();
 
                 foreach (var file in resource)
                 {
-                    arr.Add((KVValue)file);
+                    arr.Add(file);
                 }
 
                 var key = index > 0 ? $"resourceManifest{index}" : "resourceManifest";
-                root.Add(key, arr.Value);
+                root.Add(key, arr);
                 index++;
             }
 

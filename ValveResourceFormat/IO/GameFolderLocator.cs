@@ -95,7 +95,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var child in libraryFoldersKv.Children)
             {
-                var steamAppsPath = Path.GetFullPath(Path.Join((string)child["path"], "steamapps"));
+                var steamAppsPath = Path.GetFullPath(Path.Join((string)child.Value["path"], "steamapps"));
 
                 if (Directory.Exists(steamAppsPath))
                 {

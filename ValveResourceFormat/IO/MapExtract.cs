@@ -1182,29 +1182,25 @@ public sealed class MapExtract
     {
         var textureName = Path.ChangeExtension(materialName, ".png");
 
-        var root = new ValveKeyValue.KVObject("Layer0",
-        (IEnumerable<ValveKeyValue.KVObject>)new ValveKeyValue.KVObject[]
-        {
-            new("shader", "generic.vfx"),
-            new("F_TRANSLUCENT", 1),
-            new("TextureTranslucency", $"[{0.700000f:N6} {0.700000f:N6} {0.700000f:N6} {0.000000f:N6}]"),
-            new("TextureColor", textureName),
-            new("Attributes",
-            (IEnumerable<ValveKeyValue.KVObject>)new ValveKeyValue.KVObject[]
-            {
-                new("mapbuilder.nodraw", 1),
-                new("tools.toolsmaterial", 1),
-                new("physics.nodefaultsimplification", 1),
-            }),
-            new("SystemAttributes",
-            (IEnumerable<ValveKeyValue.KVObject>)new ValveKeyValue.KVObject[]
-            {
-                new("PhysicsSurfaceProperties", surfaceProperty),
-            }),
-        });
+        var root = ValveKeyValue.KVObject.ListCollection();
+        root.Add("shader", "generic.vfx");
+        root.Add("F_TRANSLUCENT", 1);
+        root.Add("TextureTranslucency", $"[{0.700000f:N6} {0.700000f:N6} {0.700000f:N6} {0.000000f:N6}]");
+        root.Add("TextureColor", textureName);
+
+        var attributes = ValveKeyValue.KVObject.ListCollection();
+        attributes.Add("mapbuilder.nodraw", 1);
+        attributes.Add("tools.toolsmaterial", 1);
+        attributes.Add("physics.nodefaultsimplification", 1);
+        root.Add("Attributes", attributes);
+
+        var systemAttributes = ValveKeyValue.KVObject.ListCollection();
+        systemAttributes.Add("PhysicsSurfaceProperties", surfaceProperty);
+        root.Add("SystemAttributes", systemAttributes);
 
         using var ms = new MemoryStream();
-        ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
+        var doc = new ValveKeyValue.KVDocument(default, "Layer0", root);
+        ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text).Serialize(ms, doc);
 
         var vmat = new ContentFile()
         {
@@ -1418,9 +1414,9 @@ public sealed class MapExtract
     private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var child in compiledEntity.Properties.Children)
+        foreach (var (key, value) in compiledEntity.Properties.Children)
         {
-            var propertyKey = child.Name.ToLowerInvariant();
+            var propertyKey = key.ToLowerInvariant();
 
             if (TryHandleSpecialProperty(propertyKey, compiledEntity, mapEntity, ref entityLineage))
             {
@@ -1432,7 +1428,7 @@ public sealed class MapExtract
                 continue;
             }
 
-            var editString = ToEditString(child.Value);
+            var editString = ToEditString(value);
             editString = RemoveTargetnamePrefix(editString);
 
             mapEntity.EntityProperties.Add(propertyKey, editString);
@@ -1536,20 +1532,20 @@ public sealed class MapExtract
                 return string.Join(' ', kvObject.Select(p => p.Value.ToString() ?? string.Empty));
             }
 
+            if (kvObject.ValueType is not KVValueType.Collection)
+            {
+                return kvObject.ValueType switch
+                {
+                    KVValueType.String => (string)kvObject,
+                    KVValueType.Boolean => StringBool((bool)kvObject),
+                    KVValueType.Null => string.Empty,
+                    _ => kvObject.ToString(),
+                };
+            }
+
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, kvObject);
             return System.Text.Encoding.UTF8.GetString(ms.ToArray());
-        }
-
-        if (data is KVValue kvValue)
-        {
-            return kvValue.ValueType switch
-            {
-                KVValueType.String => (string)kvValue,
-                KVValueType.Boolean => StringBool((bool)kvValue),
-                KVValueType.Null => string.Empty,
-                _ => kvValue.ToString(),
-            };
         }
 
         return data switch
