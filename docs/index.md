@@ -106,6 +106,10 @@ Yes, Source 2 Viewer is actively maintained and regularly updated to support new
 
 Source 2 Viewer can export .vmdl, .vmesh, .vwrld, .vwnod, and .vmap files into a standard glTF format which is supported by a lot of software including Blender.
 
+### Does Source 2 Viewer support Source 1 games like Team Fortress 2 or Half-Life 2?
+
+No, Source 2 Viewer only supports Source 2 games. For Source 1 and GoldSrc games, check out **[VPKEdit](https://github.com/craftablescience/VPKEdit)**. It's basically Source 2 Viewer but for older games on Source and GoldSource engines.
+
 ### Does Source 2 use BSP files like Source 1?
 
 No, Source 2 does not use the traditional BSP (Binary Space Partitioning) format. Source 1 games used .bsp files for compiled maps with BSP tree structures for rendering optimization. Source 2 instead uses mesh-based maps. This represents a fundamental shift in how Source 2 handles level geometry and rendering.
