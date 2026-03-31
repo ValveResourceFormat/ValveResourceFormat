@@ -60,5 +60,11 @@ namespace ValveResourceFormat
 
         /// <summary>Object is statically baked geometry.</summary>
         BakedGeometry = 0x20000,
+
+        /// <summary>Object requires dynamic shadows.</summary>
+        NeedsDynamicShadows = 0x40000,
+
+        /// <summary>Object has an aggregate ray-tracing proxy.</summary>
+        HasAggregateRtproxy = 0x80000,
     }
 }
