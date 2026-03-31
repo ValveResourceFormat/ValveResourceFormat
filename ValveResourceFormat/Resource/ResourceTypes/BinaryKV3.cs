@@ -949,7 +949,7 @@ namespace ValveResourceFormat.ResourceTypes
                         var arrayLength = MemoryMarshal.Read<int>(buffer.Bytes4);
                         buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
 
-                        var array = KVObject.Array();
+                        var array = KVObject.Array(arrayLength);
 
                         for (var i = 0; i < arrayLength; i++)
                         {
@@ -976,7 +976,7 @@ namespace ValveResourceFormat.ResourceTypes
                         }
 
                         var (subType, subFlagInfo) = ReadType(context);
-                        var typedArray = KVObject.Array();
+                        var typedArray = KVObject.Array(arrayLength);
 
                         for (var i = 0; i < arrayLength; i++)
                         {
@@ -994,7 +994,7 @@ namespace ValveResourceFormat.ResourceTypes
                         buffer.Bytes1 = buffer.Bytes1[1..];
 
                         var (subType, subFlagInfo) = ReadType(context);
-                        var typedArray = KVObject.Array();
+                        var typedArray = KVObject.Array(arrayLength);
 
                         // Swap the buffers and simply call read again instead of reimplementing the switch here
                         (context.AuxiliaryBuffer, context.Buffer) = (context.Buffer, context.AuxiliaryBuffer);
@@ -1026,7 +1026,7 @@ namespace ValveResourceFormat.ResourceTypes
                             buffer.Bytes4 = buffer.Bytes4[sizeof(int)..];
                         }
 
-                        var newObject = KVObject.Collection();
+                        var newObject = KVObject.Collection(objectLength);
 
                         for (var i = 0; i < objectLength; i++)
                         {
