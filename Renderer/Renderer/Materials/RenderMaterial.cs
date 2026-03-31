@@ -116,7 +116,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
 
-        private static readonly Dictionary<(int, int), int> SamplerCache = [];
+        private readonly MaterialLoader? Loader;
 
         private BlendMode blendMode;
         private bool isRenderBackfaces;
@@ -132,6 +132,8 @@ namespace ValveResourceFormat.Renderer.Materials
         public RenderMaterial(Material material, RendererContext rendererContext, Dictionary<string, byte>? shaderArguments)
             : this(material)
         {
+            Loader = rendererContext.MaterialLoader;
+
             var materialArguments = material.GetShaderArguments();
             var combinedShaderParameters = shaderArguments ?? materialArguments;
 
@@ -309,11 +311,11 @@ namespace ValveResourceFormat.Renderer.Materials
             boundSamplerUnits.Clear();
 
             var userConfigSampler = 0;
-            if (shader.SamplerUserConfigUniforms.Count > 0)
+            if (shader.SamplerUserConfigUniforms.Count > 0 && Loader != null)
             {
                 var addressModeU = (int)Material.IntParams.GetValueOrDefault("g_nTextureAddressModeU");
                 var addressModeV = (int)Material.IntParams.GetValueOrDefault("g_nTextureAddressModeV");
-                userConfigSampler = GetOrCreateUserConfigSampler(addressModeU, addressModeV);
+                userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
             }
 
             foreach (var (name, defaultTexture) in shader.Default.Textures)
@@ -450,46 +452,6 @@ namespace ValveResourceFormat.Renderer.Materials
                 GL.BindSampler(unit, 0);
             }
         }
-
-        private static int GetOrCreateUserConfigSampler(int addressModeU, int addressModeV)
-        {
-            var key = (addressModeU, addressModeV);
-
-            if (key == (0, 0))
-            {
-                return 0; // default sampler state with repeat wrap mode
-            }
-
-            if (SamplerCache.TryGetValue(key, out var sampler))
-            {
-                return sampler;
-            }
-
-            GL.CreateSamplers(1, out sampler);
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)MapAddressMode(addressModeU));
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapT, (int)MapAddressMode(addressModeV));
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-
-            if (MaterialLoader.MaxTextureMaxAnisotropy >= 4)
-            {
-                GL.SamplerParameter(sampler, (SamplerParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaterialLoader.MaxTextureMaxAnisotropy);
-            }
-
-            SamplerCache[key] = sampler;
-            return sampler;
-        }
-
-        private static TextureWrapMode MapAddressMode(int mode) => mode switch
-        {
-            0 => TextureWrapMode.Repeat,
-            1 => TextureWrapMode.MirroredRepeat,
-            2 => TextureWrapMode.ClampToEdge,
-            3 => TextureWrapMode.ClampToBorder,
-            // 4 => ...
-            _ => TextureWrapMode.Repeat,
-            // _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown texture address mode"),
-        };
 
         private void SetRenderState()
         {
