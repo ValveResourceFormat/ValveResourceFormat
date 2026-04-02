@@ -170,12 +170,14 @@ internal class RenderTestWindow : GameWindow
 
         // Map OpenTK keys to TrackedKeys
         var trackedKeys = TrackedKeys.None;
-        if (input.IsKeyDown(Keys.W)) trackedKeys |= TrackedKeys.Forward;
-        if (input.IsKeyDown(Keys.S)) trackedKeys |= TrackedKeys.Back;
-        if (input.IsKeyDown(Keys.A)) trackedKeys |= TrackedKeys.Left;
-        if (input.IsKeyDown(Keys.D)) trackedKeys |= TrackedKeys.Right;
-        if (input.IsKeyDown(Keys.Q)) trackedKeys |= TrackedKeys.Up;
-        if (input.IsKeyDown(Keys.Z)) trackedKeys |= TrackedKeys.Down;
+        if (input.IsKeyDown(Keys.W)) trackedKeys |= TrackedKeys.W;
+        if (input.IsKeyDown(Keys.S)) trackedKeys |= TrackedKeys.S;
+        if (input.IsKeyDown(Keys.A)) trackedKeys |= TrackedKeys.A;
+        if (input.IsKeyDown(Keys.D)) trackedKeys |= TrackedKeys.D;
+        if (input.IsKeyDown(Keys.Q)) trackedKeys |= TrackedKeys.Q;
+        if (input.IsKeyDown(Keys.Z)) trackedKeys |= TrackedKeys.Z;
+        if (input.IsKeyDown(Keys.X)) trackedKeys |= TrackedKeys.X;
+        if (input.IsKeyDown(Keys.Space)) trackedKeys |= TrackedKeys.Space;
         if (input.IsKeyDown(Keys.LeftShift) || input.IsKeyDown(Keys.RightShift)) trackedKeys |= TrackedKeys.Shift;
         if (input.IsKeyDown(Keys.LeftAlt) || input.IsKeyDown(Keys.RightAlt)) trackedKeys |= TrackedKeys.Alt;
         if (input.IsKeyDown(Keys.LeftControl) || input.IsKeyDown(Keys.RightControl)) trackedKeys |= TrackedKeys.Control;

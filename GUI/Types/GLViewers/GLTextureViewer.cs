@@ -839,8 +839,8 @@ namespace GUI.Types.GLViewers
         private void HandleArrowKeyMovement(float frameTime)
         {
             var movementKeys = CurrentlyPressedKeys &
-                (TrackedKeys.Forward | TrackedKeys.Back |
-                 TrackedKeys.Left | TrackedKeys.Right);
+                (TrackedKeys.W | TrackedKeys.S |
+                 TrackedKeys.A | TrackedKeys.D);
 
             var isMovingThisFrame = movementKeys != TrackedKeys.None;
 
@@ -866,22 +866,22 @@ namespace GUI.Types.GLViewers
 
             var delta = Vector2.Zero;
 
-            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Forward))
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.W))
             {
                 delta.Y -= moveDistance;
             }
 
-            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Back))
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.S))
             {
                 delta.Y += moveDistance;
             }
 
-            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Left))
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.A))
             {
                 delta.X -= moveDistance;
             }
 
-            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Right))
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.D))
             {
                 delta.X += moveDistance;
             }

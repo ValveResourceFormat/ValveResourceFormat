@@ -308,12 +308,12 @@ public class UserInput
             Camera.ClampRotation();
         }
 
-        if ((keyboardState & TrackedKeys.Forward) != 0)
+        if ((keyboardState & TrackedKeys.W) != 0)
         {
             OrbitZoom(-deltaTime * 10);
         }
 
-        if ((keyboardState & TrackedKeys.Back) != 0)
+        if ((keyboardState & TrackedKeys.S) != 0)
         {
             OrbitZoom(deltaTime * 10);
         }
@@ -448,32 +448,32 @@ public class UserInput
         var maxSpeed = MovementSpeed * SpeedModifiers[CurrentSpeedModifier];
         var targetVelocity = Vector3.Zero;
 
-        if ((keyboardState & TrackedKeys.Forward) != 0)
+        if ((keyboardState & TrackedKeys.W) != 0)
         {
             targetVelocity += Camera.Forward * maxSpeed;
         }
 
-        if ((keyboardState & TrackedKeys.Back) != 0)
+        if ((keyboardState & TrackedKeys.S) != 0)
         {
             targetVelocity -= Camera.Forward * maxSpeed;
         }
 
-        if ((keyboardState & TrackedKeys.Right) != 0)
+        if ((keyboardState & TrackedKeys.D) != 0)
         {
             targetVelocity += Camera.Right * maxSpeed;
         }
 
-        if ((keyboardState & TrackedKeys.Left) != 0)
+        if ((keyboardState & TrackedKeys.A) != 0)
         {
             targetVelocity -= Camera.Right * maxSpeed;
         }
 
-        if ((keyboardState & TrackedKeys.Down) != 0)
+        if ((keyboardState & TrackedKeys.Z) != 0)
         {
             targetVelocity += new Vector3(0, 0, -maxSpeed);
         }
 
-        if ((keyboardState & TrackedKeys.Up) != 0)
+        if ((keyboardState & TrackedKeys.Q) != 0)
         {
             targetVelocity += new Vector3(0, 0, maxSpeed);
         }

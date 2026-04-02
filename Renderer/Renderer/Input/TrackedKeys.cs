@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Input;
 /// </summary>
 [Flags]
 #pragma warning disable CA2217 // Do not mark enums with FlagsAttribute
-public enum TrackedKeys
+public enum TrackedKeys : long
 #pragma warning restore CA2217
 {
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
@@ -14,15 +14,15 @@ public enum TrackedKeys
     Shift = 1 << 0,
     Alt = 1 << 1,
 
-    Forward = 1 << 2,
-    Left = 1 << 3,
-    Back = 1 << 4,
-    Right = 1 << 5,
-    Up = 1 << 6,
-    Down = 1 << 7,
-    Control = 1 << 8,
-    Space = 1 << 9,
-    X = 1 << 10,
+    W = 1 << 2,
+    A = 1 << 3,
+    S = 1 << 4,
+    D = 1 << 5,
+    Q = 1 << 6,
+    Z = 1 << 7,
+    X = 1 << 8,
+    Control = 1 << 9,
+    Space = 1 << 10,
     Escape = 1 << 11,
 
     MouseWheelUp = 1 << 28,

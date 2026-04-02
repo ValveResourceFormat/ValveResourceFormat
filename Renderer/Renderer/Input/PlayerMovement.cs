@@ -612,22 +612,22 @@ public class PlayerMovement
         // Determine movement amounts
         float forwardMove = 0, sideMove = 0;
 
-        if (input.Holding(TrackedKeys.Forward))
+        if (input.Holding(TrackedKeys.W))
         {
             forwardMove += MaxSpeedValue;
         }
 
-        if (input.Holding(TrackedKeys.Back))
+        if (input.Holding(TrackedKeys.S))
         {
             forwardMove -= MaxSpeedValue;
         }
 
-        if (input.Holding(TrackedKeys.Right))
+        if (input.Holding(TrackedKeys.D))
         {
             sideMove += MaxSpeedValue;
         }
 
-        if (input.Holding(TrackedKeys.Left))
+        if (input.Holding(TrackedKeys.A))
         {
             sideMove -= MaxSpeedValue;
         }
