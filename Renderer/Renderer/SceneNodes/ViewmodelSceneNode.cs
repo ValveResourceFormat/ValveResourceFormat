@@ -276,7 +276,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             return;
         }
 
-        legs.Animations.AddRange(Model.LoadEmbeddedAnimationsWithSkeleton(Scene.RendererContext.FileLoader, legs.AnimationController.Skeleton, animsetModel));
+        legs.AddAnimations(Model.GetEmbeddedAnimationsWithSkeleton(Scene.RendererContext.FileLoader, legs.AnimationController.Skeleton, animsetModel).ToList());
     }
 
     record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null);
@@ -319,7 +319,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         model.Parent = this;
 
-        foreach (var anim in Animations)
+        foreach (var anim in Animations.Values)
         {
             if (anim.Clip is not null)
             {
@@ -599,7 +599,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             SelectedSlot = 3;
         }
-        else if (input.Pressed(TrackedKeys.Up))
+        else if (input.Pressed(TrackedKeys.Q))
         {
             SelectPreviousItem();
         }

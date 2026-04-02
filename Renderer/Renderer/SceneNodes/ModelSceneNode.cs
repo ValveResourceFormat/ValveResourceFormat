@@ -361,15 +361,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 ? model.GetEmbeddedAnimations()
                 : model.GetAllAnimations(Scene.RendererContext.FileLoader)).ToList();
 
-            Animations.EnsureCapacity(animations.Count);
-            foreach (var anim in animations)
-            {
-                Animations[anim.Name] = anim;
-            }
+            AddAnimations(animations);
 
             if (Animations.Count != 0)
             {
                 SetupBoneMatrixBuffers();
+            }
+        }
+
+        /// <summary>
+        /// Adds the given animations to the collection of available animations for this model.
+        /// </summary>
+        public void AddAnimations(List<Animation> animations)
+        {
+            Animations.EnsureCapacity(animations.Count);
+            foreach (var anim in animations)
+            {
+                Animations[anim.Name] = anim;
             }
         }
 
