@@ -458,6 +458,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
             (float)obj[2],
             (float)obj[3]);
 
+        /// <summary>
+        /// Converts the key-value object to a tuple containing Position, Uniform Scale, and Rotation.
+        /// </summary>
         public static (Vector3 Position, float Scale, Quaternion Rotation) ToTransform(this KVObject obj)
         {
             var position = new Vector3(

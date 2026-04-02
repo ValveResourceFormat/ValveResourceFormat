@@ -346,7 +346,7 @@ namespace GUI.Types.GLViewers
             {
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
 
-                var pressedKeys = CurrentlyPressedKeys;
+                var pressedKeys = ConsumeCurrentlyPressedKeysForUpdate();
                 var modifierKeys = Control.ModifierKeys;
 
                 if ((modifierKeys & Keys.Shift) > 0)
@@ -359,13 +359,12 @@ namespace GUI.Types.GLViewers
                     pressedKeys |= TrackedKeys.Alt;
                 }
 
-                Input.MouseSensitivity = Settings.Config.MouseSensitivity;
-                Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Renderer.Camera);
-                LastMouseDelta = MouseDelta;
-                MouseDelta = System.Drawing.Point.Empty;
+                var mouseDelta = ConsumePendingMouseDelta();
+                var wheelDelta = ConsumePendingMouseWheelDelta();
 
-                // Clear mouse wheel events after processing (they're one-time events)
-                CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
+                Input.MouseSensitivity = Settings.Config.MouseSensitivity;
+                Input.Tick(frameTime, pressedKeys, new Vector2(mouseDelta.X, mouseDelta.Y), Renderer.Camera);
+                LastMouseDelta = mouseDelta;
 
                 GrabbedMouse = !Input.NoClip && !Paused;
             }
