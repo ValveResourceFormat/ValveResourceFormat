@@ -458,6 +458,24 @@ namespace ValveResourceFormat.Serialization.KeyValues
             (float)obj[2],
             (float)obj[3]);
 
+        public static (Vector3 Position, float Scale, Quaternion Rotation) ToTransform(this KVObject obj)
+        {
+            var position = new Vector3(
+                (float)obj[0],
+                (float)obj[1],
+                (float)obj[2]);
+
+            var scale = (float)obj[3];
+
+            var rotation = new Quaternion(
+                (float)obj[4],
+                (float)obj[5],
+                (float)obj[6],
+                (float)obj[7]);
+
+            return (position, scale, rotation);
+        }
+
         /// <summary>
         /// Converts an array of key-value objects to a Matrix4x4.
         /// </summary>

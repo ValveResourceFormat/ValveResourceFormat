@@ -58,22 +58,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             for (var i = 0; i < boneCount; i++)
             {
-                var position = new Vector3(
-                    boneTransforms[i].GetFloatProperty("0"),
-                    boneTransforms[i].GetFloatProperty("1"),
-                    boneTransforms[i].GetFloatProperty("2")
-                );
+                var transform = boneTransforms[i].ToTransform();
 
-                var scale = boneTransforms[i].GetFloatProperty("3");
-
-                var rotation = new Quaternion(
-                    boneTransforms[i].GetFloatProperty("4"),
-                    boneTransforms[i].GetFloatProperty("5"),
-                    boneTransforms[i].GetFloatProperty("6"),
-                    boneTransforms[i].GetFloatProperty("7")
-                );
-
-                var bone = new Bone(i, boneNames[i], position, rotation, ModelSkeletonBoneFlags.NoBoneFlags);
+                var bone = new Bone(i, boneNames[i], transform.Position, transform.Rotation, ModelSkeletonBoneFlags.NoBoneFlags);
                 s.Bones[i] = bone;
             }
 
