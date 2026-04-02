@@ -348,6 +348,11 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             {
                 node.AddText(data.GetProperty<string>("m_boneMaskID"));
             }
+            else if (node.NodeType is "CachedFloat")
+            {
+                CreateInputAndChild<Value>(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), "Input");
+                node.AddText($"Mode: {data.GetProperty<string>("m_mode")}");
+            }
             else if (node.NodeType is "ConstTarget")
             {
                 var value = data.GetProperty<KVObject>("m_value");
@@ -466,6 +471,15 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             else if (node.Data?.ContainsKey("m_nChildNodeIdx") ?? false)
             {
                 var childCount = 1;
+
+                void AddMaybeOptionalInput(string name, int idx)
+                {
+                    if (idx != -1)
+                    {
+                        CreateInputAndChild<Value>(node, childCount, idx, name);
+                    }
+                }
+
                 if (node.NodeType == "Scale")
                 {
                     childCount = 3;
@@ -489,6 +503,52 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                     node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):f}");
                     node.AddText($"Blend Mode: {data.GetProperty<string>("m_blendMode")}");
                     node.AddText($"Worldspace: {data.GetProperty<bool>("m_bIsTargetInWorldSpace")}");
+                }
+                else if (node.NodeType == "FootIK")
+                {
+                    childCount = 3;
+
+                    node.AddText($"Left Effector: {data.GetProperty<string>("m_leftEffectorBoneID")}");
+                    node.AddText($"Right Effector: {data.GetProperty<string>("m_rightEffectorBoneID")}");
+
+                    var leftTargetIdx = data.GetInt32Property("m_nLeftTargetNodeIdx");
+                    var rightTargetIdx = data.GetInt32Property("m_nRightTargetNodeIdx");
+
+                    CreateInputAndChild<Pose>(node, childCount, leftTargetIdx, "Left Target");
+                    CreateInputAndChild<Pose>(node, childCount, rightTargetIdx, "Right Target");
+
+                    var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx", -1);
+                    if (enabledNodeIdx != -1)
+                    {
+                        CreateInputAndChild<Value>(node, childCount, enabledNodeIdx, "Enabled");
+                    }
+
+                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}");
+                    node.AddText($"Blend Mode: {data.GetProperty<string>("m_blendMode")}");
+                    node.AddText($"Worldspace: {data.GetProperty<bool>("m_bIsTargetInWorldSpace")}");
+                }
+                else if (node.NodeType is "AimCS")
+                {
+                    childCount = 8;
+
+                    AddMaybeOptionalInput("Vertical Angle", data.GetInt32Property("m_nVerticalAngleNodeIdx"));
+                    AddMaybeOptionalInput("Horizontal Angle", data.GetInt32Property("m_nHorizontalAngleNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Type", data.GetInt32Property("m_nWeaponTypeNodeIdx"));
+                    AddMaybeOptionalInput("Is Weapon Action Active", data.GetInt32Property("m_nIsWeaponActionActiveNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Drop", data.GetInt32Property("m_nWeaponDropNodeIdx"));
+                    AddMaybeOptionalInput("Disable Hand IK", data.GetInt32Property("m_nDisableHandIKNodeIdx"));
+                    AddMaybeOptionalInput("Crouch Weight", data.GetInt32Property("m_nCrouchWeightNodeIdx"));
+
+                    node.AddText($"Hand IK Blend In: {data.GetFloatProperty("m_flHandIKBlendInTimeSeconds"):F2}");
+                    node.AddText($"Action Blend Time: {data.GetFloatProperty("m_flActionBlendTimeSeconds"):F2}");
+                }
+                else if (node.NodeType is "SnapWeapon")
+                {
+                    childCount = 4;
+                    AddMaybeOptionalInput("Flashed Amount", data.GetInt32Property("m_nFlashedAmountNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Type", data.GetInt32Property("m_nWeaponTypeNodeIdx"));
                 }
 
                 var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
@@ -564,6 +624,10 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             else if (node.NodeType.StartsWith("ControlParameter", StringComparison.Ordinal))
             {
                 // Graph input value set by game code.
+            }
+            else if (node.NodeType is "ZeroPose")
+            {
+                // Empty node
             }
             else
             {
