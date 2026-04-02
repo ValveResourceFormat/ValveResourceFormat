@@ -64,7 +64,7 @@ public class VfxShaderAttribute
     {
         Name0 = datareader.ReadNullTermString(Encoding.UTF8);
         Murmur32 = datareader.ReadUInt32();
-        var murmurCheck = MurmurHash2.Hash(Name0.ToLowerInvariant(), StringToken.MURMUR2SEED);
+        var murmurCheck = StringToken.Get(Name0);
         if (Murmur32 != murmurCheck)
         {
             throw new ShaderParserException("Murmur check failed on header name");

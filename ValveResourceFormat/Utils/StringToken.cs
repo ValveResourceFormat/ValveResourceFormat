@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Utils
         public static readonly ConcurrentDictionary<uint, string> InvertedTable = new(InitializeInverseLookup());
 
         /// <summary>
-        /// Computes the hash token for the given string.
+        /// Computes the hash token for the given string. Case insensitive.
         /// </summary>
         /// <param name="key">The string to hash.</param>
         /// <returns>The hash token.</returns>
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         public static uint Store(string key)
         {
-            var token = Get(key.ToLowerInvariant());
+            var token = Get(key);
 
             InvertedTable[token] = key;
             return token;

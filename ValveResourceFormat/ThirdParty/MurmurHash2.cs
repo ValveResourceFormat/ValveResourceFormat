@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace ValveResourceFormat.ThirdParty
 {
     /// <summary>
@@ -9,7 +11,7 @@ namespace ValveResourceFormat.ThirdParty
         private const int R = 24;
 
         /// <summary>
-        /// Computes a MurmurHash2 hash for the given string.
+        /// Computes a case-insensitive MurmurHash2 hash for the given string.
         /// </summary>
         /// <param name="data">The string to hash.</param>
         /// <param name="seed">The hash seed.</param>
@@ -17,12 +19,51 @@ namespace ValveResourceFormat.ThirdParty
         public static uint Hash(string data, uint seed) => Hash(data.AsSpan(), seed);
 
         /// <summary>
-        /// Computes a MurmurHash2 hash for the given character span.
+        /// Computes a case-insensitive MurmurHash2 hash for the given string.
+        /// </summary>
+        /// <param name="data">The string to hash.</param>
+        /// <param name="seed">The hash seed.</param>
+        /// <returns>The hash value.</returns>
+        public static uint Hash(ReadOnlySpan<char> data, uint seed)
+        {
+            if (data.Length < 256)
+            {
+                Span<char> lowerData = stackalloc char[data.Length];
+
+                for (var i = 0; i < data.Length; i++)
+                {
+                    var c = data[i];
+                    lowerData[i] = c is >= 'A' and <= 'Z' ? (char)(c | 0x20) : c;
+                }
+
+                return HashCaseSensitive(lowerData, seed);
+            }
+
+            var lowercase = ArrayPool<char>.Shared.Rent(data.Length);
+            try
+            {
+                MemoryExtensions.ToLowerInvariant(data, lowercase);
+                return HashCaseSensitive(lowercase.AsSpan(0, data.Length), seed);
+            }
+            finally
+            {
+                ArrayPool<char>.Shared.Return(lowercase);
+            }
+        }
+
+
+        /// <summary>
+        /// Computes a case-sensitive MurmurHash2 hash for the given string.
+        /// </summary>
+        public static uint HashCaseSensitive(string data, uint seed) => HashCaseSensitive(data.AsSpan(), seed);
+
+        /// <summary>
+        /// Computes a case sensitive MurmurHash2 hash for the given character span.
         /// </summary>
         /// <param name="data">The character span to hash.</param>
         /// <param name="seed">The hash seed.</param>
         /// <returns>The hash value.</returns>
-        public static uint Hash(ReadOnlySpan<char> data, uint seed)
+        public static uint HashCaseSensitive(ReadOnlySpan<char> data, uint seed)
         {
             var length = data.Length;
 
