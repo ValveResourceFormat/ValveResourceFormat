@@ -26,6 +26,34 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Bone? ClothSimulationRoot { get; private set; }
 
         /// <summary>
+        /// Gets a bone by its StringToken hash.
+        /// </summary>
+        public Bone? this[uint hash]
+        {
+            get
+            {
+                var index = GetBoneIndex(hash);
+                return index != -1 ? Bones[index] : null;
+            }
+        }
+
+        /// <summary>
+        /// Gets a bone by its name.
+        /// </summary>
+        public Bone? this[string name] => this[StringToken.Get(name)];
+
+
+        /// <summary>
+        /// Gets the index of a bone by its StringToken hash, or -1 if not found.
+        /// </summary>
+        public int GetBoneIndex(uint hash) => boneHashToIndex.TryGetValue(hash, out var index) ? index : -1;
+
+        /// <summary>
+        /// Gets the index of a bone by its name, or -1 if not found.
+        /// </summary>
+        public int GetBoneIndex(string name) => GetBoneIndex(StringToken.Get(name));
+
+        /// <summary>
         /// Creates a skeleton from model data.
         /// </summary>
         public static Skeleton FromModelData(KVObject modelData)
@@ -39,6 +67,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Construct the armature from the skeleton KV
             return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"));
         }
+
+        readonly Dictionary<uint, int> boneHashToIndex = [];
 
         /// <summary>
         /// Creates a skeleton from skeleton-specific data.
@@ -119,6 +149,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             Roots = [.. roots];
+
+            for (var i = 0; i < Bones.Length; i++)
+            {
+                var name = Bones[i].Name;
+                var hash = StringToken.Store(name);
+                boneHashToIndex[hash] = i;
+            }
         }
     }
 }

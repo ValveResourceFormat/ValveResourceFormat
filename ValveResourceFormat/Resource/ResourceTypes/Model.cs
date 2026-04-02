@@ -400,6 +400,21 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
+        /// Get the embedded animations with a different skeleton as animation target.
+        /// </summary>
+        /// <returns></returns>
+        public static IEnumerable<Animation> GetEmbeddedAnimationsWithSkeleton(IFileLoader fileLoader, Skeleton skeleton, Model model)
+        {
+            var old = model.cachedSkeleton;
+
+            model.cachedSkeleton = skeleton;
+            var anims = model.GetAllAnimations(fileLoader);
+
+            model.cachedSkeleton = old;
+            return anims;
+        }
+
+        /// <summary>
         /// Gets animations referenced from other models.
         /// </summary>
         /// <param name="fileLoader">The file loader to use.</param>
@@ -426,8 +441,7 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                model.cachedSkeleton = Skeleton;
-                var anims = model.GetAllAnimations(fileLoader);
+                var anims = GetEmbeddedAnimationsWithSkeleton(fileLoader, Skeleton, model);
                 allAnims.AddRange(anims);
             }
 

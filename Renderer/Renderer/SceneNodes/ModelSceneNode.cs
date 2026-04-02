@@ -39,6 +39,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the animation controller managing skeletal pose and flex data for this model.</summary>
         public AnimationController AnimationController { get; }
 
+        /// <summary>
+        /// A collection of animations available for sequential playback on this model.
+        /// </summary>
+        public Dictionary<string, Animation> Animations { get; } = new(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Gets the name of the currently active material group (skin).</summary>
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
 
@@ -46,7 +51,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
-        private readonly List<Animation> animations = [];
 
         /// <summary>Gets whether this model has an active GPU bone matrix buffer (i.e., has animations loaded).</summary>
         public bool IsAnimated => boneMatricesGpu != null;
@@ -337,15 +341,29 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void LoadAnimations(Model model, bool embeddedAnimationsOnly)
         {
-            animations.AddRange(embeddedAnimationsOnly
+            var animations = (embeddedAnimationsOnly
                 ? model.GetEmbeddedAnimations()
-                : model.GetAllAnimations(Scene.RendererContext.FileLoader)
-            );
+                : model.GetAllAnimations(Scene.RendererContext.FileLoader)).ToList();
 
-            if (animations.Count != 0)
+            Animations.EnsureCapacity(animations.Count);
+            foreach (var anim in animations)
+            {
+                Animations[anim.Name] = anim;
+            }
+
+            if (Animations.Count != 0)
             {
                 SetupBoneMatrixBuffers();
             }
+        }
+
+        /// <summary>
+        /// Loads an animgraph2 clip from the given <see cref="AnimationClip"/> instance and makes it available for playback on this model.
+        /// </summary>
+        public void LoadAnimationClip(AnimationClip clip)
+        {
+            var anim = new Animation(clip);
+            Animations[anim.Name] = anim;
         }
 
         /// <summary>
@@ -366,8 +384,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return false;
             }
 
-            var anim = new Animation(clip);
-            animations.Add(anim);
+            LoadAnimationClip(clip);
             return true;
         }
 
@@ -448,14 +465,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             boneMatricesGpu = new StorageBuffer(ReservedBufferSlots.BoneTransforms);
         }
 
-        /// <summary>Returns the names of all animations available on this model.</summary>
-        public IEnumerable<string> GetSupportedAnimationNames()
-            => animations.Select(a => a.Name);
-
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>
         public void SetAnimationByName(string animationName)
         {
-            var activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+            Animations.TryGetValue(animationName, out var activeAnimation);
             SetAnimation(activeAnimation);
         }
 
@@ -469,7 +482,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (animationName != null)
             {
-                activeAnimation = animations.FirstOrDefault(a => a.Name == animationName);
+                Animations.TryGetValue(animationName, out activeAnimation);
             }
 
             // TODO: CS2 falls back to the first animation, but other games seemingly do not.

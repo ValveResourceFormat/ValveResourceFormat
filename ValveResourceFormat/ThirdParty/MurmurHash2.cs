@@ -51,7 +51,6 @@ namespace ValveResourceFormat.ThirdParty
             }
         }
 
-
         /// <summary>
         /// Computes a case-sensitive MurmurHash2 hash for the given string.
         /// </summary>
