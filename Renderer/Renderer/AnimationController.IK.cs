@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer
             var time = DateTime.Now;
             var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
 
-            if (blink)
+            if (blink || true)
             {
                 return;
             }

@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Renderer
         {
             public float Time { get; set; }
             public bool IsPaused { get; set; }
-            public bool Looping { get; set; }
+            public bool Looping { get; set; } = true;
             public float Weight { get; set; } = 1f;
             public float BlendTime { get; set; }
 
@@ -140,29 +140,27 @@ namespace ValveResourceFormat.Renderer
 
             if (!IsPaused && activeClip != null)
             {
-                activeClip.Time += timeStep;
-
-                if (!activeClip.Looping)
-                {
-                    var lastFrame = ActiveAnimation!.FrameCount - 1;
-                    var maxTime = lastFrame / ActiveAnimation.Fps;
-
-                    if (activeClip.Time > maxTime)
-                    {
-                        activeClip.IsPaused = true;
-                        activeClip.Frame = lastFrame;
-                    }
-                }
-
-                IsPaused = activeClip.IsPaused && clips.Values.All(c => c.IsPaused);
+                IsPaused = clips.Values.All(c => c.IsPaused);
                 Frame = activeClip.Frame;
 
-                // Update time for all other clips
+                // Update time for all clips
                 foreach (var clip in clips.Values)
                 {
-                    if (clip != activeClip && !clip.IsPaused)
+                    if (!clip.IsPaused && clip.Animation.FrameCount > 1)
                     {
                         clip.Time += timeStep;
+
+                        if (!clip.Looping)
+                        {
+                            var lastFrame = clip.Animation!.FrameCount - 1;
+                            var maxTime = lastFrame / clip.Animation.Fps;
+
+                            if (clip.Time > maxTime)
+                            {
+                                clip.IsPaused = true;
+                                clip.Frame = lastFrame;
+                            }
+                        }
                     }
                 }
 
@@ -599,7 +597,10 @@ namespace ValveResourceFormat.Renderer
             }
 
             // Could this be a simpler base type?
-            var controller = new AnimationController(skeleton, []);
+            var controller = new AnimationController(skeleton, [])
+            {
+                Looping = Looping,
+            };
 
             ExternalSkeletons[skeletonName] = new(controller, remapTable, debugMap);
         }
@@ -609,11 +610,24 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="name">The name of the animation.</param>
         /// <param name="weight">The weight value (0.0 to 1.0).</param>
-        public void SetAnimationWeight(string name, float weight)
+        /// <param name="restartIfNew">Whether to restart the animation if its just now fading in.</param>
+        public void SetAnimationWeight(string name, float weight, bool restartIfNew = false)
         {
             if (clips.TryGetValue(name, out var clip))
             {
+                var wasZero = clip.Weight == 0f;
                 clip.Weight = weight;
+
+                if (restartIfNew && wasZero && weight > 0f)
+                {
+                    clip.Time = 0f;
+                    clip.IsPaused = false;
+                }
+            }
+
+            if (CurrentSubController is { } subController)
+            {
+                subController.Handler.SetAnimationWeight(name, weight, restartIfNew);
             }
         }
 
@@ -625,12 +639,18 @@ namespace ValveResourceFormat.Renderer
                 if (time.HasValue)
                 {
                     clip.Time = time.Value;
+                    clip.IsPaused = false;
                 }
 
                 if (looping.HasValue)
                 {
                     clip.Looping = looping.Value;
                 }
+            }
+
+            if (CurrentSubController is { } subController)
+            {
+                subController.Handler.SetAnimationProperties(name, time, looping);
             }
         }
     }
