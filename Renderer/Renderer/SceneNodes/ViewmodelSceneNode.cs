@@ -62,7 +62,6 @@ public class ViewmodelSceneNode : ModelSceneNode
     private Vector3 currentBob = Vector3.Zero;
 
     private Vector2 currentWalkDirection = new(0, 1);
-    private const float WalkDirectionLerpRate = 0.35f;
 
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
@@ -105,7 +104,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         SouthEast,
         SouthWest,
         NorthWest,
-        Center,
     }
 
     private static readonly Dictionary<Heading, Vector2> HeadingVectors = new()
@@ -118,19 +116,28 @@ public class ViewmodelSceneNode : ModelSceneNode
         [Heading.SouthWest] = Vector2.Normalize(new(-1, -1)),
         [Heading.West] = new(-1, 0),
         [Heading.NorthWest] = Vector2.Normalize(new(-1, 1)),
-        [Heading.Center] = new(0, 0),
     };
 
-    private static string GetThirdpersonAnim(Posture posture, MovementState movement, Heading heading = Heading.Center)
+    private static string GetThirdpersonAnim(Posture posture, MovementState movement, Heading heading = Heading.West)
     {
         const string item = "rifle";
+        const string path = $"animation/anims/world/{item}/_default_{item}/";
+
+        if (movement == MovementState.Stopped)
+        {
+            return posture == Posture.Standing
+                ? $"animation/anims/world/{item}/_default_{item}/idle_{item}.vnmclip"
+                : $"animation/anims/world/{item}/_default_{item}/idle_crouch_{item}.vnmclip";
+        }
 
         if (movement == MovementState.Jumping)
         {
-            return posture == Posture.Standing ? "jump_stand" : "sh_jump_crouched_stand";
+            return posture == Posture.Standing
+                ? $"animation/anims/world/{item}/_default_{item}/jump_stand_{item}.vnmclip"
+                : $"animation/anims/world/{item}/_default_{item}/jump_crouch_stand_{item}.vnmclip";
         }
 
-        var run = posture == Posture.Crouching
+        var locomotion_type = posture == Posture.Crouching
             ? "crouch"
             : movement == MovementState.Running ? "run" : "walk";
 
@@ -144,7 +151,6 @@ public class ViewmodelSceneNode : ModelSceneNode
             Heading.SouthEast => "se",
             Heading.SouthWest => "sw",
             Heading.NorthWest => "nw",
-            Heading.Center => "center",
             _ => throw new ArgumentOutOfRangeException(nameof(heading), heading, null)
         };
 
@@ -153,13 +159,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             direction = "stopped";
         }
 
-        var anim = $"{run}_new_{item}_{direction}";
-
-        // const string walkRifleStopped = "walk_new_rifle_stopped";
-        // const string crouchRifleStopped = "crouch_new_rifle_stopped";
-        // const string walkKnifeN = "walk_new_rifle_n";
-        // const string crouchKnifeN = "crouch_new_rifle_n";
-
+        var anim = $"{path}{locomotion_type}_{direction}_{item}.vnmclip";
         return anim;
     }
 
@@ -251,9 +251,6 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         Legs.AnimationController.TwistConstraints = [];
         Legs.IsFirstpersonLegs = true;
-
-        // Load additional animations from animset_ct
-        LoadAnimsetAnimations(Legs);
         Legs.AnimationController.Looping = true;
 
         foreach (var posture in Enum.GetValues<Posture>())
@@ -262,21 +259,17 @@ public class ViewmodelSceneNode : ModelSceneNode
             {
                 foreach (var heading in Enum.GetValues<Heading>())
                 {
-                    Legs.SetAnimationByName(GetThirdpersonAnim(posture, movement, heading), -1);
+                    var clip = GetThirdpersonAnim(posture, movement, heading);
+                    Legs.SetAnimationByName(clip, -1);
+                    Legs.AnimationController.SetAnimationProperties(clip, 0f, looping: true); // clips loop by default
+
+                    if (Legs.AnimationController.ActiveAnimation == null)
+                    {
+                        Scene.RendererContext.Logger.LogWarning("Wrong animation path: {Clip}", clip);
+                    }
                 }
             }
         }
-    }
-
-    private void LoadAnimsetAnimations(ModelSceneNode legs)
-    {
-        var animsetResource = Scene.RendererContext.FileLoader.LoadFileCompiled("characters/models/shared/animsets/animset_ct.vmdl");
-        if (animsetResource?.DataBlock is not Model animsetModel)
-        {
-            return;
-        }
-
-        legs.AddAnimations(Model.GetEmbeddedAnimationsWithSkeleton(Scene.RendererContext.FileLoader, legs.AnimationController.Skeleton, animsetModel).ToList());
     }
 
     record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null);
@@ -341,7 +334,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var loader = scene.RendererContext.FileLoader;
 
         Span<string> resources = [
-            "phase2/characters/models/ctm_st6/ctm_st6_varianti_ag2.vmdl",
+            "agents/models/ctm_st6/ctm_st6_varianti.vmdl",
             "weapons/models/m4a4/weapon_rif_m4a4.vmdl",
             "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
             "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
@@ -519,23 +512,13 @@ public class ViewmodelSceneNode : ModelSceneNode
 
                 if (camRelative.LengthSquared() > 1e-6f)
                 {
-                    desiredWalkDir = Vector2.Normalize(camRelative);
+                    currentWalkDirection = Vector2.Normalize(camRelative);
                 }
-            }
-
-            if (desiredWalkDir.LengthSquared() > 1e-6f)
-            {
-                currentWalkDirection = Vector2.Lerp(currentWalkDirection, desiredWalkDir, WalkDirectionLerpRate);
-            }
-
-            if (currentWalkDirection.LengthSquared() < 1e-6f)
-            {
-                currentWalkDirection = new(0, 1);
             }
 
             var headingWeights = new Dictionary<Heading, float>();
             var headingTotal = 0f;
-            foreach (var heading in HeadingVectors.Keys.Where(h => h != Heading.Center))
+            foreach (var heading in HeadingVectors.Keys)
             {
                 var weight = MathF.Max(0f, Vector2.Dot(currentWalkDirection, HeadingVectors[heading]));
                 headingWeights[heading] = weight;
@@ -558,15 +541,36 @@ public class ViewmodelSceneNode : ModelSceneNode
                 legsController.SetAnimationWeight(GetThirdpersonAnim(posture, MovementState.Jumping), jumping * t);
             }
 
-            foreach (var heading in HeadingVectors.Keys.Where(h => h != Heading.Center))
+
+            Span<(Posture, MovementState)> locomotionStates = [
+                (Posture.Crouching, MovementState.Walking), // crouch
+                (Posture.Standing, MovementState.Walking), // walk
+                (Posture.Standing, MovementState.Running), // run
+            ];
+
+            // 8 way blend
+            foreach (var heading in HeadingVectors.Keys)
             {
                 var headingWeight = headingWeights.TryGetValue(heading, out var w) ? w : 0f;
 
-                legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Crouching, MovementState.Walking, heading), walking * crouched * headingWeight);
-                legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Standing, MovementState.Walking, heading), walking * standing * headingWeight);
+                foreach (var (posture, movement) in locomotionStates)
+                {
+                    var postureWeight = posture == Posture.Standing ? standing : crouched;
+                    var movementWeight = movement switch
+                    {
+                        MovementState.Walking => walking,
+                        MovementState.Running => running,
+                        _ => 0f
+                    };
 
-                // crouch cannot run
-                legsController.SetAnimationWeight(GetThirdpersonAnim(Posture.Standing, MovementState.Running, heading), running * standing * headingWeight);
+                    legsController.SetAnimationWeight(GetThirdpersonAnim(posture, movement, heading), headingWeight * movementWeight * postureWeight, false);
+
+                    // if we are stopped reset all times to zero.
+                    if (running + walking == 0f)
+                    {
+                        legsController.SetAnimationProperties(GetThirdpersonAnim(Posture.Standing, MovementState.Walking, heading), 0f, looping: true);
+                    }
+                }
             }
         }
 
