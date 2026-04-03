@@ -1572,22 +1572,22 @@ namespace CLI
 
                         foreach (var op in particleSystem.GetInitializers())
                         {
-                            AddStatLocal($"Initializer: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Initializer: {op.GetStringProperty("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetRenderers())
                         {
-                            AddStatLocal($"Renderer: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Renderer: {op.GetStringProperty("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetEmitters())
                         {
-                            AddStatLocal($"Emitter: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Emitter: {op.GetStringProperty("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetOperators())
                         {
-                            AddStatLocal($"Operator: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Operator: {op.GetStringProperty("_class")}");
                         }
                     }
                     break;

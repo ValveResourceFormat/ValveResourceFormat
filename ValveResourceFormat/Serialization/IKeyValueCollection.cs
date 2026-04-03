@@ -44,14 +44,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Gets a string property from the key-value object.
         /// </summary>
+        //[return: NotNullIfNotNull(nameof(defaultValue))]
         public static string GetStringProperty(this KVObject obj, string name, string? defaultValue = null)
         {
-            if (!obj.TryGetValue(name, out var value))
+            if (!obj.TryGetValue(name, out var value) || value.ValueType != KVValueType.String)
             {
                 return defaultValue!;
             }
 
-            return value != null ? (string)value : defaultValue!;
+            return (string)value;
         }
 
         /// <summary>
@@ -64,7 +65,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
-            return value != null ? Convert.ToInt32(value, CultureInfo.InvariantCulture) : defaultValue;
+            return (int)value;
         }
 
         /// <summary>
@@ -77,7 +78,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
-            return value != null ? Convert.ToUInt32(value, CultureInfo.InvariantCulture) : defaultValue;
+            return (uint)value;
         }
 
         /// <summary>
@@ -90,7 +91,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
-            return value != null ? Convert.ToInt64(value, CultureInfo.InvariantCulture) : defaultValue;
+            return (long)value;
         }
 
         /// <summary>
@@ -98,20 +99,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static ulong GetUnsignedIntegerProperty(this KVObject obj, string name, ulong defaultValue = 0)
         {
-            if (!obj.TryGetValue(name, out var value) || value == null)
+            if (!obj.TryGetValue(name, out var value))
             {
                 return defaultValue;
             }
 
-            if (value.ValueType == KVValueType.Int32)
-            {
-                unchecked
-                {
-                    return (ulong)Convert.ToInt32(value, CultureInfo.InvariantCulture);
-                }
-            }
-
-            return Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+            return (ulong)value;
         }
 
         /// <summary>
@@ -124,14 +117,21 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
-            return value != null ? Convert.ToDouble(value, CultureInfo.InvariantCulture) : defaultValue;
+            return (double)value;
         }
 
         /// <summary>
         /// Gets a float property from the key-value object.
         /// </summary>
         public static float GetFloatProperty(this KVObject obj, string name, float defaultValue = 0)
-            => (float)GetDoubleProperty(obj, name, defaultValue);
+        {
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return defaultValue;
+            }
+
+            return (float)value;
+        }
 
         /// <summary>
         /// Gets a byte property from the key-value object.
@@ -143,7 +143,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return default;
             }
 
-            return value != null ? Convert.ToByte(value, CultureInfo.InvariantCulture) : default;
+            return (byte)value;
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return false;
             }
 
-            return value != null && (bool)value;
+            return (bool)value;
         }
 
         /// <summary>
@@ -165,12 +165,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static KVObject[] GetArray(this KVObject obj, string name)
         {
-            if (!obj.TryGetValue(name, out var child))
-            {
-                return null!;
-            }
-
-            if (child == null || !child.IsArray)
+            if (!obj.TryGetValue(name, out var child) || !child.IsArray)
             {
                 return null!;
             }
@@ -223,11 +218,6 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return null!;
             }
 
-            if (child == null)
-            {
-                return null!; // TODO
-            }
-
             if (child.ValueType == KVValueType.BinaryBlob)
             {
                 if (typeof(T) == typeof(byte))
@@ -274,12 +264,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static ulong[] GetUnsignedIntegerArray(this KVObject obj, string name)
         {
-            if (!obj.TryGetValue(name, out var child))
-            {
-                return [];
-            }
-
-            if (child == null || !child.IsArray)
+            if (!obj.TryGetValue(name, out var child) || !child.IsArray)
             {
                 return [];
             }
@@ -317,14 +302,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 throw new KeyNotFoundException($"Key '{name}' not found");
             }
 
-            switch (value.ValueType)
+            if (value.ValueType != KVValueType.String)
             {
-                case KVValueType.Int32:
-                    return (TEnum)(object)(int)value;
-                case KVValueType.UInt32:
-                    return (TEnum)(object)(int)(uint)value;
-                case KVValueType.Int64:
-                    return (TEnum)(object)(int)(long)value;
+                return (TEnum)(object)(int)value;
             }
 
             var enumString = (string)value;
@@ -387,71 +367,6 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             name = sb.ToString();
             return name;
-        }
-
-        /// <summary>
-        /// Gets a typed property value by name.
-        /// </summary>
-        public static T GetProperty<T>(this KVObject obj, string name, T defaultValue = default!)
-        {
-            if (!obj.TryGetValue(name, out var value))
-            {
-                return defaultValue;
-            }
-
-            if (value == null || value.ValueType == KVValueType.Null)
-            {
-                return defaultValue;
-            }
-
-            if (typeof(T) == typeof(KVObject))
-            {
-                return (T)(object)value;
-            }
-
-            if (typeof(T) == typeof(byte[]))
-            {
-                if (value.ValueType == KVValueType.BinaryBlob)
-                {
-                    return (T)(object)value.AsBlob();
-                }
-
-                // Array of byte values
-                if (value.IsArray)
-                {
-                    var result = new byte[value.Count];
-                    for (var i = 0; i < value.Count; i++)
-                    {
-                        result[i] = (byte)value[i]!;
-                    }
-                    return (T)(object)result;
-                }
-
-                return defaultValue;
-            }
-
-            if (typeof(T) == typeof(object))
-            {
-                if (value.ValueType is KVValueType.Collection or KVValueType.Array)
-                {
-                    return (T)(object)value;
-                }
-
-                return value.ValueType switch
-                {
-                    KVValueType.String => (T)(object)(string)value,
-                    KVValueType.Int32 => (T)(object)(int)value,
-                    KVValueType.Int64 => (T)(object)(long)value,
-                    KVValueType.UInt32 => (T)(object)(uint)value,
-                    KVValueType.UInt64 => (T)(object)(ulong)value,
-                    KVValueType.FloatingPoint => (T)(object)(float)value,
-                    KVValueType.FloatingPoint64 => (T)(object)(double)value,
-                    KVValueType.Boolean => (T)(object)(bool)value,
-                    _ => defaultValue,
-                };
-            }
-
-            return (T)Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture);
         }
 
         /// <summary>

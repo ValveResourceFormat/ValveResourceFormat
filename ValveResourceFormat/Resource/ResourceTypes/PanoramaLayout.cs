@@ -63,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void PrintNode(KVObject node, IndentedTextWriter writer)
         {
-            var type = node.GetProperty<string>("eType");
+            var type = node.GetStringProperty("eType");
             switch (type)
             {
                 case "ROOT": PrintPanelBase("root", node, writer); break;
@@ -80,7 +80,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void PrintPanel(KVObject node, IndentedTextWriter writer)
         {
-            var name = node.GetProperty<string>("name");
+            var name = node.GetStringProperty("name");
             PrintPanelBase(name, node, writer);
         }
 
@@ -118,7 +118,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void PrintScriptBody(KVObject node, IndentedTextWriter writer)
         {
-            var content = node.GetProperty<string>("name");
+            var content = node.GetStringProperty("name");
 
             writer.Write("<script><![CDATA[");
             writer.Write(content);
@@ -129,7 +129,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var nodeChildren = NodeChildren(node);
 
-            var name = node.GetProperty<string>("name");
+            var name = node.GetStringProperty("name");
 
             writer.WriteLine($"<snippet name=\"{name}\">");
             writer.Indent++;
@@ -154,7 +154,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             foreach (var attribute in attributes)
             {
-                var name = attribute.GetProperty<string>("name");
+                var name = attribute.GetStringProperty("name");
                 var value = attribute.GetSubCollection("child");
 
                 writer.Write($" {name}=");
@@ -164,8 +164,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void PrintAttributeOrReferenceValue(KVObject attributeValue, IndentedTextWriter writer)
         {
-            var value = attributeValue.GetProperty<string>("name");
-            var type = attributeValue.GetProperty<string>("eType");
+            var value = attributeValue.GetStringProperty("name");
+            var type = attributeValue.GetStringProperty("eType");
 
             value = type switch
             {
@@ -178,7 +178,7 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write($"\"{value}\"");
         }
 
-        private static bool IsAttribute(KVObject node) => node.GetProperty<string>("eType") == "PANEL_ATTRIBUTE";
+        private static bool IsAttribute(KVObject node) => node.GetStringProperty("eType") == "PANEL_ATTRIBUTE";
         private static IEnumerable<KVObject> NodeAttributes(KVObject node) => SubNodes(node).Where(n => IsAttribute(n));
         private static IEnumerable<KVObject> NodeChildren(KVObject node) => SubNodes(node).Where(n => !IsAttribute(n));
 

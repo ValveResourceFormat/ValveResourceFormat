@@ -129,7 +129,7 @@ namespace GUI.Types.GLViewers
 
             foreach (var function in functionList)
             {
-                var className = function.GetProperty<string>("_class");
+                var className = function.GetStringProperty("_class");
                 var displayName = StripClassPrefix(className);
                 listBox.Items.Add(new ParticleFunctionItem(displayName, isSupported(className)));
             }

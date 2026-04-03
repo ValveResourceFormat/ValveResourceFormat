@@ -943,9 +943,9 @@ public class AnimationGraphExtract : IDisposable
 
         if (data.GetArray("m_managers") is KVObject[] managers)
         {
-            tagManager = managers.FirstOrDefault(m => m.GetProperty<string>("_class") == "CAnimTagManagerUpdater");
-            paramListUpdater = managers.FirstOrDefault(m => m.GetProperty<string>("_class") == "CAnimParameterListUpdater");
-            scriptManager = managers.FirstOrDefault(m => m.GetProperty<string>("_class") == "CAnimScriptManager");
+            tagManager = managers.FirstOrDefault(m => m.GetStringProperty("_class") == "CAnimTagManagerUpdater");
+            paramListUpdater = managers.FirstOrDefault(m => m.GetStringProperty("_class") == "CAnimParameterListUpdater");
+            scriptManager = managers.FirstOrDefault(m => m.GetStringProperty("_class") == "CAnimScriptManager");
         }
 
         if (tagManager is null || paramListUpdater is null)
@@ -1035,7 +1035,7 @@ public class AnimationGraphExtract : IDisposable
                 // ("m_referencedAnimGraphs", referencedAnimGraphs),
                 // ("m_pSettingsManager", settingsManager),
                 ("m_clipDataManager", clipDataManager),
-                ("m_modelName", Graph.GetProperty<string>("m_modelName")),
+                ("m_modelName", Graph.GetStringProperty("m_modelName")),
             ]);
 
         return new KV3File(kv, format: KV3IDLookup.Get("animgraph19")).ToString();
@@ -1619,7 +1619,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (compiledAction.ContainsKey("m_eBehavior"))
                     {
-                        action.Add("m_eBehavior", compiledAction.GetProperty<string>("m_eBehavior"));
+                        action.Add("m_eBehavior", compiledAction.GetStringProperty("m_eBehavior"));
                     }
 
                     actions.Add(action);
@@ -2556,7 +2556,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (compiledComponent.ContainsKey("m_networkMode"))
         {
-            component.Add("m_networkMode", compiledComponent.GetProperty<string>("m_networkMode"));
+            component.Add("m_networkMode", compiledComponent.GetStringProperty("m_networkMode"));
         }
 
         if (className == "CActionComponentUpdater")
@@ -2708,7 +2708,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CDampedValueComponentUpdater")
         {
-            component.Add("m_name", compiledComponent.GetProperty<string>("m_name"));
+            component.Add("m_name", compiledComponent.GetStringProperty("m_name"));
 
             if (compiledComponent.ContainsKey("m_items"))
             {
@@ -2776,7 +2776,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CRemapValueComponentUpdater")
         {
-            component.Add("m_name", compiledComponent.GetProperty<string>("m_name"));
+            component.Add("m_name", compiledComponent.GetStringProperty("m_name"));
 
             if (compiledComponent.ContainsKey("m_items"))
             {
@@ -2833,7 +2833,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CAnimScriptComponentUpdater")
         {
-            component.Add("m_sName", compiledComponent.GetProperty<string>("m_name"));
+            component.Add("m_sName", compiledComponent.GetStringProperty("m_name"));
             component.Add("m_scriptFilename", "");
 
             return component;
@@ -2841,7 +2841,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CCPPScriptComponentUpdater")
         {
-            component.Add("m_sName", compiledComponent.GetProperty<string>("m_name"));
+            component.Add("m_sName", compiledComponent.GetStringProperty("m_name"));
             if (compiledComponent.ContainsKey("m_scriptsToRun"))
             {
                 var scriptsArray = compiledComponent.GetArray("m_scriptsToRun");
@@ -2862,7 +2862,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CStateMachineComponentUpdater")
         {
-            component.Add("m_sName", compiledComponent.GetProperty<string>("m_name"));
+            component.Add("m_sName", compiledComponent.GetStringProperty("m_name"));
 
             if (compiledComponent.ContainsKey("m_stateMachine"))
             {
@@ -3205,7 +3205,7 @@ public class AnimationGraphExtract : IDisposable
     private KVObject ConvertToUncompiled(KVObject compiledNode, List<long> outConnections)
     {
         footPinningItems = [];
-        var className = compiledNode.GetProperty<string>("_class");
+        var className = compiledNode.GetStringProperty("_class");
         className = className.Replace("UpdateNode", string.Empty, StringComparison.Ordinal);
 
         var newClass = className + "AnimNode";
@@ -3544,7 +3544,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedSettings.ContainsKey("m_eBlendMode"))
                     {
-                        node.Add("m_blendMode", opFixedSettings.GetProperty<string>("m_eBlendMode"));
+                        node.Add("m_blendMode", opFixedSettings.GetStringProperty("m_eBlendMode"));
                     }
 
                     if (opFixedSettings.ContainsKey("m_nBoneMaskIndex"))
@@ -3797,7 +3797,7 @@ public class AnimationGraphExtract : IDisposable
                         }
                         if (trigger.ContainsKey("m_triggerPhase"))
                         {
-                            convertedItem.Add("m_triggerPhase", trigger.GetProperty<string>("m_triggerPhase"));
+                            convertedItem.Add("m_triggerPhase", trigger.GetStringProperty("m_triggerPhase"));
                         }
                         if (trigger.ContainsKey("m_tags"))
                         {
@@ -3865,7 +3865,7 @@ public class AnimationGraphExtract : IDisposable
                             }
                             if (boneSetting.ContainsKey("m_eSimSpace"))
                             {
-                                convertedItem.Add("m_eSimSpace", boneSetting.GetProperty<string>("m_eSimSpace"));
+                                convertedItem.Add("m_eSimSpace", boneSetting.GetStringProperty("m_eSimSpace"));
                             }
                             if (boneSetting.ContainsKey("m_vBoundsMaxLS"))
                             {
@@ -4322,7 +4322,7 @@ public class AnimationGraphExtract : IDisposable
 
                             if (solverSettings.ContainsKey("m_SolverType"))
                             {
-                                overrideSolverSettings.Add("m_SolverType", solverSettings.GetProperty<string>("m_SolverType"));
+                                overrideSolverSettings.Add("m_SolverType", solverSettings.GetStringProperty("m_SolverType"));
                             }
 
                             ikChain.Add("m_OverrideSolverSettings", overrideSolverSettings);
@@ -4337,7 +4337,7 @@ public class AnimationGraphExtract : IDisposable
 
                             if (targetSettings.ContainsKey("m_TargetSource"))
                             {
-                                overrideTargetSettings.Add("m_TargetSource", targetSettings.GetProperty<string>("m_TargetSource"));
+                                overrideTargetSettings.Add("m_TargetSource", targetSettings.GetStringProperty("m_TargetSource"));
                             }
 
                             if (targetSettings.ContainsKey("m_Bone"))
@@ -4370,7 +4370,7 @@ public class AnimationGraphExtract : IDisposable
 
                             if (targetSettings.ContainsKey("m_TargetCoordSystem"))
                             {
-                                overrideTargetSettings.Add("m_TargetCoordSystem", targetSettings.GetProperty<string>("m_TargetCoordSystem"));
+                                overrideTargetSettings.Add("m_TargetCoordSystem", targetSettings.GetStringProperty("m_TargetCoordSystem"));
                             }
 
                             ikChain.Add("m_OverrideTargetSettings", overrideTargetSettings);
@@ -4378,7 +4378,7 @@ public class AnimationGraphExtract : IDisposable
 
                         if (chainData.ContainsKey("m_DebugSetting"))
                         {
-                            ikChain.Add("m_DebugSetting", chainData.GetProperty<string>("m_DebugSetting"));
+                            ikChain.Add("m_DebugSetting", chainData.GetStringProperty("m_DebugSetting"));
                         }
 
                         if (chainData.ContainsKey("m_flDebugNormalizedValue"))
@@ -4547,7 +4547,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedSettings.ContainsKey("m_ikSolverType"))
                     {
-                        node.Add("m_ikSolverType", opFixedSettings.GetProperty<string>("m_ikSolverType"));
+                        node.Add("m_ikSolverType", opFixedSettings.GetStringProperty("m_ikSolverType"));
                     }
 
                     if (opFixedSettings.ContainsKey("m_bAlwaysUseFallbackHinge"))
@@ -4878,7 +4878,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedData.ContainsKey("m_endEffectorType"))
                     {
-                        node.Add("m_endEffectorType", opFixedData.GetProperty<string>("m_endEffectorType"));
+                        node.Add("m_endEffectorType", opFixedData.GetStringProperty("m_endEffectorType"));
                     }
 
                     if (opFixedData.ContainsKey("m_endEffectorAttachment"))
@@ -4890,7 +4890,7 @@ public class AnimationGraphExtract : IDisposable
 
                     if (opFixedData.ContainsKey("m_targetType"))
                     {
-                        node.Add("m_targetType", opFixedData.GetProperty<string>("m_targetType"));
+                        node.Add("m_targetType", opFixedData.GetStringProperty("m_targetType"));
                     }
 
                     if (opFixedData.ContainsKey("m_targetAttachment"))
@@ -5222,7 +5222,7 @@ public class AnimationGraphExtract : IDisposable
                         {
                             metric.Add("m_flDistance", compiledMetric.GetFloatProperty("m_flDistance"));
                             metric.Add("m_flStoppingDistance", compiledMetric.GetFloatProperty("m_flStoppingDistance"));
-                            metric.Add("m_eMode", compiledMetric.GetProperty<string>("m_eMode"));
+                            metric.Add("m_eMode", compiledMetric.GetStringProperty("m_eMode"));
                             metric.Add("m_bAutoTargetSpeed", compiledMetric.GetIntegerProperty("m_bAutoTargetSpeed") > 0);
                             metric.Add("m_flManualTargetSpeed", compiledMetric.GetFloatProperty("m_flManualTargetSpeed"));
                         }

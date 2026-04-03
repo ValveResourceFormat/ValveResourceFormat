@@ -101,18 +101,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
             // Get animation properties
-            Name = animDesc.GetProperty<string>("m_name");
+            Name = animDesc.GetStringProperty("m_name");
             Fps = animDesc.GetFloatProperty("fps");
             SegmentArray = segmentArray;
 
             var flags = animDesc.GetSubCollection("m_flags");
-            IsLooping = flags.GetProperty<bool>("m_bLooping");
-            Hidden = flags.GetProperty<bool>("m_bHidden");
-            Delta = flags.GetProperty<bool>("m_bDelta");
-            Worldspace = flags.GetProperty<bool>("m_bLegacyWorldspace");
+            IsLooping = flags.GetBooleanProperty("m_bLooping");
+            Hidden = flags.GetBooleanProperty("m_bHidden");
+            Delta = flags.GetBooleanProperty("m_bDelta");
+            Worldspace = flags.GetBooleanProperty("m_bLegacyWorldspace");
 
-            var pDataObject = animDesc.GetProperty<object>("m_pData");
-            var pData = pDataObject as KVObject;
+            var pData = animDesc.GetSubCollection("m_pData");
             FrameCount = pData.GetInt32Property("m_nFrames");
 
             var frameBlockArray = pData.GetArray("m_frameblockArray");
@@ -149,15 +148,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private Animation(KVObject seqDesc, KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
         {
             // Name and metadata from sequence descriptor
-            Name = seqDesc.GetProperty<string>("m_sName");
+            Name = seqDesc.GetStringProperty("m_sName");
 
             var seqFlags = seqDesc.GetSubCollection("m_flags");
-            IsLooping = seqFlags.GetProperty<bool>("m_bLooping");
-            Hidden = seqFlags.GetProperty<bool>("m_bHidden");
-            Delta = seqFlags.GetProperty<bool>("m_bLegacyDelta");
-            Worldspace = seqFlags.GetProperty<bool>("m_bLegacyWorldspace");
-            Realtime = seqFlags.GetProperty<bool>("m_bLegacyRealtime");
-            Autoplay = seqFlags.GetProperty<bool>("m_bAutoplay");
+            IsLooping = seqFlags.GetBooleanProperty("m_bLooping");
+            Hidden = seqFlags.GetBooleanProperty("m_bHidden");
+            Delta = seqFlags.GetBooleanProperty("m_bLegacyDelta");
+            Worldspace = seqFlags.GetBooleanProperty("m_bLegacyWorldspace");
+            Realtime = seqFlags.GetBooleanProperty("m_bLegacyRealtime");
+            Autoplay = seqFlags.GetBooleanProperty("m_bAutoplay");
 
             // Activities from sequence descriptor
             Activities = seqDesc.GetArray("m_activityArray")
@@ -172,8 +171,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Fps = animDesc.GetFloatProperty("fps");
             SegmentArray = segmentArray;
 
-            var pDataObject = animDesc.GetProperty<object>("m_pData");
-            var pData = pDataObject as KVObject;
+            var pData = animDesc.GetSubCollection("m_pData");
             FrameCount = pData.GetInt32Property("m_nFrames");
 
             var frameBlockArray = pData.GetArray("m_frameblockArray");
@@ -223,7 +221,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var decoderArray = new string[decoderArrayKV.Length];
             for (var i = 0; i < decoderArrayKV.Length; i++)
             {
-                decoderArray[i] = decoderArrayKV[i].GetProperty<string>("m_szName");
+                decoderArray[i] = decoderArrayKV[i].GetStringProperty("m_szName");
             }
 
             //var channelElements = decodeKey.GetInt32Property("m_nChannelElements");
@@ -351,7 +349,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var animLookup = new Dictionary<string, KVObject>();
             foreach (var anim in animArray)
             {
-                var name = anim.GetProperty<string>("m_name");
+                var name = anim.GetStringProperty("m_name");
                 animLookup[name] = anim;
             }
 
@@ -384,7 +382,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     continue;
                 }
 
-                var seqName = seqDesc.GetProperty<string>("m_sName");
+                var seqName = seqDesc.GetStringProperty("m_sName");
                 processedAnimNames.Add(seqName);
 
                 animations.Add(new Animation(seqDesc, animDesc, segmentArray));
@@ -393,7 +391,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Add remaining animations not already output as sequences
             foreach (var anim in animArray)
             {
-                var animName = anim.GetProperty<string>("m_name");
+                var animName = anim.GetStringProperty("m_name");
 
                 if (processedAnimNames.Contains(animName))
                 {

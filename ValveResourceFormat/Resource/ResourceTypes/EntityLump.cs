@@ -33,39 +33,43 @@ namespace ValveResourceFormat.ResourceTypes
             public required EntityLump ParentLump { get; init; }
 
             /// <summary>
-            /// Gets a strongly-typed property value by name, returning a default value if not found or on error.
+            /// Gets a string property value by name.
             /// </summary>
-            /// <typeparam name="T">The type to convert the property value to.</typeparam>
-            /// <param name="name">The property name.</param>
-            /// <param name="defaultValue">The default value to return if the property is not found or conversion fails.</param>
-            /// <returns>The property value or the default value.</returns>
-            /// <exception cref="InvalidOperationException">Thrown when attempting to use Vector3 type (use GetVector3Property instead).</exception>
             [return: NotNullIfNotNull(nameof(defaultValue))]
-            public T? GetProperty<T>(string name, T? defaultValue = default)
+            public string? GetStringProperty(string name, string? defaultValue = null)
             {
-                if (typeof(T) == typeof(Vector3))
-                {
-                    throw new InvalidOperationException("Entity.GetProperty<Vector3> has been removed. Use Entity.GetVector3Property.");
-                }
-
-                try
-                {
-                    if (!Properties.TryGetValue(name, out var value))
-                    {
-                        return defaultValue;
-                    }
-
-                    if (value == null || value.ValueType == KVValueType.Null)
-                    {
-                        return defaultValue;
-                    }
-
-                    return Properties.GetProperty<T>(name);
-                }
-                catch (Exception)
+                if (!Properties.TryGetValue(name, out var value) || value.ValueType == KVValueType.Null)
                 {
                     return defaultValue;
                 }
+
+                return (string)value;
+            }
+
+            /// <summary>
+            /// Gets a boolean property value by name.
+            /// </summary>
+            public bool GetBooleanProperty(string name, bool defaultValue = false)
+            {
+                if (!Properties.TryGetValue(name, out var value) || value.ValueType == KVValueType.Null)
+                {
+                    return defaultValue;
+                }
+
+                return (bool)value;
+            }
+
+            /// <summary>
+            /// Gets a float property value by name.
+            /// </summary>
+            public float GetFloatProperty(string name, float defaultValue = 0)
+            {
+                if (!Properties.TryGetValue(name, out var value) || value.ValueType == KVValueType.Null)
+                {
+                    return defaultValue;
+                }
+
+                return (float)value;
             }
 
             //public bool TryGetProperty<T>(string name, out T property) => Properties.TryGetProperty(name, out property);
@@ -97,7 +101,15 @@ namespace ValveResourceFormat.ResourceTypes
             /// </summary>
             /// <param name="name">The property name.</param>
             /// <returns>The property value or the default <see cref="KVObject"/> (with <see cref="KVValueType.Null"/>) if not found.</returns>
-            public KVObject GetProperty(string name) => Properties[name] ?? KVObject.Null();
+            public KVObject GetProperty(string name)
+            {
+                if (!Properties.TryGetValue(name, out var value))
+                {
+                    return KVObject.Null();
+                }
+
+                return value;
+            }
 
             /// <summary>
             /// Determines whether the entity contains a property with the specified name.
@@ -179,7 +191,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the name of this entity lump.
         /// </summary>
-        public string Name => Data.GetProperty<string>("m_name");
+        public string Name => Data.GetStringProperty("m_name");
 
         /// <summary>
         /// Gets the names of child entity lumps.
@@ -372,7 +384,7 @@ namespace ValveResourceFormat.ResourceTypes
                     foreach (var connection in entity.Connections)
                     {
                         builder.Append('@');
-                        builder.Append(connection.GetProperty<string>("m_outputName"));
+                        builder.Append(connection.GetStringProperty("m_outputName"));
                         builder.Append(' ');
 
                         var delay = connection.GetFloatProperty("m_flDelay");
@@ -394,11 +406,11 @@ namespace ValveResourceFormat.ResourceTypes
                                 break;
                         }
 
-                        builder.Append(connection.GetProperty<string>("m_inputName"));
+                        builder.Append(connection.GetStringProperty("m_inputName"));
                         builder.Append(' ');
-                        builder.Append(connection.GetProperty<string>("m_targetName"));
+                        builder.Append(connection.GetStringProperty("m_targetName"));
 
-                        var param = connection.GetProperty<string>("m_overrideParam");
+                        var param = connection.GetStringProperty("m_overrideParam");
 
                         if (!string.IsNullOrEmpty(param) && param != "(null)")
                         {
@@ -440,7 +452,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var entity in GetEntities())
             {
-                var classname = entity.GetProperty<string>("classname")?.ToLowerInvariant();
+                var classname = entity.GetStringProperty("classname")?.ToLowerInvariant();
                 if (classname == null)
                 {
                     continue;
@@ -483,7 +495,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     foreach (var connection in entity.Connections)
                     {
-                        var outputName = connection.GetProperty<string>("m_outputName");
+                        var outputName = connection.GetStringProperty("m_outputName");
 
                         entityConnections.Add(outputName);
                     }

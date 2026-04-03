@@ -42,8 +42,8 @@ public class VfxCombo : ShaderDataBlock
     public VfxCombo(KVObject data, int blockIndex) : base()
     {
         BlockIndex = blockIndex;
-        Name = data.GetProperty<string>("m_szName");
-        AliasName = data.GetProperty<string>("m_szAliasName") ?? string.Empty;
+        Name = data.GetStringProperty("m_szName");
+        AliasName = data.GetStringProperty("m_szAliasName") ?? string.Empty;
         ComboType = data.GetEnumValue<VfxComboType>("m_comboType", normalize: true, stripExtension: "Type");
         RangeMin = data.GetInt32Property("m_nMin");
         RangeMax = data.GetInt32Property("m_nMax");

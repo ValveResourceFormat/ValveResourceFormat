@@ -889,8 +889,8 @@ public sealed class MapExtract
 
         void ProcessSceneObject(KVObject sceneObject, int layerIndex, List<MapNode> layerNodes)
         {
-            var modelName = sceneObject.GetProperty<string>("m_renderableModel");
-            var meshName = sceneObject.GetProperty<string>("m_renderable");
+            var modelName = sceneObject.GetStringProperty("m_renderableModel");
+            var meshName = sceneObject.GetStringProperty("m_renderable");
 
             if (string.IsNullOrEmpty(modelName))
             {
@@ -949,8 +949,8 @@ public sealed class MapExtract
                 propStatic.Scales = scales;
             }
 
-            var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
-            var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
+            var fadeStartDistance = sceneObject.GetDoubleProperty("m_flFadeStartDistance");
+            var fadeEndDistance = sceneObject.GetDoubleProperty("m_flFadeEndDistance");
             if (fadeStartDistance > 0)
             {
                 propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
@@ -969,7 +969,7 @@ public sealed class MapExtract
                 propStatic.EntityProperties["precomputelightprobes"] = StringBool(false);
             }*/
 
-            var skin = sceneObject.GetProperty<string>("m_skin");
+            var skin = sceneObject.GetStringProperty("m_skin");
             if (!string.IsNullOrEmpty(skin))
             {
                 propStatic.EntityProperties["skin"] = skin;
@@ -995,7 +995,7 @@ public sealed class MapExtract
 
         void ProcessAggregate(KVObject agg, int layerIndex, List<MapNode> layerNodes)
         {
-            var modelName = agg.GetProperty<string>("m_renderableModel");
+            var modelName = agg.GetStringProperty("m_renderableModel");
             var anyFlags = agg.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true);
             var allFlags = agg.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true);
 
@@ -1239,7 +1239,7 @@ public sealed class MapExtract
 
         foreach (var compiledEntity in entityLump.GetEntities())
         {
-            var className = compiledEntity.GetProperty<string>("classname");
+            var className = compiledEntity.GetStringProperty("classname");
 
             if (className == null)
             {
@@ -1250,7 +1250,7 @@ public sealed class MapExtract
             {
                 AddProperties(className, compiledEntity, MapDocument.World);
                 MapDocument.World.EntityProperties["description"] = $"Decompiled with {StringToken.VRF_GENERATOR}";
-                var mapType = compiledEntity.GetProperty<string>("mapusagetype");
+                var mapType = compiledEntity.GetStringProperty("mapusagetype");
                 if (mapType != null)
                 {
                     MapDocument.World.MapUsageType = mapType;
@@ -1299,7 +1299,7 @@ public sealed class MapExtract
                 }
             }
 
-            var rawModelName = compiledEntity.GetProperty<string>("model");
+            var rawModelName = compiledEntity.GetStringProperty("model");
             string? modelName = null;
             if (!string.IsNullOrEmpty(rawModelName))
             {
@@ -1336,7 +1336,7 @@ public sealed class MapExtract
                 }
             }
 
-            var rawSnapshotFile = compiledEntity.GetProperty<string>("snapshot_file");
+            var rawSnapshotFile = compiledEntity.GetStringProperty("snapshot_file");
             string? snapshotFile = null;
             if (!string.IsNullOrEmpty(rawSnapshotFile))
             {
@@ -1440,11 +1440,11 @@ public sealed class MapExtract
             {
                 var dmeConnection = new DmeConnectionData
                 {
-                    OutputName = connection.GetProperty<string>("m_outputName"),
+                    OutputName = connection.GetStringProperty("m_outputName"),
                     TargetType = connection.GetInt32Property("m_targetType"),
-                    TargetName = RemoveTargetnamePrefix(connection.GetProperty<string>("m_targetName")),
-                    InputName = connection.GetProperty<string>("m_inputName"),
-                    OverrideParam = connection.GetProperty<string>("m_overrideParam"),
+                    TargetName = RemoveTargetnamePrefix(connection.GetStringProperty("m_targetName")),
+                    InputName = connection.GetStringProperty("m_inputName"),
+                    OverrideParam = connection.GetStringProperty("m_overrideParam"),
                     Delay = connection.GetFloatProperty("m_flDelay"),
                     TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
                 };

@@ -20,9 +20,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public KVObject? GetTonemapParams()
         {
-            if (Data.GetProperty<bool>("m_bHasTonemapParams"))
+            if (Data.GetBooleanProperty("m_bHasTonemapParams"))
             {
-                return Data.GetProperty<KVObject>("m_toneMapParams");
+                return Data.GetSubCollection("m_toneMapParams");
             }
 
             return null;
@@ -33,9 +33,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public KVObject? GetBloomParams()
         {
-            if (Data.GetProperty<bool>("m_bHasBloomParams"))
+            if (Data.GetBooleanProperty("m_bHasBloomParams"))
             {
-                return Data.GetProperty<KVObject>("m_bloomParams");
+                return Data.GetSubCollection("m_bloomParams");
             }
 
             return null;
@@ -46,9 +46,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public KVObject? GetVignetteParams()
         {
-            if (Data.GetProperty<bool>("m_bHasVignetteParams"))
+            if (Data.GetBooleanProperty("m_bHasVignetteParams"))
             {
-                return Data.GetProperty<KVObject>("m_vignetteParams");
+                return Data.GetSubCollection("m_vignetteParams");
             }
 
             return null;
@@ -59,9 +59,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public KVObject? GetLocalContrastParams()
         {
-            if (Data.GetProperty<bool>("m_bHasLocalContrastParams"))
+            if (Data.GetBooleanProperty("m_bHasLocalContrastParams"))
             {
-                return Data.GetProperty<KVObject>("m_localConstrastParams");
+                return Data.GetSubCollection("m_localConstrastParams");
             }
 
             return null;
@@ -90,7 +90,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the color correction LUT data.
         /// </summary>
         public byte[] GetColorCorrectionLUT()
-            => Data.GetProperty<byte[]>("m_colorCorrectionVolumeData");
+            => Data.GetArray<byte>("m_colorCorrectionVolumeData");
 
         /// <summary>
         /// Gets the RAW data format of the color correction LUT.

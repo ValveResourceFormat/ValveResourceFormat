@@ -89,15 +89,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             LocalReference = autoLayerKV.GetInt32Property("m_nLocalReference");
             LocalPose = autoLayerKV.GetInt32Property("m_nLocalPose");
 
-            var flags = autoLayerKV.GetProperty<KVObject>("m_flags");
-            Post = flags.GetProperty<bool>("m_bPost");
-            Spline = flags.GetProperty<bool>("m_bSpline");
-            XFade = flags.GetProperty<bool>("m_bXFade");
-            NoBlend = flags.GetProperty<bool>("m_bNoBlend");
-            Local = flags.GetProperty<bool>("m_bLocal");
-            Pose = flags.GetProperty<bool>("m_bPose");
-            FetchFrame = flags.GetProperty<bool>("m_bFetchFrame");
-            Subtract = flags.GetProperty<bool>("m_bSubtract");
+            var flags = autoLayerKV.GetSubCollection("m_flags");
+            Post = flags.GetBooleanProperty("m_bPost");
+            Spline = flags.GetBooleanProperty("m_bSpline");
+            XFade = flags.GetBooleanProperty("m_bXFade");
+            NoBlend = flags.GetBooleanProperty("m_bNoBlend");
+            Local = flags.GetBooleanProperty("m_bLocal");
+            Pose = flags.GetBooleanProperty("m_bPose");
+            FetchFrame = flags.GetBooleanProperty("m_bFetchFrame");
+            Subtract = flags.GetBooleanProperty("m_bSubtract");
 
             Start = autoLayerKV.GetFloatProperty("m_start");
             Peak = autoLayerKV.GetFloatProperty("m_peak");

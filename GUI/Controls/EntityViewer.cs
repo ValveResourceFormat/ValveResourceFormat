@@ -110,7 +110,7 @@ namespace GUI.Types.Viewers
             EntityViewerGrid.SmallImageList = EntityIconImageList;
 
             var allClassnames = Entities
-                .Select(static e => e.GetProperty("classname", string.Empty))
+                .Select(static e => e.GetStringProperty("classname", string.Empty))
                 .Where(static cn => !string.IsNullOrEmpty(cn))
                 .Where(static cn => !EntityIconLoadAttempted.Contains(cn))
                 .ToHashSet();
@@ -149,7 +149,7 @@ namespace GUI.Types.Viewers
 
             foreach (var entity in Entities)
             {
-                var classname = entity.GetProperty("classname", string.Empty);
+                var classname = entity.GetStringProperty("classname", string.Empty);
 
                 if (!string.IsNullOrEmpty(SearchData.Class))
                 {
@@ -207,7 +207,7 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                var targetname = entity.GetProperty("targetname", string.Empty);
+                var targetname = entity.GetStringProperty("targetname", string.Empty);
                 filteredEntities.Add((entity, classname, targetname));
             }
 
@@ -387,7 +387,7 @@ namespace GUI.Types.Viewers
             {
                 if (EntityViewerGrid.SelectedItems[0].Tag is Entity entity)
                 {
-                    var classname = entity.GetProperty("classname", string.Empty);
+                    var classname = entity.GetStringProperty("classname", string.Empty);
                     if (classname == "worldspawn")
                     {
                         return;
@@ -406,8 +406,8 @@ namespace GUI.Types.Viewers
 
             var groupBoxName = "Entity Properties";
 
-            var targetname = entity.GetProperty("targetname", string.Empty);
-            var classname = entity.GetProperty("classname", string.Empty);
+            var targetname = entity.GetStringProperty("targetname", string.Empty);
+            var classname = entity.GetStringProperty("classname", string.Empty);
 
             if (!string.IsNullOrEmpty(targetname))
             {
@@ -439,7 +439,7 @@ namespace GUI.Types.Viewers
 
                 foreach (var entity in Entities)
                 {
-                    var targetname = entity.GetProperty("targetname", string.Empty);
+                    var targetname = entity.GetStringProperty("targetname", string.Empty);
                     if (string.IsNullOrEmpty(targetname))
                     {
                         continue;
@@ -595,7 +595,7 @@ namespace GUI.Types.Viewers
                 {
                     foreach (ListViewItem item in EntityViewerGrid.Items)
                     {
-                        if (item.Tag is Entity entity && entity.GetProperty("classname", string.Empty) == classname)
+                        if (item.Tag is Entity entity && entity.GetStringProperty("classname", string.Empty) == classname)
                         {
                             item.ImageIndex = iconIndex >= 0 ? iconIndex : GetDefaultIconIndexForEntity(entity);
                         }

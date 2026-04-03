@@ -92,47 +92,47 @@ namespace ValveResourceFormat.ResourceTypes
         {
             base.Read(reader);
 
-            Name = Data.GetProperty<string>("m_materialName");
-            ShaderName = Data.GetProperty<string>("m_shaderName");
+            Name = Data.GetStringProperty("m_materialName");
+            ShaderName = Data.GetStringProperty("m_shaderName");
 
             foreach (var kvp in Data.GetArray("m_intParams"))
             {
-                IntParams[kvp.GetProperty<string>("m_name")] = kvp.GetIntegerProperty("m_nValue");
+                IntParams[kvp.GetStringProperty("m_name")] = kvp.GetIntegerProperty("m_nValue");
             }
 
             foreach (var kvp in Data.GetArray("m_floatParams"))
             {
-                FloatParams[kvp.GetProperty<string>("m_name")] = kvp.GetFloatProperty("m_flValue");
+                FloatParams[kvp.GetStringProperty("m_name")] = kvp.GetFloatProperty("m_flValue");
             }
 
             foreach (var kvp in Data.GetArray("m_vectorParams"))
             {
-                VectorParams[kvp.GetProperty<string>("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
+                VectorParams[kvp.GetStringProperty("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
             }
 
             foreach (var kvp in Data.GetArray("m_textureParams"))
             {
-                TextureParams[kvp.GetProperty<string>("m_name")] = kvp.GetProperty<string>("m_pValue");
+                TextureParams[kvp.GetStringProperty("m_name")] = kvp.GetStringProperty("m_pValue");
             }
 
             foreach (var kvp in Data.GetArray("m_intAttributes"))
             {
-                IntAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetIntegerProperty("m_nValue");
+                IntAttributes[kvp.GetStringProperty("m_name")] = kvp.GetIntegerProperty("m_nValue");
             }
 
             foreach (var kvp in Data.GetArray("m_floatAttributes"))
             {
-                FloatAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetFloatProperty("m_flValue");
+                FloatAttributes[kvp.GetStringProperty("m_name")] = kvp.GetFloatProperty("m_flValue");
             }
 
             foreach (var kvp in Data.GetArray("m_vectorAttributes"))
             {
-                VectorAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
+                VectorAttributes[kvp.GetStringProperty("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
             }
 
             foreach (var kvp in Data.GetArray("m_stringAttributes"))
             {
-                StringAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetProperty<string>("m_value");
+                StringAttributes[kvp.GetStringProperty("m_name")] = kvp.GetStringProperty("m_value");
             }
 
             // This is zero-length for all vmat files in Dota2 and HL archives
@@ -146,16 +146,16 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var kvp in Data.GetArray("m_dynamicParams"))
             {
-                var dynamicParamName = kvp.GetProperty<string>("m_name");
-                var dynamicParamBytes = kvp.GetProperty<byte[]>("m_value");
+                var dynamicParamName = kvp.GetStringProperty("m_name");
+                var dynamicParamBytes = kvp.GetArray<byte>("m_value");
                 var vfxEval = new VfxEval(dynamicParamBytes, renderAttributesUsed);
                 DynamicExpressions.Add(dynamicParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
 
             foreach (var kvp in Data.GetArray("m_dynamicTextureParams"))
             {
-                var dynamicTextureParamName = kvp.GetProperty<string>("m_name");
-                var dynamicTextureParamBytes = kvp.GetProperty<byte[]>("m_value");
+                var dynamicTextureParamName = kvp.GetStringProperty("m_name");
+                var dynamicTextureParamBytes = kvp.GetArray<byte>("m_value");
                 var vfxEval = new VfxEval(dynamicTextureParamBytes, renderAttributesUsed);
                 DynamicExpressions.Add(dynamicTextureParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
@@ -284,9 +284,9 @@ namespace ValveResourceFormat.ResourceTypes
             /// <param name="data">The key-value data containing element definition.</param>
             public InputSignatureElement(KVObject data)
             {
-                Name = data.GetProperty<string>("m_pName");
-                Semantic = data.GetProperty<string>("m_pSemantic");
-                D3DSemanticName = data.GetProperty<string>("m_pD3DSemanticName");
+                Name = data.GetStringProperty("m_pName");
+                Semantic = data.GetStringProperty("m_pSemantic");
+                D3DSemanticName = data.GetStringProperty("m_pD3DSemanticName");
                 D3DSemanticIndex = (int)data.GetIntegerProperty("m_nD3DSemanticIndex");
             }
 

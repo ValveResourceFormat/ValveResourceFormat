@@ -70,8 +70,8 @@ namespace ValveResourceFormat.Blocks
 
                 foreach (var attribute in attributes)
                 {
-                    var attributeName = attribute.GetProperty<string>("name");
-                    var attributeType = attribute.GetProperty<string>("type");
+                    var attributeName = attribute.GetStringProperty("name");
+                    var attributeType = attribute.GetStringProperty("type");
 
                     var attributeArray = attributeType switch
                     {

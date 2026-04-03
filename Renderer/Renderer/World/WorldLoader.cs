@@ -150,7 +150,7 @@ namespace ValveResourceFormat.Renderer.World
                         HashSet<string> toolIcons = [];
                         foreach (var entity in entityLump.GetEntities())
                         {
-                            var className = entity.GetProperty<string>("classname");
+                            var className = entity.GetStringProperty("classname");
                             if (className != null)
                             {
                                 var hammerEntity = HammerEntities.Get(className);
@@ -428,7 +428,7 @@ namespace ValveResourceFormat.Renderer.World
 
             var entities = entityLump.GetEntities().ToList();
             var entitiesReordered = entities
-                .Select(e => (Entity: e, Classname: e.GetProperty<string>("classname")))
+                .Select(e => (Entity: e, Classname: e.GetStringProperty("classname")))
                 .Where(x => x.Classname != null)
                 .Select(x => (x.Entity, Classname: x.Classname!))
                 .OrderByDescending(x => IsCubemapOrProbe(x.Classname) || IsFog(x.Classname));
@@ -451,11 +451,11 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 var layerName = originalLayerName;
-                var disabled = entity.GetProperty("startdisabled", false);
+                var disabled = entity.GetBooleanProperty("startdisabled");
 
                 if (!disabled)
                 {
-                    disabled = !entity.GetProperty("enabled", true);
+                    disabled = !entity.GetBooleanProperty("enabled", true);
                 }
 
                 if (disabled && layerName == "Entities")
@@ -466,7 +466,7 @@ namespace ValveResourceFormat.Renderer.World
                 if (classname == "info_world_layer")
                 {
                     var spawnflags = entity.GetPropertyUnchecked<uint>("spawnflags");
-                    var layername = entity.GetProperty<string>("layername");
+                    var layername = entity.GetStringProperty("layername");
 
                     // Visible on spawn flag
                     if ((spawnflags & 1) == 1 && layername != null)
@@ -488,7 +488,7 @@ namespace ValveResourceFormat.Renderer.World
                 }
                 else if (classname == "point_template")
                 {
-                    var entityLumpName = entity.GetProperty<string>("entitylumpname");
+                    var entityLumpName = entity.GetStringProperty("entitylumpname");
 
                     if (entityLumpName != null && childEntityLumps.TryGetValue(entityLumpName, out var childLump))
                     {
@@ -501,7 +501,7 @@ namespace ValveResourceFormat.Renderer.World
                 }
                 else if (classname == "env_sky" || classname == "env_global_light")
                 {
-                    var skyname = entity.GetProperty<string>("skyname") ?? entity.GetProperty<string>("skybox_material_day");
+                    var skyname = entity.GetStringProperty("skyname") ?? entity.GetStringProperty("skybox_material_day");
                     var tintColor = Vector3.One;
 
                     if (classname == "env_sky")
@@ -548,7 +548,7 @@ namespace ValveResourceFormat.Renderer.World
                 else if (classname == "env_gradient_fog")
                 {
                     // If it has "start_disabled", only take it if we haven't found any others yet.
-                    if (!entity.GetProperty<bool>("start_disabled") || scene.FogInfo.GradientFogActive)
+                    if (!entity.GetBooleanProperty("start_disabled") || scene.FogInfo.GradientFogActive)
                     {
                         scene.FogInfo.GradientFogActive = true;
 
@@ -558,7 +558,7 @@ namespace ValveResourceFormat.Renderer.World
 
                         // Some maps don't have these properties.
                         var useHeightFog = entity.ContainsKey("fogverticalexponent"); // the oldest versions have these values missing, so disable it there
-                        useHeightFog = entity.GetProperty("heightfog", useHeightFog); // New in CS2
+                        useHeightFog = entity.GetBooleanProperty("heightfog", useHeightFog); // New in CS2
 
                         // TODO: find the correct behavior under this condition
                         var startHeight = float.NegativeInfinity;
@@ -594,7 +594,7 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     // If it has "start_disabled", only take it if it's the first one in the map.
                     // this might not be right, and the first env_cubemap_fog found might take priority, like with post processing
-                    if (!entity.GetProperty<bool>("start_disabled") || scene.FogInfo.CubeFogActive)
+                    if (!entity.GetBooleanProperty("start_disabled") || scene.FogInfo.CubeFogActive)
                     {
                         scene.FogInfo.CubeFogActive = true;
 
@@ -607,7 +607,7 @@ namespace ValveResourceFormat.Renderer.World
                         var hasHeightEnd = entity.ContainsKey("cubemapfogheightend");
 
                         var useHeightFog = entity.ContainsKey("cubemapfogheightexponent"); // the oldest versions have these values missing, so disable it there
-                        useHeightFog = entity.GetProperty("cubemapheightfog", useHeightFog); // New in CS2
+                        useHeightFog = entity.GetBooleanProperty("cubemapheightfog", useHeightFog); // New in CS2
 
                         var heightExponent = 1.0f;
                         var heightStart = float.PositiveInfinity; // is this right?
@@ -636,7 +636,7 @@ namespace ValveResourceFormat.Renderer.World
 
                         if (fogSource == 0) // Cubemap From Texture, Disabled in CS2
                         {
-                            var textureName = entity.GetProperty<string>("cubemapfogtexture");
+                            var textureName = entity.GetStringProperty("cubemapfogtexture");
                             if (textureName != null)
                             {
                                 fogTexture = RendererContext.MaterialLoader.GetTexture(textureName);
@@ -648,7 +648,7 @@ namespace ValveResourceFormat.Renderer.World
 
                             if (fogSource == 1) // Cubemap From Env_Sky
                             {
-                                var skyEntTargetName = entity.GetProperty<string>("cubemapfogskyentity");
+                                var skyEntTargetName = entity.GetStringProperty("cubemapfogskyentity");
                                 if (skyEntTargetName != null)
                                 {
                                     var skyEntity = FindEntityByKeyValue("targetname", skyEntTargetName);
@@ -656,7 +656,7 @@ namespace ValveResourceFormat.Renderer.World
                                     // env_sky target //  && (scene.Sky.TargetName == skyEntTargetName)
                                     if (skyEntity != null)
                                     {
-                                        material = skyEntity.GetProperty<string>("skyname") ?? skyEntity.GetProperty<string>("skybox_material_day");
+                                        material = skyEntity.GetStringProperty("skyname") ?? skyEntity.GetStringProperty("skybox_material_day");
                                         var rotationOnly = EntityTransformHelper.CalculateTransformationMatrix(skyEntity) with { Translation = transformationMatrix.Translation };
                                         transformationMatrix = rotationOnly;  // steal rotation from env_sky
                                     }
@@ -669,7 +669,7 @@ namespace ValveResourceFormat.Renderer.World
                             }
                             else if (fogSource == 2) // Cubemap From Material
                             {
-                                material = entity.GetProperty<string>("cubemapfogskymaterial");
+                                material = entity.GetStringProperty("cubemapfogskymaterial");
                             }
                             else
                             {
@@ -715,17 +715,17 @@ namespace ValveResourceFormat.Renderer.World
                         };
                     }
                 }
-                /*else if (classname == "env_volumetric_fog_controller" && entity.GetProperty<bool>("ismaster"))
+                /*else if (classname == "env_volumetric_fog_controller" && entity.GetBooleanProperty("ismaster"))
                 {
                     scene.FogInfo.LoadVolumetricFogController(entity);
                 }
-                else if (classname == "env_volumetric_fog_volume" && !entity.GetProperty<bool>("start_disabled"))
+                else if (classname == "env_volumetric_fog_volume" && !entity.GetBooleanProperty("start_disabled"))
                 {
                     scene.FogInfo.LoadFogVolume(entity);
                 }*/
                 else if (IsCubemapOrProbe(classname))
                 {
-                    var handShakeString = entity.GetProperty<string>("handshake");
+                    var handShakeString = entity.GetStringProperty("handshake");
                     if (!int.TryParse(handShakeString, out var handShake))
                     {
                         handShake = 0;
@@ -749,7 +749,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     if (classname != "env_light_probe_volume")
                     {
-                        var cubemapTextureName = entity.GetProperty<string>("cubemaptexture");
+                        var cubemapTextureName = entity.GetStringProperty("cubemaptexture");
                         var envMapTexture = cubemapTextureName != null
                             ? RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true)
                             : null;
@@ -758,7 +758,7 @@ namespace ValveResourceFormat.Renderer.World
                         {
                             var arrayIndex = entity.GetPropertyUnchecked("array_index", 0);
                             var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
-                            var isCustomTexture = entity.GetProperty<string>("customcubemaptexture") != null;
+                            var isCustomTexture = entity.GetStringProperty("customcubemaptexture") != null;
 
                             var envMap = new SceneEnvMap(scene, bounds)
                             {
@@ -781,7 +781,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
                     {
-                        var lightProbeTextureName = entity.GetProperty<string>("lightprobetexture");
+                        var lightProbeTextureName = entity.GetStringProperty("lightprobetexture");
                         var irradianceTexture = lightProbeTextureName != null
                             ? RendererContext.MaterialLoader.GetTexture(lightProbeTextureName, srgbRead: true)
                             : null;
@@ -796,9 +796,9 @@ namespace ValveResourceFormat.Renderer.World
                             VoxelSize = entity.GetPropertyUnchecked<float>("voxel_size")
                         };
 
-                        var dliName = entity.GetProperty<string>("lightprobetexture_dli");
-                        var dlsName = entity.GetProperty<string>("lightprobetexture_dls");
-                        var dlsdName = entity.GetProperty<string>("lightprobetexture_dlshd");
+                        var dliName = entity.GetStringProperty("lightprobetexture_dli");
+                        var dlsName = entity.GetStringProperty("lightprobetexture_dls");
+                        var dlsdName = entity.GetStringProperty("lightprobetexture_dlshd");
 
                         if (dlsName != null)
                         {
@@ -846,11 +846,11 @@ namespace ValveResourceFormat.Renderer.World
                     return;
                 }
 
-                var model = entity.GetProperty<string>("model");
-                var particle = entity.GetProperty<string>("effect_name");
-                var animation = entity.GetProperty<string>("defaultanim") ?? entity.GetProperty<string>("idleanim");
+                var model = entity.GetStringProperty("model");
+                var particle = entity.GetStringProperty("effect_name");
+                var animation = entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
 
-                var skin = entity.GetProperty<string>("skin");
+                var skin = entity.GetStringProperty("skin");
                 var positionVector = transformationMatrix.Translation;
 
                 if (classname == "sky_camera")
@@ -871,7 +871,7 @@ namespace ValveResourceFormat.Renderer.World
                         try
                         {
                             ParticleSnapshot? particleSnapshot = null;
-                            var snapshotFile = entity.GetProperty<string>("snapshot_file");
+                            var snapshotFile = entity.GetStringProperty("snapshot_file");
 
                             if (!string.IsNullOrEmpty(snapshotFile))
                             {
@@ -902,7 +902,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (IsCamera(classname))
                 {
-                    var cameraName = entity.GetProperty<string>("cameraname") ?? entity.GetProperty<string>("targetname") ?? classname;
+                    var cameraName = entity.GetStringProperty("cameraname") ?? entity.GetStringProperty("targetname") ?? classname;
                     CameraNames.Add(cameraName);
                     CameraMatrices.Add(transformationMatrix);
                 }
@@ -911,8 +911,8 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     var exposureParams = ExposureSettings.LoadFromEntity(entity);
 
-                    var isMaster = entity.GetProperty<bool>("master");
-                    var useExposure = entity.GetProperty<bool>("enableexposure");
+                    var isMaster = entity.GetBooleanProperty("master");
+                    var useExposure = entity.GetBooleanProperty("enableexposure");
                     var fadeTime = entity.GetPropertyUnchecked<float>("fadetime");
 
                     var postProcess = new ScenePostProcessVolume(scene)
@@ -924,7 +924,7 @@ namespace ValveResourceFormat.Renderer.World
                         Transform = transformationMatrix, // needed if model is used
                     };
 
-                    var postProcessResourceFilename = entity.GetProperty<string>("postprocessing");
+                    var postProcessResourceFilename = entity.GetStringProperty("postprocessing");
 
                     if (postProcessResourceFilename != null)
                     {
@@ -1121,7 +1121,7 @@ namespace ValveResourceFormat.Renderer.World
                 }
                 catch (Exception e)
                 {
-                    var id = entity.GetProperty("hammeruniqueid", string.Empty);
+                    var id = entity.GetStringProperty("hammeruniqueid", string.Empty);
 
                     throw new InvalidDataException($"Failed to process entity '{classname}' (hammeruniqueid={id})", e);
                 }
@@ -1130,7 +1130,7 @@ namespace ValveResourceFormat.Renderer.World
 
         private void LoadSkybox(Entity entity)
         {
-            var targetmapname = entity.GetProperty<string>("targetmapname");
+            var targetmapname = entity.GetStringProperty("targetmapname");
 
             if (targetmapname == null)
             {
@@ -1423,7 +1423,7 @@ namespace ValveResourceFormat.Renderer.World
                     LayerName = "Entity Connections",
                     Transform = Matrix4x4.CreateTranslation(origin),
 #if DEBUG
-                    Name = $"Line from {entity.GetProperty<string>("hammeruniqueid")} to {endEntity.GetProperty<string>("hammeruniqueid")}"
+                    Name = $"Line from {entity.GetStringProperty("hammeruniqueid")} to {endEntity.GetStringProperty("hammeruniqueid")}"
 #endif
                 };
                 scene.Add(lineNode, true);

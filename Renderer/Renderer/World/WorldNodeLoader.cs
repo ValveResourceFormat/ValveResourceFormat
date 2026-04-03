@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Renderer.World
                 var lightProbeVolumePrecomputedHandshake = sceneObject.GetInt32Property("m_nLightProbeVolumePrecomputedHandshake");
 
                 // sceneObject is SceneObject_t
-                var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
+                var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
                 var flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
@@ -88,7 +88,7 @@ namespace ValveResourceFormat.Renderer.World
                         continue;
                     }
 
-                    var skin = sceneObject.GetProperty<string>("m_skin");
+                    var skin = sceneObject.GetStringProperty("m_skin");
 
                     var model = (Model?)newResource.DataBlock;
                     Debug.Assert(model != null);
@@ -108,7 +108,7 @@ namespace ValveResourceFormat.Renderer.World
                     scene.Add(modelNode, false);
                 }
 
-                var renderable = sceneObject.GetProperty<string>("m_renderable");
+                var renderable = sceneObject.GetStringProperty("m_renderable");
 
                 if (!string.IsNullOrEmpty(renderable))
                 {
@@ -138,7 +138,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var sceneObject in node.AggregateSceneObjects)
             {
-                var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
+                var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
 
                 if (renderableModel != null)
                 {

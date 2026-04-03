@@ -99,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             SkeletonName = clipData.GetStringProperty("m_skeleton");
             NumFrames = clipData.GetInt32Property("m_nNumFrames");
             Duration = clipData.GetFloatProperty("m_flDuration");
-            IsAdditive = clipData.GetProperty<bool>("m_bIsAdditive", false);
+            IsAdditive = clipData.GetBooleanProperty("m_bIsAdditive");
 
             CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
 
@@ -122,9 +122,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     TranslationRangeZ = new QuantizationRange(rangeZ.GetFloatProperty("m_flRangeStart"), rangeZ.GetFloatProperty("m_flRangeLength")),
                     ScaleRange = new QuantizationRange(scaleRange.GetFloatProperty("m_flRangeStart"), scaleRange.GetFloatProperty("m_flRangeLength")),
                     ConstantRotation = new Quaternion(constantRotation[0], constantRotation[1], constantRotation[2], constantRotation[3]),
-                    IsRotationStatic = setting.GetProperty<bool>("m_bIsRotationStatic"),
-                    IsTranslationStatic = setting.GetProperty<bool>("m_bIsTranslationStatic"),
-                    IsScaleStatic = setting.GetProperty<bool>("m_bIsScaleStatic"),
+                    IsRotationStatic = setting.GetBooleanProperty("m_bIsRotationStatic"),
+                    IsTranslationStatic = setting.GetBooleanProperty("m_bIsTranslationStatic"),
+                    IsScaleStatic = setting.GetBooleanProperty("m_bIsScaleStatic"),
                 };
             }
 

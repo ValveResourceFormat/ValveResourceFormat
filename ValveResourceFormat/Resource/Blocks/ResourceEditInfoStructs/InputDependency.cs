@@ -60,12 +60,12 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         /// </summary>
         public InputDependency(KVObject data)
         {
-            ContentRelativeFilename = data.GetProperty<string>("m_RelativeFilename");
-            ContentSearchPath = data.GetProperty<string>("m_SearchPath");
+            ContentRelativeFilename = data.GetStringProperty("m_RelativeFilename");
+            ContentSearchPath = data.GetStringProperty("m_SearchPath");
             FileCRC = data.GetUInt32Property("m_nFileCRC");
-            Optional = data.GetProperty<bool>("m_bOptional");
-            FileExists = data.GetProperty<bool>("m_bExists");
-            IsGameFile = data.GetProperty<bool>("m_bIsGameFile");
+            Optional = data.GetBooleanProperty("m_bOptional");
+            FileExists = data.GetBooleanProperty("m_bExists");
+            IsGameFile = data.GetBooleanProperty("m_bIsGameFile");
         }
     }
 }

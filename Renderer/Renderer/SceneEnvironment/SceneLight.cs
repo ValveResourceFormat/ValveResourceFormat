@@ -276,7 +276,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.LuminaireShape = entity.GetPropertyUnchecked("luminaire_shape", 0);
             light.LuminaireAnisotropy = entity.GetPropertyUnchecked("luminaire_anisotropy", 0f);
             light.SizeParams = entity.GetVector3Property("size_params");
-            light.CookieTexturePath = entity.GetProperty<string>("lightcookie");
+            light.CookieTexturePath = entity.GetStringProperty("lightcookie");
             light.MinRoughness = entity.GetPropertyUnchecked("minroughness", 0.04f);
 
             light.Shear = entity.GetVector2Property("shear");
@@ -287,7 +287,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.SpotInnerAngle = entity.GetPropertyUnchecked("inner_angle", 0f);
             light.SpotOuterAngle = entity.GetPropertyUnchecked("outer_angle", 180f);
             light.SizeParams = entity.GetVector3Property("size_params");
-            light.CookieTexturePath = entity.GetProperty<string>("lightcookie");
+            light.CookieTexturePath = entity.GetStringProperty("lightcookie");
             light.MinRoughness = entity.GetPropertyUnchecked("minroughness", 0.04f);
             light.LuminaireShape = entity.GetPropertyUnchecked("shape", 0);
             light.LuminaireSize = entity.GetPropertyUnchecked("luminaire_size", 0f);

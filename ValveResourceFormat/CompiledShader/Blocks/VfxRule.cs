@@ -60,7 +60,7 @@ public class VfxRule : ShaderDataBlock
             ExtraRuleData[i] = extraRuleData[i];
         }
 
-        Description = data.GetProperty<string>("m_szErrorString");
+        Description = data.GetStringProperty("m_szErrorString");
     }
 
     /// <summary>

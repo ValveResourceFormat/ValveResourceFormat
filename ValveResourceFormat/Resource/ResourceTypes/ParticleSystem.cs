@@ -60,10 +60,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (enabledOnly)
             {
-                children = children.Where(c => !c.GetProperty<bool>("m_bDisableChild", false));
+                children = children.Where(c => !c.GetBooleanProperty("m_bDisableChild"));
             }
 
-            return children.Select(c => c.GetProperty<string>("m_ChildRef")).ToList();
+            return children.Select(c => c.GetStringProperty("m_ChildRef")).ToList();
         }
     }
 }

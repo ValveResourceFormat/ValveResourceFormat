@@ -41,7 +41,7 @@ namespace Tests
                 Assert.That((string)classname, Is.EqualTo("worldspawn"));
             }
 
-            var classnameString = entities[0].GetProperty<string>("classname");
+            var classnameString = entities[0].GetStringProperty("classname");
             Assert.That(classnameString, Is.EqualTo("worldspawn"));
 
             var worldname = entities[0].GetProperty("worldname");

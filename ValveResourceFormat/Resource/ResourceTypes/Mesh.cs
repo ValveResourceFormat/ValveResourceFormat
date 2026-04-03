@@ -143,24 +143,20 @@ namespace ValveResourceFormat.ResourceTypes
         {
             if (drawCall.ContainsKey("m_bUseCompressedNormalTangent"))
             {
-                return drawCall.GetProperty<bool>("m_bUseCompressedNormalTangent");
+                return drawCall.GetBooleanProperty("m_bUseCompressedNormalTangent");
             }
 
-            if (!drawCall.ContainsKey("m_nFlags"))
+            if (!drawCall.TryGetValue("m_nFlags", out var flags))
             {
                 return false;
             }
 
-            var flags = drawCall.GetProperty<object>("m_nFlags");
-
-            return flags switch
+            if (flags.ValueType == KVValueType.String)
             {
-                string flagsString => flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.InvariantCulture),
-                int flagsInt => ((RenderMeshDrawPrimitiveFlags)flagsInt & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
-                long flagsLong => ((RenderMeshDrawPrimitiveFlags)flagsLong & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
-                byte flagsByte => ((RenderMeshDrawPrimitiveFlags)flagsByte & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
-                _ => false
-            };
+                return ((string)flags).Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.InvariantCulture);
+            }
+
+            return ((RenderMeshDrawPrimitiveFlags)(int)flags & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0;
         }
 
         /// <summary>
@@ -170,7 +166,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>True if baked lighting from lightmap is present.</returns>
         public static bool HasBakedLightingFromLightMap(KVObject drawCall)
             => drawCall.ContainsKey("m_bHasBakedLightingFromLightMap")
-                && drawCall.GetProperty<bool>("m_bHasBakedLightingFromLightMap");
+                && drawCall.GetBooleanProperty("m_bHasBakedLightingFromLightMap");
 
         /// <summary>
         /// Determines if the draw call has baked lighting from vertex stream.
@@ -179,7 +175,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>True if baked lighting from vertex stream is present.</returns>
         public static bool HasBakedLightingFromVertexStream(KVObject drawCall)
             => drawCall.ContainsKey("m_bHasBakedLightingFromVertexStream")
-                && drawCall.GetProperty<bool>("m_bHasBakedLightingFromVertexStream");
+                && drawCall.GetBooleanProperty("m_bHasBakedLightingFromVertexStream");
 
         /// <summary>
         /// Determines if the draw call is an occluder.
@@ -188,7 +184,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>True if the draw call is an occluder.</returns>
         public static bool IsOccluder(KVObject drawCall)
             => drawCall.ContainsKey("m_bIsOccluder")
-                && drawCall.GetProperty<bool>("m_bIsOccluder");
+                && drawCall.GetBooleanProperty("m_bIsOccluder");
 
         /// <summary>
         /// Loads external morph data from the file loader.

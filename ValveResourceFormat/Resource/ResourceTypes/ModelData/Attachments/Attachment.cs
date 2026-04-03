@@ -76,7 +76,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             var valueData = attachmentData.GetSubCollection("value") ?? attachmentData;
 
             Name = valueData.GetStringProperty("m_name");
-            IgnoreRotation = valueData.GetProperty<bool>("m_bIgnoreRotation");
+            IgnoreRotation = valueData.GetBooleanProperty("m_bIgnoreRotation");
 
             var influenceNames = valueData.GetArray<string>("m_influenceNames");
             var influenceRotations = valueData.GetArray("m_vInfluenceRotations").Select(v => v.ToQuaternion()).ToArray();

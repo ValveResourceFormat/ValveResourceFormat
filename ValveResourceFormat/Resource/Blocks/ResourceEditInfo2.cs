@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Blocks
                 WeakReferenceList.AddRange(weakReferences);
             }
 
-            var searchableData = kv3.Data.GetProperty<KVObject>("m_SearchableUserData");
+            var searchableData = kv3.Data.GetSubCollection("m_SearchableUserData");
             if (searchableData is not null)
             {
                 foreach (var (key, child) in searchableData)
@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
-            var subassetReferences = kv3.Data.GetProperty<KVObject>("m_SubassetReferences");
+            var subassetReferences = kv3.Data.GetSubCollection("m_SubassetReferences");
             if (subassetReferences != null)
             {
                 SubassetReferences = new(capacity: subassetReferences.Count);
@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
-            var subassetDefinitions = kv3.Data.GetProperty<KVObject>("m_SubassetDefinitions");
+            var subassetDefinitions = kv3.Data.GetSubCollection("m_SubassetDefinitions");
             if (subassetDefinitions != null)
             {
                 SubassetDefinitions = new(capacity: subassetDefinitions.Count);

@@ -494,7 +494,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Enumerable of material group names and their materials.</returns>
         public IEnumerable<(string Name, string[] Materials)> GetMaterialGroups()
            => Data.GetArray("m_materialGroups")
-                .Select(group => (group.GetProperty<string>("m_name"), group.GetArray<string>("m_materials")));
+                .Select(group => (group.GetStringProperty("m_name"), group.GetArray<string>("m_materials")));
 
         /// <summary>
         /// Gets the default mesh groups based on the default mesh group mask.
@@ -509,7 +509,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         KVObject? ParseKeyValuesText()
         {
-            var keyvaluesString = Data.GetSubCollection("m_modelInfo").GetProperty<string>("m_keyValueText");
+            var keyvaluesString = Data.GetSubCollection("m_modelInfo").GetStringProperty("m_keyValueText");
 
             const int NullKeyValuesLengthLimit = 140;
             if (string.IsNullOrEmpty(keyvaluesString)

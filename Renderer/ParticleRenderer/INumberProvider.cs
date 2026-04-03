@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Renderer.Particles
             hasRandomSignFlip = parse.Boolean("m_bHasRandomSignFlip", hasRandomSignFlip);
 
             // Should it be checking behavior version?
-            if (parse.Data.GetProperty<string>("m_nType") != parse.Data.GetProperty<string>("m_nRandomMode"))
+            if (parse.Data.GetStringProperty("m_nType") != parse.Data.GetStringProperty("m_nRandomMode"))
             {
                 randomMode = parse.Enum<ParticleFloatRandomMode>("m_nRandomMode", randomMode);
             }

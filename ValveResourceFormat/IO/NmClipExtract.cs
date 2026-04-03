@@ -41,7 +41,7 @@ public class NmClipExtract
         kv.Add("m_sourceFilename", sourceFileName);
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
         // TODO: figure out additive type.
-        var isAdditive = clip.Data.GetProperty<bool>("m_bIsAdditive");
+        var isAdditive = clip.Data.GetBooleanProperty("m_bIsAdditive");
         if (isAdditive)
         {
             kv.Add("m_additiveType", "RelativeToFrame");

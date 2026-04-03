@@ -260,7 +260,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (node.EntityData != null)
                 {
-                    var classname = node.EntityData.GetProperty<string>("classname");
+                    var classname = node.EntityData.GetStringProperty("classname");
                     if (classname != null)
                     {
                         nodeName = classname;
@@ -272,7 +272,7 @@ namespace ValveResourceFormat.Renderer
 
                         if (classname == "env_cubemap")
                         {
-                            var radius = node.EntityData.GetProperty<float>("influenceradius");
+                            var radius = node.EntityData.GetFloatProperty("influenceradius");
                             bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
                         }
                         else
@@ -289,10 +289,10 @@ namespace ValveResourceFormat.Renderer
                     }
                     else if (classname is "light_barn" or "light_omni2")
                     {
-                        var boundsMins = node.EntityData.GetProperty<string>("precomputedboundsmins");
-                        var boundsMaxs = node.EntityData.GetProperty<string>("precomputedboundsmaxs");
-                        var obbExtent = node.EntityData.GetProperty<string>("precomputedobbextent");
-                        var obbOrigin = node.EntityData.GetProperty<string>("precomputedobborigin");
+                        var boundsMins = node.EntityData.GetStringProperty("precomputedboundsmins");
+                        var boundsMaxs = node.EntityData.GetStringProperty("precomputedboundsmaxs");
+                        var obbExtent = node.EntityData.GetStringProperty("precomputedobbextent");
+                        var obbOrigin = node.EntityData.GetStringProperty("precomputedobborigin");
 
                         if (boundsMins != null && boundsMaxs != null && obbExtent != null && obbOrigin != null)
                         {

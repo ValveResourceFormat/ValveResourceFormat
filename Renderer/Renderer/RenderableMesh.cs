@@ -235,7 +235,7 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
-                    var materialName = objectDrawCall.GetProperty<string>("m_material") ?? objectDrawCall.GetProperty<string>("m_pMaterial");
+                    var materialName = objectDrawCall.GetStringProperty("m_material") ?? objectDrawCall.GetStringProperty("m_pMaterial");
                     if (materialReplacementTable?.TryGetValue(materialName, out var replacementName) is true)
                     {
                         materialName = replacementName;

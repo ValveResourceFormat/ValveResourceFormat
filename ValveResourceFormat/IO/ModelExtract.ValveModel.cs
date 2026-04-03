@@ -59,7 +59,7 @@ partial class ModelExtract
 
     static KVObject? ProcessBoneConstraintTarget(KVObject target)
     {
-        var isAttachment = target.GetProperty<bool>("m_bIsAttachment");
+        var isAttachment = target.GetBooleanProperty("m_bIsAttachment");
         var targetHash = target.GetUInt32Property("m_nBoneHash");
         if (!StringToken.InvertedTable.TryGetValue(targetHash, out var targetName))
         {
@@ -558,7 +558,7 @@ partial class ModelExtract
                 }
 
                 // Animations that have this property do not appear in Animations list.
-                if (sequenceKeys.GetProperty<bool>("bind_pose"))
+                if (sequenceKeys.GetBooleanProperty("bind_pose"))
                 {
                     var animBindPose = MakeNode(
                         "AnimBindPose",
@@ -893,7 +893,7 @@ partial class ModelExtract
 
             foreach (var boneMask in boneMasks!)
             {
-                var name = boneMask.GetProperty<string>("m_sName");
+                var name = boneMask.GetStringProperty("m_sName");
                 var boneArray = boneMask.GetIntegerArray("m_nLocalBoneArray");
                 var boneWeights = boneMask.GetFloatArray("m_flBoneWeightArray");
                 // master_morph_weight = m_flDefaultMorphCtrlWeight
@@ -929,11 +929,11 @@ partial class ModelExtract
         {
             foreach (var poseParam in poseParamsData)
             {
-                var name = poseParam.GetProperty<string>("m_sName");
+                var name = poseParam.GetStringProperty("m_sName");
                 var start = poseParam.GetFloatProperty("m_flStart");
                 var end = poseParam.GetFloatProperty("m_flEnd");
                 var loop = poseParam.GetFloatProperty("m_flLoop");
-                var looping = poseParam.GetProperty<bool>("m_bLooping");
+                var looping = poseParam.GetBooleanProperty("m_bLooping");
 
                 var poseParamNode = MakeNode("PoseParam",
                     ("name", name),
@@ -997,7 +997,7 @@ partial class ModelExtract
 
             if (keyvalues.ContainsKey("anim_graph_resource"))
             {
-                rootNode.Add("anim_graph_name", keyvalues.GetProperty<string>("anim_graph_resource"));
+                rootNode.Add("anim_graph_name", keyvalues.GetStringProperty("anim_graph_resource"));
             }
 
             if (keyvalues.ContainsKey("BoneConstraintList"))
@@ -1077,7 +1077,7 @@ partial class ModelExtract
             {
                 if (keyvalues.ContainsKey(genericDataClass))
                 {
-                    var genericData = keyvalues.GetProperty<KVObject>(genericDataClass);
+                    var genericData = keyvalues.GetSubCollection(genericDataClass);
                     if (genericData != null)
                     {
                         AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
@@ -1112,13 +1112,13 @@ partial class ModelExtract
 
             if (keyvalues.ContainsKey("MovementSettings"))
             {
-                var movementSettings = keyvalues.GetProperty<KVObject>("MovementSettings");
+                var movementSettings = keyvalues.GetSubCollection("MovementSettings");
                 AddGenericGameData(gameDataList.Value, "MovementSettings", movementSettings, "movementsettings");
             }
 
             if (keyvalues.ContainsKey("FeetSettings"))
             {
-                var feetSettings = keyvalues.GetProperty<KVObject>("FeetSettings");
+                var feetSettings = keyvalues.GetSubCollection("FeetSettings");
                 var feetNode = ConvertFeetSettings(feetSettings!);
                 if (feetNode != null)
                 {

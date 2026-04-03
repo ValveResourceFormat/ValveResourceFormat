@@ -380,7 +380,7 @@ public partial class GltfModelExporter
             modelTintColor *= dcTintColorWithAlpha;
         }
 
-        var materialPath = skinMaterialPath ?? drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
+        var materialPath = skinMaterialPath ?? drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial");
 
         var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
         var materialHashKey = new ExportedMaterial(materialPath, modelTintColor);
@@ -494,7 +494,7 @@ public partial class GltfModelExporter
             var drawCall = drawCalls[drawCallIndex];
             var transform = Matrix4x4.Identity;
 
-            if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
+            if (fragmentData.GetBooleanProperty("m_bHasTransform") == true)
             {
                 transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
 

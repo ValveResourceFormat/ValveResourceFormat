@@ -187,7 +187,7 @@ namespace ValveResourceFormat.Renderer
                     Flags = flags,
                 };
 
-                if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
+                if (fragmentData.GetBooleanProperty("m_bHasTransform") == true)
                 {
                     CanDrawIndirect = false; // skip indirect draw path for instanced draws
                     fragment.Transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();

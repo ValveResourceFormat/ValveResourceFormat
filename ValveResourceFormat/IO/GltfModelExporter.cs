@@ -370,8 +370,8 @@ namespace ValveResourceFormat.IO
             foreach (var entity in entityLump.GetEntities())
             {
                 var transform = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
-                var modelName = entity.GetProperty<string>("model");
-                var className = entity.GetProperty<string>("classname");
+                var modelName = entity.GetStringProperty("model");
+                var className = entity.GetStringProperty("classname");
 
                 if (string.IsNullOrEmpty(modelName))
                 {
@@ -401,7 +401,7 @@ namespace ValveResourceFormat.IO
                     }
                     else if (className == "point_template")
                     {
-                        var entityLumpName = entity.GetProperty<string>("entitylumpname");
+                        var entityLumpName = entity.GetStringProperty("entitylumpname");
 
                         if (entityLumpName != null && childEntityLumps.TryGetValue(entityLumpName, out var childLump))
                         {
@@ -430,7 +430,7 @@ namespace ValveResourceFormat.IO
                 // TODO: skybox/skydome
 
                 var model = (VModel)modelResource.DataBlock!;
-                var skinName = entity.GetProperty<string>("skin");
+                var skinName = entity.GetStringProperty("skin");
                 if (skinName == "0" || skinName == "default")
                 {
                     skinName = null;
@@ -503,7 +503,7 @@ namespace ValveResourceFormat.IO
         {
             foreach (var sceneObject in worldNode.SceneObjects)
             {
-                var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
+                var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
                 if (renderableModel == null)
                 {
                     continue;
@@ -530,7 +530,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var sceneObject in worldNode.AggregateSceneObjects)
             {
-                var renderableModel = sceneObject.GetProperty<string>("m_renderableModel");
+                var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
 
                 if (renderableModel != null)
                 {
@@ -664,7 +664,7 @@ namespace ValveResourceFormat.IO
                 // When exporting map entities, only export the default animation
                 if (entity != null)
                 {
-                    var entityAnimation = entity.GetProperty<string>("defaultanim") ?? entity.GetProperty<string>("idleanim");
+                    var entityAnimation = entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
                     if (entityAnimation != null)
                     {
                         animationFilter = [

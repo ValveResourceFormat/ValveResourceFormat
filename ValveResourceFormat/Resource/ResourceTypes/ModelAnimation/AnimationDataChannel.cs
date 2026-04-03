@@ -28,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
 
-            var channelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
+            var channelAttribute = dataChannel.GetStringProperty("m_szVariableName");
             Attribute = channelAttribute switch
             {
                 "Position" => AnimationChannelAttribute.Position,

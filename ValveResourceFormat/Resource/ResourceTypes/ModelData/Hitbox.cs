@@ -77,7 +77,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             BoneName = data.GetStringProperty("m_sBoneName");
             MinBounds = data.GetSubCollection("m_vMinBounds").ToVector3();
             MaxBounds = data.GetSubCollection("m_vMaxBounds").ToVector3();
-            TranslationOnly = data.GetProperty<bool>("m_bTranslationOnly");
+            TranslationOnly = data.GetBooleanProperty("m_bTranslationOnly");
             GroupId = data.GetInt32Property("m_nGroupId");
 
             ShapeType = (HitboxShape)data.GetInt32Property("m_nShapeType");

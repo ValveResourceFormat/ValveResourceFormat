@@ -46,8 +46,8 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         /// </summary>
         public ArgumentDependency(KVObject data)
         {
-            ParameterName = data.GetProperty<string>("m_ParameterName");
-            ParameterType = data.GetProperty<string>("m_ParameterType");
+            ParameterName = data.GetStringProperty("m_ParameterName");
+            ParameterType = data.GetStringProperty("m_ParameterType");
             Fingerprint = data.GetUInt32Property("m_nFingerprint");
             FingerprintDefault = data.GetUInt32Property("m_nFingerprintDefault");
         }

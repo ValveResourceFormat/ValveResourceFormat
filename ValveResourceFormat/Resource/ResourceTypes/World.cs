@@ -27,7 +27,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public IReadOnlyCollection<string> GetWorldNodeNames()
             => Data.GetArray("m_worldNodes")
-                .Select(nodeData => nodeData.GetProperty<string>("m_worldNodePrefix"))
+                .Select(nodeData => nodeData.GetStringProperty("m_worldNodePrefix"))
                 .ToList();
     }
 }

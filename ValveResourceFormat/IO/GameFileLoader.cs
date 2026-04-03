@@ -448,7 +448,7 @@ namespace ValveResourceFormat.IO
                     var surfacePropertiesList = kv3.Data.GetArray("SurfacePropertiesList");
                     foreach (var surface in surfacePropertiesList)
                     {
-                        var name = surface.GetProperty<string>("surfacePropertyName");
+                        var name = surface.GetStringProperty("surfacePropertyName");
                         var hash = StringToken.Store(name);
                         Debug.Assert(
                             hash == surface.GetUnsignedIntegerProperty("m_nameHash"),

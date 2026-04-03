@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (parse.Data.ContainsKey("m_hTexture"))
             {
-                textureName = parse.Data.GetProperty<string>("m_hTexture");
+                textureName = parse.Data.GetStringProperty("m_hTexture");
             }
             else
             {
@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 if (textures.Length > 0)
                 {
                     // TODO: Support more than one texture
-                    textureName = textures[0].Data.GetProperty<string>("m_hTexture");
+                    textureName = textures[0].Data.GetStringProperty("m_hTexture");
                 }
             }
 

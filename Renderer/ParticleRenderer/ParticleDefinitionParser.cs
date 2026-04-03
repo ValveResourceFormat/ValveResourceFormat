@@ -47,7 +47,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
     /// <summary>Reads a long property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly long Long(string key, long @default = default) => GetValueOrDefault(key, Long, @default);
 
-    private readonly bool Boolean(string k) => Data.GetProperty<bool>(k);
+    private readonly bool Boolean(string k) => Data.GetBooleanProperty(k);
     /// <summary>Reads a bool property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly bool Boolean(string key, bool @default = default) => GetValueOrDefault(key, Boolean, @default);
 
@@ -81,11 +81,11 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
     public readonly INumberProvider NumberProvider(string key, INumberProvider @default) => GetValueOrDefault(key, NumberProvider, @default);
     private readonly INumberProvider NumberProvider(string key)
     {
-        var property = Data.GetProperty<object>(key);
+        var pfParameters = Data.GetSubCollection(key);
 
-        if (property is KVObject pfParameters)
+        if (pfParameters.IsCollection)
         {
-            var type = pfParameters.GetProperty<string>("m_nType");
+            var type = pfParameters.GetStringProperty("m_nType");
             var parse = new ParticleDefinitionParser(pfParameters, Logger);
 
             switch (type)
@@ -135,7 +135,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         }
         else
         {
-            return new LiteralNumberProvider((float)Convert.ToDouble(property, CultureInfo.InvariantCulture));
+            return new LiteralNumberProvider((float)pfParameters);
         }
     }
 
@@ -143,11 +143,11 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
     public readonly IVectorProvider VectorProvider(string key, IVectorProvider @default) => GetValueOrDefault(key, VectorProvider, @default);
     private readonly IVectorProvider VectorProvider(string key)
     {
-        var property = Data.GetProperty<object>(key);
+        var pvecParameters = Data.GetSubCollection(key);
 
-        if (property is KVObject pvecParameters && pvecParameters.ContainsKey("m_nType"))
+        if (pvecParameters.IsCollection && pvecParameters.ContainsKey("m_nType"))
         {
-            var type = pvecParameters.GetProperty<string>("m_nType");
+            var type = pvecParameters.GetStringProperty("m_nType");
             var parse = new ParticleDefinitionParser(pvecParameters, Logger);
 
             switch (type)
@@ -199,11 +199,11 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
     public readonly ITransformProvider TransformInput(string key, ITransformProvider @default) => GetValueOrDefault(key, TransformInput, @default);
     private readonly ITransformProvider TransformInput(string key)
     {
-        var property = Data.GetProperty<object>(key);
+        var transformParameters = Data.GetSubCollection(key);
 
-        if (property is KVObject transformParameters)
+        if (transformParameters.IsCollection)
         {
-            var type = transformParameters.GetProperty<string>("m_nType");
+            var type = transformParameters.GetStringProperty("m_nType");
             var parse = new ParticleDefinitionParser(transformParameters, Logger);
 
             switch (type)

@@ -112,7 +112,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 foreach (var animGraphRef in animGraphs)
                 {
-                    var graphName = animGraphRef.GetProperty<string>("m_hGraph");
+                    var graphName = animGraphRef.GetStringProperty("m_hGraph");
                     LoadAnimGraphResources(graphName, visitedResources);
                 }
             }

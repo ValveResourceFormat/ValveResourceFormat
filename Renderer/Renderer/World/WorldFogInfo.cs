@@ -29,19 +29,19 @@ namespace ValveResourceFormat.Renderer.World
         public void LoadVolumetricFogController(EntityLump.Entity entity)
         {
             VolumetricFogActive = true;
-            var fogIrradianceVolume = entity.GetProperty<string>("fogirradiancevolume");
-            //var anisotropy = entity.GetProperty<float>("anisotropy"); // according to the decompiled code, i think this is unused
-            var drawDistance = entity.GetProperty<float>("drawdistance");
-            var fogStrength = entity.GetProperty<float>("fogstrength");
-            var boxMins = entity.GetProperty<string>("box_mins");
-            var boxMaxs = entity.GetProperty<string>("box_maxs");
-            var indirectVoxelDim = float.Parse(entity.GetProperty<string>("indirectvoxeldim"));
-            var indirectStrength = entity.GetProperty<float>("indirectstrength");
-            var indirectEnabled = entity.GetProperty<bool>("indirectenabled");
+            var fogIrradianceVolume = entity.GetStringProperty("fogirradiancevolume");
+            //var anisotropy = entity.GetFloatProperty("anisotropy"); // according to the decompiled code, i think this is unused
+            var drawDistance = entity.GetFloatProperty("drawdistance");
+            var fogStrength = entity.GetFloatProperty("fogstrength");
+            var boxMins = entity.GetStringProperty("box_mins");
+            var boxMaxs = entity.GetStringProperty("box_maxs");
+            var indirectVoxelDim = float.Parse(entity.GetStringProperty("indirectvoxeldim"));
+            var indirectStrength = entity.GetFloatProperty("indirectstrength");
+            var indirectEnabled = entity.GetBooleanProperty("indirectenabled");
 
-            //var indirDimX = float.Parse(entity.GetProperty<string>("indirectvoxeldimx"));
-            //var indirDimY = float.Parse(entity.GetProperty<string>("indirectvoxeldimy"));
-            //var indirDimZ = float.Parse(entity.GetProperty<string>("indirectvoxeldimz"));
+            //var indirDimX = float.Parse(entity.GetStringProperty("indirectvoxeldimx"));
+            //var indirDimY = float.Parse(entity.GetStringProperty("indirectvoxeldimy"));
+            //var indirDimZ = float.Parse(entity.GetStringProperty("indirectvoxeldimz"));
         }
 
 
@@ -60,9 +60,9 @@ namespace ValveResourceFormat.Renderer.World
             {
                 var fogVol = new FogVolume
                 {
-                    Shape = int.Parse(entity.GetProperty<string>("shape")),
-                    Strength = entity.GetProperty<float>("fogstrength"),
-                    Exponent = entity.GetProperty<float>("falloffexponent"),
+                    Shape = int.Parse(entity.GetStringProperty("shape")),
+                    Strength = entity.GetFloatProperty("fogstrength"),
+                    Exponent = entity.GetFloatProperty("falloffexponent"),
                     //Transform = SceneLightingInfo.BoxToTransform(entity)
                 };
 

@@ -38,7 +38,7 @@ public class NmSkeletonExtract
         kv.Add("m_sourceFileName", dmxFile);
         kv.Add("m_rootBoneName", "");
         kv.Add("m_flGlobalScale", 1.0f);
-        kv.Add("m_bIsAttachableProp", kvSkeleton.GetProperty<bool>("m_bIsPropSkeleton"));
+        kv.Add("m_bIsAttachableProp", kvSkeleton.GetBooleanProperty("m_bIsPropSkeleton"));
         kv.Add("m_secondarySkeletons", kvSkeleton["m_secondarySkeletons"]);
         var numLowLODBones = kvSkeleton.GetInt32Property("m_numBonesToSampleAtLowLOD");
         var boneIDs = kvSkeleton.GetArray<string>("m_boneIDs")![numLowLODBones..];

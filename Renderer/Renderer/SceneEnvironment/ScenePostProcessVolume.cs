@@ -79,15 +79,14 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <param name="tonemapParams">The KV object containing tonemapping parameters.</param>
         public TonemapSettings(KVObject tonemapParams)
         {
-            // no "Unchecked" equivalent for KVObject
-            ExposureBias = (float)tonemapParams.GetProperty<double>("m_flExposureBias");
-            ShoulderStrength = (float)tonemapParams.GetProperty<double>("m_flShoulderStrength");
-            LinearStrength = (float)tonemapParams.GetProperty<double>("m_flLinearStrength");
-            LinearAngle = (float)tonemapParams.GetProperty<double>("m_flLinearAngle");
-            ToeStrength = (float)tonemapParams.GetProperty<double>("m_flToeStrength");
-            ToeNum = (float)tonemapParams.GetProperty<double>("m_flToeNum");
-            ToeDenom = (float)tonemapParams.GetProperty<double>("m_flToeDenom");
-            WhitePoint = (float)tonemapParams.GetProperty<double>("m_flWhitePoint");
+            ExposureBias = (float)tonemapParams.GetDoubleProperty("m_flExposureBias");
+            ShoulderStrength = (float)tonemapParams.GetDoubleProperty("m_flShoulderStrength");
+            LinearStrength = (float)tonemapParams.GetDoubleProperty("m_flLinearStrength");
+            LinearAngle = (float)tonemapParams.GetDoubleProperty("m_flLinearAngle");
+            ToeStrength = (float)tonemapParams.GetDoubleProperty("m_flToeStrength");
+            ToeNum = (float)tonemapParams.GetDoubleProperty("m_flToeNum");
+            ToeDenom = (float)tonemapParams.GetDoubleProperty("m_flToeDenom");
+            WhitePoint = (float)tonemapParams.GetDoubleProperty("m_flWhitePoint");
         }
         /// <summary>Linearly interpolates between two <see cref="TonemapSettings"/> by a given weight.</summary>
         /// <param name="weight">Blend factor in the range [0, 1]; 0 returns <paramref name="TonemapSettings1"/>, 1 returns <paramref name="TonemapSettings2"/>.</param>
@@ -173,7 +172,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
                 ExposureSpeedDown = entity.GetPropertyUnchecked("exposurespeeddown", def.ExposureSpeedDown),
                 ExposureCompensation = entity.GetPropertyUnchecked("exposurecompensation", def.ExposureCompensation),
                 ExposureSmoothingRange = entity.GetPropertyUnchecked("exposuresmoothingrange", def.ExposureSmoothingRange),
-                AutoExposureEnabled = entity.GetProperty<bool>("enableexposure"), // todo: test where this is enabled/disabled
+                AutoExposureEnabled = entity.GetBooleanProperty("enableexposure"), // todo: test where this is enabled/disabled
             };
 
             settings.AutoExposureEnabled = settings.AutoExposureEnabled && settings.ExposureMax > settings.ExposureMin;

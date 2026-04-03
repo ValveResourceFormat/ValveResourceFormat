@@ -29,7 +29,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     {
         Version = data.GetInt32Property("m_nVersion");
         FileDescription = data.GetStringProperty("m_description");
-        DevShader = data.GetProperty<bool>("m_bDevShader");
+        DevShader = data.GetBooleanProperty("m_bDevShader");
         AvailablePrograms = data.GetArray<bool>("m_bHasShaderProgram")!;
 
         var modeArray = data.GetArray("m_modeArray");
@@ -48,7 +48,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
                 Debug.Assert(settings.Length <= 1, "CVfxModeSettings with more than one combo.");
 
                 var setting = settings[0];
-                mode.ComboName = setting.GetProperty<string>("m_szStaticCombo");
+                mode.ComboName = setting.GetStringProperty("m_szStaticCombo");
                 mode.ComboValue = setting.GetInt32Property("m_nValue");
             }
 

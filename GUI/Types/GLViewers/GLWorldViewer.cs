@@ -745,7 +745,7 @@ namespace GUI.Types.GLViewers
             if (sceneNode.EntityData != null)
             {
                 // Perhaps this needs to check for correct classname?
-                var particle = sceneNode.EntityData.GetProperty<string>("effect_name");
+                var particle = sceneNode.EntityData.GetStringProperty("effect_name");
 
                 if (particle != null)
                 {
@@ -840,7 +840,7 @@ namespace GUI.Types.GLViewers
 
             entityInfoForm.EntityInfoControl.PopulateFromEntity(sceneNode.EntityData);
 
-            var classname = sceneNode.EntityData.GetProperty<string>("classname");
+            var classname = sceneNode.EntityData.GetStringProperty("classname");
             entityInfoForm.Text = $"Entity: {classname}";
         }
 

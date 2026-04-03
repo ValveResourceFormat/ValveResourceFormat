@@ -10,7 +10,7 @@ namespace GUI.Types.GLViewers
     {
         public GLAnimGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, AnimGraph animGraph) : base(vrfGuiContext, rendererContext)
         {
-            var animGraphAssociatedModel = animGraph.Data.GetProperty<string>("m_modelName");
+            var animGraphAssociatedModel = animGraph.Data.GetStringProperty("m_modelName");
             var modelResource = rendererContext.FileLoader.LoadFileCompiled(animGraphAssociatedModel) ?? rendererContext.FileLoader.LoadFileCompiled("models/dev/error.vmdl");
 
             if (modelResource?.DataBlock is not Model model)

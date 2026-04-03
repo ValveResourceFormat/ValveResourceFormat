@@ -103,7 +103,7 @@ namespace ValveResourceFormat.Renderer.Particles
             }
             else if (parse.Data.ContainsKey("m_hSnapshot"))
             {
-                var snapshotPath = parse.Data.GetProperty<string>("m_hSnapshot");
+                var snapshotPath = parse.Data.GetStringProperty("m_hSnapshot");
 
                 if (!string.IsNullOrEmpty(snapshotPath))
                 {
@@ -396,7 +396,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var emitterClass = emitterInfo.GetProperty<string>("_class");
+                var emitterClass = emitterInfo.GetStringProperty("_class");
                 if (ParticleControllerFactory.TryCreateEmitter(emitterClass, emitterInfo, RendererContext.Logger, out var emitter))
                 {
                     Emitters.Add(emitter);
@@ -417,7 +417,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var initializerClass = initializerInfo.GetProperty<string>("_class");
+                var initializerClass = initializerInfo.GetStringProperty("_class");
                 if (ParticleControllerFactory.TryCreateInitializer(initializerClass, initializerInfo, RendererContext.Logger, out var initializer))
                 {
                     Initializers.Add(initializer);
@@ -438,7 +438,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var operatorClass = operatorInfo.GetProperty<string>("_class");
+                var operatorClass = operatorInfo.GetStringProperty("_class");
                 if (ParticleControllerFactory.TryCreateOperator(operatorClass, operatorInfo, RendererContext.Logger, out var @operator))
                 {
                     Operators.Add(@operator);
@@ -459,7 +459,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var operatorClass = forceGenerator.GetProperty<string>("_class");
+                var operatorClass = forceGenerator.GetStringProperty("_class");
                 if (ParticleControllerFactory.TryCreateForceGenerator(operatorClass, forceGenerator, RendererContext.Logger, out var @operator))
                 {
                     Operators.Add(@operator);
@@ -480,7 +480,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var rendererClass = rendererInfo.GetProperty<string>("_class");
+                var rendererClass = rendererInfo.GetStringProperty("_class");
                 if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, RendererContext, out var renderer))
                 {
                     Renderers.Add(renderer);
@@ -500,7 +500,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var preEmissionOperatorClass = preEmissionOperatorInfo.GetProperty<string>("_class");
+                var preEmissionOperatorClass = preEmissionOperatorInfo.GetStringProperty("_class");
                 if (ParticleControllerFactory.TryCreatePreEmissionOperator(preEmissionOperatorClass, preEmissionOperatorInfo, RendererContext.Logger, out var preEmissionOperator))
                 {
                     PreEmissionOperators.Add(preEmissionOperator);

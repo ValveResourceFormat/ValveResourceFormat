@@ -359,7 +359,7 @@ namespace ValveResourceFormat.IO
         /// Determines whether the resource is a child resource.
         /// </summary>
         public static bool IsChildResource(Resource resource)
-            => resource.EditInfo?.SearchableUserData?.GetProperty<long>("IsChildResource") == 1;
+            => resource.EditInfo?.SearchableUserData?.GetIntegerProperty("IsChildResource") == 1;
 
         /// <summary>
         /// Gets the appropriate file extension for the extracted resource.
