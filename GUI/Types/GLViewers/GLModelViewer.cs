@@ -427,9 +427,14 @@ namespace GUI.Types.GLViewers
                 var time = animationController.Time % totalTime;
                 var frameNumber = animationController.Frame + 1;
 
+                var additive = animationController.ActiveAnimation.Clip is { IsAdditive: true }
+                    ? "Additive: true\n"
+                    : string.Empty;
+
                 animationTimeLabel.Text = $"Frame: {frameNumber,4} / {frameCount}\n" +
                     $"Time: {time:F2} / {totalTime:F2}\n" +
-                    $"FPS: {fps:F2}\n";
+                    $"FPS: {fps:F2}\n" +
+                    additive;
             }
 
             void UpdateUiAnimationState(Animation? animation, int frame)

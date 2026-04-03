@@ -74,6 +74,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// </summary>
         public AnimationClip[] SecondaryAnimations { get; private set; } = [];
 
+        /// <summary>
+        /// Gets a value indicating whether this clip contains transforms that are to be blended additively.
+        /// </summary>
+        public bool IsAdditive { get; private set; }
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
@@ -94,6 +99,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             SkeletonName = clipData.GetStringProperty("m_skeleton");
             NumFrames = clipData.GetInt32Property("m_nNumFrames");
             Duration = clipData.GetFloatProperty("m_flDuration");
+            IsAdditive = clipData.GetProperty<bool>("m_bIsAdditive", false);
 
             CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
 
