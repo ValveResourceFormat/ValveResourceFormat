@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -16,13 +15,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Represents a single entity with its properties and connections.
         /// </summary>
-        public class Entity
+        public class Entity : KVObject
         {
-            /// <summary>
-            /// Gets the entity properties collection.
-            /// </summary>
-            public KVObject Properties { get; } = KVObject.Collection();
-            // public KVObject Attributes { get; } = new(null);
             /// <summary>
             /// Gets or sets the entity connections (inputs/outputs).
             /// </summary>
@@ -33,48 +27,6 @@ namespace ValveResourceFormat.ResourceTypes
             public required EntityLump ParentLump { get; init; }
 
             /// <summary>
-            /// Gets a string property value by name.
-            /// </summary>
-            [return: NotNullIfNotNull(nameof(defaultValue))]
-            public string? GetStringProperty(string name, string? defaultValue = null)
-            {
-                if (!Properties.TryGetValue(name, out var value) || value.ValueType == KVValueType.Null)
-                {
-                    return defaultValue;
-                }
-
-                return (string)value;
-            }
-
-            /// <summary>
-            /// Gets a boolean property value by name.
-            /// </summary>
-            public bool GetBooleanProperty(string name, bool defaultValue = false)
-            {
-                if (!Properties.TryGetValue(name, out var value) || value.ValueType == KVValueType.Null)
-                {
-                    return defaultValue;
-                }
-
-                return (bool)value;
-            }
-
-            /// <summary>
-            /// Gets a float property value by name.
-            /// </summary>
-            public float GetFloatProperty(string name, float defaultValue = 0)
-            {
-                if (!Properties.TryGetValue(name, out var value) || value.ValueType == KVValueType.Null)
-                {
-                    return defaultValue;
-                }
-
-                return (float)value;
-            }
-
-            //public bool TryGetProperty<T>(string name, out T property) => Properties.TryGetProperty(name, out property);
-
-            /// <summary>
             /// Gets a strongly-typed struct property value by name without type checking.
             /// </summary>
             /// <typeparam name="T">The struct type to convert the property value to.</typeparam>
@@ -83,7 +35,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The property value or the default value.</returns>
             public T GetPropertyUnchecked<T>(string name, T defaultValue = default) where T : struct
             {
-                if (!Properties.TryGetValue(name, out var value))
+                if (!TryGetValue(name, out var value))
                 {
                     return defaultValue;
                 }
@@ -97,28 +49,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             /// <summary>
-            /// Gets a property value by name.
-            /// </summary>
-            /// <param name="name">The property name.</param>
-            /// <returns>The property value or the default <see cref="KVObject"/> (with <see cref="KVValueType.Null"/>) if not found.</returns>
-            public KVObject GetProperty(string name)
-            {
-                if (!Properties.TryGetValue(name, out var value))
-                {
-                    return KVObject.Null();
-                }
-
-                return value;
-            }
-
-            /// <summary>
-            /// Determines whether the entity contains a property with the specified name.
-            /// </summary>
-            /// <param name="name">The property name to check.</param>
-            /// <returns>True if the property exists, false otherwise.</returns>
-            public bool ContainsKey(string name) => Properties.ContainsKey(name);
-
-            /// <summary>
             /// Gets a Vector2 property value by name.
             /// </summary>
             /// <param name="name">The property name.</param>
@@ -126,7 +56,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The Vector2 property value or the default value.</returns>
             public Vector2 GetVector2Property(string name, Vector2 defaultValue = default)
             {
-                if (!Properties.TryGetValue(name, out var value))
+                if (!TryGetValue(name, out var value))
                 {
                     return defaultValue;
                 }
@@ -155,7 +85,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The Vector3 property value or the default value.</returns>
             public Vector3 GetVector3Property(string name, Vector3 defaultValue = default)
             {
-                if (!Properties.TryGetValue(name, out var value))
+                if (!TryGetValue(name, out var value))
                 {
                     return defaultValue;
                 }
@@ -227,7 +157,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             // are there any kinds of valid entities which don't contain a classname?
-            if (!entity.Properties.ContainsKey("classname"))
+            if (!entity.ContainsKey("classname"))
             {
                 return null;
             }
@@ -281,7 +211,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var lowercaseKey = child.Key.ToLowerInvariant();
 
                 var hash = StringToken.Store(lowercaseKey);
-                entity.Properties.Add(lowercaseKey, child.Value);
+                entity.Add(lowercaseKey, child.Value);
             }
         }
 
@@ -334,7 +264,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                entity.Properties.Add(keyName, entityProperty);
+                entity.Add(keyName, entityProperty);
             }
 
             for (var i = 0; i < hashedFieldsCount; i++)
@@ -372,7 +302,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 builder.AppendLine(CultureInfo.InvariantCulture, $"===={index++}====");
 
-                foreach (var property in entity.Properties)
+                foreach (var property in entity.Children)
                 {
                     var value = StringifyValue(property.Value);
 
@@ -464,7 +394,7 @@ namespace ValveResourceFormat.ResourceTypes
                     uniqueEntityProperties.Add(classname, entityProperties);
                 }
 
-                foreach (var property in entity.Properties.Children)
+                foreach (var property in entity.Children)
                 {
                     var key = property.Key;
 

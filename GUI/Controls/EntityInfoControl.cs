@@ -59,7 +59,7 @@ namespace GUI.Forms
 
         public void PopulateFromEntity(Entity entity)
         {
-            foreach (var child in entity.Properties.Children)
+            foreach (var child in entity.Children)
             {
                 AddProperty(child.Key, StringifyValue(child.Value));
             }

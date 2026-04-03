@@ -1550,7 +1550,7 @@ namespace CLI
 
                         foreach (var entity in entities)
                         {
-                            foreach (var property in entity.Properties.Children)
+                            foreach (var property in entity.Children)
                             {
                                 if (!knownEntityKeys.Contains(property.Key))
                                 {

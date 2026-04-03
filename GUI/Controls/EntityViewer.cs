@@ -6,6 +6,7 @@ using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
 namespace GUI.Types.Viewers
@@ -253,7 +254,7 @@ namespace GUI.Types.Viewers
 
         private static bool ContainsKey(Entity entity, string key)
         {
-            foreach (var prop in entity.Properties.Children)
+            foreach (var prop in entity.Children)
             {
                 if (prop.Key.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
@@ -266,7 +267,7 @@ namespace GUI.Types.Viewers
 
         private bool ContainsValue(Entity entity, string value)
         {
-            foreach (var prop in entity.Properties)
+            foreach (var prop in entity.Children)
             {
                 var stringValue = prop.Value.ToString() ?? string.Empty;
 
@@ -291,7 +292,7 @@ namespace GUI.Types.Viewers
 
         private bool ContainsKeyValue(Entity entity, string key, string value)
         {
-            foreach (var prop in entity.Properties.Children)
+            foreach (var prop in entity.Children)
             {
                 var stringValue = prop.Value.ToString() ?? string.Empty;
 

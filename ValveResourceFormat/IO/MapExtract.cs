@@ -1414,7 +1414,7 @@ public sealed class MapExtract
     private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var (key, value) in compiledEntity.Properties.Children)
+        foreach (var (key, value) in compiledEntity.Children)
         {
             var propertyKey = key.ToLowerInvariant();
 
@@ -1477,7 +1477,7 @@ public sealed class MapExtract
         {
             try
             {
-                var hammerUniqueIdString = ToEditString(compiledEntity.GetProperty(key));
+                var hammerUniqueIdString = compiledEntity.TryGetValue(key, out var hammerValue) ? ToEditString(hammerValue) : null;
                 if (!string.IsNullOrEmpty(hammerUniqueIdString))
                 {
                     lineage = Array.ConvertAll(hammerUniqueIdString.Split(':'), int.Parse);

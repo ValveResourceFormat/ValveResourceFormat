@@ -149,11 +149,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Gets a boolean property from the key-value object.
         /// </summary>
-        public static bool GetBooleanProperty(this KVObject obj, string name)
+        public static bool GetBooleanProperty(this KVObject obj, string name, bool defaultValue = false)
         {
             if (!obj.TryGetValue(name, out var value))
             {
-                return false;
+                return defaultValue;
             }
 
             return (bool)value;
