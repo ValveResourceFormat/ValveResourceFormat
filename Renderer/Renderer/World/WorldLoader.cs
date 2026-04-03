@@ -1333,8 +1333,7 @@ namespace ValveResourceFormat.Renderer.World
             {
                 foreach (var line in hammerEntity.Lines)
                 {
-                    var startKeyValue = entity.Properties[line.StartValueKey];
-                    if (startKeyValue == null)
+                    if (!entity.Properties.TryGetValue(line.StartValueKey, out var startKeyValue))
                     {
                         continue;
                     }
@@ -1351,8 +1350,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     if (line.EndKey != null && line.EndValueKey != null)
                     {
-                        var endKeyValue = entity.Properties[line.EndValueKey];
-                        if (endKeyValue == null)
+                        if (!entity.Properties.TryGetValue(line.EndValueKey, out var endKeyValue))
                         {
                             continue;
                         }
@@ -1441,8 +1439,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var entity in Entities)
             {
-                var propertyValue = entity.Properties[keyToFind];
-                if (propertyValue != null
+                if (entity.Properties.TryGetValue(keyToFind, out var propertyValue)
                     && propertyValue.ValueType == ValveKeyValue.KVValueType.String
                     && valueToFind.Equals((string)propertyValue, StringComparison.OrdinalIgnoreCase))
                 {

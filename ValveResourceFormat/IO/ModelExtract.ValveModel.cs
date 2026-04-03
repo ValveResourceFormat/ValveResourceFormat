@@ -1215,7 +1215,7 @@ partial class ModelExtract
                 var cleanedData = KVObject.Collection();
                 foreach (var (key, value) in genericData.Children)
                 {
-                    var trimmed = key?.Trim('"');
+                    var trimmed = key?.Trim('"') ?? string.Empty;
                     cleanedData.Add(trimmed, value);
                 }
 

@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Blocks
             // m_nPVSBytesPerCluster = 4
 
             // NodeBlock
-            var block = data.GetChild("m_NodeBlock");
+            var block = data["m_NodeBlock"];
             var offset = block.GetIntegerProperty("m_nOffset");
             var count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var nodeBlocks = new (int, int)[count];
@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // RegionBlock
-            block = data.GetChild("m_RegionBlock");
+            block = data["m_RegionBlock"];
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var regionBlocks = new (int, int)[count];
@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // EnclosedClusterListBlock
-            block = data.GetChild("m_EnclosedClusterListBlock");
+            block = data["m_EnclosedClusterListBlock"];
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var enclosedClusterList = new (int, int)[count];
@@ -84,7 +84,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // EnclosedClustersBlock
-            block = data.GetChild("m_EnclosedClustersBlock");
+            block = data["m_EnclosedClustersBlock"];
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var clustersData = new short[count];
@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // MasksBlock
-            block = data.GetChild("m_MasksBlock");
+            block = data["m_MasksBlock"];
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var masksBlocks = new (int, int)[count];
@@ -114,7 +114,7 @@ namespace ValveResourceFormat.Blocks
             }
 
             // VisBlocks
-            block = data.GetChild("m_nVisBlocks");
+            block = data["m_nVisBlocks"];
             offset = block.GetIntegerProperty("m_nOffset");
             count = block.GetUnsignedIntegerProperty("m_nElementCount");
             var visBlocksData = new byte[count];

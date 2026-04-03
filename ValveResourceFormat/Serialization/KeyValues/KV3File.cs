@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     Encoding = encoding ?? KV3IDLookup.Get("text"),
                     Format = format ?? KV3IDLookup.Get("generic"),
                 },
-                string.Empty,
+                null!,
                 root)
         {
         }

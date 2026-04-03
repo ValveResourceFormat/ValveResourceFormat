@@ -32,14 +32,25 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// Gets a child <see cref="KVObject"/> (sub-collection) by name.
         /// </summary>
         public static KVObject GetSubCollection(this KVObject obj, string name)
-            => obj.GetChild(name);
+        {
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return null!;
+            }
+
+            return value;
+        }
 
         /// <summary>
         /// Gets a string property from the key-value object.
         /// </summary>
         public static string GetStringProperty(this KVObject obj, string name, string? defaultValue = null)
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return defaultValue!;
+            }
+
             return value != null ? (string)value : defaultValue!;
         }
 
@@ -48,7 +59,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static int GetInt32Property(this KVObject obj, string name, int defaultValue = 0)
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return defaultValue;
+            }
+
             return value != null ? Convert.ToInt32(value, CultureInfo.InvariantCulture) : defaultValue;
         }
 
@@ -57,7 +72,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static uint GetUInt32Property(this KVObject obj, string name, uint defaultValue = 0)
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return defaultValue;
+            }
+
             return value != null ? Convert.ToUInt32(value, CultureInfo.InvariantCulture) : defaultValue;
         }
 
@@ -66,7 +85,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static long GetIntegerProperty(this KVObject obj, string name, long defaultValue = 0)
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return defaultValue;
+            }
+
             return value != null ? Convert.ToInt64(value, CultureInfo.InvariantCulture) : defaultValue;
         }
 
@@ -75,9 +98,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static ulong GetUnsignedIntegerProperty(this KVObject obj, string name, ulong defaultValue = 0)
         {
-            var value = obj[name];
-
-            if (value == null)
+            if (!obj.TryGetValue(name, out var value) || value == null)
             {
                 return defaultValue;
             }
@@ -98,7 +119,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static double GetDoubleProperty(this KVObject obj, string name, double defaultValue = 0)
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return defaultValue;
+            }
+
             return value != null ? Convert.ToDouble(value, CultureInfo.InvariantCulture) : defaultValue;
         }
 
@@ -113,7 +138,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static byte GetByteProperty(this KVObject obj, string name)
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return default;
+            }
+
             return value != null ? Convert.ToByte(value, CultureInfo.InvariantCulture) : default;
         }
 
@@ -122,7 +151,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static bool GetBooleanProperty(this KVObject obj, string name)
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return false;
+            }
+
             return value != null && (bool)value;
         }
 
@@ -132,7 +165,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static KVObject[] GetArray(this KVObject obj, string name)
         {
-            var child = obj.GetChild(name);
+            if (!obj.TryGetValue(name, out var child))
+            {
+                return null!;
+            }
 
             if (child == null || !child.IsArray)
             {
@@ -182,7 +218,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return (T[])(object)GetArray(obj, name);
             }
 
-            var child = obj.GetChild(name);
+            if (!obj.TryGetValue(name, out var child))
+            {
+                return null!;
+            }
 
             if (child == null)
             {
@@ -235,7 +274,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static ulong[] GetUnsignedIntegerArray(this KVObject obj, string name)
         {
-            var child = obj.GetChild(name);
+            if (!obj.TryGetValue(name, out var child))
+            {
+                return [];
+            }
 
             if (child == null || !child.IsArray)
             {
@@ -270,7 +312,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
         public static TEnum GetEnumValue<TEnum>(this KVObject obj, string name, bool normalize = false, string stripExtension = "Flags")
             where TEnum : Enum
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                throw new KeyNotFoundException($"Key '{name}' not found");
+            }
 
             switch (value.ValueType)
             {
@@ -349,7 +394,10 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static T GetProperty<T>(this KVObject obj, string name, T defaultValue = default!)
         {
-            var value = obj[name];
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return defaultValue;
+            }
 
             if (value == null || value.ValueType == KVValueType.Null)
             {
@@ -358,7 +406,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
             if (typeof(T) == typeof(KVObject))
             {
-                return (T)(object)obj.GetChild(name);
+                return (T)(object)value;
             }
 
             if (typeof(T) == typeof(byte[]))
@@ -369,13 +417,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 }
 
                 // Array of byte values
-                var child = obj.GetChild(name);
-                if (child?.IsArray == true)
+                if (value.IsArray)
                 {
-                    var result = new byte[child.Count];
-                    for (var i = 0; i < child.Count; i++)
+                    var result = new byte[value.Count];
+                    for (var i = 0; i < value.Count; i++)
                     {
-                        result[i] = (byte)child[i]!;
+                        result[i] = (byte)value[i]!;
                     }
                     return (T)(object)result;
                 }
@@ -387,7 +434,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
             {
                 if (value.ValueType is KVValueType.Collection or KVValueType.Array)
                 {
-                    return (T)(object)obj.GetChild(name);
+                    return (T)(object)value;
                 }
 
                 return value.ValueType switch
@@ -423,7 +470,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// Determines whether the specified key contains an array (not a blob type).
         /// </summary>
         public static bool IsNotBlobType(this KVObject obj, string key)
-            => obj[key].ValueType == KVValueType.Array;
+            => obj.TryGetValue(key, out var value) && value.ValueType == KVValueType.Array;
 
         /// <summary>
         /// Converts the key-value object to a Vector2.

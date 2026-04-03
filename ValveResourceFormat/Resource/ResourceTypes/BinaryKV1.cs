@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using ValveKeyValue;
 
@@ -41,6 +42,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
+            Debug.Assert(KeyValues != null);
+
             using var ms = new MemoryStream();
             using var reader = new StreamReader(ms);
 

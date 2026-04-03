@@ -78,7 +78,7 @@ namespace Tests
                 Assert.That(flagValue.Flag, Is.EqualTo(KVFlag.Resource));
 
                 Assert.That(file.Root["arrayValue"].ValueType, Is.EqualTo(KVValueType.Array));
-                var arrayValue = file.Root.GetChild("arrayValue");
+                var arrayValue = file.Root["arrayValue"];
                 Debug.Assert(arrayValue != null);
                 Assert.That((ulong)arrayValue[0]!, Is.EqualTo((ulong)1));
                 Assert.That((ulong)arrayValue[1]!, Is.EqualTo((ulong)2));
@@ -92,7 +92,7 @@ namespace Tests
                 Assert.That(arrayValue[7]!.Flag, Is.EqualTo(KVFlag.EntityName));
 
                 Assert.That(file.Root["objectValue"].ValueType, Is.EqualTo(KVValueType.Collection));
-                var objectValue = file.Root.GetChild("objectValue");
+                var objectValue = file.Root["objectValue"];
                 Debug.Assert(objectValue != null);
                 Assert.That((ulong)objectValue["n"], Is.EqualTo((ulong)5));
                 Assert.That((string)objectValue["s"], Is.EqualTo("foo"));

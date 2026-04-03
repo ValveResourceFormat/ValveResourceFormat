@@ -50,7 +50,10 @@ namespace ValveResourceFormat.ResourceTypes
 
                 try
                 {
-                    var value = Properties[name];
+                    if (!Properties.TryGetValue(name, out var value))
+                    {
+                        return defaultValue;
+                    }
 
                     if (value == null || value.ValueType == KVValueType.Null)
                     {
@@ -76,7 +79,10 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The property value or the default value.</returns>
             public T GetPropertyUnchecked<T>(string name, T defaultValue = default) where T : struct
             {
-                var value = Properties[name];
+                if (!Properties.TryGetValue(name, out var value))
+                {
+                    return defaultValue;
+                }
 
                 if (value == null || value.ValueType == KVValueType.Null)
                 {
@@ -108,13 +114,16 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The Vector2 property value or the default value.</returns>
             public Vector2 GetVector2Property(string name, Vector2 defaultValue = default)
             {
-                var value = Properties[name];
+                if (!Properties.TryGetValue(name, out var value))
+                {
+                    return defaultValue;
+                }
 
                 if (value != null && value.ValueType != KVValueType.Null)
                 {
                     if (value.ValueType is KVValueType.Collection or KVValueType.Array)
                     {
-                        return Properties.GetChild(name).ToVector2();
+                        return value.ToVector2();
                     }
 
                     if (value.ValueType == KVValueType.String)
@@ -134,13 +143,16 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The Vector3 property value or the default value.</returns>
             public Vector3 GetVector3Property(string name, Vector3 defaultValue = default)
             {
-                var value = Properties[name];
+                if (!Properties.TryGetValue(name, out var value))
+                {
+                    return defaultValue;
+                }
 
                 if (value != null && value.ValueType != KVValueType.Null)
                 {
                     if (value.ValueType is KVValueType.Collection or KVValueType.Array)
                     {
-                        return Properties.GetChild(name).ToVector3();
+                        return value.ToVector3();
                     }
 
                     if (value.ValueType == KVValueType.String)
@@ -227,8 +239,11 @@ namespace ValveResourceFormat.ResourceTypes
 
             var entity = new Entity { ParentLump = this };
 
-            ReadValues(entity, entityKv["values"]);
-            ReadValues(entity, entityKv["attributes"]);
+            entityKv.TryGetValue("values", out var values);
+            entityKv.TryGetValue("attributes", out var attributes);
+
+            ReadValues(entity, values);
+            ReadValues(entity, attributes);
 
             return entity;
         }
@@ -541,14 +556,15 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (value is KVObject kvObject)
             {
-                if (kvObject.IsArray)
+                using var ms = new MemoryStream();
+                var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+                serializer.Serialize(ms, kvObject, new KVSerializerOptions
                 {
-                    valueStr = string.Join(' ', kvObject.Children.Select(c => c.Value.ToString() ?? string.Empty));
-                }
-                else
-                {
-                    valueStr = new KV3File(kvObject).ToString();
-                }
+                    SkipHeader = true
+                });
+                ms.Position = 0;
+                using var reader = new StreamReader(ms);
+                valueStr = reader.ReadToEnd();
             }
             else if (value is not null)
             {

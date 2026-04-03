@@ -1199,7 +1199,7 @@ public sealed class MapExtract
         root.Add("SystemAttributes", systemAttributes);
 
         using var ms = new MemoryStream();
-        var doc = new ValveKeyValue.KVDocument(default, "Layer0", root);
+        var doc = new ValveKeyValue.KVDocument(new(), "Layer0", root);
         ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text).Serialize(ms, doc);
 
         var vmat = new ContentFile()

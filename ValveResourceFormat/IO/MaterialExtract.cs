@@ -316,7 +316,7 @@ public sealed class MaterialExtract
         }
 
         using var ms = new MemoryStream();
-        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(default, "Layer0", root));
+        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(new(), "Layer0", root));
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 

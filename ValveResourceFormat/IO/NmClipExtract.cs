@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -36,6 +37,7 @@ public class NmClipExtract
 
         var kv = KVObject.Collection();
         var sourceFileName = Path.ChangeExtension(resource.FileName, ".dmx");
+        Debug.Assert(sourceFileName != null);
         kv.Add("m_sourceFilename", sourceFileName);
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
         // TODO: figure out additive type.

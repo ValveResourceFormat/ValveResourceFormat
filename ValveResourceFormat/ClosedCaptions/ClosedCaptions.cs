@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Hashing;
 using System.Text;
@@ -128,6 +129,8 @@ namespace ValveResourceFormat.ClosedCaptions
         /// </remarks>
         public override string ToString()
         {
+            Debug.Assert(FileName != null);
+
             var captionsToExport = new Dictionary<uint, string>(Captions.Count);
 
             foreach (var caption in Captions)

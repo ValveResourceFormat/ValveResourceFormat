@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
@@ -33,11 +34,12 @@ public class NmSkeletonExtract
         var kv = KVObject.Collection();
         var skel = Skeleton.FromSkeletonData(kvSkeleton);
         var dmxFile = Path.ChangeExtension(resource.FileName, "dmx");
+        Debug.Assert(dmxFile != null);
         kv.Add("m_sourceFileName", dmxFile);
         kv.Add("m_rootBoneName", "");
         kv.Add("m_flGlobalScale", 1.0f);
         kv.Add("m_bIsAttachableProp", kvSkeleton.GetProperty<bool>("m_bIsPropSkeleton"));
-        kv.Add("m_secondarySkeletons", kvSkeleton.GetChild("m_secondarySkeletons"));
+        kv.Add("m_secondarySkeletons", kvSkeleton["m_secondarySkeletons"]);
         var numLowLODBones = kvSkeleton.GetInt32Property("m_numBonesToSampleAtLowLOD");
         var boneIDs = kvSkeleton.GetArray<string>("m_boneIDs")![numLowLODBones..];
         var highLODBones = KVObject.Array();
@@ -47,7 +49,7 @@ public class NmSkeletonExtract
         }
         kv.Add("m_highLODBones", highLODBones);
         // Mask definitions seem to be 1:1 to the source.
-        kv.Add("m_boneMaskSetDefinitions", kvSkeleton.GetChild("m_maskDefinitions"));
+        kv.Add("m_boneMaskSetDefinitions", kvSkeleton["m_maskDefinitions"]);
 
         var contentFile = new ContentFile
         {

@@ -16,8 +16,8 @@ namespace ValveResourceFormat.ResourceTypes
                 Version = 0,
             };
 
-            Encoding = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
-            Format = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
+            var encoding = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
+            var format = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
 
             // Valve's implementation lives in LoadKV3Binary()
             // KV3_ENCODING_BINARY_BLOCK_COMPRESSED calls CBlockCompress::FastDecompress()
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 int outBufferLength;
 
-                if (Encoding == KV3IDLookup.Get("binary_bc"))
+                if (encoding == KV3IDLookup.Get("binary_bc"))
                 {
                     var info = BlockCompress.GetDecompressedSize(reader);
                     outBufferLength = info.Size;
@@ -38,14 +38,14 @@ namespace ValveResourceFormat.ResourceTypes
 
                     BlockCompress.FastDecompress(info, reader, outputBuf.AsSpan(0, outBufferLength));
                 }
-                else if (Encoding == KV3IDLookup.Get("binary_lz4"))
+                else if (encoding == KV3IDLookup.Get("binary_lz4"))
                 {
                     outBufferLength = reader.ReadInt32();
                     var compressedSize = (int)(Size - (reader.BaseStream.Position - Offset));
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
                     DecompressLZ4(reader, outputBuf.AsSpan(0, outBufferLength), compressedSize);
                 }
-                else if (Encoding == KV3IDLookup.Get("binary"))
+                else if (encoding == KV3IDLookup.Get("binary"))
                 {
                     outBufferLength = (int)(Size - (reader.BaseStream.Position - Offset));
                     outputBuf = ArrayPool<byte>.Shared.Rent(outBufferLength);
@@ -53,7 +53,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
                 else
                 {
-                    throw new UnexpectedMagicException("Unrecognised KV3 Encoding", Encoding?.ToString() ?? "null", nameof(Encoding));
+                    throw new UnexpectedMagicException("Unrecognised KV3 Encoding", encoding.ToString(), nameof(encoding));
                 }
 
                 using var outStream = new MemoryStream(outputBuf, 0, outBufferLength);
@@ -67,7 +67,9 @@ namespace ValveResourceFormat.ResourceTypes
                     context.Strings[i] = outRead.ReadNullTermString(System.Text.Encoding.UTF8);
                 }
 
-                Data = LegacyParseBinaryKV3(context, outRead, null!, true);
+                var (rootType, rootFlag) = LegacyReadType(outRead);
+                var root = LegacyReadBinaryValue(context, rootType, rootFlag, outRead);
+                Data = new KVDocument(new KVHeader { Encoding = encoding, Format = format }, null!, root);
 
                 var trailer = outRead.ReadUInt32();
                 if (trailer != 0xFFFFFFFF)
@@ -118,90 +120,87 @@ namespace ValveResourceFormat.ResourceTypes
             return ((KV3BinaryNodeType)databyte, flagInfo);
         }
 
-        private static KVObject LegacyParseBinaryKV3(Context context, BinaryReader reader, KVObject parent, bool inArray = false)
+        private static void LegacyParseBinaryKV3(Context context, BinaryReader reader, KVObject parent)
         {
             string? name = null;
-            if (!inArray)
+
+            if (!parent.IsArray)
             {
                 var stringID = reader.ReadInt32();
                 name = (stringID == -1) ? string.Empty : context.Strings[stringID];
             }
 
             var (datatype, flagInfo) = LegacyReadType(reader);
+            var result = LegacyReadBinaryValue(context, datatype, flagInfo, reader);
 
-            return LegacyReadBinaryValue(context, name, datatype, flagInfo, reader, parent);
+            if (name != null)
+            {
+                parent.Add(name, result);
+            }
+            else
+            {
+                parent.Add(result);
+            }
         }
 
-        private static KVObject LegacyReadBinaryValue(Context context, string? name, KV3BinaryNodeType datatype, KVFlag flagInfo, BinaryReader reader, KVObject parent)
+        private static KVObject LegacyReadBinaryValue(Context context, KV3BinaryNodeType datatype, KVFlag flagInfo, BinaryReader reader)
         {
-            var currentOffset = reader.BaseStream.Position;
+            var result = LegacyReadValue(context, datatype, reader);
 
-            // We don't support non-object roots properly, so this is a hack to handle "null" kv3
-            if (datatype != KV3BinaryNodeType.OBJECT && parent == null)
+            if (flagInfo != KVFlag.None)
             {
-                parent ??= KVObject.Collection();
+                result.Flag = flagInfo;
             }
 
+            return result;
+        }
+
+        private static KVObject LegacyReadValue(Context context, KV3BinaryNodeType datatype, BinaryReader reader)
+        {
             switch (datatype)
             {
                 case KV3BinaryNodeType.NULL:
-                    AddValue(parent, name, KVObject.Null(), flagInfo);
-                    break;
+                    return KVObject.Null();
                 case KV3BinaryNodeType.BOOLEAN:
-                    AddValue(parent, name, reader.ReadBoolean(), flagInfo);
-                    break;
+                    return reader.ReadBoolean();
                 case KV3BinaryNodeType.BOOLEAN_TRUE:
-                    AddValue(parent, name, true, flagInfo);
-                    break;
+                    return true;
                 case KV3BinaryNodeType.BOOLEAN_FALSE:
-                    AddValue(parent, name, false, flagInfo);
-                    break;
+                    return false;
                 case KV3BinaryNodeType.INT64_ZERO:
-                    AddValue(parent, name, 0L, flagInfo);
-                    break;
+                    return 0L;
                 case KV3BinaryNodeType.INT64_ONE:
-                    AddValue(parent, name, 1L, flagInfo);
-                    break;
+                    return 1L;
                 case KV3BinaryNodeType.INT64:
-                    AddValue(parent, name, reader.ReadInt64(), flagInfo);
-                    break;
+                    return reader.ReadInt64();
                 case KV3BinaryNodeType.UINT64:
-                    AddValue(parent, name, reader.ReadUInt64(), flagInfo);
-                    break;
+                    return reader.ReadUInt64();
                 case KV3BinaryNodeType.INT32:
-                    AddValue(parent, name, reader.ReadInt32(), flagInfo);
-                    break;
+                    return reader.ReadInt32();
                 case KV3BinaryNodeType.UINT32:
-                    AddValue(parent, name, reader.ReadUInt32(), flagInfo);
-                    break;
+                    return reader.ReadUInt32();
                 case KV3BinaryNodeType.DOUBLE:
-                    AddValue(parent, name, reader.ReadDouble(), flagInfo);
-                    break;
+                    return reader.ReadDouble();
                 case KV3BinaryNodeType.DOUBLE_ZERO:
-                    AddValue(parent, name, 0.0D, flagInfo);
-                    break;
+                    return 0.0D;
                 case KV3BinaryNodeType.DOUBLE_ONE:
-                    AddValue(parent, name, 1.0D, flagInfo);
-                    break;
+                    return 1.0D;
                 case KV3BinaryNodeType.STRING:
                     var id = reader.ReadInt32();
-                    AddValue(parent, name, id == -1 ? string.Empty : context.Strings[id], flagInfo);
-                    break;
+                    return id == -1 ? string.Empty : context.Strings[id];
                 case KV3BinaryNodeType.BINARY_BLOB:
                     var length = reader.ReadInt32();
-                    AddValue(parent, name, reader.ReadBytes(length), flagInfo);
-                    break;
+                    return reader.ReadBytes(length);
                 case KV3BinaryNodeType.ARRAY:
                     var arrayLength = reader.ReadInt32();
                     var array = KVObject.Array(arrayLength);
 
                     for (var i = 0; i < arrayLength; i++)
                     {
-                        LegacyParseBinaryKV3(context, reader, array, true);
+                        LegacyParseBinaryKV3(context, reader, array);
                     }
 
-                    AddValue(parent, name, array, flagInfo);
-                    break;
+                    return array;
                 case KV3BinaryNodeType.ARRAY_TYPED:
                     var typeArrayLength = reader.ReadInt32();
                     var (subType, subFlagInfo) = LegacyReadType(reader);
@@ -209,35 +208,23 @@ namespace ValveResourceFormat.ResourceTypes
 
                     for (var i = 0; i < typeArrayLength; i++)
                     {
-                        LegacyReadBinaryValue(context, name, subType, subFlagInfo, reader, typedArray);
+                        typedArray.Add(LegacyReadBinaryValue(context, subType, subFlagInfo, reader));
                     }
 
-                    AddValue(parent, name, typedArray, flagInfo);
-                    break;
+                    return typedArray;
                 case KV3BinaryNodeType.OBJECT:
                     var objectLength = reader.ReadInt32();
                     var newObject = KVObject.Collection(objectLength);
 
                     for (var i = 0; i < objectLength; i++)
                     {
-                        LegacyParseBinaryKV3(context, reader, newObject, false);
+                        LegacyParseBinaryKV3(context, reader, newObject);
                     }
 
-                    if (parent == null)
-                    {
-                        parent = newObject;
-                    }
-                    else
-                    {
-                        AddValue(parent, name, newObject, flagInfo);
-                    }
-
-                    break;
+                    return newObject;
                 default:
-                    throw new UnexpectedMagicException($"Unknown KVType for field '{name}' on byte {reader.BaseStream.Position}", (int)datatype, nameof(datatype));
+                    throw new UnexpectedMagicException($"Unknown KVType on byte {reader.BaseStream.Position}", (int)datatype, nameof(datatype));
             }
-
-            return parent;
         }
     }
 }

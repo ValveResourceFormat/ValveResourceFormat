@@ -72,9 +72,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public bool HasColorCorrection()
         {
-            var value = Data["m_bHasColorCorrection"];
-
-            if (value != null)
+            if (Data.TryGetValue("m_bHasColorCorrection", out var value))
             {
                 return (bool)value;
             }

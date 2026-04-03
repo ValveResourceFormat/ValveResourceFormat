@@ -47,7 +47,7 @@ namespace Tests
             var outputPath = $"{TestContext.CurrentContext.WorkDirectory}/{NewName}_c";
 
             var modelInfo = (Model)resource.DataBlock!;
-            var meshGroupMasks = modelInfo.Data.GetChild("m_refMeshGroupMasks");
+            var meshGroupMasks = modelInfo.Data["m_refMeshGroupMasks"];
             var newMasks = KVObject.Array();
             newMasks.Add((ulong)1337);
             for (var i = 1; i < meshGroupMasks.Count; i++)
