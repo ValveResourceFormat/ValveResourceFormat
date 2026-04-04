@@ -140,7 +140,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            if (connections.Length > 0)
+            if (connections.Count > 0)
             {
                 entity.Connections = [.. connections];
             }
@@ -478,7 +478,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 using var ms = new MemoryStream();
                 var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
-                serializer.Serialize(ms, kvObject, new KVSerializerOptions
+                serializer.Serialize(ms, new KVDocument(null, null, kvObject), new KVSerializerOptions
                 {
                     SkipHeader = true
                 });
@@ -491,7 +491,7 @@ namespace ValveResourceFormat.ResourceTypes
                 valueStr = value.ToString() ?? string.Empty;
             }
 
-            return valueStr;
+            return valueStr.Trim();
         }
     }
 }

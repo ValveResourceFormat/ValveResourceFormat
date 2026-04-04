@@ -93,8 +93,7 @@ namespace GUI.Controls
         private void ShowVcd(int index)
         {
             var scene = choreoDataList.Scenes[index];
-            var kv = new KV3File(scene.ToKeyValues());
-            TextBox.Text = kv.ToString();
+            TextBox.Text = scene.ToKeyValues().ToKV3String();
         }
 
         protected override void Dispose(bool disposing)

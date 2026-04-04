@@ -20,7 +20,7 @@ namespace GUI.Types.GLViewers
         {
             base.LoadScene();
 
-            var children = smartProp.Data.GetArray("m_Children");
+            var children = smartProp.Data.Root.GetArray("m_Children");
 
             foreach (var child in children)
             {

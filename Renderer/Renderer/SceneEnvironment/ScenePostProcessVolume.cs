@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
@@ -247,7 +248,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
             const int NumBlurBuffers = 5;
             var blurWeight = data.GetFloatArray("m_flBlurWeight");
-            var blurTint = data.GetArray("m_vBlurTint", v => v.ToVector3());
+            var blurTint = data.GetArray("m_vBlurTint").Select(v => v.ToVector3()).ToArray();
 
             Debug.Assert(blurWeight.Length == NumBlurBuffers);
             Debug.Assert(blurTint.Length == NumBlurBuffers);

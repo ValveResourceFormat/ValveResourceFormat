@@ -116,9 +116,9 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
         }
 
 
-        Dictionary<int, Node> createdNodes = new(nodes.Length);
+        Dictionary<int, Node> createdNodes = new(nodes.Count);
 
-        Node CreateNode(string[] nodePaths, KVObject[] nodes, int nodeIdx)
+        Node CreateNode(string[] nodePaths, IReadOnlyList<KVObject> nodes, int nodeIdx)
         {
             if (createdNodes.TryGetValue(nodeIdx, out var existingNode))
             {
@@ -206,13 +206,13 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
                     if (stateInputIdx != -1)
                     {
-                        var (_, stateNodeOut) = CreateChild<Pose>(node, children.Length, stateInputIdx);
+                        var (_, stateNodeOut) = CreateChild<Pose>(node, children.Count, stateInputIdx);
                         nodeGraph.Connect(stateNodeOut, input);
                     }
 
                     if (entryConditionNodeIdx != -1)
                     {
-                        var (_, childOutput) = CreateChild<Value>(node, children.Length, entryConditionNodeIdx, stateName);
+                        var (_, childOutput) = CreateChild<Value>(node, children.Count, entryConditionNodeIdx, stateName);
                         nodeGraph.Connect(childOutput, input);
                     }
                 }
@@ -658,7 +658,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
         CreateChildren(root, rootNodeIdx);
 
         // create some unreferenced nodes
-        for (var i = 0; i < nodes.Length; i++)
+        for (var i = 0; i < nodes.Count; i++)
         {
             var exists = createdNodes.ContainsKey(i);
             if (exists)
@@ -676,7 +676,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
         }
 
         nodeGraph.LayoutNodes();
-        Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Length}) or {createdNodes.Count / (float)nodes.Length:P}.");
+        Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
     }
 
     #region Nodes

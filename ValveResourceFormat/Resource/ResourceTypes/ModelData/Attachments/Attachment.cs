@@ -80,7 +80,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 
             var influenceNames = valueData.GetArray<string>("m_influenceNames");
             var influenceRotations = valueData.GetArray("m_vInfluenceRotations").Select(v => v.ToQuaternion()).ToArray();
-            var influenceOffsets = valueData.GetArray("m_vInfluenceOffsets", v => v.ToVector3());
+            var influenceOffsets = valueData.GetArray("m_vInfluenceOffsets").Select(v => v.ToVector3()).ToArray();
             var influenceWeights = valueData.GetArray<double>("m_influenceWeights");
 
             var influenceCount = valueData.GetInt32Property("m_nInfluences");

@@ -57,7 +57,7 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Initializes a new instance of the <see cref="VfxStaticComboData"/> class from a KV object.
         /// </summary>
-        public VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, KVObject[] byteCodeDataArray, VfxProgramData programData)
+        public VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, IReadOnlyList<KVObject> byteCodeDataArray, VfxProgramData programData)
         {
             ParentProgramData = programData;
             StaticComboId = staticComboId;
@@ -66,7 +66,7 @@ namespace ValveResourceFormat.CompiledShader
             var dynamicComboRenderState = data.GetArray("m_dynamicComboRenderState");
             var byteCodeIndex = data.GetArray<int>("m_byteCodeIndex")!;
 
-            DynamicCombos = new VfxRenderStateInfo[dynamicComboRenderState.Length];
+            DynamicCombos = new VfxRenderStateInfo[dynamicComboRenderState.Count];
             for (var i = 0; i < DynamicCombos.Length; i++)
             {
                 var id = dynamicComboIds.Length > 0
@@ -101,9 +101,9 @@ namespace ValveResourceFormat.CompiledShader
 
                 var hashes = byteCodeData.GetArray("m_hash");
                 var offsets = byteCodeData.GetArray<uint>("m_offs")!;
-                Debug.Assert(offsets.Length == hashes.Length + 1);
+                Debug.Assert(offsets.Length == hashes.Count + 1);
 
-                ShaderFiles = new VfxShaderFile[hashes.Length];
+                ShaderFiles = new VfxShaderFile[hashes.Count];
                 foreach (var i in byteCodeIndex)
                 {
                     if (i == -1)
@@ -130,8 +130,8 @@ namespace ValveResourceFormat.CompiledShader
             var dynamicComboVars = data.GetArray<uint>("m_dynamicComboVars");
             var dynamicComboVarsRef = data.GetArray("m_dynamicComboVarsRef");
 
-            DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVarsRef.Length];
-            for (var i = 0; i < dynamicComboVarsRef.Length; i++)
+            DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVarsRef.Count];
+            for (var i = 0; i < dynamicComboVarsRef.Count; i++)
             {
                 var variableIndexArray = dynamicComboVarsRef[i];
                 var start = variableIndexArray.GetInt32Property("m_indexAndRegisterOffsetStart");

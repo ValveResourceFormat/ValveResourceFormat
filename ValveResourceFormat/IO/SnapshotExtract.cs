@@ -114,6 +114,6 @@ public sealed class SnapshotExtract
         }
 
         outKV3.Add("stream_data", data);
-        return new KV3File(outKV3).ToString();
+        return outKV3.ToKV3String();
     }
 }

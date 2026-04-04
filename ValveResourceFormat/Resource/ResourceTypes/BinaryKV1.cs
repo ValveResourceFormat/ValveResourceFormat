@@ -20,7 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the deserialized KeyValues data.
         /// </summary>
-        public KVObject? KeyValues { get; private set; }
+        public KVDocument? KeyValues { get; private set; }
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)

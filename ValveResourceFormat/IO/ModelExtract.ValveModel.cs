@@ -189,7 +189,7 @@ partial class ModelExtract
         return node;
     }
 
-    KVObject ExtractBoneConstraints(KVObject[] boneConstraintsList)
+    KVObject ExtractBoneConstraints(IReadOnlyList<KVObject> boneConstraintsList)
     {
         Debug.Assert(model is not null);
 
@@ -770,7 +770,7 @@ partial class ModelExtract
         }
 
 
-        return new KV3File(kv, format: KV3IDLookup.Get("modeldoc28")).ToString();
+        return kv.ToKV3String(format: KV3IDLookup.Get("modeldoc28"));
 
         #region Local Functions
         void HandlePhysMeshNode<TShape>(ShapeDescriptor<TShape> shapeDesc, string fileName)
@@ -925,7 +925,7 @@ partial class ModelExtract
         }
 
 
-        void ExtractPoseParams(KVObject[] poseParamsData)
+        void ExtractPoseParams(IReadOnlyList<KVObject> poseParamsData)
         {
             foreach (var poseParam in poseParamsData)
             {
@@ -968,7 +968,7 @@ partial class ModelExtract
             if (model.Data.ContainsKey("m_animGraph2Refs"))
             {
                 var animGraph2Refs = model.Data.GetArray("m_animGraph2Refs");
-                for (int i = 0; i < animGraph2Refs.Length; i++)
+                for (int i = 0; i < animGraph2Refs.Count; i++)
                 {
                     var refObj = animGraph2Refs[i];
                     var identifier = refObj.GetStringProperty("m_sIdentifier");

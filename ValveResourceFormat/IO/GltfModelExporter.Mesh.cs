@@ -465,7 +465,7 @@ public partial class GltfModelExporter
         var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 
         // Aperture Desk Job goes from draw call -> aggregate mesh
-        if (aggregateMeshes.Length > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
+        if (aggregateMeshes.Count > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
         {
             return false;
         }
@@ -477,7 +477,7 @@ public partial class GltfModelExporter
         var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
 
         var meshSceneObjects = vmesh.Data.GetArray("m_sceneObjects");
-        var drawCalls = new List<KVObject>(meshSceneObjects.Length);
+        var drawCalls = new List<KVObject>(meshSceneObjects.Count);
 
         foreach (var meshSceneObject in meshSceneObjects)
         {

@@ -49,7 +49,7 @@ namespace ValveResourceFormat.ResourceTypes
         private Matrix4x4[]? bindPose;
         private Part[]? parts;
         private uint[]? surfacePropertyHashes;
-        private KVObject[]? collisionAttributes;
+        private IReadOnlyList<KVObject>? collisionAttributes;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysAggregateData"/> class.

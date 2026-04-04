@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Blocks
 
             var data = dataKv3.Data;
 
-            if (data.ContainsKey("m_clusters"))
+            if (data.Root.ContainsKey("m_clusters"))
             {
                 return; // Older type of file
             }

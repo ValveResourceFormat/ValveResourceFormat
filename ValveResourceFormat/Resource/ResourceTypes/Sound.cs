@@ -300,14 +300,14 @@ namespace ValveResourceFormat.ResourceTypes
                 return false;
             }
 
-            var soundClass = obj.Data.GetStringProperty("_class");
+            var soundClass = obj.Data.Root.GetStringProperty("_class");
 
             if (soundClass is not "CVoiceContainerDefault" and not "CVoiceContainerEnvelope")
             {
                 return false;
             }
 
-            var sound = obj.Data.GetSubCollection("m_vSound");
+            var sound = obj.Data.Root.GetSubCollection("m_vSound");
 
             switch (sound.GetStringProperty("m_nFormat"))
             {

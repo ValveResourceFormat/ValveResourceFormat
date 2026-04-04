@@ -115,15 +115,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             FrameCount = pData.GetInt32Property("m_nFrames");
 
             var frameBlockArray = pData.GetArray("m_frameblockArray");
-            FrameBlocks = new AnimationFrameBlock[frameBlockArray.Length];
-            for (var i = 0; i < frameBlockArray.Length; i++)
+            FrameBlocks = new AnimationFrameBlock[frameBlockArray.Count];
+            for (var i = 0; i < frameBlockArray.Count; i++)
             {
                 FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
             }
 
             var movementArray = animDesc.GetArray("m_movementArray");
-            Movements = new AnimationMovement[movementArray.Length];
-            for (var i = 0; i < movementArray.Length; i++)
+            Movements = new AnimationMovement[movementArray.Count];
+            for (var i = 0; i < movementArray.Count; i++)
             {
                 Movements[i] = new AnimationMovement(movementArray[i]);
             }
@@ -175,15 +175,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             FrameCount = pData.GetInt32Property("m_nFrames");
 
             var frameBlockArray = pData.GetArray("m_frameblockArray");
-            FrameBlocks = new AnimationFrameBlock[frameBlockArray.Length];
-            for (var i = 0; i < frameBlockArray.Length; i++)
+            FrameBlocks = new AnimationFrameBlock[frameBlockArray.Count];
+            for (var i = 0; i < frameBlockArray.Count; i++)
             {
                 FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
             }
 
             var movementArray = animDesc.GetArray("m_movementArray");
-            Movements = new AnimationMovement[movementArray.Length];
-            for (var i = 0; i < movementArray.Length; i++)
+            Movements = new AnimationMovement[movementArray.Count];
+            for (var i = 0; i < movementArray.Count; i++)
             {
                 Movements[i] = new AnimationMovement(movementArray[i]);
             }
@@ -195,8 +195,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             // Auto layers
             var autoLayerArray = seqDesc.GetArray("m_autoLayerArray");
-            AutoLayers = new AnimationAutoLayer[autoLayerArray.Length];
-            for (var i = 0; i < autoLayerArray.Length; i++)
+            AutoLayers = new AnimationAutoLayer[autoLayerArray.Count];
+            for (var i = 0; i < autoLayerArray.Count; i++)
             {
                 AutoLayers[i] = new AnimationAutoLayer(autoLayerArray[i]);
             }
@@ -218,23 +218,23 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             FlexController[] flexControllers)
         {
             var decoderArrayKV = animationData.GetArray("m_decoderArray");
-            var decoderArray = new string[decoderArrayKV.Length];
-            for (var i = 0; i < decoderArrayKV.Length; i++)
+            var decoderArray = new string[decoderArrayKV.Count];
+            for (var i = 0; i < decoderArrayKV.Count; i++)
             {
                 decoderArray[i] = decoderArrayKV[i].GetStringProperty("m_szName");
             }
 
             //var channelElements = decodeKey.GetInt32Property("m_nChannelElements");
             var dataChannelArrayKV = decodeKey.GetArray("m_dataChannelArray");
-            var dataChannelArray = new AnimationDataChannel[dataChannelArrayKV.Length];
-            for (var i = 0; i < dataChannelArrayKV.Length; i++)
+            var dataChannelArray = new AnimationDataChannel[dataChannelArrayKV.Count];
+            for (var i = 0; i < dataChannelArrayKV.Count; i++)
             {
                 dataChannelArray[i] = new AnimationDataChannel(skeleton, flexControllers, dataChannelArrayKV[i]);
             }
 
             var segmentArrayKV = animationData.GetArray("m_segmentArray");
-            var segmentArray = new AnimationSegmentDecoder[segmentArrayKV.Length];
-            for (var i = 0; i < segmentArrayKV.Length; i++)
+            var segmentArray = new AnimationSegmentDecoder[segmentArrayKV.Count];
+            for (var i = 0; i < segmentArrayKV.Count; i++)
             {
                 var segmentKV = segmentArrayKV[i];
                 var container = segmentKV.GetArray<byte>("m_container");
@@ -309,9 +309,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public static IEnumerable<Animation> FromData(KVObject animationData, KVObject decodeKey,
             Skeleton skeleton, FlexController[] flexControllers)
         {
-            var animArray = animationData.GetArray<KVObject>("m_animArray");
+            var animArray = animationData.GetArray("m_animArray");
 
-            if (animArray.Length == 0)
+            if (animArray.Count == 0)
             {
                 return [];
             }
@@ -335,9 +335,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Skeleton skeleton,
             FlexController[] flexControllers)
         {
-            var animArray = animationData.GetArray<KVObject>("m_animArray");
+            var animArray = animationData.GetArray("m_animArray");
 
-            if (animArray.Length == 0)
+            if (animArray.Count == 0)
             {
                 return [];
             }
@@ -354,7 +354,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             var processedAnimNames = new HashSet<string>();
-            var seqDescArray = sequenceData.GetArray<KVObject>("m_localS1SeqDescArray");
+            var seqDescArray = sequenceData.GetArray("m_localS1SeqDescArray");
             var animations = new List<Animation>();
 
             foreach (var seqDesc in seqDescArray)

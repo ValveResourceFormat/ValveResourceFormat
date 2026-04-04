@@ -781,7 +781,7 @@ namespace ValveResourceFormat.IO
             VMesh mesh, Blocks.VBIB vbib, Node[]? joints, int[]? boneRemapTable = null,
             string? skinMaterialPath = null, EntityLump.Entity? entity = null)
         {
-            if (mesh.Data.GetArray("m_sceneObjects").Length == 0)
+            if (mesh.Data.GetArray("m_sceneObjects").Count == 0)
             {
                 return null;
             }

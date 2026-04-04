@@ -53,7 +53,7 @@ public class NmSkeletonExtract
 
         var contentFile = new ContentFile
         {
-            Data = Encoding.UTF8.GetBytes(new KV3File(kv).ToString())
+            Data = Encoding.UTF8.GetBytes(kv.ToKV3String())
         };
         contentFile.AddSubFile(Path.GetFileName(dmxFile) ?? "skeleton.dmx", () =>
         {

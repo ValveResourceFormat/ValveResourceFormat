@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Blocks
                 var attributes = data.GetArray("attributes");
                 var stringList = data.GetArray<string>("string_list");
 
-                var attributeData = new Dictionary<(string Name, string Type), IEnumerable>(attributes.Length);
+                var attributeData = new Dictionary<(string Name, string Type), IEnumerable>(attributes.Count);
 
                 foreach (var attribute in attributes)
                 {

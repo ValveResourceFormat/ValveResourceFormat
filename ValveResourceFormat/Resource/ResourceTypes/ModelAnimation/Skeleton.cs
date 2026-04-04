@@ -112,8 +112,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var boneFlags = skeletonData.GetIntegerArray("m_nFlag")
                 .Select(flags => (ModelSkeletonBoneFlags)flags)
                 .ToArray();
-            var bonePositions = skeletonData.GetArray("m_bonePosParent", v => v.ToVector3());
-            var boneRotations = skeletonData.GetArray("m_boneRotParent", v => v.ToQuaternion());
+            var bonePositions = skeletonData.GetArray("m_bonePosParent").Select(v => v.ToVector3()).ToArray();
+            var boneRotations = skeletonData.GetArray("m_boneRotParent").Select(v => v.ToQuaternion()).ToArray();
 
             var boneCount = boneNames.Length;
             Bones = new Bone[boneCount];

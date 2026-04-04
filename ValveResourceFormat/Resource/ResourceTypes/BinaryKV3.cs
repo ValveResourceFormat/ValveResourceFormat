@@ -1014,24 +1014,13 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        /// <summary>
-        /// Gets the KeyValues3 data as a KV3File object.
-        /// </summary>
-        /// <returns>A KV3File object containing the data and format.</returns>
-#pragma warning disable CA1024 // Use properties where appropriate
-        public KV3File GetKV3File()
-#pragma warning restore CA1024 // Use properties where appropriate
-        {
-            return new KV3File(Data, format: Data.Header.Format);
-        }
-
         /// <inheritdoc/>
         /// <remarks>
         /// Converts the binary KV3 data to text format and writes it.
         /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
-            GetKV3File().WriteText(writer);
+            Data.WriteKV3Text(writer);
         }
 
         private static string ReadNullTermUtf8String(ref ArraySegment<byte> buffer, ref int offset)

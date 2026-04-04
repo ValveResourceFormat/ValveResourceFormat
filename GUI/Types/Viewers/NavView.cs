@@ -98,12 +98,11 @@ namespace GUI.Types.Viewers
             glViewer?.Dispose();
         }
 
-        private static ThemedTabPage CreateKVTab(string tabName, KVObject kvObject)
+        private static ThemedTabPage CreateKVTab(string tabName, KVDocument kvDocument)
         {
             var kvPage = new ThemedTabPage(tabName);
 
-            var kv = new KV3File(kvObject);
-            var kvText = kv.ToString();
+            var kvText = kvDocument.ToKV3String();
             var kvTextControl = CodeTextBox.Create(kvText, CodeTextBox.HighlightLanguage.None);
 
             kvPage.Controls.Add(kvTextControl);

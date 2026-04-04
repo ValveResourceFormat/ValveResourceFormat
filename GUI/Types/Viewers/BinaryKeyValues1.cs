@@ -21,7 +21,7 @@ namespace GUI.Types.Viewers
         public async Task LoadAsync(Stream? input)
         {
             Stream stream;
-            KVObject kv;
+            KVDocument kv;
 
             if (input != null)
             {

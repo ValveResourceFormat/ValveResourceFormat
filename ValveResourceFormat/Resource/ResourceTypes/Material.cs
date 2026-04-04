@@ -215,7 +215,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(inputSignatureString));
 
-            return KV3File.Parse(ms).Root;
+            return KVDocumentExtensions.ParseKV3(ms).Root;
         }
 
         /// <summary>

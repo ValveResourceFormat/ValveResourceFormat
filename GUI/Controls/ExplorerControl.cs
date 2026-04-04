@@ -727,7 +727,7 @@ namespace GUI.Controls
             filterTextBox.Focus();
         }
 
-        private async Task<int> GetOrLoadAppImage(int appID, KVObject? libraryAssetsKv, string libraryCachePath)
+        private async Task<int> GetOrLoadAppImage(int appID, KVDocument? libraryAssetsKv, string libraryCachePath)
         {
             if (MainForm.GameIcons.TryGetValue(appID, out var treeNodeImage))
             {

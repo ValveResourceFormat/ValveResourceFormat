@@ -445,7 +445,7 @@ namespace ValveResourceFormat.IO
                 using var vsurf = LoadFileCompiled("surfaceproperties/surfaceproperties.vsurf");
                 if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
                 {
-                    var surfacePropertiesList = kv3.Data.GetArray("SurfacePropertiesList");
+                    var surfacePropertiesList = kv3.Data.Root.GetArray("SurfacePropertiesList");
                     foreach (var surface in surfacePropertiesList)
                     {
                         var name = surface.GetStringProperty("surfacePropertyName");

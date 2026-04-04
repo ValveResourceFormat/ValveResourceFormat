@@ -212,7 +212,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedMeshes = ctrl?.Data.GetArray("embedded_meshes");
+            var embeddedMeshes = ctrl?.Data.Root.GetArray("embedded_meshes");
 
             if (embeddedMeshes == null)
             {
@@ -220,7 +220,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return cachedEmbeddedMeshes;
             }
 
-            var meshes = new List<(Mesh Mesh, int MeshIndex, string Name)>(embeddedMeshes.Length);
+            var meshes = new List<(Mesh Mesh, int MeshIndex, string Name)>(embeddedMeshes.Count);
 
             foreach (var embeddedMesh in embeddedMeshes)
             {
@@ -285,7 +285,7 @@ namespace ValveResourceFormat.ResourceTypes
         public PhysAggregateData? GetEmbeddedPhys()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedPhys = ctrl?.Data.GetSubCollection("embedded_physics");
+            var embeddedPhys = ctrl?.Data.Root.GetSubCollection("embedded_physics");
 
             if (embeddedPhys == null)
             {
@@ -317,7 +317,7 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<string, string> GetFaceposerFolders()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedAnimation = ctrl?.Data.GetSubCollection("embedded_animation");
+            var embeddedAnimation = ctrl?.Data.Root.GetSubCollection("embedded_animation");
 
             if (embeddedAnimation == null)
             {
@@ -364,7 +364,7 @@ namespace ValveResourceFormat.ResourceTypes
         public IEnumerable<Animation> GetEmbeddedAnimations()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedAnimation = ctrl?.Data.GetSubCollection("embedded_animation");
+            var embeddedAnimation = ctrl?.Data.Root.GetSubCollection("embedded_animation");
 
             if (embeddedAnimation == null)
             {
@@ -523,7 +523,7 @@ namespace ValveResourceFormat.ResourceTypes
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString));
             try
             {
-                keyvalues = KV3File.Parse(ms).Root;
+                keyvalues = KVDocumentExtensions.ParseKV3(ms).Root;
             }
             catch (Exception e)
             {

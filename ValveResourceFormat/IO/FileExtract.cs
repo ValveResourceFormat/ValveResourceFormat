@@ -211,7 +211,7 @@ namespace ValveResourceFormat.IO
                             contentFile.AdditionalFiles.Add(new ContentFile
                             {
                                 FileName = Path.ChangeExtension(resource.FileName, "vsnd") ?? "exported.vsnd",
-                                Data = Encoding.UTF8.GetBytes(new KV3File(wrappedData).ToString())
+                                Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String())
                             });
                         }
                     }
@@ -220,7 +220,7 @@ namespace ValveResourceFormat.IO
                         // TODO: We may want to cleanup m_vSound (recursively) since it contains random garbage if not actually used
                         var wrappedData = KVObject.Collection();
                         wrappedData.Add("VrfExportedSound", ctrlData.Data);
-                        contentFile.Data = Encoding.UTF8.GetBytes(new KV3File(wrappedData).ToString());
+                        contentFile.Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String());
                     }
 
                     break;

@@ -15,15 +15,15 @@ namespace Tests
         [Test]
         public void TestKeyValues3_LF()
         {
-            var file = KV3File.Parse(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
-            Assert.That(file.Encoding.ToString(), Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
+            var file = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            Assert.That(file.Header!.Encoding.ToString(), Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
             AssertKV3Properties(file);
         }
 
         [Test]
         public void TestBinaryKV3_Serialization()
         {
-            var originalFile = KV3File.Parse(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
 
             var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"))
             {
@@ -44,18 +44,18 @@ namespace Tests
             using var reader = new BinaryReader(stream);
             deserializedBinaryKV3.Read(reader);
 
-            var deserializedFile = deserializedBinaryKV3.GetKV3File();
+            var deserializedFile = deserializedBinaryKV3.Data;
             AssertKV3Properties(deserializedFile);
         }
 
-        private static void AssertKV3Properties(KV3File file)
+        private static void AssertKV3Properties(KVDocument file)
         {
             using (Assert.EnterMultipleScope())
             {
                 //Not sure what KVType is better for this
                 Assert.That((string)file.Root["multiLineStringValue"], Is.EqualTo("First line of a multi-line string literal.\nSecond line of a multi-line string literal."));
 
-                Assert.That(file.Format.ToString(), Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
+                Assert.That(file.Header!.Format.ToString(), Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
 
                 Assert.That(file.Root, Has.Count.EqualTo(14));
 
@@ -132,8 +132,8 @@ namespace Tests
         {
             var expectedFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "StringEscaping.kv3");
 
-            var parsedFile = KV3File.Parse(expectedFilePath);
-            var serializedOutput = parsedFile.ToString().Trim().ReplaceLineEndings();
+            var parsedFile = KVDocumentExtensions.ParseKV3(expectedFilePath);
+            var serializedOutput = parsedFile.ToKV3String().Trim().ReplaceLineEndings();
             var expectedOutput = File.ReadAllText(expectedFilePath).Trim().ReplaceLineEndings();
 
             Assert.That(serializedOutput, Is.EqualTo(expectedOutput));

@@ -27,7 +27,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
-            if (SourceMap != default && SourceMap.Data.ContainsKey("DBITSLC"))
+            if (SourceMap != default && SourceMap.Data.Root.ContainsKey("DBITSLC"))
             {
 #if false
                 var sourceBytes = PanoramaSourceMapDecoder.Decode(Data, SourceMap.AsKeyValueCollection());
@@ -106,7 +106,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public static byte[] Decode(byte[] data, KVObject sourceMap)
         {
-            var mapping = sourceMap.GetArray("DBITSLC", kvArray => (kvArray.GetInt32Property("0"), kvArray.GetInt32Property("1"), kvArray.GetInt32Property("2")));
+            var mapping = sourceMap.GetArray("DBITSLC").Select(kvArray => (kvArray.GetInt32Property("0"), kvArray.GetInt32Property("1"), kvArray.GetInt32Property("2")));
 
             var output = new List<IEnumerable<byte>>();
 

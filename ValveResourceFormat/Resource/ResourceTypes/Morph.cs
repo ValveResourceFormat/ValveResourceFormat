@@ -47,7 +47,7 @@ namespace ValveResourceFormat.ResourceTypes
         public int GetMorphCount()
         {
             var flexDesc = Data.GetArray("m_FlexDesc");
-            return flexDesc.Length;
+            return flexDesc.Count;
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace ValveResourceFormat.ResourceTypes
         public List<string> GetFlexDescriptors()
         {
             var flexDesc = Data.GetArray("m_FlexDesc");
-            var result = new List<string>(flexDesc.Length);
+            var result = new List<string>(flexDesc.Count);
 
             foreach (var f in flexDesc)
             {
@@ -90,13 +90,13 @@ namespace ValveResourceFormat.ResourceTypes
             //Some vmorf_c may be another old struct(NTROValue, eg: models/heroes/faceless_void/faceless_void_body.vmdl_c).
             //the latest struct is KVObject.
             var morphDatas = GetMorphKeyValueCollection(Data, "m_morphDatas");
-            if (morphDatas.Length == 0)
+            if (morphDatas.Count == 0)
             {
                 return flexData;
             }
 
             var bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv)).ToArray();
-            flexData.EnsureCapacity(morphDatas.Length);
+            flexData.EnsureCapacity(morphDatas.Count);
 
             foreach (var morphData in morphDatas)
             {
@@ -123,7 +123,7 @@ namespace ValveResourceFormat.ResourceTypes
                     var rectHeight = (int)MathF.Round(rect.GetFloatProperty("m_flVHeightSrc") * texHeight, 0);
                     var bundleDatas = rect.GetArray("m_bundleDatas") ?? [];
 
-                    for (var bundleKey = 0; bundleKey < bundleDatas.Length; bundleKey++)
+                    for (var bundleKey = 0; bundleKey < bundleDatas.Count; bundleKey++)
                     {
                         var bundleData = bundleDatas[bundleKey];
 
@@ -249,7 +249,7 @@ namespace ValveResourceFormat.ResourceTypes
             throw new NotImplementedException("Unhandled bundle type");
         }
 
-        private static KVObject[] GetMorphKeyValueCollection(KVObject data, string name)
+        private static IReadOnlyList<KVObject> GetMorphKeyValueCollection(KVObject data, string name)
         {
             return data.GetArray(name) ?? [];
         }
@@ -257,7 +257,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the morph data collection.
         /// </summary>
-        public KVObject[] GetMorphDatas()
+        public IReadOnlyList<KVObject> GetMorphDatas()
         {
             return GetMorphKeyValueCollection(Data, "m_morphDatas");
         }

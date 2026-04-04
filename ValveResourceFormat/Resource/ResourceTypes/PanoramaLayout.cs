@@ -182,7 +182,7 @@ namespace ValveResourceFormat.ResourceTypes
         private static IEnumerable<KVObject> NodeAttributes(KVObject node) => SubNodes(node).Where(n => IsAttribute(n));
         private static IEnumerable<KVObject> NodeChildren(KVObject node) => SubNodes(node).Where(n => !IsAttribute(n));
 
-        private static KVObject[] SubNodes(KVObject node)
+        private static IReadOnlyList<KVObject> SubNodes(KVObject node)
         {
             if (node.ContainsKey("vecChildren"))
             {

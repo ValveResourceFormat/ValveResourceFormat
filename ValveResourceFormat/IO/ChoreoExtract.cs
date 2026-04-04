@@ -44,11 +44,11 @@ public class ChoreoExtract
 
         foreach (var scene in choreoDataList.Scenes)
         {
-            var kv = new KV3File(scene.ToKeyValues());
+            var kv = scene.ToKeyValues();
 
             vcdlist.AddSubFile(
                 Path.GetFileName(scene.Name) ?? "choreo_scene.vcd",
-                () => Encoding.UTF8.GetBytes(kv.ToString())
+                () => Encoding.UTF8.GetBytes(kv.ToKV3String())
             );
         }
 

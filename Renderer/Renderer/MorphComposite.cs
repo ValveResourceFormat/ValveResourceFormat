@@ -157,7 +157,7 @@ namespace ValveResourceFormat.Renderer
         {
             var morphDatas = morph.GetMorphDatas();
 
-            if (morphDatas == null || morphDatas.Length == 0)
+            if (morphDatas == null || morphDatas.Count == 0)
             {
                 allVertices = [];
                 morphRects = [];
@@ -171,7 +171,7 @@ namespace ValveResourceFormat.Renderer
             morphRects = new List<int>[morphCount];
 
             var rectCount = 0;
-            for (var morphId = 0; morphId < morphDatas.Length; morphId++)
+            for (var morphId = 0; morphId < morphDatas.Count; morphId++)
             {
                 var morphDataChild = morphDatas[morphId];
                 morphRects[morphId] = new List<int>(10);

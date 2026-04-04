@@ -1535,7 +1535,7 @@ namespace CLI
                     }
                     else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                     {
-                        info = ctrlData.Data.GetStringProperty("_class");
+                        info = ctrlData.Data.Root.GetStringProperty("_class");
                     }
 
                     break;

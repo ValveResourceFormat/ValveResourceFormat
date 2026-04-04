@@ -41,7 +41,7 @@ public class NmClipExtract
         kv.Add("m_sourceFilename", sourceFileName);
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
         // TODO: figure out additive type.
-        var isAdditive = clip.Data.GetBooleanProperty("m_bIsAdditive");
+        var isAdditive = clip.Data.Root.GetBooleanProperty("m_bIsAdditive");
         if (isAdditive)
         {
             kv.Add("m_additiveType", "RelativeToFrame");
@@ -55,18 +55,18 @@ public class NmClipExtract
         if (skeletonResource != null)
         {
             var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
-            var modelSpaceSamplingChain = clip.Data.GetArray("m_modelSpaceSamplingChain");
+            var modelSpaceSamplingChain = clip.Data.Root.GetArray("m_modelSpaceSamplingChain");
             // The array below indexes into the bone sampling chain, which in turn indexes into the skeleton bones.
-            var modelSpaceBoneSamplingIndices = clip.Data.GetIntegerArray("m_modelSpaceBoneSamplingIndices");
+            var modelSpaceBoneSamplingIndices = clip.Data.Root.GetIntegerArray("m_modelSpaceBoneSamplingIndices");
 
             var bonesToSampleInModelSpace = KVObject.Array();
             foreach (var chainIdx in modelSpaceBoneSamplingIndices)
             {
-                if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain!.Length)
+                if (chainIdx < 0 || chainIdx >= modelSpaceSamplingChain!.Count)
                 {
-                    throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain!.Length - 1}).");
+                    throw new InvalidDataException($"Model space sampling chain index {chainIdx} is out of bounds (0..{modelSpaceSamplingChain!.Count - 1}).");
                 }
-                var boneIdx = modelSpaceSamplingChain[chainIdx]!.GetInt32Property("m_nBoneIdx");
+                var boneIdx = modelSpaceSamplingChain[(int)chainIdx]!.GetInt32Property("m_nBoneIdx");
                 bonesToSampleInModelSpace.Add(skeleton.Bones[boneIdx].Name);
             }
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
@@ -76,7 +76,7 @@ public class NmClipExtract
                 return ModelExtract.ToDmxAnim(skeleton, [], animation);
             });
         }
-        var events = clip.Data.GetArray("m_events")!;
+        var events = clip.Data.Root.GetArray("m_events")!;
         var docEventTracks = KVObject.Array();
         foreach (var ev in events!)
         {
@@ -85,7 +85,7 @@ public class NmClipExtract
             var startTimeSeconds = startTimeObj?.GetFloatProperty("m_flValue") ?? 0f;
             var durationObj = ev.GetSubCollection("m_flDuration");
             var durationSeconds = durationObj?.GetFloatProperty("m_flValue") ?? 0f;
-            var eventList = docEventTrack!.GetArray("m_events")!.First();
+            var eventList = docEventTrack!.GetArray("m_events")![0];
             // Doc file event time stamps are given in frames they can be technically floats, but based on recompilation tests
             // these seem inconsistent, unless they're floored to int, then it matches up.
             eventList.Add("m_flStartTime", Math.Floor(startTimeSeconds * animation.FrameCount));
@@ -93,7 +93,7 @@ public class NmClipExtract
             docEventTracks.Add(docEventTrack);
         }
         kv.Add("m_eventTracks", docEventTracks);
-        contentFile.Data = Encoding.UTF8.GetBytes(new KV3File(kv).ToString());
+        contentFile.Data = Encoding.UTF8.GetBytes(kv.ToKV3String());
         return contentFile;
     }
 

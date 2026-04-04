@@ -207,9 +207,9 @@ namespace ValveResourceFormat.Renderer.Particles
             var stops = parse.Data.GetSubCollection("m_Gradient")
                 .GetArray("m_Stops");
 
-            gradientStops = new GradientStop[stops.Length];
+            gradientStops = new GradientStop[stops.Count];
 
-            for (var i = 0; i < stops.Length; i++)
+            for (var i = 0; i < stops.Count; i++)
             {
                 var position = stops[i].GetFloatProperty("m_flPosition");
                 var color = stops[i].GetArray<int>("m_Color");

@@ -310,7 +310,7 @@ public class AnimationGraphExtract : IDisposable
         var contentFile = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(isUncompiledAnimationGraph
-                ? resourceData.GetKV3File().ToString()
+                ? resourceData.Data.ToKV3String()
                 : ToEditableAnimGraphVersion19()),
             FileName = outputFileName ?? "animgraph",
         };
@@ -321,23 +321,23 @@ public class AnimationGraphExtract : IDisposable
     /// <summary>
     /// Gets or sets the animation tags.
     /// </summary>
-    public KVObject[] Tags { get; set; } = [];
+    public IReadOnlyList<KVObject> Tags { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the animation parameters.
     /// </summary>
-    public KVObject[] Parameters { get; set; } = [];
+    public IReadOnlyList<KVObject> Parameters { get; set; } = [];
 
     /// <summary>
     /// Builds the mapping from compiled node indices to their actual node IDs.
     /// </summary>
-    private void BuildNodeIdMap(KVObject[] compiledNodes)
+    private void BuildNodeIdMap(IReadOnlyList<KVObject> compiledNodes)
     {
         compiledNodeIndexMap = [];
         nodeIndexToIdMap = [];
 
         var assignedNodeIds = new HashSet<long>();
-        for (var i = 0; i < compiledNodes.Length; i++)
+        for (var i = 0; i < compiledNodes.Count; i++)
         {
             var compiledNode = compiledNodes[i];
             var nodePath = compiledNode.GetSubCollection("m_nodePath");
@@ -353,7 +353,7 @@ public class AnimationGraphExtract : IDisposable
             var path = nodePath.GetArray("m_path");
             var count = nodePath.GetIntegerProperty("m_nCount");
 
-            if (count <= 0 || path is null || path.Length == 0)
+            if (count <= 0 || path is null || path.Count == 0)
             {
                 var newNodeId = GenerateNewNodeId(assignedNodeIds);
                 assignedNodeIds.Add(newNodeId);
@@ -515,7 +515,7 @@ public class AnimationGraphExtract : IDisposable
         // not exactly the same keys as model attachment.
         var influenceIndices = compiledAttachment.GetArray<int>("m_influenceIndices");
         var influenceRotations = compiledAttachment.GetArray("m_influenceRotations").Select(v => v.ToQuaternion()).ToArray();
-        var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets", v => v.ToVector3());
+        var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets").Select(v => v.ToVector3()).ToArray();
         var influenceWeights = compiledAttachment.GetArray<double>("m_influenceWeights");
 
         var influenceCount = compiledAttachment.GetInt32Property("m_numInfluences");
@@ -600,7 +600,7 @@ public class AnimationGraphExtract : IDisposable
         return index >= 0 && index < names.Length ? names[index] : string.Empty;
     }
 
-    private static KVObject[]? GetIKChainsFromModel(Model? modelData)
+    private static IReadOnlyList<KVObject>? GetIKChainsFromModel(Model? modelData)
     {
         if (modelData is null)
         {
@@ -814,9 +814,9 @@ public class AnimationGraphExtract : IDisposable
             return [];
         }
         var compiledBonesArray = compiledBones.GetArray("m_bones");
-        var boneNames = new string[compiledBonesArray.Length];
+        var boneNames = new string[compiledBonesArray.Count];
 
-        for (var i = 0; i < compiledBonesArray.Length; i++)
+        for (var i = 0; i < compiledBonesArray.Count; i++)
         {
             var boneIndex = (int)compiledBonesArray[i].GetIntegerProperty("m_index");
             boneNames[i] = GetBoneName(boneIndex);
@@ -928,7 +928,7 @@ public class AnimationGraphExtract : IDisposable
     /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
     /// </summary>
-    /// <returns>The animation graph as a <see cref="KV3File"/> string in version 19 format.</returns>
+    /// <returns>The animation graph as a KV3 string in version 19 format.</returns>
     public string ToEditableAnimGraphVersion19()
     {
         LoadModelData();
@@ -941,7 +941,7 @@ public class AnimationGraphExtract : IDisposable
         var paramListUpdater = data.GetSubCollection("m_pParamListUpdater");
         scriptManager = data.GetSubCollection("m_scriptManager");
 
-        if (data.GetArray("m_managers") is KVObject[] managers)
+        if (data.GetArray("m_managers") is { } managers)
         {
             tagManager = managers.FirstOrDefault(m => m.GetStringProperty("_class") == "CAnimTagManagerUpdater");
             paramListUpdater = managers.FirstOrDefault(m => m.GetStringProperty("_class") == "CAnimParameterListUpdater");
@@ -978,7 +978,7 @@ public class AnimationGraphExtract : IDisposable
         var layoutNodes = new Dictionary<long, LayoutNode>();
         var nodeOutConnections = new Dictionary<long, List<long>>();
 
-        for (var i = 0; i < compiledNodes.Length; i++)
+        for (var i = 0; i < compiledNodes.Count; i++)
         {
             var compiledNode = compiledNodes[i];
 
@@ -1038,7 +1038,7 @@ public class AnimationGraphExtract : IDisposable
                 ("m_modelName", Graph.GetStringProperty("m_modelName")),
             ]);
 
-        return new KV3File(kv, format: KV3IDLookup.Get("animgraph19")).ToString();
+        return kv.ToKV3String(format: KV3IDLookup.Get("animgraph19"));
     }
 
     private Dictionary<int, string> LoadWeightListNamesFromModel()
@@ -1061,9 +1061,9 @@ public class AnimationGraphExtract : IDisposable
                 if (aseqData is not null)
                 {
                     var localBoneMaskArray = aseqData.GetArray("m_localBoneMaskArray");
-                    if (localBoneMaskArray is not null && localBoneMaskArray.Length > 0)
+                    if (localBoneMaskArray is not null && localBoneMaskArray.Count > 0)
                     {
-                        for (var i = 0; i < localBoneMaskArray.Length; i++)
+                        for (var i = 0; i < localBoneMaskArray.Count; i++)
                         {
                             var boneMask = localBoneMaskArray[i];
                             var weightListName = boneMask.GetStringProperty("m_sName");
@@ -1172,7 +1172,7 @@ public class AnimationGraphExtract : IDisposable
             : null;
     }
 
-    private KVObject ConvertClipDataManager(KVObject[] sequenceTagSpans)
+    private KVObject ConvertClipDataManager(IReadOnlyList<KVObject> sequenceTagSpans)
     {
         var clipDataManager = MakeNode("CAnimClipDataManager");
         var itemTable = new KVObject();
@@ -1182,7 +1182,7 @@ public class AnimationGraphExtract : IDisposable
             var sequenceName = sequenceSpan.GetStringProperty("m_sSequenceName");
             var compiledTagSpans = sequenceSpan.GetArray("m_tags");
 
-            if (string.IsNullOrEmpty(sequenceName) || compiledTagSpans.Length == 0)
+            if (string.IsNullOrEmpty(sequenceName) || compiledTagSpans.Count == 0)
             {
                 continue;
             }
@@ -1283,7 +1283,7 @@ public class AnimationGraphExtract : IDisposable
         return blendCurve;
     }
 
-    private KVObject ConvertTagSpansArray(KVObject[] compiledTagSpans)
+    private KVObject ConvertTagSpansArray(IReadOnlyList<KVObject> compiledTagSpans)
     {
         var tagSpans = new List<KVObject>();
         foreach (var compiledTagSpan in compiledTagSpans)
@@ -1311,8 +1311,8 @@ public class AnimationGraphExtract : IDisposable
 
     private long GetTagIdFromIndex(long tagIndex)
     {
-        return tagIndex >= 0 && tagIndex < Tags.Length
-            ? Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id")
+        return tagIndex >= 0 && tagIndex < Tags.Count
+            ? Tags[(int)tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id")
             : -1L;
     }
 
@@ -1387,14 +1387,14 @@ public class AnimationGraphExtract : IDisposable
             ? name
             : $"sequence_{sequenceIndex}";
     }
-    private KVObject[] ConvertStateMachine(KVObject compiledStateMachine, KVObject[]? stateDataArray, KVObject[]? transitionDataArray, bool isComponent = false)
+    private KVObject[] ConvertStateMachine(KVObject compiledStateMachine, IReadOnlyList<KVObject>? stateDataArray, IReadOnlyList<KVObject>? transitionDataArray, bool isComponent = false)
     {
         var compiledStates = compiledStateMachine.GetArray("m_states");
         var compiledTransitions = compiledStateMachine.GetArray("m_transitions");
-        var states = new KVObject[compiledStates.Length];
+        var states = new KVObject[compiledStates.Count];
 
         var startStateIndex = -1;
-        for (var i = 0; i < compiledStates.Length; i++)
+        for (var i = 0; i < compiledStates.Count; i++)
         {
             if (compiledStates[i].GetIntegerProperty("m_bIsStartState") > 0)
             {
@@ -1403,10 +1403,10 @@ public class AnimationGraphExtract : IDisposable
             }
         }
 
-        for (var i = 0; i < compiledStates.Length; i++)
+        for (var i = 0; i < compiledStates.Count; i++)
         {
             var compiledState = compiledStates[i];
-            var stateData = stateDataArray != null && i < stateDataArray.Length ? stateDataArray[i] : null;
+            var stateData = stateDataArray != null && i < stateDataArray.Count ? stateDataArray[i] : null;
 
             var stateNodeType = isComponent ? "CAnimComponentState" : "CAnimNodeState";
             var stateNode = MakeNode(stateNodeType);
@@ -1421,7 +1421,7 @@ public class AnimationGraphExtract : IDisposable
             }
             else
             {
-                var positionFromStart = i > startStateIndex ? i - startStateIndex : i + (compiledStates.Length - startStateIndex);
+                var positionFromStart = i > startStateIndex ? i - startStateIndex : i + (compiledStates.Count - startStateIndex);
                 stateX = 150.0f * positionFromStart + random.Next(-30, 31);
                 stateY = 40.0f + random.Next(-10, 11);
             }
@@ -1441,22 +1441,22 @@ public class AnimationGraphExtract : IDisposable
                 for (var transitionIndex = 0; transitionIndex < transitionIndices.Length; transitionIndex++)
                 {
                     var globalTransitionIndex = transitionIndices[transitionIndex];
-                    if (globalTransitionIndex < 0 || globalTransitionIndex >= compiledTransitions.Length)
+                    if (globalTransitionIndex < 0 || globalTransitionIndex >= compiledTransitions.Count)
                     {
                         continue;
                     }
 
-                    var compiledTransition = compiledTransitions[globalTransitionIndex];
-                    var transitionData = transitionDataArray != null && globalTransitionIndex < transitionDataArray.Length
-                        ? transitionDataArray[globalTransitionIndex]
+                    var compiledTransition = compiledTransitions[(int)globalTransitionIndex];
+                    var transitionData = transitionDataArray != null && globalTransitionIndex < transitionDataArray.Count
+                        ? transitionDataArray[(int)globalTransitionIndex]
                         : null;
 
                     var transitionNodeType = isComponent ? "CAnimComponentStateTransition" : "CAnimNodeStateTransition";
                     var transitionNode = MakeNode(transitionNodeType);
                     var srcStateIndex = compiledTransition.GetIntegerProperty("m_srcStateIndex");
                     var destStateIndex = compiledTransition.GetIntegerProperty("m_destStateIndex");
-                    var srcStateID = compiledStates[srcStateIndex].GetSubCollection("m_stateID");
-                    var destStateID = compiledStates[destStateIndex].GetSubCollection("m_stateID");
+                    var srcStateID = compiledStates[(int)srcStateIndex].GetSubCollection("m_stateID");
+                    var destStateID = compiledStates[(int)destStateIndex].GetSubCollection("m_stateID");
 
                     transitionNode.Add("m_srcState", srcStateID);
                     transitionNode.Add("m_destState", destStateID);
@@ -1574,9 +1574,9 @@ public class AnimationGraphExtract : IDisposable
                             if (scriptIndex >= 0 && scriptManager != null)
                             {
                                 var scriptInfoArray = scriptManager.GetArray("m_scriptInfo");
-                                if (scriptIndex < scriptInfoArray.Length)
+                                if (scriptIndex < scriptInfoArray.Count)
                                 {
-                                    var scriptInfo = scriptInfoArray[scriptIndex];
+                                    var scriptInfo = scriptInfoArray[(int)scriptIndex];
                                     var scriptType = scriptInfo.GetStringProperty("m_eScriptType");
                                     var scriptCode = scriptInfo.GetStringProperty("m_code");
 
@@ -1649,12 +1649,12 @@ public class AnimationGraphExtract : IDisposable
         }
 
         var scriptInfoArray = scriptManager.GetArray("m_scriptInfo");
-        if (scriptIndex < 0 || scriptIndex >= scriptInfoArray.Length)
+        if (scriptIndex < 0 || scriptIndex >= scriptInfoArray.Count)
         {
             return null;
         }
 
-        var scriptInfo = scriptInfoArray[scriptIndex];
+        var scriptInfo = scriptInfoArray[(int)scriptIndex];
         var scriptCode = scriptInfo.GetStringProperty("m_code");
         var scriptType = scriptInfo.GetStringProperty("m_eScriptType");
 
@@ -2341,7 +2341,7 @@ public class AnimationGraphExtract : IDisposable
         {
             foreach (var nameToTry in namesToTry)
             {
-                for (var i = 0; i < Parameters.Length; i++)
+                for (var i = 0; i < Parameters.Count; i++)
                 {
                     var param = Parameters[i];
                     var currentParamName = param.GetStringProperty("m_name");
@@ -2385,7 +2385,7 @@ public class AnimationGraphExtract : IDisposable
         // Try exact matches first (case-sensitive)
         foreach (var nameVariant in namesToTry)
         {
-            for (var i = 0; i < Tags.Length; i++)
+            for (var i = 0; i < Tags.Count; i++)
             {
                 var currentTagName = Tags[i].GetStringProperty("m_name");
                 if (currentTagName == nameVariant)
@@ -2398,7 +2398,7 @@ public class AnimationGraphExtract : IDisposable
         // Try case-insensitive matches
         foreach (var nameVariant in namesToTry)
         {
-            for (var i = 0; i < Tags.Length; i++)
+            for (var i = 0; i < Tags.Count; i++)
             {
                 var currentTagName = Tags[i].GetStringProperty("m_name");
                 if (string.Equals(currentTagName, nameVariant, StringComparison.OrdinalIgnoreCase))
@@ -2410,7 +2410,7 @@ public class AnimationGraphExtract : IDisposable
 
         // Try fuzzy alphanumeric-only match as last resort
         var cleanInput = new string([.. strippedName.Where(char.IsLetterOrDigit)]).ToLowerInvariant();
-        for (var i = 0; i < Tags.Length; i++)
+        for (var i = 0; i < Tags.Count; i++)
         {
             var currentTagName = Tags[i].GetStringProperty("m_name");
             var cleanCurrent = new string([.. currentTagName.Where(char.IsLetterOrDigit)]).ToLowerInvariant();
@@ -2597,9 +2597,9 @@ public class AnimationGraphExtract : IDisposable
                             if (scriptIndex >= 0 && scriptManager != null)
                             {
                                 var scriptInfoArray = scriptManager.GetArray("m_scriptInfo");
-                                if (scriptIndex < scriptInfoArray.Length)
+                                if (scriptIndex < scriptInfoArray.Count)
                                 {
-                                    var scriptInfo = scriptInfoArray[scriptIndex];
+                                    var scriptInfo = scriptInfoArray[(int)scriptIndex];
                                     var scriptType = scriptInfo.GetStringProperty("m_eScriptType");
                                     var scriptCode = scriptInfo.GetStringProperty("m_code");
 
@@ -3763,7 +3763,7 @@ public class AnimationGraphExtract : IDisposable
 
                     for (var i = 0; i < itemsList.Count; i++)
                     {
-                        if (i < paramHandles.Length)
+                        if (i < paramHandles.Count)
                         {
                             var paramHandle = paramHandles[i];
                             var paramType = paramHandle.GetStringProperty("m_type");
@@ -4298,10 +4298,10 @@ public class AnimationGraphExtract : IDisposable
 
                     var ikChainsArray = new List<KVObject>();
 
-                    for (var i = 0; i < chainsToSolveData.Length; i++)
+                    for (var i = 0; i < chainsToSolveData.Count; i++)
                     {
                         var chainData = chainsToSolveData[i];
-                        var targetHandle = i < targetHandles.Length ? targetHandles[i] : null;
+                        var targetHandle = i < targetHandles.Count ? targetHandles[i] : null;
 
                         var ikChain = new KVObject();
                         ikChain.Add("_class", "CSolveIKChainAnimNodeChainData");
@@ -4637,10 +4637,10 @@ public class AnimationGraphExtract : IDisposable
                     var firstFootHasGroundTracing = false;
                     var firstFootTraceAngleBlend = 0.0f;
 
-                    for (var i = 0; i < footSettings.Length; i++)
+                    for (var i = 0; i < footSettings.Count; i++)
                     {
                         var footSetting = footSettings[i];
-                        var footInfo = footInfoArray != null && i < footInfoArray.Length ? footInfoArray[i] : null;
+                        var footInfo = footInfoArray != null && i < footInfoArray.Count ? footInfoArray[i] : null;
 
                         var item = new KVObject();
 
@@ -4678,9 +4678,9 @@ public class AnimationGraphExtract : IDisposable
                         {
                             var tagIndex = footSetting.GetIntegerProperty("m_nDisableTagIndex");
                             var tagId = -1L;
-                            if (tagIndex >= 0 && tagIndex < Tags.Length)
+                            if (tagIndex >= 0 && tagIndex < Tags.Count)
                             {
-                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                                tagId = Tags[(int)tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
                             }
                             item.Add("m_disableTagID", MakeNodeIdObjectValue(tagId));
                         }
@@ -4689,9 +4689,9 @@ public class AnimationGraphExtract : IDisposable
                         {
                             var tagIndex = footSetting.GetIntegerProperty("m_footstepLandedTagIndex");
                             var tagId = -1L;
-                            if (tagIndex >= 0 && tagIndex < Tags.Length)
+                            if (tagIndex >= 0 && tagIndex < Tags.Count)
                             {
-                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                                tagId = Tags[(int)tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
                             }
                             item.Add("m_footstepLandedTag", MakeNodeIdObjectValue(tagId));
                         }
@@ -5097,9 +5097,9 @@ public class AnimationGraphExtract : IDisposable
 
                                             var tagIndex = compiledTagSpan.GetIntegerProperty("m_tagIndex");
                                             var tagId = -1L;
-                                            if (tagIndex >= 0 && tagIndex < Tags.Length)
+                                            if (tagIndex >= 0 && tagIndex < Tags.Count)
                                             {
-                                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                                                tagId = Tags[(int)tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
                                             }
 
                                             tagSpan.Add("m_id", MakeNodeIdObjectValue(tagId));
@@ -5172,9 +5172,9 @@ public class AnimationGraphExtract : IDisposable
                                 if (scriptIndex >= 0)
                                 {
                                     var scriptInfoArray = scriptManager.GetArray("m_scriptInfo");
-                                    if (scriptIndex < scriptInfoArray.Length)
+                                    if (scriptIndex < scriptInfoArray.Count)
                                     {
-                                        var scriptInfo = scriptInfoArray[scriptIndex];
+                                        var scriptInfo = scriptInfoArray[(int)scriptIndex];
                                         var scriptType = scriptInfo.GetStringProperty("m_eScriptType");
                                         var scriptCode = scriptInfo.GetStringProperty("m_code");
 
@@ -5817,9 +5817,9 @@ public class AnimationGraphExtract : IDisposable
                             var duration = endCycle - startCycle;
                             var tagId = -1L;
 
-                            if (tagIndex >= 0 && tagIndex < Tags.Length)
+                            if (tagIndex >= 0 && tagIndex < Tags.Count)
                             {
-                                tagId = Tags[tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
+                                tagId = Tags[(int)tagIndex].GetSubCollection("m_tagID").GetIntegerProperty("m_id");
                             }
 
                             var tagSpan = MakeNode("CAnimTagSpan");
@@ -5955,7 +5955,7 @@ public class AnimationGraphExtract : IDisposable
         var uncompiledType = paramType.Replace("ANIMPARAM_", "", StringComparison.Ordinal);
         var currentCount = 0;
 
-        for (var i = 0; i < Parameters.Length; i++)
+        for (var i = 0; i < Parameters.Count; i++)
         {
             var parameter = Parameters[i];
             var paramClass = parameter.GetStringProperty("_class");

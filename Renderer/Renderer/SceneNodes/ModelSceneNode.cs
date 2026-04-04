@@ -396,7 +396,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return false;
             }
 
-            var graphResources = graphData.Data.GetArray<string>("m_resources");
+            var graphResources = graphData.Data.Root.GetArray<string>("m_resources");
             if (graphResources == null)
             {
                 return false;

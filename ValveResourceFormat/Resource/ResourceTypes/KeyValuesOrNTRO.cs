@@ -1,5 +1,6 @@
 using System.IO;
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 #nullable disable
 
@@ -92,7 +93,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             if (BackingData is BinaryKV3 dataKv3)
             {
-                dataKv3.GetKV3File().WriteText(writer);
+                dataKv3.Data.WriteKV3Text(writer);
                 return;
             }
 

@@ -203,7 +203,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             outKV3.Add("layers", layers);
 
-            return new KV3File(outKV3).ToString();
+            return outKV3.ToKV3String();
         }
     }
 }

@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.IO;
 using System.Text;
 using ValveKeyValue;
+using ValveKeyValue.KeyValues3;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Serialization.KeyValues
@@ -160,46 +162,17 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
-        /// Gets an array of sub-objects by name.
-        /// Each array element is wrapped in a <see cref="KVObject"/>.
+        /// Gets the values of an array child by name.
+        /// Returns the underlying collection without copying.
         /// </summary>
-        public static KVObject[] GetArray(this KVObject obj, string name)
+        public static IReadOnlyList<KVObject> GetArray(this KVObject obj, string name)
         {
             if (!obj.TryGetValue(name, out var child) || !child.IsArray)
             {
                 return null!;
             }
 
-            var result = new KVObject[child.Count];
-
-            for (var i = 0; i < child.Count; i++)
-            {
-                result[i] = child[i]!;
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Gets an array of sub-objects by name and maps each element.
-        /// </summary>
-        public static T[] GetArray<T>(this KVObject obj, string name, Func<KVObject, T> mapper)
-        {
-            var items = GetArray(obj, name);
-
-            if (items == null)
-            {
-                return null!;
-            }
-
-            var result = new T[items.Length];
-
-            for (var i = 0; i < items.Length; i++)
-            {
-                result[i] = mapper(items[i]);
-            }
-
-            return result;
+            return (IReadOnlyList<KVObject>)child.Values;
         }
 
         /// <summary>
@@ -208,11 +181,6 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// </summary>
         public static T[] GetArray<T>(this KVObject obj, string name)
         {
-            if (typeof(T) == typeof(KVObject))
-            {
-                return (T[])(object)GetArray(obj, name);
-            }
-
             if (!obj.TryGetValue(name, out var child))
             {
                 return null!;
@@ -225,7 +193,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
                     return (T[])(object)child.AsBlob();
                 }
 
-                var bytes = child.AsSpan();
+                var bytes = child.AsBlob().AsSpan();
                 var resultBytes = new T[bytes.Length];
 
                 for (var i = 0; i < bytes.Length; i++)
@@ -241,11 +209,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return null!;
             }
 
-            var result = new T[child.Count];
+            var span = child.AsArraySpan();
+            var result = new T[span.Length];
 
-            for (var i = 0; i < child.Count; i++)
+            for (var i = 0; i < span.Length; i++)
             {
-                var elem = child[i]!;
+                var elem = span[i];
 
                 if (elem.ValueType is KVValueType.Null or KVValueType.Collection or KVValueType.Array)
                 {
@@ -269,11 +238,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return [];
             }
 
-            var result = new ulong[child.Count];
+            var span = child.AsArraySpan();
+            var result = new ulong[span.Length];
 
-            for (var i = 0; i < child.Count; i++)
+            for (var i = 0; i < span.Length; i++)
             {
-                var elem = child[i]!;
+                var elem = span[i];
 
                 if (elem.ValueType == KVValueType.Int32)
                 {
@@ -444,12 +414,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
         /// <summary>
         /// Converts an array of key-value objects to a Matrix4x4.
         /// </summary>
-        public static Matrix4x4 ToMatrix4x4(this KVObject[] array)
+        public static Matrix4x4 ToMatrix4x4(this IReadOnlyList<KVObject> array)
         {
             var column1 = array[0].ToVector4();
             var column2 = array[1].ToVector4();
             var column3 = array[2].ToVector4();
-            var column4 = array.Length > 3 ? array[3].ToVector4() : new Vector4(0, 0, 0, 1);
+            var column4 = array.Count > 3 ? array[3].ToVector4() : new Vector4(0, 0, 0, 1);
 
             return new Matrix4x4(column1.X, column2.X, column3.X, column4.X, column1.Y, column2.Y, column3.Y, column4.Y, column1.Z, column2.Z, column3.Z, column4.Z, column1.W, column2.W, column3.W, column4.W);
         }
@@ -468,6 +438,72 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 (float)array[2], (float)array[6], (float)array[10], column4.Z,
                 (float)array[3], (float)array[7], (float)array[11], column4.W
             );
+        }
+    }
+
+    /// <summary>
+    /// Extension methods for KV3 document serialization and creation.
+    /// </summary>
+    public static class KVDocumentExtensions
+    {
+        /// <summary>
+        /// Creates a KV3 document from a root <see cref="KVObject"/> with optional format.
+        /// </summary>
+        public static KVDocument ToKV3Document(this KVObject root, KV3ID? format = null)
+        {
+            return new KVDocument(
+                new KVHeader
+                {
+                    Encoding = KV3IDLookup.Get("text"),
+                    Format = format ?? KV3IDLookup.Get("generic"),
+                },
+                null,
+                root);
+        }
+
+        /// <summary>
+        /// Serializes a <see cref="KVDocument"/> to KV3 text format.
+        /// </summary>
+        public static string ToKV3String(this KVDocument doc)
+        {
+            using var ms = new MemoryStream();
+            var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+            serializer.Serialize(ms, doc);
+            ms.Position = 0;
+            using var reader = new StreamReader(ms);
+            return reader.ReadToEnd();
+        }
+
+        /// <summary>
+        /// Serializes a <see cref="KVObject"/> to KV3 text format with optional format.
+        /// </summary>
+        public static string ToKV3String(this KVObject root, KV3ID? format = null)
+            => root.ToKV3Document(format).ToKV3String();
+
+        /// <summary>
+        /// Writes the <see cref="KVDocument"/> as KV3 text to an <see cref="IndentedTextWriter"/>.
+        /// </summary>
+        public static void WriteKV3Text(this KVDocument doc, IndentedTextWriter writer)
+        {
+            writer.Write(doc.ToKV3String());
+        }
+
+        /// <summary>
+        /// Parses a KeyValues3 file from the specified stream.
+        /// </summary>
+        public static KVDocument ParseKV3(Stream stream)
+        {
+            var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+            return serializer.Deserialize(stream);
+        }
+
+        /// <summary>
+        /// Parses a KeyValues3 file from the specified filename.
+        /// </summary>
+        public static KVDocument ParseKV3(string filename)
+        {
+            using var fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
+            return ParseKV3(fileStream);
         }
     }
 }

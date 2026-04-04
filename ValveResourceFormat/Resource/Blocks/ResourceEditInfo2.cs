@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Blocks
 
                 list.EnsureCapacity(container.Count);
 
-                var items = kv3.Data.GetArray(key);
+                var items = kv3.Data.Root.GetArray(key);
                 if (items != null)
                 {
                     foreach (var item in items)
@@ -78,19 +78,19 @@ namespace ValveResourceFormat.Blocks
             ReadItems(kv3, SpecialDependencies, "m_SpecialDependencies", static (KVObject data) => new SpecialDependency(data));
             ReadItems(kv3, AdditionalRelatedFiles, "m_AdditionalRelatedFiles", static (KVObject data) => new AdditionalRelatedFile(data));
 
-            var childResources = kv3.Data.GetArray<string>("m_ChildResourceList");
+            var childResources = kv3.Data.Root.GetArray<string>("m_ChildResourceList");
             if (childResources != null)
             {
                 ChildResourceList.AddRange(childResources);
             }
 
-            var weakReferences = kv3.Data.GetArray<string>("m_WeakReferenceList");
+            var weakReferences = kv3.Data.Root.GetArray<string>("m_WeakReferenceList");
             if (weakReferences is not null)
             {
                 WeakReferenceList.AddRange(weakReferences);
             }
 
-            var searchableData = kv3.Data.GetSubCollection("m_SearchableUserData");
+            var searchableData = kv3.Data.Root.GetSubCollection("m_SearchableUserData");
             if (searchableData is not null)
             {
                 foreach (var (key, child) in searchableData)
@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
-            var subassetReferences = kv3.Data.GetSubCollection("m_SubassetReferences");
+            var subassetReferences = kv3.Data.Root.GetSubCollection("m_SubassetReferences");
             if (subassetReferences != null)
             {
                 SubassetReferences = new(capacity: subassetReferences.Count);
@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
-            var subassetDefinitions = kv3.Data.GetSubCollection("m_SubassetDefinitions");
+            var subassetDefinitions = kv3.Data.Root.GetSubCollection("m_SubassetDefinitions");
             if (subassetDefinitions != null)
             {
                 SubassetDefinitions = new(capacity: subassetDefinitions.Count);

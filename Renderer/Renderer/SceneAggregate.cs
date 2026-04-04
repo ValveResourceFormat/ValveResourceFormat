@@ -131,7 +131,7 @@ namespace ValveResourceFormat.Renderer
             var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 
             // Aperture Desk Job goes from draw call -> aggregate mesh
-            if (aggregateMeshes.Length > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
+            if (aggregateMeshes.Count > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
             {
                 foreach (var drawCall in RenderMesh.DrawCallsOpaque)
                 {

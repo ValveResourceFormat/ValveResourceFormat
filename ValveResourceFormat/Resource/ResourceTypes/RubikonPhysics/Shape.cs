@@ -49,8 +49,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             where TShape : struct
         {
             var arrayData = data.GetArray(name);
-            var array = new TDescriptor[arrayData.Length];
-            for (var a = 0; a < arrayData.Length; a++)
+            var array = new TDescriptor[arrayData.Count];
+            for (var a = 0; a < arrayData.Count; a++)
             {
                 array[a] = new TDescriptor();
                 array[a].KV3Transfer(arrayData[a]);

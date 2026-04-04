@@ -643,7 +643,7 @@ public sealed class MapExtract
                 }
 
                 var modelmesh = ((Model)resource.DataBlock).GetEmbeddedMeshes().First();
-                var sceneObject = modelmesh.Mesh.Data.GetArray("m_sceneObjects").First();
+                var sceneObject = modelmesh.Mesh.Data.GetArray("m_sceneObjects")[0];
                 var drawCalls = sceneObject.GetArray("m_drawCalls");
 
                 var tint = Vector3.One * 255f;
@@ -1005,7 +1005,7 @@ public sealed class MapExtract
 
             var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
-            var drawCalls = Array.Empty<KVObject>();
+            IReadOnlyList<KVObject> drawCalls = [];
             var drawCenters = Array.Empty<Vector3>();
 
             var transformIndex = 0;
@@ -1013,7 +1013,7 @@ public sealed class MapExtract
                 ? agg.GetArray("m_fragmentTransforms")
                 : [];
 
-            var aggregateHasTransforms = fragmentTransforms.Length > 0;
+            var aggregateHasTransforms = fragmentTransforms.Count > 0;
 
             FolderExtractFilter.Add(modelName);
             using var modelRes = FileLoader.LoadFileCompiled(modelName);
@@ -1027,7 +1027,7 @@ public sealed class MapExtract
 
             // TODO: reference meshes
             var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
-            var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects").First();
+            var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects")[0];
             drawCalls = sceneObject.GetArray("m_drawCalls");
 
             if (convertToHalfEdge)
@@ -1046,7 +1046,7 @@ public sealed class MapExtract
                         .ToArray();
                 }
 
-                var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Length);
+                var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Count);
                 PreExportedFragments.AddRange(modelFiles);
             }
 
@@ -1060,12 +1060,12 @@ public sealed class MapExtract
             var drawSelectionSet = new CMapSelectionSet();
             if (convertToHalfEdge)
             {
-                drawSelectionSet.SelectionSetName = "hammer mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Length + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
+                drawSelectionSet.SelectionSetName = "hammer mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
                 HammerMeshesSelectionSet?.Children.Add(drawSelectionSet);
             }
             else
             {
-                drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Length + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
+                drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
                 StaticPropsSelectionSet?.Children.Add(drawSelectionSet);
             }
 
@@ -1544,7 +1544,7 @@ public sealed class MapExtract
             }
 
             using var ms = new MemoryStream();
-            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, kvObject);
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(null, null, kvObject));
             return System.Text.Encoding.UTF8.GetString(ms.ToArray());
         }
 

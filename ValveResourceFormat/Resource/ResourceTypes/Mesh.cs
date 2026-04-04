@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -80,7 +81,7 @@ namespace ValveResourceFormat.ResourceTypes
             if (Data.ContainsKey("m_attachments"))
             {
                 var attachmentsData = Data.GetArray("m_attachments");
-                for (var i = 0; i < attachmentsData.Length; i++)
+                for (var i = 0; i < attachmentsData.Count; i++)
                 {
                     var attachment = new Attachment(attachmentsData[i]);
                     Attachments.Add(attachment.Name, attachment);
@@ -89,13 +90,13 @@ namespace ValveResourceFormat.ResourceTypes
             if (Data.ContainsKey("m_hitboxsets"))
             {
                 var hitboxSetsData = Data.GetArray("m_hitboxsets");
-                for (var i = 0; i < hitboxSetsData.Length; i++)
+                for (var i = 0; i < hitboxSetsData.Count; i++)
                 {
                     var hitboxSet = hitboxSetsData[i].GetSubCollection("value") ?? hitboxSetsData[i];
                     var hitboxSetName = hitboxSet.GetStringProperty("m_name");
 
                     var hitboxesKey = hitboxSet.ContainsKey("m_HitBoxes") ? "m_HitBoxes" : "m_hitboxes";
-                    var hitboxes = hitboxSet.GetArray(hitboxesKey, d => new Hitbox(d));
+                    var hitboxes = hitboxSet.GetArray(hitboxesKey).Select(d => new Hitbox(d)).ToArray();
 
                     HitboxSets.Add(hitboxSetName, hitboxes);
                 }
@@ -108,7 +109,7 @@ namespace ValveResourceFormat.ResourceTypes
         public void GetBounds()
         {
             var sceneObjects = Data.GetArray("m_sceneObjects");
-            if (sceneObjects.Length == 0)
+            if (sceneObjects.Count == 0)
             {
                 MinBounds = MaxBounds = new Vector3(0, 0, 0);
                 return;
@@ -117,7 +118,7 @@ namespace ValveResourceFormat.ResourceTypes
             var minBounds = sceneObjects[0].GetSubCollection("m_vMinBounds").ToVector3();
             var maxBounds = sceneObjects[0].GetSubCollection("m_vMaxBounds").ToVector3();
 
-            for (var i = 1; i < sceneObjects.Length; ++i)
+            for (var i = 1; i < sceneObjects.Count; ++i)
             {
                 var localMin = sceneObjects[i].GetSubCollection("m_vMinBounds").ToVector3();
                 var localMax = sceneObjects[i].GetSubCollection("m_vMaxBounds").ToVector3();

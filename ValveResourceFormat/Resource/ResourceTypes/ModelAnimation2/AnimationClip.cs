@@ -104,7 +104,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
 
             var settings = clipData.GetArray("m_trackCompressionSettings");
-            TrackCompressionSettings = new TrackCompressionSetting[settings.Length];
+            TrackCompressionSettings = new TrackCompressionSetting[settings.Count];
 
             var i = 0;
             foreach (var setting in settings)
@@ -132,8 +132,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             Debug.Assert(CompressedPoseOffsets.Length == NumFrames);
 
             var secondaryAnims = clipData.GetArray("m_secondaryAnimations") ?? [];
-            SecondaryAnimations = new AnimationClip[secondaryAnims.Length];
-            for (var j = 0; j < secondaryAnims.Length; j++)
+            SecondaryAnimations = new AnimationClip[secondaryAnims.Count];
+            for (var j = 0; j < secondaryAnims.Count; j++)
             {
                 var secondaryAnim = new AnimationClip()
                 {
