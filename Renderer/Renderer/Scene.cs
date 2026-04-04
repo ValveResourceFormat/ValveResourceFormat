@@ -375,6 +375,11 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in dynamicNodes)
             {
+                if (node.Parent != null)
+                {
+                    continue; // child nodes are updated by their parent
+                }
+
                 var oldBox = node.BoundingBox;
                 node.Update(updateContext);
 
@@ -1748,6 +1753,12 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in AllNodes)
             {
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.LightProbeBinding = globalProbe;
+                    continue;
+                }
+
                 node.LightProbeBinding ??= globalProbe;
             }
         }
@@ -1872,6 +1883,12 @@ namespace ValveResourceFormat.Renderer
                 });
 
                 node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
+
+                // all cubemaps visible
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(LightingInfo.EnvMaps);
+                }
 
 #if DEBUG
                 if (preComputed != default)
