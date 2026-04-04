@@ -27,28 +27,6 @@ namespace ValveResourceFormat.ResourceTypes
             public required EntityLump ParentLump { get; init; }
 
             /// <summary>
-            /// Gets a strongly-typed struct property value by name without type checking.
-            /// </summary>
-            /// <typeparam name="T">The struct type to convert the property value to.</typeparam>
-            /// <param name="name">The property name.</param>
-            /// <param name="defaultValue">The default value to return if the property is not found.</param>
-            /// <returns>The property value or the default value.</returns>
-            public T GetPropertyUnchecked<T>(string name, T defaultValue = default) where T : struct
-            {
-                if (!TryGetValue(name, out var value))
-                {
-                    return defaultValue;
-                }
-
-                if (value == null || value.ValueType == KVValueType.Null)
-                {
-                    return defaultValue;
-                }
-
-                return (T)Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture);
-            }
-
-            /// <summary>
             /// Gets a Vector2 property value by name.
             /// </summary>
             /// <param name="name">The property name.</param>

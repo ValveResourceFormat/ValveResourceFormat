@@ -465,7 +465,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (classname == "info_world_layer")
                 {
-                    var spawnflags = entity.GetPropertyUnchecked<uint>("spawnflags");
+                    var spawnflags = entity.GetUInt32Property("spawnflags");
                     var layername = entity.GetStringProperty("layername");
 
                     // Visible on spawn flag
@@ -552,9 +552,9 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         scene.FogInfo.GradientFogActive = true;
 
-                        var distExponent = entity.GetPropertyUnchecked<float>("fogfalloffexponent");
-                        var startDist = entity.GetPropertyUnchecked<float>("fogstart");
-                        var endDist = entity.GetPropertyUnchecked<float>("fogend");
+                        var distExponent = entity.GetFloatProperty("fogfalloffexponent");
+                        var startDist = entity.GetFloatProperty("fogstart");
+                        var endDist = entity.GetFloatProperty("fogend");
 
                         // Some maps don't have these properties.
                         var useHeightFog = entity.ContainsKey("fogverticalexponent"); // the oldest versions have these values missing, so disable it there
@@ -567,14 +567,14 @@ namespace ValveResourceFormat.Renderer.World
 
                         if (useHeightFog)
                         {
-                            heightExponent = entity.GetPropertyUnchecked<float>("fogverticalexponent");
-                            startHeight = entity.GetPropertyUnchecked<float>("fogstartheight");
-                            endHeight = entity.GetPropertyUnchecked<float>("fogendheight");
+                            heightExponent = entity.GetFloatProperty("fogverticalexponent");
+                            startHeight = entity.GetFloatProperty("fogstartheight");
+                            endHeight = entity.GetFloatProperty("fogendheight");
                         }
 
-                        var strength = entity.GetPropertyUnchecked<float>("fogstrength");
+                        var strength = entity.GetFloatProperty("fogstrength");
                         var color = entity.GetColor32Property("fogcolor");
-                        var maxOpacity = entity.GetPropertyUnchecked<float>("fogmaxopacity");
+                        var maxOpacity = entity.GetFloatProperty("fogmaxopacity");
 
                         scene.FogInfo.GradientFog = new SceneGradientFog(scene)
                         {
@@ -598,11 +598,11 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         scene.FogInfo.CubeFogActive = true;
 
-                        var lodBias = entity.GetPropertyUnchecked<float>("cubemapfoglodbiase");
+                        var lodBias = entity.GetFloatProperty("cubemapfoglodbiase");
 
-                        var falloffExponent = entity.GetPropertyUnchecked<float>("cubemapfogfalloffexponent");
-                        var startDist = entity.GetPropertyUnchecked<float>("cubemapfogstartdistance");
-                        var endDist = entity.GetPropertyUnchecked<float>("cubemapfogenddistance");
+                        var falloffExponent = entity.GetFloatProperty("cubemapfogfalloffexponent");
+                        var startDist = entity.GetFloatProperty("cubemapfogstartdistance");
+                        var endDist = entity.GetFloatProperty("cubemapfogenddistance");
 
                         var hasHeightEnd = entity.ContainsKey("cubemapfogheightend");
 
@@ -614,22 +614,22 @@ namespace ValveResourceFormat.Renderer.World
                         var heightEnd = float.PositiveInfinity;
                         if (useHeightFog)
                         {
-                            heightExponent = entity.GetPropertyUnchecked<float>("cubemapfogheightexponent");
-                            heightStart = entity.GetPropertyUnchecked<float>("cubemapfogheightstart");
+                            heightExponent = entity.GetFloatProperty("cubemapfogheightexponent");
+                            heightStart = entity.GetFloatProperty("cubemapfogheightstart");
                             if (hasHeightEnd)
                             {
                                 // New in CS2
-                                heightEnd = entity.GetPropertyUnchecked<float>("cubemapfogheightend");
+                                heightEnd = entity.GetFloatProperty("cubemapfogheightend");
                             }
                             else
                             {
-                                var heightWidth = entity.GetPropertyUnchecked<float>("cubemapfogheightwidth");
+                                var heightWidth = entity.GetFloatProperty("cubemapfogheightwidth");
                                 heightEnd = heightStart + heightWidth;
                             }
                         }
 
-                        var opacity = entity.GetPropertyUnchecked("cubemapfogmaxopacity", 1f);
-                        var fogSource = entity.GetPropertyUnchecked("cubemapfogsource", 0u);
+                        var opacity = entity.GetFloatProperty("cubemapfogmaxopacity", 1f);
+                        var fogSource = entity.GetUInt32Property("cubemapfogsource");
 
                         RenderTexture? fogTexture = null;
                         var exposureBias = 0.0f;
@@ -734,7 +734,7 @@ namespace ValveResourceFormat.Renderer.World
                     AABB bounds = default;
                     if (classname == "env_cubemap")
                     {
-                        var radius = entity.GetPropertyUnchecked<float>("influenceradius");
+                        var radius = entity.GetFloatProperty("influenceradius");
                         bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
                     }
                     else
@@ -745,7 +745,7 @@ namespace ValveResourceFormat.Renderer.World
                         );
                     }
 
-                    var indoorOutdoorLevel = entity.GetPropertyUnchecked("indoor_outdoor_level", 0);
+                    var indoorOutdoorLevel = entity.GetInt32Property("indoor_outdoor_level");
 
                     if (classname != "env_light_probe_volume")
                     {
@@ -756,7 +756,7 @@ namespace ValveResourceFormat.Renderer.World
 
                         if (envMapTexture != null)
                         {
-                            var arrayIndex = entity.GetPropertyUnchecked("array_index", 0);
+                            var arrayIndex = entity.GetInt32Property("array_index");
                             var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
                             var isCustomTexture = entity.GetStringProperty("customcubemaptexture") != null;
 
@@ -793,7 +793,7 @@ namespace ValveResourceFormat.Renderer.World
                             HandShake = handShake,
                             Irradiance = irradianceTexture,
                             IndoorOutdoorLevel = indoorOutdoorLevel,
-                            VoxelSize = entity.GetPropertyUnchecked<float>("voxel_size")
+                            VoxelSize = entity.GetFloatProperty("voxel_size")
                         };
 
                         var dliName = entity.GetStringProperty("lightprobetexture_dli");
@@ -825,15 +825,15 @@ namespace ValveResourceFormat.Renderer.World
                             lightProbe.DirectLightShadows.SetWrapMode(TextureWrapMode.ClampToEdge);
 
                             lightProbe.AtlasSize = new Vector3(
-                                entity.GetPropertyUnchecked<float>("light_probe_size_x"),
-                                entity.GetPropertyUnchecked<float>("light_probe_size_y"),
-                                entity.GetPropertyUnchecked<float>("light_probe_size_z")
+                                entity.GetFloatProperty("light_probe_size_x"),
+                                entity.GetFloatProperty("light_probe_size_y"),
+                                entity.GetFloatProperty("light_probe_size_z")
                             );
 
                             lightProbe.AtlasOffset = new Vector3(
-                                entity.GetPropertyUnchecked<float>("light_probe_atlas_x"),
-                                entity.GetPropertyUnchecked<float>("light_probe_atlas_y"),
-                                entity.GetPropertyUnchecked<float>("light_probe_atlas_z")
+                                entity.GetFloatProperty("light_probe_atlas_x"),
+                                entity.GetFloatProperty("light_probe_atlas_y"),
+                                entity.GetFloatProperty("light_probe_atlas_z")
                             );
                         }
 
@@ -855,7 +855,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (classname == "sky_camera")
                 {
-                    WorldScale = entity.GetPropertyUnchecked<float>("scale");
+                    WorldScale = entity.GetFloatProperty("scale");
                     WorldOffset = positionVector;
                 }
 
@@ -913,7 +913,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     var isMaster = entity.GetBooleanProperty("master");
                     var useExposure = entity.GetBooleanProperty("enableexposure");
-                    var fadeTime = entity.GetPropertyUnchecked<float>("fadetime");
+                    var fadeTime = entity.GetFloatProperty("fadetime");
 
                     var postProcess = new ScenePostProcessVolume(scene)
                     {
@@ -975,10 +975,10 @@ namespace ValveResourceFormat.Renderer.World
                 }
                 else if (classname == "env_tonemap_controller")
                 {
-                    var minExposureTC = entity.GetPropertyUnchecked<float>("minexposure");
-                    var maxExposureTC = entity.GetPropertyUnchecked<float>("maxexposure");
-                    var exposureRate = entity.GetPropertyUnchecked<float>("rate");
-                    //var isMasterTC = entity.GetPropertyUnchecked<bool>("master"); // master actually doesn't do anything
+                    var minExposureTC = entity.GetFloatProperty("minexposure");
+                    var maxExposureTC = entity.GetFloatProperty("maxexposure");
+                    var exposureRate = entity.GetFloatProperty("rate");
+                    //var isMasterTC = entity.GetBooleanProperty("master"); // master actually doesn't do anything
 
                     var exposureSettings = new ExposureSettings()
                     {
@@ -1032,7 +1032,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 // todo: rendercolor might sometimes be vec4, which holds renderamt
                 var rendercolor = entity.GetColor32Property("rendercolor");
-                var renderamt = entity.GetPropertyUnchecked("renderamt", 1.0f);
+                var renderamt = entity.GetFloatProperty("renderamt", 1.0f);
 
                 if (renderamt > 1f)
                 {
@@ -1063,7 +1063,7 @@ namespace ValveResourceFormat.Renderer.World
                         var isAnimated = modelNode.SetAnimationForWorldPreview(animation);
                         if (isAnimated)
                         {
-                            var holdAnimationOn = entity.GetPropertyUnchecked<bool>("holdanimation");
+                            var holdAnimationOn = entity.GetBooleanProperty("holdanimation");
                             if (holdAnimationOn)
                             {
                                 modelNode.AnimationController.PauseLastFrame();
@@ -1071,7 +1071,7 @@ namespace ValveResourceFormat.Renderer.World
                         }
                     }
 
-                    var body = entity.GetPropertyUnchecked("body", -1L);
+                    var body = entity.GetIntegerProperty("body", -1L);
                     if (body != -1L)
                     {
                         var groups = modelNode.GetMeshGroups();

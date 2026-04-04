@@ -163,15 +163,15 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             var settings = new ExposureSettings
             {
                 ExposureMin = entity.ContainsKey("minlogexposure")
-                    ? MathF.Pow(2, entity.GetPropertyUnchecked<float>("minlogexposure"))
-                    : entity.GetPropertyUnchecked("minexposure", def.ExposureMin),
+                    ? MathF.Pow(2, entity.GetFloatProperty("minlogexposure"))
+                    : entity.GetFloatProperty("minexposure", def.ExposureMin),
                 ExposureMax = entity.ContainsKey("maxlogexposure")
-                    ? MathF.Pow(2, entity.GetPropertyUnchecked<float>("maxlogexposure"))
-                    : entity.GetPropertyUnchecked("maxexposure", def.ExposureMax),
-                ExposureSpeedUp = entity.GetPropertyUnchecked("exposurespeedup", def.ExposureSpeedUp),
-                ExposureSpeedDown = entity.GetPropertyUnchecked("exposurespeeddown", def.ExposureSpeedDown),
-                ExposureCompensation = entity.GetPropertyUnchecked("exposurecompensation", def.ExposureCompensation),
-                ExposureSmoothingRange = entity.GetPropertyUnchecked("exposuresmoothingrange", def.ExposureSmoothingRange),
+                    ? MathF.Pow(2, entity.GetFloatProperty("maxlogexposure"))
+                    : entity.GetFloatProperty("maxexposure", def.ExposureMax),
+                ExposureSpeedUp = entity.GetFloatProperty("exposurespeedup", def.ExposureSpeedUp),
+                ExposureSpeedDown = entity.GetFloatProperty("exposurespeeddown", def.ExposureSpeedDown),
+                ExposureCompensation = entity.GetFloatProperty("exposurecompensation", def.ExposureCompensation),
+                ExposureSmoothingRange = entity.GetFloatProperty("exposuresmoothingrange", def.ExposureSmoothingRange),
                 AutoExposureEnabled = entity.GetBooleanProperty("enableexposure"), // todo: test where this is enabled/disabled
             };
 

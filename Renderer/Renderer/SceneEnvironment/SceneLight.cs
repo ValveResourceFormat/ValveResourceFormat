@@ -213,7 +213,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var light = new SceneLight(scene)
         {
             StationaryLightIndex =
-                entity.GetPropertyUnchecked("bakedshadowindex", entity.GetPropertyUnchecked("bakelightindex", -1)),
+                entity.GetInt32Property("bakedshadowindex", entity.GetInt32Property("bakelightindex", -1)),
             Entity = type,
             Type = type switch
             {
@@ -232,29 +232,29 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
             Brightness = type switch
             {
-                EntityType.Environment or EntityType.Omni or EntityType.Spot => entity.GetPropertyUnchecked(
+                EntityType.Environment or EntityType.Omni or EntityType.Spot => entity.GetFloatProperty(
                     "brightness", 1.0f),
-                _ => entity.GetPropertyUnchecked("brightness_lumens", 224.0f)
+                _ => entity.GetFloatProperty("brightness_lumens", 224.0f)
             },
 
-            BrightnessScale = entity.GetPropertyUnchecked("brightnessscale", 1.0f),
-            Range = entity.GetPropertyUnchecked("range", 512.0f),
-            FallOff = entity.GetPropertyUnchecked("skirt", 0.1f)
+            BrightnessScale = entity.GetFloatProperty("brightnessscale", 1.0f),
+            Range = entity.GetFloatProperty("range", 512.0f),
+            FallOff = entity.GetFloatProperty("skirt", 0.1f)
         };
 
         var isNewLightType = type is EntityType.Omni2 or EntityType.Barn or EntityType.Rect;
 
         if (!isNewLightType)
         {
-            light.AttenuationLinear = entity.GetPropertyUnchecked("attenuation1", 0.0f);
-            light.AttenuationQuadratic = entity.GetPropertyUnchecked("attenuation2", 0.0f);
+            light.AttenuationLinear = entity.GetFloatProperty("attenuation1");
+            light.AttenuationQuadratic = entity.GetFloatProperty("attenuation2");
         }
 
         if (isNewLightType || type is EntityType.Environment)
         {
-            light.DirectLight = (DirectLightType)entity.GetPropertyUnchecked("directlight", 2);
-            light.CastShadows = entity.GetPropertyUnchecked("castshadows", 1);
-            light.ShadowMapSize = entity.GetPropertyUnchecked("shadowmapsize", 1024);
+            light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", 2);
+            light.CastShadows = entity.GetInt32Property("castshadows", 1);
+            light.ShadowMapSize = entity.GetInt32Property("shadowmapsize", 1024);
             if (light.ShadowMapSize <= 0)
             {
                 light.ShadowMapSize = 1024;
@@ -263,40 +263,40 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         if (type is EntityType.Spot or EntityType.Barn)
         {
-            light.SpotInnerAngle = entity.GetPropertyUnchecked("innerconeangle", light.SpotInnerAngle);
-            light.SpotOuterAngle = entity.GetPropertyUnchecked("outerconeangle", light.SpotOuterAngle);
+            light.SpotInnerAngle = entity.GetFloatProperty("innerconeangle", light.SpotInnerAngle);
+            light.SpotOuterAngle = entity.GetFloatProperty("outerconeangle", light.SpotOuterAngle);
         }
 
         if (type is EntityType.Barn)
         {
-            light.SoftX = entity.GetPropertyUnchecked("soft_x", 0.25f);
-            light.SoftY = entity.GetPropertyUnchecked("soft_y", 0.25f);
-            light.SkirtNear = entity.GetPropertyUnchecked("skirt_near", 0.05f);
-            light.Shape = entity.GetPropertyUnchecked("shape", 0f);
-            light.LuminaireSize = entity.GetPropertyUnchecked("luminaire_size", 4f);
-            light.LuminaireShape = entity.GetPropertyUnchecked("luminaire_shape", 0);
-            light.LuminaireAnisotropy = entity.GetPropertyUnchecked("luminaire_anisotropy", 0f);
+            light.SoftX = entity.GetFloatProperty("soft_x", 0.25f);
+            light.SoftY = entity.GetFloatProperty("soft_y", 0.25f);
+            light.SkirtNear = entity.GetFloatProperty("skirt_near", 0.05f);
+            light.Shape = entity.GetFloatProperty("shape");
+            light.LuminaireSize = entity.GetFloatProperty("luminaire_size", 4f);
+            light.LuminaireShape = entity.GetInt32Property("luminaire_shape");
+            light.LuminaireAnisotropy = entity.GetFloatProperty("luminaire_anisotropy");
             light.SizeParams = entity.GetVector3Property("size_params");
             light.CookieTexturePath = entity.GetStringProperty("lightcookie");
-            light.MinRoughness = entity.GetPropertyUnchecked("minroughness", 0.04f);
+            light.MinRoughness = entity.GetFloatProperty("minroughness", 0.04f);
 
             light.Shear = entity.GetVector2Property("shear");
         }
 
         if (type is EntityType.Omni2)
         {
-            light.SpotInnerAngle = entity.GetPropertyUnchecked("inner_angle", 0f);
-            light.SpotOuterAngle = entity.GetPropertyUnchecked("outer_angle", 180f);
+            light.SpotInnerAngle = entity.GetFloatProperty("inner_angle");
+            light.SpotOuterAngle = entity.GetFloatProperty("outer_angle", 180f);
             light.SizeParams = entity.GetVector3Property("size_params");
             light.CookieTexturePath = entity.GetStringProperty("lightcookie");
-            light.MinRoughness = entity.GetPropertyUnchecked("minroughness", 0.04f);
-            light.LuminaireShape = entity.GetPropertyUnchecked("shape", 0);
-            light.LuminaireSize = entity.GetPropertyUnchecked("luminaire_size", 0f);
+            light.MinRoughness = entity.GetFloatProperty("minroughness", 0.04f);
+            light.LuminaireShape = entity.GetInt32Property("shape");
+            light.LuminaireSize = entity.GetFloatProperty("luminaire_size");
         }
 
         if (isNewLightType)
         {
-            light.PrecomputedFieldsValid = entity.GetPropertyUnchecked<int>("precomputedfieldsvalid") != 0;
+            light.PrecomputedFieldsValid = entity.GetInt32Property("precomputedfieldsvalid") != 0;
             if (light.PrecomputedFieldsValid)
             {
                 light.PrecomputedObbOrigin = entity.GetVector3Property("precomputedobborigin");
@@ -306,7 +306,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                 var boundsMaxs = entity.GetVector3Property("precomputedboundsmaxs");
                 light.PrecomputedBounds = new AABB(boundsMins, boundsMaxs);
 
-                light.PrecomputedSubfrusta = entity.GetPropertyUnchecked<int>("precomputedsubfrusta");
+                light.PrecomputedSubfrusta = entity.GetInt32Property("precomputedsubfrusta");
                 if (light.PrecomputedSubfrusta > 0)
                 {
                     light.PrecomputedSubObbOrigins = new Vector3[light.PrecomputedSubfrusta];

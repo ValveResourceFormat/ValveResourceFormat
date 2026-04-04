@@ -438,7 +438,7 @@ namespace ValveResourceFormat.IO
 
                 // todo: rendercolor might sometimes be vec4, which holds renderamt
                 var rendercolor = entity.GetColor32Property("rendercolor");
-                var renderamt = entity.GetPropertyUnchecked("renderamt", 1.0f);
+                var renderamt = entity.GetFloatProperty("renderamt", 1.0f);
 
                 if (renderamt > 1f)
                 {
@@ -931,7 +931,7 @@ namespace ValveResourceFormat.IO
 
         private static PunctualLight CreateGltfLightEnvironment(ModelRoot exportedModel, VEntityLump.Entity entity)
         {
-            var intensity = entity.GetPropertyUnchecked("brightness", 1f);
+            var intensity = entity.GetFloatProperty("brightness", 1f);
             var color = entity.GetColor32Property("color");
             color = ColorSpace.SrgbGammaToLinear(color);
 
