@@ -1,8 +1,6 @@
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
     /// <summary>
@@ -18,7 +16,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets the name of the event.
         /// </summary>
-        public string Name { get; init; }
+        public required string Name { get; init; }
 
         /// <summary>
         /// Gets the start time of the event.
@@ -33,22 +31,22 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets the first parameter of the event.
         /// </summary>
-        public string Param1 { get; init; }
+        public required string Param1 { get; init; }
 
         /// <summary>
         /// Gets the second parameter of the event.
         /// </summary>
-        public string Param2 { get; init; }
+        public required string Param2 { get; init; }
 
         /// <summary>
         /// Gets the third parameter of the event.
         /// </summary>
-        public string Param3 { get; init; }
+        public required string Param3 { get; init; }
 
         /// <summary>
         /// Gets the ramp curve data for the event.
         /// </summary>
-        public ChoreoCurveData Ramp { get; init; }
+        public required ChoreoCurveData Ramp { get; init; }
 
         /// <summary>
         /// Gets the flags for the event.
@@ -63,22 +61,22 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets the relative tags for the event.
         /// </summary>
-        public ChoreoTag[] RelativeTags { get; init; }
+        public required ChoreoTag[] RelativeTags { get; init; }
 
         /// <summary>
         /// Gets the flex timing tags for the event.
         /// </summary>
-        public ChoreoTag[] FlexTimingTags { get; init; }
+        public required ChoreoTag[] FlexTimingTags { get; init; }
 
         /// <summary>
         /// Gets the playback time tags for the event.
         /// </summary>
-        public ChoreoTag[] PlaybackTimeTags { get; init; }
+        public required ChoreoTag[] PlaybackTimeTags { get; init; }
 
         /// <summary>
         /// Gets the shifted time tags for the event.
         /// </summary>
-        public ChoreoTag[] ShiftedTimeTags { get; init; }
+        public required ChoreoTag[] ShiftedTimeTags { get; init; }
 
         /// <summary>
         /// Gets the sequence duration.
@@ -88,12 +86,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets the relative tag for the event.
         /// </summary>
-        public ChoreoEventRelativeTag RelativeTag { get; init; }
+        public ChoreoEventRelativeTag? RelativeTag { get; init; }
 
         /// <summary>
         /// Gets the event flex data.
         /// </summary>
-        public ChoreoEventFlex EventFlex { get; init; }
+        public required ChoreoEventFlex EventFlex { get; init; }
 
         /// <summary>
         /// Gets the loop count for the event.
@@ -108,7 +106,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets the closed captions token.
         /// </summary>
-        public string ClosedCaptionsToken { get; init; }
+        public string? ClosedCaptionsToken { get; init; }
 
         /// <summary>
         /// Gets the speak flags for the event.
@@ -133,7 +131,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <summary>
         /// Gets the preferred name of the event.
         /// </summary>
-        public string PreferredName { get; init; }
+        public string? PreferredName { get; init; }
 
         /// <summary>
         /// Converts this event to a <see cref="KVObject"/>.
@@ -163,7 +161,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                     _ => ""
                 };
                 kv.Add("cctype", ccType);
-                kv.Add("cctoken", ClosedCaptionsToken);
+                kv.Add("cctoken", ClosedCaptionsToken ?? string.Empty);
             }
 
             AddKVFlag(kv, "cc_noattenuate", SpeakFlags, ChoreoSpeakFlags.SuppressingCaptionAttenuation, false);
@@ -208,11 +206,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             kv.Add("eventID", Id);
 
-            if (Ramp?.LeftEdge != null)
+            if (Ramp.LeftEdge != null)
             {
                 kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues());
             }
-            if (Ramp?.RightEdge != null)
+            if (Ramp.RightEdge != null)
             {
                 kv.Add("right_edge", Ramp.RightEdge.ToKeyValues());
             }

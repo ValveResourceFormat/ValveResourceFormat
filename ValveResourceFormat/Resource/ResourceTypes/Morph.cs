@@ -5,8 +5,6 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -17,22 +15,22 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the flex rules that define how controllers affect morphs.
         /// </summary>
-        public FlexRule[] FlexRules { get; private set; }
+        public FlexRule[] FlexRules { get; private set; } = [];
 
         /// <summary>
         /// Gets the flex controllers that drive morph animations.
         /// </summary>
-        public FlexController[] FlexControllers { get; private set; }
+        public FlexController[] FlexControllers { get; private set; } = [];
 
         /// <summary>
         /// Gets the texture containing encoded morph deltas.
         /// </summary>
-        public Texture Texture { get; private set; }
+        public Texture? Texture { get; private set; }
 
         /// <summary>
         /// Gets the resource containing the morph texture.
         /// </summary>
-        public Resource TextureResource { get; private set; }
+        public Resource? TextureResource { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Morph"/> class.
@@ -182,7 +180,11 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            Texture = (Texture)TextureResource.DataBlock;
+            Texture = TextureResource.DataBlock as Texture;
+            if (Texture == null)
+            {
+                return;
+            }
 
             FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
                 .Select(kv => ParseFlexRule(kv))
@@ -207,20 +209,20 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var flexId = kv.GetInt32Property("m_nFlex");
 
-            var flexOps = (kv.GetArray("m_FlexOps") ?? [])
+            var parsedOps = (kv.GetArray("m_FlexOps") ?? [])
                 .Select(flexOp => ParseFlexOp(flexOp))
                 .ToArray();
 
-            if (flexOps.Any(op => op == null))
+            // If there is an unimplemented flexop type in this rule, set the morph to zero instead to avoid exceptions.
+            if (Array.IndexOf(parsedOps, null) >= 0)
             {
-                //There is an unimplemented flexop type in this rule, let's make a flexrule that sets the morph to zero instead to avoid exceptions.
-                flexOps = [new FlexOpConst(0f)];
+                return new FlexRule(flexId, [new FlexOpConst(0f)]);
             }
 
-            return new FlexRule(flexId, flexOps);
+            return new FlexRule(flexId, Array.ConvertAll(parsedOps, op => op!));
         }
 
-        private static FlexOp ParseFlexOp(KVObject kv)
+        private static FlexOp? ParseFlexOp(KVObject kv)
         {
             var opCode = kv.GetStringProperty("m_OpCode");
             var data = kv.GetInt32Property("m_Data");

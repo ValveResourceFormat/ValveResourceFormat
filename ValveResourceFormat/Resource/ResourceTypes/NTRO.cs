@@ -6,8 +6,6 @@ using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -18,14 +16,14 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the output data.
         /// </summary>
-        public KVObject Output { get; private set; }
+        public KVObject Output { get; private set; } = null!;
         /// <summary>
         /// Gets or sets the struct name.
         /// </summary>
-        public string StructName { get; init; }
+        public string? StructName { get; init; }
 
-        private BinaryReader Reader => Resource.Reader;
-        private ResourceIntrospectionManifest IntrospectionManifest;
+        private BinaryReader Reader => Resource.Reader!;
+        private ResourceIntrospectionManifest? IntrospectionManifest;
 
         /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
@@ -33,13 +31,15 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
-            IntrospectionManifest = (ResourceIntrospectionManifest)Resource.GetBlockByType(BlockType.NTRO);
+            IntrospectionManifest = (ResourceIntrospectionManifest?)Resource.GetBlockByType(BlockType.NTRO)
+                ?? throw new InvalidOperationException("Resource does not contain an NTRO block.");
 
             try
             {
                 if (StructName != null)
                 {
-                    var refStruct = IntrospectionManifest.ReferencedStructs.Find(s => s.Name == StructName);
+                    var refStruct = IntrospectionManifest.ReferencedStructs.Find(s => s.Name == StructName)
+                        ?? throw new InvalidOperationException($"Could not find struct '{StructName}' in introspection manifest.");
 
                     Output = ReadStructure(refStruct, Offset);
 
@@ -61,6 +61,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private KVObject ReadStructure(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, long startingOffset)
         {
+            Debug.Assert(IntrospectionManifest != null);
+
             var structEntry = KVObject.Collection();
 
             foreach (var field in refStruct.FieldIntrospection)
@@ -241,6 +243,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private KVObject ReadField(ResourceIntrospectionManifest.ResourceDiskStruct.Field field)
         {
+            Debug.Assert(IntrospectionManifest != null);
+
             switch (field.Type)
             {
                 case SchemaFieldType.Struct:

@@ -2,8 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using ValveKeyValue;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     public partial class BinaryKV3
@@ -92,7 +90,7 @@ namespace ValveResourceFormat.ResourceTypes
             using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
 
             writer.Write(MAGIC4);
-            writer.Write(Data.Header.Format.Id.ToByteArray());
+            writer.Write(Data.Header!.Format.Id.ToByteArray());
             writer.Write(0); // 0 = no compression
             writer.Write((ushort)0); // compressionDictionaryId
             writer.Write((ushort)0); // compressionFrameSize

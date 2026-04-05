@@ -86,25 +86,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Interpolates linearly between two movement states using <paramref name="t"/> in the range [0, 1].
         /// </summary>
-        public static MovementData Lerp(AnimationMovement a, AnimationMovement b, float t)
+        public static MovementData Lerp(AnimationMovement? a, AnimationMovement? b, float t)
         {
-            if (a == null && b == null)
+            return (a, b) switch
             {
-                return new();
-            }
-
-            if (a == null)
-            {
-                return Lerp(Vector3.Zero, 0, b.Position, b.Angle, t);
-            }
-            else if (b == null)
-            {
-                return Lerp(a.Position, a.Angle, Vector3.Zero, 0f, t);
-            }
-            else
-            {
-                return Lerp(a.Position, a.Angle, b.Position, b.Angle, t);
-            }
+                (null, null) => new(),
+                (null, _) => Lerp(Vector3.Zero, 0, b.Position, b.Angle, t),
+                (_, null) => Lerp(a.Position, a.Angle, Vector3.Zero, 0f, t),
+                _ => Lerp(a.Position, a.Angle, b.Position, b.Angle, t),
+            };
         }
 
         private static MovementData Lerp(Vector3 aPos, float aAngle, Vector3 bPos, float bAngle, float t)

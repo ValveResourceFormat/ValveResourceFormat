@@ -9,8 +9,6 @@ using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
@@ -63,7 +61,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the deserialized KeyValues3 data.
         /// </summary>
-        public KVDocument Data { get; private set; }
+        public KVDocument Data { get; private set; } = null!;
 
         private class Buffers
         {
@@ -80,9 +78,9 @@ namespace ValveResourceFormat.ResourceTypes
             public ArraySegment<byte> ObjectLengths;
             public ArraySegment<byte> BinaryBlobs;
             public ArraySegment<byte> BinaryBlobLengths;
-            public string[] Strings;
-            public Buffers Buffer;
-            public Buffers AuxiliaryBuffer;
+            public string[] Strings = null!;
+            public Buffers Buffer = null!;
+            public Buffers AuxiliaryBuffer = null!;
         }
 
         /// <summary>
@@ -281,13 +279,13 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var buffer1Raw = ArrayPool<byte>.Shared.Rent(version < 5 && compressionMethod == 2 ? sizeUncompressedBuffer1 + sizeBinaryBlobsBytes : sizeUncompressedBuffer1);
-            byte[] buffer2Raw = null;
-            byte[] binaryBlobsRaw = null;
-            ZstdSharp.Decompressor zstdDecompressor = null;
+            byte[]? buffer2Raw = null;
+            byte[]? binaryBlobsRaw = null;
+            ZstdSharp.Decompressor? zstdDecompressor = null;
 
             try
             {
-                ArraySegment<byte> bufferWithBinaryBlobSizes = null;
+                ArraySegment<byte> bufferWithBinaryBlobSizes = default;
 
                 // Buffer 1
                 {
@@ -561,7 +559,7 @@ namespace ValveResourceFormat.ResourceTypes
                 if (countBlocks > 0)
                 {
                     Debug.Assert(version >= 2);
-                    Debug.Assert(bufferWithBinaryBlobSizes != null);
+                    Debug.Assert(bufferWithBinaryBlobSizes.Array != null);
 
                     {
                         var end = countBlocks * sizeof(int);

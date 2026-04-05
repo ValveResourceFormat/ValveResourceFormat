@@ -6,8 +6,6 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization.KeyValues;
 
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
@@ -60,8 +58,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public bool Autoplay { get; init; }
 
-        private AnimationFrameBlock[] FrameBlocks { get; }
-        private AnimationSegmentDecoder[] SegmentArray { get; }
+        private AnimationFrameBlock[] FrameBlocks { get; } = [];
+        private AnimationSegmentDecoder?[] SegmentArray { get; } = [];
 
         /// <summary>
         /// Gets the movement data for this animation.
@@ -98,7 +96,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public bool FromSequence { get; }
 
-        private Animation(KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
+        private Animation(KVObject animDesc, AnimationSegmentDecoder?[] segmentArray)
         {
             // Get animation properties
             Name = animDesc.GetStringProperty("m_name");
@@ -145,7 +143,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Constructor for creating animation from sequence descriptor (ASEQ) and animation data (ANIM).
         /// </summary>
-        private Animation(KVObject seqDesc, KVObject animDesc, AnimationSegmentDecoder[] segmentArray)
+        private Animation(KVObject seqDesc, KVObject animDesc, AnimationSegmentDecoder?[] segmentArray)
         {
             // Name and metadata from sequence descriptor
             Name = seqDesc.GetStringProperty("m_sName");
@@ -211,7 +209,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Builds animation segment decoders from animation data and decode key.
         /// </summary>
-        private static AnimationSegmentDecoder[] BuildSegmentArray(
+        private static AnimationSegmentDecoder?[] BuildSegmentArray(
             KVObject animationData,
             KVObject decodeKey,
             Skeleton skeleton,
@@ -233,7 +231,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             var segmentArrayKV = animationData.GetArray("m_segmentArray");
-            var segmentArray = new AnimationSegmentDecoder[segmentArrayKV.Count];
+            var segmentArray = new AnimationSegmentDecoder?[segmentArrayKV.Count];
             for (var i = 0; i < segmentArrayKV.Count; i++)
             {
                 var segmentKV = segmentArrayKV[i];
@@ -289,9 +287,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     _ => null,
                 };
 
-                if (segmentArray[i] != null)
+                var segment = segmentArray[i];
+                if (segment != null)
                 {
-                    segmentArray[i].Initialize(containerSegment, wantedElements, remapTable, localChannel.Attribute, numElements);
+                    segment.Initialize(containerSegment, wantedElements, remapTable, localChannel.Attribute, numElements);
                     continue;
                 }
 
@@ -411,7 +410,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             => FromData(GetAnimationData(resource), decodeKey, skeleton, flexControllers);
 
         private static KVObject GetAnimationData(Resource resource)
-            => resource.DataBlock.AsKeyValueCollection();
+            => (resource.DataBlock ?? throw new InvalidOperationException("Resource has no data block.")).AsKeyValueCollection();
 
         private int GetMovementIndexForTime(float time)
         {
@@ -475,7 +474,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Returns root motion data at the specified animation time for interpolation.
         /// </summary>
-        private void GetMovementForTime(float time, out AnimationMovement lastMovement, out AnimationMovement nextMovement, out float t)
+        private void GetMovementForTime(float time, out AnimationMovement? lastMovement, out AnimationMovement nextMovement, out float t)
         {
             time %= FrameCount / Fps;
 
@@ -506,7 +505,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Gets the animation clip data for ModelAnimation2 format.
         /// </summary>
-        public AnimationClip Clip { get; }
+        public AnimationClip? Clip { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Animation"/> class from an animation clip.
