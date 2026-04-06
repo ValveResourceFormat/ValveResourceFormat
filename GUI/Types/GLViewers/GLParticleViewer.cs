@@ -40,7 +40,7 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
-            particleSceneNode = new ParticleSceneNode(Scene, particleSystem)
+            particleSceneNode = new ParticleSceneNode(Scene, particleSystem, null, true)
             {
                 Transform = Matrix4x4.Identity
             };

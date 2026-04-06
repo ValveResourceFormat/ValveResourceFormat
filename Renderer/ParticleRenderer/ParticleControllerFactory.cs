@@ -130,6 +130,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_RenderSprites"] = (rendererInfo, rendererContext, scene) => new RenderSprites(rendererInfo, rendererContext),
                 ["C_OP_RenderTrails"] = (rendererInfo, rendererContext, scene) => new RenderTrails(rendererInfo, rendererContext),
                 ["C_OP_RenderStandardLight"] = (rendererInfo, rendererContext, scene) => new RenderStandardLight(rendererInfo, rendererContext, scene),
+                ["C_OP_RenderOmni2Light"] = (rendererInfo, rendererContext, scene) => new RenderOmni2Light(rendererInfo, rendererContext, scene),
             };
 
         // Register particle pre-emission operators (mostly stuff with control points)

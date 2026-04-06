@@ -129,8 +129,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the luminaire anisotropy for capsule-shaped area lights.</summary>
     public float LuminaireAnisotropy { get; set; }
 
-    /// <summary>Gets or sets the luminaire shape index (0 = sphere, 1 = capsule, 2 = rect).</summary>
-    public int LuminaireShape { get; set; }
+    /// <summary>Gets or sets the luminaire shape index (-1 = point, 0 = sphere, 1 = capsule, 2 = rect).</summary>
+    public int LuminaireShape { get; set; } = -1;
 
     /// <summary>Gets or sets the minimum roughness clamped for specular highlight calculations.</summary>
     public float MinRoughness { get; set; } = 0.04f;

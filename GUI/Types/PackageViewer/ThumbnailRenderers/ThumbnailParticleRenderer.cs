@@ -10,7 +10,7 @@ internal class ThumbnailParticleRenderer : ThumbnailRenderer
     {
         var particleSystem = (ParticleSystem)resource.DataBlock!;
 
-        var particleSceneNode = new ParticleSceneNode(SceneRenderer!.Scene, particleSystem);
+        var particleSceneNode = new ParticleSceneNode(SceneRenderer!.Scene, particleSystem, null, true);
         SceneRenderer.Scene.Add(particleSceneNode, true);
 
         // Update once with 100ms to give particles a chance to simulate/emit/start rendering

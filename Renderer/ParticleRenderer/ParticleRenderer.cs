@@ -594,6 +594,10 @@ namespace ValveResourceFormat.Renderer.Particles
                 {
                     standardLight.Delete();
                 }
+                else if (renderer is RenderOmni2Light omni2Light)
+                {
+                    omni2Light.Delete();
+                }
             }
 
             foreach (var childRenderer in childParticleRenderers)
