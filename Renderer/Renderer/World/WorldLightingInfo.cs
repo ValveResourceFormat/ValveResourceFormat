@@ -427,7 +427,7 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                if (light.IsDirty)
+                if (light.IsDirty && light.IsValid)
                 {
                     light.ComputeBarnFaces(BarnLightCookiePaths!);
                     light.IsDirty = false;
