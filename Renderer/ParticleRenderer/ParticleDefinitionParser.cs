@@ -11,11 +11,11 @@ namespace ValveResourceFormat.Renderer.Particles;
 /// </summary>
 record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
 {
-    private readonly T GetValueOrDefault<T>(string key, Func<string, T> parsingMethod, T @default)
+    private readonly T GetValueOrDefault<T>(string key, Func<string, T?> parsingMethod, T @default)
     {
         if (Data.ContainsKey(key))
         {
-            return parsingMethod(key);
+            return parsingMethod(key) ?? @default;
         }
 
         return @default;
@@ -79,9 +79,14 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
 
     /// <summary>Reads and constructs an <see cref="INumberProvider"/> from the property at <paramref name="key"/>, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly INumberProvider NumberProvider(string key, INumberProvider @default) => GetValueOrDefault(key, NumberProvider, @default);
-    private readonly INumberProvider NumberProvider(string key)
+    private readonly INumberProvider? NumberProvider(string key)
     {
         var pfParameters = Data.GetSubCollection(key);
+
+        if (pfParameters.IsNull)
+        {
+            return null;
+        }
 
         if (pfParameters.IsCollection)
         {
@@ -174,12 +179,14 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
                     return new FloatInterpolationVectorProvider(parse, false);
                 case "PVEC_TYPE_FLOAT_INTERP_GRADIENT":
                     return new ColorGradientVectorProvider(parse);
+                case "PVEC_TYPE_RANDOM_UNIFORM":
+                    return new RandomUniformVectorProvider(parse);
+                case "PVEC_TYPE_RANDOM_UNIFORM_OFFSET":
+                    return new RandomUniformOffsetVectorProvider(parse);
                 /* UNSUPPORTED:
                  * PVEC_TYPE_NAMED_VALUE - new in dota
                  * PVEC_TYPE_PARTICLE_VELOCITY - new in dota
                  * PVEC_TYPE_CP_RELATIVE_RANDOM_DIR - new in dota. presumably relative dir but the value is random per particle?
-                 * PVEC_TYPE_RANDOM_UNIFORM - new in dota. uses vRandomMin and vRandomMax
-                 * PVEC_TYPE_RANDOM_UNIFORM_OFFSET - new in dota
                  */
                 default:
                     if (pvecParameters.ContainsKey("m_vLiteralValue"))

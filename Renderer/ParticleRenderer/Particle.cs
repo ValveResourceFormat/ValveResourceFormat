@@ -49,6 +49,28 @@ namespace ValveResourceFormat.Renderer.Particles
         public Vector3 RotationSpeed { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets the current velocity of the particle.</summary>
         public Vector3 Velocity { get; set; } = Vector3.Zero;
+
+        /// <summary>
+        /// Gets or sets the normalized direction vector derived from the particle's yaw/pitch rotation.
+        /// </summary>
+        public Vector3 Normal
+        {
+            readonly get => Vector3.Transform(new Vector3(0, 0, 1), GetRotationMatrix());
+            set
+            {
+                var normal = Vector3.Normalize(value);
+
+                if (normal == Vector3.Zero)
+                {
+                    return;
+                }
+
+                var yaw = MathF.Atan2(normal.X, normal.Z);
+                var pitch = MathF.Asin(Math.Clamp(normal.Y, -1f, 1f));
+                Rotation = new Vector3(yaw, pitch, Rotation.Z);
+            }
+        }
+
         /// <summary>Gets the particle's age as a fraction of its lifetime. May exceed 1 if the particle outlives its lifetime.</summary>
         public readonly float NormalizedAge => Age / Math.Max(0.0001f, Lifetime); //Old version: 1 - (Lifetime / ConstantLifetime);
         /// <summary>Gets or sets the scalar speed of the particle, adjusting velocity direction when set.</summary>
@@ -60,9 +82,15 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Gets or sets the sprite sheet sequence number.</summary>
         public int Sequence { get; set; } = 0;
 
+        /// <summary>Gets or sets the manually selected animation frame index.</summary>
+        public int ManualAnimationFrame { get; set; } = 0;
+
         // Varying properties that we don't really support but are here in case they're used across operators
         /// <summary>Gets or sets a secondary sprite sheet sequence number.</summary>
         public int Sequence2 { get; set; } = 0;
+
+        /// <summary>Gets or sets the index of the particle's parent particle in a parent system.</summary>
+        public int ParentParticleIndex { get; set; } = -1;
 
         /// <summary>Gets or sets the alpha window threshold scratch value.</summary>
         public float AlphaWindowThreshold { get; set; } = 0f;

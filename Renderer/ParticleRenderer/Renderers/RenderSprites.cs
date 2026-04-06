@@ -196,34 +196,41 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     {
                         var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
 
-                        var animationTime = animationType switch
-                        {
-                            ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particle.Age,
-                            ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particle.NormalizedAge,
-                            ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES => particle.Age, // literally dont know what to do with this one
-                            _ => particle.Age,
-                        };
-
                         var frameId = 0;
 
                         if (sequence.Frames.Length > 1)
                         {
-                            if (animateInFps)
+                            if (animationType == ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES)
                             {
-                                frameId = (int)(animationRate * animationTime);
+                                frameId = particle.ManualAnimationFrame;
+                            }
+                            else if (animateInFps)
+                            {
+                                frameId = (int)(animationRate * particle.Age);
                             }
                             else
                             {
+                                var animationTime = animationType switch
+                                {
+                                    ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particle.Age,
+                                    ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particle.NormalizedAge,
+                                    _ => particle.Age,
+                                };
+
                                 frameId = (int)(animationTime * animationRate * sequence.FramesPerSecond);
                             }
 
                             if (sequence.Clamp)
                             {
-                                frameId = Math.Min(frameId, sequence.Frames.Length - 1);
+                                frameId = Math.Clamp(frameId, 0, sequence.Frames.Length - 1);
                             }
                             else
                             {
                                 frameId %= sequence.Frames.Length;
+                                if (frameId < 0)
+                                {
+                                    frameId += sequence.Frames.Length;
+                                }
                             }
                         }
 

@@ -1,3 +1,4 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles
@@ -158,6 +159,44 @@ namespace ValveResourceFormat.Renderer.Particles
                 return Vector3.Zero;
             }
             return cpDirection - relativeDirection;
+        }
+    }
+
+    class RandomUniformVectorProvider : IVectorProvider
+    {
+        private readonly Vector3 min;
+        private readonly Vector3 max;
+
+        public RandomUniformVectorProvider(ParticleDefinitionParser parse)
+        {
+            min = parse.Vector3("m_vRandomMin");
+            max = parse.Vector3("m_vRandomMax");
+        }
+
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
+        {
+            return new Vector3(
+                ParticleSystemRenderState.RandomFloat(min.X, max.X),
+                ParticleSystemRenderState.RandomFloat(min.Y, max.Y),
+                ParticleSystemRenderState.RandomFloat(min.Z, max.Z));
+        }
+    }
+
+    class RandomUniformOffsetVectorProvider : RandomUniformVectorProvider
+    {
+        private readonly ParticleField VectorAttribute;
+        private readonly Vector3 VectorAttributeScale = Vector3.One;
+
+        public RandomUniformOffsetVectorProvider(ParticleDefinitionParser parse) : base(parse)
+        {
+            VectorAttribute = parse.ParticleField("m_nVectorAttribute");
+            VectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", VectorAttributeScale);
+        }
+
+        public new Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
+        {
+            var baseValue = VectorAttributeScale * particle.GetVector(VectorAttribute);
+            return baseValue + base.NextVector(ref particle, renderState);
         }
     }
 

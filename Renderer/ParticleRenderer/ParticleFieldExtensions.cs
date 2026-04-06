@@ -57,9 +57,12 @@ namespace ValveResourceFormat.Renderer.Particles
                 case ParticleField.ModelHelperPointer3:
                 case ParticleField.ModelHelperPointer4:
                 case ParticleField.ManualAnimationFrame:
-                case ParticleField.SequenceNumber: // and i guess these too
+                case ParticleField.SequenceNumber:
                 case ParticleField.ParticleId:
                 case ParticleField.HitboxIndex:
+                case ParticleField.NoneDisabled:
+                case ParticleField.ShaderExtraData1:
+                case ParticleField.ShaderExtraData2:
                     return "float";
                 default:
                     return null;
@@ -78,12 +81,16 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.Radius => particle.Radius,
                 ParticleField.TrailLength => particle.TrailLength,
                 ParticleField.CreationTime => particle.CreationTime,
+                ParticleField.LifeDuration => particle.Lifetime,
                 ParticleField.Yaw => particle.Rotation.X,
                 ParticleField.ParticleId => particle.ParticleID,
                 ParticleField.Pitch => particle.Rotation.Y,
                 ParticleField.Roll => particle.Rotation.Z,
                 ParticleField.RollSpeed => particle.RotationSpeed.Z,
-                ParticleField.SecondSequenceNumber => particle.AlphaWindowThreshold,
+                ParticleField.SequenceNumber => particle.Sequence,
+                ParticleField.SecondSequenceNumber => particle.Sequence2,
+                ParticleField.ManualAnimationFrame => particle.ManualAnimationFrame,
+                ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
                 ParticleField.ScratchFloat => particle.ScratchFloat0,
                 ParticleField.ScratchFloat1 => particle.ScratchFloat1,
                 ParticleField.ScratchFloat2 => particle.ScratchFloat2,
@@ -121,6 +128,24 @@ namespace ValveResourceFormat.Renderer.Particles
                 case ParticleField.LifeDuration:
                     particle.Lifetime = value;
                     break;
+                case ParticleField.SequenceNumber:
+                    particle.Sequence = (int)value;
+                    break;
+                case ParticleField.SecondSequenceNumber:
+                    particle.Sequence2 = (int)value;
+                    break;
+                case ParticleField.ManualAnimationFrame:
+                    particle.ManualAnimationFrame = (int)value;
+                    break;
+                case ParticleField.ParticleId:
+                    particle.ParticleID = (int)value;
+                    break;
+                case ParticleField.ParentParticleIndex:
+                    particle.ParentParticleIndex = (int)value;
+                    break;
+                case ParticleField.CreationTime:
+                    particle.CreationTime = value;
+                    break;
                 case ParticleField.ScratchFloat:
                     particle.ScratchFloat0 = value;
                     break;
@@ -141,6 +166,8 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 ParticleField.SequenceNumber => particle.Sequence,
                 ParticleField.SecondSequenceNumber => particle.Sequence2,
+                ParticleField.ManualAnimationFrame => particle.ManualAnimationFrame,
+                ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
                 ParticleField.ParticleId => particle.ParticleID, // dangerous to set, right?
                 _ => 0,
             };
@@ -156,6 +183,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.Color => particle.Color,
                 ParticleField.ScratchVector => particle.ScratchVector,
                 ParticleField.ScratchVector2 => particle.ScratchVector2,
+                ParticleField.Normal => particle.Normal,
                 _ => Vector3.Zero,
             };
         }
@@ -196,6 +224,9 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 case ParticleField.Color:
                     particle.Color = value;
+                    break;
+                case ParticleField.Normal:
+                    particle.Normal = value;
                     break;
                 case ParticleField.Position:
                     particle.Position = value;
@@ -251,8 +282,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     value = particle.GetScalar(field) + (value * particle.Age);
                     break;
                 default:
-                    //throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!");
-                    break;
+                    throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!");
             }
             return value;
         }
@@ -279,8 +309,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     value = particle.GetVector(field) + (value * particle.Age);
                     break;
                 default:
-                    //throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!");
-                    break;
+                    throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!");
             }
             return value;
         }

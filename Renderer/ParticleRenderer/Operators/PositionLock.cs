@@ -1,67 +1,80 @@
-#if false // TODO: Requires a rewrite
-using ValveResourceFormat.Renderer;
-
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// Locks particle positions to follow a control point, typically used to stick effects onto
-    /// moving components. Supports fade-in/fade-out time ranges per particle and optional distance
-    /// fade based on proximity to the control point.
+    /// Locks particle positions to follow a transform input, optionally updating a previous position
+    /// output field and locking orientation to the transform.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PositionLock">C_OP_PositionLock</seealso>
     class PositionLock : ParticleFunctionOperator
     {
-        private readonly float startTimeMin = 1;
-        private readonly float startTimeMax = 1;
-        private readonly float startTimeExp = 1;
-        private readonly float endTimeMin = 1;
-        private readonly float endTimeMax = 1;
-        private readonly float endTimeExp = 1;
+        private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
+        private readonly float startTimeMin = 1f;
+        private readonly float startTimeMax = 1f;
+        private readonly float startTimeExp = 1f;
+        private readonly float endTimeMin = 1f;
+        private readonly float endTimeMax = 1f;
+        private readonly float endTimeExp = 1f;
+        private readonly float fadeRange;
+        private readonly INumberProvider rangeBias = new LiteralNumberProvider(0.2f);
+        private readonly float instantJumpThreshold = 512f;
+        private readonly float prevPosScale = 1f;
+        private readonly bool lockRotation;
+        private readonly Vector3 componentScale = Vector3.One;
+        private readonly ParticleField outputField = ParticleField.Position;
+        private readonly ParticleField outputFieldPrev = ParticleField.PositionPrevious;
 
-        private readonly float fadeDist;
-        private readonly float instantJumpThreshold = 512;
-        private readonly float prevPosScale = 1;
-        private readonly int cp;
+        private Vector3 previousTransformPosition = new(float.MaxValue);
 
         public PositionLock(ParticleDefinitionParser parse) : base(parse)
         {
-            cp = parse.Int32("m_nControlPointNumber", cp);
+            transformInput = parse.TransformInput("m_TransformInput", transformInput);
             startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
             startTimeMax = parse.Float("m_flStartTime_max", startTimeMax);
             startTimeExp = parse.Float("m_flStartTime_exp", startTimeExp);
             endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
             endTimeExp = parse.Float("m_flEndTime_exp", endTimeExp);
-            fadeDist = parse.Float("m_flRange", fadeDist);
+            fadeRange = parse.Float("m_flRange", fadeRange);
+            rangeBias = parse.NumberProvider("m_flRangeBias", rangeBias);
             instantJumpThreshold = parse.Float("m_flJumpThreshold", instantJumpThreshold);
             prevPosScale = parse.Float("m_flPrevPosScale", prevPosScale);
+            lockRotation = parse.Boolean("m_bLockRot", lockRotation);
+            componentScale = parse.Vector3("m_vecScale", componentScale);
+            outputField = parse.ParticleField("m_nFieldOutput", outputField);
+            outputFieldPrev = parse.ParticleField("m_nFieldOutputPrev", outputFieldPrev);
         }
-
-
-        private Vector3 prevFramePos = new(float.MaxValue);
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            var cpPos = particleSystemState.GetControlPoint(cp).Position;
-
-            if (prevFramePos.X != float.MaxValue)
-            {
-                prevFramePos = cpPos;
-            }
-
             foreach (ref var particle in particles.Current)
             {
-                var weight = fadeDist == 0.0f
-                    ? 1
-                    : 1 - MathUtils.Saturate(Vector3.Distance(cpPos, particle.Position) / fadeDist);
+                var transform = transformInput.NextTransform(ref particle, particleSystemState);
+                var transformPosition = Vector3.Multiply(transform.Translation, componentScale);
 
-                var delta = cpPos - prevFramePos * prevPosScale;
-                var newPos = MathUtils.Lerp(weight, cpPos, cpPos + delta);
-
-                // If it jumps more than instantJumpThreshold, ignore time fade
-                if (Vector3.Distance(cpPos, prevFramePos) > instantJumpThreshold)
+                if (previousTransformPosition.X == float.MaxValue)
                 {
-                    particle.Position = newPos;
+                    previousTransformPosition = transformPosition;
+                }
+
+                var delta = (transformPosition - previousTransformPosition) * prevPosScale;
+                var targetPosition = transformPosition + delta;
+
+                if (fadeRange > 0f)
+                {
+                    var currentPosition = particle.GetVector(outputField);
+                    var distance = Vector3.Distance(transformPosition, currentPosition);
+                    var normalizedDistance = MathUtils.Saturate(distance / fadeRange);
+                    var bias = rangeBias.NextNumber(ref particle, particleSystemState);
+                    var remapped = bias <= 0f
+                        ? normalizedDistance
+                        : MathF.Pow(normalizedDistance, 1f / MathF.Max(0.0001f, bias));
+                    var fadeWeight = 1f - remapped;
+                    targetPosition = Vector3.Lerp(currentPosition, targetPosition, fadeWeight);
+                }
+
+                if (Vector3.Distance(transformPosition, previousTransformPosition) > instantJumpThreshold)
+                {
+                    targetPosition = transformPosition;
                 }
 
                 var startTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, startTimeExp, startTimeMin, startTimeMax);
@@ -69,13 +82,22 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 if (particle.Age < startTime || particle.Age > endTime)
                 {
+                    previousTransformPosition = transformPosition;
                     continue;
                 }
 
-                particle.Position = newPos;
+                var previousOutput = particle.GetVector(outputField);
+                particle.SetVector(outputFieldPrev, previousOutput);
+                particle.SetVector(outputField, targetPosition);
+
+                if (lockRotation)
+                {
+                    var orientation = transformInput.GetOrientation(ref particle, particleSystemState);
+                    particle.Normal = orientation;
+                }
+
+                previousTransformPosition = transformPosition;
             }
-            prevFramePos = cpPos;
         }
     }
 }
-#endif
