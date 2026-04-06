@@ -15,6 +15,7 @@ namespace GUI.Forms
             public override string ToString() => Key;
         }
 
+        private readonly TaskScheduler uiTaskScheduler;
         private int filterLoadVersion;
         private int lastPopulatedKeysHash;
 
@@ -45,6 +46,7 @@ namespace GUI.Forms
         public SearchForm()
         {
             InitializeComponent();
+            uiTaskScheduler = TaskScheduler.FromCurrentSynchronizationContext();
 
             searchTypeComboBox.ValueMember = "Id";
             searchTypeComboBox.DisplayMember = "Name";
@@ -101,14 +103,11 @@ namespace GUI.Forms
             {
                 if (!IsDisposed && filterLoadVersion == version)
                 {
-                    BeginInvoke(() =>
-                    {
-                        filterKeyComboBox.SelectedIndexChanged -= FilterKeyComboBox_SelectedIndexChanged;
-                        PopulateFilterKeys(t.IsCompletedSuccessfully ? t.Result : null);
-                        filterKeyComboBox.SelectedIndexChanged += FilterKeyComboBox_SelectedIndexChanged;
-                    });
+                    filterKeyComboBox.SelectedIndexChanged -= FilterKeyComboBox_SelectedIndexChanged;
+                    PopulateFilterKeys(t.IsCompletedSuccessfully ? t.Result : null);
+                    filterKeyComboBox.SelectedIndexChanged += FilterKeyComboBox_SelectedIndexChanged;
                 }
-            }, TaskScheduler.Default);
+            }, uiTaskScheduler);
         }
 
         private void PopulateFilterKeys(Dictionary<string, SortedSet<string>>? keys)
