@@ -10,6 +10,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
         }
 
-        public abstract Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState);
+        public abstract Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState);
     }
 }

@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             noiseScale = parse.NumberProvider("m_flNoiseScale", noiseScale);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var noiseScale = this.noiseScale.NextNumber(ref particle, particleSystemState);
             var r = new Vector3(

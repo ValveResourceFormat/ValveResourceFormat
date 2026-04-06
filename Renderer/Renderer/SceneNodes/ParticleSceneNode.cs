@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public ParticleSceneNode(Scene scene, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null)
             : base(scene)
         {
-            particleRenderer = new ParticleRenderer(particleSystem, Scene.RendererContext, particleSnapshot);
+            particleRenderer = new ParticleRenderer(particleSystem, Scene.RendererContext, scene, particleSnapshot);
             LocalBoundingBox = particleRenderer.LocalBoundingBox;
         }
 

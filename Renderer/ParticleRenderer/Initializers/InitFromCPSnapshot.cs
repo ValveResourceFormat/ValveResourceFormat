@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             Reverse = parse.Boolean("m_bReverse", false);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             if (!snapshotResolved)
             {

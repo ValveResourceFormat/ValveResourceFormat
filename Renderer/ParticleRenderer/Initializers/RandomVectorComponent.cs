@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             component = parse.Int32("m_nComponent", component);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var newComponent = ParticleCollection.RandomBetween(particle.ParticleID, min, max);
 

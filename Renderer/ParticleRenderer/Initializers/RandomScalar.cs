@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             scalarMax = parse.Float("m_flExponent", scalarMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var value = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, exponent, scalarMin, scalarMax);
 

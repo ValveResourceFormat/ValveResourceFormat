@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             OutputMax = parse.Vector3("m_vecOutputMax", OutputMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var input = particle.GetVector(FieldInput);
 

@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             MathUtils.MinMaxFixUp(ref alphaMin, ref alphaMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var alpha = ParticleCollection.RandomBetween(particle.ParticleID, alphaMin, alphaMax) / 255f;
 

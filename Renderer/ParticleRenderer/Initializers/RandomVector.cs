@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             Max = parse.Vector3("m_vecMax", Max);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var newVector = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, Min, Max);
 

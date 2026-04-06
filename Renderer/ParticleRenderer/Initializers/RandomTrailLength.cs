@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             maxLength = parse.Float("m_flMaxLength", maxLength);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             particle.TrailLength = ParticleCollection.RandomBetween(particle.ParticleID, minLength, maxLength);
 

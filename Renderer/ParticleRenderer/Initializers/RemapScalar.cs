@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             outputMax = parse.Float("m_flOutputMax", outputMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var value = particle.GetScalar(FieldInput);
 

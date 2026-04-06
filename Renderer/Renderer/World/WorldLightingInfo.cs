@@ -427,13 +427,13 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                if (light.IsDirty)
+                if (light.IsDirty && light.IsValid)
                 {
                     light.ComputeBarnFaces(BarnLightCookiePaths!);
                     light.IsDirty = false;
                 }
 
-                if (light.BarnFaces is null)
+                if (light.BarnFaces.Length == 0)
                 {
                     continue;
                 }
@@ -474,7 +474,7 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                if (light.BarnFaces is null)
+                if (light.BarnFaces.Length == 0)
                 {
                     continue;
                 }

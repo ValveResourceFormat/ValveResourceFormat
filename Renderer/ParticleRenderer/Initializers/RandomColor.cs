@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // lots of stuff with Tinting in hlvr.
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             particle.Color = ParticleCollection.RandomBetween(particle.ParticleID, colorMin, colorMax);
 

@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             perParticle = parse.Boolean("m_bPerParticle", perParticle);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             if (!perParticle)
             {

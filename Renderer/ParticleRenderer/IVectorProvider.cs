@@ -55,13 +55,43 @@ namespace ValveResourceFormat.Renderer.Particles
     {
         private readonly ParticleField VectorAttribute;
         private readonly Vector3 VectorAttributeScale = Vector3.One;
+        private readonly int ControlPoint = -1;
+        private readonly Vector3 ControlPointValueScale = Vector3.One;
+        private readonly Vector3 ControlPointRelativePosition = Vector3.Zero;
+        private readonly Vector3 ControlPointRelativeDirection = Vector3.Zero;
+
         public PerParticleVectorProvider(ParticleDefinitionParser parse)
         {
             VectorAttribute = parse.ParticleField("m_nVectorAttribute");
             VectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", VectorAttributeScale);
+            ControlPoint = parse.Int32("m_nControlPoint", ControlPoint);
+            ControlPointValueScale = parse.Vector3("m_vCPValueScale", ControlPointValueScale);
+            ControlPointRelativePosition = parse.Vector3("m_vCPRelativePosition", ControlPointRelativePosition);
+            ControlPointRelativeDirection = parse.Vector3("m_vCPRelativeDir", ControlPointRelativeDirection);
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => VectorAttributeScale * particle.GetVector(VectorAttribute);
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
+        {
+            var result = VectorAttributeScale * particle.GetVector(VectorAttribute);
+
+            if (ControlPoint < 0)
+            {
+                return result;
+            }
+
+            var cp = renderState.GetControlPoint(ControlPoint);
+            result = cp.Position * ControlPointValueScale;
+            result += ControlPointRelativePosition;
+
+            if (ControlPointRelativeDirection != Vector3.Zero)
+            {
+                result += cp.Orientation != Vector3.Zero
+                    ? cp.Orientation - ControlPointRelativeDirection
+                    : -ControlPointRelativeDirection;
+            }
+
+            return result;
+        }
     }
 
     // Particle Velocity

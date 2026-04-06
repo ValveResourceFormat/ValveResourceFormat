@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);

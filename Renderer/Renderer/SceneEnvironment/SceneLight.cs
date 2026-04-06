@@ -188,6 +188,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public bool IsDirty { get; set; } = true;
     internal bool WillDrawShadows { get; set; }
 
+    public bool IsValid => Range > 0f && Brightness > 0f && Color != Vector3.Zero;
+
     internal Dictionary<int, (int FrustumHash, DepthOnlyDrawBuckets? DrawCalls)> FaceShadowCache { get; } = [];
 
     /// <summary>

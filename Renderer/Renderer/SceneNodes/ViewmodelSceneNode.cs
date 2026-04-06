@@ -375,6 +375,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             {
                 LayerName = "world_layer_base",
                 Flags = ObjectTypeFlags.DisableVisCulling,
+                Loop = false,
             };
             scene.Add(viewmodel.muzzleFlashParticle, true);
         }
@@ -584,7 +585,11 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             SetState(AnimationState.Attack);
             attackCooldown = fireDelay;
-            muzzleFlashParticle?.Restart();
+            if (SelectedSlot != 3 && muzzleFlashParticle != null)
+            {
+                muzzleFlashParticle.GetControlPoint(1).Position = Vector3.One; // light radius
+                muzzleFlashParticle.Restart();
+            }
         }
         else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f)
         {

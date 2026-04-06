@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 

@@ -7,6 +7,13 @@ namespace ValveResourceFormat.Renderer.Particles
     {
         public static readonly ParticleSystemRenderState Default = new();
 
+        public ParticleSystemRenderState? ParentSystem { get; }
+
+        public ParticleSystemRenderState(ParticleSystemRenderState? parentSystem = null)
+        {
+            ParentSystem = parentSystem;
+        }
+
         public ParticleRenderer? Data { get; init; }
 
         // Properties
@@ -35,17 +42,28 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public ControlPoint GetControlPoint(int cp)
         {
-            if (!controlPoints.TryGetValue(cp, out var point))
+            if (ParentSystem != null)
             {
-                point = new ControlPoint();
-                SetControlPoint(cp, point);
+                return ParentSystem.GetControlPoint(cp);
             }
 
+            if (controlPoints.TryGetValue(cp, out var point))
+            {
+                return point;
+            }
+
+            point = new ControlPoint();
+            SetControlPoint(cp, point);
             return point;
         }
 
         public void SetControlPoint(int cp, ControlPoint point)
         {
+            if (ParentSystem != null)
+            {
+                ParentSystem.SetControlPoint(cp, point);
+            }
+
             controlPoints[cp] = point;
         }
 
@@ -79,7 +97,7 @@ namespace ValveResourceFormat.Renderer.Particles
     /// Control point used in Valve particle systems. System 0 is the default spawn position.
     /// These are used in numerous different ways, for many different effects. We only support a few of them.
     /// </summary>
-    class ControlPoint
+    public class ControlPoint
     {
         public Vector3 Position { get; set; }
         public Vector3 Orientation { get; set; }

@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             shuffle = parse.Boolean("m_bShuffle", shuffle);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             if (shuffle)
             {

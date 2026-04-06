@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             return Vector3.Lerp(position0 + StartPointOffset, position1 + EndOffset, relativeProgression);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 

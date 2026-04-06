@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             localCoords = parse.Boolean("m_bLocalCoords", localCoords);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var transform = transformInput.NextTransform(ref particle, particleSystemState);
             var position = transform.Translation;

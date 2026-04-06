@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         }
 
         // We're simulating a lot of weird and incorrect behavior here, but it's accurate to source 2
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var rawDimenX = this.dimenX.NextNumber(ref particle, particleSystemState);
             var rawDimenY = this.dimenY.NextNumber(ref particle, particleSystemState);

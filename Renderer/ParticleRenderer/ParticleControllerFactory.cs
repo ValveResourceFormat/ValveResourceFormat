@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Particles.Emitters;
 using ValveResourceFormat.Renderer.Particles.ForceGenerators;
 using ValveResourceFormat.Renderer.Particles.Initializers;
@@ -123,11 +124,12 @@ namespace ValveResourceFormat.Renderer.Particles
             };
 
         // Register particle renderers
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, RendererContext, ParticleFunctionRenderer>> RendererDictionary
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, RendererContext, Scene, ParticleFunctionRenderer>> RendererDictionary
             = new()
             {
-                ["C_OP_RenderSprites"] = (rendererInfo, rendererContext) => new RenderSprites(rendererInfo, rendererContext),
-                ["C_OP_RenderTrails"] = (rendererInfo, rendererContext) => new RenderTrails(rendererInfo, rendererContext),
+                ["C_OP_RenderSprites"] = (rendererInfo, rendererContext, scene) => new RenderSprites(rendererInfo, rendererContext),
+                ["C_OP_RenderTrails"] = (rendererInfo, rendererContext, scene) => new RenderTrails(rendererInfo, rendererContext),
+                ["C_OP_RenderStandardLight"] = (rendererInfo, rendererContext, scene) => new RenderStandardLight(rendererInfo, rendererContext, scene),
             };
 
         // Register particle pre-emission operators (mostly stuff with control points)
@@ -212,11 +214,11 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Attempts to create a particle renderer by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the renderer type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreateRender(string name, KVObject rendererInfo, RendererContext rendererContext, [MaybeNullWhen(false)] out ParticleFunctionRenderer renderer)
+        public static bool TryCreateRender(string name, KVObject rendererInfo, RendererContext rendererContext, Scene scene, [MaybeNullWhen(false)] out ParticleFunctionRenderer renderer)
         {
             if (RendererDictionary.TryGetValue(name, out var factory))
             {
-                renderer = factory(new ParticleDefinitionParser(rendererInfo, rendererContext.Logger), rendererContext);
+                renderer = factory(new ParticleDefinitionParser(rendererInfo, rendererContext.Logger), rendererContext, scene);
                 return true;
             }
 

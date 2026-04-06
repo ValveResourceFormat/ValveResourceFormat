@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             percent = parse.Float("m_flPercent", 0.5f);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             if (Random.Shared.NextSingle() > percent)
             {
