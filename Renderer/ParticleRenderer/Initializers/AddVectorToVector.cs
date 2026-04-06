@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             OffsetMax = parse.Vector3("m_vOffsetMax", OffsetMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var input = particle.GetVector(FieldInput);
             var output = particle.GetVector(FieldOutput);

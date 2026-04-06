@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             proportional = parse.Boolean("m_bProportional", proportional);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
 
             var offset = ParticleCollection.RandomBetweenPerComponent(

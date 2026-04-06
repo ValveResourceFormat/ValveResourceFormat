@@ -189,6 +189,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public bool IsDirty { get; set; } = true;
     internal bool WillDrawShadows { get; set; }
 
+    /// <summary>
+    /// Returns whether this light will produce energy based on its properties.
+    /// </summary>
+    public bool IsVisible => BarnFaces.Length > 0 && Brightness > 0f && BrightnessScale > 0f && Color != Vector3.Zero;
+
     internal Dictionary<int, (int FrustumHash, DepthOnlyDrawBuckets? DrawCalls)> FaceShadowCache { get; } = [];
 
     /// <summary>
@@ -360,6 +365,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <param name="cookiePaths">Map from cookie material path to cookie atlas index.</param>
     public void ComputeBarnFaces(Dictionary<string, int> cookiePaths)
     {
+        if (Range <= 0.0001f)
+        {
+            BarnFaces = [];
+            return;
+        }
+
         if (Entity == EntityType.Barn)
         {
             if (BarnFaces is not { Length: 1 })

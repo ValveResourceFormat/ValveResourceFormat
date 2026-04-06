@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             degreesMax = parse.Float("m_flDegreesMax", degreesMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var value = float.DegreesToRadians(degrees + ParticleCollection.RandomBetween(particle.ParticleID, degreesMin, degreesMax));
 

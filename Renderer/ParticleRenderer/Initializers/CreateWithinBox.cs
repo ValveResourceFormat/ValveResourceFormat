@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             scaleCP = parse.Int32("m_nScaleCP", scaleCP);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var posMin = min.NextVector(ref particle, particleSystemState);
             var posMax = max.NextVector(ref particle, particleSystemState);

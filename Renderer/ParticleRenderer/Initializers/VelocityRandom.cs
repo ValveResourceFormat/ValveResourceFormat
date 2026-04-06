@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             // A bit unclear what the speed is here, but I do know that going under 1.0 does nothing different than 1.0
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);

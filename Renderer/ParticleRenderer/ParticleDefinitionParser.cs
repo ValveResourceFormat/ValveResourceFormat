@@ -203,7 +203,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
 
         if (transformParameters.IsCollection)
         {
-            var type = transformParameters.GetStringProperty("m_nType");
+            var type = transformParameters.GetStringProperty("m_nType", "PT_TYPE_CONTROL_POINT");
             var parse = new ParticleDefinitionParser(transformParameters, Logger);
 
             switch (type)

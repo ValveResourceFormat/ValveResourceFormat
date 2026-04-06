@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             controlPointComponent = parse.Int32("m_nScaleControlPointField", controlPointComponent);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             // system state currently doesn't track total count, so we can't access that yet
             var count = invert

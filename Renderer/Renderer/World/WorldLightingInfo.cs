@@ -433,7 +433,7 @@ namespace ValveResourceFormat.Renderer.World
                     light.IsDirty = false;
                 }
 
-                if (light.BarnFaces is null)
+                if (!light.IsVisible)
                 {
                     continue;
                 }
@@ -474,7 +474,7 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                if (light.BarnFaces is null)
+                if (!light.IsVisible)
                 {
                     continue;
                 }

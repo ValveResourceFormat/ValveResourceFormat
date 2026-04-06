@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // other properties: m_vInitialSpeedMin/Max, m_flRoll
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
             var particlesPerOrbit = this.particlesPerOrbit.NextInt(ref particle, particleSystemState);

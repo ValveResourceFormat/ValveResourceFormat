@@ -10,9 +10,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
         }
 
+        public virtual void Update(ParticleCollection particles, ParticleSystemRenderState systemRenderState)
+        {
+        }
+
         public abstract void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix);
-        public abstract void SetRenderMode(string renderMode);
-        public abstract IEnumerable<string> GetSupportedRenderModes();
-        public abstract void SetWireframe(bool wireframe);
+
+        public virtual void SetWireframe(bool wireframe) { }
+        public virtual void SetRenderMode(string renderMode) { }
+        public virtual IEnumerable<string> GetSupportedRenderModes() => [];
     }
 }

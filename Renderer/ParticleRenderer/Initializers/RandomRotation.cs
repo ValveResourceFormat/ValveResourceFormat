@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             randomExponent = parse.Float("m_flRotationRandExponent", randomExponent);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var degrees = degreesOffset + ParticleCollection.RandomWithExponentBetween(particle.ParticleID, randomExponent, degreesMin, degreesMax);
             if (randomlyFlipDirection && Random.Shared.NextSingle() > 0.5f)
