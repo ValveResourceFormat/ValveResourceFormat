@@ -1,4 +1,3 @@
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer
@@ -13,51 +12,12 @@ namespace ValveResourceFormat.Renderer
                 ZeroBoneAndChildren(Pose, Skeleton.Bones[spine0]);
             }
 
-            var time = DateTime.Now;
-            var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
-
-            if (blink || true)
-            {
-                return;
-            }
-
-            var pelvis = Skeleton.GetBoneIndex("pelvis");
-            var ball_r = Skeleton.GetBoneIndex("ball_r");
-            var ball_l = Skeleton.GetBoneIndex("ball_l");
-
-            if (pelvis != -1 && (ball_r != -1 || ball_l != -1))
-            {
-                const float legStretchMin = 5f;
-                const float legStretchMax = 50f;
-                const float basePelvisOffsetX = -30f;
-                const float basePelvisYawDegrees = -35f;
-
-                var pelvisPos = Pose[pelvis].Translation;
-                var minLegDist = float.MaxValue;
-
-                if (ball_r != -1)
-                {
-                    var rPos = Pose[ball_r].Translation;
-                    minLegDist = MathF.Min(minLegDist, Vector2.Distance(new Vector2(pelvisPos.X, pelvisPos.Y), new Vector2(rPos.X, rPos.Y)));
-                }
-
-                if (ball_l != -1)
-                {
-                    var lPos = Pose[ball_l].Translation;
-                    minLegDist = MathF.Min(minLegDist, Vector2.Distance(new Vector2(pelvisPos.X, pelvisPos.Y), new Vector2(lPos.X, lPos.Y)));
-                }
-
-                minLegDist = MathF.Max(minLegDist, 1f);
-
-                var legStretchWeight = MathUtils.Saturate((minLegDist - legStretchMin) / (legStretchMax - legStretchMin));
-
-                var maxPelvisOffsetX = basePelvisOffsetX * legStretchWeight;
-                var maxPelvisYaw = basePelvisYawDegrees * (MathF.PI / 180f) * legStretchWeight;
-
-                var fadeDistance = MathF.Max(minLegDist, 1f);
-                ApplyFirstpersonLegsPelvisOffset(Pose, Skeleton.Bones[pelvis], pelvisPos, fadeDistance, maxPelvisOffsetX, maxPelvisYaw);
-            }
-
+            // var time = DateTime.Now;
+            // var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
+            // if (blink)
+            // {
+            //     return;
+            // }
         }
 
         /// <summary>
@@ -72,17 +32,6 @@ namespace ValveResourceFormat.Renderer
 
             var skeleton = Skeleton;
             var pose = Pose.AsSpan();
-
-            // boolean value blinking every second
-            //var time = DateTime.Now;
-            //var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
-            //if (blink)
-            //{
-            //    foreach (var constraint in TwistConstraints)
-            //    {
-            //        EvaluateTiltTwistConstraint(constraint, skeleton, pose);
-            //    }
-            //}
 
             EvaluateViewmodelConstraints(skeleton, pose);
         }
@@ -128,57 +77,6 @@ namespace ValveResourceFormat.Renderer
                 ZeroBoneAndChildren(pose, child);
             }
         }
-
-        private static void ApplyFirstpersonLegsPelvisOffset(Span<Matrix4x4> pose, Bone bone, Vector3 pelvisPos, float fadeDistance, float maxPelvisOffsetX, float maxPelvisYaw)
-        {
-            // Apply a small X-axis pelvis offset and yaw rotation in first-person legs mode.
-            // Weight fades to zero at 'fadeDistance' units below pelvis on Z axis.
-            fadeDistance = MathF.Max(fadeDistance, 1f);
-
-            var pelvisZ = pelvisPos.Z;
-            var boneZ = pose[bone.Index].M43;
-            var downFromPelvis = pelvisZ - boneZ;
-            var weight = MathUtils.Saturate(1f - downFromPelvis / fadeDistance);
-
-            if (weight <= 0f)
-            {
-                foreach (var child in bone.Children)
-                {
-                    ApplyFirstpersonLegsPelvisOffset(pose, child, pelvisPos, fadeDistance, maxPelvisOffsetX, maxPelvisYaw);
-                }
-                return;
-            }
-
-            var offsetX = maxPelvisOffsetX * weight;
-            var yaw = maxPelvisYaw * weight;
-
-            var parentGlobal = bone.Parent != null ? pose[bone.Parent.Index] : Matrix4x4.Identity;
-            var parentInverse = Matrix4x4.Identity;
-            if (bone.Parent != null && !Matrix4x4.Invert(parentGlobal, out parentInverse))
-            {
-                parentInverse = Matrix4x4.Identity;
-            }
-
-            var currentGlobal = pose[bone.Index];
-            var local = parentInverse * currentGlobal;
-
-            Matrix4x4.Decompose(local, out var localScale, out var localRotation, out var localTranslation);
-
-            var newLocalTranslation = localTranslation + new Vector3(offsetX, 0f, 0f);
-            var newLocalRotation = Quaternion.Normalize(localRotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, yaw));
-
-            var newLocal = Matrix4x4.CreateScale(localScale)
-                * Matrix4x4.CreateFromQuaternion(newLocalRotation)
-                * Matrix4x4.CreateTranslation(newLocalTranslation);
-
-            pose[bone.Index] = parentGlobal * newLocal;
-
-            foreach (var child in bone.Children)
-            {
-                ApplyFirstpersonLegsPelvisOffset(pose, child, pelvisPos, fadeDistance, maxPelvisOffsetX, maxPelvisYaw);
-            }
-        }
-
 
         private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone? twist, Bone twist1, float side)
         {
@@ -231,140 +129,6 @@ namespace ValveResourceFormat.Renderer
             euler.Z = MathF.Atan2(siny_cosp, cosy_cosp);
 
             return euler;
-        }
-
-        private readonly struct ConstraintEvaluation
-        {
-            public Quaternion TwistRotation { get; init; }
-            public float TwistAngleDegrees { get; init; }
-        }
-
-        private static ConstraintEvaluation EvaluateTiltTwistConstraint(TiltTwistConstraint constraint, Skeleton skeleton, Span<Matrix4x4> pose)
-        {
-            var targetAxis = GetAxisVector(constraint.TargetAxis);
-            var slaveAxis = GetAxisVector(constraint.SlaveAxis);
-            var accumulatedTwist = Quaternion.Identity;
-            var totalWeight = 0f;
-
-            foreach (var target in constraint.Targets)
-            {
-                var bone = skeleton[target.BoneHash];
-                if (bone == null || MathF.Abs(target.Weight) < 1e-6f)
-                {
-                    continue;
-                }
-
-                Matrix4x4.Decompose(pose[bone.Index], out _, out var worldRotation, out _);
-
-                Quaternion localRotation;
-                if (bone.Parent != null)
-                {
-                    Matrix4x4.Decompose(pose[bone.Parent.Index], out _, out var parentRotation, out _);
-                    localRotation = Quaternion.Multiply(Quaternion.Inverse(parentRotation), worldRotation);
-                }
-                else
-                {
-                    localRotation = worldRotation;
-                }
-
-                var bindRotation = bone.Angle;
-                var deltaRotation = Quaternion.Multiply(Quaternion.Inverse(bindRotation), localRotation);
-                var offsetTransform = Matrix4x4.CreateFromQuaternion(target.Offset) * Matrix4x4.CreateTranslation(target.PositionOffset);
-                Matrix4x4.Decompose(offsetTransform, out _, out var offsetRotation, out _);
-                deltaRotation = Quaternion.Multiply(offsetRotation, deltaRotation);
-                var twist = DecomposeTwistRotation(deltaRotation, targetAxis);
-
-                if (totalWeight == 0f)
-                {
-                    accumulatedTwist = Quaternion.Slerp(Quaternion.Identity, twist, target.Weight);
-                }
-                else
-                {
-                    var newWeight = target.Weight / (totalWeight + target.Weight);
-                    accumulatedTwist = Quaternion.Slerp(accumulatedTwist, twist, newWeight);
-                }
-
-                totalWeight += target.Weight;
-            }
-
-            var twistAngle = 2f * MathF.Acos(Math.Clamp(MathF.Abs(accumulatedTwist.W), 0f, 1f));
-            var twistAngleDegrees = float.RadiansToDegrees(twistAngle);
-
-            var slaveTwist = accumulatedTwist;
-            if (constraint.TargetAxis != constraint.SlaveAxis)
-            {
-                slaveTwist = TransformTwistBetweenAxes(accumulatedTwist, targetAxis, slaveAxis);
-            }
-
-            foreach (var slave in constraint.Slaves)
-            {
-                var bone = skeleton[slave.BoneHash];
-                if (bone == null || MathF.Abs(slave.Weight) < 1e-6f)
-                {
-                    continue;
-                }
-
-                Matrix4x4.Decompose(pose[bone.Index], out var scale, out var rotation, out var translation);
-
-                var weightedTwist = Quaternion.Slerp(Quaternion.Identity, slaveTwist, slave.Weight);
-                var newRotation = Quaternion.Multiply(rotation, weightedTwist);
-
-                pose[bone.Index] = Matrix4x4.CreateScale(scale)
-                    * Matrix4x4.CreateFromQuaternion(newRotation)
-                    * Matrix4x4.CreateTranslation(translation);
-            }
-
-            return new ConstraintEvaluation
-            {
-                TwistRotation = accumulatedTwist,
-                TwistAngleDegrees = twistAngleDegrees
-            };
-        }
-
-        private static Quaternion TransformTwistBetweenAxes(Quaternion twist, Vector3 fromAxis, Vector3 toAxis)
-        {
-            var angle = 2f * MathF.Acos(Math.Clamp(twist.W, -1f, 1f));
-            var axisVector = new Vector3(twist.X, twist.Y, twist.Z);
-            if (Vector3.Dot(axisVector, fromAxis) < 0f)
-            {
-                angle = -angle;
-            }
-
-            return Quaternion.CreateFromAxisAngle(toAxis, angle);
-        }
-
-
-
-        private static Quaternion DecomposeTwistRotation(Quaternion rotation, Vector3 axis)
-        {
-            var rotationAxis = new Vector3(rotation.X, rotation.Y, rotation.Z);
-
-            if (rotationAxis.LengthSquared() < 1e-6f)
-            {
-                return Quaternion.Identity;
-            }
-
-            var projection = Vector3.Dot(rotationAxis, axis) * axis;
-            var twist = new Quaternion(projection.X, projection.Y, projection.Z, rotation.W);
-            var length = twist.Length();
-
-            if (length < 1e-6f)
-            {
-                return Quaternion.Identity;
-            }
-
-            return Quaternion.Normalize(twist);
-        }
-
-        private static Vector3 GetAxisVector(int axisIndex)
-        {
-            return axisIndex switch
-            {
-                0 => Vector3.UnitX,
-                1 => Vector3.UnitY,
-                2 => Vector3.UnitZ,
-                _ => Vector3.UnitX,
-            };
         }
     }
 }
