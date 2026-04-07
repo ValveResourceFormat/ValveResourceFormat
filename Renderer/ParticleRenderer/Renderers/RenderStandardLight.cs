@@ -57,10 +57,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Entity = SceneLight.EntityType.Omni2,
                 DirectLight = SceneLight.DirectLightType.Dynamic,
                 CastShadows = 0,
+                LuminaireSize = 0f,
                 SpotOuterAngle = 180f,
-                BrightnessScale = 1f,
-                FallOff = 1f,
-                StationaryLightIndex = -1,
+                BrightnessScale = 0f,
+                FallOff = 0f,
                 Name = nameof(RenderStandardLight),
             };
         }

@@ -40,6 +40,10 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
+            LoadDefaultLighting();
+            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
+            Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = true;
+
             particleSceneNode = new ParticleSceneNode(Scene, particleSystem, null, true)
             {
                 Transform = Matrix4x4.Identity

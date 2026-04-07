@@ -70,7 +70,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     ///     Light index to a baked lightmap.
     ///     Range: 0..255 for GameLightmapVersion 1 and 0..3 for GameLightmapVersion 2.
     /// </summary>
-    public int StationaryLightIndex { get; set; }
+    public int StationaryLightIndex { get; set; } = -1;
 
     /// <summary>Gets or sets the world-space position of the light.</summary>
     public Vector3 Position { get; set; }
@@ -559,6 +559,12 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var orientationQ = Quaternion.CreateFromRotationMatrix(light.Transform);
         var linearColor = ComputeOmni2Color(light);
 
+        // custom point light hack
+        if (light.LuminaireShape == -1)
+        {
+            nearPlane = 0.001f;
+        }
+
         var cookieW = 0f;
         var cookieParams = new Vector4(1f, 1f, 0f, 0f);
         if (light.CookieTexturePath != null && cookiePaths.TryGetValue(light.CookieTexturePath, out var cookieIndex))
@@ -620,15 +626,21 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
     }
 
-    private static Vector3 ComputeOmni2Color(SceneLight light)
+    /// <summary>
+    /// Calculates the effective solid angle of a spotlight cone, clamped to a maximum of 4π steradians (full sphere).
+    /// </summary>
+    public float ComputeConeSolidAngle()
     {
-        var outerRad = float.DegreesToRadians(Math.Clamp(light.SpotOuterAngle, 1f, 180f));
-        var innerRad = float.DegreesToRadians(Math.Clamp(light.SpotInnerAngle, 0f, light.SpotOuterAngle));
+        var outerRad = float.DegreesToRadians(Math.Clamp(SpotOuterAngle, 1f, 180f));
+        var innerRad = float.DegreesToRadians(Math.Clamp(SpotInnerAngle, 0f, SpotOuterAngle));
 
         var avgCos = (MathF.Cos(outerRad) + MathF.Cos(innerRad)) * 0.5f;
-        var coneSolidAngle = MathF.Min(MathF.Tau * (1f - avgCos), 4f * MathF.PI);
+        return MathF.Min(MathF.Tau * (1f - avgCos), 4f * MathF.PI);
+    }
 
-        var colorIntensity = light.Brightness * light.BrightnessScale * (4f * MathF.PI * 10f) / coneSolidAngle;
+    private static Vector3 ComputeOmni2Color(SceneLight light)
+    {
+        var colorIntensity = light.Brightness * light.BrightnessScale * (4f * MathF.PI * 10f) / light.ComputeConeSolidAngle();
         return ColorSpace.SrgbGammaToLinear(light.Color) * colorIntensity;
     }
 

@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var brightness = brightnessUnit switch
             {
-                ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS => brightnessCandelas.NextNumber(ref particle, systemRenderState),
+                ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS => light.ComputeConeSolidAngle() * brightnessCandelas.NextNumber(ref particle, systemRenderState),
                 _ => brightnessLumens.NextNumber(ref particle, systemRenderState)
             };
 
@@ -118,13 +118,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             light.Color = color;
             light.Brightness = MathF.Max(0f, brightness);
+            light.BrightnessScale = 1 - particle.NormalizedAge;
             light.Range = lightRange;
             light.FallOff = skirtValue;
             light.Position = particle.Position;
             light.Transform = Matrix4x4.CreateTranslation(particle.Position);
-            light.Direction = particle.GetVector(ParticleField.Normal) is { } normal && normal != Vector3.Zero
-                ? Vector3.Normalize(normal)
-                : Vector3.UnitX;
+            light.Direction = particle.GetVector(ParticleField.Normal);
             light.IsDirty = true;
         }
     }

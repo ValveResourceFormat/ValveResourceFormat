@@ -6,6 +6,7 @@ using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -43,6 +44,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// A collection of animations available for sequential playback on this model.
         /// </summary>
         public Dictionary<string, Animation> Animations { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Attachment points from model data.
+        /// </summary>
+        public Dictionary<string, Attachment> Attachments { get; }
 
         /// <summary>Gets the name of the currently active material group (skin).</summary>
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
@@ -123,6 +129,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             Name = model.Name;
+            Attachments = model.Attachments;
 
             LoadMeshes(model);
             UpdateBoundingBox();
@@ -519,6 +526,39 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     renderer.SetBoneMatricesBuffer(null);
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets the world transform for the specified attachment point.
+        /// </summary>
+        public Matrix4x4 GetAttachmentTransform(string attachmentName)
+        {
+            var transform = Matrix4x4.Identity;
+
+            var attachment = Attachments.GetValueOrDefault(attachmentName);
+            if (attachment != null)
+            {
+                for (var i = 0; i < attachment.Length; i++)
+                {
+                    var influence = attachment[i];
+                    var boneIndex = AnimationController.FrameCache.Skeleton.GetBoneIndex(influence.Name);
+                    if (boneIndex != -1)
+                    {
+                        var boneTransform = AnimationController.Pose[boneIndex];
+                        var influenceTransform = Matrix4x4.CreateFromQuaternion(influence.Rotation) * Matrix4x4.CreateTranslation(influence.Offset);
+                        transform *= Matrix4x4.Lerp(Matrix4x4.Identity, influenceTransform * boneTransform, influence.Weight);
+                    }
+                }
+
+                if (attachment.IgnoreRotation)
+                {
+                    var scale = transform.M22;
+                    var translation = transform.Translation;
+                    transform = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(translation);
+                }
+            }
+
+            return transform * Transform;
         }
 
 #pragma warning disable CA1024 // Use properties where appropriate

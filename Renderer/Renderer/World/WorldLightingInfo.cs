@@ -121,7 +121,7 @@ namespace ValveResourceFormat.Renderer.World
         private readonly List<ShadowRequest> ShadowRequests = [];
         private readonly ShadowAtlasPacker ShadowAtlas = new(64);
 
-        private Dictionary<string, int>? BarnLightCookiePaths;
+        private Dictionary<string, int> BarnLightCookiePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private StorageBuffer? BarnLightStorageBuffer;
         /// <summary>Gets the list of shadow casters produced by the most recent <see cref="BinBarnLights"/> call.</summary>
         public List<BinnedShadowCaster> BinnedShadowCasters { get; } = [];
@@ -564,10 +564,10 @@ namespace ValveResourceFormat.Renderer.World
             BarnLightCookieAtlas?.Delete();
             BarnLightCookieAtlas = null;
 
-            BarnLightCookiePaths = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            BarnLightCookiePaths.Clear();
             var cookieTextures = new List<RenderTexture>();
 
-            foreach (var light in BarnLights!)
+            foreach (var light in BarnLights)
             {
                 if (light.CookieTexturePath != null && BarnLightCookiePaths.TryAdd(light.CookieTexturePath, cookieTextures.Count + 1))
                 {

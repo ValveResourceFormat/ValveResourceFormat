@@ -162,7 +162,7 @@ uniform sampler2D g_tTintMask;
 #define unlit ((GameVfx_vr_unlit != 0) || (GameVfx_unlit != 0) || (GameVfx_csgo_unlitgeneric != 0) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0)) || (GameVfx_csgo_decalmodulate != 0)
 #define alphatest (F_ALPHA_TEST == 1) || (((GameVfx_csgo_unlitgeneric != 0) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2)) || (GameVfx_csgo_decalmodulate != 0)
 #define translucent (F_TRANSLUCENT == 1) || (F_GLASS == 1) || (F_BLEND_MODE > 0 && F_BLEND_MODE != 2) || defined(glass_vfx_common) || (GameVfx_csgo_decalmodulate != 0) || (((GameVfx_csgo_unlitgeneric != 0) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
-#define selfillum ((F_SELF_ILLUM == 1 && ((GameVfx_generic != 0) || defined(complex_vfx_common) || (GameVfx_csgo_vertexlitgeneric != 0) || (GameVfx_vr_skin != 0))) || (GameVfx_csgo_unlitgeneric != 0))
+#define selfillum ((F_SELF_ILLUM == 1 && ((GameVfx_generic != 0) || defined(complex_vfx_common) || (GameVfx_csgo_vertexlitgeneric != 0) || (GameVfx_vr_skin != 0) || (GameVfx_csgo_weapon != 0))) || (GameVfx_csgo_unlitgeneric != 0))
 #define blendMod2x (F_BLEND_MODE == 3) || (GameVfx_csgo_decalmodulate != 0)
 #define blendModThenAdd (F_BLEND_MODE == 6)
 

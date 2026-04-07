@@ -18,6 +18,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public ModelSceneNode? PreviewModel { get; private set; }
 
+        private string? PreviewModelAttachmentPoint { get; set; }
+
         /// <summary>Gets or sets a time-scale multiplier applied to the particle simulation each frame.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
@@ -41,6 +43,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (preview)
             {
+                Preview = true;
                 PreviewModel = CreatePreviewModel(particleSystem);
                 if (PreviewModel != null)
                 {
@@ -53,6 +56,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// Restarts the particle system from the beginning.
         /// </summary>
         public void Restart() => particleRenderer.Restart();
+
+        /// <inheritdoc/>
+        public ControlPoint GetControlPoint(int index) => particleRenderer.GetControlPoint(index);
 
         private ModelSceneNode? CreatePreviewModel(ParticleSystem particleSystem)
         {
@@ -116,6 +122,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 previewModelNode.SetAnimationByName(sequenceName);
             }
 
+            var drivers = previewConfiguration.GetArray("m_drivers");
+            if (drivers is { Count: > 0 })
+            {
+                var driver = drivers[0];
+                var attachType = driver.GetEnumValue<ParticleAttachment>("m_iAttachType");
+                if (attachType is ParticleAttachment.PATTACH_POINT or ParticleAttachment.PATTACH_POINT_FOLLOW)
+                {
+                    var attachName = driver.GetStringProperty("m_attachmentName");
+                    PreviewModelAttachmentPoint = attachName;
+                }
+            }
+
             return previewModelNode;
         }
 
@@ -129,9 +147,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             particleRenderer.MainControlPoint.Position = Transform.Translation;
 
-            if (PreviewModel != null)
+            if (PreviewModel != null && !string.IsNullOrEmpty(PreviewModelAttachmentPoint))
             {
-                PreviewModel.Transform = Transform;
+                particleRenderer.MainControlPoint.Position = PreviewModel.GetAttachmentTransform(PreviewModelAttachmentPoint).Translation;
             }
 
             var frameTime = context.Timestep * FrametimeMultiplier;
