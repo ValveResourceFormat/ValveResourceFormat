@@ -89,6 +89,13 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Gets whether the active animation clip has finished playing (is not looping and has reached the end).
+        /// </summary>
+        public bool ActiveClipFinished => CurrentSubController.HasValue
+            ? CurrentSubController.Value.Handler.ActiveClipFinished
+            : activeClip != null && !activeClip.Looping && activeClip.IsPaused;
+
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
@@ -208,6 +215,8 @@ namespace ValveResourceFormat.Renderer
                 subController.Handler.Looping = Looping;
 
                 var updated = subController.Handler.Update(timeStep);
+                IsPaused = subController.Handler.IsPaused;
+
                 if (!updated && !forceUpdate)
                 {
                     return false;
@@ -323,6 +332,8 @@ namespace ValveResourceFormat.Renderer
                 var skeletonName = nmClip.SkeletonName;
                 if (ExternalSkeletons.TryGetValue(skeletonName, out subController))
                 {
+                    subController.Handler.Looping = Looping;
+                    subController.Handler.FrametimeMultiplier = FrametimeMultiplier;
                     subController.Handler.SetAnimation(animation, blendTime);
                     CurrentSubController = subController;
                     ActiveAnimation = animation;

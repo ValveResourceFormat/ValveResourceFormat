@@ -144,6 +144,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             LoadAnimations(model, embeddedAnimationsOnly: isWorldPreview);
 
             SetCharacterEyeRenderParams();
+            Attachments = model.Attachments;
             AnimationController.TwistConstraints = ParseTwistConstraints(model);
         }
 
@@ -754,7 +755,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         BoneHash = t.GetUInt32Property("m_nBoneHash"),
                         Name = t.GetStringProperty("m_sName"),
                         Weight = t.GetFloatProperty("m_flWeight"),
-                        IsAttachment = t.GetProperty<bool>("m_bIsAttachment"),
+                        IsAttachment = t.GetBooleanProperty("m_bIsAttachment"),
                     };
                 }).ToArray();
 
