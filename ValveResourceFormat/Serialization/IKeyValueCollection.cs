@@ -106,6 +106,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
+            if (value.ValueType == KVValueType.Int32)
+            {
+                // unchecked only applies to built-in conversions, not user-defined operators
+                return unchecked((ulong)(int)value);
+            }
+
             return (ulong)value;
         }
 
