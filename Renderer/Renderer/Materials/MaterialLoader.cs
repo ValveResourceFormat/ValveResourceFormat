@@ -492,11 +492,22 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
 
-            var isHdr = bitmap.ColorType == Texture.HdrBitmapColorType;
-            var store = GetImageExportFormat(isHdr);
+            // var isHdr = bitmap.ColorType == Texture.HdrBitmapColorType;
+            // var store = GetImageExportFormat(isHdr);
 
-            GL.TextureStorage2D(texture.Handle, 1, store.SizedInternalFormat, texture.Width, texture.Height);
-            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, store.PixelFormat, store.PixelType, bitmap.GetPixels());
+            var store = bitmap.ColorType switch
+            {
+                SKColorType.Rgba8888 => new TextureFormatMapping(SizedInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte),
+                SKColorType.Bgra8888 => new TextureFormatMapping(SizedInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte),
+                SKColorType.Rgb888x => new TextureFormatMapping(SizedInternalFormat.Rgb8, PixelFormat.Rgba, PixelType.UnsignedByte),
+                SKColorType.Gray8 => new TextureFormatMapping(SizedInternalFormat.R8, PixelFormat.Red, PixelType.UnsignedByte),
+                SKColorType.RgbaF16 => new TextureFormatMapping(SizedInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
+                SKColorType.RgbaF32 => new TextureFormatMapping(SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
+                _ => throw new NotSupportedException($"Unsupported bitmap color type for GPU upload {bitmap.ColorType}"),
+            };
+
+            GL.TextureStorage2D(texture.Handle, 1, store.InternalFormat, texture.Width, texture.Height);
+            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, store.PixelFormat!.Value, store.PixelType!.Value, bitmap.GetPixels());
 
             return texture;
         }
