@@ -420,7 +420,8 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            Console.WriteLine($"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
+            gameInfo.TryGetValue("game", out var gameName);
+            Console.WriteLine($"Found \"{gameName}\" from \"{gameinfoPath}\"");
 
             foreach (var (key, searchPath) in gameInfo["FileSystem"]["SearchPaths"])
             {
