@@ -69,7 +69,9 @@ namespace ValveResourceFormat.ResourceTypes
 
                 var (rootType, rootFlag) = LegacyReadType(outRead);
                 var root = LegacyReadBinaryValue(context, rootType, rootFlag, outRead);
-                Data = new KVDocument(new KVHeader { Encoding = encoding, Format = format }, null!, root);
+
+                // Do not set encoding on the header here
+                Data = new KVDocument(new KVHeader { Format = format }, null, root);
 
                 var trailer = outRead.ReadUInt32();
                 if (trailer != 0xFFFFFFFF)
