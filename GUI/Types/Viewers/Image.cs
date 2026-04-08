@@ -22,14 +22,13 @@ namespace GUI.Types.Viewers
 
         public async Task LoadAsync(Stream? stream)
         {
-            if (stream != null)
-            {
-                bitmap = SKBitmap.Decode(stream);
-            }
-            else
-            {
-                bitmap = SKBitmap.Decode(vrfGuiContext.FileName);
-            }
+            using var codec = (stream != null
+                ? SKCodec.Create(stream)
+                : SKCodec.Create(vrfGuiContext.FileName))
+                ?? throw new InvalidDataException("Failed to decode image");
+
+            var info = codec.Info.WithAlphaType(SKAlphaType.Unpremul);
+            bitmap = SKBitmap.Decode(codec, info);
 
             var renderContext = vrfGuiContext.CreateRendererContext();
             try
