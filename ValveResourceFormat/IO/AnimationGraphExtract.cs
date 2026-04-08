@@ -3233,13 +3233,6 @@ public class AnimationGraphExtract : IDisposable
             var newKey = key;
             var subCollection = new Lazy<KVObject>(() => value);
 
-            // preserve earlier semantics: always convert blend-time fields
-            if (key == "m_flBlendTime")
-            {
-                var converted = ConvertBlendDuration(subCollection.Value);
-                node.Add("m_blendDuration", converted);
-                continue;
-            }
 
             // first see whether a mapping exists for this class/key combination
             if (PropertyMappings.TryGetValue(className, out var classMap) && classMap.TryGetValue(key, out var mapEntry))
