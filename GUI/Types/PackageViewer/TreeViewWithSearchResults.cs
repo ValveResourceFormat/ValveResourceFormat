@@ -42,6 +42,12 @@ namespace GUI.Types.PackageViewer
 
         private CancellationTokenSource? ThumbnailRenderTokenSource;
 
+        // Items are populated lazily in OnLoad so that the listview's font and DPI context have
+        // stabilized before the native control caches per-item label measurements. Populating
+        // earlier (while the user control is still un-parented) causes labels to be measured
+        // against a stale font, leaving them truncated until the layout is invalidated.
+        private VirtualPackageNode? PendingInitialDisplayNode;
+
         private readonly ConcurrentDictionary<PackageEntry, byte> QueuedOrRenderedThumbnailItems = new();
 
         private readonly CancellationTokenSource RenderLoopCancelationTokenSource = new();
@@ -722,7 +728,8 @@ namespace GUI.Types.PackageViewer
             control.TreeViewNodeSorter = new TreeViewFileSorter();
             control.EndUpdate();
 
-            MainListView_DisplayNodes(rootVirtual);
+            // Defer until OnLoad, see comment on PendingInitialDisplayNode.
+            PendingInitialDisplayNode = rootVirtual;
         }
 
         private void Control_BeforeExpand(object? sender, TreeViewCancelEventArgs e)
@@ -1273,6 +1280,13 @@ namespace GUI.Types.PackageViewer
             for (var i = 0; i < Columns.Length; i++)
             {
                 mainListView.Columns.Add(Columns[i]);
+            }
+
+            if (PendingInitialDisplayNode != null)
+            {
+                var node = PendingInitialDisplayNode;
+                PendingInitialDisplayNode = null;
+                MainListView_DisplayNodes(node);
             }
         }
 
