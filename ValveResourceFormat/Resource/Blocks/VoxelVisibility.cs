@@ -222,46 +222,6 @@ namespace ValveResourceFormat.Blocks
             return block.GetInt32Property("m_nElementCount");
         }
 
-        //public Dictionary<ushort, List<(Vector3 Min, Vector3 Max)>> BuildClusterChildBounds_ViaRegionNodeIndex()
-        //{
-        //    var clusterChildren = new Dictionary<ushort, List<(Vector3 Min, Vector3 Max)>>();
-        //
-        //    if (Nodes.Length == 0)
-        //    {
-        //        return clusterChildren;
-        //    }
-        //
-        //    var nodeBounds = BuildNodeBounds();
-        //
-        //    foreach (var region in Regions)
-        //    {
-        //        if (region.ClusterId >= BaseClusterCount
-        //            || region.NodeIndex >= nodeBounds.Length
-        //            || region.MaskIndex >= Masks.Length)
-        //        {
-        //            continue;
-        //        }
-        //
-        //        var mask = Masks[region.MaskIndex];
-        //        if (mask == 0)
-        //        {
-        //            continue;
-        //        }
-        //
-        //        if (!clusterChildren.TryGetValue(region.ClusterId, out var list))
-        //        {
-        //            list = [];
-        //            clusterChildren[region.ClusterId] = list;
-        //        }
-        //
-        //        var (min, max) = nodeBounds[region.NodeIndex];
-        //        var cellSize = (max.X - min.X) * 0.25f;
-        //        UnpackMask(mask, min, cellSize, list);
-        //    }
-        //
-        //    return clusterChildren;
-        //}
-
         /// <summary>
         /// Gets the cluster id for a given world-space position.
         /// </summary>
@@ -321,11 +281,14 @@ namespace ValveResourceFormat.Blocks
             return 0;
         }
 
-        /// Native function fills the entire buffer with 0xFF instead of returning null
+        /// <summary>
+        /// Gets the PVS bitfield for the cluster(s) at the given point, or <see langword="null"/> if there is none.
+        /// </summary>
         public byte[]? GetPVSForPoint(Vector3 point)
         {
             if (Nodes.Length == 0 || PVSBytesPerCluster == 0)
             {
+                // Native function fills the entire buffer with 0xFF instead of returning null
                 return null;
             }
 
