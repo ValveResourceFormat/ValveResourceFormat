@@ -124,20 +124,13 @@ public class UserInput
         if (Pressed(key))
         {
             var currentTime = Renderer.Uptime;
-            if (lastKeyPressTimes.TryGetValue(key, out var lastPressTime))
+            if (lastKeyPressTimes.TryGetValue(key, out var lastPressTime) && currentTime - lastPressTime <= maxInterval)
             {
-                var interval = currentTime - lastPressTime;
-                lastKeyPressTimes[key] = currentTime;
+                lastKeyPressTimes.Remove(key);
+                return true;
+            }
 
-                if (interval <= maxInterval)
-                {
-                    return true;
-                }
-            }
-            else
-            {
-                lastKeyPressTimes[key] = currentTime;
-            }
+            lastKeyPressTimes[key] = currentTime;
         }
 
         return false;
