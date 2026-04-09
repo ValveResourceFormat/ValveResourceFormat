@@ -547,7 +547,11 @@ namespace GUI.Types.GLViewers
                 {
                     TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                     {
-                        X = 4f, Y = y, Scale = 14f, Color = color, Text = text,
+                        X = 4f,
+                        Y = y,
+                        Scale = 14f,
+                        Color = color,
+                        Text = text,
                     });
                     y += 16f;
                 }
