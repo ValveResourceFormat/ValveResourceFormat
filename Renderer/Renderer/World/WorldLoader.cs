@@ -301,6 +301,9 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>
+        /// Loads world voxel visibility (<c>.vvis_c</c>) into the scene.
+        /// </summary>
         public void LoadWorldVisibility()
         {
             var visResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_visibility.vvis_c");

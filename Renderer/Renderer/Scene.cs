@@ -74,9 +74,13 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the physics simulation world associated with this scene.</summary>
         public Rubikon? PhysicsWorld { get; set; }
 
+        /// <summary>Gets or sets the voxel visibility data.</summary>
         public VoxelVisibility? VoxelVisibility { get; set; }
 
+        /// <summary>Gets or sets whether PVS culling is enabled for this scene.</summary>
         public bool EnablePvsCulling { get; set; }
+
+        /// <summary>Gets or sets the PVS bitfield for the cluster at the current camera position.</summary>
         public byte[]? CurrentFramePvs { get; set; }
 
         private UniformBuffer<LightingConstants>? lightingBuffer;

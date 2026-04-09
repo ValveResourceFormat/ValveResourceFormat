@@ -16,40 +16,127 @@ namespace ValveResourceFormat.Blocks
         /// <inheritdoc/>
         public override BlockType Type => BlockType.VXVS;
 
+        /// <summary>
+        /// Gets the number of visibility clusters.
+        /// </summary>
         public uint BaseClusterCount { get; private set; }
+
+        /// <summary>
+        /// Gets the number of PVS bytes per cluster.
+        /// </summary>
         public uint PVSBytesPerCluster { get; private set; }
+
+        /// <summary>
+        /// Gets the minimum bounds of the octree.
+        /// </summary>
         public Vector3 MinBounds { get; private set; }
+
+        /// <summary>
+        /// Gets the maximum bounds of the octree.
+        /// </summary>
         public Vector3 MaxBounds { get; private set; }
+
+        /// <summary>
+        /// Gets the grid cell size.
+        /// </summary>
         public float GridSize { get; private set; }
+
+        /// <summary>
+        /// Gets the cluster index used for sky visibility.
+        /// </summary>
         public uint SkyVisibilityCluster { get; private set; }
+
+        /// <summary>
+        /// Gets the cluster index used for sun visibility.
+        /// </summary>
         public uint SunVisibilityCluster { get; private set; }
 
+        /// <summary>
+        /// Represents an octree node.
+        /// </summary>
+        /// <param name="first">First packed word.</param>
+        /// <param name="second">Second packed word.</param>
         public readonly struct Node(uint first, uint second)
         {
+            /// <summary>
+            /// Gets whether this node is a leaf.
+            /// </summary>
             public bool IsLeaf => (first & 1) != 0;
+
+            /// <summary>
+            /// Gets the child offset for internal nodes, or the region offset for leaf nodes.
+            /// </summary>
             public uint Offset => first >> 1;
 
+            /// <summary>
+            /// Gets the number of regions in this leaf.
+            /// </summary>
             public byte RegionCount => (byte)second;
+
+            /// <summary>
+            /// Gets the enclosed cluster list index.
+            /// </summary>
             public uint EnclosedListIndex => second >> 8;
+
+            /// <summary>
+            /// Gets whether this node has an enclosed cluster list.
+            /// </summary>
             public bool IsEnclosedCluster => EnclosedListIndex != 0xFFFFFF;
         }
 
+        /// <summary>
+        /// Represents a region entry in a leaf node.
+        /// </summary>
+        /// <param name="value">Packed 64-bit region value.</param>
         public readonly struct Region(ulong value)
         {
+            /// <summary>
+            /// Gets the cluster id.
+            /// </summary>
             public ushort ClusterId => (ushort)(value & 0x7FFF);
 
             // Bit 15 is always 0 (unused in engine)
 
+            /// <summary>
+            /// Gets the node index.
+            /// </summary>
             // Game doesn't use NodeIndex even though visbuilder populates it
             public uint NodeIndex => (uint)((value >> 16) & 0xFFFFFF);
+
+            /// <summary>
+            /// Gets the spatial mask index.
+            /// </summary>
             public uint MaskIndex => (uint)(value >> 40);
         }
 
+        /// <summary>
+        /// Gets the octree nodes.
+        /// </summary>
         public Node[] Nodes { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the region entries.
+        /// </summary>
         public Region[] Regions { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the enclosed cluster list entries.
+        /// </summary>
         public (int Offset, int Count)[] EnclosedClusterList { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the enclosed cluster ids.
+        /// </summary>
         public ushort[] EnclosedClusters { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the spatial occupancy masks.
+        /// </summary>
         public ulong[] Masks { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the raw PVS bit table.
+        /// </summary>
         public byte[] VisBlocks { get; private set; } = [];
 
         private byte[]? pvsBuffer;
@@ -175,6 +262,9 @@ namespace ValveResourceFormat.Blocks
         //    return clusterChildren;
         //}
 
+        /// <summary>
+        /// Gets the cluster id for a given world-space position.
+        /// </summary>
         public int GetClusterForPosition(Vector3 position)
         {
             if (Nodes.Length == 0)
@@ -499,6 +589,9 @@ namespace ValveResourceFormat.Blocks
             return xMask & yMask & zMask;
         }
 
+        /// <summary>
+        /// Builds a list of bounding boxes for each cluster.
+        /// </summary>
         public Dictionary<ushort, List<(Vector3 Min, Vector3 Max)>> BuildClusterChildBounds()
         {
             var clusterChildren = new Dictionary<ushort, List<(Vector3 Min, Vector3 Max)>>();
