@@ -1,5 +1,8 @@
 "ResourceEditInfo"
 {
+	"InputDependencies"
+	{
+	}
 	"AdditionalInputDependencies"
 	{
 		"0"
@@ -7,72 +10,93 @@
 			"ContentRelativeFilename"	"panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.txt"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"0"
+			"Optional"	"1"
 			"FileExists"	"0"
 			"IsGameFile"	"0"
-			"Optional"	"1"
 		}
 		"1"
 		{
 			"ContentRelativeFilename"	"panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"4262714785"
+			"Optional"	"0"
 			"FileExists"	"1"
 			"IsGameFile"	"0"
-			"Optional"	"0"
 		}
-	}
-	"AdditionalRelatedFiles"
-	{
 	}
 	"ArgumentDependencies"
 	{
 		"0"
 		{
-			"Fingerprint"	"3350530777"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"___OverrideInputData___"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"3350530777"
+			"FingerprintDefault"	"0"
 		}
 		"1"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"fast"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"2"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"minmipsize"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"3"
 		{
-			"Fingerprint"	"1048576"
-			"FingerprintDefault"	"1048576"
 			"ParameterName"	"maxmipsize"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"1048576"
+			"FingerprintDefault"	"1048576"
 		}
 		"4"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
 			"ParameterType"	"ImageArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"5"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/econ/leagues/subscriptions_gamerpvp_inhouse.png"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 	}
-	"ChildResourceList"
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Texture Compiler Version"
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"11"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"String"	"Texture Compiler Version Image Dilate Color"
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"String"	"Texture Compiler Version Mip None"
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
 	{
 	}
-	"InputDependencies"
+	"ChildResourceList"
 	{
 	}
 	"SearchableUserData"
@@ -81,30 +105,6 @@
 		{
 			"Key"	"IsChildResource"
 			"Value"	"1"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileTexture"
-			"Fingerprint"	"11"
-			"String"	"Texture Compiler Version"
-			"UserData"	"0"
-		}
-		"1"
-		{
-			"CompilerIdentifier"	"CompileTexture"
-			"Fingerprint"	"1"
-			"String"	"Texture Compiler Version Image Dilate Color"
-			"UserData"	"0"
-		}
-		"2"
-		{
-			"CompilerIdentifier"	"CompileTexture"
-			"Fingerprint"	"1"
-			"String"	"Texture Compiler Version Mip None"
-			"UserData"	"0"
 		}
 	}
 }

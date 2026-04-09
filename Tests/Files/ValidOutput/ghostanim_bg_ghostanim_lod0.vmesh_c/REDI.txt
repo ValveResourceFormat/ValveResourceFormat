@@ -1,67 +1,77 @@
 "ResourceEditInfo"
 {
-	"AdditionalInputDependencies"
+	"InputDependencies"
 	{
 	}
-	"AdditionalRelatedFiles"
+	"AdditionalInputDependencies"
 	{
 	}
 	"ArgumentDependencies"
 	{
 		"0"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"___OverrideInputData___"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"1"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"fulltangent"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"2"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"force_up_to_date_materials"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"3"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"randomize_mesh"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"4"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"skip_mesh_optimization"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"5"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"static_prop"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"6"
 		{
-			"Fingerprint"	"1"
-			"FingerprintDefault"	"1"
 			"ParameterName"	"enable_cloth_processing"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"1"
+			"FingerprintDefault"	"1"
 		}
 	}
-	"ChildResourceList"
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Mesh Compiler Version"
+			"CompilerIdentifier"	"CompileRenderMesh"
+			"Fingerprint"	"28"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
 	{
 	}
-	"InputDependencies"
+	"ChildResourceList"
 	{
 	}
 	"SearchableUserData"
@@ -70,16 +80,6 @@
 		{
 			"Key"	"IsChildResource"
 			"Value"	"1"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileRenderMesh"
-			"Fingerprint"	"28"
-			"String"	"Mesh Compiler Version"
-			"UserData"	"0"
 		}
 	}
 }

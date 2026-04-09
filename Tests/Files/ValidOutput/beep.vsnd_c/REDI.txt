@@ -1,24 +1,5 @@
 "ResourceEditInfo"
 {
-	"AdditionalInputDependencies"
-	{
-	}
-	"AdditionalRelatedFiles"
-	{
-	}
-	"ArgumentDependencies"
-	{
-		"0"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"___OverrideInputData___"
-			"ParameterType"	"BinaryBlobArg"
-		}
-	}
-	"ChildResourceList"
-	{
-	}
 	"InputDependencies"
 	{
 		"0"
@@ -26,28 +7,57 @@
 			"ContentRelativeFilename"	"sounds/test/beep.vsnd"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"0"
+			"Optional"	"1"
 			"FileExists"	"0"
 			"IsGameFile"	"0"
-			"Optional"	"1"
 		}
 		"1"
 		{
 			"ContentRelativeFilename"	"sounds/test/beep.mp3"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"0"
+			"Optional"	"1"
 			"FileExists"	"0"
 			"IsGameFile"	"0"
-			"Optional"	"1"
 		}
 		"2"
 		{
 			"ContentRelativeFilename"	"sounds/test/beep.wav"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"2227084264"
+			"Optional"	"0"
 			"FileExists"	"1"
 			"IsGameFile"	"0"
-			"Optional"	"0"
 		}
+	}
+	"AdditionalInputDependencies"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Sound Compiler Version"
+			"CompilerIdentifier"	"CompileSound"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ChildResourceList"
+	{
 	}
 	"SearchableUserData"
 	{
@@ -55,16 +65,6 @@
 		{
 			"Key"	"IsChildResource"
 			"Value"	"0"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileSound"
-			"Fingerprint"	"1"
-			"String"	"Sound Compiler Version"
-			"UserData"	"0"
 		}
 	}
 }
