@@ -88,8 +88,8 @@ public class NmClipExtract
             var eventList = docEventTrack!.GetArray("m_events")![0];
             // Doc file event time stamps are given in frames they can be technically floats, but based on recompilation tests
             // these seem inconsistent, unless they're floored to int, then it matches up.
-            eventList.Add("m_flStartTime", Math.Floor(startTimeSeconds * animation.FrameCount));
-            eventList.Add("m_flDuration", Math.Floor(durationSeconds * animation.FrameCount));
+            eventList["m_flStartTime"] = Math.Floor(startTimeSeconds * animation.FrameCount);
+            eventList["m_flDuration"] = Math.Floor(durationSeconds * animation.FrameCount);
             docEventTracks.Add(docEventTrack);
         }
         kv.Add("m_eventTracks", docEventTracks);
@@ -126,9 +126,7 @@ public class NmClipExtract
 
         foreach (var (key, value) in kvCompiledEvent.Children)
         {
-
-            // These were already handled and shouldn't be copied over.
-            if (key is "_class" or "m_flStartTimeSeconds" or "m_flDurationSeconds")
+            if (key is "_class")
             {
                 continue;
             }
