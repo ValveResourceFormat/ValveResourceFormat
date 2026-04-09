@@ -31,8 +31,8 @@ namespace Tests
             Assert.That(entities, Has.Count.EqualTo(23));
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(entities[0].Count, Is.EqualTo(26));
-                Assert.That(entities[22].Count, Is.EqualTo(56));
+                Assert.That(entities[0], Has.Count.EqualTo(26));
+                Assert.That(entities[22], Has.Count.EqualTo(56));
             }
 
             Assert.That(entities[0].TryGetValue("classname", out var classname), Is.True);
@@ -43,10 +43,13 @@ namespace Tests
             }
 
             var classnameString = entities[0].GetStringProperty("classname");
-            Assert.That(classnameString, Is.EqualTo("worldspawn"));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(classnameString, Is.EqualTo("worldspawn"));
 
-            Assert.That(entities[0].TryGetValue("worldname", out var worldname), Is.True);
-            Assert.That((string)worldname!, Is.EqualTo("blackmap"));
+                Assert.That(entities[0].TryGetValue("worldname", out var worldname), Is.True);
+                Assert.That((string)worldname!, Is.EqualTo("blackmap"));
+            }
 
             var entityString = entityLump.ToEntityDumpString();
 

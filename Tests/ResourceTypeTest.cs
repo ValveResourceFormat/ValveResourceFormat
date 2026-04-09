@@ -49,7 +49,7 @@ namespace Tests
 
                 if (enumName == "Undefined")
                 {
-                    Assert.That((uint)blockType, Is.EqualTo(0));
+                    Assert.That((uint)blockType, Is.Zero);
                     continue;
                 }
 

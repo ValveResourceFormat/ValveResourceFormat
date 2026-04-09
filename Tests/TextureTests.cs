@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -9,17 +10,17 @@ namespace Tests
 {
     public class TextureTests
     {
-        private static string[] GetTextureFiles()
-        {
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Textures");
-            return Directory.GetFiles(path, "*.vtex_c");
-        }
+        private static string TexturesDir
+            => Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Textures");
+
+        private static IEnumerable<string> GetTextureFiles()
+            => Directory.EnumerateFiles(TexturesDir, "*.vtex_c").Select(Path.GetFileName)!;
 
         [Test, TestCaseSource(nameof(GetTextureFiles))]
-        public void ExportTexture(string file)
+        public void ExportTexture(string fileName)
         {
             using var resource = new Resource();
-            resource.Read(file);
+            resource.Read(Path.Combine(TexturesDir, fileName));
 
             var texture = (Texture?)resource.DataBlock;
             Debug.Assert(texture != null);
@@ -39,10 +40,13 @@ namespace Tests
 
             Common.Decode_YCoCg(ref color);
 
-            Assert.That(color.r, Is.EqualTo(128));
-            Assert.That(color.g, Is.EqualTo(128));
-            Assert.That(color.b, Is.EqualTo(128));
-            Assert.That(color.a, Is.EqualTo(255));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(color.r, Is.EqualTo(128));
+                Assert.That(color.g, Is.EqualTo(128));
+                Assert.That(color.b, Is.EqualTo(128));
+                Assert.That(color.a, Is.EqualTo(255));
+            }
         }
 
         [Test]
@@ -52,49 +56,67 @@ namespace Tests
 
             Common.ReconstructNormals(ref color);
 
-            Assert.That(color.r, Is.EqualTo(128));
-            Assert.That(color.g, Is.EqualTo(128));
-            Assert.That(color.b, Is.EqualTo(255));
-            Assert.That(color.a, Is.EqualTo(255));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(color.r, Is.EqualTo(128));
+                Assert.That(color.g, Is.EqualTo(128));
+                Assert.That(color.b, Is.EqualTo(255));
+                Assert.That(color.a, Is.EqualTo(255));
+            }
         }
 
         [Test]
         public void ClampColor_ReturnsValueWhenInRange()
         {
-            Assert.That(Common.ClampColor(0), Is.Zero);
-            Assert.That(Common.ClampColor(128), Is.EqualTo(128));
-            Assert.That(Common.ClampColor(255), Is.EqualTo(255));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(Common.ClampColor(0), Is.Zero);
+                Assert.That(Common.ClampColor(128), Is.EqualTo(128));
+                Assert.That(Common.ClampColor(255), Is.EqualTo(255));
+            }
         }
 
         [Test]
         public void ClampColor_ClampsOutOfRangeValues()
         {
-            Assert.That(Common.ClampColor(-10), Is.Zero);
-            Assert.That(Common.ClampColor(300), Is.EqualTo(255));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(Common.ClampColor(-10), Is.Zero);
+                Assert.That(Common.ClampColor(300), Is.EqualTo(255));
+            }
         }
 
         [Test]
         public void ClampHighRangeColor_ReturnsValueWhenInRange()
         {
-            Assert.That(Common.ClampHighRangeColor(0f), Is.Zero);
-            Assert.That(Common.ClampHighRangeColor(0.5f), Is.EqualTo(0.5f));
-            Assert.That(Common.ClampHighRangeColor(1f), Is.EqualTo(1f));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(Common.ClampHighRangeColor(0f), Is.Zero);
+                Assert.That(Common.ClampHighRangeColor(0.5f), Is.EqualTo(0.5f));
+                Assert.That(Common.ClampHighRangeColor(1f), Is.EqualTo(1f));
+            }
         }
 
         [Test]
         public void ClampHighRangeColor_ClampsOutOfRangeValues()
         {
-            Assert.That(Common.ClampHighRangeColor(-0.5f), Is.Zero);
-            Assert.That(Common.ClampHighRangeColor(1.5f), Is.EqualTo(1f));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(Common.ClampHighRangeColor(-0.5f), Is.Zero);
+                Assert.That(Common.ClampHighRangeColor(1.5f), Is.EqualTo(1f));
+            }
         }
 
         [Test]
         public void ToClampedLdrColor_ConvertsFloatToByte()
         {
-            Assert.That(Common.ToClampedLdrColor(0f), Is.Zero);
-            Assert.That(Common.ToClampedLdrColor(0.5f), Is.EqualTo(128));
-            Assert.That(Common.ToClampedLdrColor(1f), Is.EqualTo(255));
-            Assert.That(Common.ToClampedLdrColor(2f), Is.EqualTo(255));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(Common.ToClampedLdrColor(0f), Is.Zero);
+                Assert.That(Common.ToClampedLdrColor(0.5f), Is.EqualTo(128));
+                Assert.That(Common.ToClampedLdrColor(1f), Is.EqualTo(255));
+                Assert.That(Common.ToClampedLdrColor(2f), Is.EqualTo(255));
+            }
         }
 
         [Test]
@@ -107,15 +129,18 @@ namespace Tests
 
             Common.SwapRB(pixels);
 
-            Assert.That(pixels[0], Is.EqualTo(3));
-            Assert.That(pixels[1], Is.EqualTo(2));
-            Assert.That(pixels[2], Is.EqualTo(1));
-            Assert.That(pixels[3], Is.EqualTo(4));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(pixels[0], Is.EqualTo(3));
+                Assert.That(pixels[1], Is.EqualTo(2));
+                Assert.That(pixels[2], Is.EqualTo(1));
+                Assert.That(pixels[3], Is.EqualTo(4));
 
-            Assert.That(pixels[4], Is.EqualTo(7));
-            Assert.That(pixels[5], Is.EqualTo(6));
-            Assert.That(pixels[6], Is.EqualTo(5));
-            Assert.That(pixels[7], Is.EqualTo(8));
+                Assert.That(pixels[4], Is.EqualTo(7));
+                Assert.That(pixels[5], Is.EqualTo(6));
+                Assert.That(pixels[6], Is.EqualTo(5));
+                Assert.That(pixels[7], Is.EqualTo(8));
+            }
         }
 
         [Test]
@@ -136,10 +161,13 @@ namespace Tests
 
             for (var i = 0; i < pixelCount; i++)
             {
-                Assert.That(pixels[i * 4], Is.EqualTo((byte)((i >> 8) & 0xFF)));
-                Assert.That(pixels[i * 4 + 1], Is.Zero);
-                Assert.That(pixels[i * 4 + 2], Is.EqualTo((byte)(i & 0xFF)));
-                Assert.That(pixels[i * 4 + 3], Is.EqualTo(255));
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(pixels[i * 4], Is.EqualTo((byte)((i >> 8) & 0xFF)));
+                    Assert.That(pixels[i * 4 + 1], Is.Zero);
+                    Assert.That(pixels[i * 4 + 2], Is.EqualTo((byte)(i & 0xFF)));
+                    Assert.That(pixels[i * 4 + 3], Is.EqualTo(255));
+                }
             }
         }
 

@@ -811,22 +811,25 @@ namespace Tests
 
         private static void AssertMatrixEqual(Matrix4x4 expected, Matrix4x4 actual, float tolerance)
         {
-            Assert.That(actual.M11, Is.EqualTo(expected.M11).Within(tolerance));
-            Assert.That(actual.M12, Is.EqualTo(expected.M12).Within(tolerance));
-            Assert.That(actual.M13, Is.EqualTo(expected.M13).Within(tolerance));
-            Assert.That(actual.M14, Is.EqualTo(expected.M14).Within(tolerance));
-            Assert.That(actual.M21, Is.EqualTo(expected.M21).Within(tolerance));
-            Assert.That(actual.M22, Is.EqualTo(expected.M22).Within(tolerance));
-            Assert.That(actual.M23, Is.EqualTo(expected.M23).Within(tolerance));
-            Assert.That(actual.M24, Is.EqualTo(expected.M24).Within(tolerance));
-            Assert.That(actual.M31, Is.EqualTo(expected.M31).Within(tolerance));
-            Assert.That(actual.M32, Is.EqualTo(expected.M32).Within(tolerance));
-            Assert.That(actual.M33, Is.EqualTo(expected.M33).Within(tolerance));
-            Assert.That(actual.M34, Is.EqualTo(expected.M34).Within(tolerance));
-            Assert.That(actual.M41, Is.EqualTo(expected.M41).Within(tolerance));
-            Assert.That(actual.M42, Is.EqualTo(expected.M42).Within(tolerance));
-            Assert.That(actual.M43, Is.EqualTo(expected.M43).Within(tolerance));
-            Assert.That(actual.M44, Is.EqualTo(expected.M44).Within(tolerance));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(actual.M11, Is.EqualTo(expected.M11).Within(tolerance));
+                Assert.That(actual.M12, Is.EqualTo(expected.M12).Within(tolerance));
+                Assert.That(actual.M13, Is.EqualTo(expected.M13).Within(tolerance));
+                Assert.That(actual.M14, Is.EqualTo(expected.M14).Within(tolerance));
+                Assert.That(actual.M21, Is.EqualTo(expected.M21).Within(tolerance));
+                Assert.That(actual.M22, Is.EqualTo(expected.M22).Within(tolerance));
+                Assert.That(actual.M23, Is.EqualTo(expected.M23).Within(tolerance));
+                Assert.That(actual.M24, Is.EqualTo(expected.M24).Within(tolerance));
+                Assert.That(actual.M31, Is.EqualTo(expected.M31).Within(tolerance));
+                Assert.That(actual.M32, Is.EqualTo(expected.M32).Within(tolerance));
+                Assert.That(actual.M33, Is.EqualTo(expected.M33).Within(tolerance));
+                Assert.That(actual.M34, Is.EqualTo(expected.M34).Within(tolerance));
+                Assert.That(actual.M41, Is.EqualTo(expected.M41).Within(tolerance));
+                Assert.That(actual.M42, Is.EqualTo(expected.M42).Within(tolerance));
+                Assert.That(actual.M43, Is.EqualTo(expected.M43).Within(tolerance));
+                Assert.That(actual.M44, Is.EqualTo(expected.M44).Within(tolerance));
+            }
         }
 
         private static byte[] ParseString(string bytestring)

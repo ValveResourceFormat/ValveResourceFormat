@@ -342,11 +342,17 @@ namespace Tests
             using var testStream = new TestableMemoryStream(testData);
 
             resource.Read(testStream, leaveOpen: false);
-            Assert.That(testStream.IsDisposed, Is.False);
-            Assert.That(resource.Reader, Is.Not.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(testStream.IsDisposed, Is.False);
+                Assert.That(resource.Reader, Is.Not.Null);
+            }
             resource.Dispose();
-            Assert.That(testStream.IsDisposed, Is.True);
-            Assert.That(resource.Reader, Is.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(testStream.IsDisposed, Is.True);
+                Assert.That(resource.Reader, Is.Null);
+            }
         }
 
         [Test]
@@ -360,8 +366,11 @@ namespace Tests
             resource.Read(testStream, leaveOpen: true);
             Assert.That(resource.Reader, Is.Not.Null);
             resource.Dispose();
-            Assert.That(testStream.IsDisposed, Is.False);
-            Assert.That(resource.Reader, Is.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(testStream.IsDisposed, Is.False);
+                Assert.That(resource.Reader, Is.Null);
+            }
             testStream.Dispose();
             Assert.That(testStream.IsDisposed, Is.True);
         }
