@@ -86,6 +86,10 @@ public class NmClipExtract
             var durationObj = ev.GetSubCollection("m_flDuration");
             var durationSeconds = durationObj?.GetFloatProperty("m_flValue") ?? 0f;
             var eventList = docEventTrack!.GetArray("m_events")![0];
+
+            eventList.Remove("m_flStartTime");
+            eventList.Remove("m_flDuration");
+
             // Doc file event time stamps are given in frames they can be technically floats, but based on recompilation tests
             // these seem inconsistent, unless they're floored to int, then it matches up.
             eventList.Add("m_flStartTime", Math.Floor(startTimeSeconds * animation.FrameCount));
