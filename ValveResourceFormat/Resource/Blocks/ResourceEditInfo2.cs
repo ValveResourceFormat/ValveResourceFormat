@@ -18,6 +18,11 @@ namespace ValveResourceFormat.Blocks
         private BinaryKV3? BackingData;
 
         /// <summary>
+        /// Gets the parsed KV3 document, if available.
+        /// </summary>
+        public KVDocument? Data => BackingData?.Data;
+
+        /// <summary>
         /// Gets the list of weak references.
         /// </summary>
         public List<string> WeakReferenceList { get; } = [];

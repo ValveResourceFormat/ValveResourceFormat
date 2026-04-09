@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ namespace GUI.Types.Viewers
     class BinaryKeyValues1(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? text;
+        private IReadOnlyList<KvSourceSpan>? sourceMap;
 
         public static bool IsAccepted(uint magic)
         {
@@ -41,24 +43,19 @@ namespace GUI.Types.Viewers
                 stream.Close();
             }
 
-            using var ms = new MemoryStream();
-            using var reader = new StreamReader(ms);
-
-            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, kv);
-
-            ms.Seek(0, SeekOrigin.Begin);
-
-            text = await reader.ReadToEndAsync().ConfigureAwait(false);
+            (text, sourceMap) = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).SerializeWithSourceMap(kv);
         }
 
         public void Create(TabPage tab)
         {
             Debug.Assert(text is not null);
+            Debug.Assert(sourceMap is not null);
 
-            var control = CodeTextBox.Create(text);
+            var control = CodeTextBox.Create(text, sourceMap: sourceMap);
             tab.Controls.Add(control);
 
             text = null;
+            sourceMap = null;
         }
 
         public void Dispose()

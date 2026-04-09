@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
@@ -11,6 +13,7 @@ namespace GUI.Types.Viewers
     class BinaryKeyValues3(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
         private string? text;
+        private IReadOnlyList<KvSourceSpan>? sourceMap;
 
         public static bool IsAccepted(uint magic) => BinaryKV3.IsBinaryKV3(magic);
 
@@ -36,17 +39,19 @@ namespace GUI.Types.Viewers
 
             kv3stream.Close();
 
-            text = kv3.ToString();
+            (text, sourceMap) = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).SerializeWithSourceMap(kv3.Data);
         }
 
         public void Create(TabPage tab)
         {
             Debug.Assert(text is not null);
+            Debug.Assert(sourceMap is not null);
 
-            var control = CodeTextBox.Create(text);
+            var control = CodeTextBox.Create(text, sourceMap: sourceMap);
             tab.Controls.Add(control);
 
             text = null;
+            sourceMap = null;
         }
 
         public void Dispose()
