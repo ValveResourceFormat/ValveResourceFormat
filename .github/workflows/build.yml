@@ -52,7 +52,7 @@ jobs:
           nuget-
 
     - name: Run tests
-      run: dotnet test ./Tests/Tests.csproj --configuration Release -p:CollectCoverage=true -p:CoverletOutputFormat=lcov -p:CoverletOutput='./lcov.info' -p:Include="[ValveResourceFormat*]*"
+      run: dotnet test --project ./Tests/Tests.csproj --configuration Release --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml
 
 #    - name: Check formatting
 #      if: matrix.os == 'ubuntu-latest'
@@ -192,7 +192,7 @@ jobs:
       if: github.ref == 'refs/heads/master'
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./Tests/lcov.info
+        files: ./Tests/bin/Release/TestResults/coverage.cobertura.xml
         fail_ci_if_error: true
         verbose: true
 
