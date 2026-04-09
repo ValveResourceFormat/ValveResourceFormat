@@ -110,6 +110,9 @@ public class Renderer
     /// </summary>
     public Frustum? LockedCullFrustum { get; set; }
 
+    /// <summary>
+    /// When not <see langword="null"/>, PVS queries use this position instead of the camera position, freezing the PVS state.
+    /// </summary>
     public Vector3? LockedCullPosition { get; set; }
 
     // options

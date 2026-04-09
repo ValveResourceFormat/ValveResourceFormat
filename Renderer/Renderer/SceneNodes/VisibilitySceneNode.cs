@@ -4,6 +4,9 @@ using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
+    /// <summary>
+    /// Debug scene node that draws voxel visibility cluster bounds as colored wireframe boxes.
+    /// </summary>
     public class VisibilitySceneNode : SceneNode
     {
         private readonly record struct ClusterDrawRange(int Start, int Count, ushort ClusterId);
@@ -13,6 +16,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly int totalVertexCount;
         private readonly ClusterDrawRange[] clusterDrawRanges;
 
+        /// <summary>
+        /// Initializes a new <see cref="VisibilitySceneNode"/> from the given voxel visibility data.
+        /// </summary>
         public VisibilitySceneNode(Scene scene, VoxelVisibility voxelVisibility) : base(scene)
         {
             shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.default");
