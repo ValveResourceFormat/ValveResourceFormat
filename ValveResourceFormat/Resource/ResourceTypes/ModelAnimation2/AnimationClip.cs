@@ -138,7 +138,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 var secondaryAnim = new AnimationClip()
                 {
                     Resource = Resource,
-                    Name = $"{Name}.secondary_{j}"
+                    // No longer making the name unique, glTF animations can apply to multiple skeletons
+                    Name = Name,
                 };
                 secondaryAnim.ReadClip(secondaryAnims[j]);
                 SecondaryAnimations[j] = secondaryAnim;

@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
@@ -617,10 +618,14 @@ namespace ValveResourceFormat.IO
                 var skeletonData = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
 
                 var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, clip.SkeletonName);
-                if (joints == null)
+                if (skeletonNode == null || joints == null)
                 {
                     throw new InvalidDataException($"Failure creating glTF skeleton for '{clip.SkeletonName}'.");
                 }
+
+                // Create a skeleton visualization mesh so importers recognize this as a proper skeleton
+                var meshNode = CreateSkeletonVisualizationMesh(exportedModel, scene, skeletonData, joints);
+                meshNode.Name = $"{clip.SkeletonName}.empty_mesh_reference";
 
                 //if (ExportAnimations)
                 {
@@ -628,6 +633,8 @@ namespace ValveResourceFormat.IO
                     var animationWriter = new AnimationWriter(skeletonData, []);
                     animationWriter.WriteAnimation(exportedModel, joints, animation);
                 }
+
+                skeletonNode.WorldMatrix = TRANSFORMSOURCETOGLTF;
             }
 
             ExportAnimationClip(animationClip);
@@ -927,6 +934,70 @@ namespace ValveResourceFormat.IO
             {
                 CreateBonesRecursive(child, node, ref joints);
             }
+        }
+
+        private static Node CreateSkeletonVisualizationMesh(ModelRoot exportedModel, Scene scene, Skeleton skeleton, Node[] joints)
+        {
+            var positions = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var boneIndicesShort = new List<ushort>();
+            var boneWeights = new List<Vector4>();
+
+            // Create a single vertex at each bone position
+            foreach (var bone in skeleton.Bones)
+            {
+                var joint = joints[bone.Index];
+                var worldMatrix = joint.WorldMatrix;
+                var worldPosition = worldMatrix.Translation;
+
+                positions.Add(worldPosition);
+                normals.Add(Vector3.UnitY);
+                boneIndicesShort.Add((ushort)bone.Index);
+                boneIndicesShort.Add(0);
+                boneIndicesShort.Add(0);
+                boneIndicesShort.Add(0);
+                boneWeights.Add(new Vector4(1.0f, 0, 0, 0));
+            }
+
+            var indices = Enumerable.Range(0, positions.Count).ToArray();
+
+            var mesh = exportedModel.CreateMesh();
+            var primitive = mesh.CreatePrimitive();
+
+            var positionAccessor = CreateAccessor(exportedModel, [.. positions]);
+            var normalAccessor = CreateAccessor(exportedModel, [.. normals]);
+            var weightsAccessor = CreateAccessor(exportedModel, [.. boneWeights]);
+
+            // Create JOINTS accessor with UInt16 format
+            var jointsBufferView = exportedModel.CreateBufferView(2 * boneIndicesShort.Count, 8, BufferMode.ARRAY_BUFFER);
+            var bufferViewShorts = MemoryMarshal.Cast<byte, ushort>(((Memory<byte>)jointsBufferView.Content).Span);
+            for (var i = 0; i < boneIndicesShort.Count; i++)
+            {
+                bufferViewShorts[i] = boneIndicesShort[i];
+            }
+
+            var jointsAccessor = exportedModel.CreateAccessor();
+            jointsAccessor.SetVertexData(jointsBufferView, 0, positions.Count, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
+
+            primitive.SetVertexAccessor("POSITION", positionAccessor);
+            primitive.SetVertexAccessor("NORMAL", normalAccessor);
+            primitive.SetVertexAccessor("JOINTS_0", jointsAccessor);
+            primitive.SetVertexAccessor("WEIGHTS_0", weightsAccessor);
+
+            primitive.WithIndicesAccessor(PrimitiveType.POINTS, indices);
+
+            // Reuse skeleton material if it already exists
+            var material = exportedModel.LogicalMaterials.FirstOrDefault(m => m.Name == "skeleton_material");
+            if (material == null)
+            {
+                material = exportedModel.CreateMaterial("skeleton_material");
+                material.WithPBRMetallicRoughness(new Vector4(0.8f, 0.8f, 0.8f, 1.0f), null, metallicFactor: 0.0f);
+                material.Alpha = AlphaMode.OPAQUE;
+            }
+
+            primitive.WithMaterial(material);
+
+            return scene.CreateNode().WithSkinnedMesh(mesh, TRANSFORMSOURCETOGLTF, joints);
         }
 
         private static PunctualLight CreateGltfLightEnvironment(ModelRoot exportedModel, VEntityLump.Entity entity)
