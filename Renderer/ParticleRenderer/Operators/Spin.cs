@@ -1,30 +1,41 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
+    /// Base class for spin operators that rotate particles at a constant rate.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CGeneralSpin">CGeneralSpin</seealso>
+    abstract class CGeneralSpin : ParticleFunctionOperator
+    {
+        protected readonly int spinRateDegrees;
+        protected readonly int spinRateMinDegrees;
+        protected readonly float spinRateStopTime;
+
+        protected CGeneralSpin(ParticleDefinitionParser parse) : base(parse)
+        {
+            spinRateDegrees = parse.Int32("m_nSpinRateDegrees", spinRateDegrees);
+            spinRateMinDegrees = parse.Int32("m_nSpinRateMinDegrees", spinRateMinDegrees); // what is this
+            spinRateStopTime = parse.Float("m_fSpinRateStopTime", spinRateStopTime);
+        }
+    }
+
+    /// <summary>
     /// Continuously rotates a particle's roll angle at a constant spin rate (in degrees per second)
     /// until the particle exceeds the spin stop time.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_Spin">C_OP_Spin</seealso>
-    class Spin : ParticleFunctionOperator
+    class Spin : CGeneralSpin
     {
-        private readonly float spinRate;
-        private readonly float spinRateMin; // don't actually know if this is used or not. I don't think it is?
-        private readonly float spinStopTime;
         public Spin(ParticleDefinitionParser parse) : base(parse)
         {
-            spinRate = parse.Float("m_nSpinRateDegrees", spinRate);
-            spinRateMin = parse.Float("m_nSpinRateMinDegrees", spinRateMin);
-            spinStopTime = parse.Float("m_fSpinRateStopTime", spinStopTime);
         }
 
-        // Does not require SpinUpdate 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {
-                if (particle.Age < spinStopTime)
+                if (particle.Age < spinRateStopTime)
                 {
-                    particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + spinRate * frameTime);
+                    particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + spinRateDegrees * frameTime);
                 }
             }
         }
@@ -35,26 +46,19 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// until the particle exceeds the spin stop time.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SpinYaw">C_OP_SpinYaw</seealso>
-    class SpinYaw : ParticleFunctionOperator
+    class SpinYaw : CGeneralSpin
     {
-        private readonly float spinRate;
-        private readonly float spinRateMin; // don't actually know if this is used or not. I don't think it is?
-        private readonly float spinStopTime;
         public SpinYaw(ParticleDefinitionParser parse) : base(parse)
         {
-            spinRate = parse.Float("m_nSpinRateDegrees", spinRate);
-            spinRateMin = parse.Float("m_nSpinRateMinDegrees", spinRateMin);
-            spinStopTime = parse.Float("m_fSpinRateStopTime", spinStopTime);
         }
 
-        // Does not require SpinUpdate
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {
-                if (particle.Age < spinStopTime)
+                if (particle.Age < spinRateStopTime)
                 {
-                    particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + spinRate * frameTime);
+                    particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + spinRateDegrees * frameTime);
                 }
             }
         }

@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             lifetimeMin = parse.Float("m_fLifetimeMin", lifetimeMin);
             lifetimeMax = parse.Float("m_fLifetimeMax", lifetimeMax);
-            lifetimeMax = parse.Float("m_flLifetimeRandExponent", lifetimeMax);
+            lifetimeRandomExponent = parse.Float("m_fLifetimeRandExponent", lifetimeRandomExponent);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)

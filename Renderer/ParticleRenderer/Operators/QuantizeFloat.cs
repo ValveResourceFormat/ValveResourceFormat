@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public QuantizeFloat(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-            quantizeSize = parse.NumberProvider("m_nInputValue", quantizeSize);
+            quantizeSize = parse.NumberProvider("m_InputValue", quantizeSize);
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {

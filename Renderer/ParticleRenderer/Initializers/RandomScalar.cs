@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             scalarMin = parse.Float("m_flMin", scalarMin);
             scalarMax = parse.Float("m_flMax", scalarMax);
-            scalarMax = parse.Float("m_flExponent", scalarMax);
+            exponent = parse.Float("m_flExponent", exponent);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)

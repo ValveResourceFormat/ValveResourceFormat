@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public SetFloat(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-            value = parse.NumberProvider("m_nInputValue", value);
+            value = parse.NumberProvider("m_InputValue", value);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
 

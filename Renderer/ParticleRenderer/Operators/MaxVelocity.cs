@@ -8,12 +8,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     class MaxVelocity : ParticleFunctionOperator
     {
         private readonly float maxVelocity;
+        private readonly float minVelocity;
         private readonly int overrideCP = -1;
         private readonly int overrideCPField;
 
         public MaxVelocity(ParticleDefinitionParser parse) : base(parse)
         {
             maxVelocity = parse.Float("m_flMaxVelocity", maxVelocity);
+            minVelocity = parse.Float("m_flMinVelocity", minVelocity);
             overrideCP = parse.Int32("m_nOverrideCP", overrideCP);
             overrideCPField = parse.Int32("m_nOverrideCPField", overrideCPField);
         }
@@ -21,6 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             var maxVelocity = this.maxVelocity;
+            var minVelocity = this.minVelocity;
             if (overrideCP > -1)
             {
                 var controlPoint = particleSystemState.GetControlPoint(overrideCP);
@@ -30,9 +33,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                if (particle.Velocity.Length() > maxVelocity)
+                var speed = particle.Velocity.Length();
+                if (speed > maxVelocity)
                 {
                     particle.Velocity = Vector3.Normalize(particle.Velocity) * maxVelocity;
+                }
+                else if (speed < minVelocity)
+                {
+                    particle.Velocity = Vector3.Normalize(particle.Velocity) * minVelocity;
                 }
             }
         }

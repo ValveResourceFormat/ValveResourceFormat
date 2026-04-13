@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly float rotRateMax = 180f;
 
         private readonly INumberProvider perParticleScale = new LiteralNumberProvider(1f);
-        private readonly bool normalize;
+        private readonly bool normalize = true;
 
         public RotateVector(ParticleDefinitionParser parse) : base(parse)
         {

@@ -12,6 +12,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly float endTime = 1;
         private readonly INumberProvider startScale = new LiteralNumberProvider(1);
         private readonly INumberProvider endScale = new LiteralNumberProvider(1);
+        private readonly bool easeInAndOut;
         private readonly INumberProvider bias = new LiteralNumberProvider(0);
 
 
@@ -21,6 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             endTime = parse.Float("m_flEndTime", endTime);
             startScale = parse.NumberProvider("m_flStartScale", startScale);
             endScale = parse.NumberProvider("m_flEndScale", endScale);
+            easeInAndOut = parse.Boolean("m_bEaseInAndOut", easeInAndOut);
             bias = parse.NumberProvider("m_flBias", bias);
         }
 
@@ -36,6 +38,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var endScale = this.endScale.NextNumber(ref particle, particleSystemState);
 
                     var timeScale = MathUtils.Remap(time, startTime, endTime);
+
+                    if (easeInAndOut)
+                    {
+                        timeScale = timeScale * timeScale * (3 - 2 * timeScale); // smoothstep
+                    }
+
                     timeScale = MathF.Pow(timeScale, 1.0f - bias.NextNumber(ref particle, particleSystemState)); // apply bias to timescale
                     var radiusScale = float.Lerp(startScale, endScale, timeScale);
 

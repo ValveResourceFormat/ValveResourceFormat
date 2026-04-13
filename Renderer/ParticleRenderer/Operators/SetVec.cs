@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public SetVec(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-            value = parse.VectorProvider("m_nInputValue", value);
+            value = parse.VectorProvider("m_InputValue", value);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
 

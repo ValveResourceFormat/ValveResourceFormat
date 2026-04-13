@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public LerpVector(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-            output = parse.Vector3("m_nInputValue", output);
+            output = parse.Vector3("m_vecOutput", output);
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
