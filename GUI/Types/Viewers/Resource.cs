@@ -536,7 +536,6 @@ namespace GUI.Types.Viewers
 
             if (foundFile.Context != null)
             {
-                Debug.Assert(foundFile.PackageEntry != null);
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
                 return true;
             }
