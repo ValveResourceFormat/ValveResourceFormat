@@ -188,7 +188,7 @@ jobs:
           !**/*.pdb
 
     - name: Upload test coverage
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       if: github.ref == 'refs/heads/master'
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
