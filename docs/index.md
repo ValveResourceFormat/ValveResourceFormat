@@ -102,6 +102,10 @@ Yes, Source 2 Viewer fully supports CS2, including models, textures, materials, 
 
 Yes, Source 2 Viewer is actively maintained and regularly updated to support new Source 2 games and file format changes.
 
+### Why is Source 2 Viewer not opening?
+
+If you double click the executable and nothing happens, the most likely cause is that your Windows is missing CET (Control-flow Enforcement Technology) support. Please update your Windows.
+
 ### How do I extract models for use in Blender or other 3D software?
 
 Source 2 Viewer can export .vmdl, .vmesh, .vwrld, .vwnod, and .vmap files into a standard glTF format which is supported by a lot of software including Blender.
