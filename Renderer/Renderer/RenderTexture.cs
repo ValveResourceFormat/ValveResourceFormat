@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// OpenGL texture object with metadata for dimensions and filtering configuration.
     /// </summary>
-    [DebuggerDisplay("{Width}x{Height}x{Depth} mip:{NumMipLevels} srgb:{Srgb}")]
+    [DebuggerDisplay("{Width}x{Height}x{Depth} mip:{NumMipLevels} ({Target})")]
     public class RenderTexture
     {
         /// <summary>Gets the OpenGL texture target (e.g. Texture2D, TextureCubeMap).</summary>
