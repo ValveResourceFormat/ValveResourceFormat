@@ -11,7 +11,9 @@ launchSettings.json
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+# Visual Studio Code files
 .vscode/
+*.lscache
 
 # Build results
 [Dd]ebug/
