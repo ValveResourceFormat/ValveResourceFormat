@@ -234,21 +234,7 @@ public partial class GltfModelExporter
                     Debug.Assert(joints.Length == 8 * vertexBuffer.ElementCount);
                     Debug.Assert(weights.Length == 2 * vertexBuffer.ElementCount);
 
-                    var joints0 = 0;
-                    var joints1 = joints.Length / 2;
-
-                    for (var i = 0; i < joints.Length - 8; i += 8)
-                    {
-                        bufferViewShorts[joints0++] = joints[i];
-                        bufferViewShorts[joints0++] = joints[i + 1];
-                        bufferViewShorts[joints0++] = joints[i + 2];
-                        bufferViewShorts[joints0++] = joints[i + 3];
-
-                        bufferViewShorts[joints1++] = joints[i + 4];
-                        bufferViewShorts[joints1++] = joints[i + 5];
-                        bufferViewShorts[joints1++] = joints[i + 6];
-                        bufferViewShorts[joints1++] = joints[i + 7];
-                    }
+                    SplitEightBoneJoints(joints, bufferViewShorts);
 
                     var accessor0 = exportedModel.CreateAccessor();
                     var accessor1 = exportedModel.CreateAccessor();
@@ -642,6 +628,32 @@ public partial class GltfModelExporter
             {
                 vectorArray[i] = -Vector3.UnitZ;
             }
+        }
+    }
+
+    /// <summary>
+    /// Splits an interleaved 8-bone-per-vertex joint array into two VEC4 halves
+    /// laid out back-to-back (JOINTS_0 followed by JOINTS_1) for glTF export.
+    /// </summary>
+    internal static void SplitEightBoneJoints(ReadOnlySpan<ushort> joints, Span<ushort> output)
+    {
+        Debug.Assert(joints.Length % 8 == 0);
+        Debug.Assert(output.Length == joints.Length);
+
+        var joints0 = 0;
+        var joints1 = joints.Length / 2;
+
+        for (var i = 0; i < joints.Length; i += 8)
+        {
+            output[joints0++] = joints[i];
+            output[joints0++] = joints[i + 1];
+            output[joints0++] = joints[i + 2];
+            output[joints0++] = joints[i + 3];
+
+            output[joints1++] = joints[i + 4];
+            output[joints1++] = joints[i + 5];
+            output[joints1++] = joints[i + 6];
+            output[joints1++] = joints[i + 7];
         }
     }
 
