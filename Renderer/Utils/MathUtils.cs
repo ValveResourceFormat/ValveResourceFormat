@@ -65,12 +65,13 @@ namespace ValveResourceFormat.Renderer.Utils
         public static float Fract(float x) => x % 1f;
 
         /// <summary>
-        /// Wraps a value within a range (modulo with offset).
+        /// Wraps a value into the half-open range [lowBounds, highBounds).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Wrap(float x, float lowBounds, float highBounds)
         {
-            return ((x - lowBounds) % highBounds) + lowBounds;
+            var range = highBounds - lowBounds;
+            return x - range * MathF.Floor((x - lowBounds) / range);
         }
 
         /// <summary>
