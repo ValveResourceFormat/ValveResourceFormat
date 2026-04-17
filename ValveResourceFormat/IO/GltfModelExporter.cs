@@ -707,7 +707,7 @@ namespace ValveResourceFormat.IO
                 var meshName = m.Name;
 
                 // Apply mesh filter if specified
-                if (MeshFilter.Count > 0 && !MeshFilter.Contains(name.Split('.')[^1]))
+                if (MeshFilter.Count > 0 && !MeshFilter.Contains(meshName.Split('.')[^1]))
                 {
                     continue;
                 }
