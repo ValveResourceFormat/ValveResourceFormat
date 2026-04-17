@@ -7,6 +7,7 @@ using Datamodel;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
@@ -79,6 +80,12 @@ partial class ModelExtract
         /// Remap table for the mesh bone indices.
         /// </summary>
         public int[]? BoneRemapTable { get; init; }
+
+        /// <summary>
+        /// Skeleton whose bones the mesh's BLENDINDICES reference (post-remap, in <see cref="Bone.Index"/> order).
+        /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
+        /// </summary>
+        public Skeleton? Skeleton { get; init; }
     }
 
     /// <summary>
@@ -90,6 +97,7 @@ partial class ModelExtract
         int Index,
         string FileName,
         int[]? BoneRemapTable = null,
+        Skeleton? Skeleton = null,
         ImportFilter ImportFilter = default
     );
 
@@ -161,7 +169,7 @@ partial class ModelExtract
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
             var remapTable = model.GetRemapTable(embedded.MeshIndex);
-            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++), remapTable));
+            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++), remapTable, model.Skeleton));
         }
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
@@ -187,7 +195,7 @@ partial class ModelExtract
             var remapTable = model.GetRemapTable(reference.MeshIndex);
             var meshKey = Path.GetFileNameWithoutExtension(reference.MeshName);
 
-            RenderMeshesToExtract.Add(new(mesh, meshKey, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable));
+            RenderMeshesToExtract.Add(new(mesh, meshKey, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable, model.Skeleton));
         }
     }
 
@@ -280,12 +288,14 @@ partial class ModelExtract
             yield break;
         }
 
-        var (mesh, name, index, fileName, _, _) = extract.RenderMeshesToExtract[0];
+        var (mesh, name, index, fileName, boneRemapTable, skeleton, _) = extract.RenderMeshesToExtract[0];
 
         var options = new DatamodelRenderMeshExtractOptions
         {
             MaterialInputSignatures = extract.MaterialInputSignatures,
-            SplitDrawCallsIntoSeparateSubmeshes = true
+            SplitDrawCallsIntoSeparateSubmeshes = true,
+            BoneRemapTable = boneRemapTable,
+            Skeleton = skeleton,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -294,7 +304,7 @@ partial class ModelExtract
             options
         );
 
-        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, ImportFilter: new(true, new(1)));
+        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, boneRemapTable, skeleton, new(true, new(1)));
         extract.RenderMeshesToExtract.Clear();
         extract.RenderMeshesToExtract.Add(sharedMeshExtractConfiguration);
 
@@ -461,6 +471,39 @@ partial class ModelExtract
         var datamodel = new Datamodel.Datamodel("model", 22);
         var dmeModel = new DmeModel() { Name = name };
         var dmeVertexBuffers = new Dictionary<(int, int), (DmeDag Dag, DmeVertexData VertexData)>(mbuf.VertexBuffers.Count);
+
+        // Populate the joint list with bones up-front so DMX BLENDINDICES line up with Bone.Index.
+        // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
+        if (options.Skeleton is { Bones.Length: > 0 } skeleton)
+        {
+            var boneDags = new DmeJoint[skeleton.Bones.Length];
+
+            foreach (var bone in skeleton.Bones)
+            {
+                var dag = new DmeJoint
+                {
+                    Name = bone.Name,
+                };
+                dag.Transform.Name = bone.Name;
+                dag.Transform.Position = bone.Position;
+                dag.Transform.Orientation = bone.Angle;
+
+                boneDags[bone.Index] = dag;
+                dmeModel.JointList.Add(dag);
+            }
+
+            foreach (var bone in skeleton.Bones)
+            {
+                if (bone.Parent != null)
+                {
+                    boneDags[bone.Parent.Index].Children.Add(boneDags[bone.Index]);
+                }
+                else
+                {
+                    dmeModel.Children.Add(boneDags[bone.Index]);
+                }
+            }
+        }
 
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
