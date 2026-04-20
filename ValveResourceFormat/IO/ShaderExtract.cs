@@ -1221,7 +1221,7 @@ public sealed class ShaderExtract
         [nameof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.MultisampleEnable)] = typeof(Boolean),
 
         // RsDepthStencilStateDesc
-        [nameof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.DepthFunc)] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsComparison),
+        [nameof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.DepthFunc)] = typeof(RsComparison),
         ["DepthEnable"] = typeof(Boolean),
         [nameof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.DepthWriteEnable)] = typeof(Boolean),
 

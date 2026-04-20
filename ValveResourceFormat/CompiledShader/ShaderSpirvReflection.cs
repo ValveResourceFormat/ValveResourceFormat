@@ -7,6 +7,9 @@ using ValveResourceFormat.ResourceTypes;
 using Vortice.SPIRV;
 using Vortice.SpirvCross;
 using SpirvResourceType = Vortice.SpirvCross.ResourceType;
+using static ValveResourceFormat.CompiledShader.RsFilter;
+using static ValveResourceFormat.CompiledShader.RsTextureAddressMode;
+using static ValveResourceFormat.CompiledShader.RsComparison;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -42,6 +45,97 @@ public static partial class ShaderSpirvReflection
         // Older versions
         return new(TextureStartingPoint: 90, TextureIndexStartingPoint: 30, SamplerStartingPoint: 42, StorageBufferStartingPoint: 30, VsGsBufferBindingOffset: 14);
     }
+
+    private readonly record struct AddressMode(RsTextureAddressMode? Value = null, bool IsDynamic = false)
+    {
+        public static readonly AddressMode Dynamic = new(IsDynamic: true);
+        public static implicit operator AddressMode(RsTextureAddressMode mode) => new(mode);
+    }
+
+    private record struct SamplerDefinition(
+        RsFilter? Filter = null,
+        AddressMode AddressU = default,
+        AddressMode AddressV = default,
+        AddressMode AddressW = default,
+        int? MaxAniso = null,
+        RsComparison? ComparisonFunc = null,
+        int? BorderColor = null,
+        int? MipBias = null,
+        int? MaxLod = null,
+        int? MinLod = null,
+        bool? AllowGlobalMipBiasOverride = null)
+    {
+        public bool HasUnknownFields { get; set; }
+
+        public readonly SamplerDefinition AddressAll(RsTextureAddressMode m) => this with { AddressU = m, AddressV = m, AddressW = m };
+        public readonly SamplerDefinition AddressUV(RsTextureAddressMode m) => this with { AddressU = m, AddressV = m };
+        public readonly SamplerDefinition NoMipBias() => this with { AllowGlobalMipBiasOverride = false };
+
+        public static readonly SamplerDefinition Aniso = new(Filter: Anisotropic, MaxAniso: 8);
+        public static readonly SamplerDefinition Bilinear = new(Filter: MinMagLinearMipPoint);
+        public static readonly SamplerDefinition Trilinear = new(Filter: MinMagMipLinear);
+        public static readonly SamplerDefinition Point = new(Filter: MinMagMipPoint);
+        public static readonly SamplerDefinition UserConfig = new(Filter: RsFilter.UserConfig, MaxAniso: -1, AddressU: AddressMode.Dynamic, AddressV: AddressMode.Dynamic);
+
+        public void SetStatic(string name, int value)
+        {
+            switch (name)
+            {
+                case "Filter": Filter = (RsFilter)value; break;
+                case "AddressU": AddressU = (RsTextureAddressMode)value; break;
+                case "AddressV": AddressV = (RsTextureAddressMode)value; break;
+                case "AddressW": AddressW = (RsTextureAddressMode)value; break;
+                case "MaxAniso": MaxAniso = value; break;
+                case "ComparisonFunc": ComparisonFunc = (RsComparison)value; break;
+                case "BorderColor": BorderColor = value; break;
+                case "MipBias": MipBias = value; break;
+                case "MaxLOD": MaxLod = value; break;
+                case "MinLOD": MinLod = value; break;
+                case "AllowGlobalMipBiasOverride": AllowGlobalMipBiasOverride = value != 0; break;
+                default: HasUnknownFields = true; break;
+            }
+        }
+
+        public void SetDynamic(string name)
+        {
+            switch (name)
+            {
+                case "AddressU": AddressU = AddressMode.Dynamic; break;
+                case "AddressV": AddressV = AddressMode.Dynamic; break;
+                default: HasUnknownFields = true; break;
+            }
+        }
+    }
+
+    private static readonly Dictionary<string, Type> SamplerStateEnumSource = new(StringComparer.Ordinal)
+    {
+        ["AddressU"] = typeof(RsTextureAddressMode),
+        ["AddressV"] = typeof(RsTextureAddressMode),
+        ["AddressW"] = typeof(RsTextureAddressMode),
+        ["ComparisonFunc"] = typeof(RsComparison),
+        ["Filter"] = typeof(RsFilter),
+    };
+
+    private static readonly Dictionary<SamplerDefinition, string> WellKnownSamplers = new()
+    {
+        [SamplerDefinition.Aniso.NoMipBias()] = "g_sAniso",
+        [SamplerDefinition.Aniso with { AddressV = Clamp }] = "g_sAnisoClampV",
+        [SamplerDefinition.Bilinear.AddressAll(Clamp).NoMipBias()] = "g_sBilinearClamp",
+        [SamplerDefinition.Bilinear.AddressAll(Wrap).NoMipBias()] = "g_sBilinearWrap",
+        [SamplerDefinition.Bilinear.AddressAll(Mirror).NoMipBias()] = "g_sBilinearMirror",
+        [SamplerDefinition.Bilinear.AddressAll(Border) with { BorderColor = 0 }] = "g_sCookieSampler",
+        [SamplerDefinition.Trilinear.AddressUV(Wrap).NoMipBias()] = "g_sTrilinearWrap",
+        [SamplerDefinition.Trilinear.AddressUV(Clamp).NoMipBias()] = "g_sTrilinearClamp",
+        [SamplerDefinition.Trilinear.AddressUV(Mirror).NoMipBias()] = "g_sTrilinearMirror",
+        [SamplerDefinition.Trilinear.AddressUV(Border).NoMipBias()] = "g_sTrilinearBorder",
+        [SamplerDefinition.Point.AddressAll(Clamp).NoMipBias()] = "g_sPointClamp",
+        [SamplerDefinition.Point.AddressAll(Border).NoMipBias()] = "g_sPointBorder",
+        [SamplerDefinition.Point.AddressUV(Border).NoMipBias()] = "g_sPointMirror",
+        [SamplerDefinition.Point.AddressAll(Wrap)] = "g_sPoint",
+        [new SamplerDefinition(Filter: ComparisonMinMagMipLinear, ComparisonFunc: LessEqual).AddressUV(Clamp)] = "g_tShadowDepthBufferCmpSampler",
+        [SamplerDefinition.UserConfig.NoMipBias()] = "g_sUserConfig",
+        [SamplerDefinition.UserConfig] = "g_sUserConfigAllowGlobalMipBias",
+    };
 
     /// <summary>
     /// Reflects and decompiles SPIR-V bytecode to a target shader language.
@@ -465,32 +559,48 @@ public static partial class ShaderSpirvReflection
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint samplerBinding, BindingPointConfiguration config)
     {
-        var semgent1Params = writeSequence.RenderState
-            .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
-                (f, program.VariableDescriptions[f.VariableIndex]));
-
-        var samplerSettings = string.Empty;
+        List<(string Name, string Value)> settings = [];
+        var definition = new SamplerDefinition();
 
         foreach (var field in writeSequence.RenderState)
         {
             var param = program.VariableDescriptions[field.VariableIndex];
 
-            if (param.RegisterType is not VfxRegisterType.SamplerState)
+            if (param.RegisterType is not VfxRegisterType.SamplerState || field.Dest != samplerBinding - config.SamplerStartingPoint)
             {
                 continue;
             }
 
-            if (field.Dest == samplerBinding - config.SamplerStartingPoint)
+            string value;
+            if (param.HasDynamicExpression)
             {
-                var value = param.HasDynamicExpression
-                    ? "dynamic"
-                    : param.IntDefs[0].ToString(CultureInfo.InvariantCulture);
-
-                samplerSettings += $"{param.Name}_{value}__";
+                value = "dynamic";
+                definition.SetDynamic(param.Name);
             }
+            else
+            {
+                var intValue = param.IntDefs[0];
+                value = SamplerStateEnumSource.GetValueOrDefault(param.Name)?.GetEnumName(intValue)
+                    ?? intValue.ToString(CultureInfo.InvariantCulture);
+                definition.SetStatic(param.Name, intValue);
+            }
+
+            settings.Add((param.Name, value));
         }
 
-        return samplerSettings.Length > 0 ? samplerSettings[..^2] : "undetermined";
+        if (settings.Count == 0)
+        {
+            return "undetermined";
+        }
+
+        if (WellKnownSamplers.TryGetValue(definition, out var wellKnownName))
+        {
+            return wellKnownName;
+        }
+
+        return string.Join("__", settings
+            .OrderBy(s => s.Name, StringComparer.Ordinal)
+            .Select(s => $"{s.Name}_{s.Value}"));
     }
 
     /// <summary>

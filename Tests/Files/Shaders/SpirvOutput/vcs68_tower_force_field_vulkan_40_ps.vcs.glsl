@@ -1,9 +1,9 @@
 // SPIR-V reflection failed for backend HLSL:
 // cbuffer ID 5618 (name: _Globals_), member index 10 (name: g_vSpecularColor) cannot be expressed with either HLSL packing layout or packoffset.
-// 
+//
 // Re-attempting reflection with the GLSL backend.
 
-// 
+//
 // SPIR-V source (24200 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
 // Static combos: S_TRANSLUCENT
 // Dynamic combos: D_DEPTH_FEATHERING
@@ -105,7 +105,7 @@ layout(set = 1) uniform _383 undetermined;
 layout(set = 0, binding = 91) uniform texture2D g_tNormal;
 layout(set = 0, binding = 44) uniform sampler DefaultSamplerState_0;
 layout(set = 0, binding = 92) uniform texture2D g_tFresnelWarp;
-layout(set = 0, binding = 45) uniform sampler AddressU_2_AddressV_2_AddressW_2_Filter_149_AddressU_3_AddressV_3_BorderColor_0_ComparisonFunc_3;
+layout(set = 0, binding = 45) uniform sampler AddressU_Clamp_AddressU_Border_AddressV_Clamp_AddressV_Border_AddressW_Clamp_BorderColor_0_ComparisonFunc_LessEqual_Filter_ComparisonMinMagMipLinear;
 layout(set = 0, binding = 93) uniform texture2D g_tMasks1;
 layout(set = 0, binding = 94) uniform texture2D g_tMasks2;
 layout(set = 0, binding = 90) uniform texture2D g_tColor;
@@ -139,7 +139,7 @@ void main()
     vec3 _21537 = input_3.xyz - PerViewConstantBuffer_t.g_vCameraPositionWs.xyz;
     vec3 _13353 = -normalize(_21537);
     vec3 _18460 = _13110.xyz;
-    vec4 _11179 = textureLod(sampler2D(g_tFresnelWarp, AddressU_2_AddressV_2_AddressW_2_Filter_149_AddressU_3_AddressV_3_BorderColor_0_ComparisonFunc_3), vec2(clamp(dot(_13353.xyz, _18460), 0.0, 1.0), 0.5), 0.0);
+    vec4 _11179 = textureLod(sampler2D(g_tFresnelWarp, AddressU_Clamp_AddressU_Border_AddressV_Clamp_AddressV_Border_AddressW_Clamp_BorderColor_0_ComparisonFunc_LessEqual_Filter_ComparisonMinMagMipLinear), vec2(clamp(dot(_13353.xyz, _18460), 0.0, 1.0), 0.5), 0.0);
     float _9136 = _11179.z;
     vec4 _19372 = texture(sampler2D(g_tMasks1, DefaultSamplerState_0), input_2.xy);
     float _7433 = max(_19372.z, _Globals_.g_flMetalnessBlendToFull);
