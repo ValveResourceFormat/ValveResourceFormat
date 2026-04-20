@@ -408,16 +408,7 @@ public static partial class ShaderSpirvReflection
             var binding = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Binding);
             var set = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.DescriptorSet);
 
-            var vfxType = resource.base_type_id switch
-            {
-                406 => VfxVariableType.Sampler2D,
-                438 => VfxVariableType.Sampler2D, // Texture2DMS
-                407 => VfxVariableType.Sampler3D,
-                408 or 409 => VfxVariableType.SamplerCube,
-                470 => VfxVariableType.Sampler2DArray,
-                472 or 473 => VfxVariableType.SamplerCubeArray,
-                _ => VfxVariableType.Void
-            };
+            var vfxType = GetImageVfxType(compiler, resource.base_type_id);
 
             var globalsBufferBindingOffset = program.VcsProgramType is VcsProgramType.VertexShader or VcsProgramType.GeometryShader
                 ? (uint)bindingConfig.VsGsBufferBindingOffset
@@ -488,6 +479,32 @@ public static partial class ShaderSpirvReflection
                 }
             }
         }
+    }
+
+    private static VfxVariableType GetImageVfxType(spvc_compiler compiler, uint baseTypeId)
+    {
+        var type = SpirvCrossApi.spvc_compiler_get_type_handle(compiler, baseTypeId);
+
+        if (type.IsNull || SpirvCrossApi.spvc_type_get_basetype(type) is not (Basetype.Image or Basetype.SampledImage))
+        {
+            return VfxVariableType.Void;
+        }
+
+        var dim = SpirvCrossApi.spvc_type_get_image_dimension(type);
+        var arrayed = (bool)SpirvCrossApi.spvc_type_get_image_arrayed(type);
+
+        return (dim, arrayed) switch
+        {
+            (SpvDim.Dim1D, false) => VfxVariableType.Sampler1D,
+            (SpvDim.Dim1D, true) => VfxVariableType.Sampler1DArray,
+            (SpvDim.Dim2D, false) => VfxVariableType.Sampler2D,
+            (SpvDim.Dim2D, true) => VfxVariableType.Sampler2DArray,
+            (SpvDim.Dim3D, false) => VfxVariableType.Sampler3D,
+            (SpvDim.Dim3D, true) => VfxVariableType.Sampler3DArray,
+            (SpvDim.Cube, false) => VfxVariableType.SamplerCube,
+            (SpvDim.Cube, true) => VfxVariableType.SamplerCubeArray,
+            _ => VfxVariableType.Void,
+        };
     }
 
     /// <summary>
