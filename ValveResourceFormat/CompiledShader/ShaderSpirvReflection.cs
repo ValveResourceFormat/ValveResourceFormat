@@ -155,6 +155,12 @@ public static partial class ShaderSpirvReflection
 
         var result = SpirvCrossApi.spvc_context_create(out var context);
 
+        if (result != Result.Success)
+        {
+            code = "Failed to create SPIR-V context";
+            return false;
+        }
+
         using var buffer = new StringWriter(CultureInfo.InvariantCulture);
 
         try
@@ -167,7 +173,18 @@ public static partial class ShaderSpirvReflection
             }
 
             result = SpirvCrossApi.spvc_context_create_compiler(context, backend, parsedIr, CaptureMode.TakeOwnership, out var compiler);
+
+            if (result != Result.Success)
+            {
+                return Error(out code, context);
+            }
+
             result = SpirvCrossApi.spvc_compiler_create_compiler_options(compiler, out var options);
+
+            if (result != Result.Success)
+            {
+                return Error(out code, context);
+            }
 
             if (backend == Backend.GLSL)
             {
@@ -186,9 +203,19 @@ public static partial class ShaderSpirvReflection
 
             result = SpirvCrossApi.spvc_compiler_install_compiler_options(compiler, options);
 
+            if (result != Result.Success)
+            {
+                return Error(out code, context);
+            }
+
             if (vulkanSource.ParentCombo?.ParentProgramData?.VcsProgramType is not VcsProgramType.RaytracingShader)
             {
                 result = SpirvCrossApi.spvc_compiler_create_shader_resources(compiler, out var resources);
+
+                if (result != Result.Success)
+                {
+                    return Error(out code, context);
+                }
 
                 RenameResource(compiler, resources, SpirvResourceType.SeparateImage, vulkanSource);
                 RenameResource(compiler, resources, SpirvResourceType.SeparateSamplers, vulkanSource);
@@ -519,10 +546,6 @@ public static partial class ShaderSpirvReflection
     public static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint imageBinding, VfxVariableType vfxType, BindingPointConfiguration config)
     {
-        var semgent1Params = writeSequence.RenderState
-            .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
-                (f, program.VariableDescriptions[f.VariableIndex]));
-
         foreach (var field in writeSequence.RenderState)
         {
             var variable = program.VariableDescriptions[field.VariableIndex];
@@ -633,10 +656,6 @@ public static partial class ShaderSpirvReflection
     public static string GetNameForStorageBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint bufferBinding, BindingPointConfiguration config)
     {
-        var semgent1Params = writeSequence.RenderState
-            .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
-                (f, program.VariableDescriptions[f.VariableIndex]));
-
         foreach (var field in writeSequence.RenderState)
         {
             var param = program.VariableDescriptions[field.VariableIndex];
@@ -666,11 +685,17 @@ public static partial class ShaderSpirvReflection
     public static string GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint binding, uint set)
     {
-        return writeSequence.RenderState
-            .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
-                (f, program.VariableDescriptions[f.VariableIndex]))
-            .Where(fp => fp.Param.VfxType is VfxVariableType.Cbuffer)
-            .FirstOrDefault(fp => fp.Field.Dest == binding && fp.Field.LayoutSet == set).Param?.Name ?? "undetermined";
+        foreach (var field in writeSequence.RenderState)
+        {
+            var param = program.VariableDescriptions[field.VariableIndex];
+
+            if (param.VfxType is VfxVariableType.Cbuffer && field.Dest == binding && field.LayoutSet == set)
+            {
+                return param.Name;
+            }
+        }
+
+        return "undetermined";
     }
 
     /// <summary>
