@@ -12,7 +12,7 @@ cbuffer _Globals_ : register(b0, space0)
     int _Globals_1_g_nSrcHeight : packoffset(c1);
 };
 
-Texture2DMS<float4> g_tSrcDepth_unexpectedTypeId438_1075 : register(t30, space0);
+Texture2DMS<float4> g_tSrcDepth : register(t30, space0);
 RWTexture2D<float4> _4304 : register(u159, space0);
 
 static uint3 gl_LocalInvocationID;
@@ -43,7 +43,7 @@ void MainCs_inner()
         {
             break;
         }
-        _24877 = max(_13155, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _3829)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16208).x);
+        _24877 = max(_13155, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _3829)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16208).x);
         _21227 = _16208 + 1;
         _13155 = _24877;
         _16208 = _21227;
@@ -63,7 +63,7 @@ void MainCs_inner()
         {
             break;
         }
-        _24878 = max(_13156, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16058)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16209).x);
+        _24878 = max(_13156, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16058)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16209).x);
         _21228 = _16209 + 1;
         _13156 = _24878;
         _16209 = _21228;
@@ -83,7 +83,7 @@ void MainCs_inner()
         {
             break;
         }
-        _24879 = max(_13157, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _24897)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16210).x);
+        _24879 = max(_13157, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _24897)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16210).x);
         _21229 = _16210 + 1;
         _13157 = _24879;
         _16210 = _21229;
@@ -102,7 +102,7 @@ void MainCs_inner()
         {
             break;
         }
-        _24880 = max(_13158, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16867)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16211).x);
+        _24880 = max(_13158, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16867)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16211).x);
         _21230 = _16211 + 1;
         _13158 = _24880;
         _16211 = _21230;
@@ -125,7 +125,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24881 = max(_13159, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16059)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16212).x);
+            _24881 = max(_13159, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16059)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16212).x);
             _21231 = _16212 + 1;
             _13159 = _24881;
             _16212 = _21231;
@@ -145,7 +145,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24882 = max(_13160, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16060)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16213).x);
+            _24882 = max(_13160, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16060)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16213).x);
             _21232 = _16213 + 1;
             _13160 = _24882;
             _16213 = _21232;
@@ -164,7 +164,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24883 = max(_13161, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16868)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16214).x);
+            _24883 = max(_13161, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16868)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16214).x);
             _21233 = _16214 + 1;
             _13161 = _24883;
             _16214 = _21233;
@@ -183,7 +183,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24884 = max(_13162, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16869)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16215).x);
+            _24884 = max(_13162, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16869)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16215).x);
             _21234 = _16215 + 1;
             _13162 = _24884;
             _16215 = _21234;
@@ -207,7 +207,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24885 = max(_13163, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _9052)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16216).x);
+            _24885 = max(_13163, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _9052)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16216).x);
             _21235 = _16216 + 1;
             _13163 = _24885;
             _16216 = _21235;
@@ -226,7 +226,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24886 = max(_13164, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16870)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16217).x);
+            _24886 = max(_13164, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16870)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16217).x);
             _21236 = _16217 + 1;
             _13164 = _24886;
             _16217 = _21236;
@@ -246,7 +246,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24887 = max(_13165, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _24898)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16218).x);
+            _24887 = max(_13165, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _24898)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16218).x);
             _21237 = _16218 + 1;
             _13165 = _24887;
             _16218 = _21237;
@@ -265,7 +265,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24888 = max(_13166, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16871)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16219).x);
+            _24888 = max(_13166, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16871)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16219).x);
             _21238 = _16219 + 1;
             _13166 = _24888;
             _16219 = _21238;
@@ -289,7 +289,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24889 = max(_13167, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _9053)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16220).x);
+            _24889 = max(_13167, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _9053)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16220).x);
             _21239 = _16220 + 1;
             _13167 = _24889;
             _16220 = _21239;
@@ -309,7 +309,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24890 = max(_13168, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16061)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16221).x);
+            _24890 = max(_13168, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16061)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16221).x);
             _21240 = _16221 + 1;
             _13168 = _24890;
             _16221 = _21240;
@@ -329,7 +329,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24891 = max(_13169, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _24899)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16222).x);
+            _24891 = max(_13169, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _24899)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16222).x);
             _21241 = _16222 + 1;
             _13169 = _24891;
             _16222 = _21241;
@@ -348,7 +348,7 @@ void MainCs_inner()
             {
                 break;
             }
-            _24892 = max(_13170, g_tSrcDepth_unexpectedTypeId438_1075.Load(int2(uint2((float2(min(uint2(_22105), _16872)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16223).x);
+            _24892 = max(_13170, g_tSrcDepth.Load(int2(uint2((float2(min(uint2(_22105), _16872)) * _Globals_1_g_vInvSrcSize.xy) * _20362)), _16223).x);
             _21242 = _16223 + 1;
             _13170 = _24892;
             _16223 = _21242;

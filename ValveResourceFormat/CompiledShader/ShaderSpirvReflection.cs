@@ -411,9 +411,11 @@ public static partial class ShaderSpirvReflection
             var vfxType = resource.base_type_id switch
             {
                 406 => VfxVariableType.Sampler2D,
+                438 => VfxVariableType.Sampler2D, // Texture2DMS
                 407 => VfxVariableType.Sampler3D,
-                408 => VfxVariableType.SamplerCube,
-                472 => VfxVariableType.SamplerCubeArray,
+                408 or 409 => VfxVariableType.SamplerCube,
+                470 => VfxVariableType.Sampler2DArray,
+                472 or 473 => VfxVariableType.SamplerCubeArray,
                 _ => VfxVariableType.Void
             };
 
