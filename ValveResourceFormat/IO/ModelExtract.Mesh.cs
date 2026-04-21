@@ -19,12 +19,12 @@ partial class ModelExtract
     /// <summary>
     /// Gets the list of physics hulls to be extracted with their output file names.
     /// </summary>
-    public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
+    public List<(HullDescriptor Hull, string FileName, string ParentBone)> PhysHullsToExtract { get; } = [];
 
     /// <summary>
     /// Gets the list of physics meshes to be extracted with their output file names.
     /// </summary>
-    public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = [];
+    public List<(MeshDescriptor Mesh, string FileName, string ParentBone)> PhysMeshesToExtract { get; } = [];
 
     /// <summary>
     /// Gets the list of render meshes to be extracted.
@@ -236,17 +236,20 @@ partial class ModelExtract
         }
 
         var i = 0;
-        foreach (var physicsPart in physAggregateData.Parts)
+        for (var partIndex = 0; partIndex < physAggregateData.Parts.Length; partIndex++)
         {
+            var physicsPart = physAggregateData.Parts[partIndex];
+            var parentBone = physAggregateData.GetParentBoneName(partIndex);
+
             foreach (var hull in physicsPart.Shape.Hulls)
             {
-                PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++)));
+                PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++), parentBone));
                 StoreSurfaceTagCombo(hull);
             }
 
             foreach (var mesh in physicsPart.Shape.Meshes)
             {
-                PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++)));
+                PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++), parentBone));
 
                 StoreSurfaceTagCombo(mesh);
 

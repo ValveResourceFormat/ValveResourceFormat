@@ -709,14 +709,14 @@ partial class ModelExtract
                 }
             }
 
-            foreach (var (physHull, fileName) in PhysHullsToExtract)
+            foreach (var (physHull, fileName, parentBone) in PhysHullsToExtract)
             {
-                HandlePhysMeshNode(physHull, fileName);
+                HandlePhysMeshNode(physHull, fileName, parentBone);
             }
 
-            foreach (var (physMesh, fileName) in PhysMeshesToExtract)
+            foreach (var (physMesh, fileName, parentBone) in PhysMeshesToExtract)
             {
-                HandlePhysMeshNode(physMesh, fileName);
+                HandlePhysMeshNode(physMesh, fileName, parentBone);
             }
         }
 
@@ -733,13 +733,10 @@ partial class ModelExtract
 
         if (physAggregateData is not null)
         {
-            var boneNames = physAggregateData.Data.GetArray<string>("m_boneNames");
-            boneNames ??= [];
-
             for (var i = 0; i < physAggregateData.Parts.Length; i++)
             {
                 var physicsPart = physAggregateData.Parts[i];
-                var parentBone = boneNames.Length > i ? boneNames[i] : string.Empty;
+                var parentBone = physAggregateData.GetParentBoneName(i);
 
                 foreach (var sphere in physicsPart.Shape.Spheres)
                 {
@@ -783,7 +780,7 @@ partial class ModelExtract
         return kv.ToKV3String(format: KV3IDLookup.Get("modeldoc28"));
 
         #region Local Functions
-        void HandlePhysMeshNode<TShape>(ShapeDescriptor<TShape> shapeDesc, string fileName)
+        void HandlePhysMeshNode<TShape>(ShapeDescriptor<TShape> shapeDesc, string fileName, string parentBone)
             where TShape : struct
         {
             var surfacePropName = PhysicsSurfaceNames[shapeDesc.SurfacePropertyIndex];
@@ -808,6 +805,7 @@ partial class ModelExtract
             var physicsShapeFile = MakeNode(
                 className,
                 ("filename", fileName),
+                ("parent_bone", parentBone),
                 ("surface_prop", surfacePropName),
                 ("collision_tags", string.Join(" ", collisionTags)),
                 ("name", shapeName)
