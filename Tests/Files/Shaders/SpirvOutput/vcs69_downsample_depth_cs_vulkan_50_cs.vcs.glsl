@@ -1,4 +1,4 @@
-// 
+// VRF-TEST
 // SPIR-V source (12464 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
 // Dynamic combos: D_RESAMPLE, D_MIP_COUNT, D_MSAA_DEPTH
 

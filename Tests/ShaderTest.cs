@@ -476,7 +476,7 @@ namespace Tests
             var staticComboEntry = shader.GetStaticCombo(staticCombo);
             var dynamicComboEntry = staticComboEntry.DynamicCombos[dynamicCombo];
             var code = staticComboEntry.ShaderFiles[dynamicComboEntry.ShaderFileId].GetDecompiledFile();
-            code = code.Replace(StringToken.VRF_GENERATOR, string.Empty, StringComparison.Ordinal);
+            code = code.Replace(StringToken.VRF_GENERATOR, "VRF-TEST", StringComparison.Ordinal);
 
             var referencePath = Path.Combine(ShadersDir, "SpirvOutput", $"{shaderFile}.glsl");
 

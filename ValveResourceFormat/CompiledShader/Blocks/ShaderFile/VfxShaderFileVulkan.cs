@@ -249,13 +249,18 @@ public class VfxShaderFileVulkan : VfxShaderFile
 
             foreach (var line in code.AsSpan().EnumerateLines())
             {
+                if (line.Length == 0)
+                {
+                    continue;
+                }
+
                 buffer.Write("// ");
                 buffer.WriteLine(line);
             }
 
             if (i < backendsToTry.Length - 1)
             {
-                buffer.WriteLine("// ");
+                buffer.WriteLine("//");
                 buffer.WriteLine($"// Re-attempting reflection with the {backendsToTry[i + 1]} backend.");
                 buffer.WriteLine();
             }

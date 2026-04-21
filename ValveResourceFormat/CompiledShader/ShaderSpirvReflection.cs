@@ -427,38 +427,33 @@ public static partial class ShaderSpirvReflection
             }
         }
 
+        // Fallback (set, binding) for the synthesized _Globals_ uniform buffer when VCS has no matching Cbuffer variable:
+        //   VCS 69+:  VS/GS/CS/MS at (set=0, binding=0); PS at (set=1, binding=0)
+        //   VCS <69:  VS/GS at (set=0, binding=VsGsBufferBindingOffset); PS/CS/MS at (set=0, binding=0)
+        var globalsBufferBinding = program.VcsProgramType is VcsProgramType.VertexShader or VcsProgramType.GeometryShader
+            ? (uint)bindingConfig.VsGsBufferBindingOffset
+            : 0u;
+        var globalsBufferSet = bindingConfig.VsGsBufferBindingOffset == 0 && program.VcsProgramType is VcsProgramType.PixelShader
+            ? 1u
+            : 0u;
+
         foreach (var resource in reflectedResources)
         {
-            var location =
-                (int)SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Location);
-            var index = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Index);
             var binding = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Binding);
             var set = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.DescriptorSet);
 
-            var vfxType = GetImageVfxType(compiler, resource.base_type_id);
-
-            var globalsBufferBindingOffset = program.VcsProgramType is VcsProgramType.VertexShader or VcsProgramType.GeometryShader
-                ? (uint)bindingConfig.VsGsBufferBindingOffset
-                : 0u;
-
-            // VCS 69+: Uses descriptor sets (0 for vs/gs, 1 for ps)
-            // VCS <69: Uses binding offset instead, set is always 0
-            var globalsBufferSet = bindingConfig.VsGsBufferBindingOffset == 0
-                ? (program.VcsProgramType is VcsProgramType.PixelShader ? 1 : 0)
-                : 0;
-
-            var uniformBufferBinding = binding;
-            var isGlobalsBuffer = uniformBufferBinding == globalsBufferBindingOffset && set == globalsBufferSet;
+            var imageVfxType = resourceType is SpirvResourceType.SeparateImage
+                ? GetImageVfxType(compiler, resource.base_type_id)
+                : VfxVariableType.Void;
 
             var name = resourceType switch
             {
-                SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, vfxType, bindingConfig),
-                SpirvResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding, bindingConfig),
+                SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, set, imageVfxType, bindingConfig),
+                SpirvResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding, set, bindingConfig),
                 SpirvResourceType.StorageBuffer or SpirvResourceType.StorageImage => GetNameForStorageBuffer(program,
-                    writeSequence, binding, bindingConfig),
-                SpirvResourceType.UniformBuffer => isGlobalsBuffer
-                    ? "_Globals_"
-                    : GetNameForUniformBuffer(program, writeSequence, uniformBufferBinding, set),
+                    writeSequence, binding, set, bindingConfig),
+                SpirvResourceType.UniformBuffer => GetNameForUniformBuffer(program, writeSequence, binding, set)
+                    ?? (binding == globalsBufferBinding && set == globalsBufferSet ? "_Globals_" : "undetermined"),
                 SpirvResourceType.StageInput => GetStageAttributeName(vsInputElements, currentStageInputIndex++, true),
                 SpirvResourceType.StageOutput => GetStageAttributeName(null, currentStageOutputIndex++, false),
                 _ => string.Empty
@@ -473,7 +468,7 @@ public static partial class ShaderSpirvReflection
                 continue;
             }
 
-            if (resourceType is SpirvResourceType.SeparateImage && vfxType is VfxVariableType.Void)
+            if (resourceType is SpirvResourceType.SeparateImage && imageVfxType is VfxVariableType.Void)
             {
                 name = $"{name}_unexpectedTypeId{resource.base_type_id}_{resource.type_id}";
             }
@@ -488,7 +483,7 @@ public static partial class ShaderSpirvReflection
                 {
                     unsafe
                     {
-                        var memberName = isGlobalsBuffer
+                        var memberName = name == "_Globals_"
                             ? GetGlobalBufferMemberName(program, writeSequence, (int)bufferRange.offset / 4)
                             : GetBufferMemberName(program, name, offset: (int)bufferRange.offset / 4);
 
@@ -540,14 +535,20 @@ public static partial class ShaderSpirvReflection
     /// <param name="program">The shader program data.</param>
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="imageBinding">The image binding point.</param>
+    /// <param name="set">The descriptor set index.</param>
     /// <param name="vfxType">The VFX variable type to match.</param>
     /// <param name="config">The binding point configuration.</param>
     /// <returns>The texture variable name, or "undetermined" if not found.</returns>
     public static string GetNameForTexture(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint imageBinding, VfxVariableType vfxType, BindingPointConfiguration config)
+        uint imageBinding, uint set, VfxVariableType vfxType, BindingPointConfiguration config)
     {
         foreach (var field in writeSequence.RenderState)
         {
+            if (field.LayoutSet != set)
+            {
+                continue;
+            }
+
             var variable = program.VariableDescriptions[field.VariableIndex];
 
             if (variable.RegisterType is VfxRegisterType.SamplerState)
@@ -596,16 +597,22 @@ public static partial class ShaderSpirvReflection
     /// <param name="program">The shader program data.</param>
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="samplerBinding">The sampler binding point.</param>
+    /// <param name="set">The descriptor set index.</param>
     /// <param name="config">The binding point configuration.</param>
     /// <returns>A concatenated sampler state description, or "undetermined" if no sampler is bound at the slot.</returns>
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint samplerBinding, BindingPointConfiguration config)
+        uint samplerBinding, uint set, BindingPointConfiguration config)
     {
         List<(string Name, string Value)> settings = [];
         var definition = new SamplerDefinition();
 
         foreach (var field in writeSequence.RenderState)
         {
+            if (field.LayoutSet != set)
+            {
+                continue;
+            }
+
             var param = program.VariableDescriptions[field.VariableIndex];
 
             if (param.RegisterType is not VfxRegisterType.SamplerState || field.Dest != samplerBinding - config.SamplerStartingPoint)
@@ -651,13 +658,19 @@ public static partial class ShaderSpirvReflection
     /// <param name="program">The shader program data.</param>
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="bufferBinding">The buffer binding point.</param>
+    /// <param name="set">The descriptor set index.</param>
     /// <param name="config">The binding point configuration.</param>
     /// <returns>The storage buffer variable name, or "undetermined" if not found.</returns>
     public static string GetNameForStorageBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
-        uint bufferBinding, BindingPointConfiguration config)
+        uint bufferBinding, uint set, BindingPointConfiguration config)
     {
         foreach (var field in writeSequence.RenderState)
         {
+            if (field.LayoutSet != set)
+            {
+                continue;
+            }
+
             var param = program.VariableDescriptions[field.VariableIndex];
 
             if (param.VfxType is < VfxVariableType.StructuredBuffer or > VfxVariableType.RWStructuredBufferWithCounter)
@@ -681,8 +694,8 @@ public static partial class ShaderSpirvReflection
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="binding">The buffer binding point.</param>
     /// <param name="set">The descriptor set index.</param>
-    /// <returns>The uniform buffer variable name, or "undetermined" if not found.</returns>
-    public static string GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
+    /// <returns>The uniform buffer variable name, or null if no matching Cbuffer variable exists.</returns>
+    public static string? GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint binding, uint set)
     {
         foreach (var field in writeSequence.RenderState)
@@ -695,7 +708,7 @@ public static partial class ShaderSpirvReflection
             }
         }
 
-        return "undetermined";
+        return null;
     }
 
     /// <summary>

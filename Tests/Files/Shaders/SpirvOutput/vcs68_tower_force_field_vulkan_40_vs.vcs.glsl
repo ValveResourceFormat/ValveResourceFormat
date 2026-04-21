@@ -1,9 +1,9 @@
 // SPIR-V reflection failed for backend HLSL:
 // cbuffer ID 5618 (name: _Globals_), member index 0 (name: g_vTexCoordOffset) cannot be expressed with either HLSL packing layout or packoffset.
-// 
+//
 // Re-attempting reflection with the GLSL backend.
 
-// 
+// VRF-TEST
 // SPIR-V source (9832 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
 // Dynamic combos: D_BLEND_WEIGHT_COUNT=4, D_COMPRESSED_NORMALS_AND_TANGENTS
 
