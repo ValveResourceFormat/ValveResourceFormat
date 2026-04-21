@@ -429,7 +429,17 @@ partial class ModelExtract
 
                         if (name != i.ToString(CultureInfo.InvariantCulture))
                         {
-                            meshGroupChoice.Add("name", name);
+                            var choiceName = name;
+
+                            // Fix up weird substring added to newer models
+                            const string indexMarker = "#&";
+                            var fixedUpSubstrStart = name.IndexOf(indexMarker, StringComparison.Ordinal) + indexMarker.Length;
+                            if (fixedUpSubstrStart >= 0 && fixedUpSubstrStart < name.Length)
+                            {
+                                choiceName = name[fixedUpSubstrStart..];
+                            }
+
+                            meshGroupChoice.Add("name", choiceName);
                         }
 
                         if (hideInTools.Contains(key))
