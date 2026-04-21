@@ -1229,11 +1229,10 @@ partial class ModelExtract
                     cleanedData.Add(trimmed, value);
                 }
 
-                var name = "";
-                if (cleanedData.ContainsKey("name"))
-                {
-                    name = cleanedData.GetStringProperty("name");
-                }
+                var name = cleanedData.GetStringProperty("name", string.Empty);
+
+                // The node name should not contain non identifier characters like / or .
+                name = Path.GetFileNameWithoutExtension(name);
 
                 KVObject genericGameData;
                 if (dataKey == null)
