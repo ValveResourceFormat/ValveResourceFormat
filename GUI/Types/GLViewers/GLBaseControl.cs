@@ -162,8 +162,10 @@ internal abstract class GLBaseControl : IDisposable
 
     protected virtual void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        using var _ = inputStateLock.EnterScope();
-        CurrentlyPressedKeys |= RemapKey(e.KeyCode);
+        using (inputStateLock.EnterScope())
+        {
+            CurrentlyPressedKeys |= RemapKey(e.KeyCode);
+        }
 
         e.Handled = true;
         e.SuppressKeyPress = true;
