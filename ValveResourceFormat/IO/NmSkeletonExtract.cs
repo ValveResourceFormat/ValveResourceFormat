@@ -26,6 +26,7 @@ public class NmSkeletonExtract
             ?? throw new InvalidDataException("Resource DataBlock is not a BinaryKV3 or is null.");
         kvSkeleton = resourceData.Data;
     }
+
     /// <summary>
     /// Converts the skeleton to a content file.
     /// </summary>
@@ -33,13 +34,20 @@ public class NmSkeletonExtract
     {
         var kv = KVObject.Collection();
         var skel = Skeleton.FromSkeletonData(kvSkeleton);
+
         var dmxFile = Path.ChangeExtension(resource.FileName, "dmx");
         Debug.Assert(dmxFile != null);
         kv.Add("m_sourceFileName", dmxFile);
-        kv.Add("m_rootBoneName", "");
+
+        var rootBoneName = skel.Roots.Length == 1
+            ? skel.Roots[0].Name
+            : string.Empty;
+
+        kv.Add("m_rootBoneName", rootBoneName);
         kv.Add("m_flGlobalScale", 1.0f);
         kv.Add("m_bIsAttachableProp", kvSkeleton.GetBooleanProperty("m_bIsPropSkeleton"));
         kv.Add("m_secondarySkeletons", kvSkeleton["m_secondarySkeletons"]);
+
         var numLowLODBones = kvSkeleton.GetInt32Property("m_numBonesToSampleAtLowLOD");
         var boneIDs = kvSkeleton.GetArray<string>("m_boneIDs")![numLowLODBones..];
         var highLODBones = KVObject.Array();
@@ -55,11 +63,9 @@ public class NmSkeletonExtract
         {
             Data = Encoding.UTF8.GetBytes(kv.ToKV3String())
         };
-        contentFile.AddSubFile(Path.GetFileName(dmxFile) ?? "skeleton.dmx", () =>
+        contentFile.AddSubFile(Path.GetFileName(dmxFile), () =>
         {
-            // Empty animation data
-            var anim = new Animation(new AnimationClip() { Resource = null! });
-            return ModelExtract.ToDmxAnim(skel, [], anim);
+            return ModelExtract.ToDmxSkeleton(skel, nmSkelAxisFixup: true);
         });
         return contentFile;
     }

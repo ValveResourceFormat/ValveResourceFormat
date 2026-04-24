@@ -479,33 +479,8 @@ partial class ModelExtract
         // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            var boneDags = new DmeJoint[skeleton.Bones.Length];
-
-            foreach (var bone in skeleton.Bones)
-            {
-                var dag = new DmeJoint
-                {
-                    Name = bone.Name,
-                };
-                dag.Transform.Name = bone.Name;
-                dag.Transform.Position = bone.Position;
-                dag.Transform.Orientation = bone.Angle;
-
-                boneDags[bone.Index] = dag;
-                dmeModel.JointList.Add(dag);
-            }
-
-            foreach (var bone in skeleton.Bones)
-            {
-                if (bone.Parent != null)
-                {
-                    boneDags[bone.Parent.Index].Children.Add(boneDags[bone.Index]);
-                }
-                else
-                {
-                    dmeModel.Children.Add(boneDags[bone.Index]);
-                }
-            }
+            dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+            dmeModel.Name = name;
         }
 
         var materialInputSignature = Material.VsInputSignature.Empty;

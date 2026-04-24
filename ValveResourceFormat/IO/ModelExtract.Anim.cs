@@ -36,6 +36,51 @@ partial class ModelExtract
     }
 
     /// <summary>
+    /// Produces a skeleton DMX file.
+    /// </summary>
+    public static byte[] ToDmxSkeleton(Skeleton skeleton, bool nmSkelAxisFixup = false)
+    {
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms);
+
+        var rootMotionBone = skeleton["root_motion"];
+
+        if (rootMotionBone != null && nmSkelAxisFixup)
+        {
+            // dmeSkeleton.AxisSystem.UpAxis = 2;
+            // dmeSkeleton.AxisSystem.ForwardParity = -1;
+            // dmeSkeleton.AxisSystem.CoordSys = 2;
+
+            var coordSystemRotation = new Quaternion(-0.5f, -0.5f, -0.5f, 0.5f);
+            var inverseCoordSystemRotation = Quaternion.Inverse(coordSystemRotation);
+
+            transforms[rootMotionBone.Index].Orientation *= inverseCoordSystemRotation;
+
+            foreach (var root in rootMotionBone.Children)
+            {
+                transforms[root.Index].Position = Vector3.Transform(root.Position, coordSystemRotation);
+                transforms[root.Index].Orientation *= coordSystemRotation;
+            }
+        }
+
+        using var stream = new MemoryStream();
+
+        dmx.Root = new Element(dmx, "root", null, "DmElement")
+        {
+            ["skeleton"] = dmeSkeleton,
+            ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
+            {
+                ["app"] = "sfm", // maya
+                ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
+            }
+        };
+
+        dmx.Save(stream, "keyvalues2", 4);
+        return stream.ToArray();
+    }
+
+    /// <summary>
     /// Converts an animation to DMX format.
     /// </summary>
     public static byte[] ToDmxAnim(Model model, Animation anim)
@@ -103,8 +148,6 @@ partial class ModelExtract
 
         transforms = new DmeTransform[skeleton.Bones.Length];
         var boneDags = new DmeJoint[skeleton.Bones.Length];
-
-        dmeSkeleton.JointList.Add(dmeSkeleton);
 
         foreach (var bone in skeleton.Bones)
         {
