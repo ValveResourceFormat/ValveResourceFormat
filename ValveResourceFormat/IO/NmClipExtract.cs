@@ -71,9 +71,9 @@ public class NmClipExtract
             }
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
-            contentFile.AddSubFile(Path.GetFileName(sourceFileName) ?? "animation.dmx", () =>
+            contentFile.AddSubFile(Path.GetFileName(sourceFileName), () =>
             {
-                return ModelExtract.ToDmxAnim(skeleton, [], animation);
+                return ModelExtract.ToDmxAnim(skeleton, [], animation, nmSkelAxisFixup: true);
             });
         }
         var events = clip.Data.Root.GetArray("m_events")!;

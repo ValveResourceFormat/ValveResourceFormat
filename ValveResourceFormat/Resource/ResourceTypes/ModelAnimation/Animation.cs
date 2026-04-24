@@ -514,7 +514,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             Name = clip.Name;
             FrameCount = clip.NumFrames;
-            Fps = clip.NumFrames / clip.Duration;
+            Fps = clip.Duration > 0 ? clip.NumFrames / clip.Duration : 1;
 
             Clip = clip;
             Movements = [];
