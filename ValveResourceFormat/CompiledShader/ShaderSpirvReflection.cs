@@ -35,14 +35,24 @@ public static partial class ShaderSpirvReflection
         int VsGsBufferBindingOffset = 0
     );
 
-    private static BindingPointConfiguration GetBindingConfiguration(int vcsVersion)
+    private static BindingPointConfiguration GetBindingConfiguration(int vcsVersion, VcsProgramType programType)
     {
         if (vcsVersion >= 69)
         {
             return new(TextureStartingPoint: 30, TextureIndexStartingPoint: 30, SamplerStartingPoint: 14, StorageBufferStartingPoint: 30);
         }
 
-        // Older versions
+        if (vcsVersion <= 64)
+        {
+            return programType switch
+            {
+                VcsProgramType.PixelShader => new(TextureStartingPoint: 150, TextureIndexStartingPoint: 30, SamplerStartingPoint: 70, StorageBufferStartingPoint: 30),
+                VcsProgramType.VertexShader or VcsProgramType.GeometryShader =>
+                    new(TextureStartingPoint: 278, TextureIndexStartingPoint: 30, SamplerStartingPoint: 86, StorageBufferStartingPoint: 30, VsGsBufferBindingOffset: 14),
+                _ => new(TextureStartingPoint: 90, TextureIndexStartingPoint: 30, SamplerStartingPoint: 42, StorageBufferStartingPoint: 30, VsGsBufferBindingOffset: 14),
+            };
+        }
+
         return new(TextureStartingPoint: 90, TextureIndexStartingPoint: 30, SamplerStartingPoint: 42, StorageBufferStartingPoint: 30, VsGsBufferBindingOffset: 14);
     }
 
@@ -348,7 +358,7 @@ public static partial class ShaderSpirvReflection
             Array.Find(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId)?.DynamicComboId ?? 0;
         var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
-        var bindingConfig = GetBindingConfiguration(program.VcsVersion);
+        var bindingConfig = GetBindingConfiguration(program.VcsVersion, program.VcsProgramType);
 
         var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
 
