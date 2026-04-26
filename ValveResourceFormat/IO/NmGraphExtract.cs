@@ -10,8 +10,50 @@ namespace ValveResourceFormat.IO;
 
 file static class NmGraphExtractExtensions
 {
-    public static long GetInt64Property(this KVObject node, string key, long defaultValue = 0)
-        => node.GetIntegerProperty(key, defaultValue);
+    public static string GetRequiredStringProperty(this KVObject node, string key)
+    {
+        if (!node.TryGetValue(key, out var value) || value.IsNull)
+        {
+            throw new InvalidDataException($"Missing required KV3 property '{key}' on '{node.GetStringProperty("_class", "<unknown>")}'.");
+        }
+
+        return node.GetStringProperty(key);
+    }
+
+    public static long GetInt64Property(this KVObject node, string key)
+    {
+        if (!node.TryGetValue(key, out var value) || value.IsNull)
+        {
+            throw new InvalidDataException($"Missing required KV3 property '{key}' on '{node.GetStringProperty("_class", "<unknown>")}'.");
+        }
+
+        return node.GetIntegerProperty(key);
+    }
+
+    public static long GetInt64Property(this KVObject node, string key, long defaultValue)
+        => node.TryGetValue(key, out var value) && !value.IsNull
+            ? node.GetIntegerProperty(key, defaultValue)
+            : defaultValue;
+
+    public static float GetRequiredFloatProperty(this KVObject node, string key)
+    {
+        if (!node.TryGetValue(key, out var value) || value.IsNull)
+        {
+            throw new InvalidDataException($"Missing required KV3 property '{key}' on '{node.GetStringProperty("_class", "<unknown>")}'.");
+        }
+
+        return node.GetFloatProperty(key);
+    }
+
+    public static bool GetRequiredBooleanProperty(this KVObject node, string key)
+    {
+        if (!node.TryGetValue(key, out var value) || value.IsNull)
+        {
+            throw new InvalidDataException($"Missing required KV3 property '{key}' on '{node.GetStringProperty("_class", "<unknown>")}'.");
+        }
+
+        return node.GetBooleanProperty(key);
+    }
 }
 
 /// <summary>
@@ -76,10 +118,14 @@ public class NmGraphExtract
     private KVObject BuildVariationHierarchy()
     {
         var variation = KVObject.Collection();
-        variation.Add("m_ID", graph.GetStringProperty("m_variationID"));
+        variation.Add("m_ID", graph.GetRequiredStringProperty("m_variationID"));
         variation.Add("m_parentID", string.Empty);
-        variation.Add("m_skeleton", graph["m_skeleton"] ?? string.Empty);
-        variation.Add("m_pUserData", graph["m_pUserData"]);
+        variation.Add("m_skeleton", GetOptionalString(graph, "m_skeleton"));
+
+        if (graph.TryGetValue("m_pUserData", out var userData) && !userData.IsNull)
+        {
+            variation.Add("m_pUserData", userData);
+        }
 
         var hierarchy = KVObject.Collection();
         var variations = KVObject.Array();
@@ -220,21 +266,11 @@ public class NmGraphExtract
             nodes.Add(stateNode);
         }
 
-        var entryOverrideStates = stateDefinitions
-            .Where(stateDefinition => (int)stateDefinition.GetInt64Property("m_nEntryConditionNodeIdx") >= 0)
-            .ToArray();
-
-        if (entryOverrideStates.Length > 0)
-        {
-            nodes.Add(BuildEntryOverrideConduit(nodeIndex, stateDefinitions, stateNodes));
-        }
+        nodes.Add(BuildEntryOverrideConduit(nodeIndex, stateDefinitions, stateNodes));
 
         var transitionInfos = EnumerateTransitionInfos(stateDefinitions).ToArray();
         var globalTransitions = transitionInfos.Where(info => info.GroupKind == StateMachineTransitionGroup.Global).ToArray();
-        if (globalTransitions.Length > 0)
-        {
-            nodes.Add(BuildGlobalTransitionConduit(nodeIndex, globalTransitions, stateNodes));
-        }
+        nodes.Add(BuildGlobalTransitionConduit(nodeIndex, stateDefinitions, globalTransitions, stateNodes));
 
         foreach (var conduitGroup in transitionInfos.Where(info => info.GroupKind == StateMachineTransitionGroup.Standard).GroupBy(info => info.GroupPath))
         {
@@ -255,19 +291,24 @@ public class NmGraphExtract
             ?? throw new InvalidDataException($"Missing state node {nodeIndex}.");
 
         var node = CreateBaseNode("CNmGraphDocStateNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
-        var isOffState = compiledNode.GetBooleanProperty("m_bIsOffState");
+        var isOffState = compiledNode.GetRequiredBooleanProperty("m_bIsOffState");
         var childNodeIndex = (int)compiledNode.GetInt64Property("m_nChildNodeIdx");
         var childNode = GetCompiledNode(childNodeIndex);
         var childNodeClass = childNode is not null ? GetCompiledClassName(childNode) : string.Empty;
         var hasChildGraph = childNode is not null;
         isOffState |= !hasChildGraph;
 
-        node["m_pChildGraph"] = childNode switch
+        var childGraph = childNode switch
         {
             not null when childNodeClass == "CNmStateMachineNode::CDefinition" => BuildNestedStateMachineChildGraph(childNodeIndex),
             not null => BuildBlendTreeGraph($"state:{nodeIndex}", childNodeIndex),
             _ => null,
         };
+
+        if (childGraph is not null)
+        {
+            node["m_pChildGraph"] = childGraph;
+        }
 
         node["m_pSecondaryGraph"] = BuildStateLayerGraph(nodeIndex, compiledNode);
         node.Add("m_type", isOffState
@@ -282,7 +323,7 @@ public class NmGraphExtract
         node.Add("m_exitEvents", CloneArray("m_exitEvents", compiledNode));
         node.Add("m_timeRemainingEvents", ConvertTimedStateEvents("TimeRemaining", "m_timedRemainingEvents", compiledNode));
         node.Add("m_timeElapsedEvents", ConvertTimedStateEvents("TimeElapsed", "m_timedElapsedEvents", compiledNode));
-        node.Add("m_bUseActualElapsedTimeInStateForTimedEvents", compiledNode.GetBooleanProperty("m_bUseActualElapsedTimeInStateForTimedEvents"));
+        node.Add("m_bUseActualElapsedTimeInStateForTimedEvents", compiledNode.GetRequiredBooleanProperty("m_bUseActualElapsedTimeInStateForTimedEvents"));
         return node;
     }
 
@@ -337,49 +378,56 @@ public class NmGraphExtract
         graphBuilder.Nodes.Add(resultNode);
 
         var pinToStateMapping = KVObject.Array();
-        var row = 0;
-
         foreach (var stateDefinition in stateDefinitions)
         {
+            var stateNodeIndex = (int)stateDefinition.GetInt64Property("m_nStateNodeIdx");
+            var stateName = stateNodes[stateNodeIndex].GetStringProperty("m_name");
+            var stateNodeId = stateNodes[stateNodeIndex].GetStringProperty("m_ID");
+
+            var pin = CreatePin(stateName, "Bool", isDynamicPin: true);
+            var resultPins = (KVObject)resultNode["m_inputPins"]!;
+            resultPins.Add(pin);
+            pinToStateMapping.Add(stateNodeId);
+
             var entryConditionNodeIdx = (int)stateDefinition.GetInt64Property("m_nEntryConditionNodeIdx");
             if (entryConditionNodeIdx < 0)
             {
                 continue;
             }
 
-            var stateNodeIndex = (int)stateDefinition.GetInt64Property("m_nStateNodeIdx");
-            var stateNodeId = stateNodes[stateNodeIndex].GetStringProperty("m_ID");
-
-            var overrideNode = CreateEntryOverrideNode(stateNodeIndex, stateNodeId, row++);
-            graphBuilder.Nodes.Add(overrideNode);
-
             var conditionNode = BuildFlowNode(entryConditionNodeIdx, graphBuilder);
-            graphBuilder.Connect(conditionNode.GetStringProperty("m_ID"), GetOutputPinId(conditionNode, 0), overrideNode.GetStringProperty("m_ID"), GetInputPinId(overrideNode, 0));
-
-            var pin = CreatePin($"State {row}", "Bool", isDynamicPin: true);
-            var resultPins = (KVObject)resultNode["m_inputPins"]!;
-            resultPins.Add(pin);
-
-            var mapping = KVObject.Collection();
-            mapping.Add("m_pinID", pin.GetStringProperty("m_ID"));
-            mapping.Add("m_stateID", stateNodeId);
-            pinToStateMapping.Add(mapping);
+            graphBuilder.Connect(conditionNode.GetStringProperty("m_ID"), GetOutputPinId(conditionNode, 0), resultNode.GetStringProperty("m_ID"), pin.GetStringProperty("m_ID"));
         }
 
         resultNode["m_pinToStateMapping"] = pinToStateMapping;
         return graphBuilder.ToGraph();
     }
 
-    private KVObject BuildGlobalTransitionConduit(int stateMachineNodeIndex, IReadOnlyList<TransitionInfo> transitions, IReadOnlyDictionary<int, KVObject> stateNodes)
+    private KVObject BuildGlobalTransitionConduit(int stateMachineNodeIndex, IReadOnlyList<KVObject> stateDefinitions, IReadOnlyList<TransitionInfo> transitions, IReadOnlyDictionary<int, KVObject> stateNodes)
     {
         var conduitNode = CreateBaseNode("CNmGraphDocGlobalTransitionConduitNode", MakeGuid($"global-conduit:{stateMachineNodeIndex}"), string.Empty);
         var graphBuilder = new FlowGraphBuilder(this, $"global-conduit:{stateMachineNodeIndex}", "GlobalTransitionConduit");
 
+        var transitionsByTargetState = transitions
+            .GroupBy(transition => transition.TargetStateNodeIndex)
+            .ToDictionary(group => group.Key, group => group.First());
+
         var row = 0;
-        foreach (var transition in transitions)
+        foreach (var stateDefinition in stateDefinitions)
         {
-            var transitionNode = CreateTransitionResultNode("CNmGraphDocGlobalTransitionNode", transition.TransitionNodeIndex, transition.CanBeForced, stateNodes[transition.TargetStateNodeIndex].GetStringProperty("m_ID"), row++);
+            var targetStateNodeIndex = (int)stateDefinition.GetInt64Property("m_nStateNodeIdx");
+            var stateId = stateNodes[targetStateNodeIndex].GetStringProperty("m_ID");
+            var transition = transitionsByTargetState.GetValueOrDefault(targetStateNodeIndex);
+
+            var transitionNode = transition is { }
+                ? CreateTransitionResultNode("CNmGraphDocGlobalTransitionNode", transition.TransitionNodeIndex, transition.CanBeForced, stateId, row++)
+                : CreateDefaultGlobalTransitionNode(targetStateNodeIndex, stateId, row++);
             graphBuilder.Nodes.Add(transitionNode);
+
+            if (transition is null)
+            {
+                continue;
+            }
 
             foreach (var (sourceIndex, inputIndex) in EnumerateTransitionInputs(transition.CompiledTransitionNode, transition.ConditionNodeIndex))
             {
@@ -467,7 +515,7 @@ public class NmGraphExtract
                     CompiledTransitionNode = GetCompiledNode(transitionNodeIndex)
                         ?? throw new InvalidDataException($"Missing transition node {transitionNodeIndex}."),
                     StateMachineTransition = transition,
-                    CanBeForced = transition.GetBooleanProperty("m_bCanBeForced"),
+                    CanBeForced = transition.GetRequiredBooleanProperty("m_bCanBeForced"),
                 };
             }
         }
@@ -609,7 +657,7 @@ public class NmGraphExtract
             "ConstTarget" => CreateConstTargetNode(nodeIndex, compiledNode),
             "ConstBoneTarget" => CreateConstBoneTargetNode(nodeIndex, compiledNode),
             var stem when compiledClass.TryGetTypedSuffix("Const", out var valueType)
-                => CreateConstValueNode(GetTypedDocNodeClassName(valueType, "Const"), nodeIndex, valueType, GetConstValueKey(valueType), GetConstValue(compiledNode, valueType)),
+                => CreateConstValueNode(GetConstDocNodeClassName(valueType), nodeIndex, valueType, GetConstValueKey(valueType), GetConstValue(compiledNode, valueType)),
             var stem when compiledClass.TryGetTypedSuffix("ControlParameter", out _)
                 => CreateParameterReferenceNode(nodeIndex, graphBuilder),
             _ => throw new InvalidDataException($"Unsupported NmGraph node: {compiledClass.Name}"),
@@ -811,7 +859,7 @@ public class NmGraphExtract
 
                     ConnectIfValid((int)layerDefinitions[i].GetInt64Property("m_nInputNodeIdx"), layerNode, 0, graphBuilder);
 
-                    if (layerDefinitions[i].GetBooleanProperty("m_bIsStateMachineLayer"))
+                    if (layerDefinitions[i].GetRequiredBooleanProperty("m_bIsStateMachineLayer"))
                     {
                         continue;
                     }
@@ -844,12 +892,11 @@ public class NmGraphExtract
             case "CNmTwoBoneIKNode::CDefinition":
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nChildNodeIdx"), node, 0, graphBuilder);
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nEffectorTargetNodeIdx", -1), node, 1, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nEnabledNodeIdx", -1), node, 2, graphBuilder);
                 break;
 
             case "CNmOrientationWarpNode::CDefinition":
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nClipReferenceNodeIdx"), node, 0, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nTargetValueNodeIdx"), node, compiledNode.GetBooleanProperty("m_bIsOffsetNode") ? 2 : 1, graphBuilder);
+                ConnectIfValid((int)compiledNode.GetInt64Property("m_nTargetValueNodeIdx"), node, compiledNode.GetRequiredBooleanProperty("m_bIsOffsetNode") ? 2 : 1, graphBuilder);
                 break;
 
             case "CNmSnapWeaponNode::CDefinition":
@@ -946,7 +993,7 @@ public class NmGraphExtract
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_optionLabels", CloneStringArray(optionIds));
-        node.Add("m_bIgnoreInvalidOptions", compiledNode.GetBooleanProperty("m_bIgnoreInvalidOptions"));
+        node.Add("m_bIgnoreInvalidOptions", compiledNode.GetRequiredBooleanProperty("m_bIgnoreInvalidOptions"));
         return node;
     }
 
@@ -974,7 +1021,7 @@ public class NmGraphExtract
         node.Add("m_overrides", KVObject.Array());
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_optionLabels", CloneStringArray(optionLabels));
-        node.Add("m_bIgnoreInvalidOptions", compiledNode.GetBooleanProperty("m_bIgnoreInvalidOptions"));
+        node.Add("m_bIgnoreInvalidOptions", compiledNode.GetRequiredBooleanProperty("m_bIgnoreInvalidOptions"));
         return node;
     }
 
@@ -983,7 +1030,7 @@ public class NmGraphExtract
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CNmGraphDocClipNode::CData");
         variationData.Add("m_clip", GetResourcePath((int)compiledNode.GetInt64Property("m_nDataSlotIdx")));
-        variationData.Add("m_flSpeedMultiplier", compiledNode.GetFloatProperty("m_flSpeedMultiplier"));
+        variationData.Add("m_flSpeedMultiplier", compiledNode.GetRequiredFloatProperty("m_flSpeedMultiplier"));
         variationData.Add("m_nStartSyncEventOffset", compiledNode.GetInt64Property("m_nStartSyncEventOffset"));
 
         var node = CreateBaseNode("CNmGraphDocClipNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
@@ -992,8 +1039,8 @@ public class NmGraphExtract
         node.Add("m_pDefaultVariationData", variationData);
         node.Add("m_overrides", KVObject.Array());
         node.Add("m_defaultResourceName", string.Empty);
-        node.Add("m_bSampleRootMotion", compiledNode.GetBooleanProperty("m_bSampleRootMotion"));
-        node.Add("m_bAllowLooping", compiledNode.GetBooleanProperty("m_bAllowLooping"));
+        node.Add("m_bSampleRootMotion", compiledNode.GetRequiredBooleanProperty("m_bSampleRootMotion"));
+        node.Add("m_bAllowLooping", compiledNode.GetRequiredBooleanProperty("m_bAllowLooping"));
         node.Add("m_graphEvents", CloneArray("m_graphEvents", compiledNode));
         return node;
     }
@@ -1012,8 +1059,8 @@ public class NmGraphExtract
         node.Add("m_overrides", KVObject.Array());
         node.Add("m_defaultResourceName", string.Empty);
         node.Add("m_inputTimeRemapRange", CloneRange(compiledNode.GetSubCollection("m_inputTimeRemapRange"), float.MaxValue, float.MinValue));
-        node.Add("m_fixedTimeValue", compiledNode.GetFloatProperty("m_flUserSpecifiedTime"));
-        node.Add("m_useFramesAsInput", compiledNode.GetBooleanProperty("m_bUseFramesAsInput"));
+        node.Add("m_fixedTimeValue", compiledNode.GetRequiredFloatProperty("m_flUserSpecifiedTime"));
+        node.Add("m_useFramesAsInput", compiledNode.GetRequiredBooleanProperty("m_bUseFramesAsInput"));
         return node;
     }
 
@@ -1022,7 +1069,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocIDComparisonNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("ID", "ID")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
-        node.Add("m_comparison", compiledNode.GetStringProperty("m_comparison"));
+        node.Add("m_comparison", compiledNode.GetRequiredStringProperty("m_comparison"));
         node.Add("m_values", CloneArray("m_comparisionIDs", compiledNode));
         return node;
     }
@@ -1032,7 +1079,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocIDToFloatNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("ID", "ID")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_defaultValue", compiledNode.GetFloatProperty("m_defaultValue"));
+        node.Add("m_defaultValue", compiledNode.GetRequiredFloatProperty("m_defaultValue"));
 
         var ids = compiledNode.GetArray<string>("m_IDs")?.ToArray() ?? [];
         var values = compiledNode.GetFloatArray("m_values")?.ToArray() ?? [];
@@ -1059,8 +1106,8 @@ public class NmGraphExtract
             new PinDef("If False", "ID"),
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "ID", AllowMultipleOutConnections: true)]));
-        node.Add("m_falseValue", compiledNode["m_falseValue"] ?? string.Empty);
-        node.Add("m_trueValue", compiledNode["m_trueValue"] ?? string.Empty);
+        node.Add("m_falseValue", GetOptionalString(compiledNode, "m_falseValue"));
+        node.Add("m_trueValue", GetOptionalString(compiledNode, "m_trueValue"));
         return node;
     }
 
@@ -1072,7 +1119,7 @@ public class NmGraphExtract
         var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Value", valueType)]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", valueType, AllowMultipleOutConnections: true)]));
-        node.Add("m_mode", compiledNode["m_mode"] ?? "OnEntry");
+        node.Add("m_mode", GetOptionalString(compiledNode, "m_mode", "OnEntry"));
         return node;
     }
 
@@ -1081,9 +1128,9 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocFloatComparisonNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Float", "Float"), new PinDef("Comparand (Optional)", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
-        node.Add("m_comparison", compiledNode.GetStringProperty("m_comparison"));
-        node.Add("m_flComparisonValue", compiledNode.GetFloatProperty("m_flComparisonValue"));
-        node.Add("m_flEpsilon", compiledNode.GetFloatProperty("m_flEpsilon"));
+        node.Add("m_comparison", compiledNode.GetRequiredStringProperty("m_comparison"));
+        node.Add("m_flComparisonValue", compiledNode.GetRequiredFloatProperty("m_flComparisonValue"));
+        node.Add("m_flEpsilon", compiledNode.GetRequiredFloatProperty("m_flEpsilon"));
         return node;
     }
 
@@ -1121,10 +1168,10 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocFloatEaseNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Value", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_easing", compiledNode["m_easingOp"] ?? "Linear");
+        node.Add("m_easing", GetOptionalString(compiledNode, "m_easingOp", "Linear"));
         node.Add("m_flEaseTime", compiledNode.GetFloatProperty("m_flEaseTime", 1.0f));
         node.Add("m_bUseStartValue", compiledNode.GetBooleanProperty("m_bUseStartValue", true));
-        node.Add("m_flStartValue", compiledNode.GetFloatProperty("m_flStartValue"));
+        node.Add("m_flStartValue", compiledNode.GetRequiredFloatProperty("m_flStartValue"));
         return node;
     }
 
@@ -1135,8 +1182,8 @@ public class NmGraphExtract
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_flHertz", compiledNode.GetFloatProperty("m_flHertz", 4.0f));
         node.Add("m_flDampingRatio", compiledNode.GetFloatProperty("m_flDampingRatio", 0.7f));
-        node.Add("m_bUseStartValue", compiledNode.GetBooleanProperty("m_bUseStartValue"));
-        node.Add("m_flStartValue", compiledNode.GetFloatProperty("m_flStartValue"));
+        node.Add("m_bUseStartValue", compiledNode.GetRequiredBooleanProperty("m_bUseStartValue"));
+        node.Add("m_flStartValue", compiledNode.GetRequiredFloatProperty("m_flStartValue"));
         return node;
     }
 
@@ -1145,7 +1192,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocFloatCurveNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Float", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_curve", compiledNode["m_curve"] ?? KVObject.Collection());
+        node.Add("m_curve", GetOptionalObject(compiledNode, "m_curve") ?? KVObject.Collection());
         return node;
     }
 
@@ -1154,10 +1201,10 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocFloatMathNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("A", "Float"), new PinDef("B (Optional)", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_bReturnAbsoluteResult", compiledNode.GetBooleanProperty("m_bReturnAbsoluteResult"));
-        node.Add("m_bReturnNegatedResult", compiledNode.GetBooleanProperty("m_bReturnNegatedResult"));
-        node.Add("m_operator", compiledNode["m_operator"] ?? "Add");
-        node.Add("m_flValueB", compiledNode.GetFloatProperty("m_flValueB"));
+        node.Add("m_bReturnAbsoluteResult", compiledNode.GetRequiredBooleanProperty("m_bReturnAbsoluteResult"));
+        node.Add("m_bReturnNegatedResult", compiledNode.GetRequiredBooleanProperty("m_bReturnNegatedResult"));
+        node.Add("m_operator", GetOptionalString(compiledNode, "m_operator", "Add"));
+        node.Add("m_flValueB", compiledNode.GetRequiredFloatProperty("m_flValueB"));
         return node;
     }
 
@@ -1170,7 +1217,7 @@ public class NmGraphExtract
             new PinDef("If False", "Float"),
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_flFalseValue", compiledNode.GetFloatProperty("m_flFalseValue"));
+        node.Add("m_flFalseValue", compiledNode.GetRequiredFloatProperty("m_flFalseValue"));
         node.Add("m_flTrueValue", compiledNode.GetFloatProperty("m_flTrueValue", 1.0f));
         return node;
     }
@@ -1180,7 +1227,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocFloatAngleMathNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Angle (deg)", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_operation", compiledNode["m_operation"] ?? "ClampTo180");
+        node.Add("m_operation", GetOptionalString(compiledNode, "m_operation", "ClampTo180"));
         return node;
     }
 
@@ -1202,8 +1249,8 @@ public class NmGraphExtract
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_options", options);
-        node.Add("m_flDefaultValue", compiledNode.GetFloatProperty("m_flDefaultValue"));
-        node.Add("m_easing", compiledNode["m_easingOp"] ?? "None");
+        node.Add("m_flDefaultValue", compiledNode.GetRequiredFloatProperty("m_flDefaultValue"));
+        node.Add("m_easing", GetOptionalString(compiledNode, "m_easingOp", "None"));
         node.Add("m_easeTime", compiledNode.GetFloatProperty("m_flEaseTime", 0.3f));
         return node;
     }
@@ -1230,7 +1277,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocIDEventNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "ID", AllowMultipleOutConnections: true)]));
-        node.Add("m_defaultValue", compiledNode["m_defaultValue"] ?? string.Empty);
+        node.Add("m_defaultValue", GetOptionalString(compiledNode, "m_defaultValue"));
         node.Add("m_bLimitSearchToSourceState", eventConditionRules.LimitSearchToSourceState);
         node.Add("m_priorityRule", eventConditionRules.PriorityRule);
         node.Add("m_bIgnoreInactiveBranchEvents", eventConditionRules.IgnoreInactiveBranchEvents);
@@ -1271,8 +1318,8 @@ public class NmGraphExtract
             }
 
             var output = KVObject.Collection();
-            output.Add("m_eventID", condition["m_eventID"] ?? string.Empty);
-            output.Add("m_type", condition["m_eventTypeCondition"] ?? condition["m_type"] ?? "Any");
+            output.Add("m_eventID", GetOptionalString(condition, "m_eventID"));
+            output.Add("m_type", GetOptionalString(condition, "m_eventTypeCondition", GetOptionalString(condition, "m_type", "Any")));
             conditions.Add(output);
         }
 
@@ -1287,7 +1334,7 @@ public class NmGraphExtract
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
 
         var eventConditionRules = GetEventConditionRules(compiledNode);
-        node.Add("m_phaseCondition", compiledNode["m_phaseCondition"] ?? "LeftFootDown");
+        node.Add("m_phaseCondition", GetOptionalString(compiledNode, "m_phaseCondition", "LeftFootDown"));
         node.Add("m_bLimitSearchToSourceState", eventConditionRules.LimitSearchToSourceState);
         node.Add("m_bIgnoreInactiveBranchEvents", eventConditionRules.IgnoreInactiveBranchEvents);
         return node;
@@ -1313,7 +1360,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocFootstepEventPercentageThroughNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_phaseCondition", compiledNode["m_phaseCondition"] ?? "LeftFootDown");
+        node.Add("m_phaseCondition", GetOptionalString(compiledNode, "m_phaseCondition", "LeftFootDown"));
         node.Add("m_priorityRule", eventConditionRules.PriorityRule);
         node.Add("m_bLimitSearchToSourceState", eventConditionRules.LimitSearchToSourceState);
         node.Add("m_bIgnoreInactiveBranchEvents", eventConditionRules.IgnoreInactiveBranchEvents);
@@ -1325,7 +1372,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocVectorInfoNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Vector", "Vector")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_desiredInfo", compiledNode["m_desiredInfo"] ?? "X");
+        node.Add("m_desiredInfo", GetOptionalString(compiledNode, "m_desiredInfo", "X"));
         return node;
     }
 
@@ -1347,7 +1394,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocTargetInfoNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Target", "Target")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
-        node.Add("m_infoType", compiledNode["m_infoType"] ?? "Distance");
+        node.Add("m_infoType", GetOptionalString(compiledNode, "m_infoType", "Distance"));
         node.Add("m_bIsWorldSpaceTarget", compiledNode.GetBooleanProperty("m_bIsWorldSpaceTarget", true));
         return node;
     }
@@ -1384,7 +1431,7 @@ public class NmGraphExtract
         node.Add("m_pDefaultVariationData", variationData);
         node.Add("m_overrides", KVObject.Array());
         node.Add("m_defaultResourceName", string.Empty);
-        node.Add("m_maskID", compiledNode.GetStringProperty("m_boneMaskID"));
+        node.Add("m_maskID", compiledNode.GetRequiredStringProperty("m_boneMaskID"));
         return node;
     }
 
@@ -1413,7 +1460,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocBoneMaskSelectorNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "BoneMask", AllowMultipleOutConnections: true)]));
-        node.Add("m_switchDynamically", compiledNode.GetBooleanProperty("m_bSwitchDynamically"));
+        node.Add("m_switchDynamically", compiledNode.GetRequiredBooleanProperty("m_bSwitchDynamically"));
         node.Add("m_options", CloneStringArray(parameterValues));
         node.Add("m_flBlendTimeSeconds", compiledNode.GetFloatProperty("m_flBlendTimeSeconds", 0.1f));
         return node;
@@ -1428,7 +1475,7 @@ public class NmGraphExtract
             new PinDef("If False", "BoneMask"),
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "BoneMask", AllowMultipleOutConnections: true)]));
-        node.Add("m_bSwitchDynamically", compiledNode.GetBooleanProperty("m_bSwitchDynamically"));
+        node.Add("m_bSwitchDynamically", compiledNode.GetRequiredBooleanProperty("m_bSwitchDynamically"));
         node.Add("m_flBlendTimeSeconds", compiledNode.GetFloatProperty("m_flBlendTimeSeconds", 0.1f));
         return node;
     }
@@ -1464,11 +1511,7 @@ public class NmGraphExtract
     private KVObject CreateBlend1DNode(int nodeIndex, KVObject compiledNode)
     {
         var sourceNodeIndices = compiledNode.GetIntegerArray("m_sourceNodeIndices")?.Select(value => (int)value).ToArray() ?? [];
-        var blendRanges = compiledNode.GetSubCollection("m_parameterization")?.GetArray("m_blendRanges")
-            ?.Select(value => value as KVObject)
-            .Where(value => value is not null)
-            .Cast<KVObject>()
-            .ToArray() ?? [];
+        var pointValues = GetBlend1DPointValues(compiledNode, sourceNodeIndices.Length);
 
         var inputPins = new List<PinDef> { new("Parameter", "Float") };
         var blendPoints = KVObject.Array();
@@ -1476,9 +1519,7 @@ public class NmGraphExtract
         for (var i = 0; i < sourceNodeIndices.Length; i++)
         {
             var label = GetNodeName(sourceNodeIndices[i]);
-            var value = i < blendRanges.Length
-                ? blendRanges[i].GetFloatProperty("m_flBegin")
-                : 0.0f;
+            var value = i < pointValues.Length ? pointValues[i] : 0.0f;
             var pin = CreatePin($"{label} ({value:0.##})", "Pose", isDynamicPin: true);
             inputPins.Add(new PinDef(pin.GetStringProperty("m_name"), "Pose", IsDynamicPin: true));
 
@@ -1562,7 +1603,7 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocSyncEventIndexConditionNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
-        node.Add("m_triggerMode", compiledNode["m_triggerMode"] ?? "ExactlyAtEventIndex");
+        node.Add("m_triggerMode", GetOptionalString(compiledNode, "m_triggerMode", "ExactlyAtEventIndex"));
         node.Add("m_nSyncEventIdx", compiledNode.GetInt64Property("m_syncEventIdx", -1));
         return node;
     }
@@ -1572,9 +1613,9 @@ public class NmGraphExtract
         var node = CreateBaseNode("CNmGraphDocTimeConditionNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Time Value (optional)", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
-        node.Add("m_flComparand", compiledNode.GetFloatProperty("m_flComparand"));
-        node.Add("m_type", compiledNode["m_type"] ?? "ElapsedTime");
-        node.Add("m_operator", compiledNode["m_operator"] ?? "LessThan");
+        node.Add("m_flComparand", compiledNode.GetRequiredFloatProperty("m_flComparand"));
+        node.Add("m_type", GetOptionalString(compiledNode, "m_type", "ElapsedTime"));
+        node.Add("m_operator", GetOptionalString(compiledNode, "m_operator", "LessThan"));
         return node;
     }
 
@@ -1585,9 +1626,9 @@ public class NmGraphExtract
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
 
         var eventConditionRules = GetEventConditionRules(compiledNode);
-        node.Add("m_ruleCondition", compiledNode["m_ruleCondition"] ?? "AnyAllowed");
-        node.Add("m_bMatchOnlySpecificMarkerID", !string.IsNullOrEmpty(compiledNode.GetStringProperty("m_requireRuleID")));
-        node.Add("m_markerIDToMatch", compiledNode["m_requireRuleID"] ?? string.Empty);
+        node.Add("m_ruleCondition", GetOptionalString(compiledNode, "m_ruleCondition", "AnyAllowed"));
+        node.Add("m_bMatchOnlySpecificMarkerID", !string.IsNullOrEmpty(GetOptionalString(compiledNode, "m_requireRuleID")));
+        node.Add("m_markerIDToMatch", GetOptionalString(compiledNode, "m_requireRuleID"));
         node.Add("m_bLimitSearchToSourceState", eventConditionRules.LimitSearchToSourceState);
         node.Add("m_bIgnoreInactiveBranchEvents", eventConditionRules.IgnoreInactiveBranchEvents);
         return node;
@@ -1609,7 +1650,7 @@ public class NmGraphExtract
 
     private KVObject CreateLayerBlendInputNode(int parentNodeIndex, int layerIndex, KVObject layerDefinition)
     {
-        var isStateMachineLayer = layerDefinition.GetBooleanProperty("m_bIsStateMachineLayer");
+        var isStateMachineLayer = layerDefinition.GetRequiredBooleanProperty("m_bIsStateMachineLayer");
         var node = CreateBaseNode(
             isStateMachineLayer ? "CNmGraphDocStateMachineLayerNode" : "CNmGraphDocLocalLayerNode",
             MakeGuid($"node:{parentNodeIndex}:layer:{layerIndex}"),
@@ -1624,9 +1665,9 @@ public class NmGraphExtract
                 new PinDef("BoneMask", "BoneMask"),
             ]));
         node.Add("m_outputPins", MakePins([new PinDef("Layer", "Special")]));
-        node.Add("m_isSynchronized", layerDefinition.GetBooleanProperty("m_bIsSynchronized"));
-        node.Add("m_ignoreEvents", layerDefinition.GetBooleanProperty("m_bIgnoreEvents"));
-        node.Add("m_blendMode", layerDefinition["m_blendMode"] ?? "Overlay");
+        node.Add("m_isSynchronized", layerDefinition.GetRequiredBooleanProperty("m_bIsSynchronized"));
+        node.Add("m_ignoreEvents", layerDefinition.GetRequiredBooleanProperty("m_bIgnoreEvents"));
+        node.Add("m_blendMode", GetOptionalString(layerDefinition, "m_blendMode", "Overlay"));
         return node;
     }
 
@@ -1645,9 +1686,9 @@ public class NmGraphExtract
             new PinDef("Is Defusing", "Bool"),
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
-        node.Add("m_flActionBlendTimeSeconds", compiledNode.GetFloatProperty("m_flActionBlendTimeSeconds"));
-        node.Add("m_flHandIKBlendInTimeSeconds", compiledNode.GetFloatProperty("m_flHandIKBlendInTimeSeconds"));
-        node.Add("m_flPlantingBlendTimeSeconds", compiledNode.GetFloatProperty("m_flPlantingBlendTimeSeconds"));
+        node.Add("m_flActionBlendTimeSeconds", compiledNode.GetRequiredFloatProperty("m_flActionBlendTimeSeconds"));
+        node.Add("m_flHandIKBlendInTimeSeconds", compiledNode.GetRequiredFloatProperty("m_flHandIKBlendInTimeSeconds"));
+        node.Add("m_flPlantingBlendTimeSeconds", compiledNode.GetRequiredFloatProperty("m_flPlantingBlendTimeSeconds"));
         return node;
     }
 
@@ -1655,9 +1696,9 @@ public class NmGraphExtract
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CnmGraphDocFootIKNode::CData");
-        variationData.Add("m_leftEffectorBoneName", compiledNode["m_leftEffectorBoneID"] ?? string.Empty);
-        variationData.Add("m_rightEffectorBoneName", compiledNode["m_rightEffectorBoneID"] ?? string.Empty);
-        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetFloatProperty("m_flBlendTimeSeconds"));
+        variationData.Add("m_leftEffectorBoneName", GetOptionalString(compiledNode, "m_leftEffectorBoneID"));
+        variationData.Add("m_rightEffectorBoneName", GetOptionalString(compiledNode, "m_rightEffectorBoneID"));
+        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetRequiredFloatProperty("m_flBlendTimeSeconds"));
 
         var node = CreateBaseNode("CnmGraphDocFootIKNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
@@ -1670,8 +1711,8 @@ public class NmGraphExtract
         node.Add("m_pDefaultVariationData", variationData);
         node.Add("m_overrides", KVObject.Array());
         node.Add("m_defaultResourceName", string.Empty);
-        node.Add("m_bIsTargetInWorldSpace", compiledNode.GetBooleanProperty("m_bIsTargetInWorldSpace"));
-        node.Add("m_blendMode", compiledNode["m_blendMode"] ?? "Effector");
+        node.Add("m_bIsTargetInWorldSpace", compiledNode.GetRequiredBooleanProperty("m_bIsTargetInWorldSpace"));
+        node.Add("m_blendMode", GetOptionalString(compiledNode, "m_blendMode", "Effector"));
         return node;
     }
 
@@ -1679,22 +1720,18 @@ public class NmGraphExtract
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CnmGraphDocTwoBoneIKNode::CData");
-        variationData.Add("m_effectorBoneName", compiledNode["m_effectorBoneID"] ?? string.Empty);
-        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetFloatProperty("m_flBlendTimeSeconds"));
+        variationData.Add("m_effectorBoneName", GetOptionalString(compiledNode, "m_effectorBoneID"));
 
         var node = CreateBaseNode("CnmGraphDocTwoBoneIKNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
-            new PinDef("Target", "Target"),
-            new PinDef("Enabled", "Bool"),
+            new PinDef("Effector Target", "Target"),
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
         node.Add("m_pDefaultVariationData", variationData);
         node.Add("m_overrides", KVObject.Array());
         node.Add("m_defaultResourceName", string.Empty);
-        node.Add("m_bIsTargetInWorldSpace", compiledNode.GetBooleanProperty("m_bIsTargetInWorldSpace"));
-        node.Add("m_blendMode", compiledNode["m_blendMode"] ?? "Effector");
-        node.Add("m_flChainRotationWeight", compiledNode.GetFloatProperty("m_flChainRotationWeight"));
+        node.Add("m_bIsTargetInWorldSpace", compiledNode.GetRequiredBooleanProperty("m_bIsTargetInWorldSpace"));
         return node;
     }
 
@@ -1707,11 +1744,10 @@ public class NmGraphExtract
             new PinDef("Angle Offset (Deg)", "Float"),
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
-        node.Add("m_offsetType", compiledNode.GetBooleanProperty("m_bIsOffsetNode")
-            ? (compiledNode.GetBooleanProperty("m_bIsOffsetRelativeToCharacter") ? "RelativeToCharacter" : "Absolute")
-            : "None");
-        node.Add("m_samplingMode", compiledNode["m_samplingMode"] ?? "WorldSpace");
-        node.Add("m_bWarpTranslation", compiledNode.GetBooleanProperty("m_bWarpTranslation"));
+        node.Add("m_offsetType", compiledNode.GetRequiredBooleanProperty("m_bIsOffsetNode")
+            ? (compiledNode.GetRequiredBooleanProperty("m_bIsOffsetRelativeToCharacter") ? "RelativeToCharacter" : "RelativeToOriginalRootMotion")
+            : "RelativeToCharacter");
+        node.Add("m_samplingMode", GetOptionalString(compiledNode, "m_samplingMode", "WorldSpace"));
         return node;
     }
 
@@ -1743,7 +1779,9 @@ public class NmGraphExtract
         var node = CreateBaseNode("CnmGraphDocConstBoneTargetNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Value", "Target", AllowMultipleOutConnections: true)]));
-        node.Add("m_boneName", targetValue?["m_boneID"] ?? compiledNode["m_boneName"] ?? string.Empty);
+        node.Add("m_boneName", targetValue is not null
+            ? GetOptionalString(targetValue, "m_boneID", GetOptionalString(compiledNode, "m_boneName"))
+            : GetOptionalString(compiledNode, "m_boneName"));
         return node;
     }
 
@@ -1770,19 +1808,19 @@ public class NmGraphExtract
         node.Add("m_inputPins", MakePins([
             new PinDef("Condition", "Bool"),
             new PinDef("Duration Override", "Float"),
-            new PinDef("Time Offset Override", "Float"),
+            new PinDef("Sync Event Override", "Float"),
             new PinDef("Start Bone Mask", "BoneMask"),
             new PinDef("Target Sync ID", "ID"),
         ]));
         node.Add("m_outputPins", KVObject.Array());
         node.Add("m_resultType", "Special");
-        node.Add("m_flDurationSeconds", compiledNode.GetFloatProperty("m_flDuration"));
+        node.Add("m_flDurationSeconds", compiledNode.GetRequiredFloatProperty("m_flDuration"));
         node.Add("m_bClampDurationToSource", false);
-        node.Add("m_rootMotionBlend", compiledNode.GetStringProperty("m_rootMotionBlend"));
-        node.Add("m_blendWeightEasing", compiledNode.GetStringProperty("m_blendWeightEasing"));
+        node.Add("m_rootMotionBlend", compiledNode.GetRequiredStringProperty("m_rootMotionBlend"));
+        node.Add("m_blendWeightEasing", compiledNode.GetRequiredStringProperty("m_blendWeightEasing"));
         node.Add("m_flBoneMaskBlendInTimePercentage", compiledNode.GetSubCollection("m_boneMaskBlendInTimePercentage")?.GetFloatProperty("m_flValue") ?? 0.33f);
         node.Add("m_timeMatchMode", "None");
-        node.Add("m_flTimeOffset", compiledNode.GetFloatProperty("m_flTimeOffset"));
+        node.Add("m_flTimeOffset", compiledNode.GetRequiredFloatProperty("m_flTimeOffset"));
         node.Add("m_bCanBeForced", canBeForced);
 
         if (stateId is not null)
@@ -1790,6 +1828,31 @@ public class NmGraphExtract
             node.Add("m_stateID", stateId);
         }
 
+        return node;
+    }
+
+    private KVObject CreateDefaultGlobalTransitionNode(int stateNodeIndex, string stateId, int row)
+    {
+        var node = CreateBaseNode("CNmGraphDocGlobalTransitionNode", MakeGuid($"global-transition:{stateNodeIndex}"), GetNodeName(stateNodeIndex));
+        node["m_position"] = MakeVector2(0.0f, row * 220.0f);
+        node.Add("m_inputPins", MakePins([
+            new PinDef("Condition", "Bool"),
+            new PinDef("Duration Override", "Float"),
+            new PinDef("Sync Event Override", "Float"),
+            new PinDef("Start Bone Mask", "BoneMask"),
+            new PinDef("Target Sync ID", "ID"),
+        ]));
+        node.Add("m_outputPins", KVObject.Array());
+        node.Add("m_resultType", "Special");
+        node.Add("m_flDurationSeconds", 0.2f);
+        node.Add("m_bClampDurationToSource", false);
+        node.Add("m_rootMotionBlend", "Blend");
+        node.Add("m_blendWeightEasing", "Linear");
+        node.Add("m_flBoneMaskBlendInTimePercentage", 0.33f);
+        node.Add("m_timeMatchMode", "None");
+        node.Add("m_flTimeOffset", 0.0f);
+        node.Add("m_bCanBeForced", false);
+        node.Add("m_stateID", stateId);
         return node;
     }
 
@@ -1945,10 +2008,10 @@ public class NmGraphExtract
             }
 
             var output = KVObject.Collection();
-            output.Add("m_ID", timedEvent["m_ID"] ?? string.Empty);
+            output.Add("m_ID", GetOptionalString(timedEvent, "m_ID"));
             output.Add("m_type", type);
-            output.Add("m_comparisonOperator", timedEvent["m_comparisionOperator"] ?? "LessThanEqual");
-            output.Add("m_flTimeValueSeconds", timedEvent.GetFloatProperty("m_flTimeValueSeconds"));
+            output.Add("m_comparisonOperator", GetOptionalString(timedEvent, "m_comparisionOperator", "LessThanEqual"));
+            output.Add("m_flTimeValueSeconds", timedEvent.GetRequiredFloatProperty("m_flTimeValueSeconds"));
             result.Add(output);
         }
 
@@ -1967,6 +2030,12 @@ public class NmGraphExtract
     private static bool IsVirtualParameterNode(KVObject compiledNode)
         => GetCompiledClass(compiledNode).TryGetTypedSuffix("VirtualParameter", out _);
 
+    private static KVObject? GetOptionalObject(KVObject node, string key)
+        => node.TryGetValue(key, out var value) && !value.IsNull ? value : null;
+
+    private static string GetOptionalString(KVObject node, string key, string fallback = "")
+        => GetOptionalObject(node, key) is { } value ? (string)value : fallback;
+
     private static string GetCompiledClassName(KVObject node)
         => node.GetStringProperty("_class");
 
@@ -1978,6 +2047,9 @@ public class NmGraphExtract
 
     private static string GetTypedDocNodeClassName(string valueType, string suffix)
         => $"CNmGraphDoc{valueType}{suffix}Node";
+
+    private static string GetConstDocNodeClassName(string valueType)
+        => $"CnmGraphDocConst{valueType}Node";
 
     private static IReadOnlyList<(string Key, object Value)> GetControlParameterExtraFields(string valueType)
         => valueType switch
@@ -2006,6 +2078,73 @@ public class NmGraphExtract
             "Bool" => compiledNode.ContainsKey("m_value") ? compiledNode["m_value"] : compiledNode["m_bValue"],
             _ => throw new InvalidDataException($"Unsupported const value type: {valueType}"),
         };
+
+    private static float[] GetBlend1DPointValues(KVObject compiledNode, int sourceCount)
+    {
+        if (sourceCount <= 0)
+        {
+            return [];
+        }
+
+        var values = new float[sourceCount];
+        var hasValue = new bool[sourceCount];
+        var blendRanges = compiledNode.GetSubCollection("m_parameterization")?.GetArray("m_blendRanges");
+
+        if (blendRanges is not { Count: > 0 })
+        {
+            return values;
+        }
+
+        foreach (var rangeValue in blendRanges)
+        {
+            if (rangeValue is not KVObject range)
+            {
+                continue;
+            }
+
+            var inputIdx0 = (int)range.GetInt64Property("m_nInputIdx0", -1);
+            var inputIdx1 = (int)range.GetInt64Property("m_nInputIdx1", -1);
+            var parameterRange = range.GetSubCollection("m_parameterValueRange");
+
+            if (parameterRange is null)
+            {
+                continue;
+            }
+
+            var begin = parameterRange.GetFloatProperty("m_flMin");
+            var end = parameterRange.GetFloatProperty("m_flMax");
+
+            if (inputIdx0 >= 0 && inputIdx0 < sourceCount)
+            {
+                values[inputIdx0] = begin;
+                hasValue[inputIdx0] = true;
+            }
+
+            if (inputIdx1 >= 0 && inputIdx1 < sourceCount)
+            {
+                values[inputIdx1] = end;
+                hasValue[inputIdx1] = true;
+            }
+        }
+
+        var parameterRangeFallback = compiledNode.GetSubCollection("m_parameterization")?.GetSubCollection("m_parameterRange");
+        if (parameterRangeFallback is not null)
+        {
+            for (var i = 0; i < sourceCount; i++)
+            {
+                if (hasValue[i])
+                {
+                    continue;
+                }
+
+                values[i] = i == 0
+                    ? parameterRangeFallback.GetFloatProperty("m_flMin")
+                    : parameterRangeFallback.GetFloatProperty("m_flMax");
+            }
+        }
+
+        return values;
+    }
 
     private static KVObject CloneRange(KVObject? source, float defaultMin, float defaultMax)
     {
@@ -2084,8 +2223,6 @@ public class NmGraphExtract
         node.Add("m_name", name);
         node.Add("m_floatingComment", string.Empty);
         node.Add("m_position", MakeVector2(0.0f, 0.0f));
-        node.Add("m_pChildGraph", null);
-        node.Add("m_pSecondaryGraph", null);
         return node;
     }
 
@@ -2160,7 +2297,6 @@ public class NmGraphExtract
         switch (value)
         {
             case null:
-                node.Add(key, null);
                 break;
             case KVObject kv:
                 node.Add(key, kv);
