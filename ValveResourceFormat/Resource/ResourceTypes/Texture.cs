@@ -1108,10 +1108,6 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 codec |= TextureCodec.ColorSpaceLinear;
             }
-            else
-            {
-                codec |= TextureCodec.ColorSpaceSrgb;
-            }
 
             return codec;
         }
