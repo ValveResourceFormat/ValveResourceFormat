@@ -40,19 +40,12 @@ void main()
     mat4 skinTransform = object.transform * getSkinMatrix();
     vFragPosition = (skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0)).xyz;
 
-    vec3 normal;
-    vec4 tangent;
-    GetOptionallyCompressedNormalTangent(normal, tangent);
-
-    mat3 normalTransform = adjoint(skinTransform);
-    vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
-
     gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
 
     vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 
     vVertexColorOut = SrgbGammaToLinear(object.vTint);
+
+    vVertexColorOut.xyz = g_vColorTint * vVertexColorOut.xyz;
 
 }
