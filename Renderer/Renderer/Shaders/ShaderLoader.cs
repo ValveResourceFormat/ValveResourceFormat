@@ -416,7 +416,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             "sky.vfx" => "sky",
             "tools_sprite.vfx" => "sprite",
             "global_lit_simple.vfx" => "global_lit_simple",
-            "vr_black_unlit.vfx" or "csgo_black_unlit.vfx" => "vr_black_unlit",
+            "vr_black_unlit.vfx" or "csgo_black_unlit.vfx" or "vr_unlit.vfx" => "vr_black_unlit",
             "vr_standard.vfx" => "vr_standard",
             "vr_simple.vfx" => "vr_simple",
             "water_dota.vfx" => "water",
