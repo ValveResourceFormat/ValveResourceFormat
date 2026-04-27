@@ -418,6 +418,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             "global_lit_simple.vfx" => "global_lit_simple",
             "vr_black_unlit.vfx" or "csgo_black_unlit.vfx" => "vr_black_unlit",
             "vr_standard.vfx" => "vr_standard",
+            "vr_simple.vfx" => "vr_simple",
             "water_dota.vfx" => "water",
             "csgo_water_fancy.vfx" => "water_csgo",
             "hero.vfx" or "hero_underlords.vfx" => "dota_hero",
