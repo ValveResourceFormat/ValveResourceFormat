@@ -379,8 +379,8 @@ namespace GUI.Types.Graphs
             var top = topLeft.Y;
             var bottom = bottomRight.Y;
 
-            var largeXOffset = ((float)Math.Round(left / _gridStep) * _gridStep);
-            var largeYOffset = ((float)Math.Round(top / _gridStep) * _gridStep);
+            var largeXOffset = Math.Round(left / _gridStep) * _gridStep;
+            var largeYOffset = Math.Round(top / _gridStep) * _gridStep;
 
             // grid
             if (_gridStyle == EGridStyle.Grid)

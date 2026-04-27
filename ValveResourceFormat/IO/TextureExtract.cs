@@ -745,17 +745,16 @@ public sealed class TextureExtract
         Parallel.For(0, height, y =>
         {
             var latLongSpan = latLongPixels.GetPixelSpan<SKColorF>();
-            var v = (y + 0.5f) / height * (float)Math.PI;
+            var v = (y + 0.5f) / height * MathF.PI;
             for (var x = 0; x < width; x++)
             {
-                var u = (x + 0.5f) / width * 2 * (float)Math.PI;
+                var u = (x + 0.5f) / (width * 2f * MathF.PI);
+
+                var (sinU, cosU) = MathF.SinCos(u);
+                var (sinV, cosV) = MathF.SinCos(v);
 
                 // direction vector
-                var dir = new Vector3(
-                    (float)(Math.Sin(v) * Math.Cos(u)),
-                    (float)Math.Cos(v),
-                    (float)(Math.Sin(v) * Math.Sin(u))
-                );
+                var dir = new Vector3(sinV * cosU, cosV, sinV * sinU);
 
                 var color = SampleCubemapDirection(faces, dir);
                 latLongSpan[y * width + x] = color;
