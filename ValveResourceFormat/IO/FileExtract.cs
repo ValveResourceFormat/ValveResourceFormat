@@ -274,7 +274,10 @@ namespace ValveResourceFormat.IO
 
                 case ResourceType.NmGraph:
                 case ResourceType.NmGraphVariation:
-                    contentFile = new NmGraphExtract(resource).ToContentFile();
+                    using (var nmGraphExtract = new NmGraphExtract(resource, fileLoader))
+                    {
+                        contentFile = nmGraphExtract.ToContentFile();
+                    }
                     break;
 
                 // These all just use ToString() and WriteText() to do the job

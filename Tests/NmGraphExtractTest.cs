@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveKeyValue;
 using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -13,6 +14,27 @@ namespace Tests;
 
 public class NmGraphExtractTest
 {
+    private sealed class TestFileLoader(string rootPath) : IFileLoader
+    {
+        public Resource? LoadFile(string file)
+        {
+            var normalizedPath = file.Replace('/', Path.DirectorySeparatorChar);
+            var fullPath = Path.Combine(rootPath, normalizedPath);
+            if (!File.Exists(fullPath))
+            {
+                return null;
+            }
+
+            var resource = new Resource();
+            resource.Read(fullPath);
+            return resource;
+        }
+
+        public Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, GameFileLoader.CompiledFileSuffix));
+
+        public ValveResourceFormat.CompiledShader.ShaderCollection? LoadShader(string shaderName) => null;
+    }
+
     [Test]
     public void ExtractAllAnimgraph2Documents()
     {
@@ -37,7 +59,7 @@ public class NmGraphExtractTest
     [Test]
     public void ExtractNmGraphDocumentContainsExpectedRootFeatures()
     {
-        var text = ExtractText("Files/viewmodel_inspects.vnmgraph+ak47.vnmgraph_c");
+        var text = ExtractText("Files/Animgraph2/animation/graphs/viewmodel/viewmodel_inspects.vnmgraph+ak47.vnmgraph_c");
 
         Assert.Multiple(() =>
         {
@@ -142,7 +164,7 @@ public class NmGraphExtractTest
         using var resource = new Resource();
         resource.Read("Files/Animgraph2/animation/graphs/worldmodel/worldmodel.vnmgraph_c");
 
-        var extractor = new NmGraphExtract(resource);
+        using var extractor = new NmGraphExtract(resource);
         var method = typeof(NmGraphExtract).GetMethod("BuildStateMachineGraph", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var stateMachineGraph = (KVObject)method.Invoke(extractor, [1074])!;
         var nodes = stateMachineGraph.GetArray("m_nodes");
@@ -170,12 +192,35 @@ public class NmGraphExtractTest
     [Test]
     public void ExtractNmGraphRootGraphUsesParameterReferenceNodesForPersistentParameters()
     {
-        var text = ExtractText("Files/viewmodel_inspects.vnmgraph+ak47.vnmgraph_c");
+        var text = ExtractText("Files/Animgraph2/animation/graphs/viewmodel/viewmodel_inspects.vnmgraph+ak47.vnmgraph_c");
 
         Assert.Multiple(() =>
         {
             Assert.That(text, Does.Contain("ControlParameterNode"));
             Assert.That(text, Does.Contain("ParameterReferenceNode"));
+        });
+    }
+
+    [Test]
+    public void ExtractNmGraphRootGraphBuildsVariationOverridesFromChildResources()
+    {
+        var rootPath = Path.GetFullPath("Files/Animgraph2");
+        using var resource = new Resource();
+        resource.Read("Files/Animgraph2/animation/graphs/viewmodel/viewmodel_inspects.vnmgraph_c");
+
+        var editInfo = resource.GetBlockByType(BlockType.RED2) as ResourceEditInfo2;
+        Assert.That(editInfo, Is.Not.Null);
+
+        var content = FileExtract.Extract(resource, new TestFileLoader(rootPath));
+        var text = Encoding.UTF8.GetString(content.Data!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(editInfo!.ChildResourceList, Does.Contain("animation/graphs/viewmodel/viewmodel_inspects.vnmgraph+ak47.vnmgraph"));
+            Assert.That(text, Does.Contain("m_variationHierarchy = "));
+            Assert.That(text, Does.Contain("m_ID = \"ak47\""));
+            Assert.That(text, Does.Contain("m_variationID = \"ak47\""));
+            Assert.That(text, Does.Contain("lookat03_draw_ak.vnmclip"));
         });
     }
 
