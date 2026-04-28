@@ -18,41 +18,45 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public int BytecodeSize { get; private set; }
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-    public int Unknown1 { get; }
-    public byte[]? Unknown2 { get; }
 
-    public short Unknown3 { get; }
-    public short Unknown4 { get; }
-    public short Unknown5 { get; }
-    public ulong Unknown6 { get; }
-    public short Unknown7 { get; }
-    public ulong Unknown8 { get; }
-    public ulong Unknown9 { get; }
-    public ulong Unknown10 { get; }
-    public ulong Unknown11 { get; }
-    public short Unknown12 { get; }
-    public short Unknown13 { get; }
-    public ulong Unknown14 { get; }
-    public ulong Unknown15 { get; }
-    public short Unknown16 { get; }
-    public int[]? Unknown17 { get; }
-    public short Unknown18 { get; }
-    public ushort[]? Unknown19 { get; }
-    public int Unknown20 { get; }
-    public int Unknown21 { get; }
-    public int Unknown22 { get; }
-    public short Unknown23 { get; }
-    public byte[]? Unknown24 { get; }
-    public short Unknown25 { get; }
-    public short Unknown26 { get; }
-    public short Unknown27 { get; }
-    public short Unknown28 { get; }
-    public int[]? Unknown29 { get; }
-    public uint Unknown30 { get; }
-    public int[]? Unknown31 { get; }
-    public short Unknown32 { get; }
-    public byte Unknown33 { get; }
-    public byte[]? Unknown34 { get; }
+    public sealed class PerDescriptorSetBindingInfo
+    {
+        public short NumActiveSamplers { get; init; }
+        public short NumActiveUniformBuffers { get; init; }
+        public ushort ActiveUniformBindingMask { get; init; }
+        public ulong ActiveSamplerBindingMask { get; init; }
+        public short NumActiveTextures { get; init; }
+        public ulong[] ActiveTextureBindingMask { get; init; } = [];
+        public ulong[] ActiveInputAttachmentsBindingMask { get; init; } = [];
+        public ushort ActiveImageBindingMask { get; init; }
+        public short NumActiveUniformTexelBuffers { get; init; }
+        public ulong[] ActiveUniformTexelBufferBindingMask { get; init; } = [];
+        // Read out-of-band on the wire (after push constants), so this is the only mutable field.
+        public ushort ActiveStorageTexelBufferBindingMask { get; set; }
+    }
+
+    public readonly record struct ShaderStorageBufferBinding(ushort BindingAndRegisterSpace, ushort DescriptorSet)
+    {
+        public int Binding => BindingAndRegisterSpace & 0x3FFF;
+        public int RegisterSpace => (BindingAndRegisterSpace >> 14) & 0x3;
+    }
+
+    public readonly record struct HiddenUAVCounter(byte AssociatedShaderStorageIndex, byte UAVHiddenCounterBinding);
+
+    public byte[]? AttribMap { get; }
+    public PerDescriptorSetBindingInfo? DefaultDescriptorSetBindingInfo { get; }
+    public ShaderStorageBufferBinding[]? ShaderStorageBufferBindings { get; }
+    public HiddenUAVCounter[]? HiddenUAVCounters { get; }
+    public int[]? ThreadGroupSize { get; }
+    // Static descriptor set entries are kept as raw bytes because the per-entry layout differs by version
+    // (v4 = 96 bytes/entry, v6 = 72 bytes/entry).
+    public byte[]? StaticDescriptorSetBindingInfoData { get; }
+    public int PushConstantSize { get; }
+    public bool UseShaderStageName { get; }
+    public uint[]? DescriptorSetHashes { get; }
+    public uint[]? EntryPoints { get; }
+    public short RequiredSubgroupSize { get; }
+    public byte[]? UnknownTrailingData { get; }
 #pragma warning restore CS1591
 
     /// <summary>
@@ -91,114 +95,103 @@ public class VfxShaderFileVulkan : VfxShaderFile
 
         if (Size > 0 && !isMobile && false)
         {
-            Unknown1 = datareader.ReadInt32();
-            if (Unknown1 > 0)
+            var attribMapSize = datareader.ReadInt32();
+            if (attribMapSize > 0)
             {
-                Unknown2 = datareader.ReadBytes(Unknown1);
+                AttribMap = datareader.ReadBytes(attribMapSize);
             }
 
-            Unknown3 = datareader.ReadInt16();
-            Unknown4 = datareader.ReadInt16();
-            Unknown5 = datareader.ReadInt16();
-
-            if (Version >= 5)
+            var bindingInfo = new PerDescriptorSetBindingInfo
             {
-                Unknown6 = datareader.ReadUInt32();
-            }
-            else
+                NumActiveSamplers = datareader.ReadInt16(),
+                NumActiveUniformBuffers = datareader.ReadInt16(),
+                ActiveUniformBindingMask = datareader.ReadUInt16(),
+                ActiveSamplerBindingMask = Version >= 5 ? datareader.ReadUInt32() : datareader.ReadUInt64(),
+                NumActiveTextures = datareader.ReadInt16(),
+                ActiveTextureBindingMask = [datareader.ReadUInt64(), datareader.ReadUInt64()],
+                ActiveInputAttachmentsBindingMask = [datareader.ReadUInt64(), datareader.ReadUInt64()],
+                ActiveImageBindingMask = datareader.ReadUInt16(),
+                NumActiveUniformTexelBuffers = datareader.ReadInt16(),
+                ActiveUniformTexelBufferBindingMask = [datareader.ReadUInt64(), datareader.ReadUInt64()],
+            };
+            DefaultDescriptorSetBindingInfo = bindingInfo;
+
+            var ssboCount = datareader.ReadInt16();
+            if (ssboCount > 0)
             {
-                Unknown6 = datareader.ReadUInt64();
-            }
-
-            Unknown7 = datareader.ReadInt16();
-
-            // array[2] in v4?
-            Unknown8 = datareader.ReadUInt64();
-            Unknown9 = datareader.ReadUInt64();
-
-            // array[2] in v4?
-            Unknown10 = datareader.ReadUInt64();
-            Unknown11 = datareader.ReadUInt64();
-
-            Unknown12 = datareader.ReadInt16();
-            Unknown13 = datareader.ReadInt16();
-
-            // array[2] in v4?
-            Unknown14 = datareader.ReadUInt64();
-            Unknown15 = datareader.ReadUInt64();
-
-            Unknown16 = datareader.ReadInt16(); // * 4
-            if (Unknown16 > 0)
-            {
-                Unknown17 = new int[Unknown16];
-                for (var i = 0; i < Unknown16; i++)
+                ShaderStorageBufferBindings = new ShaderStorageBufferBinding[ssboCount];
+                for (var i = 0; i < ssboCount; i++)
                 {
                     if (Version >= 4)
                     {
-                        Unknown17[i] = datareader.ReadInt32();
+                        var packed = datareader.ReadUInt16();
+                        var descriptorSet = datareader.ReadUInt16();
+                        ShaderStorageBufferBindings[i] = new ShaderStorageBufferBinding(packed, descriptorSet);
                     }
                     else
                     {
-                        Unknown17[i] = datareader.ReadInt16();
+                        ShaderStorageBufferBindings[i] = new ShaderStorageBufferBinding(datareader.ReadUInt16(), 0);
                     }
                 }
             }
 
-            Unknown18 = datareader.ReadInt16(); // * 2
-            if (Unknown18 > 0)
+            var hiddenUAVCount = datareader.ReadInt16();
+            if (hiddenUAVCount > 0)
             {
-                Unknown19 = new ushort[Unknown18];
-                for (var i = 0; i < Unknown18; i++)
+                HiddenUAVCounters = new HiddenUAVCounter[hiddenUAVCount];
+                for (var i = 0; i < hiddenUAVCount; i++)
                 {
-                    Unknown19[i] = datareader.ReadUInt16();
+                    HiddenUAVCounters[i] = new HiddenUAVCounter(datareader.ReadByte(), datareader.ReadByte());
                 }
             }
 
-            Unknown20 = datareader.ReadInt32();
-            Unknown21 = datareader.ReadInt32();
-            Unknown22 = datareader.ReadInt32();
+            ThreadGroupSize = [
+                datareader.ReadInt32(),
+                datareader.ReadInt32(),
+                datareader.ReadInt32(),
+            ];
 
-            Unknown23 = datareader.ReadInt16();
-            if (Unknown23 > 0)
+            var staticDescriptorSetCount = datareader.ReadInt16();
+            if (staticDescriptorSetCount > 0)
             {
-                var bytesToRead = Version >= 4 ? 72 : 64;
-                Unknown24 = datareader.ReadBytes(Unknown23 * bytesToRead);
+                var bytesPerEntry = Version >= 4 ? 72 : 64;
+                StaticDescriptorSetBindingInfoData = datareader.ReadBytes(staticDescriptorSetCount * bytesPerEntry);
             }
 
-            Unknown25 = datareader.ReadInt16();
-            var a = Unknown25 & 0xFFF;
-            var b = Unknown25 >> 12;
+            var pushConstantBitfield = datareader.ReadInt16();
+            PushConstantSize = pushConstantBitfield & 0xFFF;
+            UseShaderStageName = ((pushConstantBitfield >> 12) & 1) != 0;
 
             if (Version >= 4)
             {
-                Unknown27 = datareader.ReadInt16();
+                bindingInfo.ActiveStorageTexelBufferBindingMask = datareader.ReadUInt16();
 
-                Unknown28 = datareader.ReadInt16(); // * 4
-                if (Unknown28 > 0)
+                var descriptorSetHashCount = datareader.ReadInt16();
+                if (descriptorSetHashCount > 0)
                 {
-                    Unknown29 = new int[Unknown28];
-                    for (var i = 0; i < Unknown28; i++)
+                    DescriptorSetHashes = new uint[descriptorSetHashCount];
+                    for (var i = 0; i < descriptorSetHashCount; i++)
                     {
-                        Unknown29[i] = datareader.ReadInt32();
+                        DescriptorSetHashes[i] = datareader.ReadUInt32();
                     }
                 }
 
-                Unknown30 = datareader.ReadUInt32(); // * 4
-                if (Unknown30 > 0)
+                var entryPointCount = datareader.ReadUInt32();
+                if (entryPointCount > 0)
                 {
-                    Unknown31 = new int[Unknown30];
-                    for (var i = 0; i < Unknown30; i++)
+                    EntryPoints = new uint[entryPointCount];
+                    for (var i = 0; i < entryPointCount; i++)
                     {
-                        Unknown31[i] = datareader.ReadInt32();
+                        EntryPoints[i] = datareader.ReadUInt32();
                     }
                 }
 
-                Unknown32 = datareader.ReadInt16();
-                Unknown33 = datareader.ReadByte();
+                RequiredSubgroupSize = datareader.ReadInt16();
 
-                if (Unknown33 > 0)
+                var trailingByteCount = datareader.ReadByte();
+                if (trailingByteCount > 0)
                 {
-                    Unknown34 = datareader.ReadBytes(Unknown33);
+                    UnknownTrailingData = datareader.ReadBytes(trailingByteCount);
                 }
             }
         }
