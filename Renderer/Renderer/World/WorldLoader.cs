@@ -583,24 +583,37 @@ namespace ValveResourceFormat.Renderer.World
                         var endDist = entity.GetFloatProperty("fogend");
 
                         // Some maps don't have these properties.
-                        var useHeightFog = entity.ContainsKey("fogverticalexponent"); // the oldest versions have these values missing, so disable it there
+                        var useHeightFog = entity.ContainsKey("fogverticalexponent"); // The oldest versions lack these values, so disable it there
+                        var useHeightFog2 = entity.ContainsKey("fogstartheight"); // Robot Repair lack these values, so disable it there
                         useHeightFog = entity.GetBooleanProperty("heightfog", useHeightFog); // New in CS2
 
                         // TODO: find the correct behavior under this condition
-                        var startHeight = float.NegativeInfinity;
-                        var endHeight = float.NegativeInfinity;
-                        var heightExponent = 1.0f;
-
-                        if (useHeightFog)
-                        {
-                            heightExponent = entity.GetFloatProperty("fogverticalexponent");
-                            startHeight = entity.GetFloatProperty("fogstartheight");
-                            endHeight = entity.GetFloatProperty("fogendheight");
-                        }
+                        var startHeight = entity.GetFloatProperty("fogstartheight");
+                        var endHeight = entity.GetFloatProperty("fogendheight");
+                        var heightExponent = entity.GetFloatProperty("fogverticalexponent");
 
                         var strength = entity.GetFloatProperty("fogstrength");
                         var color = entity.GetColor32Property("fogcolor");
                         var maxOpacity = entity.GetFloatProperty("fogmaxopacity");
+
+                        if (!useHeightFog && !useHeightFog2)
+                        {
+                            heightExponent = 1.0f; // Need the value for Robot Repair
+                            startHeight = startDist; // Assuming it's similar to the horizontal distances
+                            endHeight = endDist; // Assuming it's similar to the horizontal distances
+                            strength = 1.0f; // Need the value for Robot Repair
+                            //color = entity.GetColor32Property("fogcolor"); // Need to get from `gradientfogtexture` key value and combine with `color` keyvalue
+                            maxOpacity = 0.5f; // Need the value for Robot Repair
+                            distExponent = 2.0f;
+                        }
+                        else if(!useHeightFog && useHeightFog2)
+                        {
+                            heightExponent = 1.0f; // Need the value for SteamVR
+                            strength = 1.0f; // Need the value for SteamVR
+                            //color = entity.GetColor32Property("fogcolor"); // Need to get from `gradientfogtexture` key value
+                            maxOpacity = 0.5f; // Need the value for SteamVR
+                            distExponent = 2.0f; // Need the value for SteamVR
+                        }
 
                         scene.FogInfo.GradientFog = new SceneGradientFog(scene)
                         {
