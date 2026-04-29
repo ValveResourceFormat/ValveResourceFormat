@@ -246,6 +246,10 @@ uniform sampler2D g_tTintMask;
     uniform sampler2D g_tLayer0Mask; // Sampler(UserConfig)
     uniform float g_flMetalness = 0.0;
 
+    #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
+        uniform sampler2D g_tTransmissiveMask; // SrgbRead(true) Sampler(UserConfig)
+    #endif
+
     // Layer 1
     uniform sampler2D g_tLayer1Color; // SrgbRead(true) Sampler(UserConfig)
     uniform vec3 g_vLayer1EmissiveTint = vec3(1.0);
@@ -610,9 +614,13 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         mat.AmbientOcclusion *= mix(1.0, pow(vFoliageParams.w, g_flVertexAmbientOcclusionPower), g_flVertexAmbientOcclusionAmount);
     #endif
 
-    #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
+    #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1) && (GameVfx_csgo_simple_3layer_parallax == 0)
         vec3 vTransmissiveColor = texture(g_tTransmissiveColor, texCoord).rgb;
         mat.TransmissiveColor = F_USE_ALBEDO_FOR_TRANSMISSIVE == 1 ? mat.Albedo : vTransmissiveColor;
+    #endif
+
+    #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1) && (GameVfx_csgo_simple_3layer_parallax != 0)
+        mat.TransmissiveColor = mat.Albedo * texture(g_tTransmissiveMask, texCoord).r;
     #endif
 
 #if (GameVfx_vr_complex != 0) && (F_METALNESS_TEXTURE == 0)
