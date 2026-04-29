@@ -95,13 +95,16 @@ namespace ValveResourceFormat.Blocks
             /// </summary>
             public ushort ClusterId => (ushort)(value & 0x7FFF);
 
-            // Bit 15 is always 0 (unused in engine)
+            /// <summary>
+            /// Gets whether this region intersects geometry.
+            /// </summary>
+            public bool IsIntersectingGeo => ((value >> 15) & 0x1) != 0;
 
             /// <summary>
-            /// Gets the node index.
+            /// Gets the leaf index.
             /// </summary>
-            // Game doesn't use NodeIndex even though visbuilder populates it
-            public uint NodeIndex => (uint)((value >> 16) & 0xFFFFFF);
+            // Game doesn't use LeafIndex even though visbuilder populates it
+            public uint LeafIndex => (uint)((value >> 16) & 0xFFFFFF);
 
             /// <summary>
             /// Gets the spatial mask index.
