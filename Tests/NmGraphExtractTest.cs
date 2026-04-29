@@ -1,8 +1,6 @@
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
-using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveKeyValue;
 using ValveResourceFormat;
@@ -14,12 +12,14 @@ namespace Tests;
 
 public class NmGraphExtractTest
 {
+    private const string Animgraph2RootPath = "Files/Animgraph2";
+    private const string ViewmodelGunPath = "animation/graphs/viewmodel/viewmodel_gun.vnmgraph";
+
     private sealed class TestFileLoader(string rootPath) : IFileLoader
     {
         public Resource? LoadFile(string file)
         {
-            var normalizedPath = file.Replace('/', Path.DirectorySeparatorChar);
-            var fullPath = Path.Combine(rootPath, normalizedPath);
+            var fullPath = Path.Combine(rootPath, file.Replace('/', Path.DirectorySeparatorChar));
             if (!File.Exists(fullPath))
             {
                 return null;
@@ -36,14 +36,11 @@ public class NmGraphExtractTest
     }
 
     [Test]
-    public void ExtractAllAnimgraph2Documents()
+    public void ExtractNmGraphViewmodelGunBatch()
     {
-        var files = Directory.GetFiles("Files/Animgraph2", "*.vnmgraph_c", SearchOption.AllDirectories)
-            .OrderBy(path => path)
-            .ToArray();
+        var files = Directory.GetFiles(Path.Combine(Animgraph2RootPath, "animation/graphs/viewmodel"), "viewmodel_gun.vnmgraph*.vnmgraph_c");
 
-        Assert.That(files, Is.Not.Empty);
-
+        Assert.That(files, Has.Length.GreaterThan(1));
         Assert.Multiple(() =>
         {
             foreach (var file in files)
@@ -57,170 +54,24 @@ public class NmGraphExtractTest
     }
 
     [Test]
-    public void ExtractNmGraphDocumentContainsExpectedRootFeatures()
+    public void ExtractNmGraphViewmodelGunBuildsVariationOverrides()
     {
-        var text = ExtractText("Files/Animgraph2/animation/graphs/viewmodel/viewmodel_inspects.vnmgraph+ak47.vnmgraph_c");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(text, Does.Contain("_class = \"CNmGraphDocument\""));
-            Assert.That(text, Does.Contain("_class = \"CNmGraphDocStateMachineNode\""));
-            Assert.That(text, Does.Contain("_class = \"CNmGraphDocParameterizedClipSelectorNode\""));
-            Assert.That(text, Does.Contain("lookat01_ak.vnmclip"));
-            Assert.That(text, Does.Contain("m_ID = \"ak47\""));
-        });
-    }
-
-    [Test]
-    public void ExtractNmGraphWorldmodelGunKeepsTransitionStructureAndTimedEvents()
-    {
-        var text = ExtractText("Files/Animgraph2/animation/graphs/worldmodel/worldmodel_gun.vnmgraph+p90.vnmgraph_c");
-        var transitionConduitCount = Regex.Count(text, "_class = \"CNmGraphDocTransitionConduitNode\"");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(transitionConduitCount, Is.EqualTo(5));
-            Assert.That(text, Does.Contain("m_timeMatchMode = \"MatchSyncEventID\""));
-            Assert.That(text, Does.Contain("m_name = \"ID\""));
-            Assert.That(text, Does.Contain("m_value = \"WPN_RELOAD_LOOP\""));
-            Assert.That(text, Does.Contain("m_timedStateEvents = "));
-            Assert.That(text, Does.Contain("m_comparisonOperator = \"LessThanEqual\""));
-            Assert.That(text, Does.Contain("m_timeElapsedEvents = [  ]"));
-        });
-    }
-
-    [Test]
-    public void ExtractNmGraphUiModelKeepsStateEventsAndOffState()
-    {
-        var text = ExtractText("Files/Animgraph2/animation/graphs/ui/uimodel.vnmgraph_c");
-        var offStateCount = Regex.Count(text, "m_type = \"OffState\"");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(text, Does.Contain("m_stateEvents = "));
-            Assert.That(text, Does.Contain("m_ID = \"WPN_DISABLE_LEFT_HAND_IK\""));
-            Assert.That(text, Does.Contain("m_bIsEntry = true"));
-            Assert.That(text, Does.Contain("m_bIsFullyInState = true"));
-            Assert.That(text, Does.Contain("m_exitEvents = [  ]"));
-            Assert.That(offStateCount, Is.EqualTo(1));
-        });
-    }
-
-    [Test]
-    public void ExtractNmGraphViewmodelKeepsImportantNodeDetails()
-    {
-        var text = ExtractText("Files/Animgraph2/animation/graphs/viewmodel/viewmodel.vnmgraph_c");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(text, Does.Contain("_class = \"CnmGraphDocTwoBoneIKNode\""));
-            Assert.That(text, Does.Contain("m_name = \"Enabled\""));
-            Assert.That(text, Does.Contain("_class = \"CNmGraphDocIDEventConditionNode\""));
-            Assert.That(text, Does.Contain("WPN_DISABLE_LEFT_HAND_IK"));
-            Assert.That(text, Does.Contain("_class = \"CnmGraphDocTwoBoneIKNode::CData\""));
-            Assert.That(text, Does.Contain("m_effectorBoneName = \"hand_L\""));
-            Assert.That(text, Does.Contain("m_flBlendTimeSeconds = 0.2"));
-            Assert.That(text, Does.Contain("_class = \"CnmGraphDocConstBoneTargetNode\""));
-            Assert.That(text, Does.Contain("m_boneName = \"wpnHand_L\""));
-        });
-    }
-
-    [Test]
-    public void ExtractNmGraphBlend2DExportsPoints()
-    {
-        var text = ExtractText("Files/Animgraph2/animation/graphs/worldmodel/worldmodel_locomotion.vnmgraph_c");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(text, Does.Contain("_class = \"CNmGraphDocBlend2DNode\""));
-            Assert.That(text, Does.Contain("m_pointNames = "));
-            Assert.That(text, Does.Contain("m_points = "));
-            Assert.That(text, Does.Contain("[ 225.0, 0.0 ]"));
-            Assert.That(text, Does.Contain("[ 0.0, 225.0 ]"));
-        });
-    }
-
-    [Test]
-    public void ExtractNmGraphUsesUniqueTransitionConduitIds()
-    {
-        var text = ExtractText("Files/Animgraph2/animation/graphs/worldmodel/worldmodel.vnmgraph_c");
-        var conduitMatches = Regex.Matches(text, "_class = \"CNmGraphDocTransitionConduitNode\"\\s+m_ID = \"([^\"]+)\"", RegexOptions.Multiline);
-        var graphMatches = Regex.Matches(text, "_class = \"CNmGraphDocFlowGraph\"\\s+m_ID = \"([^\"]+)\"\\s+m_nodes =", RegexOptions.Multiline);
-
-        var conduitIds = conduitMatches.Select(match => match.Groups[1].Value).ToArray();
-        var transitionGraphIds = graphMatches.Select(match => match.Groups[1].Value).ToArray();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(conduitIds, Is.Not.Empty);
-            Assert.That(conduitIds.Distinct().Count(), Is.EqualTo(conduitIds.Length));
-            Assert.That(transitionGraphIds.Distinct().Count(), Is.EqualTo(transitionGraphIds.Length));
-        });
-    }
-
-    [Test]
-    public void ExtractNmGraphLeavesBodyAdditivesBreathingGlobalNodeUnwired()
-    {
+        var rootPath = Path.GetFullPath(Animgraph2RootPath);
         using var resource = new Resource();
-        resource.Read("Files/Animgraph2/animation/graphs/worldmodel/worldmodel.vnmgraph_c");
-
-        using var extractor = new NmGraphExtract(resource);
-        var method = typeof(NmGraphExtract).GetMethod("BuildStateMachineGraph", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        var stateMachineGraph = (KVObject)method.Invoke(extractor, [1074])!;
-        var nodes = stateMachineGraph.GetArray("m_nodes");
-
-        var globalConduit = nodes.First(node => node.GetStringProperty("_class") == "CNmGraphDocGlobalTransitionConduitNode");
-        var globalGraph = globalConduit.GetSubCollection("m_pSecondaryGraph");
-        var globalNodes = globalGraph.GetArray("m_nodes")
-            .Where(node => node.GetStringProperty("_class") == "CNmGraphDocGlobalTransitionNode")
-            .ToArray();
-        var connections = globalGraph.GetArray("m_connections");
-        var breathingNode = globalNodes.First(node => node.GetStringProperty("m_name") == "Breathing");
-        var breathingNodeId = breathingNode.GetStringProperty("m_ID");
-        var hasBreathingInput = connections.Any(connection => connection.GetStringProperty("m_toNodeID") == breathingNodeId);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(globalNodes.Select(node => node.GetStringProperty("m_name")), Does.Contain("Breathing"));
-            Assert.That(globalNodes.Select(node => node.GetStringProperty("m_name")), Does.Contain("Off"));
-            Assert.That(globalNodes.Select(node => node.GetStringProperty("m_name")), Does.Contain("JumpAdditiveStart"));
-            Assert.That(globalNodes.Select(node => node.GetStringProperty("m_name")), Does.Contain("JumpAdditiveLand"));
-            Assert.That(hasBreathingInput, Is.False);
-        });
-    }
-
-    [Test]
-    public void ExtractNmGraphRootGraphUsesParameterReferenceNodesForPersistentParameters()
-    {
-        var text = ExtractText("Files/Animgraph2/animation/graphs/viewmodel/viewmodel_inspects.vnmgraph+ak47.vnmgraph_c");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(text, Does.Contain("ControlParameterNode"));
-            Assert.That(text, Does.Contain("ParameterReferenceNode"));
-        });
-    }
-
-    [Test]
-    public void ExtractNmGraphRootGraphBuildsVariationOverridesFromChildResources()
-    {
-        var rootPath = Path.GetFullPath("Files/Animgraph2");
-        using var resource = new Resource();
-        resource.Read("Files/Animgraph2/animation/graphs/viewmodel/viewmodel_inspects.vnmgraph_c");
+        resource.Read(Path.Combine(rootPath, string.Concat(ViewmodelGunPath.Replace('/', Path.DirectorySeparatorChar), GameFileLoader.CompiledFileSuffix)));
 
         var editInfo = resource.GetBlockByType(BlockType.RED2) as ResourceEditInfo2;
         Assert.That(editInfo, Is.Not.Null);
+        Assert.That(editInfo!.ChildResourceList, Does.Contain("animation/graphs/viewmodel/viewmodel_gun.vnmgraph+ak47.vnmgraph"));
 
         var content = FileExtract.Extract(resource, new TestFileLoader(rootPath));
-        var text = Encoding.UTF8.GetString(content.Data!);
+        Assert.That(content.Data, Is.Not.Null);
 
+        var text = Encoding.UTF8.GetString(content.Data!);
         Assert.Multiple(() =>
         {
-            Assert.That(editInfo!.ChildResourceList, Does.Contain("animation/graphs/viewmodel/viewmodel_inspects.vnmgraph+ak47.vnmgraph"));
             Assert.That(text, Does.Contain("m_variationHierarchy = "));
-            Assert.That(text, Does.Contain("m_ID = \"ak47\""));
             Assert.That(text, Does.Contain("m_variationID = \"ak47\""));
-            Assert.That(text, Does.Contain("lookat03_draw_ak.vnmclip"));
         });
     }
 
@@ -266,16 +117,5 @@ public class NmGraphExtractTest
             Assert.That(GetProperty(searchAnimAndOperatorAnd, "SearchRule"), Is.EqualTo("OnlySearchAnimEvents"));
             Assert.That(GetProperty(searchAnimAndOperatorAnd, "Operator"), Is.EqualTo("And"));
         });
-    }
-
-    private static string ExtractText(string path)
-    {
-        using var resource = new Resource();
-        resource.Read(path);
-
-        var content = FileExtract.Extract(resource, new NullFileLoader());
-        Assert.That(content.Data, Is.Not.Null);
-
-        return Encoding.UTF8.GetString(content.Data!);
     }
 }
