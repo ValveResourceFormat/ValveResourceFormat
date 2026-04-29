@@ -2214,7 +2214,7 @@ public sealed class NmGraphExtract : IDisposable
         node.Add("m_flMaxTangentLength", compiledNode.GetFloatProperty("m_flMaxTangentLength", 49.0f));
         node.Add("m_flLerpFallbackDistanceThreshold", compiledNode.GetFloatProperty("m_flLerpFallbackDistanceThreshold", 4.0f));
         node.Add("m_flTargetUpdateDistanceThresholdDegrees", compiledNode.GetFloatProperty("m_flTargetUpdateDistanceThreshold", 4.0f));
-        node.Add("m_flTargetUpdateAngleThresholdDegrees", RadiansToDegrees(compiledNode.GetFloatProperty("m_flTargetUpdateAngleThresholdRadians")));
+        node.Add("m_flTargetUpdateAngleThresholdDegrees", float.RadiansToDegrees(compiledNode.GetFloatProperty("m_flTargetUpdateAngleThresholdRadians")));
         return node;
     }
 
@@ -2232,7 +2232,7 @@ public sealed class NmGraphExtract : IDisposable
         ]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Pose", AllowMultipleOutConnections: true)]));
         node.Add("m_flMaxLinearVelocity", compiledNode.GetFloatProperty("m_maxLinearVelocity", -1.0f));
-        node.Add("m_flMaxAngularVelocityDegrees", RadiansToDegrees(compiledNode.GetFloatProperty("m_maxAngularVelocityRadians", -1.0f)));
+        node.Add("m_flMaxAngularVelocityDegrees", float.RadiansToDegrees(compiledNode.GetFloatProperty("m_maxAngularVelocityRadians", -1.0f)));
         node.Add("m_bOverrideMoveDirX", (overrideFlags & (1u << 0)) != 0);
         node.Add("m_bOverrideMoveDirY", (overrideFlags & (1u << 1)) != 0);
         node.Add("m_bOverrideMoveDirZ", (overrideFlags & (1u << 2)) != 0);
@@ -2805,9 +2805,6 @@ public sealed class NmGraphExtract : IDisposable
         vector.Add(source is not null && source.Count > 2 ? source[2] : 0.0f);
         return vector;
     }
-
-    private static float RadiansToDegrees(float radians)
-        => radians * (180.0f / MathF.PI);
 
     private static EventConditionRulesData GetEventConditionRules(KVObject compiledNode)
     {
