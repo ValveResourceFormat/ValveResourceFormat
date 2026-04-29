@@ -9,7 +9,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
 
-file static class NmGraphExtractExtensions
+internal static class NmGraphExtractExtensions
 {
     public static string GetRequiredStringProperty(this KVObject node, string key)
     {
@@ -60,52 +60,8 @@ file static class NmGraphExtractExtensions
 /// <summary>
 /// Extracts Source 2 AnimGraph 2 graphs to editable document format.
 /// </summary>
-public sealed class NmGraphExtract : IDisposable
+public sealed partial class NmGraphExtract : IDisposable
 {
-    private sealed class VariationGraph : IDisposable
-    {
-        public Resource Resource { get; }
-        public KVObject Graph { get; }
-        public string VariationId { get; }
-        public KVObject?[] CompiledNodes { get; }
-        public KVObject[] ReferencedGraphSlots { get; }
-        public string[] Resources { get; }
-
-        public VariationGraph(Resource resource)
-        {
-            Resource = resource;
-
-            var resourceData = resource.DataBlock as BinaryKV3
-                ?? throw new InvalidDataException("Variation graph DataBlock is not a BinaryKV3.");
-            Graph = resourceData.Data;
-            VariationId = Graph.GetRequiredStringProperty("m_variationID");
-            CompiledNodes = Graph.GetArray("m_nodes")?.Select(value => value).ToArray()
-                ?? throw new InvalidDataException("Variation NmGraph is missing m_nodes.");
-            ReferencedGraphSlots = Graph.GetArray("m_referencedGraphSlots")?.ToArray() ?? [];
-            Resources = Graph.GetArray<string>("m_resources")?.ToArray() ?? [];
-        }
-
-        public KVObject? GetCompiledNode(int nodeIndex)
-            => nodeIndex >= 0 && nodeIndex < CompiledNodes.Length ? CompiledNodes[nodeIndex] : null;
-
-        public string GetResourcePath(int dataSlotIndex)
-            => dataSlotIndex >= 0 && dataSlotIndex < Resources.Length ? Resources[dataSlotIndex] : string.Empty;
-
-        public string GetReferencedGraphPath(int referencedGraphIndex)
-        {
-            if (referencedGraphIndex < 0 || referencedGraphIndex >= ReferencedGraphSlots.Length)
-            {
-                return string.Empty;
-            }
-
-            var dataSlotIndex = (int)ReferencedGraphSlots[referencedGraphIndex].GetInt64Property("m_dataSlotIdx", -1);
-            return GetResourcePath(dataSlotIndex);
-        }
-
-        public void Dispose()
-            => Resource.Dispose();
-    }
-
     private const float NodeColumnSpacing = 240.0f;
     private const float NodeRowSpacing = 144.0f;
 
@@ -183,64 +139,6 @@ public sealed class NmGraphExtract : IDisposable
         }
 
         _variationGraphs.Clear();
-    }
-
-    private KVObject BuildVariationHierarchy()
-    {
-        var hierarchy = KVObject.Collection();
-        var variations = KVObject.Array();
-
-        var defaultVariation = KVObject.Collection();
-        defaultVariation.Add("m_ID", "Default");
-        defaultVariation.Add("m_parentID", string.Empty);
-        defaultVariation.Add("m_skeleton", GetOptionalString(_graph, "m_skeleton"));
-        variations.Add(defaultVariation);
-
-        var variationId = _graph.GetRequiredStringProperty("m_variationID");
-        if (variationId.Equals("Default", StringComparison.OrdinalIgnoreCase))
-        {
-            if (_graph.TryGetValue("m_pUserData", out var userData) && !userData.IsNull)
-            {
-                defaultVariation.Add("m_pUserData", userData);
-            }
-
-            foreach (var variationGraph in _variationGraphs)
-            {
-                if (variationGraph.VariationId.Equals("Default", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var variation = KVObject.Collection();
-                variation.Add("m_ID", variationGraph.VariationId);
-                variation.Add("m_parentID", "Default");
-                variation.Add("m_skeleton", GetOptionalString(variationGraph.Graph, "m_skeleton"));
-
-                if (variationGraph.Graph.TryGetValue("m_pUserData", out var variationUserData) && !variationUserData.IsNull)
-                {
-                    variation.Add("m_pUserData", variationUserData);
-                }
-
-                variations.Add(variation);
-            }
-        }
-        else
-        {
-            var variation = KVObject.Collection();
-            variation.Add("m_ID", variationId);
-            variation.Add("m_parentID", "Default");
-            variation.Add("m_skeleton", GetOptionalString(_graph, "m_skeleton"));
-
-            if (_graph.TryGetValue("m_pUserData", out var userData) && !userData.IsNull)
-            {
-                variation.Add("m_pUserData", userData);
-            }
-
-            variations.Add(variation);
-        }
-
-        hierarchy.Add("m_variations", variations);
-        return hierarchy;
     }
 
     private KVObject BuildRootGraph()
@@ -825,6 +723,10 @@ public sealed class NmGraphExtract : IDisposable
     private KVObject BuildFlowNodeInternal(int nodeIndex, KVObject compiledNode, FlowGraphBuilder graphBuilder)
     {
         var compiledClass = GetCompiledClass(compiledNode);
+        if (TryCreateFlowNodeFromSpec(compiledClass.Stem, nodeIndex, compiledNode, out var specNode))
+        {
+            return specNode;
+        }
 
         return compiledClass.Stem switch
         {
@@ -840,9 +742,6 @@ public sealed class NmGraphExtract : IDisposable
             "ParameterizedAnimationClipSelector" => CreateParameterizedSelectorNode("CNmGraphDocParameterizedClipSelectorNode", "CNmGraphDocParameterizedClipSelectorNode::CData", nodeIndex, compiledNode),
             "Clip" => CreateClipNode(nodeIndex, compiledNode),
             "AnimationPose" => CreateAnimationPoseNode(nodeIndex, compiledNode),
-            "Not" => CreateSimpleNode(GetSimpleDocNodeClassName(compiledClass.Stem), nodeIndex, [new PinDef("Not", "Bool")], [new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]),
-            "And" => CreateSimpleNode(GetSimpleDocNodeClassName(compiledClass.Stem), nodeIndex, CreateRepeatedPins("And", "Bool", GetDynamicInputCount(compiledNode, "m_conditionNodeIndices", 2)), [new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]),
-            "Or" => CreateSimpleNode(GetSimpleDocNodeClassName(compiledClass.Stem), nodeIndex, CreateRepeatedPins("Or", "Bool", GetDynamicInputCount(compiledNode, "m_conditionNodeIndices", 2)), [new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]),
             "FloatComparison" => CreateFloatComparisonNode(nodeIndex, compiledNode),
             "FloatRangeComparison" => CreateFloatRangeComparisonNode(nodeIndex, compiledNode),
             "FloatRemap" => CreateFloatRemapNode(nodeIndex, compiledNode),
@@ -863,27 +762,15 @@ public sealed class NmGraphExtract : IDisposable
             "FootEventCondition" => CreateFootEventConditionNode(nodeIndex, compiledNode),
             "FootstepEventID" => CreateFootstepEventIdNode(nodeIndex, compiledNode),
             "FootstepEventPercentageThrough" => CreateFootstepEventPercentageThroughNode(nodeIndex, compiledNode),
-            "CurrentSyncEventID" => CreateCurrentSyncEventIdNode(nodeIndex),
-            "CurrentSyncEventIndex" => CreateCurrentSyncEventNode(nodeIndex, "Index"),
-            "CurrentSyncEventPercentageThrough" => CreateCurrentSyncEventNode(nodeIndex, "PercentageThrough"),
             "FloatSelector" => CreateFloatSelectorNode(nodeIndex, compiledNode),
             "FloatCurveEvent" => CreateFloatCurveEventNode(nodeIndex, compiledNode),
-            "CachedBool" => CreateCachedValueNode("CNmGraphDocCachedBoolNode", nodeIndex, "Bool"),
-            "CachedFloat" => CreateCachedValueNode("CNmGraphDocCachedFloatNode", nodeIndex, "Float"),
-            "CachedID" => CreateCachedValueNode("CNmGraphDocCachedIDNode", nodeIndex, "ID"),
-            "CachedTarget" => CreateCachedValueNode("CNmGraphDocCachedTargetNode", nodeIndex, "Target"),
-            "CachedVector" => CreateCachedValueNode("CNmGraphDocCachedVectorNode", nodeIndex, "Vector"),
             "VectorInfo" => CreateVectorInfoNode(nodeIndex, compiledNode),
-            "VectorCreate" => CreateVectorCreateNode(nodeIndex),
-            "VectorNegate" => CreateSimpleNode("CNmGraphDocVectorNegateNode", nodeIndex, [new PinDef("Vector", "Vector")], [new PinDef("Result", "Vector", AllowMultipleOutConnections: true)]),
-            "IsTargetSet" => CreateSimpleNode("CNmGraphDocIsTargetSetNode", nodeIndex, [new PinDef("Target", "Target")], [new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]),
             "TargetInfo" => CreateTargetInfoNode(nodeIndex, compiledNode),
             "TargetPoint" => CreateTargetPointNode(nodeIndex, compiledNode),
             "TargetOffset" => CreateTargetOffsetNode(nodeIndex, compiledNode),
             "TargetSelector" => CreateTargetSelectorNode(nodeIndex, compiledNode),
             "BoneMask" => CreateBoneMaskNode(nodeIndex, compiledNode),
             "FixedWeightBoneMask" => CreateFixedWeightBoneMaskNode(nodeIndex, compiledNode),
-            "BoneMaskBlend" => CreateBoneMaskBlendNode(nodeIndex),
             "BoneMaskSwitch" => CreateBoneMaskSwitchNode(nodeIndex, compiledNode),
             "BoneMaskSelector" => CreateBoneMaskSelectorNode(nodeIndex, compiledNode),
             "SpeedScale" => CreateScaleNode("CnmGraphDocSpeedScaleNode", nodeIndex, compiledNode, "Scale", "m_flMultiplier"),
@@ -905,14 +792,9 @@ public sealed class NmGraphExtract : IDisposable
             "RootMotionOverride" => CreateRootMotionOverrideNode(nodeIndex, compiledNode),
             "SnapWeapon" => CreateSnapWeaponNode(nodeIndex),
             "LayerBlend" => CreateLayerBlendNode(nodeIndex, compiledNode),
-            "Scale" => CreateScaleMaskNode(nodeIndex),
             "ExternalPose" => CreateExternalPoseNode(nodeIndex, compiledNode),
             "IsExternalPoseSet" => CreateIsExternalPoseSetNode(nodeIndex, compiledNode),
             "IsExternalGraphSlotFilled" => CreateIsExternalGraphSlotFilledNode(nodeIndex, compiledNode),
-            "ZeroPose" => CreateSimpleNode("CNmGraphDocZeroPoseNode", nodeIndex, [], [new PinDef("Pose", "Pose")]),
-            "ReferencePose" => CreateSimpleNode("CNmGraphDocReferencePoseNode", nodeIndex, [], [new PinDef("Pose", "Pose")]),
-            "IsInactiveBranchCondition" => CreateSimpleNode(GetSimpleDocNodeClassName(compiledClass.Stem), nodeIndex, [], [new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]),
-            "StateCompletedCondition" => CreateSimpleNode(GetSimpleDocNodeClassName(compiledClass.Stem), nodeIndex, [], [new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]),
             "IDSelector" => CreateIdSelectorNode(nodeIndex, compiledNode),
             "ConstVector" => CreateConstVectorNode(nodeIndex, compiledNode),
             "ConstTarget" => IsConstBoneTarget(compiledNode)
@@ -929,7 +811,13 @@ public sealed class NmGraphExtract : IDisposable
 
     private void WireNodeInputs(int nodeIndex, KVObject compiledNode, KVObject node, FlowGraphBuilder graphBuilder)
     {
-        var className = GetCompiledClassName(compiledNode);
+        var compiledClass = GetCompiledClass(compiledNode);
+        if (TryWireFlowNodeFromSpec(compiledClass.Stem, compiledNode, node, graphBuilder))
+        {
+            return;
+        }
+
+        var className = compiledClass.Name;
 
         switch (className)
         {
@@ -974,28 +862,7 @@ public sealed class NmGraphExtract : IDisposable
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nPoseTimeValueNodeIdx"), node, 0, graphBuilder);
                 break;
 
-            case "CNmNotNode::CDefinition":
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nInputValueNodeIdx"), node, 0, graphBuilder);
-                break;
-
-            case "CNmAndNode::CDefinition":
-            case "CNmOrNode::CDefinition":
-                var conditionIndices = compiledNode.GetIntegerArray("m_conditionNodeIndices")?.Select(value => (int)value).ToArray() ?? [];
-                for (var i = 0; i < conditionIndices.Length; i++)
-                {
-                    ConnectIfValid(conditionIndices[i], node, i, graphBuilder);
-                }
-                break;
-
             case "CNmIDComparisonNode::CDefinition":
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nInputValueNodeIdx"), node, 0, graphBuilder);
-                break;
-
-            case "CNmCachedBoolNode::CDefinition":
-            case "CNmCachedFloatNode::CDefinition":
-            case "CNmCachedIDNode::CDefinition":
-            case "CNmCachedVectorNode::CDefinition":
-            case "CNmCachedTargetNode::CDefinition":
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nInputValueNodeIdx"), node, 0, graphBuilder);
                 break;
 
@@ -1033,8 +900,6 @@ public sealed class NmGraphExtract : IDisposable
                 break;
 
             case "CNmVectorInfoNode::CDefinition":
-            case "CNmVectorNegateNode::CDefinition":
-            case "CNmIsTargetSetNode::CDefinition":
             case "CNmTargetInfoNode::CDefinition":
             case "CNmTargetPointNode::CDefinition":
             case "CNmTargetOffsetNode::CDefinition":
@@ -1061,13 +926,6 @@ public sealed class NmGraphExtract : IDisposable
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nInputValueNodeIdx", -1), node, 1, graphBuilder);
                 break;
 
-            case "CNmVectorCreateNode::CDefinition":
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_inputVectorValueNodeIdx", -1), node, 0, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_inputValueXNodeIdx", -1), node, 1, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_inputValueYNodeIdx", -1), node, 2, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_inputValueZNodeIdx", -1), node, 3, graphBuilder);
-                break;
-
             case "CNmFloatSelectorNode::CDefinition":
                 var floatSelectorConditionIndices = compiledNode.GetIntegerArray("m_conditionNodeIndices")?.Select(value => (int)value).ToArray() ?? [];
                 for (var i = 0; i < floatSelectorConditionIndices.Length; i++)
@@ -1088,12 +946,6 @@ public sealed class NmGraphExtract : IDisposable
                 {
                     ConnectIfValid(maskNodeIndices[i], node, i + 2, graphBuilder);
                 }
-                break;
-
-            case "CNmBoneMaskBlendNode::CDefinition":
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nBlendWeightValueNodeIdx"), node, 0, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nSourceMaskNodeIdx"), node, 1, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nTargetMaskNodeIdx"), node, 2, graphBuilder);
                 break;
 
             case "CNmVelocityBlendNode::CDefinition":
@@ -1215,11 +1067,6 @@ public sealed class NmGraphExtract : IDisposable
                 ConnectIfValid((int)compiledNode.GetInt64Property("m_nWeaponTypeNodeIdx", -1), node, 3, graphBuilder);
                 break;
 
-            case "CNmScaleNode::CDefinition":
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nChildNodeIdx"), node, 0, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nMaskNodeIdx", -1), node, 1, graphBuilder);
-                ConnectIfValid((int)compiledNode.GetInt64Property("m_nEnableNodeIdx", -1), node, 2, graphBuilder);
-                break;
         }
     }
 
@@ -2635,34 +2482,7 @@ public sealed class NmGraphExtract : IDisposable
         var compiledNode = GetCompiledNode(nodeIndex)
             ?? throw new InvalidDataException($"Missing virtual parameter node {nodeIndex}.");
         var compiledClass = GetCompiledClass(compiledNode);
-
-        if (compiledClass.TryGetTypedSuffix("VirtualParameter", out var valueType))
-        {
-            return valueType;
-        }
-
-        if (compiledClass.TryGetTypedSuffix("ControlParameter", out valueType)
-            || compiledClass.TryGetTypedSuffix("ParameterReference", out valueType)
-            || compiledClass.TryGetTypedSuffix("Const", out valueType)
-            || compiledClass.TryGetTypedSuffix("Cached", out valueType))
-        {
-            return valueType;
-        }
-
-        return compiledClass.Stem switch
-        {
-            "Not" or "And" or "Or" or "IDComparison" or "FloatComparison" or "FloatRangeComparison" or "TimeCondition"
-                or "IDEventCondition" or "GraphEventCondition" or "FootEventCondition" or "TransitionEventCondition"
-                or "SyncEventIndexCondition" or "IsTargetSet" => "Bool",
-            "FloatRemap" or "FloatClamp" or "FloatEase" or "FloatSpring" or "FloatCurve" or "FloatMath"
-                or "FloatAngleMath" or "FloatSelector" or "IDToFloat" or "VectorInfo" or "TargetInfo"
-                or "CurrentSyncEventIndex" or "CurrentSyncEventPercentageThrough" => "Float",
-            "CurrentSyncEventID" or "IDSwitch" => "ID",
-            "BoneMask" or "BoneMaskBlend" or "BoneMaskSwitch" or "BoneMaskSelector" => "BoneMask",
-            "VectorCreate" => "Vector",
-            "TargetPoint" or "TargetOffset" => "Target",
-            _ => throw new InvalidDataException($"Unable to infer virtual parameter value type for node {nodeIndex} ({compiledClass.Name})."),
-        };
+        return GetVirtualParameterValueType(compiledClass);
     }
 
     private static KVObject? GetOptionalObject(KVObject node, string key)
@@ -2832,145 +2652,6 @@ public sealed class NmGraphExtract : IDisposable
     {
         var separatorIndex = path.LastIndexOf('/');
         return separatorIndex < 0 ? path : path[(separatorIndex + 1)..];
-    }
-
-    private void LoadVariationGraphs()
-    {
-        if (!_graph.GetRequiredStringProperty("m_variationID").Equals("Default", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        if (_resource.GetBlockByType(BlockType.RED2) is not ResourceEditInfo2 editInfo || editInfo.ChildResourceList.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var childResourcePath in editInfo.ChildResourceList.Distinct(StringComparer.Ordinal))
-        {
-            var childResource = _fileLoader.LoadFileCompiled(childResourcePath);
-            if (childResource?.DataBlock is not BinaryKV3)
-            {
-                childResource?.Dispose();
-                continue;
-            }
-
-            _variationGraphs.Add(new VariationGraph(childResource));
-        }
-    }
-
-    private KVObject CreateVariationOverrides(int nodeIndex, KVObject defaultVariationData, Func<VariationGraph, KVObject?> variationDataFactory)
-    {
-        var overrides = KVObject.Array();
-
-        foreach (var variationGraph in _variationGraphs)
-        {
-            var variationData = variationDataFactory(variationGraph);
-            if (variationData is null || VariationDataEquals(defaultVariationData, variationData))
-            {
-                continue;
-            }
-
-            var variationOverride = KVObject.Collection();
-            variationOverride.Add("m_variationID", variationGraph.VariationId);
-            variationOverride.Add("m_pData", variationData);
-            overrides.Add(variationOverride);
-        }
-
-        return overrides;
-    }
-
-    private static bool VariationDataEquals(KVObject left, KVObject right)
-        => left.ToKV3String() == right.ToKV3String();
-
-    private static KVObject CreateReferencedGraphVariationData(KVObject compiledNode, Func<int, string> getReferencedGraphPath)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CNmGraphDocReferencedGraphNode::CData");
-        variationData.Add("m_variation", getReferencedGraphPath((int)compiledNode.GetInt64Property("m_nReferencedGraphIdx")));
-        return variationData;
-    }
-
-    private static KVObject CreateSelectorVariationData(string dataClassName, KVObject compiledNode)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", dataClassName);
-        variationData.Add("m_optionWeights", CloneArray("m_optionWeights", compiledNode));
-        return variationData;
-    }
-
-    private static KVObject CreateClipVariationData(KVObject compiledNode, Func<int, string> getResourcePath)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CNmGraphDocClipNode::CData");
-        variationData.Add("m_clip", getResourcePath((int)compiledNode.GetInt64Property("m_nDataSlotIdx")));
-        variationData.Add("m_flSpeedMultiplier", compiledNode.GetRequiredFloatProperty("m_flSpeedMultiplier"));
-        variationData.Add("m_nStartSyncEventOffset", compiledNode.GetInt64Property("m_nStartSyncEventOffset"));
-        return variationData;
-    }
-
-    private static KVObject CreateAnimationPoseVariationData(KVObject compiledNode, Func<int, string> getResourcePath)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CNmGraphDocAnimationPoseNode::CData");
-        variationData.Add("m_clip", getResourcePath((int)compiledNode.GetInt64Property("m_nDataSlotIdx")));
-        variationData.Add("m_variationTimeValue", -1.0f);
-        return variationData;
-    }
-
-    private static KVObject CreateBoneMaskVariationData()
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CNmGraphDocBoneMaskNode::CData");
-        variationData.Add("m_overrideMaskID", string.Empty);
-        return variationData;
-    }
-
-    private static KVObject CreateFootIkVariationData(KVObject compiledNode)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CnmGraphDocFootIKNode::CData");
-        variationData.Add("m_leftEffectorBoneName", GetOptionalString(compiledNode, "m_leftEffectorBoneID"));
-        variationData.Add("m_rightEffectorBoneName", GetOptionalString(compiledNode, "m_rightEffectorBoneID"));
-        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetRequiredFloatProperty("m_flBlendTimeSeconds"));
-        return variationData;
-    }
-
-    private static KVObject CreateTwoBoneIkVariationData(KVObject compiledNode)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CnmGraphDocTwoBoneIKNode::CData");
-        variationData.Add("m_effectorBoneName", GetOptionalString(compiledNode, "m_effectorBoneID"));
-        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetRequiredFloatProperty("m_flBlendTimeSeconds"));
-        return variationData;
-    }
-
-    private static KVObject CreateFollowBoneVariationData(KVObject compiledNode)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CnmGraphDocFollowBoneNode::CData");
-        variationData.Add("m_boneName", GetOptionalString(compiledNode, "m_bone"));
-        variationData.Add("m_followTargetBoneName", GetOptionalString(compiledNode, "m_followTargetBone"));
-        return variationData;
-    }
-
-    private static KVObject CreateChainLookatVariationData(KVObject compiledNode)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CnmGraphDocChainLookatNode::CData");
-        variationData.Add("m_chainEndBoneName", GetOptionalString(compiledNode, "m_chainEndBoneID"));
-        variationData.Add("m_chainForwardDir", CloneVector3(compiledNode.GetArray("m_chainForwardDir")?.ToArray()));
-        variationData.Add("m_nChainLength", compiledNode.GetInt64Property("m_nChainLength", 2));
-        variationData.Add("m_flBlendTimeSeconds", compiledNode.GetFloatProperty("m_flBlendTimeSeconds"));
-        return variationData;
-    }
-
-    private static KVObject CreateTargetWarpVariationData(KVObject compiledNode)
-    {
-        var variationData = KVObject.Collection();
-        variationData.Add("_class", "CNmGraphDocTargetWarpNode::CData");
-        variationData.Add("m_strAlignmentBoneName", GetOptionalString(compiledNode, "m_alignmentBoneID"));
-        return variationData;
     }
 
     private string GetVelocityBlendInputLabel(int sourceNodeIndex, int fallbackIndex)
@@ -3177,275 +2858,5 @@ public sealed class NmGraphExtract : IDisposable
             default:
                 throw new InvalidDataException($"Unsupported KV3 value type {value.GetType()} for key '{key}'.");
         }
-    }
-
-    private readonly record struct PinDef(string Name, string Type, bool IsDynamicPin = false, bool AllowMultipleOutConnections = false);
-
-    private readonly record struct EventConditionRulesData(string Operator, string SearchRule, string PriorityRule, bool LimitSearchToSourceState, bool IgnoreInactiveBranchEvents);
-
-    private readonly record struct CompiledNodeClass(string Name)
-    {
-        private const string Prefix = "CNm";
-        private const string Suffix = "Node::CDefinition";
-
-        public string Stem
-        {
-            get
-            {
-                if (!Name.StartsWith(Prefix, StringComparison.Ordinal) || !Name.EndsWith(Suffix, StringComparison.Ordinal))
-                {
-                    throw new InvalidDataException($"Unsupported compiled NmGraph class name: {Name}");
-                }
-
-                return Name[Prefix.Length..^Suffix.Length];
-            }
-        }
-
-        public bool TryGetTypedSuffix(string prefix, out string valueType)
-        {
-            if (Stem.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                valueType = Stem[prefix.Length..];
-                return !string.IsNullOrEmpty(valueType);
-            }
-
-            valueType = string.Empty;
-            return false;
-        }
-    }
-
-    private sealed class FlowGraphBuilder
-    {
-        public string GraphKey { get; }
-        public string GraphType { get; }
-        public Dictionary<int, string> NodeIdsByCompiledIndex { get; } = [];
-        public List<KVObject> Nodes { get; } = [];
-        public List<KVObject> Connections { get; } = [];
-
-        public FlowGraphBuilder(string graphKey, string graphType)
-        {
-            GraphKey = graphKey;
-            GraphType = graphType;
-        }
-
-        public void Connect(string fromNodeId, string outputPinId, string toNodeId, string inputPinId)
-        {
-            var connection = KVObject.Collection();
-            connection.Add("m_ID", MakeGuid($"connection:{GraphKey}:{fromNodeId}:{outputPinId}:{toNodeId}:{inputPinId}"));
-            connection.Add("m_fromNodeID", fromNodeId);
-            connection.Add("m_outputPinID", outputPinId);
-            connection.Add("m_toNodeID", toNodeId);
-            connection.Add("m_inputPinID", inputPinId);
-            Connections.Add(connection);
-        }
-
-        public KVObject ToGraph()
-        {
-            ApplyDefaultNodeLayout();
-
-            var graph = KVObject.Collection();
-            graph.Add("_class", "CNmGraphDocFlowGraph");
-            graph.Add("m_ID", MakeGuid($"graph:{GraphKey}"));
-
-            var nodesArray = KVObject.Array();
-            foreach (var node in Nodes)
-            {
-                nodesArray.Add(node);
-            }
-
-            var connectionsArray = KVObject.Array();
-            foreach (var connection in Connections)
-            {
-                connectionsArray.Add(connection);
-            }
-
-            graph.Add("m_nodes", nodesArray);
-            graph.Add("m_graphType", GraphType);
-            graph.Add("m_viewOffset", MakeVector2(0.0f, 0.0f));
-            graph.Add("m_flViewZoom", 1.0f);
-            graph.Add("m_connections", connectionsArray);
-            return graph;
-        }
-
-        private void ApplyDefaultNodeLayout()
-        {
-            var autoLayoutNodes = Nodes
-                .Where(NeedsAutoLayout)
-                .ToArray();
-
-            if (autoLayoutNodes.Length == 0)
-            {
-                return;
-            }
-
-            var autoLayoutNodeIds = autoLayoutNodes
-                .Select(node => node.GetStringProperty("m_ID"))
-                .ToHashSet(StringComparer.Ordinal);
-            var incomingNodeIds = autoLayoutNodeIds.ToDictionary(nodeId => nodeId, _ => new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
-            var positionedNodes = Nodes
-                .Where(node => !NeedsAutoLayout(node) && !ShouldIgnoreForAutoLayoutAnchoring(node))
-                .Select(node => (Node: node, Position: node.GetArray<float>("m_position")))
-                .Where(entry => entry.Position is { Length: 2 })
-                .ToArray();
-            var anchoredLayerByNodeId = positionedNodes.ToDictionary(
-                entry => entry.Node.GetStringProperty("m_ID"),
-                entry => (int)MathF.Round(entry.Position![0] / NodeColumnSpacing),
-                StringComparer.Ordinal);
-            var rowByLayer = new Dictionary<int, int>();
-
-            foreach (var (_, position) in positionedNodes)
-            {
-                var layer = (int)MathF.Round(position![0] / NodeColumnSpacing);
-                var row = (int)MathF.Round(position[1] / NodeRowSpacing);
-                rowByLayer[layer] = Math.Max(rowByLayer.GetValueOrDefault(layer), row + 1);
-            }
-
-            foreach (var connection in Connections)
-            {
-                var fromNodeId = connection.GetStringProperty("m_fromNodeID");
-                var toNodeId = connection.GetStringProperty("m_toNodeID");
-
-                if (!autoLayoutNodeIds.Contains(fromNodeId) || !autoLayoutNodeIds.Contains(toNodeId))
-                {
-                    continue;
-                }
-
-                incomingNodeIds[toNodeId].Add(fromNodeId);
-            }
-
-            var orderedNodeIds = autoLayoutNodes
-                .Select(node => node.GetStringProperty("m_ID"))
-                .ToArray();
-            var nodesById = autoLayoutNodes.ToDictionary(node => node.GetStringProperty("m_ID"), StringComparer.Ordinal);
-            var queue = new Queue<string>(orderedNodeIds.Where(nodeId => incomingNodeIds[nodeId].Count == 0));
-            var topologicalOrder = new List<string>(orderedNodeIds.Length);
-
-            while (queue.Count > 0)
-            {
-                var nodeId = queue.Dequeue();
-                topologicalOrder.Add(nodeId);
-
-                foreach (var connection in Connections)
-                {
-                    if (!nodeId.Equals(connection.GetStringProperty("m_fromNodeID"), StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    var toNodeId = connection.GetStringProperty("m_toNodeID");
-                    if (!autoLayoutNodeIds.Contains(toNodeId))
-                    {
-                        continue;
-                    }
-
-                    if (incomingNodeIds[toNodeId].Remove(nodeId) && incomingNodeIds[toNodeId].Count == 0)
-                    {
-                        queue.Enqueue(toNodeId);
-                    }
-                }
-            }
-
-            if (topologicalOrder.Count != orderedNodeIds.Length)
-            {
-                topologicalOrder = [.. orderedNodeIds];
-            }
-
-            var layerByNodeId = new Dictionary<string, int>(StringComparer.Ordinal);
-            foreach (var nodeId in topologicalOrder)
-            {
-                var layer = 0;
-
-                foreach (var connection in Connections)
-                {
-                    if (!nodeId.Equals(connection.GetStringProperty("m_toNodeID"), StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    var fromNodeId = connection.GetStringProperty("m_fromNodeID");
-                    if (layerByNodeId.TryGetValue(fromNodeId, out var fromLayer))
-                    {
-                        layer = Math.Max(layer, fromLayer + 1);
-                    }
-                    else if (anchoredLayerByNodeId.TryGetValue(fromNodeId, out var anchoredFromLayer))
-                    {
-                        layer = Math.Max(layer, anchoredFromLayer + 1);
-                    }
-                }
-
-                foreach (var connection in Connections)
-                {
-                    if (!nodeId.Equals(connection.GetStringProperty("m_fromNodeID"), StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    var toNodeId = connection.GetStringProperty("m_toNodeID");
-                    if (!anchoredLayerByNodeId.TryGetValue(toNodeId, out var anchoredToLayer))
-                    {
-                        continue;
-                    }
-
-                    layer = Math.Max(layer, anchoredToLayer - 1);
-                }
-
-                layerByNodeId[nodeId] = layer;
-            }
-
-            foreach (var nodeId in topologicalOrder)
-            {
-                var layer = layerByNodeId.GetValueOrDefault(nodeId);
-                var row = rowByLayer.GetValueOrDefault(layer);
-                rowByLayer[layer] = row + 1;
-
-                var node = nodesById[nodeId];
-                node["m_position"] = MakeVector2(layer * NodeColumnSpacing, row * NodeRowSpacing);
-            }
-        }
-
-        private static bool NeedsAutoLayout(KVObject node)
-        {
-            if (!node.TryGetValue("m_position", out var value) || !value.IsArray)
-            {
-                return true;
-            }
-
-            var span = value.AsArraySpan();
-            if (span.Length != 2)
-            {
-                return true;
-            }
-
-            var x = (float)span[0];
-            var y = (float)span[1];
-            return x == 0.0f && y == 0.0f;
-        }
-
-        private static bool ShouldIgnoreForAutoLayoutAnchoring(KVObject node)
-        {
-            var className = node.GetStringProperty("_class");
-            return className.Contains("ControlParameterNode", StringComparison.Ordinal)
-                || className.Contains("VirtualParameterNode", StringComparison.Ordinal);
-        }
-    }
-
-    private enum StateMachineTransitionGroup
-    {
-        Standard,
-        Global,
-    }
-
-    private sealed class TransitionInfo
-    {
-        public StateMachineTransitionGroup GroupKind { get; init; }
-        public string GroupPath { get; init; } = string.Empty;
-        public int SourceStateNodeIndex { get; init; }
-        public int TargetStateIndex { get; init; }
-        public int TargetStateNodeIndex { get; init; }
-        public int ConditionNodeIndex { get; init; }
-        public int TransitionNodeIndex { get; init; }
-        public KVObject CompiledTransitionNode { get; init; } = null!;
-        public KVObject StateMachineTransition { get; init; } = null!;
-        public bool CanBeForced { get; init; }
     }
 }
