@@ -121,6 +121,7 @@ public sealed class NmGraphExtract : IDisposable
     private readonly string[] _resources;
     private readonly HashSet<int> _persistentNodeIndices;
     private readonly Dictionary<int, string> _rootParameterNodeIds = [];
+    private readonly Dictionary<string, float?> _clipAverageLinearVelocityCache = [];
     private readonly List<VariationGraph> _variationGraphs = [];
 
     /// <summary>
@@ -1871,10 +1872,11 @@ public sealed class NmGraphExtract : IDisposable
     {
         var compiledNode = GetCompiledNode(nodeIndex)
             ?? throw new InvalidDataException($"Missing velocity blend node {nodeIndex}.");
-        var sourceCount = compiledNode.GetIntegerArray("m_sourceNodeIndices")?.Length ?? 0;
+        var sourceNodeIndices = compiledNode.GetIntegerArray("m_sourceNodeIndices")?.Select(value => (int)value).ToArray() ?? [];
 
         var inputPins = new List<PinDef> { new("Parameter", "Float") };
-        inputPins.AddRange(Enumerable.Range(0, sourceCount).Select(i => new PinDef($"Input {i}", "Pose")));
+        inputPins.AddRange(Enumerable.Range(0, sourceNodeIndices.Length)
+            .Select(i => new PinDef(GetVelocityBlendInputLabel(sourceNodeIndices[i], i), "Pose")));
 
         var node = CreateBaseNode("CNmGraphDocVelocityBlendNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
@@ -2972,6 +2974,57 @@ public sealed class NmGraphExtract : IDisposable
         variationData.Add("_class", "CNmGraphDocTargetWarpNode::CData");
         variationData.Add("m_strAlignmentBoneName", GetOptionalString(compiledNode, "m_alignmentBoneID"));
         return variationData;
+    }
+
+    private string GetVelocityBlendInputLabel(int sourceNodeIndex, int fallbackIndex)
+    {
+        var fallbackLabel = GetNodeName(sourceNodeIndex);
+        if (fallbackLabel.StartsWith("Node ", StringComparison.Ordinal))
+        {
+            fallbackLabel = $"Input {fallbackIndex}";
+        }
+
+        var averageLinearVelocity = GetClipAverageLinearVelocity(sourceNodeIndex);
+        return averageLinearVelocity.HasValue
+            ? $"{fallbackLabel} ({averageLinearVelocity.Value:0.##})"
+            : fallbackLabel;
+    }
+
+    private float? GetClipAverageLinearVelocity(int nodeIndex)
+    {
+        var compiledNode = GetCompiledNode(nodeIndex);
+        if (compiledNode is null)
+        {
+            return null;
+        }
+
+        var dataSlotIndex = (int)compiledNode.GetInt64Property("m_nDataSlotIdx", -1);
+        if (dataSlotIndex < 0)
+        {
+            return null;
+        }
+
+        var resourcePath = GetResourcePath(dataSlotIndex);
+        if (string.IsNullOrEmpty(resourcePath))
+        {
+            return null;
+        }
+
+        if (_clipAverageLinearVelocityCache.TryGetValue(resourcePath, out var cachedValue))
+        {
+            return cachedValue;
+        }
+
+        using var clipResource = _fileLoader.LoadFileCompiled(resourcePath);
+        if (clipResource?.DataBlock is not BinaryKV3 clipData)
+        {
+            _clipAverageLinearVelocityCache[resourcePath] = null;
+            return null;
+        }
+
+        var averageLinearVelocity = clipData.Data.Root.GetSubCollection("m_rootMotion")?.GetFloatProperty("m_flAverageLinearVelocity");
+        _clipAverageLinearVelocityCache[resourcePath] = averageLinearVelocity;
+        return averageLinearVelocity;
     }
 
     private string GetNodeName(int nodeIndex)
