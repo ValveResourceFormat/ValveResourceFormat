@@ -760,7 +760,7 @@ public sealed class ShaderExtract
             }
 
             if (parameters.Count == 0 || parameters.All(p =>
-                paramBlocks[p].RegisterType == VfxRegisterType.SamplerState || paramBlocks[p].RegisterType == VfxRegisterType.Buffer))
+                paramBlocks[p].RegisterType == VfxRegisterType.SamplerState || paramBlocks[p].RegisterType == VfxRegisterType.ConstantBuffer))
             {
                 continue;
             }
