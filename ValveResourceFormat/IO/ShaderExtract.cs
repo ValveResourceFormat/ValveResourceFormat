@@ -1200,8 +1200,14 @@ public sealed class ShaderExtract
         {
             WriteVariable(param, paramBlocks, writer, annotations);
         }
-        else if (param.RegisterType == VfxRegisterType.Texture)
+        else if (param.RegisterType is VfxRegisterType.Texture or VfxRegisterType.TextureIndex)
         {
+            //Skip bindless array variable definitions
+            if (param.VariableSource == VfxVariableSourceType.ExternalDescSet)
+            {
+                return;
+            }
+
             WriteTexture(param, paramBlocks, channelBlocks, writer, annotations);
         }
     }
@@ -1426,11 +1432,17 @@ public sealed class ShaderExtract
         }
 
         const string Sampler = "Sampler";
+        const string Index = "Index";
         var typeString = param.VfxType.ToString();
 
         typeString = typeString.StartsWith(Sampler, StringComparison.Ordinal)
             ? "Texture" + typeString[Sampler.Length..]
             : typeString; // not even a texture type?
+
+        if (typeString.EndsWith(Index, StringComparison.Ordinal))
+        {
+            typeString = typeString[..^Index.Length];
+        }
 
         writer.WriteLine($"{typeString} {param.Name}{GetVfxAttributes(annotations)};");
     }
