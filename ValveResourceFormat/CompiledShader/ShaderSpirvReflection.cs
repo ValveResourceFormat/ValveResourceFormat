@@ -359,6 +359,21 @@ public static partial class ShaderSpirvReflection
         var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
         var bindingConfig = GetBindingConfiguration(program.VcsVersion, program.VcsProgramType);
+        var hasBindlessResources =
+            staticComboData.Attributes.FirstOrDefault(a => a.Name0 == "BindlessResources")?.ConstValue is true;
+
+        int? bindlessSet = null;
+        if (hasBindlessResources)
+        {
+            foreach (var field in writeSequence.RenderState)
+            {
+                if (program.VariableDescriptions[field.VariableIndex].Name == "g_globalLateBoundBindlessSet")
+                {
+                    bindlessSet = field.Dest;
+                    break;
+                }
+            }
+        }
 
         var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
 
@@ -459,6 +474,10 @@ public static partial class ShaderSpirvReflection
             var name = resourceType switch
             {
                 SpirvResourceType.SeparateImage => GetNameForTexture(program, writeSequence, binding, set, imageVfxType, bindingConfig),
+                // We don't know the difference between `SamplerState` and `SamplerComparisonState`
+                // as `variable_is_depth_or_compare` requires `analyze_image_and_sampler_usage` to be called for full functionality;
+                // that function is private and the only other way to trigger it is to call compile twice.
+                SpirvResourceType.SeparateSamplers when set == bindlessSet => "g_bindless_Sampler",
                 SpirvResourceType.SeparateSamplers => GetNameForSampler(program, writeSequence, binding, set, bindingConfig),
                 SpirvResourceType.StorageBuffer or SpirvResourceType.StorageImage => GetNameForStorageBuffer(program,
                     writeSequence, binding, set, bindingConfig),
