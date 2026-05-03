@@ -799,7 +799,7 @@ public sealed partial class NmGraphExtract : IDisposable
                 : CreateConstTargetNode(nodeIndex, compiledNode),
             "ConstBoneTarget" => CreateConstBoneTargetNode(nodeIndex, compiledNode),
             _ when compiledClass.TryGetTypedSuffix("Const", out var valueType)
-                => CreateConstValueNode(GetConstDocNodeClassName(valueType), nodeIndex, valueType, GetConstValueKey(valueType), GetConstValue(compiledNode, valueType)),
+                => CreateConstValueNode(nodeIndex, valueType, compiledNode),
             _ when compiledClass.TryGetTypedSuffix("ControlParameter", out _)
                 => CreateParameterReferenceNode(nodeIndex, graphBuilder),
             _ => throw new InvalidDataException($"Unsupported NmGraph node: {compiledClass.Name}"),
@@ -1238,11 +1238,31 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateIDComparisonNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocIDComparisonNode", MakeGuid(), GetNodeName(nodeIndex));
+        var variationData = CreateIDComparisonVariationData(compiledNode);
+        var overrides = CreateVariationOverrides(nodeIndex, variationData, variationGraph =>
+        {
+            var variationNode = variationGraph.GetCompiledNode(nodeIndex);
+            return variationNode is not null && GetCompiledClassName(variationNode) == GetCompiledClassName(compiledNode)
+                ? CreateIDComparisonVariationData(variationNode)
+                : null;
+        });
+
+        var hasOverrides = overrides.Count > 0;
+        var node = CreateBaseNode(hasOverrides ? "CNmGraphDocVariationIDComparisonNode" : "CNmGraphDocIDComparisonNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("ID", "ID")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
-        node.Add("m_comparison", compiledNode.GetRequiredStringProperty("m_comparison"));
-        node.Add("m_values", CloneArray("m_comparisionIDs", compiledNode));
+        if (hasOverrides)
+        {
+            node.Add("m_pDefaultVariationData", variationData);
+            node.Add("m_overrides", overrides);
+            node.Add("m_defaultResourceName", string.Empty);
+            node.Add("m_comparison", compiledNode.GetRequiredStringProperty("m_comparison"));
+        }
+        else
+        {
+            node.Add("m_comparison", compiledNode.GetRequiredStringProperty("m_comparison"));
+            node.Add("m_values", CloneArray("m_comparisionIDs", compiledNode));
+        }
         return node;
     }
 
@@ -1627,7 +1647,8 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateBoneMaskNode(int nodeIndex, KVObject compiledNode)
     {
-        var variationData = CreateBoneMaskVariationData();
+        var maskId = compiledNode.GetRequiredStringProperty("m_boneMaskID");
+        var variationData = CreateBoneMaskVariationData(string.Empty);
 
         var node = CreateBaseNode("CNmGraphDocBoneMaskNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
@@ -1636,12 +1657,16 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_overrides", CreateVariationOverrides(nodeIndex, variationData, variationGraph =>
         {
             var variationNode = variationGraph.GetCompiledNode(nodeIndex);
-            return variationNode is not null && GetCompiledClassName(variationNode) == GetCompiledClassName(compiledNode)
-                ? CreateBoneMaskVariationData()
-                : null;
+            if (variationNode is null || GetCompiledClassName(variationNode) != GetCompiledClassName(compiledNode))
+            {
+                return null;
+            }
+
+            var variationMaskId = variationNode.GetRequiredStringProperty("m_boneMaskID");
+            return CreateBoneMaskVariationData(variationMaskId.Equals(maskId, StringComparison.Ordinal) ? string.Empty : variationMaskId);
         }));
         node.Add("m_defaultResourceName", string.Empty);
-        node.Add("m_maskID", compiledNode.GetRequiredStringProperty("m_boneMaskID"));
+        node.Add("m_maskID", maskId);
         return node;
     }
 
@@ -2312,6 +2337,36 @@ public sealed partial class NmGraphExtract : IDisposable
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Value", outputType, AllowMultipleOutConnections: true)]));
         AddValue(node, valueKey, value ?? string.Empty);
+        return node;
+    }
+
+    private KVObject CreateConstValueNode(int nodeIndex, string valueType, KVObject compiledNode)
+    {
+        if (valueType != "Float")
+        {
+            return CreateConstValueNode(GetConstDocNodeClassName(valueType), nodeIndex, valueType, GetConstValueKey(valueType), GetConstValue(compiledNode, valueType));
+        }
+
+        var variationData = CreateConstFloatVariationData(compiledNode);
+        var overrides = CreateVariationOverrides(nodeIndex, variationData, variationGraph =>
+        {
+            var variationNode = variationGraph.GetCompiledNode(nodeIndex);
+            return variationNode is not null && GetCompiledClassName(variationNode) == GetCompiledClassName(compiledNode)
+                ? CreateConstFloatVariationData(variationNode)
+                : null;
+        });
+
+        if (overrides.Count == 0)
+        {
+            return CreateConstValueNode(GetConstDocNodeClassName(valueType), nodeIndex, valueType, GetConstValueKey(valueType), GetConstValue(compiledNode, valueType));
+        }
+
+        var node = CreateBaseNode("CnmGraphDocVariationConstFloatNode", MakeGuid(), GetNodeName(nodeIndex));
+        node.Add("m_inputPins", KVObject.Array());
+        node.Add("m_outputPins", MakePins([new PinDef("Value", valueType, AllowMultipleOutConnections: true)]));
+        node.Add("m_pDefaultVariationData", variationData);
+        node.Add("m_overrides", overrides);
+        node.Add("m_defaultResourceName", string.Empty);
         return node;
     }
 

@@ -193,11 +193,27 @@ public sealed partial class NmGraphExtract
         return variationData;
     }
 
-    private static KVObject CreateBoneMaskVariationData()
+    private static KVObject CreateIDComparisonVariationData(KVObject compiledNode)
+    {
+        var variationData = KVObject.Collection();
+        variationData.Add("_class", "CNmGraphDocVariationIDComparisonNode::CData");
+        variationData.Add("m_values", CloneArray("m_comparisionIDs", compiledNode));
+        return variationData;
+    }
+
+    private static KVObject CreateConstFloatVariationData(KVObject compiledNode)
+    {
+        var variationData = KVObject.Collection();
+        variationData.Add("_class", "CnmGraphDocVariationConstFloatNode::CData");
+        variationData.Add("m_flValue", GetConstValue(compiledNode, "Float"));
+        return variationData;
+    }
+
+    private static KVObject CreateBoneMaskVariationData(string overrideMaskId)
     {
         var variationData = KVObject.Collection();
         variationData.Add("_class", "CNmGraphDocBoneMaskNode::CData");
-        variationData.Add("m_overrideMaskID", string.Empty);
+        variationData.Add("m_overrideMaskID", overrideMaskId);
         return variationData;
     }
 
