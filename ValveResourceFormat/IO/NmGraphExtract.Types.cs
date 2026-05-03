@@ -1,7 +1,5 @@
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -61,7 +59,7 @@ public sealed partial class NmGraphExtract
         public void Connect(string fromNodeId, string outputPinId, string toNodeId, string inputPinId)
         {
             var connection = KVObject.Collection();
-            connection.Add("m_ID", MakeGuid($"connection:{GraphKey}:{fromNodeId}:{outputPinId}:{toNodeId}:{inputPinId}"));
+            connection.Add("m_ID", MakeGuid());
             connection.Add("m_fromNodeID", fromNodeId);
             connection.Add("m_outputPinID", outputPinId);
             connection.Add("m_toNodeID", toNodeId);
@@ -75,7 +73,7 @@ public sealed partial class NmGraphExtract
 
             var graph = KVObject.Collection();
             graph.Add("_class", "CNmGraphDocFlowGraph");
-            graph.Add("m_ID", MakeGuid($"graph:{GraphKey}"));
+            graph.Add("m_ID", MakeGuid());
 
             var nodesArray = KVObject.Array();
             foreach (var node in Nodes)

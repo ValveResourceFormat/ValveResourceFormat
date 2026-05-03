@@ -166,7 +166,7 @@ public sealed partial class NmGraphExtract
     {
         public KVObject CreateNode(NmGraphExtract owner, int nodeIndex, KVObject compiledNode)
         {
-            var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), owner.GetNodeName(nodeIndex));
+            var node = CreateBaseNode(className, MakeGuid(), owner.GetNodeName(nodeIndex));
             node.Add("m_inputPins", MakePins(inputPinsFactory(compiledNode)));
             node.Add("m_outputPins", MakePins(outputPins));
 

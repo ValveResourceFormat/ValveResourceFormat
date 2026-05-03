@@ -1,6 +1,5 @@
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
@@ -187,8 +186,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateControlParameterNode(int nodeIndex, string className, string outputType, string outputName, IReadOnlyList<(string Key, object Value)> extraFields)
     {
-        var nodeId = MakeGuid($"root-control:{nodeIndex}");
-        _rootParameterNodeIds[nodeIndex] = nodeId;
+        var nodeId = GetOrCreateRootParameterNodeId(nodeIndex);
 
         var node = CreateBaseNode(className, nodeId, GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
@@ -208,8 +206,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var valueType = GetVirtualParameterValueType(nodeIndex);
 
-        var nodeId = MakeGuid($"root-virtual:{nodeIndex}");
-        _rootParameterNodeIds[nodeIndex] = nodeId;
+        var nodeId = GetOrCreateRootParameterNodeId(nodeIndex);
 
         var node = CreateBaseNode(GetTypedDocNodeClassName(valueType, "VirtualParameter"), nodeId, GetVirtualParameterName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
@@ -249,7 +246,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildStateMachineNode(int nodeIndex)
     {
-        var node = CreateBaseNode("CNmGraphDocStateMachineNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocStateMachineNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node["m_pChildGraph"] = BuildStateMachineGraph(nodeIndex);
@@ -263,7 +260,7 @@ public sealed partial class NmGraphExtract : IDisposable
         var stateDefinitions = stateMachine.GetArray("m_stateDefinitions")?.ToArray()
             ?? [];
 
-        var graphNodeId = MakeGuid($"state-machine-graph:{nodeIndex}");
+        var graphNodeId = MakeGuid();
         var graphNode = KVObject.Collection();
         graphNode.Add("_class", "CNmGraphDocStateMachineGraph");
         graphNode.Add("m_ID", graphNodeId);
@@ -307,7 +304,7 @@ public sealed partial class NmGraphExtract : IDisposable
         var compiledNode = GetCompiledNode(nodeIndex)
             ?? throw new InvalidDataException($"Missing state node {nodeIndex}.");
 
-        var node = CreateBaseNode("CNmGraphDocStateNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocStateNode", MakeGuid(), GetNodeName(nodeIndex));
         var isOffState = compiledNode.GetRequiredBooleanProperty("m_bIsOffState");
         var childNodeIndex = (int)compiledNode.GetInt64Property("m_nChildNodeIdx");
         var childNode = GetCompiledNode(childNodeIndex);
@@ -392,7 +389,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildEntryOverrideConduit(int stateMachineNodeIndex, IReadOnlyList<KVObject> stateDefinitions, IReadOnlyDictionary<int, KVObject> stateNodes)
     {
-        var conduitNode = CreateBaseNode("CNmGraphDocEntryStateOverrideConduitNode", MakeGuid($"entry-conduit:{stateMachineNodeIndex}"), string.Empty);
+        var conduitNode = CreateBaseNode("CNmGraphDocEntryStateOverrideConduitNode", MakeGuid(), string.Empty);
         conduitNode["m_pSecondaryGraph"] = BuildEntryOverrideGraph(stateMachineNodeIndex, stateDefinitions, stateNodes);
         return conduitNode;
     }
@@ -431,7 +428,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject BuildGlobalTransitionConduit(int stateMachineNodeIndex, KVObject[] stateDefinitions, IReadOnlyList<TransitionInfo> transitions, Dictionary<int, KVObject> stateNodes)
     {
-        var conduitNode = CreateBaseNode("CNmGraphDocGlobalTransitionConduitNode", MakeGuid($"global-conduit:{stateMachineNodeIndex}"), string.Empty);
+        var conduitNode = CreateBaseNode("CNmGraphDocGlobalTransitionConduitNode", MakeGuid(), string.Empty);
         var graphBuilder = new FlowGraphBuilder($"global-conduit:{stateMachineNodeIndex}", "GlobalTransitionConduit");
 
         var transitionsByTargetState = transitions
@@ -556,7 +553,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var firstTransition = transitions[0];
         var conduitKey = GetTransitionConduitKey(stateMachineNodeIndex, firstTransition);
-        var conduitNode = CreateBaseNode("CNmGraphDocTransitionConduitNode", MakeGuid(conduitKey), GetPathLeaf(firstTransition.GroupPath));
+        var conduitNode = CreateBaseNode("CNmGraphDocTransitionConduitNode", MakeGuid(), GetPathLeaf(firstTransition.GroupPath));
         conduitNode["m_position"] = MakeVector2(0.0f, conduitRow * NodeRowSpacing);
         conduitNode.Add("m_startStateID", stateNodes[firstTransition.SourceStateNodeIndex].GetStringProperty("m_ID"));
         conduitNode.Add("m_endStateID", stateNodes[firstTransition.TargetStateNodeIndex].GetStringProperty("m_ID"));
@@ -1099,10 +1096,9 @@ public sealed partial class NmGraphExtract : IDisposable
             throw new InvalidDataException($"Unsupported parameter reference node: {compiledClass.Name}");
         }
 
-        var parameterNodeId = _rootParameterNodeIds.GetValueOrDefault(nodeIndex, MakeGuid($"root-control:{nodeIndex}"));
-        _rootParameterNodeIds[nodeIndex] = parameterNodeId;
+        var parameterNodeId = GetOrCreateRootParameterNodeId(nodeIndex);
 
-        var node = CreateBaseNode(GetTypedDocNodeClassName(valueType, "ParameterReference"), MakeGuid($"paramref:{graphBuilder.GraphKey}:{nodeIndex}"), IsVirtualParameterNode(nodeIndex) ? GetVirtualParameterName(nodeIndex) : GetNodeName(nodeIndex));
+        var node = CreateBaseNode(GetTypedDocNodeClassName(valueType, "ParameterReference"), MakeGuid(), IsVirtualParameterNode(nodeIndex) ? GetVirtualParameterName(nodeIndex) : GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Value", valueType, AllowMultipleOutConnections: true)]));
         node.Add("m_parameterUUID", parameterNodeId);
@@ -1116,7 +1112,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateReferencedGraphVariationData(compiledNode, GetReferencedGraphPath);
 
-        var node = CreateBaseNode("CNmGraphDocReferencedGraphNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocReferencedGraphNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Fallback", "Pose")]));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
@@ -1137,7 +1133,7 @@ public sealed partial class NmGraphExtract : IDisposable
         var conditionIndices = compiledNode.GetIntegerArray("m_conditionNodeIndices")?.Select(value => (int)value).ToArray() ?? [];
         var optionLabels = optionIndices.Select(GetNodeName).ToArray();
 
-        var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode(className, MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(optionLabels.Select(label => new PinDef(label, "Pose", IsDynamicPin: true))));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_optionLabels", CloneStringArray(optionLabels));
@@ -1156,7 +1152,7 @@ public sealed partial class NmGraphExtract : IDisposable
         };
         inputPins.AddRange(optionIds.Select(value => new PinDef(string.IsNullOrEmpty(value) ? "Option" : value, "Pose", IsDynamicPin: true)));
 
-        var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode(className, MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_optionLabels", CloneStringArray(optionIds));
@@ -1176,7 +1172,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
         var variationData = CreateSelectorVariationData(dataClassName, compiledNode);
 
-        var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode(className, MakeGuid(), GetNodeName(nodeIndex));
         var inputPins = new List<PinDef> { new("Parameter", "Float") };
         inputPins.AddRange(optionLabels.Select(label => new PinDef(label, "Pose", IsDynamicPin: true)));
 
@@ -1200,7 +1196,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateClipVariationData(compiledNode, GetResourcePath);
 
-        var node = CreateBaseNode("CNmGraphDocClipNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocClipNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Play In Reverse", "Bool"), new PinDef("Reset Time", "Bool")]));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
@@ -1222,7 +1218,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateAnimationPoseVariationData(compiledNode, GetResourcePath);
 
-        var node = CreateBaseNode("CNmGraphDocAnimationPoseNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocAnimationPoseNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Time", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_pDefaultVariationData", variationData);
@@ -1242,7 +1238,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateIDComparisonNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocIDComparisonNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIDComparisonNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("ID", "ID")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
         node.Add("m_comparison", compiledNode.GetRequiredStringProperty("m_comparison"));
@@ -1252,7 +1248,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateIdToFloatNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocIDToFloatNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIDToFloatNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("ID", "ID")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_defaultValue", compiledNode.GetRequiredFloatProperty("m_defaultValue"));
@@ -1275,7 +1271,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateIdSwitchNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocIDSwitchNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIDSwitchNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Bool", "Bool"),
             new PinDef("If True", "ID"),
@@ -1292,7 +1288,7 @@ public sealed partial class NmGraphExtract : IDisposable
         var compiledNode = GetCompiledNode(nodeIndex)
             ?? throw new InvalidDataException($"Missing cached value node {nodeIndex}.");
 
-        var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode(className, MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Value", valueType)]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", valueType, AllowMultipleOutConnections: true)]));
         node.Add("m_mode", GetOptionalString(compiledNode, "m_mode", "OnEntry"));
@@ -1301,7 +1297,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatComparisonNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatComparisonNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatComparisonNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Float", "Float"), new PinDef("Comparand (Optional)", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
         node.Add("m_comparison", compiledNode.GetRequiredStringProperty("m_comparison"));
@@ -1312,7 +1308,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatRangeComparisonNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatRangeComparisonNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatRangeComparisonNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Float", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
         node.Add("m_range", CloneRange(compiledNode.GetSubCollection("m_range"), 0.0f, 1.0f));
@@ -1322,7 +1318,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatRemapNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatRemapNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatRemapNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Float", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_inputRange", CloneRemapRange(compiledNode.GetSubCollection("m_inputRange")));
@@ -1332,7 +1328,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatClampNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatClampNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatClampNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Value", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_clampRange", CloneRange(compiledNode.GetSubCollection("m_clampRange"), 0.0f, 0.0f));
@@ -1341,7 +1337,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatEaseNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatEaseNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatEaseNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Value", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_easing", GetOptionalString(compiledNode, "m_easingOp", "Linear"));
@@ -1353,7 +1349,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatSpringNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatSpringNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatSpringNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Value", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_flHertz", compiledNode.GetFloatProperty("m_flHertz", 4.0f));
@@ -1365,7 +1361,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatCurveNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatCurveNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatCurveNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Float", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_curve", GetOptionalObject(compiledNode, "m_curve") ?? KVObject.Collection());
@@ -1374,7 +1370,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatMathNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatMathNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatMathNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("A", "Float"), new PinDef("B (Optional)", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_bReturnAbsoluteResult", compiledNode.GetRequiredBooleanProperty("m_bReturnAbsoluteResult"));
@@ -1386,7 +1382,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatSwitchNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatSwitchNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatSwitchNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Bool", "Bool"),
             new PinDef("If True", "Float"),
@@ -1400,7 +1396,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFloatAngleMathNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFloatAngleMathNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatAngleMathNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Angle (deg)", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_operation", GetOptionalString(compiledNode, "m_operation", "ClampTo180"));
@@ -1421,7 +1417,7 @@ public sealed partial class NmGraphExtract : IDisposable
             options.Add(option);
         }
 
-        var node = CreateBaseNode("CNmGraphDocFloatSelectorNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatSelectorNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_options", options);
@@ -1435,7 +1431,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var eventConditionRules = GetEventConditionRules(compiledNode);
 
-        var node = CreateBaseNode("CNmGraphDocFloatCurveEventNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFloatCurveEventNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Default", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Value", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_matchID", GetOptionalString(compiledNode, "m_eventID"));
@@ -1448,7 +1444,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateIDEventConditionNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocIDEventConditionNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIDEventConditionNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
 
@@ -1465,7 +1461,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var eventConditionRules = GetEventConditionRules(compiledNode);
 
-        var node = CreateBaseNode("CNmGraphDocIDEventNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIDEventNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "ID", AllowMultipleOutConnections: true)]));
         node.Add("m_defaultValue", GetOptionalString(compiledNode, "m_defaultValue"));
@@ -1479,7 +1475,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var eventConditionRules = GetEventConditionRules(compiledNode);
 
-        var node = CreateBaseNode("CNmGraphDocIDEventPercentageThroughNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIDEventPercentageThroughNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_priorityRule", eventConditionRules.PriorityRule);
@@ -1491,7 +1487,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateGraphEventConditionNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocGraphEventConditionNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocGraphEventConditionNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
 
@@ -1520,7 +1516,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFootEventConditionNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFootEventConditionNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFootEventConditionNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
 
@@ -1535,7 +1531,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var eventConditionRules = GetEventConditionRules(compiledNode);
 
-        var node = CreateBaseNode("CNmGraphDocFootstepEventIDNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFootstepEventIDNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("ID", "ID", AllowMultipleOutConnections: true)]));
         node.Add("m_priorityRule", eventConditionRules.PriorityRule);
@@ -1548,7 +1544,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var eventConditionRules = GetEventConditionRules(compiledNode);
 
-        var node = CreateBaseNode("CNmGraphDocFootstepEventPercentageThroughNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFootstepEventPercentageThroughNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_phaseCondition", GetOptionalString(compiledNode, "m_phaseCondition", "LeftFootDown"));
@@ -1560,7 +1556,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateVectorInfoNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocVectorInfoNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocVectorInfoNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Vector", "Vector")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_desiredInfo", GetOptionalString(compiledNode, "m_desiredInfo", "X"));
@@ -1569,7 +1565,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateVectorCreateNode(int nodeIndex)
     {
-        var node = CreateBaseNode("CNmGraphDocVectorCreateNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocVectorCreateNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Vector", "Vector"),
             new PinDef("X", "Float"),
@@ -1582,7 +1578,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateTargetInfoNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocTargetInfoNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocTargetInfoNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Target", "Target")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_infoType", GetOptionalString(compiledNode, "m_infoType", "Distance"));
@@ -1592,7 +1588,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateTargetPointNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocTargetPointNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocTargetPointNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Target", "Target")]));
         node.Add("m_outputPins", MakePins([new PinDef("Point", "Vector", AllowMultipleOutConnections: true)]));
         node.Add("m_bIsWorldSpaceTarget", compiledNode.GetBooleanProperty("m_bIsWorldSpaceTarget", true));
@@ -1601,7 +1597,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateTargetOffsetNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocTargetOffsetNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocTargetOffsetNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Target", "Target")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Target", AllowMultipleOutConnections: true)]));
         node.Add("m_bIsBoneSpaceOffset", compiledNode.GetBooleanProperty("m_bIsBoneSpaceOffset", true));
@@ -1618,7 +1614,7 @@ public sealed partial class NmGraphExtract : IDisposable
         var inputPins = new List<PinDef> { new("Target", "Target") };
         inputPins.AddRange(optionLabels.Select(label => new PinDef(label, "Pose")));
 
-        var node = CreateBaseNode("CNmGraphDocTargetSelectorNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocTargetSelectorNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_optionLabels", CloneStringArray(optionLabels));
@@ -1633,7 +1629,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateBoneMaskVariationData();
 
-        var node = CreateBaseNode("CNmGraphDocBoneMaskNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocBoneMaskNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Bone Mask", "BoneMask", AllowMultipleOutConnections: true)]));
         node.Add("m_pDefaultVariationData", variationData);
@@ -1651,7 +1647,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateFixedWeightBoneMaskNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocFixedWeightBoneMaskNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocFixedWeightBoneMaskNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Bone Mask", "BoneMask", AllowMultipleOutConnections: true)]));
         node.Add("m_flBoneWeight", compiledNode.GetRequiredFloatProperty("m_flBoneWeight"));
@@ -1660,7 +1656,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateBoneMaskBlendNode(int nodeIndex)
     {
-        var node = CreateBaseNode("CNmGraphDocBoneMaskBlendNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocBoneMaskBlendNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Blend Weight", "Float"),
             new PinDef("Source", "BoneMask"),
@@ -1680,7 +1676,7 @@ public sealed partial class NmGraphExtract : IDisposable
         };
         inputPins.AddRange(parameterValues.Select((value, index) => new PinDef(string.IsNullOrEmpty(value) ? $"Mask {index}" : value, "BoneMask")));
 
-        var node = CreateBaseNode("CNmGraphDocBoneMaskSelectorNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocBoneMaskSelectorNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "BoneMask", AllowMultipleOutConnections: true)]));
         node.Add("m_switchDynamically", compiledNode.GetRequiredBooleanProperty("m_bSwitchDynamically"));
@@ -1691,7 +1687,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateBoneMaskSwitchNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocBoneMaskSwitchNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocBoneMaskSwitchNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Bool", "Bool"),
             new PinDef("If True", "BoneMask"),
@@ -1705,7 +1701,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateScaleNode(string className, int nodeIndex, KVObject compiledNode, string valueInputName, string valueFieldName)
     {
-        var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode(className, MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef(valueInputName, "Float"),
@@ -1725,7 +1721,7 @@ public sealed partial class NmGraphExtract : IDisposable
         inputPins.AddRange(Enumerable.Range(0, sourceNodeIndices.Length)
             .Select(i => new PinDef(GetVelocityBlendInputLabel(sourceNodeIndices[i], i), "Pose")));
 
-        var node = CreateBaseNode("CNmGraphDocVelocityBlendNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocVelocityBlendNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_bAllowLooping", compiledNode.GetBooleanProperty("m_bAllowLooping", true));
@@ -1754,7 +1750,7 @@ public sealed partial class NmGraphExtract : IDisposable
             blendPoints.Add(point);
         }
 
-        var node = CreateBaseNode("CNmGraphDocBlend1DNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocBlend1DNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePinsWithOverrides(inputPins, blendPoints));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
 
@@ -1786,7 +1782,7 @@ public sealed partial class NmGraphExtract : IDisposable
         blendSpace.Add("m_indices", CloneArray("m_indices", compiledNode));
         blendSpace.Add("m_hullIndices", CloneArray("m_hullIndices", compiledNode));
 
-        var node = CreateBaseNode("CNmGraphDocBlend2DNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocBlend2DNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_blendSpace", blendSpace);
@@ -1796,7 +1792,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateScaleMaskNode(int nodeIndex)
     {
-        var node = CreateBaseNode("CNmGraphDocScaleNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocScaleNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Mask", "BoneMask"),
@@ -1808,7 +1804,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateCurrentSyncEventIdNode(int nodeIndex)
     {
-        var node = CreateBaseNode("CNmGraphDocCurrentSyncEventIDNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocCurrentSyncEventIDNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "ID", AllowMultipleOutConnections: true)]));
         return node;
@@ -1816,7 +1812,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateCurrentSyncEventNode(int nodeIndex, string infoType)
     {
-        var node = CreateBaseNode("CNmGraphDocCurrentSyncEventNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocCurrentSyncEventNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Float", AllowMultipleOutConnections: true)]));
         node.Add("m_infoType", infoType);
@@ -1825,7 +1821,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateSyncEventIndexConditionNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocSyncEventIndexConditionNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocSyncEventIndexConditionNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
         node.Add("m_triggerMode", GetOptionalString(compiledNode, "m_triggerMode", "ExactlyAtEventIndex"));
@@ -1835,7 +1831,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateTimeConditionNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocTimeConditionNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocTimeConditionNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([new PinDef("Time Value (optional)", "Float")]));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
         node.Add("m_flComparand", compiledNode.GetRequiredFloatProperty("m_flComparand"));
@@ -1846,7 +1842,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateTransitionEventConditionNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocTransitionEventConditionNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocTransitionEventConditionNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
 
@@ -1866,7 +1862,7 @@ public sealed partial class NmGraphExtract : IDisposable
         var inputPins = new List<PinDef> { new("Base Node", "Pose") };
         inputPins.AddRange(Enumerable.Range(0, layerDefinitions.Length).Select(i => new PinDef($"Layer {i}", "Special")));
 
-        var node = CreateBaseNode("CNmGraphDocLayerBlendNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocLayerBlendNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_onlySampleBaseRootMotion", compiledNode.GetBooleanProperty("m_bOnlySampleBaseRootMotion", true));
@@ -1878,7 +1874,7 @@ public sealed partial class NmGraphExtract : IDisposable
         var isStateMachineLayer = layerDefinition.GetRequiredBooleanProperty("m_bIsStateMachineLayer");
         var node = CreateBaseNode(
             isStateMachineLayer ? "CNmGraphDocStateMachineLayerNode" : "CNmGraphDocLocalLayerNode",
-            MakeGuid($"node:{parentNodeIndex}:layer:{layerIndex}"),
+            MakeGuid(),
             $"Layer {layerIndex}");
 
         node.Add("m_inputPins", isStateMachineLayer
@@ -1898,7 +1894,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateAimCsNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocAimCSNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocAimCSNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Horizontal Aim Angle", "Float"),
@@ -1921,7 +1917,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateFollowBoneVariationData(compiledNode);
 
-        var node = CreateBaseNode("CnmGraphDocFollowBoneNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CnmGraphDocFollowBoneNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Enabled", "Bool"),
@@ -1944,7 +1940,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateFootIkVariationData(compiledNode);
 
-        var node = CreateBaseNode("CnmGraphDocFootIKNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CnmGraphDocFootIKNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Left Foot Target", "Target"),
@@ -1970,7 +1966,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateTwoBoneIkVariationData(compiledNode);
 
-        var node = CreateBaseNode("CnmGraphDocTwoBoneIKNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CnmGraphDocTwoBoneIKNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Target", "Target"),
@@ -1996,7 +1992,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateChainLookatVariationData(compiledNode);
 
-        var node = CreateBaseNode("CnmGraphDocChainLookatNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CnmGraphDocChainLookatNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Target", "Vector"),
@@ -2018,7 +2014,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateOrientationWarpNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocOrientationWarpNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocOrientationWarpNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Direction (Character)", "Vector"),
@@ -2036,7 +2032,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var variationData = CreateTargetWarpVariationData(compiledNode);
 
-        var node = CreateBaseNode("CNmGraphDocTargetWarpNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocTargetWarpNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("World Target", "Target"),
@@ -2069,7 +2065,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var overrideFlags = (uint)(compiledNode.GetSubCollection("m_overrideFlags")?.GetInt64Property("m_flags") ?? 0);
 
-        var node = CreateBaseNode("CNmGraphDocRootMotionOverrideNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocRootMotionOverrideNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Desired Moving Velocity (Character)", "Vector"),
@@ -2090,7 +2086,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateExternalPoseNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CNmGraphDocExternalPoseNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocExternalPoseNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Pose", "Pose")]));
         node.Add("m_bShouldSampleRootMotion", compiledNode.GetRequiredBooleanProperty("m_bShouldSampleRootMotion"));
@@ -2101,7 +2097,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var externalPoseNodeIndex = (int)compiledNode.GetInt64Property("m_nExternalPoseNodeIdx", -1);
 
-        var node = CreateBaseNode("CNmGraphDocIsExternalPoseSetNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIsExternalPoseSetNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
         node.Add("m_slotID", GetExternalPoseSlotId(externalPoseNodeIndex));
@@ -2112,7 +2108,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var externalGraphNodeIndex = (int)compiledNode.GetInt64Property("m_nExternalGraphNodeIdx", -1);
 
-        var node = CreateBaseNode("CNmGraphDocIsExternalGraphSlotFilledNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIsExternalGraphSlotFilledNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Result", "Bool", AllowMultipleOutConnections: true)]));
         node.Add("m_slotID", GetExternalGraphSlotId(externalGraphNodeIndex));
@@ -2124,7 +2120,7 @@ public sealed partial class NmGraphExtract : IDisposable
         var values = compiledNode.GetArray<string>("m_values")?.ToArray() ?? [];
         var inputPins = values.Select(value => new PinDef(string.IsNullOrEmpty(value) ? "ID" : value, "Bool", IsDynamicPin: true)).ToArray();
 
-        var node = CreateBaseNode("CNmGraphDocIDSelectorNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CNmGraphDocIDSelectorNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins([new PinDef("Result", "ID", AllowMultipleOutConnections: true)]));
         node.Add("m_options", CloneStringArray(values));
@@ -2134,7 +2130,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateConstVectorNode(int nodeIndex, KVObject compiledNode)
     {
-        var node = CreateBaseNode("CnmGraphDocConstVectorNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CnmGraphDocConstVectorNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Value", "Vector", AllowMultipleOutConnections: true)]));
         node.Add("m_value", CloneVector3(compiledNode.GetArray("m_value")));
@@ -2145,7 +2141,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var targetValue = compiledNode.GetSubCollection("m_value");
 
-        var node = CreateBaseNode("CnmGraphDocConstTargetNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CnmGraphDocConstTargetNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Value", "Target", AllowMultipleOutConnections: true)]));
         node.Add("m_rotation", CloneVector3(targetValue?.GetArray("m_rotation")?.ToArray()));
@@ -2169,7 +2165,7 @@ public sealed partial class NmGraphExtract : IDisposable
     {
         var targetValue = compiledNode.GetSubCollection("m_value");
 
-        var node = CreateBaseNode("CnmGraphDocConstBoneTargetNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CnmGraphDocConstBoneTargetNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Value", "Target", AllowMultipleOutConnections: true)]));
         node.Add("m_boneName", targetValue is not null
@@ -2180,7 +2176,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateSnapWeaponNode(int nodeIndex)
     {
-        var node = CreateBaseNode("CnmGraphDocSnapWeaponNode", MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode("CnmGraphDocSnapWeaponNode", MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins([
             new PinDef("Input", "Pose"),
             new PinDef("Flashed Amount", "Float"),
@@ -2197,7 +2193,7 @@ public sealed partial class NmGraphExtract : IDisposable
             ?? throw new InvalidDataException($"Missing transition node {transitionNodeIndex}.");
         var transitionFlags = (uint)(compiledNode.GetSubCollection("m_transitionOptions")?.GetInt64Property("m_flags") ?? 0);
 
-        var node = CreateBaseNode(className, MakeGuid($"transition:{transitionNodeIndex}:{className}"), GetNodeName(transitionNodeIndex));
+        var node = CreateBaseNode(className, MakeGuid(), GetNodeName(transitionNodeIndex));
         node["m_position"] = MakeVector2(0.0f, row * NodeRowSpacing);
         node.Add("m_inputPins", MakePins([
             new PinDef("Condition", "Bool"),
@@ -2279,7 +2275,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateDefaultGlobalTransitionNode(int stateNodeIndex, string stateId, int row)
     {
-        var node = CreateBaseNode("CNmGraphDocGlobalTransitionNode", MakeGuid($"global-transition:{stateNodeIndex}"), GetNodeName(stateNodeIndex));
+        var node = CreateBaseNode("CNmGraphDocGlobalTransitionNode", MakeGuid(), GetNodeName(stateNodeIndex));
         node["m_position"] = MakeVector2(0.0f, row * NodeRowSpacing);
         node.Add("m_inputPins", MakePins([
             new PinDef("Condition", "Bool"),
@@ -2304,7 +2300,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateSimpleNode(string className, int nodeIndex, IReadOnlyList<PinDef> inputPins, IReadOnlyList<PinDef> outputPins)
     {
-        var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode(className, MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", MakePins(inputPins));
         node.Add("m_outputPins", MakePins(outputPins));
         return node;
@@ -2312,7 +2308,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private KVObject CreateConstValueNode(string className, int nodeIndex, string outputType, string valueKey, object? value)
     {
-        var node = CreateBaseNode(className, MakeGuid($"node:{nodeIndex}"), GetNodeName(nodeIndex));
+        var node = CreateBaseNode(className, MakeGuid(), GetNodeName(nodeIndex));
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", MakePins([new PinDef("Value", outputType, AllowMultipleOutConnections: true)]));
         AddValue(node, valueKey, value ?? string.Empty);
@@ -2324,7 +2320,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private static KVObject CreateStateLayerResultNode(string key)
     {
-        var node = CreateBaseNode("CNmGraphDocStateLayerDataNode", MakeGuid($"result:{key}"), string.Empty);
+        var node = CreateBaseNode("CNmGraphDocStateLayerDataNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins([
             new PinDef("Layer Weight", "Float"),
             new PinDef("Root Motion Weight", "Float"),
@@ -2337,7 +2333,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private static KVObject CreateEntryOverrideConditionsNode(int stateMachineNodeIndex)
     {
-        var node = CreateBaseNode("CNmGraphDocEntryStateOverrideConditionsNode", MakeGuid($"entry-conditions:{stateMachineNodeIndex}"), string.Empty);
+        var node = CreateBaseNode("CNmGraphDocEntryStateOverrideConditionsNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", KVObject.Array());
         node.Add("m_outputPins", KVObject.Array());
         node.Add("m_resultType", "Special");
@@ -2347,7 +2343,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private static KVObject CreateResultNode(string className, string key, string inputName, string inputType)
     {
-        var node = CreateBaseNode(className, MakeGuid($"result:{key}"), string.Empty);
+        var node = CreateBaseNode(className, MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins([new PinDef(inputName, inputType)]));
         node.Add("m_outputPins", KVObject.Array());
         node.Add("m_resultType", inputType);
@@ -2376,7 +2372,7 @@ public sealed partial class NmGraphExtract : IDisposable
 
     private static KVObject CreateSelectorConditionNode(int nodeIndex, string[] optionLabels)
     {
-        var node = CreateBaseNode("CNmGraphDocSelectorConditionNode", MakeGuid($"selector-conditions:{nodeIndex}"), string.Empty);
+        var node = CreateBaseNode("CNmGraphDocSelectorConditionNode", MakeGuid(), string.Empty);
         node.Add("m_inputPins", MakePins(optionLabels.Select(label => new PinDef(label, "Bool", IsDynamicPin: true))));
         node.Add("m_outputPins", KVObject.Array());
         node.Add("m_resultType", "Special");
@@ -2794,7 +2790,7 @@ public sealed partial class NmGraphExtract : IDisposable
     }
 
     private static KVObject CreatePin(string name, string type, bool isDynamicPin = false, bool allowMultipleOutConnections = false)
-        => CreatePinWithId(name, type, MakeGuid($"pin:{type}:{name}:{Guid.NewGuid():N}"), isDynamicPin, allowMultipleOutConnections);
+        => CreatePinWithId(name, type, MakeGuid(), isDynamicPin, allowMultipleOutConnections);
 
     private static KVObject CreatePinWithId(string name, string type, string id, bool isDynamicPin = false, bool allowMultipleOutConnections = false)
     {
@@ -2821,11 +2817,19 @@ public sealed partial class NmGraphExtract : IDisposable
         return vector;
     }
 
-    private static string MakeGuid(string seed)
+    private static string MakeGuid()
+        => Guid.NewGuid().ToString();
+
+    private string GetOrCreateRootParameterNodeId(int nodeIndex)
     {
-        var bytes = Encoding.UTF8.GetBytes(seed);
-        var hash = SHA256.HashData(bytes);
-        return new Guid(hash[..16]).ToString();
+        if (_rootParameterNodeIds.TryGetValue(nodeIndex, out var nodeId))
+        {
+            return nodeId;
+        }
+
+        nodeId = MakeGuid();
+        _rootParameterNodeIds[nodeIndex] = nodeId;
+        return nodeId;
     }
 
     private static void AddValue(KVObject node, string key, object? value)
