@@ -748,7 +748,7 @@ public sealed class TextureExtract
             var v = (y + 0.5f) / height * MathF.PI;
             for (var x = 0; x < width; x++)
             {
-                var u = (x + 0.5f) / (width * 2f * MathF.PI);
+                var u = (x + 0.5f) / width * MathF.Tau;
 
                 var (sinU, cosU) = MathF.SinCos(u);
                 var (sinV, cosV) = MathF.SinCos(v);
