@@ -433,10 +433,14 @@ partial class ModelExtract
 
                             // Fix up weird substring added to newer models
                             const string indexMarker = "#&";
-                            var fixedUpSubstrStart = name.IndexOf(indexMarker, StringComparison.Ordinal) + indexMarker.Length;
-                            if (fixedUpSubstrStart >= 0 && fixedUpSubstrStart < name.Length)
+                            var markerIndex = name.IndexOf(indexMarker, StringComparison.Ordinal);
+                            if (markerIndex >= 0)
                             {
-                                choiceName = name[fixedUpSubstrStart..];
+                                var start = markerIndex + indexMarker.Length;
+                                if (start < name.Length)
+                                {
+                                    choiceName = name[start..];
+                                }
                             }
 
                             meshGroupChoice.Add("name", choiceName);
