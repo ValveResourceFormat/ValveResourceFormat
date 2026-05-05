@@ -2684,13 +2684,13 @@ public sealed partial class NmGraphExtract : IDisposable
             ?? 0);
 
         return new EventConditionRulesData(
-            Operator: (flags & (1u << 5)) != 0 ? "And" : "Or",
-            SearchRule: (flags & (1u << 6)) != 0
+            Operator: (flags & (1u << (int)NmEventConditionRules.OperatorAnd)) != 0 ? "And" : "Or",
+            SearchRule: (flags & (1u << (int)NmEventConditionRules.SearchOnlyGraphEvents)) != 0
                 ? "OnlySearchGraphEvents"
-                : (flags & (1u << 7)) != 0 ? "OnlySearchAnimEvents" : "SearchAll",
-            PriorityRule: (flags & (1u << 3)) != 0 ? "HighestPercentageThrough" : "HighestWeight",
-            LimitSearchToSourceState: (flags & (1u << 0)) != 0,
-            IgnoreInactiveBranchEvents: (flags & (1u << 1)) != 0);
+                : (flags & (1u << (int)NmEventConditionRules.SearchOnlyAnimEvents)) != 0 ? "OnlySearchAnimEvents" : "SearchAll",
+            PriorityRule: (flags & (1u << (int)NmEventConditionRules.PreferHighestProgress)) != 0 ? "HighestPercentageThrough" : "HighestWeight",
+            LimitSearchToSourceState: (flags & (1u << (int)NmEventConditionRules.LimitSearchToSourceState)) != 0,
+            IgnoreInactiveBranchEvents: (flags & (1u << (int)NmEventConditionRules.IgnoreInactiveEvents)) != 0);
     }
 
     private static string GetPathParent(string path)

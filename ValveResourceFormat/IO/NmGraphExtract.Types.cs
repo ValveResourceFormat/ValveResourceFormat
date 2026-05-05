@@ -9,6 +9,23 @@ public sealed partial class NmGraphExtract
 {
     private readonly record struct PinDef(string Name, string Type, bool IsDynamicPin = false, bool AllowMultipleOutConnections = false);
 
+    /// <summary>
+    /// Event condition rules.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animlib/NmEventConditionRules_t">NmEventConditionRules_t</seealso>
+    private enum NmEventConditionRules : byte
+    {
+        LimitSearchToSourceState = 0,
+        IgnoreInactiveEvents = 1,
+        PreferHighestWeight = 2,
+        PreferHighestProgress = 3,
+        OperatorOr = 4,
+        OperatorAnd = 5,
+        SearchOnlyGraphEvents = 6,
+        SearchOnlyAnimEvents = 7,
+        SearchBothGraphAndAnimEvents = 8,
+    }
+
     private readonly record struct EventConditionRulesData(string Operator, string SearchRule, string PriorityRule, bool LimitSearchToSourceState, bool IgnoreInactiveBranchEvents);
 
     private readonly record struct CompiledNodeClass(string Name)
