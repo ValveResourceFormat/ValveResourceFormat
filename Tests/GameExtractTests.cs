@@ -28,9 +28,9 @@ public class GameExtractTests
         var outputPathRepo = Path.Combine(TestContext.CurrentContext.TestDirectory, "../../", testLocalPath);
 
         // Use this to create or update correct output files
-        var updateFiles = false;
+        var UpdateFiles = false;
 
-        if (updateFiles == false && !File.Exists(outputPathRepo))
+        if (UpdateFiles == false && !File.Exists(outputPathRepo))
         {
             Assert.Ignore($"Sample output file not present.");
         }
@@ -64,7 +64,7 @@ public class GameExtractTests
         Assert.That(content.Data, Is.Not.Null, $"Failed to extract {testCase.assetName}.");
         Debug.Assert(content.Data != null);
 
-        if (updateFiles)
+        if (UpdateFiles)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(outputPathRepo)!);
             using var stream = new FileStream(outputPathRepo, FileMode.Create);
@@ -111,20 +111,13 @@ public class GameExtractTests
             .ToArray();
 
         Assert.That(assetNames, Is.Not.Empty);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (var assetName in assetNames)
             {
-                using var resource = fileLoader.LoadFileCompiled(assetName);
-
-                if (resource == null)
-                {
-                    Assert.Fail($"{assetName} no longer exists on {pak01}.");
-                    continue;
-                }
-
+                using var resource = fileLoader.LoadFileCompiled(assetName)!;
                 Assert.DoesNotThrow(() => FileExtract.Extract(resource, fileLoader), assetName);
             }
-        });
+        }
     }
 }
