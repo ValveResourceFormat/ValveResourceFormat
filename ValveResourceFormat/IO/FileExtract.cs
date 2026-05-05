@@ -272,6 +272,14 @@ namespace ValveResourceFormat.IO
                     contentFile = new NmClipExtract(resource, fileLoader).ToContentFile();
                     break;
 
+                case ResourceType.NmGraph:
+                case ResourceType.NmGraphVariation:
+                    using (var nmGraphExtract = new NmGraphExtract(resource, fileLoader))
+                    {
+                        contentFile = nmGraphExtract.ToContentFile();
+                    }
+                    break;
+
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaLayout:
