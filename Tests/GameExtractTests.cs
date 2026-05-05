@@ -119,5 +119,8 @@ public class GameExtractTests
                 Assert.DoesNotThrow(() => FileExtract.Extract(resource, fileLoader), assetName);
             }
         }
+
+        // todo: create a test mod, compile the extracted resource with resourcecompiler
+        // and compare the data with the original resource.
     }
 }
