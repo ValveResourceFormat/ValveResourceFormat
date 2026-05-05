@@ -11,6 +11,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     public class Skeleton
     {
         /// <summary>
+        /// Gets the name of the skeleton.
+        /// </summary>
+        public string Name { get; private set; } = string.Empty;
+
+        /// <summary>
         /// Gets the root bones of the skeleton.
         /// </summary>
         public Bone[] Roots { get; private set; } = [];
@@ -65,7 +70,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             // Construct the armature from the skeleton KV
-            return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"));
+            return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"))
+            {
+                Name = modelData.GetStringProperty("m_name"),
+            };
         }
 
         readonly Dictionary<uint, int> boneHashToIndex = [];
@@ -83,6 +91,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             var s = new Skeleton
             {
+                Name = nmSkeleton.GetStringProperty("m_ID"),
                 Bones = new Bone[boneCount],
             };
 
