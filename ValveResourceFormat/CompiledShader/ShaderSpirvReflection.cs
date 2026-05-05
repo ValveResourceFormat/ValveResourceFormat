@@ -6,10 +6,10 @@ using System.Text.RegularExpressions;
 using ValveResourceFormat.ResourceTypes;
 using Vortice.SPIRV;
 using Vortice.SpirvCross;
-using SpirvResourceType = Vortice.SpirvCross.ResourceType;
+using static ValveResourceFormat.CompiledShader.RsComparison;
 using static ValveResourceFormat.CompiledShader.RsFilter;
 using static ValveResourceFormat.CompiledShader.RsTextureAddressMode;
-using static ValveResourceFormat.CompiledShader.RsComparison;
+using SpirvResourceType = Vortice.SpirvCross.ResourceType;
 
 namespace ValveResourceFormat.CompiledShader;
 

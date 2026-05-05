@@ -606,7 +606,7 @@ namespace ValveResourceFormat.Renderer.World
                             maxOpacity = 0.5f; // Need the value for Robot Repair
                             distExponent = 2.0f;
                         }
-                        else if(!useHeightFog && useHeightFog2)
+                        else if (!useHeightFog && useHeightFog2)
                         {
                             heightExponent = 1.0f; // Need the value for SteamVR
                             strength = 1.0f; // Need the value for SteamVR
