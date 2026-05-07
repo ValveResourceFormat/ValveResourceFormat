@@ -17,12 +17,6 @@ struct ClutterInstanceData
     uint tintSrgb;
 };
 
-// Output transform and instance data
-struct DrawTransform
-{
-    mat3x4 transform;
-};
-
 struct DrawInstance
 {
     uint tintAlpha;
@@ -33,48 +27,55 @@ struct DrawInstance
 };
 
 // Input: Packed clutter instance data
-layout(std430, binding = 5) readonly buffer ClutterInstanceBuffer
+layout(std430, binding = 13) readonly buffer ClutterInstanceBuffer
 {
     ClutterInstanceData clutterInstances[];
 };
 
 // Output: Transforms for visible instances
-layout(std430, binding = 6) writeonly buffer TransformBuffer
+layout(std430, binding = 1) writeonly buffer TransformBuffer
 {
-    DrawTransform instanceTransforms[];
+    mat3x4 instanceTransforms[];
 };
 
 // Output: Per-instance data for visible instances
-layout(std430, binding = 7) writeonly buffer InstanceBuffer
+layout(std430, binding = 0) writeonly buffer InstanceBuffer
 {
     DrawInstance instanceData[];
 };
 
 // Output: Indirect draw arguments
-layout(std430, binding = 8) buffer IndirectDrawBuffer
+layout(std430, binding = 4) buffer IndirectDrawBuffer
 {
     DrawCommand indirectDraws[];
 };
 
+// Atomic counters for dynamic buffer appending (initialized to CPU buffer sizes)
+layout(std430, binding = 5) buffer ClutterCounterBuffer
+{
+    uint transformCounter;
+    uint instanceCounter;
+};
+
 // Clutter parameters
 uniform uint g_nTotalInstances;
-uniform uint g_nDrawCommandIndex;
-uniform uint g_nBaseTransformIndex;
-uniform uint g_nBaseInstanceIndex;
-uniform uint g_nIndexCount;
-uniform uint g_nFirstIndex;
-uniform int g_nBaseVertex;
 uniform float g_flBeginCullSize;
 uniform float g_flEndCullSize;
 uniform float g_flModelRadius; // Bounding sphere radius of the instanced model
 
+// Draw command parameters (set per clutter object)
+uniform uint g_nDrawIndexCount;
+uniform uint g_nDrawFirstIndex;
+uniform int g_nDrawBaseVertex;
+uniform uint g_nDrawCommandIndex; // Index into the indirect draw buffer
+
 // Unpack smallest-three quaternion from 32-bit packed value
-vec4 UnpackOrientation32(uint packed)
+vec4 UnpackOrientation32(uint packedValue)
 {
-    uint largestIndex = packed & 0x3u;
-    uint a10 = (packed >> 2) & 0x3FFu;
-    uint b10 = (packed >> 12) & 0x3FFu;
-    uint c10 = (packed >> 22) & 0x3FFu;
+    uint largestIndex = packedValue & 0x3u;
+    uint a10 = (packedValue >> 2) & 0x3FFu;
+    uint b10 = (packedValue >> 12) & 0x3FFu;
+    uint c10 = (packedValue >> 22) & 0x3FFu;
     
     // Convert 10-bit unsigned to signed [-511, 511]
     int aSigned = int(a10);
@@ -170,9 +171,20 @@ float CalculateFadeAlpha(vec3 worldPos, float scale)
     return 1.0; // Full opacity
 }
 
+// Shared memory for counting visible instances
+shared uint visibleCount;
+
 void main()
 {
     uint instanceIndex = gl_GlobalInvocationID.x;
+    uint localIndex = gl_LocalInvocationID.x;
+    
+    // Initialize shared counter (first thread in workgroup)
+    if (localIndex == 0u)
+    {
+        visibleCount = 0u;
+    }
+    barrier();
     
     if (instanceIndex >= g_nTotalInstances)
     {
@@ -183,10 +195,15 @@ void main()
     
     // Calculate fade alpha and test culling
     float fadeAlpha = CalculateFadeAlpha(instance.position, instance.scale);
-    if (fadeAlpha < 0.0)
+    bool visible = fadeAlpha >= 0.0;
+    
+    if (!visible)
     {
         return; // Instance culled
     }
+    
+    // Atomically increment visible instance counter
+    atomicAdd(visibleCount, 1u);
     
     // Unpack orientation quaternion and convert to rotation matrix
     vec4 quat = UnpackOrientation32(instance.orientation32);
@@ -198,21 +215,38 @@ void main()
     transform[1] = vec4(rotation[1] * instance.scale, instance.position.y);
     transform[2] = vec4(rotation[2] * instance.scale, instance.position.z);
     
-    // Write transform to buffer
-    uint transformIndex = g_nBaseTransformIndex + instanceIndex;
-    instanceTransforms[transformIndex].transform = transform;
+    // Atomically allocate next transform slot
+    uint transformIndex = atomicAdd(transformCounter, 1u);
+    instanceTransforms[transformIndex] = transform;
     
     // Unpack tint color (RGB only, ignore source alpha) and apply fade alpha
     uint tintRgb = instance.tintSrgb & 0x00FFFFFFu; // Mask out alpha
     uint alphaChannel = uint(fadeAlpha * 255.0) << 24; // Convert fade to 0-255 and shift to alpha position
     uint tintAlpha = tintRgb | alphaChannel;
     
-    // Write instance data
-    uint instanceDataIndex = g_nBaseInstanceIndex + instanceIndex;
+    // Atomically allocate next instance slot
+    uint instanceDataIndex = atomicAdd(instanceCounter, 1u);
     instanceData[instanceDataIndex].tintAlpha = tintAlpha;
     instanceData[instanceDataIndex].transformIndex = transformIndex;
     instanceData[instanceDataIndex].visibleLPV = 0u; // TODO: Light probe volume
     instanceData[instanceDataIndex].identification = 0u; // TODO: Selection ID
     instanceData[instanceDataIndex].envMapVisibility = uvec4(0u); // TODO: Env map visibility
+    
+    // Sync workgroup to ensure all threads have processed
+    barrier();
+    
+    // First thread in workgroup writes the indirect draw command
+    if (localIndex == 0u && instanceIndex < g_nTotalInstances)
+    {
+        // Atomically allocate base instance index for this draw call
+        uint baseInstanceForDraw = atomicAdd(instanceCounter, 0u) - visibleCount;
+        
+        // Write draw command with actual visible instance count
+        indirectDraws[g_nDrawCommandIndex].indexCount = g_nDrawIndexCount;
+        indirectDraws[g_nDrawCommandIndex].instanceCount = visibleCount;
+        indirectDraws[g_nDrawCommandIndex].firstIndex = g_nDrawFirstIndex;
+        indirectDraws[g_nDrawCommandIndex].baseVertex = g_nDrawBaseVertex;
+        indirectDraws[g_nDrawCommandIndex].baseInstance = baseInstanceForDraw;
+    }
 }
 

@@ -346,6 +346,8 @@ public class Renderer
                 scene.MeshletCullGpu(camera.ViewFrustum);
             }
 
+            scene.ClutterCullGpu();
+
             if (scene.CompactMeshletDraws)
             {
                 scene.CompactIndirectDraws();

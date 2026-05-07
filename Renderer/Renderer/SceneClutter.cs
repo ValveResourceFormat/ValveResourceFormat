@@ -1,8 +1,9 @@
+using System.Diagnostics;
 using System.Linq;
+using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -58,11 +59,14 @@ namespace ValveResourceFormat.Renderer
         /// <summary>GPU storage buffer containing packed instance data for compute culling.</summary>
         public StorageBuffer? InstanceDataGpu { get; private set; }
 
-        /// <summary>Gets or sets the base index into the scene's transform buffer for this clutter's instances.</summary>
-        public uint BaseTransformIndex { get; set; }
+        /// <summary>Gets or sets the byte offset into the indirect draw buffer for this clutter's draw command.</summary>
+        public int IndirectDrawByteOffset { get; set; }
 
-        /// <summary>Gets or sets the base index into the scene's instance buffer for this clutter's instances.</summary>
-        public uint BaseInstanceIndex { get; set; }
+        /// <summary>Gets or sets the base index into the transform buffer where this clutter's transforms begin.</summary>
+        public int BaseTransformIndex { get; set; }
+
+        /// <summary>Gets or sets the base index into the instance buffer where this clutter's instance data begins.</summary>
+        public int BaseInstanceIndex { get; set; }
 
         /// <summary>Gets the number of instances in this clutter object.</summary>
         public int InstanceCount => InstancePositions.Count;
@@ -106,7 +110,7 @@ namespace ValveResourceFormat.Renderer
 
             // Load instance tints
             var tints = clutterSceneObject.GetArray("m_instanceTintSrgb");
-            InstanceTints = [.. tints.Select(t => t.ToVector3()).Select(v => new Color32(v[0], v[1], v[2], 255))];
+            InstanceTints = [.. tints.Select(t => t.ToVector3()).Select(v => new Color32((byte)v[0], (byte)v[1], (byte)v[2]))];
 
             // Load tiles
             var tiles = clutterSceneObject.GetArray("m_tiles");

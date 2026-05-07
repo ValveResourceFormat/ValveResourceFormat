@@ -118,6 +118,7 @@ namespace ValveResourceFormat.Renderer
 
         private Shader? FrustumCullShader;
         private Shader? CompactionShader;
+        private Shader? ClutterCullShader;
 
         private Shader? DepthPyramidShader;
         private Shader? DepthPyramidNpotShader;
@@ -206,6 +207,7 @@ namespace ValveResourceFormat.Renderer
             OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
             FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
             CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
+            ClutterCullShader = RendererContext.ShaderLoader.LoadShader("vrf.cull_clutter");
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
             DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
 
@@ -433,8 +435,12 @@ namespace ValveResourceFormat.Renderer
 
             var maxId = nodes.Max(n => n.Id);
 
-            var instanceData = new ObjectDataStandard[maxId + 1];
-            var transformData = new List<OpenTK.Mathematics.Matrix3x4>(capacity: (int)maxId + 2)
+            // Calculate total clutter instances for buffer sizing
+            var totalClutterInstances = staticNodes.OfType<SceneClutter>().Sum(c => c.InstanceCount);
+
+            // Allocate with extra space for clutter instances
+            var instanceData = new ObjectDataStandard[maxId + 1 + totalClutterInstances];
+            var transformData = new List<OpenTK.Mathematics.Matrix3x4>(capacity: (int)maxId + 2 + totalClutterInstances)
             {
                 // Reserve index 0 for identity transform
                 Matrix4x4.Identity.To3x4()
@@ -479,6 +485,19 @@ namespace ValveResourceFormat.Renderer
                 };
             }
 
+            // Assign base indices to clutter nodes after CPU nodes are allocated
+            var clutterBaseTransformIndex = transformData.Count;
+            var clutterBaseInstanceIndex = (int)maxId + 1;
+
+            foreach (var clutter in staticNodes.OfType<SceneClutter>())
+            {
+                clutter.BaseTransformIndex = clutterBaseTransformIndex;
+                clutter.BaseInstanceIndex = clutterBaseInstanceIndex;
+
+                clutterBaseTransformIndex += clutter.InstanceCount;
+                clutterBaseInstanceIndex += clutter.InstanceCount;
+            }
+
             InstanceBufferGpu = new StorageBuffer(ReservedBufferSlots.Objects);
             TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
 
@@ -492,7 +511,10 @@ namespace ValveResourceFormat.Renderer
             var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.Fragments.Count);
             var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
 
-            if (aggregateMeshletCount == 0)
+            var clutterSceneNodes = staticNodes.OfType<SceneClutter>().ToList();
+            var clutterDrawCallCount = clutterSceneNodes.Count; // One draw call per clutter object
+
+            if (aggregateMeshletCount == 0 && clutterDrawCallCount == 0)
             {
                 return;
             }
@@ -530,8 +552,9 @@ namespace ValveResourceFormat.Renderer
 
             // meshlets
             {
+                var totalIndirectDraws = aggregateMeshletCount + clutterDrawCallCount;
                 var meshletDataGpu = new MeshletCullInfo[aggregateMeshletCount];
-                var indirectDrawsGpu = new DrawElementsIndirectCommand[aggregateMeshletCount];
+                var indirectDrawsGpu = new DrawElementsIndirectCommand[totalIndirectDraws];
 
                 var sceneDrawCount = 0;
                 var sceneMeshletCount = 0;
@@ -606,6 +629,25 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 SceneMeshletCount = sceneMeshletCount;
+
+                // Allocate space for clutter draw commands after aggregates
+                var clutterDrawIndex = sceneMeshletCount;
+                foreach (var clutter in clutterSceneNodes)
+                {
+                    clutter.IndirectDrawByteOffset = clutterDrawIndex * Unsafe.SizeOf<DrawElementsIndirectCommand>();
+
+                    // Initialize with zero instance count (will be filled by compute shader)
+                    indirectDrawsGpu[clutterDrawIndex] = new DrawElementsIndirectCommand
+                    {
+                        Count = 0,
+                        InstanceCount = 0,
+                        FirstIndex = 0,
+                        BaseVertex = 0,
+                        BaseInstance = 0,
+                    };
+
+                    clutterDrawIndex++;
+                }
 
                 MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets);
                 IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws);
@@ -716,6 +758,9 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.Outline] = [],
         };
 
+        private record struct ClutterDrawRequest(SceneClutter Clutter, DrawCall Call);
+        private readonly List<ClutterDrawRequest> clutterDrawList = [];
+
         private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> depthOnlyDraws { get; } = new()
         {
             [DepthOnlyProgram.Static] = [],
@@ -792,6 +837,8 @@ namespace ValveResourceFormat.Renderer
             {
                 bucket.Clear();
             }
+
+            clutterDrawList.Clear();
 
             WantsSceneColor = false;
             WantsSceneDepth = false;
@@ -870,6 +917,16 @@ namespace ValveResourceFormat.Renderer
                             //DistanceFromCamera = aggregate.GetAverageCameraDistanceFragments(camera),
                             Node = node,
                         }, RenderPass.OpaqueAggregate);
+                    }
+                }
+                else if (node is SceneClutter clutter)
+                {
+                    foreach (var mesh in clutter.InstancedModel.RenderableMeshes)
+                    {
+                        foreach (var call in mesh.DrawCallsOpaque)
+                        {
+                            clutterDrawList.Add(new ClutterDrawRequest(clutter, call));
+                        }
                     }
                 }
                 else
@@ -1185,6 +1242,63 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Dispatches the GPU clutter culling compute shader for all visible clutter nodes, writing transforms and indirect draw commands.
+        /// </summary>
+        public void ClutterCullGpu()
+        {
+            if (ClutterCullShader == null || clutterDrawList.Count == 0)
+            {
+                return;
+            }
+
+            Debug.Assert(TransformBufferGpu != null);
+            Debug.Assert(InstanceBufferGpu != null);
+            Debug.Assert(IndirectDrawsGpu != null);
+
+            using var _ = new GLDebugGroup("Cull Clutter");
+
+            ClutterCullShader.Use();
+
+            // Bind shared buffers once
+            TransformBufferGpu.BindBufferBase();
+            InstanceBufferGpu.BindBufferBase();
+            IndirectDrawsGpu.BindBufferBase();
+
+            // Dispatch for each visible clutter node
+            foreach (var request in clutterDrawList)
+            {
+                var clutter = request.Clutter;
+                var drawCall = request.Call;
+
+                if (clutter.InstanceDataGpu == null || clutter.InstanceCount == 0)
+                {
+                    continue;
+                }
+
+                // Set per-clutter uniforms
+                ClutterCullShader.SetUniform1("g_nTotalInstances", (uint)clutter.InstanceCount);
+                ClutterCullShader.SetUniform1("g_nBaseTransformIndex", (uint)clutter.BaseTransformIndex);
+                ClutterCullShader.SetUniform1("g_nBaseInstanceIndex", (uint)clutter.BaseInstanceIndex);
+                ClutterCullShader.SetUniform1("g_flModelRadius", clutter.ModelRadius);
+                ClutterCullShader.SetUniform1("g_flBeginCullSize", clutter.BeginCullSize);
+                ClutterCullShader.SetUniform1("g_flEndCullSize", clutter.EndCullSize);
+                ClutterCullShader.SetUniform1("g_nDrawIndexCount", (uint)drawCall.IndexCount);
+                ClutterCullShader.SetUniform1("g_nDrawFirstIndex", (uint)drawCall.StartIndex);
+                ClutterCullShader.SetUniform1("g_nDrawBaseVertex", drawCall.BaseVertex);
+                ClutterCullShader.SetUniform1("g_nDrawCommandIndex", (uint)(clutter.IndirectDrawByteOffset / Unsafe.SizeOf<DrawElementsIndirectCommand>()));
+
+                // Bind per-clutter instance data
+                clutter.InstanceDataGpu.BindBufferBase();
+
+                // Dispatch compute shader
+                var workGroups = (clutter.InstanceCount + 63) / 64;
+                GL.DispatchCompute(workGroups, 1, 1);
+            }
+
+            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+        }
+
+        /// <summary>
         /// Generates the hierarchical depth pyramid from the given depth texture by downsampling through compute shaders.
         /// </summary>
         /// <param name="depthSource">The full-resolution depth texture to downsample.</param>
@@ -1325,11 +1439,61 @@ namespace ValveResourceFormat.Renderer
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
 
+            using (new GLDebugGroup("Clutter Render"))
+            {
+                RenderClutter(renderContext);
+            }
+
             using (new GLDebugGroup("StaticOverlay Render"))
             {
                 renderContext.RenderPass = RenderPass.StaticOverlay;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
+        }
+
+        /// <summary>
+        /// Renders clutter objects using indirect draw commands.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass.</param>
+        private void RenderClutter(RenderContext renderContext)
+        {
+            if (IndirectDrawsGpu == null || clutterDrawList.Count == 0)
+            {
+                return;
+            }
+
+            // Bind the indirect draw buffer
+            GL.BindBuffer(BufferTarget.DrawIndirectBuffer, IndirectDrawsGpu.Handle);
+
+            foreach (var request in clutterDrawList)
+            {
+                // Bind VAO and material
+                if (request.Call.VertexArrayObject == -1)
+                {
+                    request.Call.Material.Shader.EnsureLoaded();
+                    request.Call.UpdateVertexArrayObject();
+                }
+
+                GL.BindVertexArray(request.Call.VertexArrayObject);
+                request.Call.Material.Render(request.Call.Material.Shader);
+
+                // Enable instancing for clutter
+                request.Call.Material.Shader.SetUniform1("bIsInstancing", 1);
+
+                // Draw using indirect command
+                GL.MultiDrawElementsIndirect(
+                    request.Call.PrimitiveType,
+                    request.Call.IndexType,
+                    request.Clutter.IndirectDrawByteOffset,
+                    1, // Draw one command per clutter object
+                    0  // Stride
+                );
+
+                request.Call.Material.PostRender();
+            }
+
+            GL.BindVertexArray(0);
+            GL.BindBuffer(BufferTarget.DrawIndirectBuffer, 0);
         }
 
         private bool occlusionDirty;
