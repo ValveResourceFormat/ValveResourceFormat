@@ -1,6 +1,8 @@
 using System.Linq;
 using ValveKeyValue;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -52,6 +54,18 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Gets the bounding sphere radius of the instanced model.</summary>
         public float ModelRadius { get; }
+
+        /// <summary>GPU storage buffer containing packed instance data for compute culling.</summary>
+        public StorageBuffer? InstanceDataGpu { get; private set; }
+
+        /// <summary>Gets or sets the base index into the scene's transform buffer for this clutter's instances.</summary>
+        public uint BaseTransformIndex { get; set; }
+
+        /// <summary>Gets or sets the base index into the scene's instance buffer for this clutter's instances.</summary>
+        public uint BaseInstanceIndex { get; set; }
+
+        /// <summary>Gets the number of instances in this clutter object.</summary>
+        public int InstanceCount => InstancePositions.Count;
 
         /// <summary>Initializes the scene clutter, loading the model and setting material group.</summary>
         /// <param name="scene">Owning scene.</param>
@@ -113,6 +127,36 @@ namespace ValveResourceFormat.Renderer
             // Load cull sizes
             BeginCullSize = clutterSceneObject.GetFloatProperty("m_flBeginCullSize", BeginCullSize);
             EndCullSize = clutterSceneObject.GetFloatProperty("m_flEndCullSize", EndCullSize);
+
+            UploadInstanceDataToGpu();
+        }
+
+        /// <summary>Packs instance data and uploads it to GPU storage buffer.</summary>
+        public void UploadInstanceDataToGpu()
+        {
+            if (InstancePositions.Count == 0)
+            {
+                return;
+            }
+
+            // Pack instance data into GPU format
+            var instanceCount = InstancePositions.Count;
+            var packedData = new ClutterInstanceData[instanceCount];
+
+            for (var i = 0; i < instanceCount; i++)
+            {
+                packedData[i] = new ClutterInstanceData
+                {
+                    Position = InstancePositions[i],
+                    Scale = InstanceScales[i],
+                    Orientation32 = InstanceOrientations[i],
+                    TintSrgb = InstanceTints[i].PackedValue
+                };
+            }
+
+            // Create or update GPU buffer
+            InstanceDataGpu ??= new StorageBuffer(ReservedBufferSlots.ClutterInstances);
+            InstanceDataGpu.Create(packedData, packedData.Length * System.Runtime.InteropServices.Marshal.SizeOf<ClutterInstanceData>());
         }
 
         /// <inheritdoc/>
@@ -126,6 +170,8 @@ namespace ValveResourceFormat.Renderer
         /// <inheritdoc/>
         public override void Delete()
         {
+            InstanceDataGpu?.Delete();
+            InstanceDataGpu = null;
             InstancedModel.Delete();
         }
     }

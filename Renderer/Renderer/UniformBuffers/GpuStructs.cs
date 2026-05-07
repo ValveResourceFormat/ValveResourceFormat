@@ -90,3 +90,17 @@ public readonly struct DrawElementsIndirectCommand
     /// <summary>Base instance used to index per-instance data.</summary>
     public readonly uint BaseInstance { get; init; }
 };
+
+/// <summary>Packed clutter instance data for GPU compute culling.</summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct ClutterInstanceData
+{
+    /// <summary>Instance world position.</summary>
+    public Vector3 Position;
+    /// <summary>Instance uniform scale.</summary>
+    public float Scale;
+    /// <summary>Instance orientation (smallest-three packed quaternion).</summary>
+    public uint Orientation32;
+    /// <summary>Instance tint color (RGBA8 sRGB).</summary>
+    public uint TintSrgb;
+};

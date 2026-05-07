@@ -48,6 +48,8 @@ public enum ReservedBufferSlots
     BoneTransforms = 11,
     /// <summary>Barn light constants SSBO slot.</summary>
     BarnLights = 12,
+    /// <summary>Clutter packed instance data SSBO slot.</summary>
+    ClutterInstances = 13,
 
     /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
     Max = 8,
