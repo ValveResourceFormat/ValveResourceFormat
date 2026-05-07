@@ -8,7 +8,7 @@
 
 layout (local_size_x = 64) in;
 
-// Packed instance data from CPU
+// Clutter instance data from CPU
 struct ClutterInstanceData
 {
     vec3 position;
@@ -18,12 +18,12 @@ struct ClutterInstanceData
 };
 
 // Output transform and instance data
-struct InstanceTransform
+struct DrawTransform
 {
     mat3x4 transform;
 };
 
-struct InstanceData
+struct DrawInstance
 {
     uint tintAlpha;
     uint transformIndex;
@@ -41,13 +41,13 @@ layout(std430, binding = 5) readonly buffer ClutterInstanceBuffer
 // Output: Transforms for visible instances
 layout(std430, binding = 6) writeonly buffer TransformBuffer
 {
-    InstanceTransform instanceTransforms[];
+    DrawTransform instanceTransforms[];
 };
 
 // Output: Per-instance data for visible instances
 layout(std430, binding = 7) writeonly buffer InstanceBuffer
 {
-    InstanceData instanceData[];
+    DrawInstance instanceData[];
 };
 
 // Output: Indirect draw arguments
@@ -66,6 +66,7 @@ uniform uint g_nFirstIndex;
 uniform int g_nBaseVertex;
 uniform float g_flBeginCullSize;
 uniform float g_flEndCullSize;
+uniform float g_flModelRadius; // Bounding sphere radius of the instanced model
 
 // Unpack smallest-three quaternion from 32-bit packed value
 vec4 UnpackOrientation32(uint packed)
@@ -136,12 +137,23 @@ float CalculateFadeAlpha(vec3 worldPos, float scale)
         return -1.0; // Behind camera, cull
     }
     
-    // Calculate screen-space size (approximate)
-    float distance = length(worldPos - g_vCameraPositionWs);
-    float projectedSize = scale / distance;
+    // Calculate world-space radius of this instance
+    float worldRadius = g_flModelRadius * scale;
     
-    // Map to viewport scale
-    float screenSize = projectedSize * g_vViewportSize.y;
+    // Calculate screen-space size using perspective projection
+    // Project the radius into screen space at this distance
+    float distance = length(worldPos - g_vCameraPositionWs);
+    
+    if (distance <= 0.0001)
+    {
+        return 1.0; // Very close, full opacity
+    }
+    
+    // Screen-space radius in pixels (using perspective projection)
+    // radius_screen = radius_world * focal_length / distance
+    // focal_length approximated using viewport height and FOV
+    float screenRadius = (worldRadius * g_vViewportSize.y) / (distance * 2.0);
+    float screenSize = screenRadius * 2.0; // Diameter in pixels
     
     if (screenSize < g_flEndCullSize)
     {

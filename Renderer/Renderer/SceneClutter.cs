@@ -50,6 +50,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>The screen size at which each clutter instance is fully culled.</summary>
         public float EndCullSize { get; set; } = 0.0125f;
 
+        /// <summary>Gets the bounding sphere radius of the instanced model.</summary>
+        public float ModelRadius { get; }
+
         /// <summary>Initializes the scene clutter, loading the model and setting material group.</summary>
         /// <param name="scene">Owning scene.</param>
         /// <param name="model">Model resource providing the embedded or referenced mesh.</param>
@@ -59,6 +62,11 @@ namespace ValveResourceFormat.Renderer
         {
             InstancedModel = new ModelSceneNode(scene, model, materialGroup, isWorldPreview: true);
             LocalBoundingBox = InstancedModel.LocalBoundingBox;
+
+            // Calculate bounding sphere radius from model's AABB
+            var modelBounds = InstancedModel.LocalBoundingBox;
+            var extents = modelBounds.Max - modelBounds.Min;
+            ModelRadius = extents.Length() * 0.5f;
         }
 
         /// <summary>Parses instance data from the scene object.</summary>
