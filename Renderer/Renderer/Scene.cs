@@ -636,14 +636,14 @@ namespace ValveResourceFormat.Renderer
                 {
                     clutter.IndirectDrawByteOffset = clutterDrawIndex * Unsafe.SizeOf<DrawElementsIndirectCommand>();
 
-                    // Initialize with zero instance count (will be filled by compute shader)
+                    // Initialize draw command with static parameters
                     indirectDrawsGpu[clutterDrawIndex] = new DrawElementsIndirectCommand
                     {
-                        Count = 0,
-                        InstanceCount = 0,
-                        FirstIndex = 0,
-                        BaseVertex = 0,
-                        BaseInstance = 0,
+                        Count = (uint)clutter.DrawCall.IndexCount,
+                        InstanceCount = 0, // Will be atomically incremented by compute shader
+                        FirstIndex = (uint)clutter.DrawCall.StartIndex,
+                        BaseVertex = clutter.DrawCall.BaseVertex,
+                        BaseInstance = (uint)clutter.BaseInstanceIndex,
                     };
 
                     clutterDrawIndex++;
@@ -921,13 +921,7 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (node is SceneClutter clutter)
                 {
-                    foreach (var mesh in clutter.InstancedModel.RenderableMeshes)
-                    {
-                        foreach (var call in mesh.DrawCallsOpaque)
-                        {
-                            clutterDrawList.Add(new ClutterDrawRequest(clutter, call));
-                        }
-                    }
+                    clutterDrawList.Add(new ClutterDrawRequest(clutter, clutter.DrawCall));
                 }
                 else
                 {
@@ -1268,12 +1262,13 @@ namespace ValveResourceFormat.Renderer
             foreach (var request in clutterDrawList)
             {
                 var clutter = request.Clutter;
-                var drawCall = request.Call;
 
                 if (clutter.InstanceDataGpu == null || clutter.InstanceCount == 0)
                 {
                     continue;
                 }
+
+                var drawCommandIndex = clutter.IndirectDrawByteOffset / Unsafe.SizeOf<DrawElementsIndirectCommand>();
 
                 // Set per-clutter uniforms
                 ClutterCullShader.SetUniform1("g_nTotalInstances", (uint)clutter.InstanceCount);
@@ -1282,10 +1277,7 @@ namespace ValveResourceFormat.Renderer
                 ClutterCullShader.SetUniform1("g_flModelRadius", clutter.ModelRadius);
                 ClutterCullShader.SetUniform1("g_flBeginCullSize", clutter.BeginCullSize);
                 ClutterCullShader.SetUniform1("g_flEndCullSize", clutter.EndCullSize);
-                ClutterCullShader.SetUniform1("g_nDrawIndexCount", (uint)drawCall.IndexCount);
-                ClutterCullShader.SetUniform1("g_nDrawFirstIndex", (uint)drawCall.StartIndex);
-                ClutterCullShader.SetUniform1("g_nDrawBaseVertex", drawCall.BaseVertex);
-                ClutterCullShader.SetUniform1("g_nDrawCommandIndex", (uint)(clutter.IndirectDrawByteOffset / Unsafe.SizeOf<DrawElementsIndirectCommand>()));
+                ClutterCullShader.SetUniform1("g_nDrawCommandIndex", (uint)drawCommandIndex);
 
                 // Bind per-clutter instance data
                 clutter.InstanceDataGpu.BindBufferBase();

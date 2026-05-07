@@ -62,6 +62,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the byte offset into the indirect draw buffer for this clutter's draw command.</summary>
         public int IndirectDrawByteOffset { get; set; }
 
+        /// <summary>Gets or sets the draw call used for rendering this clutter.</summary>
+        public DrawCall DrawCall { get; set; }
+
         /// <summary>Gets or sets the base index into the transform buffer where this clutter's transforms begin.</summary>
         public int BaseTransformIndex { get; set; }
 
@@ -80,6 +83,8 @@ namespace ValveResourceFormat.Renderer
         {
             InstancedModel = new ModelSceneNode(scene, model, materialGroup, isWorldPreview: true);
             LocalBoundingBox = InstancedModel.LocalBoundingBox;
+
+            DrawCall = InstancedModel.RenderableMeshes[0].DrawCallsOpaque[0]; // todo: more than one?
 
             // Calculate bounding sphere radius from model's AABB
             var modelBounds = InstancedModel.LocalBoundingBox;

@@ -50,23 +50,13 @@ layout(std430, binding = 4) buffer IndirectDrawBuffer
     DrawCommand indirectDraws[];
 };
 
-// Atomic counters for dynamic buffer appending (initialized to CPU buffer sizes)
-layout(std430, binding = 5) buffer ClutterCounterBuffer
-{
-    uint transformCounter;
-    uint instanceCounter;
-};
-
 // Clutter parameters
 uniform uint g_nTotalInstances;
+uniform uint g_nBaseTransformIndex;
+uniform uint g_nBaseInstanceIndex;
 uniform float g_flBeginCullSize;
 uniform float g_flEndCullSize;
 uniform float g_flModelRadius; // Bounding sphere radius of the instanced model
-
-// Draw command parameters (set per clutter object)
-uniform uint g_nDrawIndexCount;
-uniform uint g_nDrawFirstIndex;
-uniform int g_nDrawBaseVertex;
 uniform uint g_nDrawCommandIndex; // Index into the indirect draw buffer
 
 // Unpack smallest-three quaternion from 32-bit packed value
@@ -171,20 +161,9 @@ float CalculateFadeAlpha(vec3 worldPos, float scale)
     return 1.0; // Full opacity
 }
 
-// Shared memory for counting visible instances
-shared uint visibleCount;
-
 void main()
 {
     uint instanceIndex = gl_GlobalInvocationID.x;
-    uint localIndex = gl_LocalInvocationID.x;
-    
-    // Initialize shared counter (first thread in workgroup)
-    if (localIndex == 0u)
-    {
-        visibleCount = 0u;
-    }
-    barrier();
     
     if (instanceIndex >= g_nTotalInstances)
     {
@@ -202,9 +181,6 @@ void main()
         return; // Instance culled
     }
     
-    // Atomically increment visible instance counter
-    atomicAdd(visibleCount, 1u);
-    
     // Unpack orientation quaternion and convert to rotation matrix
     vec4 quat = UnpackOrientation32(instance.orientation32);
     mat3 rotation = QuaternionToMatrix(quat);
@@ -215,8 +191,15 @@ void main()
     transform[1] = vec4(rotation[1] * instance.scale, instance.position.y);
     transform[2] = vec4(rotation[2] * instance.scale, instance.position.z);
     
-    // Atomically allocate next transform slot
-    uint transformIndex = atomicAdd(transformCounter, 1u);
+    // Atomically increment the visible instance count for this draw command
+    // This returns the OLD value, which gives us our slot index within this clutter object
+    uint localSlotIndex = atomicAdd(indirectDraws[g_nDrawCommandIndex].instanceCount, 1u);
+    
+    // Calculate actual buffer indices by adding base offsets
+    uint transformIndex = g_nBaseTransformIndex + localSlotIndex;
+    uint instanceDataIndex = g_nBaseInstanceIndex + localSlotIndex;
+    
+    // Write transform to allocated slot
     instanceTransforms[transformIndex] = transform;
     
     // Unpack tint color (RGB only, ignore source alpha) and apply fade alpha
@@ -224,29 +207,11 @@ void main()
     uint alphaChannel = uint(fadeAlpha * 255.0) << 24; // Convert fade to 0-255 and shift to alpha position
     uint tintAlpha = tintRgb | alphaChannel;
     
-    // Atomically allocate next instance slot
-    uint instanceDataIndex = atomicAdd(instanceCounter, 1u);
+    // Write instance data to allocated slot
     instanceData[instanceDataIndex].tintAlpha = tintAlpha;
     instanceData[instanceDataIndex].transformIndex = transformIndex;
     instanceData[instanceDataIndex].visibleLPV = 0u; // TODO: Light probe volume
     instanceData[instanceDataIndex].identification = 0u; // TODO: Selection ID
     instanceData[instanceDataIndex].envMapVisibility = uvec4(0u); // TODO: Env map visibility
-    
-    // Sync workgroup to ensure all threads have processed
-    barrier();
-    
-    // First thread in workgroup writes the indirect draw command
-    if (localIndex == 0u && instanceIndex < g_nTotalInstances)
-    {
-        // Atomically allocate base instance index for this draw call
-        uint baseInstanceForDraw = atomicAdd(instanceCounter, 0u) - visibleCount;
-        
-        // Write draw command with actual visible instance count
-        indirectDraws[g_nDrawCommandIndex].indexCount = g_nDrawIndexCount;
-        indirectDraws[g_nDrawCommandIndex].instanceCount = visibleCount;
-        indirectDraws[g_nDrawCommandIndex].firstIndex = g_nDrawFirstIndex;
-        indirectDraws[g_nDrawCommandIndex].baseVertex = g_nDrawBaseVertex;
-        indirectDraws[g_nDrawCommandIndex].baseInstance = baseInstanceForDraw;
-    }
 }
 
