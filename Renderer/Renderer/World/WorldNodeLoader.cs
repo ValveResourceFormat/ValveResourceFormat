@@ -164,6 +164,36 @@ namespace ValveResourceFormat.Renderer.World
                     aggregate.LoadFragments(sceneObject);
                 }
             }
+
+            foreach (var sceneObject in node.ClutterSceneObjects)
+            {
+                var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
+
+                if (renderableModel != null)
+                {
+                    var newResource = RendererContext.FileLoader.LoadFileCompiled(renderableModel);
+                    if (newResource == null)
+                    {
+                        continue;
+                    }
+
+                    var model = (Model?)newResource.DataBlock;
+                    Debug.Assert(model != null);
+
+                    var layerIndex = sceneObject.GetIntegerProperty("m_nLayer");
+                    var materialGroup = sceneObject.GetStringProperty("m_materialGroup");
+
+                    var clutter = new SceneClutter(scene, model, materialGroup)
+                    {
+                        LayerName = LayerNames[(int)layerIndex],
+                        Name = renderableModel,
+                        Flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_flags", normalize: true),
+                    };
+
+                    scene.Add(clutter, false);
+                    clutter.LoadInstanceData(sceneObject);
+                }
+            }
         }
     }
 }

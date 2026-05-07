@@ -194,6 +194,31 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
+        /// Gets all meshes.
+        /// </summary>
+        /// <returns>Enumerable of mesh, mesh index, name, and LoD mask tuples.</returns>
+        public IEnumerable<(Mesh Mesh, int MeshIndex, string Name, long LoDMask)> GetAllMeshes(IFileLoader fileLoader)
+        {
+            var lastEmbeddedIndex = 0;
+            foreach (var embedded in GetEmbeddedMeshesAndLoD())
+            {
+                yield return (embedded.Mesh, embedded.MeshIndex, embedded.Name, embedded.LoDMask);
+                lastEmbeddedIndex = embedded.MeshIndex + 1;
+            }
+
+            foreach (var referenced in GetReferenceMeshNamesAndLoD())
+            {
+                var meshResource = fileLoader.LoadFileCompiled(referenced.MeshName);
+                if (meshResource?.DataBlock is not Mesh mesh)
+                {
+                    continue;
+                }
+
+                yield return (mesh, lastEmbeddedIndex + referenced.MeshIndex, referenced.MeshName, referenced.LoDMask);
+            }
+        }
+
+        /// <summary>
         /// Gets embedded meshes with their LoD masks.
         /// </summary>
         /// <returns>Enumerable of mesh, mesh index, name, and LoD mask tuples.</returns>
