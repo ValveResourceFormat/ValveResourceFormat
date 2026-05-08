@@ -14,11 +14,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes;
 public class ViewmodelSceneNode : ModelSceneNode
 {
     /// <summary>
-    /// Toggle rendering.
-    /// </summary>
-    public bool Visible { get; set; }
-
-    /// <summary>
     /// Viewmodel offset in viewmodel space (forward, right, up).
     /// </summary>
     public Vector3 ViewmodelOffset { get; set; } = new Vector3(0, -2, -2);
@@ -28,15 +23,21 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// </summary>
     public ModelSceneNode Arms => this;
 
-    public ModelSceneNode? Legs { get; set; }
+    /// <summary>
+    /// The player legs.
+    /// </summary>
+    public ModelSceneNode Legs { get; set; }
 
     readonly List<ModelSceneNode?> Items = [];
 
-    ModelSceneNode? SelectedItem => Items.ElementAtOrDefault(SelectedSlot - 1);
+    ModelSceneNode? SelectedItem => Items.ElementAtOrDefault(SelectedItemIndex - 1);
 
-    private int PreviousSelectedItem;
+    private int PreviousSelectedIndex;
 
-    public int SelectedSlot
+    /// <summary>
+    /// The selected item slot.
+    /// </summary>
+    public int SelectedItemIndex
     {
         get => field;
         set
@@ -46,13 +47,14 @@ public class ViewmodelSceneNode : ModelSceneNode
                 return;
             }
 
-            PreviousSelectedItem = field;
+            PreviousSelectedIndex = field;
             field = value;
-            OnSelectedItemChanged();
+
+            SetState(AnimationState.Draw);
         }
     } = 3;
 
-    SkeletonSceneNode PrimarySkeletonDebug;
+    readonly SkeletonSceneNode PrimarySkeletonDebug;
     ParticleSceneNode? muzzleFlashParticle;
 
     private Matrix4x4 TargetTransform = Matrix4x4.Identity;
@@ -68,7 +70,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// </summary>
     public void SelectPreviousItem()
     {
-        SelectedSlot = PreviousSelectedItem;
+        SelectedItemIndex = PreviousSelectedIndex;
     }
 
     enum AnimationState
@@ -172,7 +174,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         get
         {
-            if (ItemAnimations.TryGetValue(SelectedSlot, out var anim))
+            if (ItemAnimations.TryGetValue(SelectedItemIndex, out var anim))
             {
                 return "animation/anims/viewmodel/" + State switch
                 {
@@ -190,7 +192,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     }
 
     private (float fire, float altFire) GetWeaponFireDelays()
-        => SelectedSlot switch
+        => SelectedItemIndex switch
         {
             1 => (0.1f, 2f),
             2 => (0.1f, 2f),
@@ -200,33 +202,27 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     void SetState(AnimationState newState)
     {
-        if (true)
-        {
-            State = newState;
-            var looping = newState == AnimationState.Idle;
+        State = newState;
+        var looping = newState == AnimationState.Idle;
 
-            var timeScale = 1f; // 0.3f;
+        var timeScale = 1f; // 0.3f;
 
-            var fadeIn = newState is AnimationState.Draw or AnimationState.Attack or AnimationState.AlternateAttack
-                ? 0f
-                : 0.35f;
+        var fadeIn = newState is AnimationState.Draw or AnimationState.Attack or AnimationState.AlternateAttack
+            ? 0f
+            : 0.35f;
 
-            AnimationController.IsPaused = false;
-            AnimationController.Looping = looping;
-            AnimationController.FrametimeMultiplier = timeScale;
-            SetAnimationByName(TargetAnimation, fadeIn);
+        AnimationController.IsPaused = false;
+        AnimationController.Looping = looping;
+        AnimationController.FrametimeMultiplier = timeScale;
+        SetAnimationByName(TargetAnimation, fadeIn);
 
-            SelectedItem?.AnimationController.IsPaused = false;
-            SelectedItem?.AnimationController.Looping = looping;
-            SelectedItem?.AnimationController.FrametimeMultiplier = timeScale;
-            SelectedItem?.SetAnimationByName(TargetAnimation, fadeIn);
-        }
+        SelectedItem?.AnimationController.IsPaused = false;
+        SelectedItem?.AnimationController.Looping = looping;
+        SelectedItem?.AnimationController.FrametimeMultiplier = timeScale;
+        SelectedItem?.SetAnimationByName(TargetAnimation, fadeIn);
     }
 
-    private void OnSelectedItemChanged()
-    {
-        SetState(AnimationState.Draw);
-    }
+    internal const string WorldLayerName = "First Person Model";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, null, true)
@@ -237,7 +233,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var ag2Controller = AnimationController.CurrentSubController!.Value.Handler;
         PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Controller, ag2Controller.Skeleton)
         {
-            LayerName = "world_layer_base",
+            LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
             Enabled = false,
         };
@@ -246,13 +242,12 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         Legs = new ModelSceneNode(Scene, model)
         {
-            LayerName = "world_layer_base",
+            LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
         };
         Scene.Add(Legs, true);
 
         Legs.AnimationController.TwistConstraints = [];
-        Legs.IsFirstpersonLegs = true;
         Legs.AnimationController.Looping = true;
 
         foreach (var posture in Enum.GetValues<Posture>())
@@ -276,14 +271,14 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null);
 
-    Dictionary<int, Anim> ItemAnimations = new()
+    readonly Dictionary<int, Anim> ItemAnimations = new()
     {
         [1] = new Anim(
             "rifle/rifle_m4a4/idle_m4a4.vnmclip",
             "rifle/rifle_m4a4/draw_m4a4.vnmclip",
             "rifle/rifle_m4a4/lookat01_m4a4.vnmclip",
             "rifle/rifle_m4a4/shoot1_m4a4.vnmclip",
-            "rifle/rifle_m4a4/reload_m4a4.vnmclip"
+            "rifle/_default_rifle/silencer_detach_rifle.vnmclip"
         ),
         [2] = new Anim(
             "pistol/_default_pistol/idle_pistol.vnmclip",
@@ -306,7 +301,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         var model = new ModelSceneNode(Scene, item)
         {
-            LayerName = "world_layer_base",
+            LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
         };
         Scene.Add(model, true);
@@ -327,7 +322,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     }
 
     /// <summary>
-    /// Try to load the CS2 viewmodel, returning null when the required resources are not found.
+    /// Try to load the CS2 viewmodel, returning null if the necessary resources are not found.
     /// </summary>
     /// <param name="scene"></param>
     /// <returns></returns>
@@ -364,9 +359,9 @@ public class ViewmodelSceneNode : ModelSceneNode
             "first_or_third_person_@2_#&firstperson_default"
         ]);
 
-        viewmodel.SelectedSlot = 2;
-        viewmodel.SelectedSlot = 3;
-        viewmodel.LayerName = "world_layer_base";
+        viewmodel.SelectedItemIndex = 2;
+        viewmodel.SelectedItemIndex = 3;
+        viewmodel.LayerName = WorldLayerName;
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
 
         // Load muzzle flash particle
@@ -375,13 +370,13 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             viewmodel.muzzleFlashParticle = new ParticleSceneNode(scene, particleSystem)
             {
-                LayerName = "world_layer_base",
+                LayerName = WorldLayerName,
                 Flags = ObjectTypeFlags.DisableVisCulling,
             };
             scene.Add(viewmodel.muzzleFlashParticle, true);
         }
 
-        scene.RendererContext.Logger.LogInformation($"Loaded viewmodel");
+        scene.RendererContext.Logger.LogInformation($"Loaded first person model.");
 
         scene.Add(viewmodel, true);
         return viewmodel;
@@ -394,7 +389,10 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
-        Visible = true;
+        if (!LayerEnabled)
+        {
+            Scene.ToggleLayer(WorldLayerName);
+        }
 
         var camera = input.Camera;
         camera.RecalculateDirectionVectors();
@@ -578,7 +576,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         var (fireDelay, altFireDelay) = GetWeaponFireDelays();
 
-        var requestedFire = SelectedSlot == 2
+        var requestedFire = SelectedItemIndex == 2
             ? input.Pressed(TrackedKeys.MouseLeft)
             : input.Holding(TrackedKeys.MouseLeft);
 
@@ -586,7 +584,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             SetState(AnimationState.Attack);
             attackCooldown = fireDelay;
-            if (SelectedSlot != 3 && muzzleFlashParticle != null)
+            if (SelectedItemIndex != 3 && muzzleFlashParticle != null)
             {
                 muzzleFlashParticle.GetControlPoint(1).Position = Vector3.One; // light radius
                 muzzleFlashParticle.Restart();
@@ -597,23 +595,25 @@ public class ViewmodelSceneNode : ModelSceneNode
             SetState(AnimationState.AlternateAttack);
             alternateAttackCooldown = altFireDelay;
         }
-        else if (input.Pressed(TrackedKeys.Slot1))
+
+        if (input.Pressed(TrackedKeys.Slot1))
         {
-            SelectedSlot = 1;
+            SelectedItemIndex = 1;
         }
         else if (input.Pressed(TrackedKeys.Slot2))
         {
-            SelectedSlot = 2;
+            SelectedItemIndex = 2;
         }
         else if (input.Pressed(TrackedKeys.Slot3))
         {
-            SelectedSlot = 3;
+            SelectedItemIndex = 3;
         }
         else if (input.Pressed(TrackedKeys.Q))
         {
             SelectPreviousItem();
         }
-        else if (input.Pressed(TrackedKeys.F))
+
+        if (input.Pressed(TrackedKeys.F))
         {
             SetState(AnimationState.LookAt);
         }
@@ -658,7 +658,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var i = 1;
         foreach (var item in Items)
         {
-            var isSelected = i == SelectedSlot;
+            var isSelected = i == SelectedItemIndex;
             i++;
 
             if (item != null)

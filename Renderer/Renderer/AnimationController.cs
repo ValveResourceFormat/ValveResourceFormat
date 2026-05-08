@@ -295,6 +295,9 @@ namespace ValveResourceFormat.Renderer
                 GetBoneMatricesRecursive(root, Transform, AnimationFrame, Pose);
             }
 
+            ApplyConstraints();
+            ApplyFirstpersonLegs();
+
             return true;
         }
 

@@ -56,6 +56,10 @@ public class PlayerMovement
     /// Gets a value indicating whether the player is currently on the ground.
     /// </summary>
     public bool OnGround { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the player was touching the ground in the previous frame.
+    /// </summary>
     public bool WasOnGroundLastFrame { get; private set; }
     private bool WasDuckingLastFrame;
 
@@ -65,7 +69,10 @@ public class PlayerMovement
     private UserInput Input { get; }
     private Rubikon? Physics => Input.PhysicsWorld;
 
-    public float CrouchBlend; // 0 = standing, 1 = fully ducked
+    /// <summary>
+    /// Linear value from 0 to 1 representing how much the player is crouched.  0 = standing, 1 = fully crouched.
+    /// </summary>
+    public float CrouchBlend { get; private set; }
     private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
 

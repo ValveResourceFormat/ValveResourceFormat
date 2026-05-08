@@ -51,10 +51,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public Dictionary<string, Attachment> Attachments { get; }
 
-        /// <summary>
-        /// Gets the tilt-twist constraints parsed from the model.
-        /// </summary>
-        public TiltTwistConstraint[] TwistConstraints { get; private set; } = [];
 
         /// <summary>Gets the name of the currently active material group (skin).</summary>
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
@@ -63,8 +59,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
-
-        public bool IsFirstpersonLegs { get; set; }
 
         /// <summary>Gets whether this model has an active GPU bone matrix buffer (i.e., has animations loaded).</summary>
         public bool IsAnimated => boneMatricesGpu != null;
@@ -237,13 +231,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (!AnimationController.Update(context.Timestep))
             {
                 return;
-            }
-
-            AnimationController.ApplyConstraints();
-
-            if (IsFirstpersonLegs)
-            {
-                AnimationController.ApplyFirstpersonLegs();
             }
 
             if (IsAnimated)
@@ -766,4 +753,3 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
     }
 }
-

@@ -4,6 +4,9 @@ namespace ValveResourceFormat.Renderer
 {
     public partial class AnimationController
     {
+        /// <summary>
+        /// Hides bones from pelvis and up.
+        /// </summary>
         public void ApplyFirstpersonLegs()
         {
             var spine0 = Skeleton.GetBoneIndex("spine_0");

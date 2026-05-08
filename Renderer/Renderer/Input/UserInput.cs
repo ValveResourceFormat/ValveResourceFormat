@@ -227,8 +227,6 @@ public class UserInput
             CurrentSpeedModifier = 7;
         }
 
-        Viewmodel?.Visible = false;
-
         if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState, !NoClip);

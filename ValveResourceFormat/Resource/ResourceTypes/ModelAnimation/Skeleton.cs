@@ -76,6 +76,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             };
         }
 
+        readonly Dictionary<uint, int> boneHashToIndex = [];
+
         /// <summary>
         /// Creates a skeleton from skeleton-specific data.
         /// </summary>
@@ -104,8 +106,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             s.SetBoneParents(boneParents);
             return s;
         }
-
-        readonly Dictionary<uint, int> boneHashToIndex = [];
 
         private Skeleton()
         {

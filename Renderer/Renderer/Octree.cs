@@ -146,7 +146,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if ((element.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
                 {
-                    InsertNoChildren(element);
+                    InsertIntoRoot(element);
                     return;
                 }
 
@@ -185,10 +185,10 @@ namespace ValveResourceFormat.Renderer
                     return;
                 }
 
-                InsertNoChildren(element);
+                InsertIntoRoot(element);
             }
 
-            private void InsertNoChildren(SceneNode element)
+            private void InsertIntoRoot(SceneNode element)
             {
                 if (Elements == null)
                 {

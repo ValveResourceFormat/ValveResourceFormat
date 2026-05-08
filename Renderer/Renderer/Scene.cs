@@ -1557,6 +1557,18 @@ namespace ValveResourceFormat.Renderer
             renderContext.ReplacementShader = null;
         }
 
+
+        internal void ToggleLayer(string layerName)
+        {
+            foreach (var node in AllNodes)
+            {
+                if (node.LayerName == layerName)
+                {
+                    node.LayerEnabled = !node.LayerEnabled;
+                }
+            }
+        }
+
         /// <summary>
         /// Enables or disables scene nodes based on whether their layer name is present in the given set.
         /// </summary>
