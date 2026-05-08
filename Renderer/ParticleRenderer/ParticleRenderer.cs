@@ -38,6 +38,9 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly int MaxParticles;
         private readonly float MinimumTimeStep;
         private readonly float MaximumTimeStep;
+        private readonly float MinimumSimTime;
+        private readonly float MaximumSimTime;
+        private readonly float PreSimulationTime;
 
         /// <summary>
         /// The particle bounds to use when calculating the bounding box of the particle system.
@@ -66,6 +69,7 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly RendererContext RendererContext;
         private bool hasStarted;
+        private float accumulatedSimTime;
 
         private readonly ParticleCollection particleCollection;
         private readonly Dictionary<int, ParticleSnapshot> controlPointSnapshots = [];
@@ -87,8 +91,12 @@ namespace ValveResourceFormat.Renderer.Particles
             MaxParticles = parse.Int32("m_nMaxParticles", 1000);
             MinimumTimeStep = parse.Float("m_flMinimumTimeStep", 0f);
             MaximumTimeStep = parse.Float("m_flMaximumTimeStep", 0.1f);
+            MinimumSimTime = parse.Float("m_flMinimumSimTime", 0f);
+            MaximumSimTime = parse.Float("m_flMaximumSimTime", 0f);
+            PreSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
 
             MaximumTimeStep = Math.Max(MinimumTimeStep, MaximumTimeStep);
+            MaximumSimTime = Math.Max(MinimumSimTime, MaximumSimTime);
 
             InfiniteBounds = parse.Boolean("m_bInfiniteBounds", false);
             ParticleBoundingBox = new AABB(
@@ -229,6 +237,33 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 Start();
                 hasStarted = true;
+
+                if (PreSimulationTime > 0f)
+                {
+                    Update(PreSimulationTime);
+                }
+            }
+
+            // Fixed sim time ensures consistent particle aging regardless of client frame rate.
+            var useSimTime = MinimumSimTime > 0f || MaximumSimTime > 0f;
+            if (useSimTime)
+            {
+                accumulatedSimTime += frameTime;
+
+                // Skip if below minimum
+                if (accumulatedSimTime < MinimumSimTime)
+                {
+                    return;
+                }
+
+                // Clamp if above maximum
+                if (MaximumSimTime > 0f && accumulatedSimTime > MaximumSimTime)
+                {
+                    accumulatedSimTime = MaximumSimTime;
+                }
+
+                frameTime = accumulatedSimTime;
+                accumulatedSimTime = 0f;
             }
 
             frameTime = Math.Clamp(frameTime, MinimumTimeStep, MaximumTimeStep);

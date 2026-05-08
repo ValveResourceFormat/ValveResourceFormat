@@ -56,8 +56,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             if (particles.Count == 0)
             {
+                light.IsDirty = light.IsDirty || light.BrightnessScale != 0f;
                 light.BrightnessScale = 0f;
-                light.IsDirty = true;
                 return;
             }
 

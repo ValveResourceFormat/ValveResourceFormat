@@ -121,15 +121,16 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 var vectorValues = parse.Data.GetIntegerArray("m_ConstantColor");
                 Color = new Vector3(vectorValues[0], vectorValues[1], vectorValues[2]) / 255f;
-                Alpha = vectorValues[3] / 255f; // presumably
+                Alpha = vectorValues[3] / 255f;
             }
 
             Radius = parse.Float("m_flConstantRadius", Radius);
             Lifetime = parse.Float("m_flConstantLifespan", Lifetime);
             Rotation = Rotation with { Z = parse.Float("m_flConstantRotation", Rotation.Z) };
-            Rotation = Rotation with { Z = parse.Float("m_flConstantRotationSpeed", Rotation.Z) };
+            RotationSpeed = RotationSpeed with { Z = parse.Float("m_flConstantRotationSpeed", RotationSpeed.Z) };
+            Normal = parse.Vector3("m_ConstantNormal", Normal);
             Sequence = parse.Int32("m_nConstantSequenceNumber", Sequence);
-            Sequence = parse.Int32("m_nConstantSequenceNumber1", Sequence);
+            Sequence2 = parse.Int32("m_nConstantSequenceNumber1", Sequence);
         }
 
         /// <summary>
