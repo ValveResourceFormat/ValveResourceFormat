@@ -259,11 +259,14 @@ namespace ValveResourceFormat.Renderer.Particles
                 // Clamp if above maximum
                 if (MaximumSimTime > 0f && accumulatedSimTime > MaximumSimTime)
                 {
-                    accumulatedSimTime = MaximumSimTime;
+                    frameTime = MaximumSimTime;
+                    accumulatedSimTime -= MaximumSimTime;
                 }
-
-                frameTime = accumulatedSimTime;
-                accumulatedSimTime = 0f;
+                else
+                {
+                    frameTime = accumulatedSimTime;
+                    accumulatedSimTime = 0f;
+                }
             }
 
             frameTime = Math.Clamp(frameTime, MinimumTimeStep, MaximumTimeStep);
