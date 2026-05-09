@@ -73,6 +73,16 @@ public class PlayerMovement
     /// Linear value from 0 to 1 representing how much the player is crouched.  0 = standing, 1 = fully crouched.
     /// </summary>
     public float CrouchBlend { get; private set; }
+
+    /// <summary>
+    /// Gets the current eye height blended between standing and crouched positions.
+    /// </summary>
+    public float BlendedEyeHeight { get; private set; }
+
+
+    /// <summary>The current eye position</summary>
+    public Vector3 EyePosition { get; private set; }
+
     private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
 
@@ -238,9 +248,9 @@ public class PlayerMovement
         AABBCenteredPosition = position;
 
         // Set camera at eye height with smooth crouch blend
-        var blendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
-        var groundPos = AABBCenteredPosition - new Vector3(0, 0, playerHull.Size.Z / 2);
-        camera.Location = groundPos + Vector3.UnitZ * blendedEyeHeight;
+        BlendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
+        EyePosition = Position + Vector3.UnitZ * BlendedEyeHeight;
+        camera.Location = EyePosition;
 
         // Draw player AABB for debugging
         /*

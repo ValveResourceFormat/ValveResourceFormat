@@ -5,22 +5,40 @@ namespace ValveResourceFormat.Renderer
     public partial class AnimationController
     {
         /// <summary>
+        /// Gets or sets the tilt-twist skeleton constraints that are applied after animation.
+        /// </summary>
+        public TiltTwistConstraint[] TwistConstraints { get; set; } = [];
+
+        /// <summary>Gets or sets whether first-person legs mode is enabled (zeros bones from pelvis and up).</summary>
+        internal bool EnableFirstPersonLegs { get; set; }
+
+        /// <summary>Gets or sets whether viewmodel-specific twist constraints should be applied.</summary>
+        internal bool EnableFirstPersonConstraints { get; set; }
+
+        /// <summary>
+        /// Applies inverse kinematics to the current pose.
+        /// </summary>
+        public void ApplyInverseKinematics()
+        {
+            ApplyConstraints();
+            ApplyFirstpersonLegs();
+        }
+
+        /// <summary>
         /// Hides bones from pelvis and up.
         /// </summary>
         public void ApplyFirstpersonLegs()
         {
+            if (!EnableFirstPersonLegs)
+            {
+                return;
+            }
+
             var spine0 = Skeleton.GetBoneIndex("spine_0");
             if (spine0 != -1)
             {
                 ZeroBoneAndChildren(Pose, Skeleton.Bones[spine0]);
             }
-
-            // var time = DateTime.Now;
-            // var blink = (int)(time.Ticks / TimeSpan.TicksPerSecond) % 2 == 0;
-            // if (blink)
-            // {
-            //     return;
-            // }
         }
 
         /// <summary>
@@ -33,10 +51,15 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            var skeleton = Skeleton;
-            var pose = Pose.AsSpan();
+            // todo: evaluate model constraints dynamically
 
-            EvaluateViewmodelConstraints(skeleton, pose);
+            if (EnableFirstPersonConstraints)
+            {
+                var skeleton = Skeleton;
+                var pose = Pose.AsSpan();
+
+                EvaluateViewmodelConstraints(skeleton, pose);
+            }
         }
 
         private static void EvaluateViewmodelConstraints(Skeleton skeleton, Span<Matrix4x4> pose)
@@ -44,10 +67,10 @@ namespace ValveResourceFormat.Renderer
             Span<(string Target, string Twist, string Twist1, float Side)> constraints =
             [
                 ("hand_r", "arm_lower_r_twist", "arm_lower_r_twist1", 1.0f),
-                ("arm_lower_r", "arm_upper_r_twist", "arm_upper_r_twist1", 1.0f),
+                //("arm_lower_r", "arm_upper_r_twist", "arm_upper_r_twist1", 0.5f),
 
-                ("hand_l", "arm_lower_l_twist", "arm_lower_l_twist1", -0.4f),
-                ("arm_lower_l", "arm_upper_l_twist", "arm_upper_l_twist1", -0.4f),
+                ("hand_l", "arm_lower_l_twist", "arm_lower_l_twist1", -1f),
+                //("arm_lower_l", "arm_upper_l_twist", "arm_upper_l_twist1", -0.5f),
             ];
 
             foreach (var constraint in constraints)
@@ -83,26 +106,33 @@ namespace ValveResourceFormat.Renderer
 
         private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone? twist, Bone twist1, float side)
         {
-            // Extract hand rotation and calculate twist rotation
-            Matrix4x4.Decompose(pose[hand.Index], out _, out var handRotation, out _);
-            var handEuler = Vector3.RadiansToDegrees(QuaternionToEuler(handRotation)); // ModelExtract.ToEulerAngles(handRotation);
-            var handTwist = Quaternion.CreateFromAxisAngle(Vector3.UnitX, float.DegreesToRadians(handEuler.X - 65f) * side);
-            handTwist = Quaternion.Slerp(Quaternion.Identity, handTwist, 1.0f);
-
-            // Rotate in local space
-            Matrix4x4.Decompose(pose[twist1.Index], out var scale, out var rotation, out var translation);
-            pose[twist1.Index] = Matrix4x4.CreateScale(scale)
-                * Matrix4x4.CreateFromQuaternion(rotation * handTwist)
-                * Matrix4x4.CreateTranslation(translation);
-
-            // Apply to twist bone
-            Matrix4x4.Decompose(pose[twist1.Index], out scale, out rotation, out translation);
-
-            if (twist != null)
+            if (hand.Parent == null)
             {
-                pose[twist.Index] = Matrix4x4.CreateScale(scale)
-                    * Matrix4x4.CreateFromQuaternion(rotation * handTwist)
-                    * Matrix4x4.CreateTranslation(translation);
+                return;
+            }
+
+            // Extract hand local rotation and calculate twist rotation
+            Matrix4x4.Invert(pose[hand.Parent.Index], out var handParentInverse);
+            var handLocal = pose[hand.Index] * handParentInverse;
+            Matrix4x4.Decompose(handLocal, out _, out var handRotation, out _);
+            var handEulerRad = QuaternionToEuler(handRotation);
+            var handTwist = Quaternion.CreateFromAxisAngle(Vector3.UnitX, handEulerRad.X - 1.45f);
+            handTwist = Quaternion.Slerp(Quaternion.Identity, handTwist, 1f);
+            var handTwistMatrix = Matrix4x4.CreateFromQuaternion(handTwist);
+
+            // Apply in local space: local = world * inv(parent), new world = (local * twist) * parent
+            if (twist1.Parent != null)
+            {
+                Matrix4x4.Invert(pose[twist1.Parent.Index], out var parentInverse);
+                var local = pose[twist1.Index] * parentInverse;
+                pose[twist1.Index] = local * handTwistMatrix * pose[twist1.Parent.Index];
+            }
+
+            if (twist != null && twist.Parent != null)
+            {
+                Matrix4x4.Invert(pose[twist.Parent.Index], out var parentInverse);
+                var local = pose[twist.Index] * parentInverse;
+                pose[twist.Index] = local * handTwistMatrix * pose[twist.Parent.Index];
             }
         }
 

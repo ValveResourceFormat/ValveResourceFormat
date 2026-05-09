@@ -242,9 +242,9 @@ public class UserInput
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.ClampRotation();
-
-            Viewmodel?.ProcessInput(this, Renderer.Uptime);
         }
+
+        Viewmodel?.ProcessInput(this, Renderer.Uptime);
 
         var finalCamera = GetInterpolatedCamera();
 

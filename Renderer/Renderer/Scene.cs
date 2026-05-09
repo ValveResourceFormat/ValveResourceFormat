@@ -1558,13 +1558,13 @@ namespace ValveResourceFormat.Renderer
         }
 
 
-        internal void ToggleLayer(string layerName)
+        internal void ActivateLayer(string layerName)
         {
             foreach (var node in AllNodes)
             {
                 if (node.LayerName == layerName)
                 {
-                    node.LayerEnabled = !node.LayerEnabled;
+                    node.LayerEnabled = true;
                 }
             }
         }

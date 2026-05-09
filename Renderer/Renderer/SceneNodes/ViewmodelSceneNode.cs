@@ -1,10 +1,7 @@
-
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
@@ -244,6 +241,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
+            Parent = this,
         };
         Scene.Add(Legs, true);
 
@@ -389,9 +387,23 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
+        var distanceFromFirstPersonEyes = Vector3.Distance(input.Camera.Location, input.PlayerMovement.EyePosition);
+
+        var showViewmodelDistance = distanceFromFirstPersonEyes < 35f;
+        var attachViewmodelDistance = distanceFromFirstPersonEyes < 5f;
+
+        // todo: also hide viewmodel when we are far away
+        Legs?.AnimationController.EnableFirstPersonLegs = showViewmodelDistance;
+        AnimationController.EnableFirstPersonConstraints = showViewmodelDistance;
+
+        if (!attachViewmodelDistance)
+        {
+            return;
+        }
+
         if (!LayerEnabled)
         {
-            Scene.ToggleLayer(WorldLayerName);
+            Scene.ActivateLayer(WorldLayerName);
         }
 
         var camera = input.Camera;
@@ -626,7 +638,11 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         Transform = TargetTransform;
 
-        Legs?.Transform = PlayerTransform;
+        if (Legs != null)
+        {
+            Legs.Transform = PlayerTransform;
+            Legs.Update(context);
+        }
 
         attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
         alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - context.Timestep);

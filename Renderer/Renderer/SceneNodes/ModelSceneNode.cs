@@ -51,7 +51,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public Dictionary<string, Attachment> Attachments { get; }
 
-
         /// <summary>Gets the name of the currently active material group (skin).</summary>
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
 
@@ -485,16 +484,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>
-        public void SetAnimationByName(string animationName)
-        {
-            Animations.TryGetValue(animationName, out var activeAnimation);
-            SetAnimation(activeAnimation);
-        }
-
-        /// <summary>Activates the animation with the given name with a blend-in time, or stops animation if not found.</summary>
-        /// <param name="animationName">The name of the animation to activate.</param>
-        /// <param name="blendTime">The time in seconds to blend from the current animation to the new one.</param>
-        public void SetAnimationByName(string animationName, float blendTime)
+        public void SetAnimationByName(string animationName, float blendTime = 0f)
         {
             Animations.TryGetValue(animationName, out var activeAnimation);
             SetAnimation(activeAnimation, blendTime);
@@ -525,16 +515,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return false;
         }
 
-        /// <summary>Activates the given animation instance, or clears the active animation when <see langword="null"/>.</summary>
-        public void SetAnimation(Animation? activeAnimation)
-        {
-            SetAnimation(activeAnimation, 0f);
-        }
-
         /// <summary>Activates the given animation instance with a blend-in time, or clears the active animation when <see langword="null"/>.</summary>
         /// <param name="activeAnimation">The animation to activate, or <see langword="null"/> to clear.</param>
         /// <param name="blendTime">The time in seconds to blend from the current animation to the new one.</param>
-        public void SetAnimation(Animation? activeAnimation, float blendTime)
+        public void SetAnimation(Animation? activeAnimation, float blendTime = 0f)
         {
             AnimationController.SetAnimation(activeAnimation, blendTime);
             UpdateBoundingBox();
