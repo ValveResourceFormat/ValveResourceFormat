@@ -14,6 +14,9 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets the current playback time in seconds.</summary>
             public float Time { get; set; }
 
+            /// <summary>Gets or sets whether this clip should blend additively with other animations.</summary>
+            public bool IsAdditive { get; set; }
+
             /// <summary>Gets or sets whether playback is paused.</summary>
             public bool IsPaused { get; set; }
 
@@ -152,11 +155,18 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Gets whether the current animation frame is the result of blending multiple clips together.
+        /// </summary>
+        public bool IsUsingMixer { get; private set; }
+
+        /// <summary>
         /// Returns the animation frame for the current time, blending multiple clips if needed.
         /// </summary>
         /// <returns>The current animation frame, or <see langword="null"/> if no animation is active.</returns>
         private Frame? GetBlendedFrame()
         {
+            IsUsingMixer = false;
+
             if (activeClip == null)
             {
                 return null;
@@ -178,6 +188,7 @@ namespace ValveResourceFormat.Renderer
                 return SampleFrame(activeClip);
             }
 
+            IsUsingMixer = true;
             BlendedFrame.FrameIndex = -1;
             BlendedFrame.Bones.AsSpan().Clear();
             BlendedFrame.Datas.AsSpan().Clear();
@@ -195,12 +206,16 @@ namespace ValveResourceFormat.Renderer
 
                 for (var i = 0; i < frame.Bones.Length; i++)
                 {
-                    BlendedFrame.Bones[i] = BlendedFrame.Bones[i].Blend(frame.Bones[i], blendFactor);
+                    BlendedFrame.Bones[i] = clip.IsAdditive
+                        ? BlendedFrame.Bones[i].BlendAdd(frame.Bones[i], blendFactor)
+                        : BlendedFrame.Bones[i].Blend(frame.Bones[i], blendFactor);
                 }
 
                 for (var i = 0; i < frame.Datas.Length; i++)
                 {
-                    BlendedFrame.Datas[i] = float.Lerp(BlendedFrame.Datas[i], frame.Datas[i], blendFactor);
+                    BlendedFrame.Datas[i] = clip.IsAdditive
+                        ? BlendedFrame.Datas[i] + frame.Datas[i] * blendFactor
+                        : float.Lerp(BlendedFrame.Datas[i], frame.Datas[i], blendFactor);
                 }
 
                 totalWeight += clip.Weight;
@@ -245,7 +260,8 @@ namespace ValveResourceFormat.Renderer
             // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
-                newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime };
+                var isAdditive = animation.Clip?.IsAdditive == true;
+                newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
             }
             else

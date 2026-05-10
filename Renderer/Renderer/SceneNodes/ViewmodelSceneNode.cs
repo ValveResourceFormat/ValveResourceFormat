@@ -221,6 +221,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     }
 
     internal const string WorldLayerName = "Internal - First Person Model";
+    private const string BreathingClip = "animation/anims/world/shared/breathing.vnmclip";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, null, true)
@@ -267,6 +268,10 @@ public class ViewmodelSceneNode : ModelSceneNode
                 }
             }
         }
+
+        Legs.SetAnimationByName(BreathingClip, -1);
+        Legs.AnimationController.SetAnimationProperties(BreathingClip, 0f, looping: true);
+        Legs.AnimationController.SetAnimationWeight(BreathingClip, 1f);
     }
 
     record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null);
@@ -584,6 +589,8 @@ public class ViewmodelSceneNode : ModelSceneNode
                     }
                 }
             }
+
+            legsController.SetAnimationWeight(BreathingClip, 1f);
         }
 
         var (fireDelay, altFireDelay) = GetWeaponFireDelays();
