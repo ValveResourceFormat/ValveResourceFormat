@@ -1583,7 +1583,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                if (renderer.LayerName.StartsWith("LightProbeGrid", StringComparison.Ordinal))
+                if (renderer.LayerName.StartsWith("Internal -", StringComparison.Ordinal))
                 {
                     continue;
                 }

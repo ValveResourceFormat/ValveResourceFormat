@@ -296,7 +296,7 @@ namespace GUI.Types.GLViewers
 
                 foreach (var node in Scene.AllNodes)
                 {
-                    if (node.LayerName?.StartsWith("LightProbeGrid", StringComparison.Ordinal) == true)
+                    if (node.LayerName?.StartsWith("Internal -", StringComparison.Ordinal) == true)
                     {
                         continue;
                     }

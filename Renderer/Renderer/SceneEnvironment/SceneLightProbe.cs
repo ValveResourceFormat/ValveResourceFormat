@@ -77,7 +77,7 @@ public class SceneLightProbe : SceneNode
         {
             LightProbeVolumePrecomputedHandshake = LightProbeVolumePrecomputedHandshake,
             LightProbeBinding = this,
-            LayerName = "LightProbeGrid" + Id,
+            LayerName = "Internal - LightProbeGrid" + Id,
             LayerEnabled = true,
         };
 

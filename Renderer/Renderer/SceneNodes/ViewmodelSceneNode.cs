@@ -54,6 +54,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     readonly SkeletonSceneNode PrimarySkeletonDebug;
     ParticleSceneNode? muzzleFlashParticle;
 
+    private bool FirstPersonMode { get; set; } = true;
     private Matrix4x4 TargetTransform = Matrix4x4.Identity;
     private Matrix4x4 PlayerTransform = Matrix4x4.Identity;
     private float attackCooldown;
@@ -219,11 +220,12 @@ public class ViewmodelSceneNode : ModelSceneNode
         SelectedItem?.SetAnimationByName(TargetAnimation, fadeIn);
     }
 
-    internal const string WorldLayerName = "First Person Model";
+    internal const string WorldLayerName = "Internal - First Person Model";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, null, true)
     {
+        AnimationController.EnableFirstPersonConstraints = true;
         SetState(AnimationState.Idle);
         TargetTransform = Transform;
 
@@ -392,9 +394,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var showViewmodelDistance = distanceFromFirstPersonEyes < 35f;
         var attachViewmodelDistance = distanceFromFirstPersonEyes < 5f;
 
-        // todo: also hide viewmodel when we are far away
-        Legs?.AnimationController.EnableFirstPersonLegs = showViewmodelDistance;
-        AnimationController.EnableFirstPersonConstraints = showViewmodelDistance;
+        FirstPersonMode = showViewmodelDistance;
 
         if (!attachViewmodelDistance)
         {
@@ -638,10 +638,16 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         Transform = TargetTransform;
 
+        if (!FirstPersonMode)
+        {
+            Transform *= Matrix4x4.CreateScale(0);
+        }
+
         if (Legs != null)
         {
             Legs.Transform = PlayerTransform;
             Legs.Update(context);
+            Legs.AnimationController.EnableFirstPersonLegs = FirstPersonMode;
         }
 
         attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
