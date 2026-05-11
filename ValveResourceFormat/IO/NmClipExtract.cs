@@ -76,6 +76,26 @@ public class NmClipExtract
                 return ModelExtract.ToDmxAnim(skeleton, [], animation, nmSkelAxisFixup: true);
             });
         }
+
+        var secondaryAnimations = clip.Data.Root.GetArray("m_secondaryAnimations");
+        if (secondaryAnimations != null && secondaryAnimations.Count > 0)
+        {
+            var secondarySkeletonNames = KVObject.Array();
+            foreach (var secAnim in secondaryAnimations)
+            {
+                var skeletonRef = secAnim.GetStringProperty("m_skeleton");
+                if (!string.IsNullOrEmpty(skeletonRef))
+                {
+                    var skeletonPath = skeletonRef;
+                    if (skeletonPath.StartsWith("resource:", StringComparison.OrdinalIgnoreCase))
+                        skeletonPath = skeletonPath["resource:".Length..];
+                    secondarySkeletonNames.Add(skeletonPath);
+                }
+            }
+            if (secondarySkeletonNames.Children.Any())
+                kv.Add("m_secondaryAnimationSkeletonNames", secondarySkeletonNames);
+        }
+
         var syncEventIds = new HashSet<string>();
         var syncTrack = clip.Data.Root.GetSubCollection("m_syncTrack");
         if (syncTrack != null)
