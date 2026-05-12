@@ -40,9 +40,9 @@ public class NmClipExtract
         Debug.Assert(sourceFileName != null);
         kv.Add("m_sourceFilename", sourceFileName);
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
+
         // TODO: figure out additive type.
-        var isAdditive = clip.Data.Root.GetBooleanProperty("m_bIsAdditive");
-        if (isAdditive)
+        if (clip.IsAdditive)
         {
             kv.Add("m_additiveType", "RelativeToFrame");
             kv.Add("m_additiveBaseFilename", "");
@@ -77,23 +77,15 @@ public class NmClipExtract
             });
         }
 
-        var secondaryAnimations = clip.Data.Root.GetArray("m_secondaryAnimations");
-        if (secondaryAnimations != null && secondaryAnimations.Count > 0)
+        if (clip.SecondaryAnimations.Length > 0)
         {
             var secondarySkeletonNames = KVObject.Array();
-            foreach (var secAnim in secondaryAnimations)
+            foreach (var secAnim in clip.SecondaryAnimations)
             {
-                var skeletonRef = secAnim.GetStringProperty("m_skeleton");
-                if (!string.IsNullOrEmpty(skeletonRef))
-                {
-                    var skeletonPath = skeletonRef;
-                    if (skeletonPath.StartsWith("resource:", StringComparison.OrdinalIgnoreCase))
-                        skeletonPath = skeletonPath["resource:".Length..];
-                    secondarySkeletonNames.Add(skeletonPath);
-                }
+                secondarySkeletonNames.Add(secAnim.SkeletonName);
             }
-            if (secondarySkeletonNames.Children.Any())
-                kv.Add("m_secondaryAnimationSkeletonNames", secondarySkeletonNames);
+
+            kv.Add("m_secondaryAnimationSkeletonNames", secondarySkeletonNames);
         }
 
         var syncEventIds = new HashSet<string>();
@@ -105,18 +97,21 @@ public class NmClipExtract
             {
                 foreach (var syncEv in syncEvents)
                 {
-                    var syncId = syncEv.GetStringProperty("m_ID") ?? "";
+                    var syncId = syncEv.GetStringProperty("m_ID", string.Empty);
                     if (!string.IsNullOrEmpty(syncId))
+                    {
                         syncEventIds.Add(syncId);
+                    }
                 }
             }
         }
+
         var events = clip.Data.Root.GetArray("m_events")!;
         var docEventTracks = KVObject.Array();
         foreach (var ev in events!)
         {
-            var eventSyncId = ev.GetStringProperty("m_syncID") ?? ev.GetStringProperty("m_ID") ?? "";
-            bool isSyncTrack = syncEventIds.Contains(eventSyncId);
+            var eventSyncId = ev.GetStringProperty("m_syncID", ev.GetStringProperty("m_ID", string.Empty));
+            var isSyncTrack = syncEventIds.Contains(eventSyncId);
 
             var docEventTrack = BuildDocEventBasedOnEventClass(ev, ev.GetStringProperty("_class"), isSyncTrack);
             var startTimeObj = ev.GetSubCollection("m_flStartTime");
@@ -130,6 +125,7 @@ public class NmClipExtract
             eventList["m_flDuration"] = Math.Floor(durationSeconds * animation.FrameCount);
             docEventTracks.Add(docEventTrack);
         }
+
         kv.Add("m_eventTracks", docEventTracks);
         contentFile.Data = Encoding.UTF8.GetBytes(kv.ToKV3String());
         return contentFile;
