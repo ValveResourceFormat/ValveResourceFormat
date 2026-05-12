@@ -13,9 +13,9 @@
     <StartupObject>GUI.Program</StartupObject>
     <AssemblyName>Source2Viewer</AssemblyName>
     <SignAssembly>false</SignAssembly>
-    <PublishSingleFile>true</PublishSingleFile>
+    <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <NoWarn>NU1901;NU1902;NU1903</NoWarn>
+    <NoWarn>$(NoWarn);NU1901;NU1902;NU1903</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="FCTB" Version="2.16.24">
