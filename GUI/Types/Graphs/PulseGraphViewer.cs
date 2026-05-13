@@ -713,6 +713,42 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
         }
 
+        // General info as a node (probably temporary until UI pane is added)
+        var graphInfoNode = new Node(null)
+        {
+            Name = "Graph info",
+            NodeType = "Imagine that I'm a static panel",
+        };
+        graphInfoNode.AddText($"Domain: {graphDefinition.GetStringProperty("m_DomainIdentifier")}");
+        graphInfoNode.AddText($"Domain sub-type: {graphDefinition.GetStringProperty("m_DomainSubType")}");
+        graphInfoNode.AddText($"Parent map: {graphDefinition.GetStringProperty("m_ParentMapName")}");
+        graphInfoNode.AddText($"Parent XML panel: {graphDefinition.GetStringProperty("m_ParentXmlName")}");
+        nodeGraph.AddNode(graphInfoNode);
+
+        // Variable definitions as separate nodes, cause there's no specific pane for displaying them.
+        foreach (var variable in variables)
+        {
+            var node = new Node(variable)
+            {
+                Name = variable.GetStringProperty("m_Name"),
+                NodeType = "Variable",
+            };
+            node.AddText($"Type: {variable.GetStringProperty("m_Type")}");
+            node.AddText($"Initial value: {variable["m_DefaultValue"]}");
+            node.AddText($"Keys source: {variable.GetStringProperty("m_nKeysSource")}");
+            if (variable.GetBooleanProperty("m_bIsObservable"))
+            {
+                node.AddText("Observable");
+            }
+
+            string description = variable.GetStringProperty("m_Description");
+            if(!string.IsNullOrEmpty(description))
+            {
+                node.AddText(description);
+            }
+            nodeGraph.AddNode(node);
+        }
+
         // Resolve call nodes to display the target function name
         foreach (var callNodeInfo in callNodesToResolve)
         {
