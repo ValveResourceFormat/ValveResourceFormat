@@ -664,9 +664,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (Legs != null)
         {
+            Legs.AnimationController.EnableFirstPersonLegs = FirstPersonMode;
             Legs.Transform = PlayerTransform;
             Legs.Update(context);
-            Legs.AnimationController.EnableFirstPersonLegs = FirstPersonMode;
         }
 
         attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);

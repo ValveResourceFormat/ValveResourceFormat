@@ -29,16 +29,22 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public string? LayerName { get; set; }
 
-        private bool layerEnabledField = true;
-
         /// <summary>
         /// Gets or sets whether this node's layer is enabled. Marks the parent octree dirty on change.
         /// </summary>
         public virtual bool LayerEnabled
         {
-            get => layerEnabledField;
-            set { layerEnabledField = value; Scene.MarkParentOctreeDirty(this); }
-        }
+            get => field;
+            set
+            {
+                var valueChanged = value != field;
+                field = value;
+                if (valueChanged)
+                {
+                    Scene.MarkParentOctreeDirty(this);
+                }
+            }
+        } = true;
 
         /// <summary>
         /// Gets the world-space axis-aligned bounding box, computed from <see cref="LocalBoundingBox"/> and <see cref="Transform"/>.
