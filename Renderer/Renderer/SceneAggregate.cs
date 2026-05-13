@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer
         public sealed class Fragment : SceneNode
         {
             /// <summary>Gets the aggregate that owns this fragment.</summary>
-            public required SceneAggregate Parent { get; init; }
+            public required new SceneAggregate Parent { get; init; }
 
             /// <summary>Gets the shared renderable mesh used to issue this fragment's draw call.</summary>
             public required RenderableMesh RenderMesh { get; init; }

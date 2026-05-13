@@ -75,14 +75,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             light.Color = color;
             light.Brightness = brightness;
-            light.BrightnessScale = 300f;
+            light.BrightnessScale = 500f;
             light.Range = range;
             light.Position = particle.Position;
             light.Transform = Matrix4x4.CreateTranslation(particle.Position);
-            light.Direction = particle.GetVector(ParticleField.Normal) is { } normal && normal != Vector3.Zero
-                ? Vector3.Normalize(normal)
-                : Vector3.UnitX;
-
+            light.Direction = particle.GetVector(ParticleField.Normal);
             light.IsDirty = true;
         }
     }

@@ -6,19 +6,25 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Manages skeletal animation playback and computes animated bone poses.
     /// </summary>
-    public class AnimationController : BaseAnimationController
+    public partial class AnimationController : BaseAnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
 
         /// <summary>Gets or sets the playback speed multiplier applied to the animation timestep.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
-        /// <summary>Gets the current playback time in seconds.</summary>
-        public float Time { get; private set { field = value; forceUpdate = true; } }
         private bool forceUpdate;
 
+        /// <summary>
+        /// The parent animating transform.
+        /// </summary>
+        public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
+
+        /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
+        public bool Looping { get; set; } = true;
+
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
-        public Animation? ActiveAnimation { get; private set; }
+        public Animation? ActiveAnimation => activeClip?.Animation;
 
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
@@ -26,38 +32,37 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
-        private bool isPaused;
 
-        /// <summary>Gets or sets whether animation playback is paused. Setting to <see langword="false"/> forces an immediate pose update.</summary>
+        /// <summary>Gets or sets whether animation playback is paused. Changing the value forces a pose update.</summary>
         public bool IsPaused
         {
-            get => isPaused;
+            get => field;
             set
             {
-                isPaused = value;
-                forceUpdate = !value;
+                forceUpdate = field != value;
+                field = value;
             }
         }
 
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
-            get
-            {
-                if (ActiveAnimation != null && ActiveAnimation.FrameCount > 1)
-                {
-                    return (int)MathF.Round(Time * ActiveAnimation.Fps) % ActiveAnimation.FrameCount;
-                }
-                return 0;
-            }
+            get => activeClip?.Frame ?? 0;
             set
             {
-                if (ActiveAnimation != null)
-                {
-                    Time = ActiveAnimation.Fps != 0
-                        ? value / ActiveAnimation.Fps
-                        : 0f;
-                }
+                activeClip?.Frame = value;
+                forceUpdate = true;
+            }
+        }
+
+        /// <summary>Gets or sets the current playback time in seconds.</summary>
+        public float Time
+        {
+            get => activeClip?.Time ?? 0f;
+            set
+            {
+                activeClip?.Time = value;
+                forceUpdate = true;
             }
         }
 
@@ -71,6 +76,7 @@ namespace ValveResourceFormat.Renderer
             : base(skeleton)
         {
             FrameCache = new(skeleton, flexControllers);
+            BlendedFrame = new(skeleton, flexControllers);
         }
 
         /// <summary>
@@ -85,17 +91,18 @@ namespace ValveResourceFormat.Renderer
                 return false;
             }
 
-            if (!IsPaused)
-            {
-                Time += timeStep * FrametimeMultiplier;
-            }
+            timeStep *= FrametimeMultiplier;
 
             if (CurrentSubController is { } subController)
             {
                 subController.Handler.IsPaused = IsPaused;
-                subController.Handler.Time = Time;
+                subController.Handler.Looping = Looping;
+                subController.Handler.forceUpdate = forceUpdate;
 
-                var updated = subController.Handler.Update(0f);
+                var updated = subController.Handler.Update(timeStep);
+                IsPaused = subController.Handler.IsPaused;
+                forceUpdate = subController.Handler.forceUpdate;
+
                 if (!updated && !forceUpdate)
                 {
                     return false;
@@ -130,14 +137,21 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    ComputePoseRecursive(root, Matrix4x4.Identity, subController, Pose);
+                    ComputePoseRecursive(root, Transform, subController, Pose);
                 }
 
 
                 AnimationFrame = GetFrame();
                 updateHandler(ActiveAnimation, Frame);
                 forceUpdate = false;
+
+                ApplyInverseKinematics();
                 return true;
+            }
+
+            if (!IsPaused && activeClip != null)
+            {
+                UpdateClips(timeStep);
             }
 
             AnimationFrame = GetFrame();
@@ -150,7 +164,7 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
-            if (ActiveAnimation?.Clip is { IsAdditive: true })
+            if (!IsUsingMixer && ActiveAnimation?.Clip is { IsAdditive: true })
             {
                 // We need a frame we can write to without ruining the frame cache
                 AnimationFrame.Bones.CopyTo(FrameCache.InterpolatedFrame.Bones);
@@ -171,9 +185,10 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, AnimationFrame, Pose);
+                GetBoneMatricesRecursive(root, Transform, AnimationFrame, Pose);
             }
 
+            ApplyInverseKinematics();
             return true;
         }
 
@@ -183,32 +198,45 @@ namespace ValveResourceFormat.Renderer
         /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
         public void SetAnimation(Animation? animation)
         {
-            FrameCache.Clear();
-            ActiveAnimation = animation;
-            forceUpdate = true;
-            Time = 0f;
-            Frame = 0;
-            updateHandler(ActiveAnimation, -1);
+            SetAnimation(animation, 0f);
+        }
 
-            if (animation is null && CurrentSubController is { } subController)
-            {
-                subController.Handler.SetAnimation(null);
-                CurrentSubController = null;
-                return;
-            }
-
+        /// <summary>
+        /// Sets the active animation with a blend-in time for smooth transitions.
+        /// </summary>
+        /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
+        /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
+        public void SetAnimation(Animation? animation, float blendTime)
+        {
             if (animation is { Clip: { } nmClip })
             {
                 var skeletonName = nmClip.SkeletonName;
-                if (ExternalSkeletons.TryGetValue(skeletonName, out subController))
+                if (ExternalSkeletons.TryGetValue(skeletonName, out var subController))
                 {
-                    subController.Handler.SetAnimation(animation);
+                    subController.Handler.Looping = Looping;
+                    subController.Handler.FrametimeMultiplier = FrametimeMultiplier;
+                    subController.Handler.SetAnimation(animation, blendTime);
                     CurrentSubController = subController;
+                    forceUpdate = true;
+                    updateHandler(ActiveAnimation, -1);
                     return;
                 }
             }
 
             CurrentSubController = null;
+            FrameCache.PurgeCache();
+
+            if (animation != null)
+            {
+                TransitionToClip(animation, blendTime);
+            }
+            else
+            {
+                activeClip = null;
+            }
+
+            forceUpdate = true;
+            updateHandler(ActiveAnimation, -1);
         }
 
         /// <summary>Pauses playback and seeks to the last frame of the active animation.</summary>
@@ -229,18 +257,7 @@ namespace ValveResourceFormat.Renderer
                 return subController.Handler.GetFrame();
             }
 
-            if (ActiveAnimation == null)
-            {
-                return null;
-            }
-            else if (IsPaused)
-            {
-                return FrameCache.GetFrame(ActiveAnimation, Frame);
-            }
-            else
-            {
-                return FrameCache.GetInterpolatedFrame(ActiveAnimation, Time);
-            }
+            return GetBlendedFrame();
         }
 
         /// <summary>
@@ -314,9 +331,13 @@ namespace ValveResourceFormat.Renderer
             }
 
             // Could this be a simpler base type?
-            var controller = new AnimationController(skeleton, []);
+            var controller = new AnimationController(skeleton, [])
+            {
+                Looping = Looping,
+            };
 
             ExternalSkeletons[skeletonName] = new(controller, remapTable, debugMap);
         }
+
     }
 }

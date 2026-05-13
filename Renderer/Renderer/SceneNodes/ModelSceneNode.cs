@@ -8,6 +8,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -136,6 +137,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             LoadAnimations(model, embeddedAnimationsOnly: isWorldPreview);
 
             SetCharacterEyeRenderParams();
+            Attachments = model.Attachments;
+            AnimationController.TwistConstraints = ParseTwistConstraints(model);
         }
 
         readonly struct CharacterEyeParameters
@@ -352,15 +355,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 ? model.GetEmbeddedAnimations()
                 : model.GetAllAnimations(Scene.RendererContext.FileLoader)).ToList();
 
-            Animations.EnsureCapacity(animations.Count);
-            foreach (var anim in animations)
-            {
-                Animations[anim.Name] = anim;
-            }
+            AddAnimations(animations);
 
             if (Animations.Count != 0)
             {
                 SetupBoneMatrixBuffers();
+            }
+        }
+
+        /// <summary>
+        /// Adds the given animations to the collection of available animations for this model.
+        /// </summary>
+        public void AddAnimations(List<Animation> animations)
+        {
+            Animations.EnsureCapacity(animations.Count);
+            foreach (var anim in animations)
+            {
+                Animations[anim.Name] = anim;
             }
         }
 
@@ -473,10 +484,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>
-        public void SetAnimationByName(string animationName)
+        public void SetAnimationByName(string animationName, float blendTime = 0f)
         {
             Animations.TryGetValue(animationName, out var activeAnimation);
-            SetAnimation(activeAnimation);
+            SetAnimation(activeAnimation, blendTime);
         }
 
         /// <summary>
@@ -504,10 +515,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return false;
         }
 
-        /// <summary>Activates the given animation instance, or clears the active animation when <see langword="null"/>.</summary>
-        public void SetAnimation(Animation? activeAnimation)
+        /// <summary>Activates the given animation instance with a blend-in time, or clears the active animation when <see langword="null"/>.</summary>
+        /// <param name="activeAnimation">The animation to activate, or <see langword="null"/> to clear.</param>
+        /// <param name="blendTime">The time in seconds to blend from the current animation to the new one.</param>
+        public void SetAnimation(Animation? activeAnimation, float blendTime = 0f)
         {
-            AnimationController.SetAnimation(activeAnimation);
+            AnimationController.SetAnimation(activeAnimation, blendTime);
             UpdateBoundingBox();
 
             if (activeAnimation != default)
@@ -648,6 +661,79 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Delete()
         {
             boneMatricesGpu?.Delete();
+        }
+
+        /// <summary>
+        /// Parses tilt-twist constraints from the model's keyvalues.
+        /// </summary>
+        protected static TiltTwistConstraint[] ParseTwistConstraints(Model model)
+        {
+            var keyvalues = model.KeyValues;
+            if (!keyvalues.ContainsKey("BoneConstraintList"))
+            {
+                return [];
+            }
+
+            var boneConstraintList = keyvalues.GetArray("BoneConstraintList");
+            var constraints = new List<TiltTwistConstraint>();
+
+            foreach (var constraintData in boneConstraintList)
+            {
+                var className = constraintData.GetStringProperty("_class");
+                if (className != "CTiltTwistConstraint")
+                {
+                    continue;
+                }
+
+                var upVec = constraintData.GetFloatArray("m_vUpVector");
+
+                var constraint = new TiltTwistConstraint
+                {
+                    Name = constraintData.GetStringProperty("m_name"),
+                    UpVector = new Vector3(upVec[0], upVec[1], upVec[2]),
+                    TargetAxis = (int)constraintData.GetIntegerProperty("m_nTargetAxis"),
+                    SlaveAxis = (int)constraintData.GetIntegerProperty("m_nSlaveAxis"),
+                };
+
+                // Parse slaves
+                var slaves = constraintData.GetArray("m_slaves");
+                constraint.Slaves = slaves.Select(s =>
+                {
+                    var quat = s.GetFloatArray("m_qBaseOrientation");
+                    var pos = s.GetFloatArray("m_vBasePosition");
+
+                    return new TiltTwistConstraintSlave
+                    {
+                        BaseOrientation = new Quaternion(quat[0], quat[1], quat[2], quat[3]),
+                        BasePosition = new Vector3(pos[0], pos[1], pos[2]),
+                        BoneHash = s.GetUInt32Property("m_nBoneHash"),
+                        Weight = s.GetFloatProperty("m_flWeight"),
+                        Name = s.GetStringProperty("m_sName"),
+                    };
+                }).ToArray();
+
+                // Parse targets
+                var targets = constraintData.GetArray("m_targets");
+                constraint.Targets = targets.Select(t =>
+                {
+                    var quat = t.GetFloatArray("m_qOffset");
+                    var pos = t.GetFloatArray("m_vOffset");
+
+                    return new TiltTwistConstraintTarget
+                    {
+                        Offset = new Quaternion(quat[0], quat[1], quat[2], quat[3]),
+                        PositionOffset = new Vector3(pos[0], pos[1], pos[2]),
+                        BoneHash = t.GetUInt32Property("m_nBoneHash"),
+                        Name = t.GetStringProperty("m_sName"),
+                        Weight = t.GetFloatProperty("m_flWeight"),
+                        IsAttachment = t.GetBooleanProperty("m_bIsAttachment"),
+                    };
+                }).ToArray();
+
+                constraints.Add(constraint);
+            }
+
+            return [.. constraints];
         }
     }
 }

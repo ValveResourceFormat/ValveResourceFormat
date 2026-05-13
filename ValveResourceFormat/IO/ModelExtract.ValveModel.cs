@@ -221,7 +221,10 @@ partial class ModelExtract
     }
     #endregion
 
-    internal static Vector3 ToEulerAngles(Quaternion q)
+    /// <summary>
+    /// Converts a quaternion to Euler angles in degrees.
+    /// </summary>
+    public static Vector3 ToEulerAngles(Quaternion q)
     {
         Vector3 angles = new();
 

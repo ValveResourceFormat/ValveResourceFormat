@@ -385,6 +385,11 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in dynamicNodes)
             {
+                if (node.Parent != null)
+                {
+                    continue; // child nodes are updated by their parent
+                }
+
                 var oldBox = node.BoundingBox;
                 node.Update(updateContext);
 
@@ -1552,6 +1557,18 @@ namespace ValveResourceFormat.Renderer
             renderContext.ReplacementShader = null;
         }
 
+
+        internal void ActivateLayer(string layerName)
+        {
+            foreach (var node in AllNodes)
+            {
+                if (node.LayerName == layerName)
+                {
+                    node.LayerEnabled = true;
+                }
+            }
+        }
+
         /// <summary>
         /// Enables or disables scene nodes based on whether their layer name is present in the given set.
         /// </summary>
@@ -1566,7 +1583,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                if (renderer.LayerName.StartsWith("LightProbeGrid", StringComparison.Ordinal))
+                if (renderer.LayerName.StartsWith("Internal -", StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -1758,6 +1775,12 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in AllNodes)
             {
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.LightProbeBinding = globalProbe;
+                    continue;
+                }
+
                 node.LightProbeBinding ??= globalProbe;
             }
         }
@@ -1882,6 +1905,12 @@ namespace ValveResourceFormat.Renderer
                 });
 
                 node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
+
+                // all cubemaps visible
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(LightingInfo.EnvMaps);
+                }
 
 #if DEBUG
                 if (preComputed != default)

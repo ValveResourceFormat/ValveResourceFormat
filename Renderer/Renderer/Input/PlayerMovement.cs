@@ -46,12 +46,30 @@ public class PlayerMovement
     // Movement state
     /// <summary>Gets the current player velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }
-    private Vector3 SourcePosition;
-    private Vector3 DestinationPosition;
+    private Vector3 TracePositionPrevious;
+    private Vector3 TracePosition;
+    private Vector3 TracePositionSmooth;
     private float AccumulatedTime;
 
-    private bool OnGround;
-    private bool WasOnGroundLastFrame;
+    /// <summary>
+    /// The desired update rate.
+    /// </summary>
+    public int TickRate { get; set; } = 64;
+
+    /// <summary>
+    /// Gets the current player position at feet level (where the AABB touches the ground).
+    /// </summary>
+    public Vector3 Position => TracePositionSmooth - new Vector3(0, 0, Hull.Size.Z / 2); // Convert from AABB center to feet position
+
+    /// <summary>
+    /// Gets a value indicating whether the player is currently on the ground.
+    /// </summary>
+    public bool OnGround { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the player was touching the ground in the previous frame.
+    /// </summary>
+    public bool WasOnGroundLastFrame { get; private set; }
     private bool WasDuckingLastFrame;
 
     private bool HoldingCtrl => Input.Holding(TrackedKeys.Control);
@@ -60,7 +78,20 @@ public class PlayerMovement
     private UserInput Input { get; }
     private Rubikon? Physics => Input.PhysicsWorld;
 
-    private float CrouchBlend; // 0 = standing, 1 = fully ducked
+    /// <summary>
+    /// Linear value from 0 to 1 representing how much the player is crouched.  0 = standing, 1 = fully crouched.
+    /// </summary>
+    public float CrouchBlend { get; private set; }
+
+    /// <summary>
+    /// Gets the current eye height blended between standing and crouched positions.
+    /// </summary>
+    public float BlendedEyeHeight { get; private set; }
+
+
+    /// <summary>The current eye position</summary>
+    public Vector3 EyePosition { get; private set; }
+
     private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
 
@@ -105,8 +136,8 @@ public class PlayerMovement
     /// </summary>
     public void ResetPosition(Camera camera)
     {
-        DestinationPosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, PlayerHullStanding.Size.Z / 2);
-        SourcePosition = DestinationPosition;
+        TracePosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, PlayerHullStanding.Size.Z / 2);
+        TracePositionPrevious = TracePosition;
         Velocity = Vector3.Zero;
     }
 
@@ -120,22 +151,22 @@ public class PlayerMovement
         if (Initialize)
         {
             ResetPosition(camera);
-            TryUnstuck(ref DestinationPosition, SnappedHull);
+            TryUnstuck(ref TracePosition, SnappedHull);
             Velocity = input.Velocity;
             Initialize = false;
         }
 
-        var position = DestinationPosition;
+        var position = TracePosition;
 
         var pitch = camera.Pitch;
         var yaw = camera.Yaw;
 
         AccumulatedTime += deltaTime;
-        deltaTime = (float)1.0 / 64;
+        deltaTime = 1f / TickRate;
 
         int ticks = 0;
         var playerHull = Hull;
-        for (; ticks + 1 < AccumulatedTime * 64; ticks++)
+        for (; ticks + 1 < AccumulatedTime * TickRate; ticks++)
         {
             // Track input state for acceleration modifiers and collision hull
             var isDucking = HoldingCtrl;
@@ -231,19 +262,19 @@ public class PlayerMovement
                 CheckVelocity(ref position); // FinishGravity calls CheckVelocity in Source
             }
             // Store the updated position and make SourcePosition the previous DestinationPosition
-            SourcePosition = DestinationPosition;
-            DestinationPosition = position;
+            TracePositionPrevious = TracePosition;
+            TracePosition = position;
         }
 
-        AccumulatedTime -= (float)ticks / 64;
+        AccumulatedTime -= (float)ticks / TickRate;
 
         //Get interpolated position
-        var interpolatedPosition = SourcePosition + (DestinationPosition - SourcePosition) * AccumulatedTime * 64;
+        TracePositionSmooth = TracePositionPrevious + (TracePosition - TracePositionPrevious) * AccumulatedTime * TickRate;
 
         // Set camera at eye height with smooth crouch blend
-        var blendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
-        var groundPos = interpolatedPosition - new Vector3(0, 0, playerHull.Size.Z / 2);
-        camera.Location = groundPos + Vector3.UnitZ * blendedEyeHeight;
+        BlendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
+        EyePosition = Position + Vector3.UnitZ * BlendedEyeHeight;
+        camera.Location = EyePosition;
 
         // Draw player AABB for debugging
         /*
@@ -758,7 +789,7 @@ public class PlayerMovement
             Velocity *= effectiveMaxSpeed / Velocity.Length();
         }
 
-        CheckVelocity(ref DestinationPosition);
+        CheckVelocity(ref TracePosition);
     }
 
     /// <summary>
@@ -796,9 +827,9 @@ public class PlayerMovement
         var velUnchecked = Velocity;
         var posUnchecked = position;
 
-        position.X = float.IsNaN(position.X) ? DestinationPosition.X : position.X;
-        position.Y = float.IsNaN(position.Y) ? DestinationPosition.Y : position.Y;
-        position.Z = float.IsNaN(position.Z) ? DestinationPosition.Z : position.Z;
+        position.X = float.IsNaN(position.X) ? TracePosition.X : position.X;
+        position.Y = float.IsNaN(position.Y) ? TracePosition.Y : position.Y;
+        position.Z = float.IsNaN(position.Z) ? TracePosition.Z : position.Z;
 
         var velocityBounds = new AABB(Vector3.Zero, MaxVelocityValue);
         Velocity = Vector3.Clamp(Velocity, velocityBounds.Min, velocityBounds.Max);
@@ -808,7 +839,7 @@ public class PlayerMovement
         position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
 
         // sanity check, compare against last position
-        movementBounds = new AABB(DestinationPosition, MathF.Max(StepSize * 2f, Velocity.Length()));
+        movementBounds = new AABB(TracePosition, MathF.Max(StepSize * 2f, Velocity.Length()));
         position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
 
         var velocityError = Vector3.Distance(Velocity, velUnchecked) > 0.1f;
