@@ -137,7 +137,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 : $"animation/anims/world/{item}/_default_{item}/jump_crouch_stand_{item}.vnmclip";
         }
 
-        var locomotion_type = posture == Posture.Crouching
+        var movementType = posture == Posture.Crouching
             ? "crouch"
             : movement == MovementState.Running ? "run" : "walk";
 
@@ -159,7 +159,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             direction = "stopped";
         }
 
-        var anim = $"{path}{locomotion_type}_{direction}_{item}.vnmclip";
+        var anim = $"{path}{movementType}_{direction}_{item}.vnmclip";
         return anim;
     }
 
@@ -291,10 +291,10 @@ public class ViewmodelSceneNode : ModelSceneNode
     readonly Dictionary<int, Anim> ItemAnimations = new()
     {
         [1] = new Anim(
-            "rifle/rifle_m4a4/idle_m4a4.vnmclip",
-            "rifle/rifle_m4a4/draw_m4a4.vnmclip",
-            "rifle/rifle_m4a4/lookat01_m4a4.vnmclip",
-            "rifle/rifle_m4a4/shoot1_m4a4.vnmclip",
+            "rifle/_default_rifle/idle_rifle.vnmclip",
+            "rifle/_default_rifle/draw_rifle.vnmclip",
+            "rifle/_default_rifle/lookat01_rifle.vnmclip",
+            "rifle/_default_rifle/shoot1_rifle.vnmclip",
             "rifle/_default_rifle/silencer_detach_rifle.vnmclip"
         ),
         [2] = new Anim(
@@ -349,7 +349,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         Span<string> resources = [
             "agents/models/ctm_st6/ctm_st6_varianti.vmdl",
-            "weapons/models/m4a4/weapon_rif_m4a4.vmdl",
+            "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
             "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
             "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
         ];
@@ -382,7 +382,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
 
         // Load muzzle flash particle
-        var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle.vpcf");
+        var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle.vpcf"); // _fps
         if (muzzleFlashResource?.DataBlock is ParticleSystem particleSystem)
         {
             viewmodel.muzzleFlashParticle = new ParticleSceneNode(scene, particleSystem)

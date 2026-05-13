@@ -64,13 +64,13 @@ namespace ValveResourceFormat.Renderer
 
         private static void EvaluateViewmodelConstraints(Skeleton skeleton, Span<Matrix4x4> pose)
         {
-            Span<(string Target, string Twist, string Twist1, float Side)> constraints =
+            Span<(string Target, string Twist, string Twist1)> constraints =
             [
-                ("hand_r", "arm_lower_r_twist", "arm_lower_r_twist1", 1.0f),
-                //("arm_lower_r", "arm_upper_r_twist", "arm_upper_r_twist1", 0.5f),
+                ("hand_r", "arm_lower_r_twist", "arm_lower_r_twist1"),
+                //("arm_lower_r", "arm_upper_r_twist", "arm_upper_r_twist1"),
 
-                ("hand_l", "arm_lower_l_twist", "arm_lower_l_twist1", -1f),
-                //("arm_lower_l", "arm_upper_l_twist", "arm_upper_l_twist1", -0.5f),
+                ("hand_l", "arm_lower_l_twist", "arm_lower_l_twist1"),
+                //("arm_lower_l", "arm_upper_l_twist", "arm_upper_l_twist1"),
             ];
 
             foreach (var constraint in constraints)
@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (target != null && twist1 != null)
                 {
-                    ApplyTwistIK(pose, target, twist, twist1, constraint.Side);
+                    ApplyTwistIK(pose, target, twist, twist1);
                 }
             }
         }
@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone? twist, Bone twist1, float side)
+        private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone? twist, Bone twist1)
         {
             if (hand.Parent == null)
             {

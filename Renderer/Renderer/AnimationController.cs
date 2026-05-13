@@ -101,7 +101,6 @@ namespace ValveResourceFormat.Renderer
 
                 var updated = subController.Handler.Update(timeStep);
                 IsPaused = subController.Handler.IsPaused;
-                Time = subController.Handler.Time;
                 forceUpdate = subController.Handler.forceUpdate;
 
                 if (!updated && !forceUpdate)
@@ -209,11 +208,6 @@ namespace ValveResourceFormat.Renderer
         /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
         public void SetAnimation(Animation? animation, float blendTime)
         {
-            //if (CurrentSubController is { } subController)
-            //{
-            //    subController.Handler.SetAnimation(null);
-            //}
-
             if (animation is { Clip: { } nmClip })
             {
                 var skeletonName = nmClip.SkeletonName;
@@ -224,8 +218,6 @@ namespace ValveResourceFormat.Renderer
                     subController.Handler.SetAnimation(animation, blendTime);
                     CurrentSubController = subController;
                     forceUpdate = true;
-                    Time = 0f;
-                    Frame = 0;
                     updateHandler(ActiveAnimation, -1);
                     return;
                 }
