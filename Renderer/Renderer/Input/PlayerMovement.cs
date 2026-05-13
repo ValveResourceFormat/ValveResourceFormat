@@ -72,6 +72,8 @@ public class PlayerMovement
     public bool WasOnGroundLastFrame { get; private set; }
     private bool WasDuckingLastFrame;
 
+    private bool RequestedJump;
+
     private bool HoldingCtrl => Input.Holding(TrackedKeys.Control);
     private bool HoldingShift => Input.Holding(TrackedKeys.Shift);
 
@@ -156,6 +158,8 @@ public class PlayerMovement
             Initialize = false;
         }
 
+        RequestedJump = RequestedJump || input.Pressed(TrackedKeys.Space) || input.Holding(TrackedKeys.MouseWheelDown) || input.Holding(TrackedKeys.MouseWheelUp);
+
         var position = TracePosition;
 
         var pitch = camera.Pitch;
@@ -193,8 +197,8 @@ public class PlayerMovement
             }
 
             // Check for jump (auto bunny hop if enabled and holding jump)
-            var wantsToJump = AutoBunnyHop ? input.Holding(TrackedKeys.Space) : input.Pressed(TrackedKeys.Space);
-            wantsToJump = wantsToJump || input.Holding(TrackedKeys.MouseWheelDown) || input.Holding(TrackedKeys.MouseWheelUp);
+            var wantsToJump = AutoBunnyHop ? input.Holding(TrackedKeys.Space) : false;
+            wantsToJump = wantsToJump || RequestedJump;
 
             // For auto bhop, also jump immediately when landing while holding jump
             if (wantsToJump && (OnGround || (AutoBunnyHop && justLanded)))
@@ -265,6 +269,9 @@ public class PlayerMovement
             TracePositionPrevious = TracePosition;
             TracePosition = position;
         }
+        //Clear buffered jumps
+        if(ticks != 0)
+            RequestedJump = false;
 
         AccumulatedTime -= (float)ticks / TickRate;
 
