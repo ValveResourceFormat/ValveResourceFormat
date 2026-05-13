@@ -60,11 +60,14 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets whether the active animation clip has finished playing (is not looping and has reached the end).
         /// </summary>
-        public bool ActiveClipFinished => CurrentSubController.HasValue
-            ? CurrentSubController.Value.Handler.ActiveClipFinished
-            : activeClip != null && !activeClip.Looping && activeClip.IsPaused;
+        public bool ActiveClipFinished => activeClip != null && !activeClip.Looping && activeClip.IsPaused;
 
-        private Clip? activeClip;
+        private Clip? activeClip
+        {
+            get => CurrentSubController.HasValue ? CurrentSubController.Value.Handler.activeClip : field;
+            set => field = value;
+        }
+
         private Clip? previousClip;
         private readonly Dictionary<string, Clip> clips = [];
         private readonly Frame BlendedFrame;
@@ -123,6 +126,7 @@ namespace ValveResourceFormat.Renderer
                     break;
                 }
             }
+
             IsPaused = allPaused;
 
             // Update time for all clips
@@ -145,10 +149,6 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
             }
-
-            // Sync global Time and Frame with active clip
-            Time = activeClip.Time;
-            Frame = activeClip.Frame;
 
             if (activeClip.IsTimeBasedTransition && previousClip != null)
             {

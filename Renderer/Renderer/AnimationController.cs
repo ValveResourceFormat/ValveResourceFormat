@@ -13,8 +13,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the playback speed multiplier applied to the animation timestep.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
-        /// <summary>Gets the current playback time in seconds.</summary>
-        public float Time { get; private set { field = value; forceUpdate = true; } }
         private bool forceUpdate;
 
         /// <summary>
@@ -26,7 +24,7 @@ namespace ValveResourceFormat.Renderer
         public bool Looping { get; set; } = true;
 
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
-        public Animation? ActiveAnimation { get; private set; }
+        public Animation? ActiveAnimation => activeClip?.Animation;
 
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
@@ -49,22 +47,22 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
-            get
-            {
-                if (ActiveAnimation != null && ActiveAnimation.FrameCount > 1)
-                {
-                    return (int)MathF.Round(Time * ActiveAnimation.Fps) % ActiveAnimation.FrameCount;
-                }
-                return 0;
-            }
+            get => activeClip?.Frame ?? 0;
             set
             {
-                if (ActiveAnimation != null)
-                {
-                    Time = ActiveAnimation.Fps != 0
-                        ? value / ActiveAnimation.Fps
-                        : 0f;
-                }
+                activeClip?.Frame = value;
+                forceUpdate = true;
+            }
+        }
+
+        /// <summary>Gets or sets the current playback time in seconds.</summary>
+        public float Time
+        {
+            get => activeClip?.Time ?? 0f;
+            set
+            {
+                activeClip?.Time = value;
+                forceUpdate = true;
             }
         }
 
@@ -94,11 +92,6 @@ namespace ValveResourceFormat.Renderer
             }
 
             timeStep *= FrametimeMultiplier;
-
-            if (!IsPaused && activeClip != null)
-            {
-                UpdateClips(timeStep);
-            }
 
             if (CurrentSubController is { } subController)
             {
@@ -155,6 +148,11 @@ namespace ValveResourceFormat.Renderer
 
                 ApplyInverseKinematics();
                 return true;
+            }
+
+            if (!IsPaused && activeClip != null)
+            {
+                UpdateClips(timeStep);
             }
 
             AnimationFrame = GetFrame();
@@ -225,7 +223,6 @@ namespace ValveResourceFormat.Renderer
                     subController.Handler.FrametimeMultiplier = FrametimeMultiplier;
                     subController.Handler.SetAnimation(animation, blendTime);
                     CurrentSubController = subController;
-                    ActiveAnimation = animation;
                     forceUpdate = true;
                     Time = 0f;
                     Frame = 0;
@@ -236,8 +233,6 @@ namespace ValveResourceFormat.Renderer
 
             CurrentSubController = null;
             FrameCache.PurgeCache();
-
-            ActiveAnimation = animation;
 
             if (animation != null)
             {
