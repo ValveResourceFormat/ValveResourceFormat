@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer
@@ -28,6 +29,9 @@ namespace ValveResourceFormat.Renderer
 
             /// <summary>Gets or sets the blend transition time in seconds. Negative values indicate manual blending.</summary>
             public float BlendTime { get; set; }
+
+            /// <summary>Gets or sets the bone mask name to apply per-bone weighting. Empty string means no mask.</summary>
+            public string BoneMask { get; set; } = string.Empty;
 
             /// <summary>Gets whether this clip uses time-based transition blending.</summary>
             public bool IsTimeBasedTransition => BlendTime > 0f;
@@ -65,6 +69,39 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<string, Clip> clips = [];
         private readonly Frame BlendedFrame;
         private float currentBlendTime;
+
+        /// <summary>
+        /// Bone masks be used by clips to weigh transforms on a per-bone basis.
+        /// </summary>
+        public Dictionary<string, Half[]> BoneMaskDefinitions { get; } = [];
+
+        /// <summary>
+        /// Registers a bone mask for per-bone transform weighting.
+        /// </summary>
+        /// <param name="name">The name of the bone mask.</param>
+        /// <param name="boneWeights">Dictionary mapping bone names to weight values (0.0 to 1.0).</param>
+        /// <param name="skeletonName">Optional skeleton name to pass to subcontroller.</param>
+        public void RegisterBoneMask(string name, Dictionary<string, float> boneWeights, string? skeletonName = null)
+        {
+            if (skeletonName != null && ExternalSkeletons.TryGetValue(skeletonName, out var subController))
+            {
+                subController.Handler.RegisterBoneMask(name, boneWeights);
+                return;
+            }
+
+            var maskArray = new Half[Skeleton.Bones.Length];
+
+            foreach (var (boneName, weight) in boneWeights)
+            {
+                var boneIndex = Skeleton.GetBoneIndex(boneName);
+                if (boneIndex != -1)
+                {
+                    maskArray[boneIndex] = (Half)weight;
+                }
+            }
+
+            BoneMaskDefinitions[name] = maskArray;
+        }
 
         /// <summary>
         /// Updates time and weights for all active clips during playback.
@@ -202,13 +239,25 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 var frame = SampleFrame(clip);
-                var blendFactor = clip.Weight / (totalWeight + clip.Weight);
+                var blendFactor = clip.IsAdditive
+                    ? clip.Weight
+                    : clip.Weight / (totalWeight + clip.Weight);
+
+                // Apply bone mask if specified
+                Half[]? boneMask = null;
+                if (!string.IsNullOrEmpty(clip.BoneMask))
+                {
+                    BoneMaskDefinitions.TryGetValue(clip.BoneMask, out boneMask);
+                }
 
                 for (var i = 0; i < frame.Bones.Length; i++)
                 {
+                    var boneMaskWeight = boneMask != null ? (float)boneMask[i] : 1f;
+                    var weightedBlendFactor = blendFactor * boneMaskWeight;
+
                     BlendedFrame.Bones[i] = clip.IsAdditive
-                        ? BlendedFrame.Bones[i].BlendAdd(frame.Bones[i], blendFactor)
-                        : BlendedFrame.Bones[i].Blend(frame.Bones[i], blendFactor);
+                        ? BlendedFrame.Bones[i].BlendAdd(frame.Bones[i], weightedBlendFactor)
+                        : BlendedFrame.Bones[i].Blend(frame.Bones[i], weightedBlendFactor);
                 }
 
                 for (var i = 0; i < frame.Datas.Length; i++)
@@ -379,7 +428,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="name">The name of the animation.</param>
         /// <param name="time">Optional playback time to set.</param>
         /// <param name="looping">Optional looping flag to set.</param>
-        public void SetAnimationProperties(string name, float? time = null, bool? looping = null)
+        /// <param name="boneMask">Optional bone mask name to set.</param>
+        public void SetAnimationProperties(string name, float? time = null, bool? looping = null, string? boneMask = null)
         {
             if (clips.TryGetValue(name, out var clip))
             {
@@ -393,11 +443,16 @@ namespace ValveResourceFormat.Renderer
                 {
                     clip.Looping = looping.Value;
                 }
+
+                if (boneMask != null)
+                {
+                    clip.BoneMask = boneMask;
+                }
             }
 
             if (CurrentSubController is { } subController)
             {
-                subController.Handler.SetAnimationProperties(name, time, looping);
+                subController.Handler.SetAnimationProperties(name, time, looping, boneMask);
             }
         }
     }

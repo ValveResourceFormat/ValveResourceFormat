@@ -270,7 +270,19 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
 
         Legs.SetAnimationByName(BreathingClip, -1);
-        Legs.AnimationController.SetAnimationProperties(BreathingClip, 0f, looping: true);
+
+        // todo: parse from nmskel?
+        Legs.AnimationController.RegisterBoneMask("Breathing", new()
+        {
+            {"wpnPivot", 0f},
+            {"wpnAimIntent", 0f},
+            {"attachWorld", 0f},
+            {"leg_upper_R", 0f},
+            {"leg_upper_L", 0f},
+            {"spine_0", 1f},
+        }, "animation/skeletons/characters/worldmodel.vnmskel");
+
+        Legs.AnimationController.SetAnimationProperties(BreathingClip, 0f, looping: true, boneMask: "Breathing");
         Legs.AnimationController.SetAnimationWeight(BreathingClip, 1f);
     }
 
