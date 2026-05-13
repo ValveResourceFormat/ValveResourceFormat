@@ -184,6 +184,14 @@ namespace GUI.Types.Viewers
                     }
                     break;
 
+                case ResourceType.PulseGraphDef:
+                    if (resource.DataBlock is BinaryKV3 graphDefKV3)
+                    {
+                        GLViewer = new PulseGraphViewer(vrfGuiContext, rendererContext, graphDefKV3.Data);
+                        GLViewerTabName = "PULSE GRAPH";
+                    }
+                    break;
+
                 case ResourceType.Material:
                     {
                         if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
