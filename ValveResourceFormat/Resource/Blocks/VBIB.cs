@@ -721,7 +721,7 @@ namespace ValveResourceFormat.Blocks
 
                 case DXGI_FORMAT.R16G16B16A16_UNORM:
                     {
-                        for (var i = 0; i < weights.Length - 1; i += 2)
+                        for (var i = 0; i < weights.Length; i += 2)
                         {
                             weights[i] = new Vector4(data[offset], data[offset + 1], data[offset + 2], data[offset + 3]) / 255f;
                             weights[i + 1] = new Vector4(data[offset + 4], data[offset + 5], data[offset + 6], data[offset + 7]) / 255f;

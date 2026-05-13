@@ -8,8 +8,8 @@
     <PackageIcon>source2viewer.png</PackageIcon>
     <PackageTags>source2 dota2 dota steam valve halflife artifact underlords</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PublishAot>true</PublishAot>
-    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
+    <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>

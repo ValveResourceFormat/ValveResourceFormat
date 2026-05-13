@@ -212,13 +212,32 @@ public partial class GltfModelExporter
                 {
                     // If this occurs, give default weights
                     var baseWeight = 1f / boneWeightCount;
-                    var baseWeights = new Vector4(
+                    var baseWeights0 = new Vector4(
                         boneWeightCount > 0 ? baseWeight : 0,
                         boneWeightCount > 1 ? baseWeight : 0,
                         boneWeightCount > 2 ? baseWeight : 0,
                         boneWeightCount > 3 ? baseWeight : 0
                     );
-                    weights = [.. Enumerable.Repeat(baseWeights, (int)vertexBuffer.ElementCount)];
+
+                    if (isEightBonePackedFormat)
+                    {
+                        var baseWeights1 = new Vector4(
+                            boneWeightCount > 4 ? baseWeight : 0,
+                            boneWeightCount > 5 ? baseWeight : 0,
+                            boneWeightCount > 6 ? baseWeight : 0,
+                            boneWeightCount > 7 ? baseWeight : 0
+                        );
+                        weights = new Vector4[(int)vertexBuffer.ElementCount * 2];
+                        for (var i = 0; i < weights.Length; i += 2)
+                        {
+                            weights[i] = baseWeights0;
+                            weights[i + 1] = baseWeights1;
+                        }
+                    }
+                    else
+                    {
+                        weights = [.. Enumerable.Repeat(baseWeights0, (int)vertexBuffer.ElementCount)];
+                    }
                 }
 
                 var weightsFloats = MemoryMarshal.Cast<Vector4, float>(weights.AsSpan());
@@ -261,7 +280,7 @@ public partial class GltfModelExporter
                     var weights1 = new Vector4[weights.Length / 2];
                     var w = 0;
 
-                    for (var i = 0; i < weights.Length - 1; i += 2)
+                    for (var i = 0; i < weights.Length; i += 2)
                     {
                         weights0[w] = weights[i];
                         weights1[w] = weights[i + 1];

@@ -26,7 +26,8 @@
     <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
-    <AnalysisMode>All</AnalysisMode>
+    <AnalysisMode Condition="'$(Configuration)' == 'Release'">All</AnalysisMode>
+    <AnalysisMode Condition="'$(Configuration)' != 'Release'">Recommended</AnalysisMode>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
@@ -37,6 +38,11 @@
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://valveresourceformat.github.io/</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' != 'Release'">
+    <!-- CA2000 is very slow: https://github.com/dotnet/roslyn-analyzers/issues/4915 -->
+    <NoWarn>$(NoWarn);CA2000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

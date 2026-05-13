@@ -40,9 +40,9 @@ public class NmClipExtract
         Debug.Assert(sourceFileName != null);
         kv.Add("m_sourceFilename", sourceFileName);
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
+
         // TODO: figure out additive type.
-        var isAdditive = clip.Data.Root.GetBooleanProperty("m_bIsAdditive");
-        if (isAdditive)
+        if (clip.IsAdditive)
         {
             kv.Add("m_additiveType", "RelativeToFrame");
             kv.Add("m_additiveBaseFilename", "");
@@ -76,11 +76,44 @@ public class NmClipExtract
                 return ModelExtract.ToDmxAnim(skeleton, [], animation, nmSkelAxisFixup: true);
             });
         }
+
+        if (clip.SecondaryAnimations.Length > 0)
+        {
+            var secondarySkeletonNames = KVObject.Array();
+            foreach (var secAnim in clip.SecondaryAnimations)
+            {
+                secondarySkeletonNames.Add(secAnim.SkeletonName);
+            }
+
+            kv.Add("m_secondaryAnimationSkeletonNames", secondarySkeletonNames);
+        }
+
+        var syncEventIds = new HashSet<string>();
+        var syncTrack = clip.Data.Root.GetSubCollection("m_syncTrack");
+        if (syncTrack != null)
+        {
+            var syncEvents = syncTrack.GetArray("m_syncEvents");
+            if (syncEvents != null)
+            {
+                foreach (var syncEv in syncEvents)
+                {
+                    var syncId = syncEv.GetStringProperty("m_ID", string.Empty);
+                    if (!string.IsNullOrEmpty(syncId))
+                    {
+                        syncEventIds.Add(syncId);
+                    }
+                }
+            }
+        }
+
         var events = clip.Data.Root.GetArray("m_events")!;
         var docEventTracks = KVObject.Array();
         foreach (var ev in events!)
         {
-            var docEventTrack = BuildDocEventBasedOnEventClass(ev, ev.GetStringProperty("_class"));
+            var eventSyncId = ev.GetStringProperty("m_syncID", ev.GetStringProperty("m_ID", string.Empty));
+            var isSyncTrack = syncEventIds.Contains(eventSyncId);
+
+            var docEventTrack = BuildDocEventBasedOnEventClass(ev, ev.GetStringProperty("_class"), isSyncTrack);
             var startTimeObj = ev.GetSubCollection("m_flStartTime");
             var startTimeSeconds = startTimeObj?.GetFloatProperty("m_flValue") ?? 0f;
             var durationObj = ev.GetSubCollection("m_flDuration");
@@ -92,13 +125,14 @@ public class NmClipExtract
             eventList["m_flDuration"] = Math.Floor(durationSeconds * animation.FrameCount);
             docEventTracks.Add(docEventTrack);
         }
+
         kv.Add("m_eventTracks", docEventTracks);
         contentFile.Data = Encoding.UTF8.GetBytes(kv.ToKV3String());
         return contentFile;
     }
 
     // Returns a full event track.
-    private static KVObject BuildDocEventBasedOnEventClass(KVObject kvCompiledEvent, string className)
+    private static KVObject BuildDocEventBasedOnEventClass(KVObject kvCompiledEvent, string className, bool isSyncTrack)
     {
         // From testing one event track in doc seems to correspond to one event in compiled asset
         // even though m_events is an array inside each track.
@@ -106,7 +140,7 @@ public class NmClipExtract
         var kvDocEvent = KVObject.Collection();
 
         kvDocEventTrack.Add("m_type", "Duration"); // Doesn't seem to matter?
-        kvDocEventTrack.Add("m_bIsSyncTrack", kvCompiledEvent.ContainsKey("m_syncID"));
+        kvDocEventTrack.Add("m_bIsSyncTrack", isSyncTrack);
 
         // Example: CNmIDEvent maps to CNmClipDocEvent_ID.
         var eventName = className["CNm".Length..^"Event".Length];
