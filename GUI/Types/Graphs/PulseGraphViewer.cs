@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Net.Sockets;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
@@ -15,6 +16,8 @@ using static ValveResourceFormat.Blocks.ResourceIntrospectionManifest.ResourceDi
 
 namespace GUI.Types.Graphs;
 
+using InstructionInputActionSocketMap = Dictionary<int, SocketIn>;
+using RegisterSocketOutputMap = Dictionary<int, SocketOut>;
 using RegisterValueMap = Dictionary<int, KVObject>;
 internal class PulseGraphViewer : GLNodeGraphViewer
 {
@@ -164,8 +167,13 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         var domainValues = graphDefinition.GetArray("m_DomainValues");
         var constants = graphDefinition.GetArray("m_Constants");
         var variables = graphDefinition.GetArray("m_Vars");
-        // registers that have known loaded constant value.
+        // Registers that have known loaded constant value.
         Dictionary<int, RegisterValueMap> staticCalculatedRegisterValues = [];
+        // Cache registers to output sockets that are calculated by a node.
+        Dictionary<int, RegisterSocketOutputMap> registerSocketOutputMap = [];
+        // Cache existing instructions that can be referenced back by things like 'jump' instructions.
+        Dictionary<int, InstructionInputActionSocketMap> instructionInputActionSocketMap = [];
+
         Dictionary<int, Node> createdNodes = [];
         List<NodeCallInfo> callNodesToResolve = [];
 
@@ -268,10 +276,11 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             return filteredCell;
         }
 
-        SocketOut CreateSequentialActionSockets(Node node, SocketOut previousActionOutSocket)
+        SocketOut CreateSequentialActionSockets(Node node, SocketOut previousActionOutSocket, int chunkIdx, int instruction)
         {
             var socketIn = node.CreateSocketIn<Action>("actionIn");
             nodeGraph.Connect(previousActionOutSocket, socketIn);
+            instructionInputActionSocketMap[chunkIdx][instruction] = socketIn;
 
             var socketOut = new SocketOut(typeof(Action), "actionOut", node);
             node.Sockets.Add(socketOut);
@@ -323,17 +332,20 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         void TraverseNodesForChunk(int chunkIndex, SocketOut sourceActionOutSocket, int startingInstruction = 0)
         {
             staticCalculatedRegisterValues.TryAdd(chunkIndex, []);
+            registerSocketOutputMap.TryAdd(chunkIndex, []);
+            instructionInputActionSocketMap.TryAdd(chunkIndex, []);
+
             var chunk = chunks[chunkIndex];
             var instructions = chunk.GetArray("m_Instructions");
             var registers = chunk.GetArray("m_Registers");
 
-            // Cache registers to output sockets that are calculated by a node.
-            Dictionary<int, SocketOut> registerSocketOutputMap = [];
-
             SocketOut previousActionOutSocket = sourceActionOutSocket;
             bool stopProcessing = false;
-            foreach (var instruction in instructions.Skip(startingInstruction))
+            foreach (var (_instructionIdx, instruction) in instructions.Skip(startingInstruction).Select((index, item) => (item, index)))
             {
+                // cause we're skipping elements...
+                var instructionIdx = _instructionIdx + startingInstruction;
+
                 if (stopProcessing)
                     break;
 
@@ -357,7 +369,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             // If an action without outputs then create a new output action and continue.
                             if (registerMap["m_Outparams"].IsNull)
                             {
-                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
+                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
                             }
                             else // In other case cache the register output values and create output sockets.
                             {
@@ -367,12 +379,12 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     var regValue = (int)regIdx;
 
                                     var outSocket = new SocketOut(typeof(Value), paramName, node);
-                                    registerSocketOutputMap[regValue] = outSocket;
+                                    registerSocketOutputMap[chunkIndex][regValue] = outSocket;
                                     node.Sockets.Add(outSocket);
                                 }
                             }
 
-                            CreateInputsForNodeWithInvokeBinding(node, chunkIndex, registerSocketOutputMap, registerMap);
+                            CreateInputsForNodeWithInvokeBinding(node, chunkIndex, registerSocketOutputMap[chunkIndex], registerMap);
 
                             nodeGraph.AddNode(node);
                             break;
@@ -397,7 +409,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             // If an action without outputs then create a new output action and continue.
                             if (registerMap["m_Outparams"].IsNull)
                             {
-                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
+                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
                             }
                             else // In other case cache the register output values and create output sockets.
                             {
@@ -407,7 +419,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     var regValue = (int)regIdx;
 
                                     var outSocket = new SocketOut(typeof(Value), paramName, node);
-                                    registerSocketOutputMap[regValue] = outSocket;
+                                    registerSocketOutputMap[chunkIndex][regValue] = outSocket;
                                     node.Sockets.Add(outSocket);
                                 }
                             }
@@ -419,7 +431,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 node.AddText($"{kvPair.Key} = \"{val}\"");
                             }
 
-                            CreateInputsForNodeWithInvokeBinding(node, chunkIndex, registerSocketOutputMap, registerMap);
+                            CreateInputsForNodeWithInvokeBinding(node, chunkIndex, registerSocketOutputMap[chunkIndex], registerMap);
                             PopulateNonInflowCell(node, cellIndex);
 
                             nodeGraph.AddNode(node);
@@ -451,7 +463,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             node.AddText(GetVariableNameFromIndex(varIndex));
 
                             var sockOut = new SocketOut(typeof(Value), "retval", node);
-                            registerSocketOutputMap[regIndex] = sockOut;
+                            registerSocketOutputMap[chunkIndex][regIndex] = sockOut;
                             node.Sockets.Add(sockOut);
 
                             nodeGraph.AddNode(node);
@@ -466,10 +478,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 Name = "Set Variable",
                                 NodeType = "Instruction",
                             };
-                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
+                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
 
                             node.AddText(GetVariableNameFromIndex(varIndex));
-                            AddNodeRegisterInput(node, chunkIndex, registerSocketOutputMap, regIndex);
+                            AddNodeRegisterInput(node, chunkIndex, registerSocketOutputMap[chunkIndex], regIndex);
 
                             nodeGraph.AddNode(node);
                             break;
@@ -483,7 +495,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 Name = instrType == InstructionType.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously",
                                 NodeType = "Flow",
                             };
-                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
+                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
 
                             callNodesToResolve.Add(new NodeCallInfo
                             {
@@ -500,8 +512,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 Name = "Return Value",
                                 NodeType = "Flow",
                             };
-                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
-                            AddNodeRegisterInput(node, chunkIndex, registerSocketOutputMap, regIndex);
+                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                            AddNodeRegisterInput(node, chunkIndex, registerSocketOutputMap[chunkIndex], regIndex);
                             break;
                         }
                     case InstructionType.RETURN_VOID:
@@ -514,7 +526,15 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         {
                             stopProcessing = true;
                             var destInstruction = instruction.GetInt32Property("m_nDestInstruction");
-                            TraverseNodesForChunk(chunkIndex, previousActionOutSocket, destInstruction);
+                            // Note: this will likely fail if the Jump lands on a NOP, but I don't think that can happen in official graphs.
+                            if (instructionInputActionSocketMap[chunkIndex].TryGetValue(destInstruction, out var targetSocket))
+                            {
+                                nodeGraph.Connect(previousActionOutSocket, targetSocket);
+                            }
+                            else
+                            {
+                                TraverseNodesForChunk(chunkIndex, previousActionOutSocket, destInstruction);
+                            }
                             break;
                         }
                     default:
@@ -550,7 +570,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     {
                                         // if it doesn't exist then instruction registers were defined out of order, or we didn't calculate one.
                                         // TODO: handle this case wtihout crashing.
-                                        var regOutSocket = registerSocketOutputMap[reg1];
+                                        var regOutSocket = registerSocketOutputMap[chunkIndex][reg1];
                                         var argInputSocket = node.CreateSocketIn<Value>("arg1");
                                         nodeGraph.Connect(regOutSocket, argInputSocket);
                                     }
@@ -568,7 +588,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     {
                                         // if it doesn't exist then instruction registers were defined out of order, or we didn't calculate one.
                                         // TODO: handle this case wtihout crashing.
-                                        var regOutSocket = registerSocketOutputMap[reg2];
+                                        var regOutSocket = registerSocketOutputMap[chunkIndex][reg2];
                                         var argInputSocket = node.CreateSocketIn<Value>("arg2");
                                         nodeGraph.Connect(regOutSocket, argInputSocket);
                                     }
@@ -577,7 +597,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 // create output socket for this node, and store it for future connections
                                 var socketOut = new SocketOut(typeof(Value), "retval", node);
                                 node.Sockets.Add(socketOut);
-                                registerSocketOutputMap[reg0] = socketOut;
+                                registerSocketOutputMap[chunkIndex][reg0] = socketOut;
 
                                 nodeGraph.AddNode(node);
                             }
@@ -812,7 +832,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
         public SocketIn CreateSocketIn<T>(string text) where T : struct
         {
-            var socket = new SocketIn(typeof(T), text, this, hub: false);
+            var socket = new SocketIn(typeof(T), text, this, hub: true);
             Sockets.Add(socket);
             return socket;
         }
