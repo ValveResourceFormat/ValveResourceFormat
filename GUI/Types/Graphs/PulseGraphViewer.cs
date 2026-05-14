@@ -376,8 +376,15 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
         }
 
-        // Populates relevant information and creates node graphs for the given chunk
-        void TraverseNodesForChunk(int chunkIndex, SocketOut sourceActionOutSocket, int startingInstruction = 0)
+        /// <summary>
+        /// Populates relevant information and creates node graphs for the given chunk
+        /// Will loop over a chunk until hitting a return instruction. Jumps are processed recursively.
+        /// </summary>
+        /// <param name="chunkIndex">Index of the chunk to traverse</param>
+        /// <param name="sourceActionOutSocket">Which socket to connect the action input of the first generated node</param>
+        /// <param name="startingInstruction">Should we skip parsing these amount of instructions? Useful for jumps</param>
+        /// <param name="forceRecalculateExisting">Should we generate new nodes instead of plugging in into already generated ones (if they exist)</param>
+        void TraverseNodesForChunk(int chunkIndex, SocketOut sourceActionOutSocket, int startingInstruction = 0, bool forceRecalculateExisting = false)
         {
             staticCalculatedRegisterValues.TryAdd(chunkIndex, []);
             registerSocketOutputMap.TryAdd(chunkIndex, []);
@@ -386,6 +393,27 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             var chunk = chunks[chunkIndex];
             var instructions = chunk.GetArray("m_Instructions");
             var registers = chunk.GetArray("m_Registers");
+
+            // Find if we generated the same nodes, and connect incoming socket to the existing nodes.
+            // Useful with things like jump instructions.
+            if (!forceRecalculateExisting)
+            {
+                // Skip over potential NOPs if we landed on it through a Jump somehow.
+                var instrIndex = startingInstruction;
+                while (instrIndex < instructions.Count && GetInstructionType(instructions[instrIndex]) == InstructionType.NOP)
+                {
+                    instrIndex++;
+                }
+
+                if (instrIndex < instructions.Count)
+                {
+                    if (instructionInputActionSocketMap[chunkIndex].TryGetValue(startingInstruction, out var targetSocket))
+                    {
+                        nodeGraph.Connect(sourceActionOutSocket, targetSocket);
+                        return;
+                    }
+                }
+            }
 
             SocketOut previousActionOutSocket = sourceActionOutSocket;
             bool stopProcessing = false;
@@ -573,15 +601,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         {
                             stopProcessing = true;
                             var destInstruction = instruction.GetInt32Property("m_nDestInstruction");
-                            // Note: this will likely fail if the Jump lands on a NOP, but I don't think that can happen in official graphs.
-                            if (instructionInputActionSocketMap[chunkIndex].TryGetValue(destInstruction, out var targetSocket))
-                            {
-                                nodeGraph.Connect(previousActionOutSocket, targetSocket);
-                            }
-                            else
-                            {
-                                TraverseNodesForChunk(chunkIndex, previousActionOutSocket, destInstruction);
-                            }
+                            TraverseNodesForChunk(chunkIndex, previousActionOutSocket, destInstruction);
                             break;
                         }
                     case InstructionType.JUMP_COND:
@@ -620,35 +640,16 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                             var socketOutTrue = new SocketOut(typeof(Action), "True", node);
                             var destInstructionTrue = instruction.GetInt32Property("m_nDestInstruction");
-                            // TODO: dedupe all of this crap
-                            if (instructionInputActionSocketMap[chunkIndex].TryGetValue(destInstructionTrue, out var targetSocket))
-                            {
-                                nodeGraph.Connect(socketOutTrue, targetSocket);
-                            }
-                            else
-                            {
-                                TraverseNodesForChunk(chunkIndex, socketOutTrue, destInstructionTrue);
-                            }
+                            TraverseNodesForChunk(chunkIndex, socketOutTrue, destInstructionTrue);
                             node.Sockets.Add(socketOutTrue);
 
-                            // if false, we don't take the jump. so traverse starting from currentinstr + 1
+                            // If false we don't take the jump. So traverse starting from currentinstr + 1
                             var socketOutFalse = new SocketOut(typeof(Action), "False", node);
                             var destInstructionFalse = instructionIdx + 1;
-
-                            // TODO: dedupe all of this
-                            // Also why are the 'out' vars not limited in scope in this language???
-                            if (instructionInputActionSocketMap[chunkIndex].TryGetValue(destInstructionFalse, out var targetSocket2))
-                            {
-                                nodeGraph.Connect(socketOutFalse, targetSocket2);
-                            }
-                            else
-                            {
-                                TraverseNodesForChunk(chunkIndex, socketOutFalse, destInstructionFalse);
-                            }
-                            // if false, we don't take the jump. so traverse from currentinstr + 1
+                            TraverseNodesForChunk(chunkIndex, socketOutFalse, destInstructionFalse);
                             node.Sockets.Add(socketOutFalse);
-                            nodeGraph.AddNode(node);
 
+                            nodeGraph.AddNode(node);
                             break;
                         }
                     default:
