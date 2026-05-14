@@ -806,8 +806,27 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             continue;
 
                         var entryChunkIdx = cells[cellIdx].GetInt32Property("m_EntryChunk");
+                        registerSocketOutputMap.TryAdd(entryChunkIdx, []);
+
                         var outputSocket = new SocketOut(typeof(Action), "actionOut", cellNode);
                         cellNode.Sockets.Add(outputSocket);
+
+                        if (cells[cellIdx].TryGetValue("m_Args", out var args))
+                        {
+                            var outParams = cells[cellIdx]["m_RegisterMap"]["m_Outparams"];
+                            if (!outParams.IsNull)
+                            {
+                                foreach (var outParam in outParams.AsEnumerable())
+                                {
+                                    var paramName = outParam.Key;
+                                    var regIdx = (int)outParam.Value;
+
+                                    var outSocket = new SocketOut(typeof(Value), paramName, cellNode);
+                                    registerSocketOutputMap[entryChunkIdx][regIdx] = outSocket;
+                                    cellNode.Sockets.Add(outSocket);
+                                }
+                            }
+                        }
 
                         TraverseNodesForChunk(entryChunkIdx, outputSocket);
 
