@@ -326,11 +326,11 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
         SocketOut CreateSequentialActionSockets(Node node, SocketOut previousActionOutSocket, int chunkIdx, int instruction)
         {
-            var socketIn = node.CreateSocketIn<Action>("actionIn");
+            var socketIn = node.CreateSocketIn<Action>("");
             nodeGraph.Connect(previousActionOutSocket, socketIn);
             instructionInputActionSocketMap[chunkIdx][instruction] = socketIn;
 
-            var socketOut = new SocketOut(typeof(Action), "actionOut", node);
+            var socketOut = new SocketOut(typeof(Action), "", node);
             node.Sockets.Add(socketOut);
             return socketOut;
         }
@@ -613,7 +613,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 NodeType = "Flow control",
                             };
 
-                            var socketIn = node.CreateSocketIn<Action>("actionIn");
+                            var socketIn = node.CreateSocketIn<Action>("");
                             nodeGraph.Connect(previousActionOutSocket, socketIn);
                             instructionInputActionSocketMap[chunkIndex][instructionIdx] = socketIn;
 
@@ -898,7 +898,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         var entryChunkIdx = cells[cellIdx].GetInt32Property("m_EntryChunk");
                         registerSocketOutputMap.TryAdd(entryChunkIdx, []);
 
-                        var outputSocket = new SocketOut(typeof(Action), "actionOut", cellNode);
+                        var outputSocket = new SocketOut(typeof(Action), "", cellNode);
                         cellNode.Sockets.Add(outputSocket);
 
                         if (cells[cellIdx].TryGetValue("m_Args", out var args))
