@@ -478,7 +478,7 @@ public class PlayerMovement
                 if (obstacle)
                 {
                     var (newPos, stepped) = TryStepMove(position, delta, aabb);
-                    if (stepped && (newPos - position).Length() > remainingDistance)
+                    if (stepped && (newPos - position).Length() + SurfaceEpsilon > remainingDistance)
                     {
                         return newPos;
                     }
