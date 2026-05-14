@@ -53,7 +53,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         ScriptedSequence,
         WaitForCursorsWithTag,
         WaitForObservable,
-        IntervalTimer
+        IntervalTimer,
+        PublicOutput
     }
 
     enum InstructionType
@@ -223,6 +224,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         var domainValues = graphDefinition.GetArray("m_DomainValues");
         var constants = graphDefinition.GetArray("m_Constants");
         var variables = graphDefinition.GetArray("m_Vars");
+        var publicOutputs = graphDefinition.GetArray("m_PublicOutputs");
         // Registers that have known loaded constant value.
         Dictionary<int, RegisterValueMap> staticCalculatedRegisterValues = [];
         // Cache registers to output sockets that are calculated by a node.
@@ -746,6 +748,28 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         }
                         HandleGenericOutflowsForCell(node, cellIdx);
 
+                        break;
+                    }
+                case CellCategory.Step:
+                    {
+                        switch (cellType)
+                        {
+                            case CellType.PublicOutput:
+                                {
+                                    var outputIndex = cells[cellIdx].GetInt32Property("m_OutputIndex");
+                                    if (outputIndex == -1)
+                                        break;
+
+                                    var publicOutput = publicOutputs[cellIdx];
+                                    var outputName = publicOutput.GetStringProperty("m_Name");
+                                    var outputDesc = publicOutput.GetStringProperty("m_Description");
+
+                                    node.AddText($"Public Output: {outputName}");
+                                    node.AddText(outputDesc);
+                                    break;
+                                }
+
+                        }
                         break;
                     }
                 case CellCategory.Unspecified:
