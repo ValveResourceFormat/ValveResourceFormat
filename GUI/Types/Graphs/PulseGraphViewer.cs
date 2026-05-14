@@ -314,7 +314,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
             foreach (var key in cell.Keys)
             {
-                if (!filterKeys.Contains(key) && !cell[key].IsCollection) // we probably don't want to display collections
+                if (!filterKeys.Contains(key) && !cell[key].IsCollection && !cell[key].IsArray) // we probably don't want to display collections
                 {
                     filteredCell[key] = cell[key];
                 }
