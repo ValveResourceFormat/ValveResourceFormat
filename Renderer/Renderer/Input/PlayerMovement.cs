@@ -543,7 +543,7 @@ public class PlayerMovement
             return (start, false);
         }
 
-        var finalPosition = downTrace.HitPosition + downTrace.HitNormal * SurfaceEpsilon;
+        var finalPosition = downTrace.HitPosition + downTrace.HitNormal * (1f / (downTrace.HitNormal.Z * (StepSize + 2.0f))) * SurfaceEpsilon;
 
         // Validate the step
         var stepHeight = finalPosition.Z - start.Z;
