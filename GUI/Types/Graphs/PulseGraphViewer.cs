@@ -27,15 +27,24 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
     private readonly KVObject graphDefinition;
 
-    enum GraphNodeType
+    enum CellCategory
     {
-        Generic,
+        Unspecified,
         Inflow,
         Outflow,
         Step,
         Value,
-        Timeline,
     };
+
+    enum CellType
+    {
+        Unknown,
+        Timeline,
+        CycleRandom,
+        CycleShuffled,
+        CycleOrdered,
+        Wait,
+    }
 
     enum InstructionType
     {
@@ -73,11 +82,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         InstructionType.CHUNK_LEAP_COND,
     ];
 
-    struct RegisterInfo
-    {
-        int index;
-        string? knownConstantValue;
-    }
     struct NodeCallInfo
     {
         public int targetChunk;
@@ -177,7 +181,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Dictionary<int, Node> createdNodes = [];
         List<NodeCallInfo> callNodesToResolve = [];
 
-        GraphNodeType GetCellType(int cellIdx)
+        CellCategory GetCellCategory(int cellIdx)
         {
             var cell = cells[cellIdx];
             var className = cell.GetStringProperty("_class");
@@ -191,12 +195,12 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
             var nodeType = className[prefix.Length..typeEndIndex];
 
-            if (Enum.TryParse(nodeType, out GraphNodeType type))
+            if (Enum.TryParse(nodeType, out CellCategory type))
             {
                 return type;
             }
 
-            return GraphNodeType.Generic;
+            return CellCategory.Unspecified;
         }
 
         InstructionType GetInstructionType(KVObject instruction)
@@ -210,17 +214,25 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             return InstructionType.INVALID;
         }
 
-        string GetCellNameSuffix(int cellIdx)
+        CellType GetCellType(int cellIdx, out string cellTypeString)
         {
             var cell = cells[cellIdx];
             var className = cell.GetStringProperty("_class");
             var index = className.LastIndexOf('_');
             if (index == -1)
             {
-                return "Unknown";
+                cellTypeString = "Unknown";
+                return CellType.Unknown;
             }
 
-            return className[(index + 1)..];
+            var name = className[(index + 1)..];
+            cellTypeString = name;
+            if (Enum.TryParse(name, out CellType cellType))
+            {
+                return cellType;
+            }
+
+            return CellType.Unknown;
         }
 
         KVObject GetConstantValueFromId(int constantId)
@@ -239,24 +251,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         {
             var variable = variables[variableIndex];
             return variable.GetStringProperty("m_Name");
-        }
-
-        Node CreateNode(string[] nodePaths, IReadOnlyList<KVObject> nodes, int nodeIdx)
-        {
-            if (createdNodes.TryGetValue(nodeIdx, out var existingNode))
-            {
-                return existingNode;
-            }
-
-            var node = new Node(nodes[nodeIdx])
-            {
-                Name = $"({nodeIdx}) {GetCellNameSuffix(nodeIdx)}",
-                NodeType = "Node",
-            };
-
-            nodeGraph.AddNode(node);
-            createdNodes[nodeIdx] = node;
-            return node;
         }
 
         // Filter out some internal fields, keep only what's derived from the base cell class and useful for display
@@ -398,12 +392,12 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             var funcName = binding.GetStringProperty("m_FuncName");
                             var cellIndex = binding.GetInt32Property("m_nCellIndex");
                             var cell = cells[cellIndex];
-                            var cellName = GetCellNameSuffix(cellIndex);
-                            var cellType = GetCellType(cellIndex);
+                            var cellType = GetCellType(cellIndex, out var cellName);
+                            var cellCategory = GetCellCategory(cellIndex);
                             var node = new Node(null)
                             {
                                 Name = cellName,
-                                NodeType = cellType.ToString(),
+                                NodeType = cellCategory.ToString(),
                             };
 
                             // If an action without outputs then create a new output action and continue.
@@ -432,7 +426,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             }
 
                             CreateInputsForNodeWithInvokeBinding(node, chunkIndex, registerSocketOutputMap[chunkIndex], registerMap);
-                            PopulateNonInflowCell(node, cellIndex);
+                            PopulateSpecificCell(node, cellIndex);
 
                             nodeGraph.AddNode(node);
                             break;
@@ -609,51 +603,17 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
         }
 
-        void PopulateNonInflowCell(Node node, int cellIdx)
+        void PopulateSpecificCell(Node node, int cellIdx)
         {
-            var cellType = GetCellType(cellIdx);
-            var cellName = GetCellNameSuffix(cellIdx);
+            var cellCategory = GetCellCategory(cellIdx);
+            var cellType = GetCellType(cellIdx, out var cellName);
 
-            switch (cellType)
+            switch (cellCategory)
             {
-                case GraphNodeType.Timeline:
-                    {
-                        var timelineEvents = cells[cellIdx].GetArray("m_TimelineEvents");
-                        foreach (var timelineEvent in timelineEvents)
-                        {
-                            var eventOutflow = timelineEvent["m_EventOutflow"];
-                            var destChunk = eventOutflow.GetInt32Property("m_nDestChunk");
-                            if (destChunk == -1)
-                                continue;
-
-                            var outflowName = eventOutflow.GetStringProperty("m_SourceOutflowName");
-                            var destInstruction = eventOutflow.GetInt32Property("m_nInstruction");
-                            if (destInstruction < 0) destInstruction = 0;
-
-                            var timeFromPrevious = timelineEvent.GetFloatProperty("m_flTimeFromPrevious");
-
-                            node.AddText($"Time from previous: {timeFromPrevious}");
-                            var outputSocket = new SocketOut(typeof(Action), outflowName, node);
-                            node.Sockets.Add(outputSocket);
-
-                            TraverseNodesForChunk(destChunk, outputSocket, destInstruction);
-                        }
-
-                        var onFinished = cells[cellIdx]["m_OnFinished"];
-                        var onFinishedDestChunk = onFinished.GetInt32Property("m_nDestChunk");
-                        if (onFinishedDestChunk != -1)
-                        {
-                            var outputSocket = new SocketOut(typeof(Action), "OnFinished", node);
-                            node.Sockets.Add(outputSocket);
-                            TraverseNodesForChunk(onFinishedDestChunk, outputSocket);
-                        }
-
-                        break;
-                    }
-                case GraphNodeType.Inflow:
+                case CellCategory.Inflow:
                     {
                         // here we assume that wait is going to be processed sequentially, not out of order, even though it's theorithically possible.
-                        if (cellName == "Wait")
+                        if (cellType == CellType.Wait)
                         {
                             var wakeResume = cells[cellIdx]["m_WakeResume"];
                             var destChunk = wakeResume.GetInt32Property("m_nDestChunk");
@@ -669,27 +629,73 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         }
                         break;
                     }
-                case GraphNodeType.Outflow:
+                case CellCategory.Outflow:
                     {
-                        // eugh
-                        if (cellName == "CycleRandom" || cellName == "CycleShuffled" || cellName == "CycleOrdered")
+                        switch (cellType)
                         {
-                            var outputs = cells[cellIdx].GetArray("m_Outputs");
-                            foreach (var output in outputs)
-                            {
-                                var destChunk = output.GetInt32Property("m_nDestChunk");
-                                if (destChunk == -1)
-                                    continue;
+                            case CellType.CycleRandom:
+                            case CellType.CycleShuffled:
+                            case CellType.CycleOrdered:
+                                {
+                                    var outputs = cells[cellIdx].GetArray("m_Outputs");
+                                    foreach (var output in outputs)
+                                    {
+                                        var destChunk = output.GetInt32Property("m_nDestChunk");
+                                        if (destChunk == -1)
+                                            continue;
 
-                                var outflowName = output.GetStringProperty("m_SourceOutflowName");
-                                var destInstruction = output.GetInt32Property("m_nInstruction");
-                                if (destInstruction < 0) destInstruction = 0;
+                                        var outflowName = output.GetStringProperty("m_SourceOutflowName");
+                                        var destInstruction = output.GetInt32Property("m_nInstruction");
+                                        if (destInstruction < 0) destInstruction = 0;
 
-                                var outputSocket = new SocketOut(typeof(Action), outflowName, node);
-                                node.Sockets.Add(outputSocket);
+                                        var outputSocket = new SocketOut(typeof(Action), outflowName, node);
+                                        node.Sockets.Add(outputSocket);
 
-                                TraverseNodesForChunk(destChunk, outputSocket, destInstruction);
-                            }
+                                        TraverseNodesForChunk(destChunk, outputSocket, destInstruction);
+                                    }
+                                    break;
+                                }
+                        }
+                        break;
+                    }
+                case CellCategory.Unspecified:
+                    {
+                        switch (cellType)
+                        {
+                            case CellType.Timeline:
+                                {
+                                    var timelineEvents = cells[cellIdx].GetArray("m_TimelineEvents");
+                                    foreach (var timelineEvent in timelineEvents)
+                                    {
+                                        var eventOutflow = timelineEvent["m_EventOutflow"];
+                                        var destChunk = eventOutflow.GetInt32Property("m_nDestChunk");
+                                        if (destChunk == -1)
+                                            continue;
+
+                                        var outflowName = eventOutflow.GetStringProperty("m_SourceOutflowName");
+                                        var destInstruction = eventOutflow.GetInt32Property("m_nInstruction");
+                                        if (destInstruction < 0) destInstruction = 0;
+
+                                        var timeFromPrevious = timelineEvent.GetFloatProperty("m_flTimeFromPrevious");
+
+                                        node.AddText($"Time from previous: {timeFromPrevious}");
+                                        var outputSocket = new SocketOut(typeof(Action), outflowName, node);
+                                        node.Sockets.Add(outputSocket);
+
+                                        TraverseNodesForChunk(destChunk, outputSocket, destInstruction);
+                                    }
+
+                                    var onFinished = cells[cellIdx]["m_OnFinished"];
+                                    var onFinishedDestChunk = onFinished.GetInt32Property("m_nDestChunk");
+                                    if (onFinishedDestChunk != -1)
+                                    {
+                                        var outputSocket = new SocketOut(typeof(Action), "OnFinished", node);
+                                        node.Sockets.Add(outputSocket);
+                                        TraverseNodesForChunk(onFinishedDestChunk, outputSocket);
+                                    }
+
+                                    break;
+                                }
                         }
                         break;
                     }
@@ -699,17 +705,17 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         // Inflow cells
         for (var cellIdx = 0; cellIdx < cells.Count; cellIdx++)
         {
-            var cellType = GetCellType(cellIdx);
-            var cellName = GetCellNameSuffix(cellIdx);
+            var cellCategory = GetCellCategory(cellIdx);
+            var cellType = GetCellType(cellIdx, out var cellName);
             var cellNode = new Node(null)
             {
                 Name = cellName,
-                NodeType = cellType.ToString(),
+                NodeType = cellCategory.ToString(),
             };
 
-            switch (cellType)
+            switch (cellCategory)
             {
-                case GraphNodeType.Inflow:
+                case CellCategory.Inflow:
                     {
                         if (!cells[cellIdx].ContainsKey("m_EntryChunk"))
                             continue;
@@ -762,7 +768,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
 
             string description = variable.GetStringProperty("m_Description");
-            if(!string.IsNullOrEmpty(description))
+            if (!string.IsNullOrEmpty(description))
             {
                 node.AddText(description);
             }
