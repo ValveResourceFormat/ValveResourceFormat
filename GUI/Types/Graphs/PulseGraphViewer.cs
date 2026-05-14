@@ -49,7 +49,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         PlaySequence,
         PlayVCD,
         PlayVOLine,
-        ScriptedSequence
+        ScriptedSequence,
+        WaitForCursorsWithTag,
+        WaitForObservable,
+        IntervalTimer
     }
 
     enum InstructionType
@@ -609,6 +612,42 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
         }
 
+        // Handle some named outflows,
+        // TODO: don't hardcode, instead check for the existence of cell keys to see if it's a CPulse_ResumePoint
+        void HandleGenericOutflowsForCell(Node node, int cellIdx)
+        {
+            var cell = cells[cellIdx];
+            List<string> baseOutflowNames = [
+                "m_OnFired",
+                "m_OnCanceled",
+                "m_OnFinished",
+                "m_WaitComplete",
+                "m_Condition",
+                "m_OnTrue",
+                "m_Completed",
+                "m_OnInterval"
+            ];
+
+            foreach (var outflowName in baseOutflowNames)
+            {
+                if (cell.TryGetValue(outflowName, out var outflow))
+                {
+                    var destChunk = outflow.GetInt32Property("m_nDestChunk");
+                    if (destChunk == -1)
+                        continue;
+
+                    var destInstruction = outflow.GetInt32Property("m_nInstruction");
+                    if (destInstruction < 0) destInstruction = 0;
+
+                    var sourceOutflowName = outflow.GetStringProperty("m_SourceOutflowName");
+
+                    var outputSocket = new SocketOut(typeof(Action), outflowName, node);
+                    node.Sockets.Add(outputSocket);
+                    TraverseNodesForChunk(destChunk, outputSocket, destInstruction);
+                }
+            }
+        }
+
         void PopulateSpecificCell(Node node, int cellIdx)
         {
             var cellCategory = GetCellCategory(cellIdx);
@@ -637,14 +676,13 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     }
                 case CellCategory.Outflow:
                     {
-                        var cell = cells[cellIdx];
                         switch (cellType)
                         {
                             case CellType.CycleRandom:
                             case CellType.CycleShuffled:
                             case CellType.CycleOrdered:
                                 {
-                                    var outputs = cell.GetArray("m_Outputs");
+                                    var outputs = cells[cellIdx].GetArray("m_Outputs");
                                     foreach (var output in outputs)
                                     {
                                         var destChunk = output.GetInt32Property("m_nDestChunk");
@@ -664,26 +702,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 }
 
                         }
-
-                        List<string> outflowNames = ["m_OnFired", "m_OnCanceled", "m_OnFinished"];
-                        foreach (var outflowName in outflowNames)
-                        {
-                            if (cell.TryGetValue(outflowName, out var outflow))
-                            {
-                                var destChunk = outflow.GetInt32Property("m_nDestChunk");
-                                if (destChunk == -1)
-                                    continue;
-
-                                var destInstruction = outflow.GetInt32Property("m_nInstruction");
-                                if (destInstruction < 0) destInstruction = 0;
-
-                                var sourceOutflowName = outflow.GetStringProperty("m_SourceOutflowName");
-
-                                var outputSocket = new SocketOut(typeof(Action), outflowName, node);
-                                node.Sockets.Add(outputSocket);
-                                TraverseNodesForChunk(destChunk, outputSocket, destInstruction);
-                            }
-                        }
+                        HandleGenericOutflowsForCell(node, cellIdx);
 
                         break;
                     }
@@ -714,18 +733,13 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                         TraverseNodesForChunk(destChunk, outputSocket, destInstruction);
                                     }
 
-                                    var onFinished = cells[cellIdx]["m_OnFinished"];
-                                    var onFinishedDestChunk = onFinished.GetInt32Property("m_nDestChunk");
-                                    if (onFinishedDestChunk != -1)
-                                    {
-                                        var outputSocket = new SocketOut(typeof(Action), "OnFinished", node);
-                                        node.Sockets.Add(outputSocket);
-                                        TraverseNodesForChunk(onFinishedDestChunk, outputSocket);
-                                    }
+                                    HandleGenericOutflowsForCell(node, cellIdx);
 
                                     break;
                                 }
                         }
+                        // Some cells don't have Outflow in the name, but still have outflows.
+                        HandleGenericOutflowsForCell(node, cellIdx);
                         break;
                     }
             }
