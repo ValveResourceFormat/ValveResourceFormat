@@ -233,6 +233,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Dictionary<int, RegisterSocketOutputMap> registerSocketOutputMap = [];
         // Cache existing instructions that can be referenced back by things like 'jump' instructions.
         Dictionary<int, InstructionInputActionSocketMap> instructionInputActionSocketMap = [];
+        Dictionary<int, HashSet<int>> instructionShouldSkipOverWhenEvaluatingRecursively = [];
         // Function name tied to the chunk.
         Dictionary<int, string> chunkFunctionName = [];
         int currentUnknownNamedFuncNumber = 0;
@@ -397,6 +398,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             staticCalculatedRegisterValues.TryAdd(chunkIndex, []);
             registerSocketOutputMap.TryAdd(chunkIndex, []);
             instructionInputActionSocketMap.TryAdd(chunkIndex, []);
+            instructionShouldSkipOverWhenEvaluatingRecursively.TryAdd(chunkIndex, []);
 
             var chunk = chunks[chunkIndex];
             var instructions = chunk.GetArray("m_Instructions");
@@ -408,14 +410,14 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             {
                 // Skip over potential NOPs if we landed on it through a Jump somehow.
                 var instrIndex = startingInstruction;
-                while (instrIndex < instructions.Count && GetInstructionType(instructions[instrIndex]) == InstructionType.NOP)
+                while (instrIndex < instructions.Count && instructionShouldSkipOverWhenEvaluatingRecursively[chunkIndex].Contains(instrIndex))
                 {
                     instrIndex++;
                 }
 
                 if (instrIndex < instructions.Count)
                 {
-                    if (instructionInputActionSocketMap[chunkIndex].TryGetValue(startingInstruction, out var targetSocket))
+                    if (instructionInputActionSocketMap[chunkIndex].TryGetValue(instrIndex, out var targetSocket))
                     {
                         nodeGraph.Connect(sourceActionOutSocket, targetSocket);
                         return;
@@ -525,6 +527,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             var constIdx = instruction.GetInt32Property("m_nConstIdx");
                             var outputRegIdx = instruction.GetInt32Property("m_nReg0");
                             staticCalculatedRegisterValues[chunkIndex][outputRegIdx] = GetConstantValueFromId(constIdx);
+                            instructionShouldSkipOverWhenEvaluatingRecursively[chunkIndex].Add(instructionIdx);
                             break;
                         }
                     case InstructionType.GET_DOMAIN_VALUE:
@@ -532,6 +535,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             var domainValIdx = instruction.GetInt32Property("m_nDomainValueIdx");
                             var outputRegIdx = instruction.GetInt32Property("m_nReg0");
                             staticCalculatedRegisterValues[chunkIndex][outputRegIdx] = GetDomainValueFromId(domainValIdx);
+                            instructionShouldSkipOverWhenEvaluatingRecursively[chunkIndex].Add(instructionIdx);
                             break;
                         }
                     case InstructionType.GET_VAR:
@@ -550,6 +554,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             node.Sockets.Add(sockOut);
 
                             nodeGraph.AddNode(node);
+                            instructionShouldSkipOverWhenEvaluatingRecursively[chunkIndex].Add(instructionIdx);
                             break;
                         }
                     case InstructionType.SET_VAR:
@@ -606,6 +611,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     case InstructionType.IMMEDIATE_HALT:
                         {
                             stopProcessing = true;
+                            instructionShouldSkipOverWhenEvaluatingRecursively[chunkIndex].Add(instructionIdx);
                             break;
                         }
                     case InstructionType.JUMP:
@@ -613,6 +619,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             stopProcessing = true;
                             var destInstruction = instruction.GetInt32Property("m_nDestInstruction");
                             TraverseNodesForChunk(chunkIndex, previousActionOutSocket, destInstruction);
+                            instructionShouldSkipOverWhenEvaluatingRecursively[chunkIndex].Add(instructionIdx);
                             break;
                         }
                     case InstructionType.JUMP_COND:
@@ -728,6 +735,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 nodeGraph.AddNode(node);
                             }
 
+                            instructionShouldSkipOverWhenEvaluatingRecursively[chunkIndex].Add(instructionIdx);
                             break;
                         }
 
