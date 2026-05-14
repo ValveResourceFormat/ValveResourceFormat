@@ -584,6 +584,73 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             }
                             break;
                         }
+                    case InstructionType.JUMP_COND:
+                        {
+                            stopProcessing = true;
+                            var node = new Node(null)
+                            {
+                                Name = "If",
+                                NodeType = "Flow control",
+                            };
+
+                            var socketIn = node.CreateSocketIn<Action>("actionIn");
+                            nodeGraph.Connect(previousActionOutSocket, socketIn);
+                            instructionInputActionSocketMap[chunkIndex][instructionIdx] = socketIn;
+
+                            var reg0 = instruction.GetInt32Property("m_nReg0");
+                            if (reg0 != -1)
+                            {
+                                bool reg0Calculated = false;
+                                // Static value exists
+                                if (staticCalculatedRegisterValues[chunkIndex].TryGetValue(reg0, out var reg1Val))
+                                {
+                                    reg0Calculated = true;
+                                    node.AddText($"Condition = {StringifyKVObject(reg1Val)}");
+                                }
+
+                                if (!reg0Calculated)
+                                {
+                                    // if it doesn't exist then instruction registers were defined out of order, or we didn't calculate one.
+                                    // TODO: handle this case wtihout crashing.
+                                    var regOutSocket = registerSocketOutputMap[chunkIndex][reg0];
+                                    var argInputSocket = node.CreateSocketIn<Value>("Condition");
+                                    nodeGraph.Connect(regOutSocket, argInputSocket);
+                                }
+                            }
+
+                            var socketOutTrue = new SocketOut(typeof(Action), "True", node);
+                            var destInstructionTrue = instruction.GetInt32Property("m_nDestInstruction");
+                            // TODO: dedupe all of this crap
+                            if (instructionInputActionSocketMap[chunkIndex].TryGetValue(destInstructionTrue, out var targetSocket))
+                            {
+                                nodeGraph.Connect(previousActionOutSocket, targetSocket);
+                            }
+                            else
+                            {
+                                TraverseNodesForChunk(chunkIndex, socketOutTrue, destInstructionTrue);
+                            }
+                            node.Sockets.Add(socketOutTrue);
+
+                            // if false, we don't take the jump. so traverse starting from currentinstr + 1
+                            var socketOutFalse = new SocketOut(typeof(Action), "False", node);
+                            var destInstructionFalse = instructionIdx + 1;
+
+                            // TODO: dedupe all of this
+                            // Also why are the 'out' vars not limited in scope in this language???
+                            if (instructionInputActionSocketMap[chunkIndex].TryGetValue(destInstructionFalse, out var targetSocket2))
+                            {
+                                nodeGraph.Connect(previousActionOutSocket, targetSocket2);
+                            }
+                            else
+                            {
+                                TraverseNodesForChunk(chunkIndex, socketOutFalse, destInstructionFalse);
+                            }
+                            // if false, we don't take the jump. so traverse from currentinstr + 1
+                            node.Sockets.Add(socketOutFalse);
+                            nodeGraph.AddNode(node);
+
+                            break;
+                        }
                     default:
                         {
                             if (!flowInstructions.Contains(instrType))
