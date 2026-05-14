@@ -791,9 +791,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                         if (destInstruction < 0) destInstruction = 0;
 
                                         var timeFromPrevious = timelineEvent.GetFloatProperty("m_flTimeFromPrevious");
-
-                                        node.AddText($"Time from previous: {timeFromPrevious}");
-                                        var outputSocket = new SocketOut(typeof(Action), outflowName, node);
+                                        var outputSocket = new SocketOut(typeof(Action), $"(Time from prev: {timeFromPrevious}s) | {outflowName}", node);
                                         node.Sockets.Add(outputSocket);
 
                                         TraverseNodesForChunk(destChunk, outputSocket, destInstruction);
