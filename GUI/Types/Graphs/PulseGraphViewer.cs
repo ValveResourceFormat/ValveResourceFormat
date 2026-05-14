@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Net.Sockets;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
@@ -122,6 +123,48 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         base.AddUiControls();
 
         GLControl?.MouseDoubleClick += OnMouseDoubleClick;
+    }
+
+    // Stringify a KVObject for our purposes
+    private static string StringifyKVObject(KVObject obj)
+    {
+        switch (obj.ValueType)
+        {
+            case KVValueType.String:
+                return $"\"{obj.ToString()}\"";
+            case KVValueType.Boolean:
+                return obj.ToBoolean() ? "true" : "false";
+            case KVValueType.Int16:
+            case KVValueType.UInt16:
+            case KVValueType.Int32:
+            case KVValueType.UInt32:
+            case KVValueType.Int64:
+            case KVValueType.UInt64:
+            case KVValueType.FloatingPoint:
+            case KVValueType.FloatingPoint64:
+                return obj.ToString();
+            case KVValueType.Array:
+                {
+                    var list = obj.AsArraySpan();
+                    StringBuilder sb = new();
+                    sb.Append('[');
+                    bool firstElem = true;
+                    foreach (var elem in list)
+                    {
+                        if (!firstElem)
+                        {
+                            sb.Append(", ");
+                        }
+                        firstElem = false;
+
+                        sb.Append(StringifyKVObject(elem));
+                    }
+                    sb.Append(']');
+                    return sb.ToString();
+                }
+            default:
+                return obj.ToString();
+        }
     }
 
     private void OnMouseDoubleClick(object? sender, MouseEventArgs e)
@@ -294,7 +337,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         {
             if (staticCalculatedRegisterValues[chunkIndex].TryGetValue(regIndex, out var regValue))
             {
-                node.AddText($"\"{regValue.ToString()}\"");
+                node.AddText(StringifyKVObject(regValue));
             }
             else
             {
@@ -430,8 +473,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             var morethingies = FilterBaseCellFieldsForDisplay(cellIndex);
                             foreach (var kvPair in morethingies)
                             {
-                                var val = kvPair.Value.ToString();
-                                node.AddText($"{kvPair.Key} = \"{val}\"");
+                                node.AddText($"{kvPair.Key} = {StringifyKVObject(kvPair.Value)}");
                             }
 
                             CreateInputsForNodeWithInvokeBinding(node, chunkIndex, registerSocketOutputMap[chunkIndex], registerMap);
@@ -566,7 +608,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     if (staticCalculatedRegisterValues[chunkIndex].TryGetValue(reg1, out var reg1Val))
                                     {
                                         reg1Calculated = true;
-                                        node.AddText($"arg1 = \"{reg1Val.ToString()}\"");
+                                        node.AddText($"arg1 = {StringifyKVObject(reg1Val)}");
                                     }
 
                                     if (!reg1Calculated)
@@ -584,7 +626,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     if (staticCalculatedRegisterValues[chunkIndex].TryGetValue(reg2, out var reg2Val))
                                     {
                                         reg2Calculated = true;
-                                        node.AddText($"arg2 = \"{reg2Val.ToString()}\"");
+                                        node.AddText($"arg2 = {StringifyKVObject(reg2Val)}");
                                     }
 
                                     if (!reg2Calculated)
@@ -772,8 +814,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         var morethingies = FilterBaseCellFieldsForDisplay(cellIdx);
                         foreach (var kvPair in morethingies)
                         {
-                            var val = kvPair.Value.ToString();
-                            cellNode.AddText($"{kvPair.Key} = \"{val}\"");
+                            var val = kvPair.Value;
+                            cellNode.AddText($"{kvPair.Key} = {StringifyKVObject(val)}");
                         }
 
                         nodeGraph.AddNode(cellNode);
