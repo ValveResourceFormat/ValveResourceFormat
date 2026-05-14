@@ -225,6 +225,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         var constants = graphDefinition.GetArray("m_Constants");
         var variables = graphDefinition.GetArray("m_Vars");
         var publicOutputs = graphDefinition.GetArray("m_PublicOutputs");
+        var callInfos = graphDefinition.GetArray("m_CallInfos");
         // Registers that have known loaded constant value.
         Dictionary<int, RegisterValueMap> staticCalculatedRegisterValues = [];
         // Cache registers to output sockets that are calculated by a node.
@@ -565,12 +566,38 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     case InstructionType.PULSE_CALL_ASYNC_FIRE:
                         {
                             var callTargetChunk = instruction.GetInt32Property("m_nChunk");
+                            var callInfoIndex = instruction.GetInt32Property("m_nCallInfoIndex");
                             var node = new Node(null)
                             {
                                 Name = instrType == InstructionType.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously",
                                 NodeType = "Flow",
                             };
                             previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                            var callInfo = callInfos[callInfoIndex];
+                            var callInfoInparams = callInfo["m_RegisterMap"]["m_Inparams"];
+                            if (!callInfoInparams.IsNull)
+                            {
+                                // TODO: this is duped from CreateInputsForNodeWithInvokeBinding, extract it to one func.
+                                foreach (var inparam in callInfoInparams)
+                                {
+                                    var regName = inparam.Key;
+                                    var regIdx = (int)inparam.Value;
+
+                                    if (!staticCalculatedRegisterValues.TryGetValue(chunkIndex, out var chunkRegMap))
+                                        continue;
+
+                                    if (!chunkRegMap.TryGetValue(regIdx, out var regValue))
+                                    {
+                                        var regOutSocket = registerSocketOutputMap[chunkIndex][regIdx];
+                                        var argInputSocket = node.CreateSocketIn<Value>(regName);
+                                        nodeGraph.Connect(regOutSocket, argInputSocket);
+                                    }
+                                    else
+                                    {
+                                        node.AddText($"{regName} = {StringifyKVObject(regValue)}");
+                                    }
+                                }
+                            }
 
                             callNodesToResolve.Add(new NodeCallInfo
                             {
