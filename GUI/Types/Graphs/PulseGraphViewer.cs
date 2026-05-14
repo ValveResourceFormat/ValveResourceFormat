@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using HarfBuzzSharp;
+using NAudio.Utils;
 using SkiaSharp;
 using Svg.Skia;
 using ValveKeyValue;
@@ -232,6 +233,9 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Dictionary<int, RegisterSocketOutputMap> registerSocketOutputMap = [];
         // Cache existing instructions that can be referenced back by things like 'jump' instructions.
         Dictionary<int, InstructionInputActionSocketMap> instructionInputActionSocketMap = [];
+        // Function name tied to the chunk.
+        Dictionary<int, string> chunkFunctionName = [];
+        int currentUnknownNamedFuncNumber = 0;
 
         Dictionary<int, Node> createdNodes = [];
         List<NodeCallInfo> callNodesToResolve = [];
@@ -923,6 +927,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         }
 
                         TraverseNodesForChunk(entryChunkIdx, outputSocket);
+                        chunkFunctionName.Add(entryChunkIdx, cells[cellIdx].GetStringProperty("m_MethodName"));
 
                         var morethingies = FilterBaseCellFieldsForDisplay(cellIdx);
                         foreach (var kvPair in morethingies)
@@ -934,6 +939,30 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         nodeGraph.AddNode(cellNode);
                         break;
                     }
+            }
+        }
+
+        if (chunkFunctionName.Keys.Count < cells.Count)
+        {
+            // Resolve chunks that are not referenced by any cell.
+            for (int chunkId = 0; chunkId < chunks.Count; chunkId++)
+            {
+                if (!chunkFunctionName.ContainsKey(chunkId))
+                {
+                    var nameIdx = ++currentUnknownNamedFuncNumber;
+                    var cellNode = new Node(null)
+                    {
+                        Name = "Unnamed_" + nameIdx,
+                        NodeType = "Function"
+                    };
+
+                    var outputSocket = new SocketOut(typeof(Action), "", cellNode);
+                    cellNode.Sockets.Add(outputSocket);
+                    chunkFunctionName.Add(chunkId, "Unnamed_" + nameIdx);
+
+                    TraverseNodesForChunk(chunkId, outputSocket);
+                    nodeGraph.AddNode(cellNode);
+                }
             }
         }
 
@@ -977,16 +1006,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         foreach (var callNodeInfo in callNodesToResolve)
         {
             var targetChunk = callNodeInfo.targetChunk;
-            string methodNameToCall = "<Unknown>";
-            foreach (var cell in cells)
-            {
-                if (cell.GetInt32Property("m_EntryChunk") == targetChunk)
-                {
-                    methodNameToCall = cell.GetStringProperty("m_MethodName");
-                    break;
-                }
-            }
-            methodNameToCall = $"\"{methodNameToCall}\"";
+            string methodNameToCall = chunkFunctionName[targetChunk];
             callNodeInfo.node.AddText($"Method: {methodNameToCall}");
             nodeGraph.AddNode(callNodeInfo.node);
         }
