@@ -350,7 +350,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
         }
 
-        void CreateInputsForNodeWithInvokeBinding(Node node, int chunkIndex, Dictionary<int, SocketOut> registerSocketOutputMap, KVObject registerMap)
+        void CreateInputsFromRegisterMap(Node node, int chunkIndex, Dictionary<int, SocketOut> registerSocketOutputMap, KVObject registerMap)
         {
             var inParams = registerMap["m_Inparams"];
             if (inParams.IsNull)
@@ -461,7 +461,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 }
                             }
 
-                            CreateInputsForNodeWithInvokeBinding(node, chunkIndex, registerSocketOutputMap[chunkIndex], registerMap);
+                            CreateInputsFromRegisterMap(node, chunkIndex, registerSocketOutputMap[chunkIndex], registerMap);
 
                             nodeGraph.AddNode(node);
                             break;
@@ -507,7 +507,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 node.AddText($"{kvPair.Key} = {StringifyKVObject(kvPair.Value)}");
                             }
 
-                            CreateInputsForNodeWithInvokeBinding(node, chunkIndex, registerSocketOutputMap[chunkIndex], registerMap);
+                            CreateInputsFromRegisterMap(node, chunkIndex, registerSocketOutputMap[chunkIndex], registerMap);
                             PopulateSpecificCell(node, cellIndex);
 
                             nodeGraph.AddNode(node);
@@ -574,30 +574,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             };
                             previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
                             var callInfo = callInfos[callInfoIndex];
-                            var callInfoInparams = callInfo["m_RegisterMap"]["m_Inparams"];
-                            if (!callInfoInparams.IsNull)
-                            {
-                                // TODO: this is duped from CreateInputsForNodeWithInvokeBinding, extract it to one func.
-                                foreach (var inparam in callInfoInparams)
-                                {
-                                    var regName = inparam.Key;
-                                    var regIdx = (int)inparam.Value;
-
-                                    if (!staticCalculatedRegisterValues.TryGetValue(chunkIndex, out var chunkRegMap))
-                                        continue;
-
-                                    if (!chunkRegMap.TryGetValue(regIdx, out var regValue))
-                                    {
-                                        var regOutSocket = registerSocketOutputMap[chunkIndex][regIdx];
-                                        var argInputSocket = node.CreateSocketIn<Value>(regName);
-                                        nodeGraph.Connect(regOutSocket, argInputSocket);
-                                    }
-                                    else
-                                    {
-                                        node.AddText($"{regName} = {StringifyKVObject(regValue)}");
-                                    }
-                                }
-                            }
+                            CreateInputsFromRegisterMap(node, chunkIndex, registerSocketOutputMap[chunkIndex], callInfo["m_RegisterMap"]);
 
                             callNodesToResolve.Add(new NodeCallInfo
                             {
