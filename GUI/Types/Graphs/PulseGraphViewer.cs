@@ -265,13 +265,13 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         // Filter out some internal fields, keep only what's derived from the base cell class and useful for display
         KVObject FilterBaseCellFieldsForDisplay(int cellIndex)
         {
-            string[] filterKeys = ["_class", "m_EntryChunk", "m_nEditorNodeID", "m_RegisterMap"];
+            string[] filterKeys = ["_class", "m_EntryChunk", "m_nEditorNodeID"];
             var cell = cells[cellIndex];
             var filteredCell = new KVObject();
 
             foreach (var key in cell.Keys)
             {
-                if (!filterKeys.Contains(key))
+                if (!filterKeys.Contains(key) && !cell[key].IsCollection) // we probably don't want to display collections
                 {
                     filteredCell[key] = cell[key];
                 }
