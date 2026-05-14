@@ -391,6 +391,9 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         /// <param name="forceRecalculateExisting">Should we generate new nodes instead of plugging in into already generated ones (if they exist)</param>
         void TraverseNodesForChunk(int chunkIndex, SocketOut sourceActionOutSocket, int startingInstruction = 0, bool forceRecalculateExisting = false)
         {
+            if (chunkIndex < 0)
+                return;
+
             staticCalculatedRegisterValues.TryAdd(chunkIndex, []);
             registerSocketOutputMap.TryAdd(chunkIndex, []);
             instructionInputActionSocketMap.TryAdd(chunkIndex, []);
@@ -909,9 +912,9 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         var outputSocket = new SocketOut(typeof(Action), "", cellNode);
                         cellNode.Sockets.Add(outputSocket);
 
-                        if (cells[cellIdx].TryGetValue("m_Args", out var args))
+                        if (cells[cellIdx].TryGetValue("m_RegisterMap", out var registerMap))
                         {
-                            var outParams = cells[cellIdx]["m_RegisterMap"]["m_Outparams"];
+                            var outParams = registerMap["m_Outparams"];
                             if (!outParams.IsNull)
                             {
                                 foreach (var outParam in outParams.AsEnumerable())
