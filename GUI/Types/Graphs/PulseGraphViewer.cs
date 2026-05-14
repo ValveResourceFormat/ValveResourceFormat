@@ -371,7 +371,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 }
                 else
                 {
-                    node.AddText($"{regName} = {regValue}");
+                    node.AddText($"{regName} = {StringifyKVObject(regValue)}");
                 }
             }
         }
@@ -623,7 +623,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             // TODO: dedupe all of this crap
                             if (instructionInputActionSocketMap[chunkIndex].TryGetValue(destInstructionTrue, out var targetSocket))
                             {
-                                nodeGraph.Connect(previousActionOutSocket, targetSocket);
+                                nodeGraph.Connect(socketOutTrue, targetSocket);
                             }
                             else
                             {
@@ -639,7 +639,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             // Also why are the 'out' vars not limited in scope in this language???
                             if (instructionInputActionSocketMap[chunkIndex].TryGetValue(destInstructionFalse, out var targetSocket2))
                             {
-                                nodeGraph.Connect(previousActionOutSocket, targetSocket2);
+                                nodeGraph.Connect(socketOutFalse, targetSocket2);
                             }
                             else
                             {
