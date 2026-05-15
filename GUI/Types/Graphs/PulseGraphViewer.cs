@@ -920,7 +920,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     if (outputIndex == -1)
                                         break;
 
-                                    var publicOutput = publicOutputs[cellIdx];
+                                    var publicOutput = publicOutputs[outputIndex];
                                     var outputName = publicOutput.GetStringProperty("m_Name");
                                     var outputDesc = publicOutput.GetStringProperty("m_Description");
 
