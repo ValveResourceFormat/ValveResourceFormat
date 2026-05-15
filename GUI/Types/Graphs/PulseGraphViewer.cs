@@ -486,10 +486,13 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             var cell = cells[cellIndex];
                             var cellType = GetCellType(cellIndex, out var cellName);
                             var cellCategory = GetCellCategory(cellIndex);
+
+                            var funcNameSplitIdx = funcName.IndexOf("::", StringComparison.InvariantCulture);
                             var node = new Node(null)
                             {
                                 Name = cellName,
-                                NodeType = cellCategory.ToString(),
+                                // show name after '::' separator, if can't find then show full name
+                                NodeType = funcName[(funcNameSplitIdx >= 0 ? (funcNameSplitIdx + 2) : 0)..],
                             };
 
                             // If an action without outputs then create a new output action and continue.
