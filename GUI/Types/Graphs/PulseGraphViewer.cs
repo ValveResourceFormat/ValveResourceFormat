@@ -392,12 +392,14 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         /// <summary>
         /// Populates relevant information and creates node graphs for the given chunk
         /// Will loop over a chunk until hitting a return instruction. Jumps are processed recursively.
+        /// 
         /// </summary>
         /// <param name="chunkIndex">Index of the chunk to traverse</param>
         /// <param name="sourceActionOutSocket">Which socket to connect the action input of the first generated node</param>
         /// <param name="startingInstruction">Should we skip parsing these amount of instructions? Useful for jumps</param>
         /// <param name="forceRecalculateExisting">Should we generate new nodes instead of plugging in into already generated ones (if they exist)</param>
-        void TraverseNodesForChunk(
+        /// <returns>Optionally the output action socket of last processed node</returns>
+        SocketOut? TraverseNodesForChunk(
             int chunkIndex,
             SocketOut sourceActionOutSocket,
             RegisterConstValueMap registerConstValueMap,
@@ -406,7 +408,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             bool forceRecalculateExisting = true)
         {
             if (chunkIndex < 0)
-                return;
+                return null;
 
             //staticCalculatedRegisterValues.TryAdd(chunkIndex, []);
             //registerSocketOutputMap.TryAdd(chunkIndex, []);
@@ -433,7 +435,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     if (instructionInputActionSocketMap[chunkIndex].TryGetValue(instrIndex, out var targetSocket))
                     {
                         nodeGraph.Connect(sourceActionOutSocket, targetSocket);
-                        return;
+                        return null;
                     }
                 }
             }
@@ -595,26 +597,40 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     case InstructionType.PULSE_CALL_ASYNC_FIRE:
                         {
                             var callTargetChunk = instruction.GetInt32Property("m_nChunk");
-                            if (callTargetChunk == chunkIndex)
+                            var callDestInstruction = instruction.GetInt32Property("m_nDestInstruction");
+                            if (callTargetChunk != chunkIndex || callDestInstruction <= 0)
+                            {
+                                var callInfoIndex = instruction.GetInt32Property("m_nCallInfoIndex");
+                                var node = new Node(null)
+                                {
+                                    Name = instrType == InstructionType.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously",
+                                    NodeType = "Flow",
+                                };
+                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                                var callInfo = callInfos[callInfoIndex];
+                                CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, callInfo["m_RegisterMap"]);
+
+                                callNodesToResolve.Add(new NodeCallInfo
+                                {
+                                    targetChunk = callTargetChunk,
+                                    node = node,
+                                });
+                            }
+                            else
                             {
                                 // If within the same chunk then treat that as a jump, don't know what it actually could represent yet besides just that.
+                                // The difference here is mostly that we still come back to process the instruction after the call finishes
+                                var outSocket = TraverseNodesForChunk(
+                                    chunkIndex,
+                                    previousActionOutSocket,
+                                    new(registerConstValueMap),
+                                    new(registerOutputSocketMap),
+                                    callDestInstruction
+                                );
 
+                                if (outSocket != null)
+                                    previousActionOutSocket = outSocket;
                             }
-                            var callInfoIndex = instruction.GetInt32Property("m_nCallInfoIndex");
-                            var node = new Node(null)
-                            {
-                                Name = instrType == InstructionType.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously",
-                                NodeType = "Flow",
-                            };
-                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
-                            var callInfo = callInfos[callInfoIndex];
-                            CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, callInfo["m_RegisterMap"]);
-
-                            callNodesToResolve.Add(new NodeCallInfo
-                            {
-                                targetChunk = callTargetChunk,
-                                node = node,
-                            });
                             break;
                         }
                     case InstructionType.RETURN_VALUE:
@@ -779,6 +795,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                 }
             }
+            return previousActionOutSocket;
         }
 
         // Handle some named outflows,
