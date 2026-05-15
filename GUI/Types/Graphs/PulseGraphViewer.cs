@@ -511,6 +511,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     registerSocketOutputMap[chunkIndex][regValue] = outSocket;
                                     node.Sockets.Add(outSocket);
                                 }
+                                instructionShouldSkipOverWhenEvaluatingRecursively[chunkIndex].Add(instructionIdx);
                             }
 
                             var morethingies = FilterBaseCellFieldsForDisplay(cellIndex);
