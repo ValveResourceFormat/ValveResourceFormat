@@ -960,16 +960,17 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             {
                 if (!chunkFunctionName.ContainsKey(chunkId))
                 {
-                    var nameIdx = ++currentUnknownNamedFuncNumber;
+                    var newName = $"Unnamed_{++currentUnknownNamedFuncNumber}";
                     var cellNode = new Node(null)
                     {
-                        Name = "Unnamed_" + nameIdx,
-                        NodeType = "Function"
+                        Name = "Function",
+                        NodeType = ""
                     };
 
                     var outputSocket = new SocketOut(typeof(Action), "", cellNode);
                     cellNode.Sockets.Add(outputSocket);
-                    chunkFunctionName.Add(chunkId, "Unnamed_" + nameIdx);
+                    chunkFunctionName.Add(chunkId, newName);
+                    cellNode.AddText(newName);
 
                     TraverseNodesForChunk(chunkId, outputSocket);
                     nodeGraph.AddNode(cellNode);
