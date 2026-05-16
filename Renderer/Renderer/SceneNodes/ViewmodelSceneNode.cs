@@ -26,6 +26,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     public ModelSceneNode Legs { get; set; }
 
     readonly List<ModelSceneNode?> Items = [];
+    readonly List<Material> legsMaterials = [];
 
     ModelSceneNode? SelectedItem => Items.ElementAtOrDefault(SelectedItemIndex - 1);
 
@@ -248,6 +249,23 @@ public class ViewmodelSceneNode : ModelSceneNode
         };
         Scene.Add(Legs, true);
 
+        SetActiveMeshGroups([
+            "first_or_third_person_@2_#&firstperson_default"
+        ]);
+
+        // Cache material references for efficient uniform updates (exclude arms/viewmodel materials)
+        var armsMaterials = Arms.RenderableMeshes
+            .SelectMany(m => m.DrawCalls)
+            .Select(dc => dc.Material.Material)
+            .ToHashSet();
+
+        legsMaterials.AddRange(
+            Legs.RenderableMeshes
+                .SelectMany(m => m.DrawCalls)
+                .Select(dc => dc.Material.Material)
+                .Except(armsMaterials)
+        );
+
         Legs.AnimationController.TwistConstraints = [];
         Legs.AnimationController.Looping = true;
 
@@ -371,10 +389,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             viewmodel.AddItem(item);
         }
-
-        viewmodel.Arms.SetActiveMeshGroups([
-            "first_or_third_person_@2_#&firstperson_default"
-        ]);
 
         viewmodel.SelectedItemIndex = 2;
         viewmodel.SelectedItemIndex = 3;
@@ -666,6 +680,14 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             Legs.AnimationController.EnableFirstPersonLegs = FirstPersonMode;
             Legs.Transform = PlayerTransform;
+
+            // Enable firstperson legs distortion shader effect
+            var distortionValue = FirstPersonMode ? 1 : 0;
+            foreach (var material in legsMaterials)
+            {
+                material.IntParams["g_bFirstpersonLegsDistortion"] = distortionValue;
+            }
+
             Legs.Update(context);
         }
 

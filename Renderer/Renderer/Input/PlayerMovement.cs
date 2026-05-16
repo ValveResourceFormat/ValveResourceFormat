@@ -272,7 +272,7 @@ public class PlayerMovement
             TracePosition = position;
         }
         //Clear buffered jumps
-        if(ticks != 0)
+        if (ticks != 0)
             RequestedJump = false;
 
         AccumulatedTime -= (float)ticks / TickRate;

@@ -237,6 +237,52 @@ vec4 GetTintColorLinear(vec4 vTint)
 
 #include "features/csgo_character_eyes_vs.slang"
 
+// Firstperson legs distortion parameters
+uniform float g_flFirstpersonLegsFade = 0.0;
+uniform int g_bDisableFirstpersonLegsDistortion = 0;
+uniform int g_bFirstpersonLegsDistortion = 0;
+
+// Apply firstperson legs distortion effect to clip space position and normal.
+// This creates a fish-eye warping effect on player legs in first-person view,
+// preventing clipping when looking down by scaling outward and pulling back.
+//
+// NOTE: Currently using distance-based activation for debugging (within 100 units of camera).
+//       TODO: Replace with proper uniform checks: g_flFirstpersonLegsFade > 0.0 && g_bDisableFirstpersonLegsDistortion == 0
+//
+// vertexPosOS: Original vertex position in object space
+// vertexPosWS: Vertex position in world space
+// clipSpacePos: Position in clip space (after projection)
+// normal: Surface normal in world space
+// viewDirZ: Camera view direction Z component (from view matrix)
+// outClipSpacePos: Modified clip space position with distortion applied
+// outNormal: Modified normal tilted slightly upward
+void ApplyFirstpersonLegsDistortion(
+    in vec3 vertexPosOS,
+    in vec3 vertexPosWS,
+    in vec4 clipSpacePos,
+    in vec3 normal,
+    in float viewDirZ,
+    out vec4 outClipSpacePos,
+    out vec3 outNormal)
+{
+    // Calculate distortion factor based on:
+    // 1. Vertex Z height (legs height) - normalized and clamped
+    // 2. Camera pitch (looking down) - squared for sharper falloff
+    float heightFactor = clamp((vertexPosOS.z + 1.0) * 0.0125, 0.0, 1.0) * 0.5;
+    float pitchFactor = pow(clamp(-viewDirZ, 0.0, 1.0), 2.0);
+    float distortionAmount = pow(heightFactor * pitchFactor, 1.5);
+
+    // Apply distortion to clip space position
+    vec2 scaledXY = clipSpacePos.xy * (1.0 + (5.0 * distortionAmount)); // Scale XY outward by up to 5x
+    float offsetY = scaledXY.y - (200.0 * distortionAmount); // Pull down in Y
+    float offsetZ = clipSpacePos.z;// + (40.0 * distortionAmount); // Pull back in Z (depth)
+    
+    outClipSpacePos = vec4(scaledXY.x, offsetY, offsetZ, clipSpacePos.w);
+
+    // Adjust normal to point slightly upward when distortion is applied
+    outNormal = normalize(normal + (vec3(0.0, 0.0, 0.5) * float(int(sign(distortionAmount)))));
+}
+
 void main()
 {
     ObjectData_t object = GetObjectData();
@@ -286,6 +332,11 @@ void main()
     #endif
 
     gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
+
+    if (g_bFirstpersonLegsDistortion != 0)
+    {
+        ApplyFirstpersonLegsDistortion(vPOSITION, vFragPosition, gl_Position, vNormalOut, g_vCameraDirWs.z, gl_Position, vNormalOut);
+    }
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
     vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
