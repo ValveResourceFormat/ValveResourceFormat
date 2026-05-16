@@ -628,7 +628,10 @@ public class Rubikon
         var edge1 = v1 - v0;
         var edge2 = v2 - v0;
         var triangleNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
-        var triNormSign = new Vector3(Math.Sign(Math.Sign(triangleNormal.X) + 0.5f), Math.Sign(Math.Sign(triangleNormal.Y) + 0.5f), Math.Sign(Math.Sign(triangleNormal.Z) + 0.5f));
+        var triNormSign = new Vector3(
+            triangleNormal.X < 0 ? -1f : 1f,
+            triangleNormal.Y < 0 ? -1f : 1f,
+            triangleNormal.Z < 0 ? -1f : 1f);
         var cornerCoords = trace.Origin + Vector3.Multiply(triNormSign, trace.HalfExtents) * Math.Sign(Vector3.Dot(triangleNormal, trace.Direction));
 
         //RayTraceContext ray = new RayTraceContext(cornerCoords, trace.Direction);
@@ -695,9 +698,12 @@ public class Rubikon
                 }
 
                 //just rotate our edge orientation by 90 deg, flatten and normalize it
-                var hitNormal = Vector3.Zero;
-                hitNormal[axis1] = edgeComp2;
-                hitNormal[axis2] = -edgeComp1;
+                var hitNormal = axis switch
+                {
+                    0 => new Vector3(0, edgeComp2, -edgeComp1),
+                    1 => new Vector3(-edgeComp1, 0, edgeComp2),
+                    _ => new Vector3(edgeComp2, -edgeComp1, 0)
+                };
 
                 var hitNormalLen = hitNormal.Length();
                 if (hitNormalLen < float.Epsilon)
@@ -706,7 +712,15 @@ public class Rubikon
                 }
 
                 hitNormal /= hitNormalLen;
-                hitNormal *= Math.Sign(-Vector3.Dot(hitNormal, trace.Direction));
+
+                var dotNormalDir = Vector3.Dot(hitNormal, trace.Direction);
+                if (MathF.Abs(dotNormalDir) < float.Epsilon)
+                {
+                    continue;
+                }
+
+                hitNormal *= -Math.Sign(dotNormalDir);
+                dotNormalDir = -MathF.Abs(dotNormalDir); // Negate to match flipped normal
 
                 //now to figure out the AABB edge we care about:
 
@@ -718,8 +732,8 @@ public class Rubikon
 
                 var AABBEdgeCenter = trace.HalfExtents;
                 AABBEdgeCenter[axis] = 0;
-                AABBEdgeCenter[axis1] *= -Math.Sign(Math.Sign(hitNormal[axis1]) + 0.5);
-                AABBEdgeCenter[axis2] *= -Math.Sign(Math.Sign(hitNormal[axis2]) + 0.5);
+                AABBEdgeCenter[axis1] *= hitNormal[axis1] < 0 ? 1f : -1f;
+                AABBEdgeCenter[axis2] *= hitNormal[axis2] < 0 ? 1f : -1f;
 
 
                 AABBEdgeCenter += trace.Origin;
@@ -738,7 +752,7 @@ public class Rubikon
 
                 var zeroAxis = (hitNormal[axis1] == 0 || hitNormal[axis2] == 0) ? (hitNormal[axis1] == 0 ? axis1 : axis2) : -1;
 
-                for (int positive = 0; positive < 1 + Convert.ToInt32(zeroAxis >= 0); positive++)
+                for (var positive = 0; positive < (zeroAxis >= 0 ? 2 : 1); positive++)
                 {
                     if (positive == 1)
                     {
@@ -747,7 +761,7 @@ public class Rubikon
                     }
 
                     //now to figure out the coordinates of where we would land in the extended edge plane
-                    var Distance = Vector3.Dot(DirToStart, hitNormal) / Vector3.Dot(hitNormal, trace.Direction);
+                    var Distance = Vector3.Dot(DirToStart, hitNormal) / dotNormalDir;
 
                     //same shit here, if we never reach that edge in the first place on any axis, we are not hitting that edge period
                     if (Distance > distance)
@@ -834,8 +848,12 @@ public class Rubikon
                 if (tNearMax < distance)
                 {
                     distance = tNearMax;
-                    normal = Vector3.Zero;
-                    normal[tNearMaxIndex] = -Math.Sign(trace.Direction[tNearMaxIndex]);
+                    normal = tNearMaxIndex switch
+                    {
+                        0 => new Vector3(-Math.Sign(trace.Direction.X), 0, 0),
+                        1 => new Vector3(0, -Math.Sign(trace.Direction.Y), 0),
+                        _ => new Vector3(0, 0, -Math.Sign(trace.Direction.Z))
+                    };
                     hitPoint = distance * trace.Direction + trace.Origin;
                 }
             }
