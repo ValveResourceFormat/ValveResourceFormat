@@ -628,7 +628,7 @@ public class Rubikon
         var edge1 = v1 - v0;
         var edge2 = v2 - v0;
         var triangleNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
-        var triNormSign = new Vector3(Math.Sign(triangleNormal.X), Math.Sign(triangleNormal.Y), Math.Sign(triangleNormal.Z));
+        var triNormSign = new Vector3(Math.Sign(Math.Sign(triangleNormal.X) + 0.5f), Math.Sign(Math.Sign(triangleNormal.Y) + 0.5f), Math.Sign(Math.Sign(triangleNormal.Z) + 0.5f));
         var cornerCoords = trace.Origin + Vector3.Multiply(triNormSign, trace.HalfExtents) * Math.Sign(Vector3.Dot(triangleNormal, trace.Direction));
 
         //RayTraceContext ray = new RayTraceContext(cornerCoords, trace.Direction);
@@ -711,10 +711,16 @@ public class Rubikon
                 //now to figure out the AABB edge we care about:
 
                 //example: if normal points up and right, only the bottom left edge can hit
+
+                //This can be zero on one more axis due to alignment. If that happens, we must trace TWO edges
+                //Fortunately it means we can skip that edge from then on, because there can defacto not be any closer collision with it
+                //because it is axis aligned once we projected it.
+
                 var AABBEdgeCenter = trace.HalfExtents;
                 AABBEdgeCenter[axis] = 0;
-                AABBEdgeCenter[axis1] *= -Math.Sign(hitNormal[axis1]);
-                AABBEdgeCenter[axis2] *= -Math.Sign(hitNormal[axis2]);
+                AABBEdgeCenter[axis1] *= -Math.Sign(Math.Sign(hitNormal[axis1]) + 0.5);
+                AABBEdgeCenter[axis2] *= -Math.Sign(Math.Sign(hitNormal[axis2]) + 0.5);
+
 
                 AABBEdgeCenter += trace.Origin;
 
@@ -729,43 +735,55 @@ public class Rubikon
                     continue;
                 }
 
-                //now to figure out the coordinates of where we would land in the extended edge plane
 
-                var Distance = Vector3.Dot(DirToStart, hitNormal) / Vector3.Dot(hitNormal, trace.Direction);
+                var zeroAxis = (hitNormal[axis1] == 0 || hitNormal[axis2] == 0) ? (hitNormal[axis1] == 0 ? axis1 : axis2) : -1;
 
-                //same shit here, if we never reach that edge in the first place on any axis, we are not hitting that edge period
-                if (Distance > distance)
+                for (int positive = 0; positive < 1 + Convert.ToInt32(zeroAxis >= 0); positive++)
                 {
-                    //same as before, this "optimization" breaks shit.
-                    //MissesOnAxis = true;
-                    continue;
-                }
+                    if (positive == 1)
+                    {
+                        AABBEdgeCenter[zeroAxis] *= -1;
+                        DirToStart = EdgeStart - AABBEdgeCenter;
+                    }
 
-                var PlaneHitCoord = AABBEdgeCenter + trace.Direction * Distance;
+                    //now to figure out the coordinates of where we would land in the extended edge plane
+                    var Distance = Vector3.Dot(DirToStart, hitNormal) / Vector3.Dot(hitNormal, trace.Direction);
 
-                //I promise this is less clusterfuck than it looks
-                var LongestAxisEdgeDir = Math.Abs(EdgeDirection[axis1]) > Math.Abs(EdgeDirection[axis2]) ? axis1 : axis2;
+                    //same shit here, if we never reach that edge in the first place on any axis, we are not hitting that edge period
+                    if (Distance > distance)
+                    {
+                        //same as before, this "optimization" breaks shit.
+                        //MissesOnAxis = true;
+                        continue;
+                    }
 
-                var diff = PlaneHitCoord[LongestAxisEdgeDir] - EdgeStart[LongestAxisEdgeDir];
+                    var PlaneHitCoord = AABBEdgeCenter + trace.Direction * Distance;
 
-                var a = diff / EdgeDirection[LongestAxisEdgeDir];
+                    //I promise this is less clusterfuck than it looks
+                    var LongestAxisEdgeDir = Math.Abs(EdgeDirection[axis1]) > Math.Abs(EdgeDirection[axis2]) ? axis1 : axis2;
 
-                //should be obvious that we can't go beyond the edges bounds
-                if (a < 0 || a > 1.0f)
-                {
-                    continue;
-                }
+                    var diff = PlaneHitCoord[LongestAxisEdgeDir] - EdgeStart[LongestAxisEdgeDir];
 
-                var NearestOnAxis = EdgeStart + EdgeDirection * a;
+                    var a = diff / EdgeDirection[LongestAxisEdgeDir];
 
-                var AxisDistance = Math.Abs(NearestOnAxis[axis] - PlaneHitCoord[axis]);
+                    //should be obvious that we can't go beyond the edges bounds
+                    if (a < 0 || a > 1.0f)
+                    {
+                        continue;
+                    }
 
-                if (AxisDistance < trace.HalfExtents[axis])
-                {
-                    distance = Distance;
-                    normal = hitNormal;
-                    hitPoint = trace.Origin + trace.Direction * Distance;
-                    hasHit = true;
+                    var NearestOnAxis = EdgeStart + EdgeDirection * a;
+
+                    var AxisDistance = Math.Abs(NearestOnAxis[axis] - PlaneHitCoord[axis]);
+
+                    if (AxisDistance < trace.HalfExtents[axis])
+                    {
+                        distance = Distance;
+                        normal = hitNormal;
+                        hitPoint = trace.Origin + trace.Direction * Distance;
+                        hasHit = true;
+                        break;
+                    }
                 }
             }
         }
