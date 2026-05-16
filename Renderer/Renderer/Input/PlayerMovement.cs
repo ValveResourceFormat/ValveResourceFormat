@@ -168,6 +168,8 @@ public class PlayerMovement
         AccumulatedTime += deltaTime;
         deltaTime = 1f / TickRate;
 
+        AccumulatedTime = Math.Min(AccumulatedTime, deltaTime * 3f);
+
         int ticks = 0;
         var playerHull = Hull;
         for (; ticks + 1 < AccumulatedTime * TickRate; ticks++)
