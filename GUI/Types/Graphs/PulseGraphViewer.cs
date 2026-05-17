@@ -998,10 +998,22 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             Name = "Graph info",
             NodeType = "Imagine that I'm a static panel",
         };
-        graphInfoNode.AddText($"Domain: {graphDefinition.GetStringProperty("m_DomainIdentifier")}");
-        graphInfoNode.AddText($"Domain sub-type: {graphDefinition.GetStringProperty("m_DomainSubType")}");
-        graphInfoNode.AddText($"Parent map: {graphDefinition.GetStringProperty("m_ParentMapName")}");
-        graphInfoNode.AddText($"Parent XML panel: {graphDefinition.GetStringProperty("m_ParentXmlName")}");
+        if (graphDefinition.ContainsKey("m_DomainIdentifier"))
+        {
+            graphInfoNode.AddText($"Domain: {graphDefinition.GetStringProperty("m_DomainIdentifier")}");
+        }
+        if (graphDefinition.ContainsKey("m_DomainSubType"))
+        {
+            graphInfoNode.AddText($"Domain sub-type: {graphDefinition.GetStringProperty("m_DomainSubType")}");
+        }
+        if (graphDefinition.ContainsKey("m_ParentMapName"))
+        {
+            graphInfoNode.AddText($"Description: {graphDefinition.GetStringProperty("m_ParentMapName")}");
+        }
+        if (graphDefinition.ContainsKey("m_ParentXmlName"))
+        {
+            graphInfoNode.AddText($"Parent XML panel: {graphDefinition.GetStringProperty("m_ParentXmlName")}");
+        }
         nodeGraph.AddNode(graphInfoNode);
 
         // Variable definitions as separate nodes, cause there's no specific pane for displaying them.
