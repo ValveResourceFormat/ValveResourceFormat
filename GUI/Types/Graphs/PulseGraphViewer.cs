@@ -757,7 +757,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         stopProcessing = true;
                         var reg0 = instruction.GetInt32Property("m_nReg0");
                         // Detect loop
-                        if (HandleLoopJump(
+                        var (wasLoop, loopOutSocket) = HandleLoopJump(
                             registers,
                             instructions,
                             registerConstValueMap,
@@ -766,8 +766,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             chunkIndex,
                             reg0,
                             previousActionOutSocket
-                        ))
+                        );
+                        if (wasLoop)
                         {
+                            previousActionOutSocket = loopOutSocket ?? previousActionOutSocket;
                             stopProcessing = true;
                             break;
                         }
@@ -896,7 +898,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         throw new Exception("No 'm_InstructionDebugInfos', or 'm_InstructionEditorIDs' are present in a chunk for this graph definition. Graph schema updated?");
     }
 
-    private bool HandleLoopJump(
+    private (bool, SocketOut?) HandleLoopJump(
         IReadOnlyList<KVObject> registers,
         IReadOnlyList<KVObject> instructions,
         Dictionary<int, KVObject> registerConstValueMap,
@@ -910,7 +912,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         var originName = regInfo.GetStringProperty("m_OriginName");
         if (!originName.EndsWith("__loop_cond", StringComparison.InvariantCulture))
         {
-            return false;
+            return (false, null);
         }
 
         var relevantNodeNumber = originName.Split(':')[0];
@@ -950,6 +952,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                 AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regLoopIndex, "First index");
                 AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndexStop, "Last index");
+                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, conditionalRegister, "Loop condition");
 
                 // add the index output
                 // this will be remembered when we do a loop iteration (should also handle foreach type of loop)
@@ -963,7 +966,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 if (GetInstructionType(loopJumpOutInstruction) != InstructionType.JUMP)
                 {
                     VrfGuiContext.Logger.LogWarning("PulseGraph: Unhandled 'for' loop setup in graph!");
-                    return false;
+                    return (false, null);
                 }
                 // figure out where the loop ends
                 var loopEndInstruction = loopJumpOutInstruction.GetInt32Property("m_nDestInstruction");
@@ -1021,7 +1024,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 if (loopOperationEndInstructionId == loopJumpOutInstructionId)
                 {
                     VrfGuiContext.Logger.LogInformation("PulseGraph: Empty 'for' loop!");
-                    return false;
+                    return (false, null);
                 }
 
                 var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
@@ -1035,7 +1038,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 );
 
                 var socketOutFinishedAction = forLoopNode.CreateSocketOut<Flow>("Finished");
-                TraverseNodesForChunk(
+                var lastActSocket = TraverseNodesForChunk(
                     chunkIndex,
                     socketOutFinishedAction,
                     new Dictionary<int, KVObject>(registerConstValueMap),
@@ -1046,7 +1049,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 nodeGraph.AddNode(forLoopNode);
                 forLoopNode = null;
 
-                return true;
+                return (true, lastActSocket);
             }
             // different type of loop ?
             // find names with m_Start, m_Stop, m_Step with the same nodeid of jump_cond condition register
@@ -1080,12 +1083,17 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                 if (regStop == -1 || regStep == -1 || regStart == -1)
                 {
-                    return false;
+                    return (false, null);
                 }
+
+                var loopSocketIn = forLoopNode.CreateSocketIn<Flow>("");
+                nodeGraph.Connect(lastActionSocket, loopSocketIn);
+                instructionInputActionSocketMap[chunkIndex][instructionIdx] = loopSocketIn;
 
                 AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStart, "First index");
                 AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStop, "Last index");
                 AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStep, "Increment");
+                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, conditionalRegister, "Loop condition");
 
                 registerOutputSocketMap[regLoopIndex] = forLoopNode.CreateSocketOut<ValueNumber>("Index");
 
@@ -1094,7 +1102,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 if (GetInstructionType(loopJumpOutInstruction) != InstructionType.JUMP)
                 {
                     VrfGuiContext.Logger.LogWarning("PulseGraph: Unhandled 'for' loop setup in graph!");
-                    return false;
+                    return (false, null);
                 }
 
                 // find a jump that jumps to the same or earlier instruction id of this conditional jump that matches the ID
@@ -1130,7 +1138,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 );
 
                 var socketOutFinishedAction = forLoopNode.CreateSocketOut<Flow>("Finished");
-                TraverseNodesForChunk(
+                var lastActSocket = TraverseNodesForChunk(
                     chunkIndex,
                     socketOutFinishedAction,
                     new Dictionary<int, KVObject>(registerConstValueMap),
@@ -1141,7 +1149,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 nodeGraph.AddNode(forLoopNode);
                 forLoopNode = null;
 
-                return true;
+                return (true, lastActSocket);
             }
         }
         finally
