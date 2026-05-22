@@ -558,6 +558,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                             CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
 
+                            node.Calculate();
                             nodeGraph.AddNode(node);
                             node = null;
                         }
@@ -605,6 +606,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
                             PopulateSpecificCell(node, cellIndex, registerConstValueMap, registerOutputSocketMap);
 
+                            node.Calculate();
                             nodeGraph.AddNode(node);
                             node = null;
                         }
@@ -643,6 +645,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         registerOutputSocketMap[regIndex] = outSocket;
                         node.UpdateTypeColorFromOutput();
 
+                        node.Calculate();
                         nodeGraph.AddNode(node);
                         break;
                     }
@@ -663,6 +666,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         node.AddText(GetVariableNameFromIndex(varIndex));
                         AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
 
+                        node.Calculate();
                         nodeGraph.AddNode(node);
                         break;
                     }
@@ -725,6 +729,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             };
                             previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
                             AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
+                            node.Calculate();
                             nodeGraph.AddNode(node);
                             node = null;
                         }
@@ -845,6 +850,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                             if (!ignoreActions)
                             {
+                                node.Calculate();
                                 nodeGraph.AddNode(node);
                                 node = null;
                             }
@@ -888,6 +894,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             registerOutputSocketMap[reg0] = socketOut;
                             node.UpdateTypeColorFromOutput();
 
+                            node.Calculate();
                             nodeGraph.AddNode(node);
                         }
 
@@ -1077,6 +1084,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     loopEndInstruction
                 );
 
+                forLoopNode.Calculate();
                 nodeGraph.AddNode(forLoopNode);
                 forLoopNode = null;
 
@@ -1177,6 +1185,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     loopEndInstruction
                 );
 
+                forLoopNode.Calculate();
                 nodeGraph.AddNode(forLoopNode);
                 forLoopNode = null;
 
@@ -1329,6 +1338,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                             AddFilteredCellDetails(cellNode, cellIdx);
 
+                            cellNode.Calculate();
                             nodeGraph.AddNode(cellNode);
                             cellNode = null;
                             break;
@@ -1360,6 +1370,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     cellNode.AddText(newName);
 
                     TraverseNodesForChunk(chunkId, outputSocket, new Dictionary<int, KVObject>(), new Dictionary<int, SocketOut>());
+                    cellNode.Calculate();
                     nodeGraph.AddNode(cellNode);
                 }
             }
@@ -1410,6 +1421,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             {
                 node.AddText(description);
             }
+            node.Calculate();
             nodeGraph.AddNode(node);
         }
 
@@ -1419,6 +1431,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             var targetChunk = callNodeInfo.targetChunk;
             string methodNameToCall = chunkFunctionName[targetChunk];
             callNodeInfo.node.AddText($"Method: {methodNameToCall}");
+            callNodeInfo.node.Calculate();
             nodeGraph.AddNode(callNodeInfo.node);
         }
 
