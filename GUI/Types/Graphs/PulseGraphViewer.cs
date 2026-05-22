@@ -1440,7 +1440,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             nodeGraph.AddNode(callNodeInfo.node);
         }
 
-        nodeGraph.LayoutNodes();
+        nodeGraph.LayoutNodesSequential();
     }
     #region Nodes
     class Node : AbstractNode
