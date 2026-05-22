@@ -889,11 +889,16 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg2, "arg2");
                             }
 
+                            if (reg1 == -1 && reg2 == -1)
+                            {
+                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                                AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "arg");
+                            }
+
                             // create output socket for this node, and store it for future connections
                             var socketOut = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, reg0));
                             registerOutputSocketMap[reg0] = socketOut;
                             node.UpdateTypeColorFromOutput();
-
                             node.Calculate();
                             nodeGraph.AddNode(node);
                         }
