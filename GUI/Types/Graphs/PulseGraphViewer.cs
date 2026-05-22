@@ -754,7 +754,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     }
                 case InstructionType.JUMP_COND:
                     {
-                        stopProcessing = true;
                         var reg0 = instruction.GetInt32Property("m_nReg0");
                         // Detect loop
                         var (wasLoop, loopOutSocket) = HandleLoopJump(
@@ -805,12 +804,44 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             // If false we don't take the jump. So traverse starting from currentinstr + 1
                             var socketOutFalse = node.CreateSocketOut<Flow>("False");
                             var destInstructionFalse = instructionIdx + 1;
+
+
+                            // Find out the jump out instruction after the True case is finished.
+                            // Whether the graph code run through true or false, it will end up at one, unless it's just a return
+                            // in which case we don't have to worry about anything
+                            var firstInsturctionAfterLoopId = -1;
+                            if (GetInstructionType(instructions[destInstructionFalse]) == InstructionType.JUMP)
+                            {
+                                var falseJumpTarget = instructions[destInstructionFalse].GetInt32Property("m_nDestInstruction");
+
+                                if (falseJumpTarget > 0)
+                                {
+                                    if (GetInstructionType(instructions[falseJumpTarget - 1]) == InstructionType.JUMP)
+                                    {
+                                        firstInsturctionAfterLoopId = instructions[falseJumpTarget - 1].GetInt32Property("m_nDestInstruction");
+                                    }
+                                }
+                            }
+
                             TraverseNodesForChunk(chunkIndex,
                                 socketOutFalse,
                                 new Dictionary<int, KVObject>(registerConstValueMap),
                                 new Dictionary<int, SocketOut>(registerOutputSocketMap),
-                                destInstructionFalse
+                                destInstructionFalse,
+                                firstInsturctionAfterLoopId == -1 ? int.MaxValue : firstInsturctionAfterLoopId
                             );
+
+                            // create even if we're returning, cause the socket still could be connected to further actions
+                            // if the current flow was a subroutine
+                            previousActionOutSocket = node.CreateSocketOut<Flow>("Finished");
+                            if (firstInsturctionAfterLoopId != -1)
+                            {
+                                instructionIdx = firstInsturctionAfterLoopId;
+                            }
+                            else
+                            {
+                                stopProcessing = true;
+                            }
 
                             if (!ignoreActions)
                             {
