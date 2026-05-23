@@ -5,7 +5,6 @@ using System.Text;
 using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using GUI.Utils;
-using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using Svg.Skia;
 using ValveKeyValue;
@@ -144,19 +143,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         CreateGraph();
     }
 
-    public override void Dispose()
-    {
-        GLControl?.MouseDoubleClick -= OnMouseDoubleClick;
-        base.Dispose();
-    }
-
-    protected override void AddUiControls()
-    {
-        base.AddUiControls();
-
-        GLControl?.MouseDoubleClick += OnMouseDoubleClick;
-    }
-
     // Stringify a KVObject for our purposes
     private static string StringifyKVObject(KVObject obj)
     {
@@ -195,23 +181,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             case KVValueType.FloatingPoint64:
             default:
                 return obj.ToString();
-        }
-    }
-
-    private void OnMouseDoubleClick(object? sender, MouseEventArgs e)
-    {
-        var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
-        var graphPoint = ScreenToGraph(screenPoint);
-        var element = nodeGraph.FindElementAt(graphPoint);
-
-        if (element is Node { ExternalResourceName: not null } node)
-        {
-            var foundFile = VrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
-            if (foundFile.Context != null)
-            {
-                Debug.Assert(foundFile.PackageEntry != null);
-                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
-            }
         }
     }
 
@@ -384,10 +353,16 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         return CellType.Unknown;
     }
 
-    private KVObject GetConstantValueFromId(int constantId)
+    private bool TryGetConstantValueFromId(int constantId, out KVObject value)
     {
-        var constant = constants[constantId];
-        return constant["m_Value"];
+        if (constantId >= 0 && constantId < constants.Count)
+        {
+            var constant = constants[constantId];
+            value = constant["m_Value"];
+            return true;
+        }
+        value = [];
+        return false;
     }
 
     private KVObject GetDomainValueFromId(int domainValId)
@@ -484,7 +459,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Dictionary<int, KVObject> registerConstValueMap,
         Dictionary<int, SocketOut> registerOutputSocketMap,
         int startingInstruction = 0,
-        int endingInstruction = int.MaxValue,
+        int endingInstruction = int.MaxValue, // non-inclusive
         bool ignoreActions = false)
     {
         if (chunkIndex < 0)
@@ -620,7 +595,14 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     {
                         var constIdx = instruction.GetInt32Property("m_nConstIdx");
                         var outputRegIdx = instruction.GetInt32Property("m_nReg0");
-                        registerConstValueMap[outputRegIdx] = GetConstantValueFromId(constIdx);
+                        if (TryGetConstantValueFromId(constIdx, out var value))
+                        {
+                            registerConstValueMap[outputRegIdx] = value;
+                        }
+                        else
+                        {
+                            Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve constant of ID={constIdx}");
+                        }
                         break;
                     }
                 case InstructionType.GET_DOMAIN_VALUE:
@@ -911,7 +893,43 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         return previousActionOutSocket;
     }
 
-    private void GeneratePossibleOutflowsForCell(Node node, int cellIdx, Dictionary<int, KVObject> registerConstValueMap, Dictionary<int, SocketOut> registerOutputSocketMap)
+    // Simulates code stepping, will take all unconditional jumps to see if we end up at targetInstruction
+    // Does NOT consider all paths with conditional jumps. Should mostly be used to detect loops.
+    // Returns true if targetInstruction can be reached from startingInstruction
+    private bool FollowInstructionsAndDetectLoop(int chunkId, int targetInstruction, int startingInstruction)
+    {
+        var chunk = chunks[chunkId];
+        var instructions = chunk.GetArray("m_Instructions");
+
+        for (var currInstrId = startingInstruction; currInstrId < instructions.Count; currInstrId++)
+        {
+            if (targetInstruction == currInstrId)
+            {
+                return true;
+            }
+            var instrType = GetInstructionType(instructions[currInstrId]);
+            switch (instrType)
+            {
+                case InstructionType.RETURN_VALUE:
+                case InstructionType.RETURN_VOID:
+                case InstructionType.IMMEDIATE_HALT:
+                    return false;
+                case InstructionType.JUMP:
+                    {
+                        currInstrId = instructions[currInstrId].GetInt32Property("m_nDestInstruction");
+                        break;
+                    }
+            }
+        }
+
+        return false;
+    }
+
+    private void GeneratePossibleOutflowsForCell(
+        Node node,
+        int cellIdx,
+        Dictionary<int, KVObject> registerConstValueMap,
+        Dictionary<int, SocketOut> registerOutputSocketMap)
     {
         var cell = cells[cellIdx];
         foreach (var outflow in cell.Values)
@@ -953,32 +971,120 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     {
         var regInfo = registers[conditionalRegister];
         var originName = regInfo.GetStringProperty("m_OriginName");
-        if (!originName.EndsWith("__loop_cond", StringComparison.InvariantCulture))
+
+        var relevantNodeNumber = originName.Split(':')[0];
+        var nodeId = GetInstructionFlowId(chunkIndex, instructionIdx);
+        var instrComp = instructions[regInfo.GetInt32Property("m_nWrittenByInstruction")];
+
+        // Usually a uncoditional jump follows after a conditional - this one jumps outside the loop
+        // Instruction after this jump should be the first loop instruction
+        var loopJumpOutInstructionId = instructionIdx + 1;
+        var loopJumpOutInstruction = instructions[loopJumpOutInstructionId];
+        if (GetInstructionType(loopJumpOutInstruction) != InstructionType.JUMP)
         {
             return (false, null);
         }
 
-        var relevantNodeNumber = originName.Split(':')[0];
-        var instrComp = instructions[regInfo.GetInt32Property("m_nWrittenByInstruction")];
+        // find a jump that jumps to the same or earlier instruction id of this conditional jump that matches the ID
+        // then we know that it's a part of this loop. That's how we find where the loop ends
+        var instructionIdLoopJumpBack = -1;
+        for (var j = instructionIdx + 1; j < instructions.Count; j++)
+        {
+            var instr = instructions[j];
+            if (GetInstructionType(instr) != InstructionType.JUMP)
+            {
+                continue;
+            }
+
+            // This may not be 100% accurate for graphs that don't have valid debug node IDs, there could be in theory an earlier jump
+            // that's not relevant to the loop, althought that's an unlikely scenario.
+            // (not verified if that can even happen, assuming the file has not been tampered with)
+            if (instr.GetInt32Property("m_nDestInstruction") <= instructionIdx && GetInstructionFlowId(chunkIndex, j) == nodeId)
+            {
+                instructionIdLoopJumpBack = j;
+                break;
+            }
+        }
+
+        if (instructionIdLoopJumpBack == -1)
+        {
+            return (false, null);
+        }
+
+        if (!originName.EndsWith("__loop_cond", StringComparison.InvariantCulture))
+        {
+            Log.Warn(nameof(PulseGraphViewer),
+                $"Loop detected, but condition register does not have __loop_cond name. Hoping for the best! (chunk={chunkIndex}, instruction={loopJumpOutInstructionId})");
+        }
+
         // assuming a 'for' loop, one register is going to be the index (can find out through originName)
         // the other one will be the max/min value
         // Also they will have the same node-id specified in OriginName that we can also check to verify
         IReadOnlyList<int> regs = [instrComp.GetInt32Property("m_nReg1"), instrComp.GetInt32Property("m_nReg2")];
-        int regLoopIndex = -1;
-        int regIndexStop = -1;
+        int regStart = -1;
+        int regStep = -1;
+        int regStop = -1;
+        bool isIncrementLoadedInitially = false;
+
         foreach (var regIdx in regs)
         {
             var regData = registers[regIdx];
             var originNameLoop = regData.GetStringProperty("m_OriginName");
             if (originNameLoop.EndsWith("__loop_index", StringComparison.InvariantCulture))
             {
-                regLoopIndex = regIdx;
+                regStart = regIdx;
             }
             else
             {
-                regIndexStop = regIdx;
+                regStop = regIdx;
             }
         }
+
+        if (regStop == -1 || regStart == -1)
+        {
+            foreach (var reg in registers)
+            {
+                var originNameCurr = reg.GetStringProperty("m_OriginName");
+                if (!originNameCurr.StartsWith(relevantNodeNumber, StringComparison.InvariantCulture))
+                {
+                    continue;
+                }
+
+                if (originNameCurr.EndsWith("m_Stop", StringComparison.InvariantCulture))
+                {
+                    regStop = reg.GetInt32Property("m_nReg");
+                }
+                else if (originNameCurr.EndsWith("m_Step", StringComparison.InvariantCulture))
+                {
+                    regStep = reg.GetInt32Property("m_nReg");
+                    isIncrementLoadedInitially = true;
+                }
+                else if (originNameCurr.EndsWith("m_Start", StringComparison.InvariantCulture))
+                {
+                    regStart = reg.GetInt32Property("m_nReg");
+                }
+            }
+        }
+
+        if (regStep == -1)
+        {
+            for (var regIdx = 0; regIdx < registers.Count; regIdx++)
+            {
+                var regData = registers[regIdx];
+                var originNameIncrement = regData.GetStringProperty("m_OriginName");
+                if (!originNameIncrement.StartsWith(nodeId.ToString()))
+                {
+                    continue;
+                }
+
+                if (regData.GetStringProperty("m_OriginName").EndsWith("__increment", StringComparison.InvariantCulture))
+                {
+                    regStep = regIdx;
+                    break;
+                }
+            }
+        }
+
         Node? forLoopNode = null;
         try
         {
@@ -987,222 +1093,103 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 Name = "Loop",
                 NodeType = "Flow control",
             };
-            if (regLoopIndex != -1 && regIndexStop != -1)
+
+            var loopSocketIn = forLoopNode.CreateSocketIn<Flow>("");
+            nodeGraph.Connect(lastActionSocket, loopSocketIn);
+            instructionInputActionSocketMap[chunkIndex][instructionIdx] = loopSocketIn;
+
+            if (regStart != -1)
             {
-                var loopSocketIn = forLoopNode.CreateSocketIn<Flow>("");
-                nodeGraph.Connect(lastActionSocket, loopSocketIn);
-                instructionInputActionSocketMap[chunkIndex][instructionIdx] = loopSocketIn;
-
-                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regLoopIndex, "First index");
-                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndexStop, "Last index");
-                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, conditionalRegister, "Loop condition");
-
+                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStart, "First index");
                 // add the index output
                 // this will be remembered when we do a loop iteration (should also handle foreach type of loop)
-                registerOutputSocketMap[regLoopIndex] = forLoopNode.CreateSocketOut<ValueNumber>("Index");
-
-                // Usually a uncoditional jump follows after a conditional - this one jumps outside the loop
-                // Instruction after this jump should be the first loop instruction
-
-                var loopJumpOutInstructionId = instructionIdx + 1;
-                var loopJumpOutInstruction = instructions[loopJumpOutInstructionId];
-                if (GetInstructionType(loopJumpOutInstruction) != InstructionType.JUMP)
-                {
-                    VrfGuiContext.Logger.LogWarning("PulseGraph: Unhandled 'for' loop setup in graph!");
-                    return (false, null);
-                }
-                // figure out where the loop ends
-                var loopEndInstruction = loopJumpOutInstruction.GetInt32Property("m_nDestInstruction");
-                int loopOperationEndInstructionId = -1;
-                // see if we can find the increment, which should be added at the end of an iteration
-
-
-                // find a jump that jumps to the same or earlier instruction id of this conditional jump that matches the ID
-                // then we know that it's a part of this loop. That's how we find where the loop ends
-                var instructionIdLoopJumpBack = -1;
-                var nodeId = GetInstructionFlowId(chunkIndex, instructionIdx);
-                for (var j = instructionIdx + 1; j < instructions.Count; j++)
-                {
-                    var instr = instructions[j];
-                    if (GetInstructionType(instr) != InstructionType.JUMP)
-                    {
-                        continue;
-                    }
-
-                    if (instr.GetInt32Property("m_nDestInstruction") <= instructionIdx && GetInstructionFlowId(chunkIndex, j) == nodeId)
-                    {
-                        instructionIdLoopJumpBack = j;
-                        break;
-                    }
-                }
-
-                int regIncrement = -1;
-                for (var regIdx = 0; regIdx < registers.Count; regIdx++)
-                {
-                    var regData = registers[regIdx];
-                    var originNameIncrement = regData.GetStringProperty("m_OriginName");
-                    if (!originNameIncrement.StartsWith(nodeId.ToString()))
-                    {
-                        continue;
-                    }
-
-                    if (regData.GetStringProperty("m_OriginName").EndsWith("__increment", StringComparison.InvariantCulture))
-                    {
-                        regIncrement = regIdx;
-
-                        // ASSUME that we got this increment from a constant (previous instruction)
-                        // TODO: actually follow the register chain until we get a const, then connect these operations to the increment socket
-                        var constIcrement = GetConstantValueFromId(instructions[instructionIdLoopJumpBack - 2].GetInt32Property("m_nConstIdx"));
-                        forLoopNode.AddText($"Increment = {StringifyKVObject(constIcrement)}");
-                        loopOperationEndInstructionId = instructionIdLoopJumpBack - 2;
-                        break;
-                    }
-                }
-
-                if (regIncrement == -1)
-                {
-                    VrfGuiContext.Logger.LogInformation("PulseGraph: 'for' loop expected __increment register, but didn't find a matching one.");
-                }
-
-                if (loopOperationEndInstructionId == loopJumpOutInstructionId)
-                {
-                    VrfGuiContext.Logger.LogInformation("PulseGraph: Empty 'for' loop!");
-                    return (false, null);
-                }
-
-                var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
-                TraverseNodesForChunk(
-                    chunkIndex,
-                    socketOutLoopAction,
-                    new Dictionary<int, KVObject>(registerConstValueMap),
-                    new Dictionary<int, SocketOut>(registerOutputSocketMap),
-                    loopJumpOutInstructionId + 1,
-                    loopOperationEndInstructionId
-                );
-
-                var socketOutFinishedAction = forLoopNode.CreateSocketOut<Flow>("Finished");
-                var lastActSocket = TraverseNodesForChunk(
-                    chunkIndex,
-                    socketOutFinishedAction,
-                    new Dictionary<int, KVObject>(registerConstValueMap),
-                    new Dictionary<int, SocketOut>(registerOutputSocketMap),
-                    loopEndInstruction
-                );
-
-                forLoopNode.Calculate();
-                nodeGraph.AddNode(forLoopNode);
-                forLoopNode = null;
-
-                return (true, lastActSocket);
+                registerOutputSocketMap[regStart] = forLoopNode.CreateSocketOut<ValueNumber>("Index");
             }
-            // different type of loop ?
-            // find names with m_Start, m_Stop, m_Step with the same nodeid of jump_cond condition register
             else
             {
-                var regStop = -1;
-                var regStep = -1;
-                var regStart = -1;
-
-                foreach (var reg in registers)
-                {
-                    var originNameCurr = reg.GetStringProperty("m_OriginName");
-                    if (!originNameCurr.StartsWith(relevantNodeNumber, StringComparison.InvariantCulture))
-                    {
-                        continue;
-                    }
-
-                    if (originNameCurr.EndsWith("m_Stop", StringComparison.InvariantCulture))
-                    {
-                        regStop = reg.GetInt32Property("m_nReg");
-                    }
-                    else if (originNameCurr.EndsWith("m_Step", StringComparison.InvariantCulture))
-                    {
-                        regStep = reg.GetInt32Property("m_nReg");
-                    }
-                    else if (originNameCurr.EndsWith("m_Start", StringComparison.InvariantCulture))
-                    {
-                        regStart = reg.GetInt32Property("m_nReg");
-                    }
-                }
-
-                if (regStop == -1 || regStep == -1 || regStart == -1)
-                {
-                    return (false, null);
-                }
-
-                var loopSocketIn = forLoopNode.CreateSocketIn<Flow>("");
-                nodeGraph.Connect(lastActionSocket, loopSocketIn);
-                instructionInputActionSocketMap[chunkIndex][instructionIdx] = loopSocketIn;
-
-                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStart, "First index");
-                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStop, "Last index");
-                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStep, "Increment");
-                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, conditionalRegister, "Loop condition");
-
-                registerOutputSocketMap[regLoopIndex] = forLoopNode.CreateSocketOut<ValueNumber>("Index");
-
-                var loopJumpOutInstructionId = instructionIdx + 1;
-                var loopJumpOutInstruction = instructions[loopJumpOutInstructionId];
-                if (GetInstructionType(loopJumpOutInstruction) != InstructionType.JUMP)
-                {
-                    VrfGuiContext.Logger.LogWarning("PulseGraph: Unhandled 'for' loop setup in graph!");
-                    return (false, null);
-                }
-
-                // find a jump that jumps to the same or earlier instruction id of this conditional jump that matches the ID
-                // then we know that it's a part of this loop. That's how we find where the loop ends
-                var instructionIdLoopJumpBack = -1;
-                var nodeId = GetInstructionFlowId(chunkIndex, instructionIdx);
-                for (var j = instructionIdx + 1; j < instructions.Count; j++)
-                {
-                    var instr = instructions[j];
-                    if (GetInstructionType(instr) != InstructionType.JUMP)
-                    {
-                        continue;
-                    }
-
-                    if (instr.GetInt32Property("m_nDestInstruction") <= instructionIdx && GetInstructionFlowId(chunkIndex, j) == nodeId)
-                    {
-                        instructionIdLoopJumpBack = j;
-                        break;
-                    }
-                }
-
-                var instrLoopEndingId = instructionIdLoopJumpBack - 1;
-                var loopEndInstruction = instructionIdLoopJumpBack + 1;
-
-                var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
-                TraverseNodesForChunk(
-                    chunkIndex,
-                    socketOutLoopAction,
-                    new Dictionary<int, KVObject>(registerConstValueMap),
-                    new Dictionary<int, SocketOut>(registerOutputSocketMap),
-                    loopJumpOutInstructionId + 1,
-                    instrLoopEndingId
-                );
-
-                var socketOutFinishedAction = forLoopNode.CreateSocketOut<Flow>("Finished");
-                var lastActSocket = TraverseNodesForChunk(
-                    chunkIndex,
-                    socketOutFinishedAction,
-                    new Dictionary<int, KVObject>(registerConstValueMap),
-                    new Dictionary<int, SocketOut>(registerOutputSocketMap),
-                    loopEndInstruction
-                );
-
-                forLoopNode.Calculate();
-                nodeGraph.AddNode(forLoopNode);
-                forLoopNode = null;
-
-                return (true, lastActSocket);
+                forLoopNode.AddMessage("Could not determine the loop's starting index");
             }
+
+            if (regStop != -1)
+            {
+                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStop, "Last index");
+            }
+            else
+            {
+                forLoopNode.AddMessage("Could not determine the loop's ending index");
+            }
+
+            int loopOperationEndInstructionId = instructionIdLoopJumpBack;
+            if (!isIncrementLoadedInitially)
+            {
+                // ASSUME that we got this increment from a constant (previous instruction)
+                // TODO: actually follow the register chain until we get a const, then connect these operations to the increment socket
+                if (TryGetConstantValueFromId(instructions[instructionIdLoopJumpBack - 2].GetInt32Property("m_nConstIdx"), out var constIncrement))
+                {
+                    forLoopNode.AddText($"Increment = {StringifyKVObject(constIncrement)}");
+                    loopOperationEndInstructionId = instructionIdLoopJumpBack - 2;
+                }
+                else // handles cases for unofficial graphs, where isIncrementLoadedInitially can not be easily detected
+                {
+                    //loopOperationEndInstructionId = instructionIdLoopJumpBack;
+                }
+            }
+            else if (regStep != -1)
+            {
+                loopOperationEndInstructionId = instructionIdLoopJumpBack - 1; // The ADD/SUB instruction
+                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStep, "Increment");
+            }
+            else
+            {
+                loopOperationEndInstructionId = instructionIdLoopJumpBack; // No increment?
+                forLoopNode.AddMessage("Could not determine the loop's increment");
+            }
+
+            AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, conditionalRegister, "Loop condition");
+
+            if (loopOperationEndInstructionId == loopJumpOutInstructionId)
+            {
+                Log.Info(nameof(PulseGraphViewer), $"Potentially empty loop (chunk={chunkIndex}, instruction={loopOperationEndInstructionId})");
+            }
+
+            Log.Info(nameof(PulseGraphViewer), $"Chunk: {chunkIndex} loopJumpOutInstructionId={loopJumpOutInstructionId} -> {loopJumpOutInstruction.GetInt32Property("m_nDestInstruction")} | loopOperationEndInstructionId={loopOperationEndInstructionId}");
+
+            var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
+            TraverseNodesForChunk(
+                chunkIndex,
+                socketOutLoopAction,
+                new Dictionary<int, KVObject>(registerConstValueMap),
+                new Dictionary<int, SocketOut>(registerOutputSocketMap),
+                loopJumpOutInstructionId + 1,
+                loopOperationEndInstructionId
+            );
+
+            var loopEndInstruction = loopJumpOutInstruction.GetInt32Property("m_nDestInstruction");
+            var socketOutFinishedAction = forLoopNode.CreateSocketOut<Flow>("Finished");
+            var lastActSocket = TraverseNodesForChunk(
+                chunkIndex,
+                socketOutFinishedAction,
+                new Dictionary<int, KVObject>(registerConstValueMap),
+                new Dictionary<int, SocketOut>(registerOutputSocketMap),
+                loopEndInstruction
+            );
+
+            forLoopNode.Calculate();
+            nodeGraph.AddNode(forLoopNode);
+            forLoopNode = null;
+
+            return (true, lastActSocket);
         }
         finally
         {
             forLoopNode?.Dispose();
         }
     }
-    private void PopulateSpecificCell(Node node, int cellIdx, Dictionary<int, KVObject> registerConstValueMap, Dictionary<int, SocketOut> registerOutputSocketMap)
+    private void PopulateSpecificCell(
+        Node node,
+        int cellIdx,
+        Dictionary<int, KVObject> registerConstValueMap,
+        Dictionary<int, SocketOut> registerOutputSocketMap)
     {
         var cellCategory = GetCellCategory(cellIdx);
         var cellType = GetCellType(cellIdx, out var cellName);
@@ -1446,7 +1433,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     class Node : AbstractNode
     {
         public KVObject? Data { get; set; }
-        public string? ExternalResourceName { get; set; }
+        private List<string> Messages { get; set; } = [];
         public Node(KVObject? data)
         {
             Data = data;
@@ -1455,6 +1442,12 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             HeaderColor = ToSKColor(ControlPaint.Light(Color.FromArgb(NodeColor.Red, NodeColor.Green, NodeColor.Blue)));
             HeaderTextColor = new SKColor(5, 5, 5);
             HeaderTypeColor = new SKColor(25, 25, 25);
+        }
+
+        public void AddMessage(string message)
+        {
+            AddSpace();
+            Messages.Add(message);
         }
 
         public void UpdateTypeColorFromOutput()
@@ -1526,56 +1519,45 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         public override void Draw(SKCanvas canvas, bool isPrimarySelected, bool isConnected, bool isHovered)
         {
             base.Draw(canvas, isPrimarySelected, isConnected, isHovered);
+            // Display messages
 
-            if (string.IsNullOrEmpty(ExternalResourceName))
+            if (Messages.Count == 0)
             {
                 return;
             }
 
             // Get icon from cache
-            IconCache.TryGetValue("pulse", out var iconToUse);
-
+            IconCache.TryGetValue("About", out var iconToUse);
             const int iconSize = 16;
-
-            var yOffset = Sockets.Count > 1 ? 55 : 45;
-            var position = new SKPoint
+            for (var i = 0; i < Messages.Count; i++)
             {
-                X = Location.X + 3,
-                Y = Location.Y + yOffset
-            };
+                var yOffset = (Sockets.Count > 1 ? 55 : 45) + (i * 25);
+                var position = new SKPoint
+                {
+                    X = Location.X + 3,
+                    Y = Location.Y + yOffset
+                };
 
-            // Draw the icon
-            if (iconToUse != null)
-            {
-                var picture = iconToUse.Picture;
-                Debug.Assert(picture is not null);
+                // Draw the icon
+                if (iconToUse != null)
+                {
+                    var picture = iconToUse.Picture;
+                    Debug.Assert(picture is not null);
 
-                var scaleMatrix = SKMatrix.CreateScale(iconSize / picture.CullRect.Width, iconSize / picture.CullRect.Height);
-                canvas.DrawPicture(picture, position);
+                    var scaleMatrix = SKMatrix.CreateScale(iconSize / picture.CullRect.Width, iconSize / picture.CullRect.Height);
+                    canvas.DrawPicture(picture, position);
+                }
+
+                // Draw the text next to the icon
+                var textPosition = new SKPoint
+                {
+                    X = position.X + iconSize + 6,
+                    Y = position.Y + ArialFont.Size + 2
+                };
+
+                using var paint = new SKPaint { Color = new(78, 145, 217), IsAntialias = true };
+                canvas.DrawText(Messages[i], textPosition.X, textPosition.Y, ArialFont, paint);
             }
-
-            // Draw the text next to the icon
-            var textPosition = new SKPoint
-            {
-                X = position.X + iconSize + 6,
-                Y = position.Y + ArialFont.Size + 1
-            };
-
-            var fileExtensionStart = ExternalResourceName.LastIndexOf('.');
-            var trimStr = ExternalResourceName[..fileExtensionStart];
-            trimStr = trimStr.Replace(".vpulse", string.Empty, StringComparison.Ordinal);
-            var lastSlashIndex = trimStr.LastIndexOf('/');
-            if (lastSlashIndex >= 0)
-            {
-                trimStr = trimStr[(lastSlashIndex + 1)..];
-            }
-            if (trimStr.Length > 23)
-            {
-                trimStr = '…' + trimStr[^22..];
-            }
-
-            using var paint = new SKPaint { Color = new(255, 0, 0), IsAntialias = true };
-            canvas.DrawText(trimStr, textPosition.X, textPosition.Y, ArialFont, paint);
         }
 
         private static readonly Dictionary<string, SKSvg> IconCache = [];
@@ -1584,12 +1566,12 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         {
             string[] icons =
             [
-                "pulse",
+                "About",
             ];
 
             foreach (var iconName in icons)
             {
-                using var svgResource = Program.Assembly.GetManifestResourceStream($"GUI.Icons.AssetTypes.{iconName}.svg");
+                using var svgResource = Program.Assembly.GetManifestResourceStream($"GUI.Icons.{iconName}.svg");
                 Debug.Assert(svgResource is not null);
 
                 var svg = new SKSvg();
