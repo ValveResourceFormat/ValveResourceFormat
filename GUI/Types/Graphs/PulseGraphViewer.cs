@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
@@ -106,6 +107,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     private IReadOnlyList<KVObject> callInfos;
     private readonly Dictionary<int, Dictionary<int, SocketIn>> instructionInputActionSocketMap = [];
     private readonly List<NodeCallInfo> callNodesToResolve = [];
+    private readonly Dictionary<int, HashSet<(int, int)>> loopInstructionMap = [];
 
     struct NodeCallInfo
     {
@@ -416,11 +418,71 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         {
             var argInputSocket = node.CreateSocketInFromValueType(name, GetValueTypeFromRegister(chunkIndex, regIndex));
             nodeGraph.Connect(regOutSocket, argInputSocket);
+            return;
         }
         else
         {
             var obj = registerConstValueMap[regIndex];
             node.AddText($"{name} = {StringifyKVObject(obj)}");
+            return;
+        }
+    }
+
+    private void PrecomputeLoopInstructions()
+    {
+        loopInstructionMap.Clear();
+        for (var chunkIdx = 0; chunkIdx < chunks.Count; chunkIdx++)
+        {
+            var instructions = chunks[chunkIdx].GetArray("m_Instructions");
+            HashSet<(int, int)> loopInstructionRanges = [];
+            ReportLoopsRecursive(instructions, 0, new Stack<int>(), loopInstructionRanges);
+            loopInstructionMap[chunkIdx] = loopInstructionRanges;
+        }
+    }
+
+    private void ReportLoopsRecursive(IReadOnlyList<KVObject> instructions, int instrStart, Stack<int> instructionStack, HashSet<(int, int)> loopInstructionRanges)
+    {
+        var amountToPop = 0;
+        var loopFromInstr = instructionStack.Count > 0 ? instructionStack.Peek() : -1;
+        for (var i = instrStart; i < instructions.Count; i++)
+        {
+            foreach (var val in instructionStack)
+            {
+                if (val == i)
+                {
+                    if (loopFromInstr == -1)
+                        throw new Exception("Invalid stack setup");
+                    if (loopInstructionRanges.Add((Math.Min(i, loopFromInstr), Math.Max(loopFromInstr, i))))
+                    {
+                        Console.WriteLine($"Found loop at {i}");
+                        Log.Info(nameof(PulseGraphViewer), $"Found loop at instruction {i}");
+                    }
+                    return;
+                }
+            }
+            instructionStack.Push(i);
+            amountToPop++;
+            var instr = instructions[i];
+            var instrType = GetInstructionType(instr);
+
+            if (instrType == InstructionType.JUMP_COND)
+            {
+                // copying stack will preserve current one.
+                // basically makes it easier what was pushed in this call
+                ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges);
+                ReportLoopsRecursive(instructions, i + 1, instructionStack, loopInstructionRanges);
+                break;
+            }
+            else if (instrType == InstructionType.JUMP)
+            {
+                ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges);
+                break;
+            }
+        }
+
+        for (var i = 0; i < amountToPop; i++)
+        {
+            instructionStack.Pop();
         }
     }
 
@@ -459,7 +521,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Dictionary<int, KVObject> registerConstValueMap,
         Dictionary<int, SocketOut> registerOutputSocketMap,
         int startingInstruction = 0,
-        int endingInstruction = int.MaxValue, // non-inclusive
+        int _endingInstruction = int.MaxValue, // non-inclusive
         bool ignoreActions = false)
     {
         if (chunkIndex < 0)
@@ -492,7 +554,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         //    }
         //}
 
-        var finalEndingInstr = Math.Min(instructions.Count, endingInstruction);
+        var finalEndingInstr = Math.Min(instructions.Count, _endingInstruction);
         SocketOut previousActionOutSocket = sourceActionOutSocket;
         bool stopProcessing = false;
         for (var instructionIdx = startingInstruction; instructionIdx < finalEndingInstr; instructionIdx++)
@@ -500,6 +562,48 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             var instruction = instructions[instructionIdx];
             if (stopProcessing)
                 break;
+
+            foreach (var (loopStart, loopEnd) in loopInstructionMap[chunkIndex])
+            {
+                if (instructionIdx == loopStart && finalEndingInstr > loopEnd) // if we're not already figuring out this loop
+                {
+                    var loopEndInstr = instructions[loopEnd];
+                    // do-while loop
+                    if (GetInstructionType(loopEndInstr) == InstructionType.JUMP_COND)
+                    {
+                        var doWhileNode = new Node(null)
+                        {
+                            Name = "Do-While Loop",
+                            NodeType = "Flow control",
+                        };
+
+                        previousActionOutSocket = CreateSequentialActionSockets(doWhileNode, previousActionOutSocket, chunkIndex, instructionIdx);
+
+                        var newRegisterConstValueMap = new Dictionary<int, KVObject>(registerConstValueMap);
+                        var newRegisterOutputSocketMap = new Dictionary<int, SocketOut>(registerOutputSocketMap);
+                        var outSocket = TraverseNodesForChunk(
+                            chunkIndex,
+                            previousActionOutSocket,
+                            newRegisterConstValueMap,
+                            newRegisterOutputSocketMap,
+                            loopStart,
+                            loopEnd
+                        );
+
+                        if (outSocket != null)
+                            previousActionOutSocket = outSocket;
+
+                        var condRegister = loopEndInstr.GetInt32Property("m_nReg0");
+                        AddNodeRegisterInput(doWhileNode, chunkIndex, newRegisterConstValueMap, newRegisterOutputSocketMap, condRegister, "Condition");
+                        nodeGraph.AddNode(doWhileNode);
+                        instructionIdx = loopEnd + 1;
+                    }
+                }
+            }
+            if (instructionIdx >= finalEndingInstr)
+                break;
+            // update instruction if changed
+            instruction = instructions[instructionIdx];
 
             var instrType = GetInstructionType(instruction);
             var instrNameString = instruction.GetStringProperty("m_nCode");
@@ -749,7 +853,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             registerConstValueMap,
                             registerOutputSocketMap,
                             instructionIdx,
-                            endingInstruction,
+                            finalEndingInstr,
                             chunkIndex,
                             reg0,
                             previousActionOutSocket
@@ -1030,6 +1134,9 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
         foreach (var regIdx in regs)
         {
+            if (regIdx == -1)
+                continue;
+
             var regData = registers[regIdx];
             var originNameLoop = regData.GetStringProperty("m_OriginName");
             if (originNameLoop.EndsWith("__loop_index", StringComparison.InvariantCulture))
@@ -1040,6 +1147,12 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             {
                 regStop = regIdx;
             }
+        }
+
+        // if we did not find a register with __loop_index, we can not be sure if the other one is the stop index.
+        if (regStart == -1)
+        {
+            regStop = -1;
         }
 
         if (regStop == -1 || regStart == -1)
@@ -1109,7 +1222,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
             else
             {
-                forLoopNode.AddMessage("Could not determine the loop's starting index");
+                forLoopNode.AddMessage("Could not find start index");
             }
 
             if (regStop != -1)
@@ -1118,22 +1231,28 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
             else
             {
-                forLoopNode.AddMessage("Could not determine the loop's ending index");
+                forLoopNode.AddMessage("Could not find end index");
             }
 
             int loopOperationEndInstructionId = instructionIdLoopJumpBack;
             if (!isIncrementLoadedInitially)
             {
-                // ASSUME that we got this increment from a constant (previous instruction)
-                // TODO: actually follow the register chain until we get a const, then connect these operations to the increment socket
-                if (TryGetConstantValueFromId(instructions[instructionIdLoopJumpBack - 2].GetInt32Property("m_nConstIdx"), out var constIncrement))
+                var instrLastInLoop = instructions[instructionIdLoopJumpBack - 1];
+                var instrNameString = instrLastInLoop.GetStringProperty("m_nCode");
+
+                // A bit crude, but otherwise we do not really have a good way of determining the increment
+                if (instrNameString.StartsWith("ADD", StringComparison.InvariantCultureIgnoreCase)
+                    || instrNameString.StartsWith("SUB", StringComparison.InvariantCultureIgnoreCase)
+                    || instrNameString.StartsWith("MUL", StringComparison.InvariantCultureIgnoreCase)
+                    || instrNameString.StartsWith("DIV", StringComparison.InvariantCultureIgnoreCase))
                 {
-                    forLoopNode.AddText($"Increment = {StringifyKVObject(constIncrement)}");
-                    loopOperationEndInstructionId = instructionIdLoopJumpBack - 2;
-                }
-                else // handles cases for unofficial graphs, where isIncrementLoadedInitially can not be easily detected
-                {
-                    //loopOperationEndInstructionId = instructionIdLoopJumpBack;
+                    // ASSUME that we got this increment from a constant (previous instruction)
+                    // TODO: actually follow the register chain until we get a const, then connect these operations to the increment socket
+                    if (TryGetConstantValueFromId(instructions[instructionIdLoopJumpBack - 2].GetInt32Property("m_nConstIdx"), out var constIncrement))
+                    {
+                        forLoopNode.AddText($"Increment = {StringifyKVObject(constIncrement)}");
+                        loopOperationEndInstructionId = instructionIdLoopJumpBack - 2;
+                    }
                 }
             }
             else if (regStep != -1)
@@ -1289,6 +1408,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
     private void CreateGraph()
     {
+        PrecomputeLoopInstructions();
+
         Dictionary<int, string> chunkFunctionName = [];
         int currentUnknownNamedFuncNumber = 0;
 
