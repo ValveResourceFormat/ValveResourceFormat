@@ -749,6 +749,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             registerConstValueMap,
                             registerOutputSocketMap,
                             instructionIdx,
+                            endingInstruction,
                             chunkIndex,
                             reg0,
                             previousActionOutSocket
@@ -965,6 +966,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Dictionary<int, KVObject> registerConstValueMap,
         Dictionary<int, SocketOut> registerOutputSocketMap,
         int instructionIdx,
+        int endingInstructionIdx,
         int chunkIndex,
         int conditionalRegister,
         SocketOut lastActionSocket)
@@ -1171,7 +1173,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 socketOutFinishedAction,
                 new Dictionary<int, KVObject>(registerConstValueMap),
                 new Dictionary<int, SocketOut>(registerOutputSocketMap),
-                loopEndInstruction
+                loopEndInstruction,
+                endingInstructionIdx
             );
 
             forLoopNode.Calculate();
