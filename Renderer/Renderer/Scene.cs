@@ -357,8 +357,7 @@ namespace ValveResourceFormat.Renderer
                     return false;
                 }
 
-                var value = node.EntityData[keyToFind];
-                return value != null
+                return node.EntityData.TryGetValue(keyToFind, out var value)
                     && value.ValueType == ValveKeyValue.KVValueType.String
                     && valueToFind.Equals((string)value, StringComparison.OrdinalIgnoreCase);
             }
