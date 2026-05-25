@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
@@ -36,16 +37,33 @@ namespace Tests
         [Test]
         public void Undo_YCoCg_TransformsColorCorrectly()
         {
-            var color = new Color { r = 128, g = 128, b = 8, a = 128 };
-
-            Common.Decode_YCoCg(ref color);
+            // Pure matrix: neutral chroma (Co == Cg == 128) reconstructs to neutral grey. The sRGB
+            // linearization of the inputs is the caller's job (ApplyTextureConversions), see issue #1127.
+            var rgb = Common.Decode_YCoCg(new Vector4(128, 128, 8, 128) / 255f);
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(color.r, Is.EqualTo(128));
-                Assert.That(color.g, Is.EqualTo(128));
-                Assert.That(color.b, Is.EqualTo(128));
-                Assert.That(color.a, Is.EqualTo(255));
+                Assert.That(Common.ToClampedLdrColor(rgb.X), Is.EqualTo(128));
+                Assert.That(Common.ToClampedLdrColor(rgb.Y), Is.EqualTo(128));
+                Assert.That(Common.ToClampedLdrColor(rgb.Z), Is.EqualTo(128));
+            }
+        }
+
+        [Test]
+        public void ApplyTextureConversions_YCoCg_LinearizesInputsBeforeMatrix()
+        {
+            using var bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            bitmap.SetPixel(0, 0, new SKColor(red: 128, green: 128, blue: 8, alpha: 128)); // Co, Cg, scale, Y
+
+            Common.ApplyTextureConversions(bitmap, TextureCodec.YCoCg);
+
+            var result = bitmap.GetPixel(0, 0);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Red, Is.EqualTo(128));
+                Assert.That(result.Green, Is.EqualTo(60));
+                Assert.That(result.Blue, Is.EqualTo(255));
+                Assert.That(result.Alpha, Is.EqualTo(255));
             }
         }
 

@@ -105,7 +105,18 @@ namespace ValveResourceFormat.TextureDecoders
             {
                 if (decodeYCoCg)
                 {
-                    Decode_YCoCg(ref pixels[i]);
+                    ref var pixel = ref pixels[i];
+
+                    // Co/Cg/scale are stored in sRGB gamma space; linearize them before the matrix, the
+                    // same way the engine samples these textures (sRGB texture read). The Y luma in alpha
+                    // stays linear. Without this the result is desaturated with a green cast (issue #1127).
+                    var lin = ColorSpace.SrgbGammaToLinear(new Vector3(pixel.r, pixel.g, pixel.b) / 255f);
+                    var rgb = Decode_YCoCg(new Vector4(lin, pixel.a / 255f));
+
+                    pixel.r = ToClampedLdrColor(rgb.X);
+                    pixel.g = ToClampedLdrColor(rgb.Y);
+                    pixel.b = ToClampedLdrColor(rgb.Z);
+                    pixel.a = 255;
                 }
 
                 if (decodeHemiOct)
@@ -120,18 +131,19 @@ namespace ValveResourceFormat.TextureDecoders
             }
         }
 
-        public static void Decode_YCoCg(ref Color color)
+        /// <summary>
+        /// Reconstructs normalized RGB from the YCoCg encoding (Co, Cg, scale, Y in X, Y, Z, W). Pure
+        /// matrix with no color space handling; the caller linearizes the inputs. Mirrors DecodeYCoCg in utils.slang.
+        /// </summary>
+        public static Vector3 Decode_YCoCg(Vector4 color)
         {
-            var scale = (color.b >> 3) + 1;
-            var co = (color.r - 128) / scale;
-            var cg = (color.g - 128) / scale;
+            var scale = (color.Z * (255f / 8f)) + 1f;
+            var co = (color.X - (128f / 255f)) / scale;
+            var cg = (color.Y - (128f / 255f)) / scale;
 
-            var y = color.a;
+            var y = color.W;
 
-            color.r = ClampColor(y + co - cg);
-            color.g = ClampColor(y + cg);
-            color.b = ClampColor(y - co - cg);
-            color.a = 255;
+            return new Vector3(y + co - cg, y + cg, y - co - cg);
         }
 
         public static void ReconstructNormals(ref Color color)

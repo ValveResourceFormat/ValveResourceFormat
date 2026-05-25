@@ -245,6 +245,8 @@ void main()
 
     if ((g_nDecodeFlags & YCoCg_Conversion) != 0)
     {
+        // Linearize rgb to match the sky render's sRGB texture read; this viewer samples linearly (issue #1127).
+        vColor.rgb = SrgbGammaToLinear(vColor.rgb);
         vColor.rgb = DecodeYCoCg(vColor);
         vColor.a = 1.0;
     }
