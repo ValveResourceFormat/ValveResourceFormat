@@ -1185,7 +1185,7 @@ public sealed class MapExtract
         var root = ValveKeyValue.KVObject.ListCollection();
         root.Add("shader", "generic.vfx");
         root.Add("F_TRANSLUCENT", 1);
-        root.Add("TextureTranslucency", $"[{0.700000f:N6} {0.700000f:N6} {0.700000f:N6} {0.000000f:N6}]");
+        root.Add("TextureTranslucency", "[0.700000 0.700000 0.700000 0.000000]");
         root.Add("TextureColor", textureName);
 
         var attributes = ValveKeyValue.KVObject.ListCollection();
@@ -1552,10 +1552,10 @@ public sealed class MapExtract
         {
             string str => str,
             bool boolean => StringBool(boolean),
-            Vector3 vector => $"{vector.X} {vector.Y} {vector.Z}",
-            Vector2 vector => $"{vector.X} {vector.Y}",
+            Vector3 vector => string.Create(CultureInfo.InvariantCulture, $"{vector.X} {vector.Y} {vector.Z}"),
+            Vector2 vector => string.Create(CultureInfo.InvariantCulture, $"{vector.X} {vector.Y}"),
             null => string.Empty,
-            _ when data.GetType().IsPrimitive => data.ToString(),
+            _ when data.GetType().IsPrimitive => Convert.ToString(data, CultureInfo.InvariantCulture),
             _ => throw new NotImplementedException()
         };
     }
