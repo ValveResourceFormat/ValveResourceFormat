@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -88,7 +89,8 @@ namespace ValveResourceFormat.Renderer
             }
             else
             {
-                var refMeshes = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
+                var lodBit = 1L << model.GetLowestLodLevel();
+                var refMeshes = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & lodBit) != 0).ToList();
                 var refMesh = refMeshes.First();
 
                 if (refMeshes.Count > 1)
@@ -161,6 +163,15 @@ namespace ValveResourceFormat.Renderer
 
             CanDrawIndirect = RenderMesh.DrawCallsOpaque.Count > 0;
 
+            // Keep only fragments at the lowest LoD level present (normally LoD0, but some
+            // aggregates leave it empty). A mask of 0 means the fragment has no LoD and always renders.
+            var combinedLodMask = 0u;
+            foreach (var fragmentData in aggregateMeshes)
+            {
+                combinedLodMask |= fragmentData.GetUInt32Property("m_nLODGroupMask");
+            }
+            var lowestLodBit = combinedLodMask == 0 ? 0u : 1u << BitOperations.TrailingZeroCount(combinedLodMask);
+
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
             {
@@ -172,7 +183,7 @@ namespace ValveResourceFormat.Renderer
                 var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
                 var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
 
-                if (lodGroupMask > 1)
+                if (lodGroupMask != 0 && (lodGroupMask & lowestLodBit) == 0)
                 {
                     continue;
                 }

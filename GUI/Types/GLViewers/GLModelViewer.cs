@@ -32,6 +32,7 @@ namespace GUI.Types.GLViewers
         private GLViewerSliderControl? slowmodeTrackBar;
         public CheckedListBox? meshGroupListBox { get; private set; }
         public ComboBox? materialGroupListBox { get; private set; }
+        private ComboBox? lodComboBox;
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
         protected SkeletonSceneNode? skeletonSceneNode;
@@ -65,6 +66,7 @@ namespace GUI.Types.GLViewers
             slowmodeTrackBar?.Dispose();
             meshGroupListBox?.Dispose();
             materialGroupListBox?.Dispose();
+            lodComboBox?.Dispose();
             physicsGroupsComboBox?.Dispose();
             rootMotionCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
@@ -307,6 +309,34 @@ namespace GUI.Types.GLViewers
                     });
                     hitboxComboBox.Items.Add("");
                     hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
+                }
+
+                // LoD selector (below Hitbox Set, above Mesh Group). Always shown for now; empty levels
+                // (e.g. a misconfigured empty LoD0) are listed and marked so the user can tell.
+                {
+                    using var _ = UiControl.BeginGroup("Model");
+
+                    var populatedLods = model.GetAvailableLodLevels();
+                    var lodCount = Math.Max(model.GetLodLevelCount(), 1);
+
+                    lodComboBox = UiControl.AddSelection("Level of Detail", (_, i) =>
+                    {
+                        if (i < 0)
+                        {
+                            return;
+                        }
+
+                        using var lockedGl = MakeCurrent();
+                        modelSceneNode?.SetActiveLod(i);
+                    });
+
+                    for (var level = 0; level < lodCount; level++)
+                    {
+                        lodComboBox.Items.Add(populatedLods.Contains(level) ? $"LOD {level}" : $"LOD {level} (Empty)");
+                    }
+
+                    // Default to the lowest populated LoD so geometry is visible.
+                    lodComboBox.SelectedIndex = populatedLods.Count > 0 ? populatedLods[0] : 0;
                 }
 
                 var meshGroups = modelSceneNode.GetMeshGroups().ToArray<object>();
@@ -581,7 +611,7 @@ namespace GUI.Types.GLViewers
 
             if (pickingResponse.Intent == PickingTexture.PickingIntent.Open)
             {
-                var refMesh = modelSceneNode.GetLod1RefMeshes().FirstOrDefault(x => x.MeshIndex == pickingResponse.PixelInfo.MeshId);
+                var refMesh = modelSceneNode.GetReferenceMeshes().FirstOrDefault(x => x.MeshIndex == pickingResponse.PixelInfo.MeshId);
                 if (refMesh.MeshName != null)
                 {
                     var foundFile = GuiContext.FindFileWithContext(refMesh.MeshName + GameFileLoader.CompiledFileSuffix);

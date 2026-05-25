@@ -72,7 +72,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly (string Name, string[] Materials)[] materialGroups;
         private readonly string[] meshGroups;
         private readonly long[]? meshGroupMasks;
-        private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesForLod1;
+        private readonly long[] lodGroupMasks;
+        private readonly List<(int MeshIndex, string MeshName, long LoDMask)> referenceMeshes;
+        private readonly IReadOnlyList<int> availableLods;
+        private int activeLod;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModelSceneNode"/> class and loads its meshes and animations.
@@ -92,7 +95,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 meshGroupMasks = model.Data.GetIntegerArray("m_refMeshGroupMasks");
             }
 
-            meshNamesForLod1 = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
+            lodGroupMasks = model.Data.GetIntegerArray("m_refLODGroupMasks");
+            referenceMeshes = model.GetReferenceMeshNamesAndLoD().ToList();
+            availableLods = model.GetAvailableLodLevels();
+            activeLod = model.GetLowestLodLevel();
 
             AnimationController = new(model.Skeleton, model.FlexControllers);
             boneCount = model.Skeleton.Bones.Length;
@@ -445,8 +451,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void LoadMeshes(Model model)
         {
-            // Get embedded meshes
-            foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
+            // Get embedded meshes (all LoD levels are loaded; the active LoD is selected at render time)
+            foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD())
             {
                 embeddedMesh.Mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
@@ -454,8 +460,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
             }
 
-            // Load referred meshes from file (only load meshes with LoD 1)
-            foreach (var refMesh in GetLod1RefMeshes())
+            // Load referred meshes from file (all LoD levels)
+            foreach (var refMesh in referenceMeshes)
             {
                 var newResource = Scene.RendererContext.FileLoader.LoadFileCompiled(refMesh.MeshName);
                 if (newResource?.DataBlock is not Mesh mesh)
@@ -575,9 +581,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
 #pragma warning disable CA1024 // Use properties where appropriate
-        /// <summary>Returns the external reference mesh names and their LoD masks for LoD level 1.</summary>
-        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
-            => meshNamesForLod1;
+        /// <summary>Returns all external reference mesh names and their LoD masks, across every LoD level.</summary>
+        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshes()
+            => referenceMeshes;
+
+        /// <summary>Returns the sorted distinct LoD levels available on this model.</summary>
+        public IReadOnlyList<int> GetAvailableLods()
+            => availableLods;
 
         /// <summary>Returns all mesh group names defined by this model.</summary>
         public IEnumerable<string> GetMeshGroups()
@@ -588,51 +598,63 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             => activeMeshGroups;
 #pragma warning restore CA1024 // Use properties where appropriate
 
-        private IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
-        {
-            if (meshGroupMasks == null)
-            {
-                return [];
-            }
-
-            var groupIndex = Array.IndexOf(meshGroups, groupName);
-            if (groupIndex >= 0)
-            {
-                return meshGroupMasks.Select(mask => (mask & 1L << groupIndex) != 0);
-            }
-            else
-            {
-                return meshGroupMasks.Select(_ => false);
-            }
-        }
-
         /// <summary>
         /// Sets which mesh groups are active, rebuilding the renderable mesh list accordingly.
         /// </summary>
         public void SetActiveMeshGroups(IEnumerable<string> setMeshGroups)
         {
             activeMeshGroups = new HashSet<string>(meshGroups.Intersect(setMeshGroups));
+            RebuildRenderableMeshes();
+        }
 
-            RenderableMeshes.Clear();
+        /// <summary>
+        /// Sets the LoD level to display, rebuilding the renderable mesh list accordingly.
+        /// </summary>
+        public void SetActiveLod(int lod)
+        {
+            activeLod = lod;
+            RebuildRenderableMeshes();
+        }
 
-            if (meshGroups.Length > 1)
+        private bool IsMeshInActiveLod(int meshIndex)
+        {
+            if (meshIndex >= lodGroupMasks.Length)
             {
-                foreach (var group in activeMeshGroups)
-                {
-                    var meshMask = GetActiveMeshMaskForGroup(group).ToArray();
+                return true;
+            }
 
-                    foreach (var meshRenderer in meshRenderers)
-                    {
-                        if (meshMask[meshRenderer.MeshIndex])
-                        {
-                            RenderableMeshes.Add(meshRenderer);
-                        }
-                    }
+            return (lodGroupMasks[meshIndex] & 1L << activeLod) != 0;
+        }
+
+        private bool IsMeshInActiveGroup(int meshIndex)
+        {
+            if (meshGroups.Length <= 1 || meshGroupMasks == null)
+            {
+                return true;
+            }
+
+            foreach (var group in activeMeshGroups)
+            {
+                var groupIndex = Array.IndexOf(meshGroups, group);
+                if (groupIndex >= 0 && (meshGroupMasks[meshIndex] & 1L << groupIndex) != 0)
+                {
+                    return true;
                 }
             }
-            else
+
+            return false;
+        }
+
+        private void RebuildRenderableMeshes()
+        {
+            RenderableMeshes.Clear();
+
+            foreach (var meshRenderer in meshRenderers)
             {
-                RenderableMeshes.AddRange(meshRenderers);
+                if (IsMeshInActiveLod(meshRenderer.MeshIndex) && IsMeshInActiveGroup(meshRenderer.MeshIndex))
+                {
+                    RenderableMeshes.Add(meshRenderer);
+                }
             }
         }
 

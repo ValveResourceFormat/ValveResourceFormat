@@ -744,12 +744,15 @@ namespace ValveResourceFormat.IO
         /// <returns>A tuple of meshes and their names.</returns>
         private IEnumerable<(VMesh Mesh, int MeshIndex, string Name)> LoadModelMeshes(VModel model, string name)
         {
-            foreach (var m in model.GetEmbeddedMeshesAndLoD().Where(static m => (m.LoDMask & 1) != 0))
+            // Export the lowest LoD level that has meshes (normally LoD0, but some models leave it empty).
+            var lodBit = 1L << model.GetLowestLodLevel();
+
+            foreach (var m in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & lodBit) != 0))
             {
                 yield return (m.Mesh, m.MeshIndex, string.Concat(name, ".", m.Name));
             }
 
-            foreach (var m in model.GetReferenceMeshNamesAndLoD().Where(static m => (m.LoDMask & 1) != 0))
+            foreach (var m in model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & lodBit) != 0))
             {
                 var meshResource = FileLoader.LoadFileCompiled(m.MeshName);
                 var nodeName = Path.GetFileNameWithoutExtension(m.MeshName);

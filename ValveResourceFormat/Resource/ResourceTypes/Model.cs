@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
@@ -199,6 +200,61 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Enumerable of mesh, mesh index, name, and LoD mask tuples.</returns>
         public IEnumerable<(Mesh Mesh, int MeshIndex, string Name, long LoDMask)> GetEmbeddedMeshesAndLoD()
             => GetEmbeddedMeshes().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l.Mesh, l.MeshIndex, l.Name, r));
+
+        private long GetCombinedLodMask()
+        {
+            var combined = 0L;
+            foreach (var mask in Data.GetIntegerArray("m_refLODGroupMasks"))
+            {
+                combined |= mask;
+            }
+
+            return combined;
+        }
+
+        /// <summary>
+        /// Gets the lowest LOD level that actually contains meshes. Models with a normally
+        /// configured LOD0 return 0; models that leave LOD0 empty return the next populated level.
+        /// </summary>
+        /// <returns>The index of the lowest populated LOD level, or 0 if no LOD bits are set.</returns>
+        public int GetLowestLodLevel()
+        {
+            var combined = GetCombinedLodMask();
+            return combined == 0 ? 0 : BitOperations.TrailingZeroCount((ulong)combined);
+        }
+
+        /// <summary>
+        /// Gets the sorted distinct LOD levels present across all of this model's meshes.
+        /// </summary>
+        /// <returns>The populated LOD level indices, e.g. <c>[0, 1, 2]</c>.</returns>
+        public IReadOnlyList<int> GetAvailableLodLevels()
+        {
+            var combined = (ulong)GetCombinedLodMask();
+            var levels = new List<int>();
+
+            for (var level = 0; combined != 0; level++, combined >>= 1)
+            {
+                if ((combined & 1) != 0)
+                {
+                    levels.Add(level);
+                }
+            }
+
+            return levels;
+        }
+
+        /// <summary>
+        /// Gets the total number of LOD levels this model declares, including levels that contain no
+        /// meshes (e.g. a misconfigured empty LOD0).
+        /// </summary>
+        public int GetLodLevelCount()
+        {
+            var combined = (ulong)GetCombinedLodMask();
+            var fromMask = combined == 0 ? 0 : 64 - BitOperations.LeadingZeroCount(combined);
+            var switchDistances = Data.GetFloatArray("m_lodGroupSwitchDistances");
+
+            return Math.Max(fromMask, switchDistances.Length);
+        }
 
         /// <summary>
         /// Gets embedded meshes from the model.
