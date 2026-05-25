@@ -218,7 +218,7 @@ public sealed class MaterialExtract
 
         foreach (var (key, value) in material.VectorParams)
         {
-            root.Add(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]");
+            root.Add(key, string.Create(CultureInfo.InvariantCulture, $"[{value.X:F6} {value.Y:F6} {value.Z:F6} {value.W:F6}]"));
         }
 
         var originalTextures = KVObject.ListCollection();
@@ -268,7 +268,7 @@ public sealed class MaterialExtract
 
         foreach (var (key, value) in material.VectorAttributes)
         {
-            attributes.Add(new(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
+            attributes.Add(new(key, string.Create(CultureInfo.InvariantCulture, $"[{value.X:F6} {value.Y:F6} {value.Z:F6} {value.W:F6}]")));
         }
 
         foreach (var (key, value) in material.StringAttributes)

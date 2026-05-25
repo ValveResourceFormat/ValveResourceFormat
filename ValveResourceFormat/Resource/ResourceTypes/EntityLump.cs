@@ -222,7 +222,7 @@ namespace ValveResourceFormat.ResourceTypes
                     EntityFieldType.Integer => (long)dataReader.ReadInt32(),
                     EntityFieldType.UInt => (ulong)dataReader.ReadUInt32(),
                     EntityFieldType.Integer64 => dataReader.ReadUInt64(), // Is this supposed to be ReadInt64?
-                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVObject)$"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}",
+                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVObject)string.Create(CultureInfo.InvariantCulture, $"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}"),
                     EntityFieldType.CString => dataReader.ReadNullTermString(Encoding.UTF8),
                     _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
                 };
