@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Text;
 
@@ -356,7 +357,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
                 }
 
-                var floatLiteral = $"{floatVal:g}";
+                var floatLiteral = floatVal.ToString("g", CultureInfo.InvariantCulture);
 
                 // if a float leads with "0." remove the 0 (as how Valve likes it)
                 if (floatLiteral.Length > 1 && floatLiteral[..2] == "0.")
