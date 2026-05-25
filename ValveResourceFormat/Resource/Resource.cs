@@ -318,23 +318,11 @@ namespace ValveResourceFormat
             {
                 if (ResourceType == ResourceType.Texture)
                 {
-                    var data = (Texture?)DataBlock;
-
-                    // TODO: We do not currently have a way of calculating buffer size for these types
-                    // Texture.GenerateBitmap also just reads until end of the buffer
-                    if (data == null || data.IsRawJpeg)
+                    // Some workshop and generated texture resources contain harmless trailing bytes.
+                    // Accept textures when the stream is at least as large as the computed payload.
+                    if (Reader.BaseStream.Length >= fullFileSize)
                     {
                         return;
-                    }
-
-                    // TODO: Valve added null bytes after the png for whatever reason,
-                    // so assume we have the full file if the buffer is bigger than the size we calculated
-                    if (data.IsRawPng)
-                    {
-                        if (Reader.BaseStream.Length > fullFileSize)
-                        {
-                            return;
-                        }
                     }
                 }
 
