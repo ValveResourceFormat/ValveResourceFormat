@@ -1094,6 +1094,12 @@ namespace ValveResourceFormat.ResourceTypes
                 };
             }
 
+            if (codec.HasFlag(TextureCodec.YCoCg) && (Flags & VTexFlags.CUBE_TEXTURE) != 0)
+            {
+                // Skybox cubemaps store YCoCg in sRGB gamma space; flat panorama textures are raw (issue #1127).
+                codec |= TextureCodec.YCoCgSrgb;
+            }
+
             if (Format == VTexFormat.DXT5 && codec.HasFlag(TextureCodec.NormalizeNormals))
             {
                 codec |= TextureCodec.Dxt5nm;

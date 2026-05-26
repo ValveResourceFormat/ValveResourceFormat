@@ -73,6 +73,12 @@ namespace ValveResourceFormat.TextureDecoders
         ForceLDR = 1 << 7,
 
         /// <summary>
+        /// YCoCg Co/Cg/scale are stored in sRGB gamma space; linearize before the <see cref="YCoCg"/>
+        /// matrix. Set for skybox cubemaps, off for flat panorama textures. See issue #1127.
+        /// </summary>
+        YCoCgSrgb = 1 << 8,
+
+        /// <summary>
         /// Automatically determine codec flags.
         /// </summary>
         Auto = 1 << 30,
@@ -84,6 +90,7 @@ namespace ValveResourceFormat.TextureDecoders
         {
             var swapRA = decodeFlags.HasFlag(TextureCodec.Dxt5nm);
             var decodeYCoCg = decodeFlags.HasFlag(TextureCodec.YCoCg);
+            var linearizeYCoCg = decodeFlags.HasFlag(TextureCodec.YCoCgSrgb);
             var decodeHemiOct = decodeFlags.HasFlag(TextureCodec.HemiOctRB);
             var reconstructZ = decodeFlags.HasFlag(TextureCodec.NormalizeNormals);
 
@@ -107,11 +114,14 @@ namespace ValveResourceFormat.TextureDecoders
                 {
                     ref var pixel = ref pixels[i];
 
-                    // Co/Cg/scale are stored in sRGB gamma space; linearize them before the matrix, the
-                    // same way the engine samples these textures (sRGB texture read). The Y luma in alpha
-                    // stays linear. Without this the result is desaturated with a green cast (issue #1127).
-                    var lin = ColorSpace.SrgbGammaToLinear(new Vector3(pixel.r, pixel.g, pixel.b) / 255f);
-                    var rgb = Decode_YCoCg(new Vector4(lin, pixel.a / 255f));
+                    var input = new Vector3(pixel.r, pixel.g, pixel.b) / 255f;
+
+                    if (linearizeYCoCg)
+                    {
+                        input = ColorSpace.SrgbGammaToLinear(input);
+                    }
+
+                    var rgb = Decode_YCoCg(new Vector4(input, pixel.a / 255f));
 
                     pixel.r = ToClampedLdrColor(rgb.X);
                     pixel.g = ToClampedLdrColor(rgb.Y);

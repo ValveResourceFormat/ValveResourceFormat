@@ -50,7 +50,25 @@ namespace Tests
         }
 
         [Test]
-        public void ApplyTextureConversions_YCoCg_LinearizesInputsBeforeMatrix()
+        public void ApplyTextureConversions_YCoCgSrgb_LinearizesInputsBeforeMatrix()
+        {
+            using var bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+            bitmap.SetPixel(0, 0, new SKColor(red: 128, green: 128, blue: 8, alpha: 128)); // Co, Cg, scale, Y
+
+            Common.ApplyTextureConversions(bitmap, TextureCodec.YCoCg | TextureCodec.YCoCgSrgb);
+
+            var result = bitmap.GetPixel(0, 0);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Red, Is.EqualTo(128));
+                Assert.That(result.Green, Is.EqualTo(60));
+                Assert.That(result.Blue, Is.EqualTo(255));
+                Assert.That(result.Alpha, Is.EqualTo(255));
+            }
+        }
+
+        [Test]
+        public void ApplyTextureConversions_YCoCg_AppliesRawMatrixWithoutSrgbFlag()
         {
             using var bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             bitmap.SetPixel(0, 0, new SKColor(red: 128, green: 128, blue: 8, alpha: 128)); // Co, Cg, scale, Y
@@ -61,8 +79,8 @@ namespace Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(result.Red, Is.EqualTo(128));
-                Assert.That(result.Green, Is.EqualTo(60));
-                Assert.That(result.Blue, Is.EqualTo(255));
+                Assert.That(result.Green, Is.EqualTo(128));
+                Assert.That(result.Blue, Is.EqualTo(128));
                 Assert.That(result.Alpha, Is.EqualTo(255));
             }
         }
