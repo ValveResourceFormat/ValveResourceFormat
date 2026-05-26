@@ -419,7 +419,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             "vr_black_unlit.vfx" or "csgo_black_unlit.vfx" => "vr_black_unlit",
             "vr_unlit.vfx" => "vr_unlit",
             "vr_standard.vfx" => "vr_standard",
-            "vr_simple.vfx" => "vr_simple",
+            //"vr_simple.vfx" => "vr_simple", //Disabled until per appid shader support is added
             "water_dota.vfx" => "water",
             "csgo_water_fancy.vfx" => "water_csgo",
             "hero.vfx" or "hero_underlords.vfx" => "dota_hero",
