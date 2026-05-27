@@ -13,8 +13,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Gets the rotation transform applied to the skybox cube.</summary>
         public Matrix4x4 Transform { get; init; } = Matrix4x4.Identity;
 
-        /// <summary>Gets the material used to render the skybox.</summary>
-        public RenderMaterial Material { get; }
+        /// <summary>Gets or sets the material used to render the skybox.</summary>
+        public RenderMaterial Material { get; set; }
         private readonly int vao;
 
         /// <summary>
