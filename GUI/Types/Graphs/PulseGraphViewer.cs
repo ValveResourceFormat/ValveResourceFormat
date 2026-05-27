@@ -420,11 +420,15 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             nodeGraph.Connect(regOutSocket, argInputSocket);
             return;
         }
-        else
+        else if (registerConstValueMap.TryGetValue(regIndex, out var obj))
         {
-            var obj = registerConstValueMap[regIndex];
             node.AddText($"{name} = {StringifyKVObject(obj)}");
             return;
+        }
+        else
+        {
+            node.AddText($"{name} = <FAILED TO RESOLVE (CHECK LOGS)>");
+            Log.Warn(nameof(PulseGraphViewer), $"Failed to find register id={regIndex} at chunk={chunkIndex} which was expected to be generated already.");
         }
     }
 
@@ -441,8 +445,13 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
     }
 
-    private static void ReportLoopsRecursive(IReadOnlyList<KVObject> instructions, int instrStart, Stack<int> instructionStack, HashSet<List<int>> loopInstructionRanges, int chunk)
+    private void ReportLoopsRecursive(IReadOnlyList<KVObject> instructions, int instrStart, Stack<int> instructionStack, HashSet<List<int>> loopInstructionRanges, int chunk)
     {
+        static Stack<int> CopyInstructionStack(Stack<int> source)
+        {
+            return new Stack<int>(source.Reverse());
+        }
+
         var instructionAmountThisBranch = 0;
         for (var i = instrStart; i < instructions.Count; i++)
         {
@@ -472,24 +481,43 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             var instr = instructions[i];
             var instrType = GetInstructionType(instr);
 
+            if (instrType == InstructionType.CELL_INVOKE)
+            {
+                var invokeBindingId = instr.GetInt32Property("m_nInvokeBindingIndex");
+                var invokeBinding = invokeBindings[invokeBindingId];
+                var cellIdx = invokeBinding.GetInt32Property("m_nCellIndex");
+                var cell = cells[cellIdx];
+                var cellType = GetCellType(cellIdx, out var cellStr);
+                if (cellType == CellType.Wait)
+                {
+                    var wakeResume = cells[cellIdx]["m_WakeResume"];
+                    var destChunk = wakeResume.GetInt32Property("m_nDestChunk");
+                    var destInstr = wakeResume.GetInt32Property("m_nInstruction");
+                    if (destChunk == chunk)
+                    {
+                        ReportLoopsRecursive(instructions, destInstr, CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
+                    }
+                }
+            }
+
             if (instrType == InstructionType.JUMP_COND)
             {
                 // copying stack will preserve current one.
                 // basically makes it easier what was pushed in this call
-                ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges, chunk);
-                ReportLoopsRecursive(instructions, i + 1, instructionStack, loopInstructionRanges, chunk);
+                ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
+                ReportLoopsRecursive(instructions, i + 1, CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
                 break;
             }
             else if (instrType == InstructionType.JUMP)
             {
-                ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges, chunk);
+                ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
                 break;
             }
             else if (instrType == InstructionType.PULSE_CALL_SYNC)
             {
                 if (instr.GetInt32Property("m_nChunk") == chunk)
                 {
-                    ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges, chunk);
+                    ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
                 }
             }
             else if (instrType == InstructionType.RETURN_VOID || instrType == InstructionType.RETURN_VALUE)
@@ -553,24 +581,21 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
         // Find if we generated the same nodes, and connect incoming socket to the existing nodes.
         // Useful with things like jump instructions that jump directly to an already generated node.
-        //if (!forceRecalculateExisting)
-        //{
-        //    // Skip over potential NOPs if we landed on it through a Jump somehow.
-        //    var instrIndex = startingInstruction;
-        //    while (instrIndex < instructions.Count && GetInstructionType(instructions[instrIndex]) == InstructionType.NOP)
-        //    {
-        //        instrIndex++;
-        //    }
+        // Skip over potential NOPs if we landed on it through a Jump somehow.
+        var instrIndex = startingInstruction;
+        while (instrIndex < instructions.Count && GetInstructionType(instructions[instrIndex]) == InstructionType.NOP)
+        {
+            instrIndex++;
+        }
 
-        //    if (instrIndex < instructions.Count)
-        //    {
-        //        if (instructionInputActionSocketMap[chunkIndex].TryGetValue(instrIndex, out var targetSocket))
-        //        {
-        //            nodeGraph.Connect(sourceActionOutSocket, targetSocket);
-        //            return null;
-        //        }
-        //    }
-        //}
+        if (instrIndex < instructions.Count)
+        {
+            if (instructionInputActionSocketMap[chunkIndex].TryGetValue(instrIndex, out var targetSocket))
+            {
+                nodeGraph.Connect(sourceActionOutSocket, targetSocket);
+                return null;
+            }
+        }
 
         var finalEndingInstr = Math.Min(instructions.Count, _endingInstruction);
         SocketOut previousActionOutSocket = sourceActionOutSocket;
