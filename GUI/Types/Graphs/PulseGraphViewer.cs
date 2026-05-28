@@ -584,22 +584,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         var instructions = chunk.GetArray("m_Instructions");
         var registers = chunk.GetArray("m_Registers");
 
-        // Find if we generated the same nodes, and connect incoming socket to the existing nodes.
-        // Useful with things like jump instructions that jump directly to an already generated node.
-        // Skip over potential NOPs if we landed on it through a Jump somehow.
         var instrIndex = startingInstruction;
         while (instrIndex < instructions.Count && GetInstructionType(instructions[instrIndex]) == InstructionType.NOP)
         {
             instrIndex++;
-        }
-
-        if (instrIndex < instructions.Count)
-        {
-            if (instructionInputActionSocketMap[chunkIndex].TryGetValue(instrIndex, out var targetSocket))
-            {
-                nodeGraph.Connect(sourceActionOutSocket, targetSocket);
-                return null;
-            }
         }
 
         var finalEndingInstr = Math.Min(instructions.Count, _endingInstruction);
