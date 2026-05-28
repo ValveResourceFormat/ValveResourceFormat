@@ -73,12 +73,6 @@ namespace ValveResourceFormat.TextureDecoders
         ForceLDR = 1 << 7,
 
         /// <summary>
-        /// YCoCg Co/Cg/scale are stored in sRGB gamma space; linearize before the <see cref="YCoCg"/>
-        /// matrix. Set for skybox cubemaps, off for flat panorama textures. See issue #1127.
-        /// </summary>
-        YCoCgSrgb = 1 << 8,
-
-        /// <summary>
         /// Automatically determine codec flags.
         /// </summary>
         Auto = 1 << 30,
@@ -90,7 +84,7 @@ namespace ValveResourceFormat.TextureDecoders
         {
             var swapRA = decodeFlags.HasFlag(TextureCodec.Dxt5nm);
             var decodeYCoCg = decodeFlags.HasFlag(TextureCodec.YCoCg);
-            var linearizeYCoCg = decodeFlags.HasFlag(TextureCodec.YCoCgSrgb);
+            var linearizeYCoCg = decodeYCoCg && decodeFlags.HasFlag(TextureCodec.ColorSpaceSrgb);
             var decodeHemiOct = decodeFlags.HasFlag(TextureCodec.HemiOctRB);
             var reconstructZ = decodeFlags.HasFlag(TextureCodec.NormalizeNormals);
 

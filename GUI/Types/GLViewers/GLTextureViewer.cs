@@ -385,8 +385,7 @@ namespace GUI.Types.GLViewers
                 SetInitialDecodeFlagsState,
                 checkedItemNames =>
                 {
-                    // Preserve the auto-detected YCoCgSrgb flag, which is not shown as a checkbox.
-                    decodeFlags &= TextureCodec.YCoCgSrgb;
+                    decodeFlags = TextureCodec.None;
 
                     foreach (var itemName in checkedItemNames)
                     {
@@ -571,8 +570,7 @@ namespace GUI.Types.GLViewers
                 var name = Enum.GetName(value)!;
 
                 var isCombinedFlag = (value & value - 1) != 0;
-                // YCoCgSrgb is auto-detected, not a user-facing checkbox.
-                var skipFlags = TextureCodec.None | TextureCodec.Auto | TextureCodec.YCoCgSrgb;
+                var skipFlags = TextureCodec.None | TextureCodec.Auto;
 
                 if (isCombinedFlag || skipFlags.HasFlag(value))
                 {

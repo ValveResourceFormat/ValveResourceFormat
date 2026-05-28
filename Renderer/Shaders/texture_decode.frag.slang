@@ -32,7 +32,6 @@ uniform vec4 g_vInputTextureSize;
 #define Dxt5nm_AlphaGreen (1 << 4)
 #define ColorSpace_Linear (1 << 5)
 #define ColorSpace_Srgb (1 << 6)
-#define YCoCg_Srgb (1 << 8)
 
 uniform int g_nSelectedMip;
 uniform int g_nSelectedDepth;
@@ -244,12 +243,13 @@ void main()
         vColor.rgb = PackToColor(vec3(normalXy.xy, derivedZ));
     }
 
+    if ((g_nDecodeFlags & ColorSpace_Srgb) != 0)
+    {
+        vColor.rgb = SrgbGammaToLinear(vColor.rgb);
+    }
+
     if ((g_nDecodeFlags & YCoCg_Conversion) != 0)
     {
-        if ((g_nDecodeFlags & YCoCg_Srgb) != 0)
-        {
-            vColor.rgb = SrgbGammaToLinear(vColor.rgb);
-        }
         vColor.rgb = DecodeYCoCg(vColor);
         vColor.a = 1.0;
     }
@@ -257,11 +257,6 @@ void main()
     if ((g_nDecodeFlags & RGBM) != 0)
     {
         vColor.rgb = DecodeRGBM(vColor);
-    }
-
-    if ((g_nDecodeFlags & ColorSpace_Srgb) != 0)
-    {
-        vColor.rgb = SrgbGammaToLinear(vColor.rgb);
     }
 
     if ((g_nDecodeFlags & ColorSpace_Linear) != 0)

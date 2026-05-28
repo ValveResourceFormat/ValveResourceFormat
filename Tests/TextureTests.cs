@@ -50,12 +50,12 @@ namespace Tests
         }
 
         [Test]
-        public void ApplyTextureConversions_YCoCgSrgb_LinearizesInputsBeforeMatrix()
+        public void ApplyTextureConversions_YCoCg_WithColorSpaceSrgb_LinearizesInputsBeforeMatrix()
         {
             using var bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             bitmap.SetPixel(0, 0, new SKColor(red: 128, green: 128, blue: 8, alpha: 128)); // Co, Cg, scale, Y
 
-            Common.ApplyTextureConversions(bitmap, TextureCodec.YCoCg | TextureCodec.YCoCgSrgb);
+            Common.ApplyTextureConversions(bitmap, TextureCodec.YCoCg | TextureCodec.ColorSpaceSrgb);
 
             var result = bitmap.GetPixel(0, 0);
             using (Assert.EnterMultipleScope())
