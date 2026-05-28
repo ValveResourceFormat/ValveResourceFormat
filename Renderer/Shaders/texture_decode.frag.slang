@@ -243,6 +243,11 @@ void main()
         vColor.rgb = PackToColor(vec3(normalXy.xy, derivedZ));
     }
 
+    if ((g_nDecodeFlags & ColorSpace_Srgb) != 0)
+    {
+        vColor.rgb = SrgbGammaToLinear(vColor.rgb);
+    }
+
     if ((g_nDecodeFlags & YCoCg_Conversion) != 0)
     {
         vColor.rgb = DecodeYCoCg(vColor);
@@ -252,11 +257,6 @@ void main()
     if ((g_nDecodeFlags & RGBM) != 0)
     {
         vColor.rgb = DecodeRGBM(vColor);
-    }
-
-    if ((g_nDecodeFlags & ColorSpace_Srgb) != 0)
-    {
-        vColor.rgb = SrgbGammaToLinear(vColor.rgb);
     }
 
     if ((g_nDecodeFlags & ColorSpace_Linear) != 0)

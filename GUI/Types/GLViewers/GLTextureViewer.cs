@@ -391,6 +391,8 @@ namespace GUI.Types.GLViewers
                     {
                         decodeFlags |= Enum.Parse<TextureCodec>(itemName);
                     }
+
+                    SetupTextureFromUi(softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked);
                 }
             );
 
@@ -399,17 +401,21 @@ namespace GUI.Types.GLViewers
                 AddChannelsComboBox();
 
                 var forceSoftwareDecode = textureData.IsRawAnyImage;
+                var projectionBeforeSoftwareDecode = (int)CubemapProjection.Equirectangular;
                 softwareDecodeCheckBox = UiControl.AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
                 {
                     if (cubemapProjectionComboBox != null)
                     {
                         if (state)
                         {
+                            // Software decode can't project cubemaps; force a single face, remembering the projection.
+                            projectionBeforeSoftwareDecode = cubemapProjectionComboBox.SelectedIndex;
                             cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.None;
                             cubemapProjectionComboBox.Enabled = false;
                         }
                         else
                         {
+                            cubemapProjectionComboBox.SelectedIndex = projectionBeforeSoftwareDecode;
                             cubemapProjectionComboBox.Enabled = true;
                         }
                     }
