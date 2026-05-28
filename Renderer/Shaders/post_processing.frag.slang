@@ -79,7 +79,7 @@ void main()
 
     if (g_bPostProcessEnabled)
     {
-        vColor *= (g_flToneMapScalarLinear * g_flExposureBiasScaleFactor);
+        vColor.rgb *= (g_flToneMapScalarLinear * g_flExposureBiasScaleFactor);
         vec3 vRawColor = vColor.rgb;
 
         #if (D_BLOOM == 1)

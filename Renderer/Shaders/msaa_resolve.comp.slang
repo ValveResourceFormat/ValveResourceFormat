@@ -37,24 +37,29 @@ void main()
 
 #if D_DOF == 1
     float lowestDepth = 1.0;
+    // Alpha carries the circle of confusion for the depth of field pass (set below)
+    float outputAlpha = 1.0;
+#else
+    // Box-average the source alpha so a transparent background survives (e.g. for screenshots)
+    float outputAlpha = 0.0;
 #endif
 
     for (int i = 0; i < D_MSAA_SAMPLES; i++)
     {
-        vec3 s = texelFetch(g_tSourceMsaa, sampleCoord, i).rgb;
-        s = clamp(s, vec3(0.0), vec3(65504.0));
+        vec4 texel = texelFetch(g_tSourceMsaa, sampleCoord, i);
+        vec3 s = clamp(texel.rgb, vec3(0.0), vec3(65504.0));
         // Karis average: weight by inverse luminance to reduce fireflies
         resolved += s * (invNumSamples / (max(s.r, max(s.g, s.b)) + 1.0));
 
 #if D_DOF == 1
         lowestDepth = min(texelFetch(g_tSceneDepth, sampleCoord, i).x, lowestDepth);
+#else
+        outputAlpha += texel.a * invNumSamples;
 #endif
     }
 
     // Inverse Karis tonemap
     resolved *= 1.0 / (1.0 - max(resolved.r, max(resolved.g, resolved.b)));
-
-    float outputAlpha = 1.0;
 
 #if D_DOF == 1
     vec2 sampleUV = (vec2(coord) + 0.5) * g_vInvViewportSize.xy;
