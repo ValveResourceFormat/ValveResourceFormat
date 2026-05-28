@@ -12,6 +12,7 @@ using Svg.Skia;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
+using System.Security.Policy;
 
 namespace GUI.Types.Graphs;
 
@@ -108,12 +109,19 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     private IReadOnlyList<KVObject> callInfos;
     private readonly Dictionary<int, Dictionary<int, SocketIn>> instructionInputActionSocketMap = [];
     private readonly List<NodeCallInfo> callNodesToResolve = [];
-    private readonly Dictionary<int, HashSet<List<int>>> loopInstructionMap = [];
+    private Dictionary<int, HashSet<List<int>>> loopInstructionMap = [];
 
     struct NodeCallInfo
     {
         public int targetChunk;
         public Node node;
+    }
+
+    struct PulseOutflowConnection
+    {
+        public string sourceOutflowName;
+        public int destChunk;
+        public int destInstruction;
     }
 
     #region Socket types
@@ -437,9 +445,9 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
     }
 
-    private void FindGraphInstructionCycles()
+    private Dictionary<int, HashSet<List<int>>> FindGraphInstructionCycles()
     {
-        loopInstructionMap.Clear();
+        Dictionary<int, HashSet<List<int>>> loopInstructionMap = [];
         for (var chunkIdx = 0; chunkIdx < chunks.Count; chunkIdx++)
         {
             var instructions = chunks[chunkIdx].GetArray("m_Instructions");
@@ -448,6 +456,45 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             if (loopInstructionRanges.Count > 0)
                 loopInstructionMap[chunkIdx] = loopInstructionRanges;
         }
+        return loopInstructionMap;
+    }
+
+    // Returns pairs of chunk and instruction for all potential outflows of the provied cell.
+    private List<PulseOutflowConnection> GetCellOutflows(int cellIdx)
+    {
+        List<PulseOutflowConnection> outflows = [];
+        static void GetCellOutflowsRecurse(KVObject obj, List<PulseOutflowConnection> outflowList)
+        {
+            if (obj.TryGetValue("m_SourceOutflowName", out var sourceOutflowName)
+                && obj.TryGetValue("m_nDestChunk", out var destChunk)
+                && obj.TryGetValue("m_nInstruction", out var destInstruction))
+            {
+                outflowList.Add(new PulseOutflowConnection
+                {
+                    sourceOutflowName = sourceOutflowName.ToString(),
+                    destChunk = destChunk.ToInt32(),
+                    destInstruction = destInstruction.ToInt32(),
+                });
+                return;
+            }
+
+            foreach (var (key, value) in obj)
+            {
+                if (value.IsCollection)
+                {
+                    GetCellOutflowsRecurse(value, outflowList);
+                }
+                else if (value.IsArray)
+                {
+                    foreach (var elem in value.AsArraySpan())
+                    {
+                        GetCellOutflowsRecurse(elem, outflowList);
+                    }
+                }
+            }
+        }
+        GetCellOutflowsRecurse(cells[cellIdx], outflows);
+        return outflows;
     }
 
     private void FindGraphCyclesRecursive(IReadOnlyList<KVObject> instructions, int instrStart, Stack<int> instructionStack, HashSet<List<int>> loopInstructionRanges, int chunkIdx)
@@ -486,17 +533,13 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 var invokeBindingId = instr.GetInt32Property("m_nInvokeBindingIndex");
                 var invokeBinding = invokeBindings[invokeBindingId];
                 var cellIdx = invokeBinding.GetInt32Property("m_nCellIndex");
-                var cell = cells[cellIdx];
-                var cellType = GetCellType(cellIdx, out var cellStr);
-                if (cellType == CellType.Wait)
+
+                var outflows = GetCellOutflows(cellIdx);
+                foreach (var outflow in outflows)
                 {
-                    var wakeResume = cells[cellIdx]["m_WakeResume"];
-                    var destChunk = wakeResume.GetInt32Property("m_nDestChunk");
-                    var destInstr = wakeResume.GetInt32Property("m_nInstruction");
-                    if (destChunk == chunkIdx)
-                    {
-                        FindGraphCyclesRecursive(instructions, destInstr, instructionStack, loopInstructionRanges, chunkIdx);
-                    }
+                    if (outflow.destChunk != chunkIdx)
+                        continue;
+                    FindGraphCyclesRecursive(instructions, outflow.destInstruction, instructionStack, loopInstructionRanges, chunkIdx);
                 }
             }
 
@@ -1431,7 +1474,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
     private void CreateGraph()
     {
-        FindGraphInstructionCycles();
+        loopInstructionMap = FindGraphInstructionCycles();
 
         Dictionary<int, string> chunkFunctionName = [];
         int currentUnknownNamedFuncNumber = 0;
