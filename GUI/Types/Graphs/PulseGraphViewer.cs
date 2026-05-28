@@ -437,26 +437,21 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
     }
 
-    private void PrecomputeLoopInstructions()
+    private void FindGraphInstructionCycles()
     {
         loopInstructionMap.Clear();
         for (var chunkIdx = 0; chunkIdx < chunks.Count; chunkIdx++)
         {
             var instructions = chunks[chunkIdx].GetArray("m_Instructions");
             HashSet<List<int>> loopInstructionRanges = [];
-            ReportLoopsRecursive(instructions, 0, new Stack<int>(), loopInstructionRanges, chunkIdx);
+            FindGraphCyclesRecursive(instructions, 0, new Stack<int>(), loopInstructionRanges, chunkIdx);
             if (loopInstructionRanges.Count > 0)
                 loopInstructionMap[chunkIdx] = loopInstructionRanges;
         }
     }
 
-    private void ReportLoopsRecursive(IReadOnlyList<KVObject> instructions, int instrStart, Stack<int> instructionStack, HashSet<List<int>> loopInstructionRanges, int chunk)
+    private void FindGraphCyclesRecursive(IReadOnlyList<KVObject> instructions, int instrStart, Stack<int> instructionStack, HashSet<List<int>> loopInstructionRanges, int chunkIdx)
     {
-        static Stack<int> CopyInstructionStack(Stack<int> source)
-        {
-            return new Stack<int>(source.Reverse());
-        }
-
         var instructionAmountThisBranch = 0;
         for (var i = instrStart; i < instructions.Count; i++)
         {
@@ -498,31 +493,29 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     var wakeResume = cells[cellIdx]["m_WakeResume"];
                     var destChunk = wakeResume.GetInt32Property("m_nDestChunk");
                     var destInstr = wakeResume.GetInt32Property("m_nInstruction");
-                    if (destChunk == chunk)
+                    if (destChunk == chunkIdx)
                     {
-                        ReportLoopsRecursive(instructions, destInstr, CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
+                        FindGraphCyclesRecursive(instructions, destInstr, instructionStack, loopInstructionRanges, chunkIdx);
                     }
                 }
             }
 
             if (instrType == InstructionType.JUMP_COND)
             {
-                // copying stack will preserve current one.
-                // basically makes it easier what was pushed in this call
-                ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
-                ReportLoopsRecursive(instructions, i + 1, CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
+                FindGraphCyclesRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges, chunkIdx);
+                FindGraphCyclesRecursive(instructions, i + 1, instructionStack, loopInstructionRanges, chunkIdx);
                 break;
             }
             else if (instrType == InstructionType.JUMP)
             {
-                ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
+                FindGraphCyclesRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges, chunkIdx);
                 break;
             }
             else if (instrType == InstructionType.PULSE_CALL_SYNC)
             {
-                if (instr.GetInt32Property("m_nChunk") == chunk)
+                if (instr.GetInt32Property("m_nChunk") == chunkIdx)
                 {
-                    ReportLoopsRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), CopyInstructionStack(instructionStack), loopInstructionRanges, chunk);
+                    FindGraphCyclesRecursive(instructions, instr.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges, chunkIdx);
                 }
             }
             else if (instrType == InstructionType.RETURN_VOID || instrType == InstructionType.RETURN_VALUE)
@@ -1438,7 +1431,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
     private void CreateGraph()
     {
-        PrecomputeLoopInstructions();
+        FindGraphInstructionCycles();
 
         Dictionary<int, string> chunkFunctionName = [];
         int currentUnknownNamedFuncNumber = 0;
