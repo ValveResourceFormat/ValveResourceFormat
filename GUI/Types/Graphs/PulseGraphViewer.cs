@@ -1583,7 +1583,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
         if (graphDefinition.ContainsKey("m_ParentMapName"))
         {
-            graphInfoNode.AddText($"Description: {graphDefinition.GetStringProperty("m_ParentMapName")}");
+            graphInfoNode.AddText($"Parent map name: {graphDefinition.GetStringProperty("m_ParentMapName")}");
         }
         if (graphDefinition.ContainsKey("m_ParentXmlName"))
         {
