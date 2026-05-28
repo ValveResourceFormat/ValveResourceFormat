@@ -144,7 +144,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             var renderAttributesUsed = Data.GetArray<string>("m_renderAttributesUsed");
 
-            foreach (var kvp in Data.GetArray("m_dynamicParams"))
+            // s&box removed m_dynamicParams + m_dynamicTextureParams from the material schema
+            // so guard against nulls here
+
+            foreach (var kvp in Data.GetArray("m_dynamicParams") ?? [])
             {
                 var dynamicParamName = kvp.GetStringProperty("m_name");
                 var dynamicParamBytes = kvp.GetArray<byte>("m_value");
@@ -152,7 +155,7 @@ namespace ValveResourceFormat.ResourceTypes
                 DynamicExpressions.Add(dynamicParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
 
-            foreach (var kvp in Data.GetArray("m_dynamicTextureParams"))
+            foreach (var kvp in Data.GetArray("m_dynamicTextureParams") ?? [])
             {
                 var dynamicTextureParamName = kvp.GetStringProperty("m_name");
                 var dynamicTextureParamBytes = kvp.GetArray<byte>("m_value");
