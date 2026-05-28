@@ -1,11 +1,15 @@
 using System.Diagnostics;
 using ValveResourceFormat;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
 internal class ThumbnailMaterialRenderer : ThumbnailRenderer
 {
+    private SceneSkybox2D? skybox;
+
     public override void SetResource(Resource resource)
     {
         Debug.Assert(SceneRenderer != null);
@@ -14,6 +18,20 @@ internal class ThumbnailMaterialRenderer : ThumbnailRenderer
         var renderMat = SceneRenderer.RendererContext.MaterialLoader.LoadMaterial(resource);
         renderMat.Shader.EnsureLoaded();
         renderMat.IsOverlay = false;
+
+        // Render sky materials as a full-screen sky, like the skybox viewer.
+        if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
+        {
+            skybox ??= new SceneSkybox2D(renderMat);
+            skybox.Material = renderMat;
+            SceneRenderer.Skybox2D = skybox;
+            SceneRenderer.Camera.Pitch = float.DegreesToRadians(20);
+            SceneRenderer.Camera.Yaw = float.DegreesToRadians(180);
+            return;
+        }
+
+        // Reset the skybox; it isn't cleared between reused thumbnails.
+        SceneRenderer.Skybox2D = SceneRenderer.BaseBackground;
 
         var planeMesh = MeshSceneNode.CreateMaterialPreviewQuad(SceneRenderer.Scene, renderMat, new Vector2(32));
 
