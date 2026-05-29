@@ -1708,6 +1708,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     {
         public KVObject? Data { get; set; }
         private List<string> Messages { get; set; } = [];
+        private static readonly SKFont ArialFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(15f);
         public Node(KVObject? data)
         {
             Data = data;
@@ -1718,12 +1719,41 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             HeaderTypeColor = new SKColor(25, 25, 25);
         }
 
+        protected override void CalculateWidth()
+        {
+            base.CalculateWidth();
+            if (Messages.Count > 0)
+            {
+                var longestMessageWidth = Messages.Max(message =>
+                {
+                    ArialFont.MeasureText(message, out var messageWidth);
+                    return messageWidth.Width;
+                });
+
+                // If longer than existing, then have to recalculate output names to fit properly.
+                if (longestMessageWidth > NodeWidth)
+                {
+                    var longestOutputCation = string.Empty;
+                    foreach (var sock in Sockets)
+                    {
+                        if (sock is SocketOut)
+                        {
+                            if (sock.SocketName?.Length > longestOutputCation.Length)
+                            {
+                                longestOutputCation = sock.SocketName;
+                            }
+                        }
+                    }
+                    SocketCaptionFont.MeasureText(longestOutputCation, out var maxSockOutBounds);
+                    NodeWidth = maxSockOutBounds.Width + longestMessageWidth + 40; // Add some padding for the icon and spacing
+                }
+            }
+        }
+
         public void AddMessage(string message)
         {
-            // Make space for custom message
-            // "If it's stupid and it works, then it isn't stupid."
-            AddSpaceMultiple((int)(message.Length * 1.5));
             Messages.Add(message);
+            AddSpace();
         }
 
         public void UpdateTypeColorFromOutput()
@@ -1741,15 +1771,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
 
         public void AddSpace() => CreateTextSocket<string>(string.Empty);
-        public void AddSpaceMultiple(int count)
-        {
-            StringBuilder sb = new(count);
-            for (var i = 0; i < count; i++)
-            {
-                sb.Append('_');
-            }
-            CreateTextSocket<string>(sb.ToString());
-        }
         public void AddText(string text) => CreateTextSocket<string>(text);
 
         private void CreateTextSocket<T>(string text)
@@ -1798,8 +1819,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             Sockets.Add(socket);
             return socket;
         }
-
-        private static readonly SKFont ArialFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(15f);
 
         public override void Draw(SKCanvas canvas, bool isPrimarySelected, bool isConnected, bool isHovered)
         {

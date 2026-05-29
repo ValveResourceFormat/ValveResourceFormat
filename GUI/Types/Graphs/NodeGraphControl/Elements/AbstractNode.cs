@@ -4,9 +4,9 @@ namespace GUI.Types.Graphs
 {
     public abstract class AbstractNode : NodeUIElement, IDisposable
     {
-        private static readonly SKFont HeaderNameFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(14f);
-        private static readonly SKFont HeaderTypeFont = SKTypeface.FromFamilyName("Roboto", SKFontStyle.Bold).ToFont(10f);
-        private static readonly SKFont SocketCaptionFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(13f);
+        protected static readonly SKFont HeaderNameFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(14f);
+        protected static readonly SKFont HeaderTypeFont = SKTypeface.FromFamilyName("Roboto", SKFontStyle.Bold).ToFont(10f);
+        protected static readonly SKFont SocketCaptionFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(13f);
 
         static AbstractNode()
         {
@@ -67,7 +67,7 @@ namespace GUI.Types.Graphs
         public SKRect BoundsBase { get; private set; }
         public SKRect BoundsFooter { get; private set; }
 
-        public void Calculate()
+        protected virtual void CalculateWidth()
         {
             if (remeasureWidth)
             {
@@ -100,6 +100,10 @@ namespace GUI.Types.Graphs
                 NodeWidth = Math.Max(200f, minWidth); // Minimum 200px
                 remeasureWidth = false;
             }
+        }
+        public void Calculate()
+        {
+            CalculateWidth();
 
             if (MinBaseHeight == 0)
             {
