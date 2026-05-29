@@ -1,9 +1,7 @@
 #version 460
 
 #include "common/utils.slang"
-#include "common/features.slang"
 #include "common/ViewConstants.slang"
-#include "common/LightingConstants.slang"
 
 #define F_UNLIT 0
 #define F_ALPHA_TEST 0
@@ -41,7 +39,7 @@ uniform sampler2D g_tTintMask;
 #include "common/fullbright.slang"
 #include "common/texturing.slang"
 #include "common/fog.slang"
-#include "common/lighting.slang"
+
 
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
@@ -90,26 +88,8 @@ void main()
     MaterialProperties_t mat = GetMaterial(texCoord, vertexNormal);
     outputColor.a = mat.Opacity;
 
-    LightingTerms_t lighting = InitLighting();
-
-    lighting.DiffuseDirect = mat.Albedo;
-    outputColor.rgb = lighting.DiffuseDirect;
+    outputColor.rgb = mat.Albedo;
 
     ApplyFog(outputColor.rgb, mat.PositionWS);
 
-    if (HandleMaterialRenderModes(outputColor, mat)
-    || HandleLightingRenderModes(outputColor, mat, lighting)
-    || HandleUVRenderModes(outputColor, mat, g_tNormal, vTexCoordOut.xy))
-    {
-        //
-    }
-    else if (g_iRenderMode == renderMode_Cubemaps)
-    {
-        vec3 viewmodeEnvMap = GetEnvironment(mat).rgb;
-        outputColor.rgb = SrgbLinearToGamma(viewmodeEnvMap);
-    }
-    else if (g_iRenderMode == renderMode_Tint)
-    {
-        outputColor = vec4(vVertexColorOut.rgb, vVertexColorOut.a);
-    }
 }

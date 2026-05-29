@@ -1,9 +1,7 @@
 #version 460
 
 #include "common/utils.slang"
-#include "common/features.slang"
 #include "common/ViewConstants.slang"
-#include "common/LightingConstants.slang"
 
 #include "common/instancing.slang"
 #include "common/animation.slang"
