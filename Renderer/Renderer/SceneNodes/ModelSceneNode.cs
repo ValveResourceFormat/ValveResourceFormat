@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly long[]? meshGroupMasks;
         private readonly ModelLodInfo lodInfo;
         private readonly List<(int MeshIndex, string MeshName, long LoDMask)> referenceMeshes;
-        // null = automatic distance-based selection; otherwise a forced LoD level (from the UI).
+        // null means automatic distance-based selection. Otherwise it's a forced LoD level from the UI.
         private int? lodOverride;
         private int resolvedLod;
 
@@ -453,7 +453,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void LoadMeshes(Model model)
         {
-            // Get embedded meshes (all LoD levels are loaded; the active LoD is selected at render time)
+            // Get embedded meshes. All LoD levels are loaded and the active one is picked at render time.
             foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD())
             {
                 embeddedMesh.Mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
@@ -605,6 +605,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             RebuildRenderableMeshes();
         }
 
+        /// <summary>Gets the LoD level currently being rendered (auto-selected or forced).</summary>
+        public int ActiveLod => resolvedLod;
+
         /// <summary>
         /// Sets the LoD level to display, rebuilding the renderable mesh list accordingly.
         /// Pass <see langword="null"/> to enable automatic distance-based selection.
@@ -613,22 +616,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             lodOverride = lod;
 
-            if (lod != null)
-            {
-                resolvedLod = lod.Value;
-                RebuildRenderableMeshes();
-            }
+            // A forced level pins it. Auto starts at the lowest populated level and UpdateAutoLod refines it.
+            resolvedLod = lod ?? lodInfo.LowestLevel;
+            RebuildRenderableMeshes();
         }
 
         /// <summary>
-        /// When in automatic mode, selects the LoD level using the engine's screen-size metric.
-        /// <para>
-        /// This mirrors Source: the metric is <c>100 / unitSphereSize</c>, where <c>unitSphereSize</c> is the
-        /// on-screen pixel size of a unit-diameter sphere at the model's origin (engine <c>GetScreenSize</c>;
-        /// <c>studio.h</c> <c>LODMetric</c>/<c>GetLODForMetric</c>). A model drops to LoD <c>n</c> once the
-        /// metric reaches <c>m_lodGroupSwitchDistances[n]</c>. Note this is FOV- and resolution-dependent and
-        /// does not depend on the model's own size, exactly like the engine.
-        /// </para>
+        /// In automatic mode, selects the LoD level from the engine's screen-size metric (Source's
+        /// <c>GetLODForMetric</c> in <c>studio.h</c>): a model drops to LoD <c>n</c> once the metric reaches
+        /// <c>m_lodGroupSwitchDistances[n]</c>. FOV- and resolution-dependent, independent of model size.
         /// </summary>
         private void UpdateAutoLod(Camera camera)
         {
@@ -648,9 +644,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Computes Source's LoD metric (<c>100 / on-screen size of a unit-diameter sphere at the model
-        /// origin</c>; engine <c>GetScreenSize</c> + <c>studio.h</c> <c>LODMetric</c>). Evaluated analytically
-        /// from the camera distance so it depends only on how far the model is (and FOV/viewport height), not
-        /// on where it sits on screen - otherwise free-look rotation would wobble the metric and flip LoDs.
+        /// origin</c>). Derived from camera distance and FOV/viewport height only, so it ignores where the
+        /// model sits on screen and free-look rotation does not flip LoDs.
         /// </summary>
         private float ComputeLodMetric(Camera camera)
         {

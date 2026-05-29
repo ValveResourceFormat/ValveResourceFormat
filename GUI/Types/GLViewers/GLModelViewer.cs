@@ -33,6 +33,8 @@ namespace GUI.Types.GLViewers
         public CheckedListBox? meshGroupListBox { get; private set; }
         public ComboBox? materialGroupListBox { get; private set; }
         private ComboBox? lodComboBox;
+        private int lastShownAutoLod = -1;
+        private bool suppressLodSelectionHandler;
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
         protected SkeletonSceneNode? skeletonSceneNode;
@@ -311,22 +313,20 @@ namespace GUI.Types.GLViewers
                     hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
                 }
 
-                // LoD selector (below Hitbox Set, above Mesh Group). Only shown when the model declares
-                // more than one LoD level (matches the Mesh/Material Group convention). Empty levels
-                // (e.g. a misconfigured empty LoD0) are listed and marked so the user can tell.
+                // LoD selector (below Hitbox Set, above Mesh Group), shown only when switching levels
+                // changes the rendered geometry. A single mesh present in every level has no real LODs.
+                // Empty levels (e.g. a misconfigured empty LoD0) are listed and marked.
                 var lodInfo = model.LodInfo;
                 var lodCount = lodInfo.LevelCount;
 
-                if (lodCount > 1)
+                if (lodInfo.HasDistinctLevels)
                 {
                     using var _ = UiControl.BeginGroup("Model");
 
-                    var populatedLods = lodInfo.AvailableLevels;
-                    var switchDistances = lodInfo.SwitchDistances;
-
                     lodComboBox = UiControl.AddSelection("Level of Detail", (_, i) =>
                     {
-                        if (i < 0)
+                        // Ignore the change event raised by our own live relabel of the "Auto" entry.
+                        if (i < 0 || suppressLodSelectionHandler)
                         {
                             return;
                         }
@@ -340,18 +340,9 @@ namespace GUI.Types.GLViewers
 
                     for (var level = 0; level < lodCount; level++)
                     {
-                        var label = populatedLods.Contains(level) ? $"LOD {level}" : $"LOD {level} (Empty)";
-
-                        // Switch values are the engine's screen-size metric, not world units.
-                        if (level < switchDistances.Count && switchDistances[level] > 0)
-                        {
-                            label += $" (≥{switchDistances[level].ToString("0.#", CultureInfo.InvariantCulture)})";
-                        }
-
-                        lodComboBox.Items.Add(label);
+                        lodComboBox.Items.Add(FormatLodEntry(lodInfo, level));
                     }
 
-                    // Default to automatic distance-based switching.
                     lodComboBox.SelectedIndex = 0;
                 }
 
@@ -582,6 +573,30 @@ namespace GUI.Types.GLViewers
         private Vector3 LastRootMotionPosition;
         private bool enableRootMotion;
 
+        /// <summary>
+        /// Builds a LoD dropdown entry: "LOD n (Empty)" for unpopulated levels, otherwise "LOD n" with the
+        /// metric range it is active over (e.g. "LOD 2 (10-15)", "LOD 4 (20+)"). No range without switch data.
+        /// </summary>
+        private static string FormatLodEntry(ModelLodInfo lodInfo, int level)
+        {
+            if (!lodInfo.AvailableLevels.Contains(level))
+            {
+                return $"LOD {level} (Empty)";
+            }
+
+            if (lodInfo.SwitchDistances.Count <= 1 || level >= lodInfo.SwitchDistances.Count)
+            {
+                return $"LOD {level}";
+            }
+
+            var (min, max) = lodInfo.GetMetricRange(level);
+            var minText = min.ToString("0.#", CultureInfo.InvariantCulture);
+
+            return max is float upper
+                ? $"LOD {level} ({minText}-{upper.ToString("0.#", CultureInfo.InvariantCulture)})"
+                : $"LOD {level} ({minText}+)";
+        }
+
         protected override void OnPaint(float frameTime)
         {
             if (enableRootMotion && animationController != null && animationController.AnimationFrame is Frame animationFrame && modelSceneNode != null)
@@ -598,6 +613,80 @@ namespace GUI.Types.GLViewers
             }
 
             base.OnPaint(frameTime);
+
+            UpdateAutoLodLabel();
+        }
+
+        /// <summary>
+        /// While Auto is selected, annotates the dropdown's "Auto" entry with the level the
+        /// distance-based selector currently resolves to (e.g. "Auto (LOD 2)"). Runs on the render
+        /// thread, so it only reads the scene node's own state and marshals the combobox update to the
+        /// UI thread.
+        /// </summary>
+        private void UpdateAutoLodLabel()
+        {
+            if (lodComboBox == null || modelSceneNode == null)
+            {
+                return;
+            }
+
+            var activeLod = modelSceneNode.ActiveLod;
+
+            if (activeLod == lastShownAutoLod)
+            {
+                return;
+            }
+
+            if (lodComboBox.IsHandleCreated && lodComboBox.InvokeRequired)
+            {
+                lodComboBox.BeginInvoke(() => ApplyAutoLodLabel(activeLod));
+            }
+            else
+            {
+                ApplyAutoLodLabel(activeLod);
+            }
+        }
+
+        private void ApplyAutoLodLabel(int activeLod)
+        {
+            // Don't touch the control while the list is open. Mutating Items mid-interaction breaks
+            // highlighting and clicking.
+            if (lodComboBox == null || lodComboBox.IsDisposed || lodComboBox.DroppedDown)
+            {
+                return;
+            }
+
+            // Remember it so we don't keep re-marshaling the same value. This only advances once the list is closed.
+            lastShownAutoLod = activeLod;
+
+            // Only the "Auto" entry is annotated; manual entries already show their level.
+            if (lodComboBox.SelectedIndex != 0 || lodComboBox.Items.Count == 0)
+            {
+                return;
+            }
+
+            var text = $"Auto (LOD {activeLod})";
+
+            if ((string?)lodComboBox.Items[0] == text)
+            {
+                return;
+            }
+
+            // Replacing the selected item can reset SelectedIndex and re-fire the handler. Suppress that.
+            suppressLodSelectionHandler = true;
+            try
+            {
+                lodComboBox.Items[0] = text;
+
+                if (lodComboBox.SelectedIndex != 0)
+                {
+                    lodComboBox.SelectedIndex = 0;
+                }
+            }
+            finally
+            {
+                suppressLodSelectionHandler = false;
+            }
         }
 
         protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)

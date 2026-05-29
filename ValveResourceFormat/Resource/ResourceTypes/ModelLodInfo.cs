@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -38,6 +39,13 @@ namespace ValveResourceFormat.ResourceTypes
         public int LevelCount { get; }
 
         /// <summary>
+        /// Gets whether switching the LOD level actually changes which meshes are rendered. False when no
+        /// level swaps geometry, such as a single mesh flagged present in every level (mask <c>0xFF</c>),
+        /// which the compiler emits to mean "always shown". Useful for deciding whether to show a selector.
+        /// </summary>
+        public bool HasDistinctLevels { get; }
+
+        /// <summary>
         /// Initializes LOD info from a model's mesh LOD masks (<c>m_refLODGroupMasks</c>) and switch
         /// distances (<c>m_lodGroupSwitchDistances</c>).
         /// </summary>
@@ -69,6 +77,12 @@ namespace ValveResourceFormat.ResourceTypes
 
             var fromMask = combined == 0 ? 0 : 64 - BitOperations.LeadingZeroCount((ulong)combined);
             LevelCount = Math.Max(fromMask, SwitchDistances.Count);
+
+            // We only have real LODs if the set of meshes changes between levels, i.e. some mesh is in one
+            // level but not another. A mesh that sits in every level (mask 0xFF) doesn't count. Its set
+            // looks the same at every level.
+            HasDistinctLevels = levels.Any(level =>
+                this.meshLodMasks.Any(mask => ((mask >> LowestLevel) & 1) != ((mask >> level) & 1)));
         }
 
         /// <summary>
@@ -96,6 +110,29 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return target;
+        }
+
+        /// <summary>
+        /// Gets the screen-size metric range LOD <paramref name="level"/> is active over: its own switch
+        /// value (inclusive) up to the next populated level's switch value (exclusive). The highest level
+        /// has no upper bound (<see langword="null"/> <c>Max</c>). Skipping to the next populated level
+        /// absorbs any intervening empty level, matching <see cref="SelectLevel"/>.
+        /// </summary>
+        public (float Min, float? Max) GetMetricRange(int level)
+        {
+            var min = level < SwitchDistances.Count ? SwitchDistances[level] : 0f;
+            float? max = null;
+
+            foreach (var available in AvailableLevels)
+            {
+                if (available > level && available < SwitchDistances.Count)
+                {
+                    max = SwitchDistances[available];
+                    break;
+                }
+            }
+
+            return (min, max);
         }
 
         /// <summary>Returns the index of the lowest set bit in <paramref name="combinedMask"/>, or 0 if none.</summary>

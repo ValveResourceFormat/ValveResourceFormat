@@ -480,11 +480,9 @@ partial class ModelExtract
             }
 
             {
-                // LOD Groups. The compiled model stores which LoD level each mesh belongs to in
-                // m_refLODGroupMasks (bit N set => mesh is in LoD level N) and the per-level switch
-                // value in m_lodGroupSwitchDistances. Re-emit one LODGroup node per populated level
-                // so a recompile reproduces the original LoD structure instead of collapsing every
-                // mesh into LoD0.
+                // LOD groups. m_refLODGroupMasks holds which level each mesh belongs to (bit N set => level
+                // N) and m_lodGroupSwitchDistances the per-level switch value. Re-emit one LODGroup per
+                // populated level so a recompile reproduces the original LoD structure.
                 var lodInfo = model.LodInfo;
 
                 for (var lodLevel = 0; lodLevel < lodInfo.SwitchDistances.Count; lodLevel++)
