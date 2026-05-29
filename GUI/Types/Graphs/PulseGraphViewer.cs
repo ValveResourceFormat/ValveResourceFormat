@@ -825,7 +825,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             }
                         }
 
-                        if (regStep == -1)
+                        if (regStep == -1 && nodeId != -1)
                         {
                             for (var regIdx = 0; regIdx < registers.Count; regIdx++)
                             {
@@ -852,6 +852,25 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 Name = "Loop",
                                 NodeType = "Flow control",
                             };
+
+                            // No info? One last try, but this is an assumption already.
+                            // If the latest condition instruction is LT*/LTE* or GT*/GTE* then in theory we can connect the start and end condition sockets
+                            if (regStop == -1 && regStart == -1)
+                            {
+                                var instrCompName = instrComp.GetStringProperty("m_nCode");
+                                if (instrCompName.StartsWith("LT", StringComparison.InvariantCultureIgnoreCase))
+                                {
+                                    regStart = instrComp.GetInt32Property("m_nReg1");
+                                    regStop = instrComp.GetInt32Property("m_nReg2");
+                                }
+                                else if (instrCompName.StartsWith("GT", StringComparison.InvariantCultureIgnoreCase))
+                                {
+                                    forLoopNode.AddMessage("Iteration may go higher to lower value");
+                                    regStart = instrComp.GetInt32Property("m_nReg1");
+                                    regStop = instrComp.GetInt32Property("m_nReg2");
+                                }
+                                forLoopNode.AddMessage("Loop range may not be accurate (missing debug info)");
+                            }
 
                             var loopSocketIn = forLoopNode.CreateSocketIn<Flow>("");
                             nodeGraph.Connect(previousActionOutSocket, loopSocketIn);
@@ -1701,7 +1720,9 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
         public void AddMessage(string message)
         {
-            AddSpace();
+            // Make space for custom message
+            // "If it's stupid and it works, then it isn't stupid."
+            AddSpaceMultiple((int)(message.Length * 1.5));
             Messages.Add(message);
         }
 
@@ -1720,6 +1741,15 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
 
         public void AddSpace() => CreateTextSocket<string>(string.Empty);
+        public void AddSpaceMultiple(int count)
+        {
+            StringBuilder sb = new(count);
+            for (var i = 0; i < count; i++)
+            {
+                sb.Append('_');
+            }
+            CreateTextSocket<string>(sb.ToString());
+        }
         public void AddText(string text) => CreateTextSocket<string>(text);
 
         private void CreateTextSocket<T>(string text)
