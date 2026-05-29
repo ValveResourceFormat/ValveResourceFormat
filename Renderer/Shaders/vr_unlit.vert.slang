@@ -20,7 +20,7 @@ out vec3 vTangentOut;
 out vec3 vBitangentOut;
 out vec2 vTexCoordOut;
 
-uniform vec3 g_vColorTint = vec3(1.0);
+uniform vec3 g_vColorTint = vec3(1.0); // SrgbRead(true)
 
 uniform vec2 g_vTexCoordOffset;
 uniform vec2 g_vTexCoordScale = vec2(1.0);
