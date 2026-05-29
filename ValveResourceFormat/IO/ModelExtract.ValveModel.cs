@@ -343,6 +343,7 @@ partial class ModelExtract
         var materialGroupList = MakeLazyList("MaterialGroupList");
         var renderMeshList = MakeLazyList("RenderMeshList");
         var bodyGroupList = MakeLazyList("BodyGroupList");
+        var lodGroupList = MakeLazyList("LODGroupList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
         var attachmentList = MakeLazyList("AttachmentList");
@@ -475,6 +476,43 @@ partial class ModelExtract
                     }
 
                     bodyGroupList.Value.Add(bodyGroup);
+                }
+            }
+
+            {
+                // LOD Groups. The compiled model stores which LoD level each mesh belongs to in
+                // m_refLODGroupMasks (bit N set => mesh is in LoD level N) and the per-level switch
+                // value in m_lodGroupSwitchDistances. Re-emit one LODGroup node per populated level
+                // so a recompile reproduces the original LoD structure instead of collapsing every
+                // mesh into LoD0.
+                var lodInfo = model.LodInfo;
+
+                for (var lodLevel = 0; lodLevel < lodInfo.SwitchDistances.Count; lodLevel++)
+                {
+                    var meshReferences = KVObject.Array();
+
+                    foreach (var renderMesh in RenderMeshesToExtract)
+                    {
+                        if (!lodInfo.IsMeshInLevel(renderMesh.Index, lodLevel))
+                        {
+                            continue;
+                        }
+
+                        var meshReference = KVObject.Collection();
+                        meshReference.Add("mesh_name", renderMesh.Name);
+                        meshReferences.Add(meshReference);
+                    }
+
+                    // Skip levels with no meshes (e.g. a misconfigured empty LoD0).
+                    if (meshReferences.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    lodGroupList.Value.Add(MakeNode("LODGroup",
+                        ("switch_threshold", lodInfo.SwitchDistances[lodLevel]),
+                        ("mesh_references", meshReferences)
+                    ));
                 }
             }
 

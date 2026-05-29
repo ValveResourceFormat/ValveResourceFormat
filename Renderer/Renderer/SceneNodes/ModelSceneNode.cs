@@ -72,10 +72,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly (string Name, string[] Materials)[] materialGroups;
         private readonly string[] meshGroups;
         private readonly long[]? meshGroupMasks;
-        private readonly long[] lodGroupMasks;
+        private readonly ModelLodInfo lodInfo;
         private readonly List<(int MeshIndex, string MeshName, long LoDMask)> referenceMeshes;
-        private readonly IReadOnlyList<int> availableLods;
-        private int activeLod;
+        // null = automatic distance-based selection; otherwise a forced LoD level (from the UI).
+        private int? lodOverride;
+        private int resolvedLod;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModelSceneNode"/> class and loads its meshes and animations.
@@ -95,10 +96,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 meshGroupMasks = model.Data.GetIntegerArray("m_refMeshGroupMasks");
             }
 
-            lodGroupMasks = model.Data.GetIntegerArray("m_refLODGroupMasks");
+            lodInfo = model.LodInfo;
             referenceMeshes = model.GetReferenceMeshNamesAndLoD().ToList();
-            availableLods = model.GetAvailableLodLevels();
-            activeLod = model.GetLowestLodLevel();
+            resolvedLod = lodInfo.LowestLevel;
 
             AnimationController = new(model.Skeleton, model.FlexControllers);
             boneCount = model.Skeleton.Bones.Length;
@@ -233,6 +233,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
+            UpdateAutoLod(context.Camera);
+
             if (!AnimationController.Update(context.Timestep))
             {
                 return;
@@ -585,10 +587,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshes()
             => referenceMeshes;
 
-        /// <summary>Returns the sorted distinct LoD levels available on this model.</summary>
-        public IReadOnlyList<int> GetAvailableLods()
-            => availableLods;
-
         /// <summary>Returns all mesh group names defined by this model.</summary>
         public IEnumerable<string> GetMeshGroups()
             => meshGroups;
@@ -609,22 +607,66 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Sets the LoD level to display, rebuilding the renderable mesh list accordingly.
+        /// Pass <see langword="null"/> to enable automatic distance-based selection.
         /// </summary>
-        public void SetActiveLod(int lod)
+        public void SetActiveLod(int? lod)
         {
-            activeLod = lod;
-            RebuildRenderableMeshes();
+            lodOverride = lod;
+
+            if (lod != null)
+            {
+                resolvedLod = lod.Value;
+                RebuildRenderableMeshes();
+            }
+        }
+
+        /// <summary>
+        /// When in automatic mode, selects the LoD level using the engine's screen-size metric.
+        /// <para>
+        /// This mirrors Source: the metric is <c>100 / unitSphereSize</c>, where <c>unitSphereSize</c> is the
+        /// on-screen pixel size of a unit-diameter sphere at the model's origin (engine <c>GetScreenSize</c>;
+        /// <c>studio.h</c> <c>LODMetric</c>/<c>GetLODForMetric</c>). A model drops to LoD <c>n</c> once the
+        /// metric reaches <c>m_lodGroupSwitchDistances[n]</c>. Note this is FOV- and resolution-dependent and
+        /// does not depend on the model's own size, exactly like the engine.
+        /// </para>
+        /// </summary>
+        private void UpdateAutoLod(Camera camera)
+        {
+            if (lodOverride != null || lodInfo.AvailableLevels.Count <= 1 || lodInfo.SwitchDistances.Count <= 1)
+            {
+                return;
+            }
+
+            var target = lodInfo.SelectLevel(ComputeLodMetric(camera));
+
+            if (target != resolvedLod)
+            {
+                resolvedLod = target;
+                RebuildRenderableMeshes();
+            }
+        }
+
+        /// <summary>
+        /// Computes Source's LoD metric (<c>100 / on-screen size of a unit-diameter sphere at the model
+        /// origin</c>; engine <c>GetScreenSize</c> + <c>studio.h</c> <c>LODMetric</c>). Evaluated analytically
+        /// from the camera distance so it depends only on how far the model is (and FOV/viewport height), not
+        /// on where it sits on screen - otherwise free-look rotation would wobble the metric and flip LoDs.
+        /// </summary>
+        private float ComputeLodMetric(Camera camera)
+        {
+            var distance = MathF.Sqrt(GetCameraDistance(camera));
+
+            // Pixel size of a unit-diameter sphere at this distance: windowHeight * (1/tan(vFov/2)) / distance.
+            // ProjectionMatrix.M22 is exactly that 1/tan(vFov/2) y-scale.
+            var unitSphereSize = distance > 0f
+                ? camera.WindowSize.Y * camera.ProjectionMatrix.M22 / distance
+                : float.MaxValue;
+
+            return unitSphereSize > 0f ? 100f / unitSphereSize : 0f;
         }
 
         private bool IsMeshInActiveLod(int meshIndex)
-        {
-            if (meshIndex >= lodGroupMasks.Length)
-            {
-                return true;
-            }
-
-            return (lodGroupMasks[meshIndex] & 1L << activeLod) != 0;
-        }
+            => lodInfo.IsMeshInLevel(meshIndex, resolvedLod);
 
         private bool IsMeshInActiveGroup(int meshIndex)
         {

@@ -450,7 +450,7 @@ public partial class GltfModelExporter
         }
         else
         {
-            var refMeshes = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
+            var refMeshes = model.GetReferenceMeshNamesForLod(model.LodInfo.LowestLevel).ToList();
             var refMesh = refMeshes.First();
 
             if (refMeshes.Count > 1)

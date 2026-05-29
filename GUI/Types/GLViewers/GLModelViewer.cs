@@ -311,13 +311,18 @@ namespace GUI.Types.GLViewers
                     hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
                 }
 
-                // LoD selector (below Hitbox Set, above Mesh Group). Always shown for now; empty levels
+                // LoD selector (below Hitbox Set, above Mesh Group). Only shown when the model declares
+                // more than one LoD level (matches the Mesh/Material Group convention). Empty levels
                 // (e.g. a misconfigured empty LoD0) are listed and marked so the user can tell.
+                var lodInfo = model.LodInfo;
+                var lodCount = lodInfo.LevelCount;
+
+                if (lodCount > 1)
                 {
                     using var _ = UiControl.BeginGroup("Model");
 
-                    var populatedLods = model.GetAvailableLodLevels();
-                    var lodCount = Math.Max(model.GetLodLevelCount(), 1);
+                    var populatedLods = lodInfo.AvailableLevels;
+                    var switchDistances = lodInfo.SwitchDistances;
 
                     lodComboBox = UiControl.AddSelection("Level of Detail", (_, i) =>
                     {
@@ -327,16 +332,27 @@ namespace GUI.Types.GLViewers
                         }
 
                         using var lockedGl = MakeCurrent();
-                        modelSceneNode?.SetActiveLod(i);
+                        // Index 0 is "Auto" (distance-based); index i forces LoD level i - 1.
+                        modelSceneNode?.SetActiveLod(i == 0 ? null : i - 1);
                     });
+
+                    lodComboBox.Items.Add("Auto");
 
                     for (var level = 0; level < lodCount; level++)
                     {
-                        lodComboBox.Items.Add(populatedLods.Contains(level) ? $"LOD {level}" : $"LOD {level} (Empty)");
+                        var label = populatedLods.Contains(level) ? $"LOD {level}" : $"LOD {level} (Empty)";
+
+                        // Switch values are the engine's screen-size metric, not world units.
+                        if (level < switchDistances.Count && switchDistances[level] > 0)
+                        {
+                            label += $" (≥{switchDistances[level].ToString("0.#", CultureInfo.InvariantCulture)})";
+                        }
+
+                        lodComboBox.Items.Add(label);
                     }
 
-                    // Default to the lowest populated LoD so geometry is visible.
-                    lodComboBox.SelectedIndex = populatedLods.Count > 0 ? populatedLods[0] : 0;
+                    // Default to automatic distance-based switching.
+                    lodComboBox.SelectedIndex = 0;
                 }
 
                 var meshGroups = modelSceneNode.GetMeshGroups().ToArray<object>();

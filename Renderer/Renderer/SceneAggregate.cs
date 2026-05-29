@@ -89,8 +89,7 @@ namespace ValveResourceFormat.Renderer
             }
             else
             {
-                var lodBit = 1L << model.GetLowestLodLevel();
-                var refMeshes = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & lodBit) != 0).ToList();
+                var refMeshes = model.GetReferenceMeshNamesForLod(model.LodInfo.LowestLevel).ToList();
                 var refMesh = refMeshes.First();
 
                 if (refMeshes.Count > 1)
@@ -170,7 +169,7 @@ namespace ValveResourceFormat.Renderer
             {
                 combinedLodMask |= fragmentData.GetUInt32Property("m_nLODGroupMask");
             }
-            var lowestLodBit = combinedLodMask == 0 ? 0u : 1u << BitOperations.TrailingZeroCount(combinedLodMask);
+            var lowestLodBit = combinedLodMask == 0 ? 0u : 1u << ModelLodInfo.LowestSetLevel(combinedLodMask);
 
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
