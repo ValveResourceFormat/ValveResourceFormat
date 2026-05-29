@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
@@ -10,7 +12,7 @@ using Svg.Skia;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
-using System.Globalization;
+using static ValveResourceFormat.Blocks.ResourceIntrospectionManifest.ResourceDiskEnum;
 
 namespace GUI.Types.Graphs;
 
@@ -376,16 +378,28 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         return false;
     }
 
-    private KVObject GetDomainValueFromId(int domainValId)
+    private bool TryGetDomainValueFromId(int domainValId, out KVObject value)
     {
-        var constant = domainValues[domainValId];
-        return constant["m_Value"];
+        if ((domainValId >= 0 && domainValId < domainValues.Count))
+        {
+            var domainVal = domainValues[domainValId];
+            value = domainVal["m_Value"];
+            return true;
+        }
+        value = [];
+        return false;
     }
 
-    private string GetVariableNameFromIndex(int variableIndex)
+    private bool TryGetVariableNameFromId(int variableId, out string value)
     {
-        var variable = variables[variableIndex];
-        return variable.GetStringProperty("m_Name");
+        if ((variableId >= 0 && variableId < variables.Count))
+        {
+            var variable = variables[variableId];
+            value = variable.GetStringProperty("m_Name");
+            return true;
+        }
+        value = "";
+        return false;
     }
 
     // Filter out some internal fields, keep only what's derived from the base cell class and useful for display
@@ -596,15 +610,19 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             var regName = kvPair.Key;
             var regIdx = (int)kvPair.Value;
 
-            if (!registerConstValueMap.TryGetValue(regIdx, out var regValue))
+            if (registerConstValueMap.TryGetValue(regIdx, out var regValue))
             {
-                var regOutSocket = registerSocketOutputMap[regIdx];
+                node.AddText($"{regName} = {StringifyKVObject(regValue)}");
+            }
+            else if (registerSocketOutputMap.TryGetValue(regIdx, out var regOutSocket))
+            {
                 var argInputSocket = node.CreateSocketInFromValueType(regName, GetValueTypeFromRegister(chunkIndex, regIdx));
                 nodeGraph.Connect(regOutSocket, argInputSocket);
             }
             else
             {
-                node.AddText($"{regName} = {StringifyKVObject(regValue)}");
+                node.AddText($"{regName} = <FAILED TO RESOLVE>");
+                Log.Warn(nameof(PulseGraphViewer), $"Failed to find register id={regIdx} at chunk={chunkIndex} which was expected to be generated already.");
             }
         }
     }
@@ -704,7 +722,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                         if (instrJumpComp == null)
                         {
-                            Log.Warn(nameof(PulseGraphViewer), $"Could not find conditional jump instruction for loop starting at instruction {loopStart} in chunk {chunkIndex}");
+                            Log.Warn(nameof(PulseGraphViewer), $"Could not find conditional jump instruction for loop starting at instruction {loopStart} to {loopEndInstr} in chunk {chunkIndex}");
+                            // Loop can happen with async calls, but it's safe to proceed.
                             //instructionIdx = loopEnd + 1;
                             break;
                         }
@@ -894,6 +913,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                         forLoopNode.AddText($"Increment = {StringifyKVObject(constIncrement)}");
                                         loopOperationEndInstructionIdx = loopEnd - 2;
                                     }
+                                    else
+                                    {
+                                        forLoopNode.AddMessage("Could not find increment");
+                                    }
                                 }
                             }
                             else if (regStep != -1)
@@ -914,7 +937,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 Log.Info(nameof(PulseGraphViewer), $"Potentially empty loop (chunk={chunkIndex}, instruction={loopOperationEndInstructionIdx})");
                             }
 
-                            Log.Info(nameof(PulseGraphViewer), $"Chunk: {chunkIndex} loopJumpOutInstructionId={loopJumpOutInstructionIdx} -> {loopJumpOutInstruction.GetInt32Property("m_nDestInstruction")} | loopOperationEndInstructionId={loopOperationEndInstructionIdx}");
+                            //Log.Info(nameof(PulseGraphViewer), $"Chunk: {chunkIndex} loopJumpOutInstructionId={loopJumpOutInstructionIdx} -> {loopJumpOutInstruction.GetInt32Property("m_nDestInstruction")} | loopOperationEndInstructionId={loopOperationEndInstructionIdx}");
 
                             var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
                             TraverseNodesForChunk(
@@ -1059,7 +1082,14 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     {
                         var domainValIdx = instruction.GetInt32Property("m_nDomainValueIdx");
                         var outputRegIdx = instruction.GetInt32Property("m_nReg0");
-                        registerConstValueMap[outputRegIdx] = GetDomainValueFromId(domainValIdx);
+                        if (TryGetDomainValueFromId(domainValIdx, out var value))
+                        {
+                            registerConstValueMap[outputRegIdx] = value;
+                        }
+                        else
+                        {
+                            Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve domain value of ID={domainValIdx}");
+                        }
                         break;
                     }
                 case InstructionCode.GET_VAR:
@@ -1071,8 +1101,15 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             Name = "Get Variable",
                             NodeType = "Instruction",
                         };
-                        node.AddText(GetVariableNameFromIndex(varIndex));
-
+                        if (TryGetVariableNameFromId(varIndex, out var name))
+                        {
+                            node.AddText(name);
+                        }
+                        else
+                        {
+                            node.AddText($"<UNKNOWN m_nVar={varIndex}>");
+                            Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve variable name of ID={varIndex}. Invalid graph definition?");
+                        }
                         var outSocket = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, regIndex));
                         registerOutputSocketMap[regIndex] = outSocket;
                         node.UpdateTypeColorFromOutput();
@@ -1097,7 +1134,15 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         };
                         previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
 
-                        node.AddText(GetVariableNameFromIndex(varIndex));
+                        if (TryGetVariableNameFromId(varIndex, out var name))
+                        {
+                            node.AddText(name);
+                        }
+                        else
+                        {
+                            node.AddText($"<UNKNOWN m_nVar={varIndex}>");
+                            Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve variable name of ID={varIndex}. Invalid graph definition?");
+                        }
                         AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
 
                         node.Calculate();
@@ -1123,9 +1168,15 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 NodeType = "Flow",
                             };
                             previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
-                            var callInfo = callInfos[callInfoIndex];
-                            CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, callInfo["m_RegisterMap"]);
-
+                            var callInfo = callInfos.ElementAtOrDefault(callInfoIndex);
+                            if (callInfo != null)
+                            {
+                                CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, callInfo["m_RegisterMap"]);
+                            }
+                            else
+                            {
+                                Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve call info of ID={callInfoIndex}.");
+                            }
                             callNodesToResolve.Add(new NodeCallInfo
                             {
                                 targetChunk = callTargetChunk,
@@ -1371,7 +1422,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
 
         Log.Error(nameof(PulseGraphViewer),
-            $"Failed to retrieve flow node ID for chunk {chunkId} instruction {instructionIdx}. No m_InstructionDebugInfos, or m_InstructionEditorIDs found in graph definition");
+            $"Failed to retrieve flow node ID for chunk {chunkId} instruction {instructionIdx}. No m_InstructionDebugInfos, or m_InstructionEditorIDs found in chunk definition.");
         return -1; // Fine to return -1, as it is not fully necessary to make everything work and that value can also appear normally.
     }
     private void PopulateSpecificCell(
@@ -1436,11 +1487,11 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 }
 
                                 var publicOutput = publicOutputs[outputIndex];
-                                var outputName = publicOutput.GetStringProperty("m_Name");
-                                var outputDesc = publicOutput.GetStringProperty("m_Description");
+                                var outputName = publicOutput.GetStringProperty("m_Name", $"<NAME UNKNOWN>");
+                                var outputDesc = publicOutput.GetStringProperty("m_Description", "");
 
                                 node.AddText($"Public Output: {outputName}");
-                                node.AddText(outputDesc);
+                                node.AddText($"Description: {outputDesc}");
                                 break;
                             }
 
@@ -1567,27 +1618,32 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             }
         }
 
-        // General info as a node (probably temporary until UI pane is added)
+        // General info as a node
         var graphInfoNode = new Node(null)
         {
             Name = "Graph info",
-            NodeType = "Imagine that I'm a static panel",
+            NodeType = "",
         };
-        if (graphDefinition.ContainsKey("m_DomainIdentifier"))
+
+        // Remap some atomic graph keys to more user friendly names for display
+        // If some keys change their name in the future, they still will be displayed, just with the raw key name.
+        Dictionary<string, string> prettyNameMap = new()
         {
-            graphInfoNode.AddText($"Domain: {graphDefinition.GetStringProperty("m_DomainIdentifier")}");
-        }
-        if (graphDefinition.ContainsKey("m_DomainSubType"))
+            { "m_DomainIdentifier", "Domain" },
+            { "m_DomainSubType", "Domain sub-type" },
+            { "m_ParentMapName", "Parent map name" },
+            { "m_ParentXmlName", "Parent XML panel" },
+        };
+
+        foreach (var (key, value) in graphDefinition)
         {
-            graphInfoNode.AddText($"Domain sub-type: {graphDefinition.GetStringProperty("m_DomainSubType")}");
-        }
-        if (graphDefinition.ContainsKey("m_ParentMapName"))
-        {
-            graphInfoNode.AddText($"Parent map name: {graphDefinition.GetStringProperty("m_ParentMapName")}");
-        }
-        if (graphDefinition.ContainsKey("m_ParentXmlName"))
-        {
-            graphInfoNode.AddText($"Parent XML panel: {graphDefinition.GetStringProperty("m_ParentXmlName")}");
+            if (value.IsArray || value.IsCollection || value.IsNull)
+            {
+                continue;
+            }
+
+            var keyText = prettyNameMap.GetValueOrDefault(key, key);
+            graphInfoNode.AddText($"{keyText}: {value}");
         }
         nodeGraph.AddNode(graphInfoNode);
 
