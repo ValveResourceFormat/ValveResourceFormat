@@ -29,7 +29,6 @@
 #define GameVfx_vr_skin 0
 #define GameVfx_vr_standard 0
 #define GameVfx_vr_static_overlay 0
-#define GameVfx_vr_unlit 0
 #define GameVfx_vr_xen_foliage 0
 
 #include "common/utils.slang"
@@ -159,7 +158,7 @@ uniform sampler2D g_tTintMask;
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || (GameVfx_csgo_vertexlitgeneric != 0)
 #define _ambientOcclusionTexture (((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || (GameVfx_csgo_foliage != 0) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || defined(csgo_generic_vfx_common) || (GameVfx_pbr != 0) || (GameVfx_csgo_simple_3layer_parallax != 0))
 
-#define unlit ((GameVfx_vr_unlit != 0) || (GameVfx_unlit != 0) || (GameVfx_csgo_unlitgeneric != 0) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0)) || (GameVfx_csgo_decalmodulate != 0)
+#define unlit ((GameVfx_unlit != 0) || (GameVfx_csgo_unlitgeneric != 0) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0)) || (GameVfx_csgo_decalmodulate != 0)
 #define alphatest (F_ALPHA_TEST == 1) || (((GameVfx_csgo_unlitgeneric != 0) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2)) || (GameVfx_csgo_decalmodulate != 0)
 #define translucent (F_TRANSLUCENT == 1) || (F_GLASS == 1) || (F_BLEND_MODE > 0 && F_BLEND_MODE != 2) || defined(glass_vfx_common) || (GameVfx_csgo_decalmodulate != 0) || (((GameVfx_csgo_unlitgeneric != 0) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 1)) // need to set this up on the cpu side
 #define selfillum ((F_SELF_ILLUM == 1 && ((GameVfx_generic != 0) || defined(complex_vfx_common) || (GameVfx_csgo_vertexlitgeneric != 0) || (GameVfx_vr_skin != 0) || (GameVfx_csgo_weapon != 0))) || (GameVfx_csgo_unlitgeneric != 0))
