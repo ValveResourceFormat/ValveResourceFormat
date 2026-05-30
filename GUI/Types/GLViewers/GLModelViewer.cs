@@ -35,6 +35,7 @@ namespace GUI.Types.GLViewers
         private ComboBox? lodComboBox;
         private int lastShownAutoLod = -1;
         private bool suppressLodSelectionHandler;
+        private bool modelStatsShown;
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
         protected SkeletonSceneNode? skeletonSceneNode;
@@ -314,8 +315,10 @@ namespace GUI.Types.GLViewers
                 }
 
                 // LoD selector (below Hitbox Set, above Mesh Group), shown only when switching levels
-                // changes the rendered geometry. A single mesh present in every level has no real LODs.
-                // Empty levels (e.g. a misconfigured empty LoD0) are listed and marked.
+                // changes the rendered geometry. A mesh present in every level (mask 0xFF, no switch
+                // distances) is "always shown", not a LOD. An empty level counts as a distinct state, so an
+                // empty LoD0 beside a populated LoD1 is a real LOD. Every declared level is listed and
+                // selectable, including empty ones, which FormatLodEntry marks "(Empty)".
                 var lodInfo = model.LodInfo;
                 var lodCount = lodInfo.LevelCount;
 
@@ -612,6 +615,13 @@ namespace GUI.Types.GLViewers
                 LastRootMotionPosition = animationFrame.Movement.Position;
             }
 
+            // The stats overlay is a snapshot of the rendered meshes, which change on LoD switch and
+            // mesh/material group changes. Refresh it before the scene draws it so it never goes stale.
+            if (modelStatsShown && modelSceneNode != null && SelectedNodeRenderer != null)
+            {
+                SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+            }
+
             base.OnPaint(frameTime);
 
             UpdateAutoLodLabel();
@@ -703,6 +713,7 @@ namespace GUI.Types.GLViewers
             {
                 SelectedNodeRenderer.SelectNode(null);
                 SelectedNodeRenderer.ScreenDebugText = string.Empty;
+                modelStatsShown = false;
                 return;
             }
 
@@ -711,6 +722,7 @@ namespace GUI.Types.GLViewers
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 SelectedNodeRenderer.SelectNode(sceneNode);
                 SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+                modelStatsShown = true;
                 return;
             }
 

@@ -39,11 +39,15 @@ namespace ValveResourceFormat.ResourceTypes
         public int LevelCount { get; }
 
         /// <summary>
-        /// Gets whether switching the LOD level actually changes which meshes are rendered. False when no
-        /// level swaps geometry, such as a single mesh flagged present in every level (mask <c>0xFF</c>),
-        /// which the compiler emits to mean "always shown". Useful for deciding whether to show a selector.
+        /// Gets whether switching the LOD level actually changes which meshes are rendered. Real LODs need
+        /// some mesh present in one declared level but not another. A mesh present in (or absent from) every
+        /// level — such as a single mesh with mask <c>0xFF</c> and no switch distances — renders the same at
+        /// every level and is the compiler's "always shown" flag, not a LOD. An empty level counts as a
+        /// distinct empty state, so a populated level beside an empty one (e.g. an empty LOD0) is a real LOD.
+        /// Useful for deciding whether to show a selector.
         /// </summary>
-        public bool HasDistinctLevels { get; }
+        public bool HasDistinctLevels => Enumerable.Range(1, Math.Max(LevelCount - 1, 0))
+            .Any(level => meshLodMasks.Any(mask => (mask & 1L) != ((mask >> level) & 1L)));
 
         /// <summary>
         /// Initializes LOD info from a model's mesh LOD masks (<c>m_refLODGroupMasks</c>) and switch
@@ -77,12 +81,6 @@ namespace ValveResourceFormat.ResourceTypes
 
             var fromMask = combined == 0 ? 0 : 64 - BitOperations.LeadingZeroCount((ulong)combined);
             LevelCount = Math.Max(fromMask, SwitchDistances.Count);
-
-            // We only have real LODs if the set of meshes changes between levels, i.e. some mesh is in one
-            // level but not another. A mesh that sits in every level (mask 0xFF) doesn't count. Its set
-            // looks the same at every level.
-            HasDistinctLevels = levels.Any(level =>
-                this.meshLodMasks.Any(mask => ((mask >> LowestLevel) & 1) != ((mask >> level) & 1)));
         }
 
         /// <summary>

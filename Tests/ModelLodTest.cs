@@ -73,16 +73,23 @@ namespace Tests
         {
             Assert.Multiple(() =>
             {
-                // One mesh that sits in every level renders the same thing each time, so these aren't real LODs.
-                Assert.That(new ModelLodInfo([0xFF], []).HasDistinctLevels, Is.False);
-                // A single mesh is never a real LOD regardless of its mask.
+                // No LOD data, or a single level: nothing to switch between.
+                Assert.That(new ModelLodInfo([], []).HasDistinctLevels, Is.False);
                 Assert.That(new ModelLodInfo([0x01], []).HasDistinctLevels, Is.False);
-                // Multiple meshes that share the same mask render identically at every level.
+
+                // A mesh present in every level (mask 0xFF, no switch distances) is "always shown", not a
+                // LOD. This is the chess king: m_refLODGroupMasks [255], no switch distances.
+                Assert.That(new ModelLodInfo([0xFF], []).HasDistinctLevels, Is.False);
+                // Multiple meshes that share the same all-levels mask also render identically everywhere.
                 Assert.That(new ModelLodInfo([0x03, 0x03], []).HasDistinctLevels, Is.False);
 
                 // Distinct geometry per level: real LODs.
                 Assert.That(new ModelLodInfo(TruckMasks, TruckSwitches).HasDistinctLevels, Is.True);
                 Assert.That(new ModelLodInfo(AlchemistMasks, AlchemistSwitches).HasDistinctLevels, Is.True);
+
+                // Empty LOD0 with meshes only in LOD1 (ctm_sas): the empty level is a distinct state, so the
+                // model has a real LOD. m_refLODGroupMasks [2,2,2,2,2], switch distances [0, 2].
+                Assert.That(new ModelLodInfo([2, 2, 2, 2, 2], [0f, 2f]).HasDistinctLevels, Is.True);
             });
         }
 
