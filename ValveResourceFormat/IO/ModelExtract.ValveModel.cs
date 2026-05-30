@@ -514,25 +514,28 @@ partial class ModelExtract
                     ));
                 }
 
-                var allLevelReferences = KVObject.Array();
-
-                foreach (var renderMesh in RenderMeshesToExtract)
+                if (lodInfo.SwitchDistances.Count > 0)
                 {
-                    if (!lodInfo.IsMeshInAllLevels(renderMesh.Index))
+                    var allLevelReferences = KVObject.Array();
+
+                    foreach (var renderMesh in RenderMeshesToExtract)
                     {
-                        continue;
+                        if (!lodInfo.IsMeshInAllLevels(renderMesh.Index))
+                        {
+                            continue;
+                        }
+
+                        var meshReference = KVObject.Collection();
+                        meshReference.Add("mesh_name", renderMesh.Name);
+                        allLevelReferences.Add(meshReference);
                     }
 
-                    var meshReference = KVObject.Collection();
-                    meshReference.Add("mesh_name", renderMesh.Name);
-                    allLevelReferences.Add(meshReference);
-                }
-
-                if (allLevelReferences.Count > 0)
-                {
-                    lodGroupList.Value.Add(MakeNode("LODGroupAll",
-                        ("mesh_references", allLevelReferences)
-                    ));
+                    if (allLevelReferences.Count > 0)
+                    {
+                        lodGroupList.Value.Add(MakeNode("LODGroupAll",
+                            ("mesh_references", allLevelReferences)
+                        ));
+                    }
                 }
             }
 

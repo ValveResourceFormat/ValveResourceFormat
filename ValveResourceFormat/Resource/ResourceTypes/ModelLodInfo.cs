@@ -15,8 +15,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets the per-level switch values. Index N is the value at which LOD level N becomes active.
-        /// These are the engine's screen-size metric (<c>100 / on-screen size of a unit sphere</c>),
-        /// not world units. Empty for models without LOD switch data.
+        /// These are a screen-size metric (<c>100 / on-screen size of a unit sphere</c>), not world
+        /// units. Empty for models without LOD switch data.
         /// </summary>
         public IReadOnlyList<float> SwitchDistances { get; }
 
@@ -100,16 +100,16 @@ namespace ValveResourceFormat.ResourceTypes
             => AvailableLevels.Count > 1 && AvailableLevels.All(level => IsMeshInLevel(meshIndex, level));
 
         /// <summary>
-        /// Selects the LOD level for a given screen-size metric, mirroring Source's
-        /// <c>GetLODForMetric</c>: the highest available level whose switch value the metric has
-        /// reached, never below <see cref="LowestLevel"/>.
+        /// Selects the LOD level for a given screen-size metric: the highest available level whose switch
+        /// value the metric has reached, never below <see cref="LowestLevel"/>.
         /// </summary>
         public int SelectLevel(float metric)
         {
             var target = LowestLevel;
 
-            foreach (var level in AvailableLevels)
+            for (var i = 0; i < AvailableLevels.Count; i++)
             {
+                var level = AvailableLevels[i];
                 if (level < SwitchDistances.Count && SwitchDistances[level] <= metric)
                 {
                     target = level;
