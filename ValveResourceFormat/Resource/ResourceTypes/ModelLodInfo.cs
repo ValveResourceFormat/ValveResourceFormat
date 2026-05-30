@@ -93,6 +93,15 @@ namespace ValveResourceFormat.ResourceTypes
             => meshIndex >= meshLodMasks.Length || (meshLodMasks[meshIndex] & 1L << level) != 0;
 
         /// <summary>
+        /// Determines whether the mesh at <paramref name="meshIndex"/> is present in every populated LOD
+        /// level. Such a mesh renders at all levels, which the compiler stores as a mask covering every
+        /// level and the editor authors as a single <c>LODGroupAll</c> entry rather than a member of each
+        /// group. Only meaningful when more than one level is populated.
+        /// </summary>
+        public bool IsMeshInAllLevels(int meshIndex)
+            => AvailableLevels.Count > 1 && AvailableLevels.All(level => IsMeshInLevel(meshIndex, level));
+
+        /// <summary>
         /// Selects the LOD level for a given screen-size metric, mirroring Source's
         /// <c>GetLODForMetric</c>: the highest available level whose switch value the metric has
         /// reached, never below <see cref="LowestLevel"/>.

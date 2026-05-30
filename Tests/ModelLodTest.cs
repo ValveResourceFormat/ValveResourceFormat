@@ -13,6 +13,10 @@ namespace Tests
         private static readonly long[] TruckMasks = [1, 2, 4];
         private static readonly float[] TruckSwitches = [0f, 35f, 50f];
 
+        // Truck with a LODGroupAll mesh (mask 7, present in every level) plus a second LOD0-only mesh.
+        private static readonly long[] AllGroupMasks = [1, 2, 4, 1, 7];
+        private static readonly float[] AllGroupSwitches = [0f, 35f, 50f];
+
         // Mesh 0 is in LOD0 only, mesh 1 is in LODs 1-7, with 8 switch values.
         private static readonly long[] AlchemistMasks = [0x01, 0xFE];
         private static readonly float[] AlchemistSwitches = [0f, 1f, 1f, 1f, 1f, 1f, 1f, 1f];
@@ -117,6 +121,25 @@ namespace Tests
                 Assert.That(lod.IsMeshInLevel(1, 0), Is.False);
                 Assert.That(lod.IsMeshInLevel(1, 1), Is.True);
                 Assert.That(lod.IsMeshInLevel(1, 7), Is.True);
+            });
+        }
+
+        [Test]
+        public void MeshInAllLevelsIsLodGroupAll()
+        {
+            var lod = new ModelLodInfo(AllGroupMasks, AllGroupSwitches);
+
+            Assert.Multiple(() =>
+            {
+                // Only the mask-7 mesh spans every level, so only it is a LODGroupAll member.
+                Assert.That(lod.IsMeshInAllLevels(4), Is.True);
+                Assert.That(lod.IsMeshInAllLevels(0), Is.False);
+                Assert.That(lod.IsMeshInAllLevels(1), Is.False);
+                Assert.That(lod.IsMeshInAllLevels(2), Is.False);
+                Assert.That(lod.IsMeshInAllLevels(3), Is.False);
+
+                // A single populated level is not treated as "all levels", so nothing is pulled out.
+                Assert.That(new ModelLodInfo([1, 1], [0f]).IsMeshInAllLevels(0), Is.False);
             });
         }
 
