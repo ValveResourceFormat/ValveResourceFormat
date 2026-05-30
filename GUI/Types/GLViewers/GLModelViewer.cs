@@ -36,6 +36,8 @@ namespace GUI.Types.GLViewers
         private int lastShownAutoLod = -1;
         private bool suppressLodSelectionHandler;
         private bool modelStatsShown;
+        private bool modelStatsDirty;
+        private int statsLod = -1;
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
         protected SkeletonSceneNode? skeletonSceneNode;
@@ -314,11 +316,6 @@ namespace GUI.Types.GLViewers
                     hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
                 }
 
-                // LoD selector (below Hitbox Set, above Mesh Group), shown only when switching levels
-                // changes the rendered geometry. A mesh present in every level (mask 0xFF, no switch
-                // distances) is "always shown", not a LOD. An empty level counts as a distinct state, so an
-                // empty LoD0 beside a populated LoD1 is a real LOD. Every declared level is listed and
-                // selectable, including empty ones, which FormatLodEntry marks "(Empty)".
                 var lodInfo = model.LodInfo;
                 var lodCount = lodInfo.LevelCount;
 
@@ -363,7 +360,11 @@ namespace GUI.Types.GLViewers
                         {
                             listBox.SetItemChecked(listBox.FindStringExact(group), true);
                         }
-                    }, modelSceneNode.SetActiveMeshGroups);
+                    }, groups =>
+                    {
+                        modelSceneNode.SetActiveMeshGroups(groups);
+                        modelStatsDirty = true;
+                    });
                 }
 
                 var materialGroupNames = model.GetMaterialGroups().Select(group => group.Name).ToArray<object>();
@@ -376,6 +377,7 @@ namespace GUI.Types.GLViewers
                     {
                         using var lockedGl = MakeCurrent();
                         modelSceneNode?.SetMaterialGroup(selectedGroup);
+                        modelStatsDirty = true;
                     });
 
                     materialGroupListBox.Items.AddRange(materialGroupNames);
@@ -615,11 +617,21 @@ namespace GUI.Types.GLViewers
                 LastRootMotionPosition = animationFrame.Movement.Position;
             }
 
-            // The stats overlay is a snapshot of the rendered meshes, which change on LoD switch and
-            // mesh/material group changes. Refresh it before the scene draws it so it never goes stale.
+            // The stats overlay is a snapshot of the rendered meshes, which change on LoD switch (manual or
+            // auto) and on mesh/material group changes. Rebuild only when one of those happens, not per frame.
             if (modelStatsShown && modelSceneNode != null && SelectedNodeRenderer != null)
             {
-                SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+                if (modelSceneNode.ActiveLod != statsLod)
+                {
+                    statsLod = modelSceneNode.ActiveLod;
+                    modelStatsDirty = true;
+                }
+
+                if (modelStatsDirty)
+                {
+                    SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+                    modelStatsDirty = false;
+                }
             }
 
             base.OnPaint(frameTime);
@@ -721,8 +733,8 @@ namespace GUI.Types.GLViewers
             {
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 SelectedNodeRenderer.SelectNode(sceneNode);
-                SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
                 modelStatsShown = true;
+                modelStatsDirty = true;
                 return;
             }
 
