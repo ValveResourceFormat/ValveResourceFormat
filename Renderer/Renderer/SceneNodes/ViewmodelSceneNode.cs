@@ -410,6 +410,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         scene.RendererContext.Logger.LogInformation($"Loaded first person model.");
 
         scene.Add(viewmodel, true);
+
+        // don't render player model in noclip mode
+        scene.DeactivateLayer(WorldLayerName);
+
         return viewmodel;
     }
 
@@ -429,6 +433,12 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (!attachViewmodelDistance)
         {
+            // don't render player model in noclip mode
+            if (LayerEnabled)
+            {
+                Scene.DeactivateLayer(WorldLayerName);
+            }
+
             return;
         }
 
