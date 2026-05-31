@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows.Forms;
 using System.Xml.Linq;
@@ -592,6 +593,136 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
     }
 
+    // Detect if the register appears at least twice (one is to be expected for output)
+    // This helps detecting whether some library/cell bindings should be connected as action or as a value provider.
+    // If the output is not used anywhere, the node visual will be confusing.
+    private bool IsRegisterUsedInChunk(int chunkIdx, int registerIdx)
+    {
+        if (chunkIdx < 0 || chunkIdx >= chunks.Count || registerIdx < 0)
+        {
+            return false;
+        }
+
+        var instructions = chunks[chunkIdx].GetArray("m_Instructions");
+        var usageCount = 0;
+
+        void CountRegisterInMap(KVObject registerMap)
+        {
+            var inParams = registerMap["m_Inparams"];
+            if (!inParams.IsNull)
+            {
+                foreach (var kvPair in inParams)
+                {
+                    if ((int)kvPair.Value == registerIdx)
+                    {
+                        usageCount++;
+                    }
+                }
+            }
+
+            var outParams = registerMap["m_Outparams"];
+            if (!outParams.IsNull)
+            {
+                foreach (var kvPair in outParams)
+                {
+                    if ((int)kvPair.Value == registerIdx)
+                    {
+                        usageCount++;
+                    }
+                }
+            }
+        }
+
+        foreach (var instruction in instructions)
+        {
+            var reg0 = instruction.GetInt32Property("m_nReg0");
+            var reg1 = instruction.GetInt32Property("m_nReg1");
+            var reg2 = instruction.GetInt32Property("m_nReg2");
+
+            if (reg0 == registerIdx)
+            {
+                usageCount++;
+            }
+
+            if (reg1 == registerIdx)
+            {
+                usageCount++;
+            }
+
+            if (reg2 == registerIdx)
+            {
+                usageCount++;
+            }
+
+            var instrType = GetInstructionType(instruction);
+            if (instrType == InstructionCode.LIBRARY_INVOKE || instrType == InstructionCode.CELL_INVOKE)
+            {
+                var invokeBindingIndex = instruction.GetInt32Property("m_nInvokeBindingIndex");
+                if (invokeBindingIndex >= 0 && invokeBindingIndex < invokeBindings.Count)
+                {
+                    var registerMap = invokeBindings[invokeBindingIndex]["m_RegisterMap"];
+                    if (!registerMap.IsNull)
+                    {
+                        CountRegisterInMap(registerMap);
+                    }
+                }
+            }
+            else if (instrType == InstructionCode.PULSE_CALL_SYNC || instrType == InstructionCode.PULSE_CALL_ASYNC_FIRE)
+            {
+                var callInfoIndex = instruction.GetInt32Property("m_nCallInfoIndex");
+                if (callInfoIndex >= 0 && callInfoIndex < callInfos.Count)
+                {
+                    var registerMap = callInfos[callInfoIndex]["m_RegisterMap"];
+                    if (!registerMap.IsNull)
+                    {
+                        CountRegisterInMap(registerMap);
+                    }
+                }
+            }
+
+            if (usageCount >= 2)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    private SocketOut? SetupNodeOutputsFromRegisterMap(
+        Node node,
+        int chunkIndex,
+        int instructionIdx,
+        Dictionary<int, SocketOut> registerOutputSocketMap,
+        SocketOut previousActionOutSocket,
+        KVObject registerMap)
+    {
+        // If node has no outputs
+        if (!TryAddRegisterMapOutParams(node, chunkIndex, registerOutputSocketMap, registerMap))
+        {
+            return CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+        }
+        else
+        {
+            // Some nodes have outputs but they might not be not used anywhere, connect node as sequential action if so.
+            var outParams = registerMap["m_Outparams"];
+            var hasNoUsedOutputs = true;
+            foreach (var (paramName, regIdx) in outParams)
+            {
+                if (IsRegisterUsedInChunk(chunkIndex, regIdx.ToInt32(CultureInfo.InvariantCulture)))
+                {
+                    hasNoUsedOutputs = false;
+                    break;
+                }
+            }
+            if (hasNoUsedOutputs)
+            {
+                return CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+            }
+        }
+
+        return null;
+    }
+
     private void CreateInputsFromRegisterMap(
         Node node,
         int chunkIndex,
@@ -633,8 +764,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Dictionary<int, KVObject> registerConstValueMap,
         Dictionary<int, SocketOut> registerOutputSocketMap,
         int startingInstructionIdx = 0,
-        int endingInstructionIdx = int.MaxValue, // non-inclusive
-        bool ignoreActions = false)
+        int endingInstructionIdx = int.MaxValue /* non-inclusive */)
     {
         if (chunkIndex < 0)
         {
@@ -898,7 +1028,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 forLoopNode.AddMessage("Could not find end index");
                             }
 
-                            int regIncrementLate = -1;
+                            var regIncrementLate = -1;
                             var loopOperationEndInstructionIdx = loopEnd;
                             if (!isIncrementLoadedInitially)
                             {
@@ -1007,16 +1137,13 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 Name = funcName,
                                 NodeType = "Function",
                             };
-                            // If an action without outputs then create a new output action and continue.
-                            if (!TryAddRegisterMapOutParams(node, chunkIndex, registerOutputSocketMap, registerMap))
-                            {
-                                if (ignoreActions)
-                                {
-                                    break;
-                                }
 
-                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                            var newActionOutSocket = SetupNodeOutputsFromRegisterMap(node, chunkIndex, instructionIdx, registerOutputSocketMap, previousActionOutSocket, registerMap);
+                            if (newActionOutSocket != null)
+                            {
+                                previousActionOutSocket = newActionOutSocket;
                             }
+
                             // it will be the color of the first output socket
                             node.UpdateTypeColorFromOutput();
 
@@ -1054,21 +1181,17 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 // show name after '::' separator, if can't find then show full name
                                 NodeType = funcName[(funcNameSplitIdx >= 0 ? (funcNameSplitIdx + 2) : 0)..],
                             };
-                            // If an action without outputs then create a new output action and continue.
-                            if (!TryAddRegisterMapOutParams(node, chunkIndex, registerOutputSocketMap, registerMap))
-                            {
-                                if (ignoreActions)
-                                {
-                                    break;
-                                }
 
-                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                            var newActionOutSocket = SetupNodeOutputsFromRegisterMap(node, chunkIndex, instructionIdx, registerOutputSocketMap, previousActionOutSocket, registerMap);
+                            if (newActionOutSocket != null)
+                            {
+                                previousActionOutSocket = newActionOutSocket;
                             }
+
                             // it will be the color of the first output socket
                             node.UpdateTypeColorFromOutput();
 
                             AddFilteredCellDetails(node, cellIndex);
-
                             CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
                             PopulateSpecificCell(node, cellIndex, registerConstValueMap, registerOutputSocketMap, finalEndingInstructionIdx);
 
@@ -1138,11 +1261,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     }
                 case InstructionCode.SET_VAR:
                     {
-                        if (ignoreActions)
-                        {
-                            break;
-                        }
-
                         var varIndex = instruction.GetInt32Property("m_nVar");
                         var regIndex = instruction.GetInt32Property("m_nReg0");
                         var node = new Node(null)
@@ -1174,11 +1292,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         var callDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
                         if (callTargetChunk != chunkIndex || callDestInstructionIdx <= 0)
                         {
-                            if (ignoreActions)
-                            {
-                                break;
-                            }
-
                             var callInfoIndex = instruction.GetInt32Property("m_nCallInfoIndex");
                             var node = new Node(null)
                             {
@@ -1222,11 +1335,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     }
                 case InstructionCode.RETURN_VALUE:
                     {
-                        if (ignoreActions)
-                        {
-                            break;
-                        }
-
                         var regIndex = instruction.GetInt32Property("m_nReg0");
                         Node? node = null;
                         try
@@ -1341,12 +1449,9 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 stopProcessing = true;
                             }
 
-                            if (!ignoreActions)
-                            {
-                                node.Calculate();
-                                nodeGraph.AddNode(node);
-                                node = null;
-                            }
+                            node.Calculate();
+                            nodeGraph.AddNode(node);
+                            node = null;
                         }
                         finally
                         {
