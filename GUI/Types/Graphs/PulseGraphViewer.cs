@@ -825,6 +825,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             }
                         }
 
+                        // If we have debug info, then just iterate all registers and find matching labelled increment for the flow id
                         if (regStep == -1 && nodeId != -1)
                         {
                             for (var regIdx = 0; regIdx < registers.Count; regIdx++)
@@ -897,6 +898,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 forLoopNode.AddMessage("Could not find end index");
                             }
 
+                            int regIncrementLate = -1;
                             var loopOperationEndInstructionIdx = loopEnd;
                             if (!isIncrementLoadedInitially)
                             {
@@ -909,9 +911,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                     || instrNameStr.StartsWith("MUL", StringComparison.InvariantCultureIgnoreCase)
                                     || instrNameStr.StartsWith("DIV", StringComparison.InvariantCultureIgnoreCase))
                                 {
-                                    // ASSUME that we got this increment from a constant (previous instruction)
-                                    // TODO: actually follow the register chain until we get a const, then connect these operations to the increment socket
-
                                     var opReg0 = instrLastInLoop.GetInt32Property("m_nReg0");
                                     var opReg1 = instrLastInLoop.GetInt32Property("m_nReg1");
                                     var opReg2 = instrLastInLoop.GetInt32Property("m_nReg2");
@@ -923,19 +922,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                         incrementReg = opReg1;
                                     }
 
-                                    if (registers[incrementReg].GetInt32Property("m_nWrittenByInstruction") < loopStart) // already calculated, connect it
-                                    {
-                                        AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, incrementReg, "Increment");
-                                    }
-                                    else if (TryGetConstantValueFromId(instructions[loopEnd - 2].GetInt32Property("m_nConstIdx"), out var constIncrement))
-                                    {
-                                        forLoopNode.AddText($"Increment = {StringifyKVObject(constIncrement)}");
-                                        loopOperationEndInstructionIdx = loopEnd - 2;
-                                    }
-                                    else
-                                    {
-                                        forLoopNode.AddMessage("Could not find increment");
-                                    }
+                                    // Traversing the inside of the loop is required first to determine how the increment connects.
+                                    // Increment will be added after traversing.
+                                    regIncrementLate = incrementReg;
+                                    loopOperationEndInstructionIdx = loopEnd - 1;
                                 }
                             }
                             else if (regStep != -1)
@@ -946,7 +936,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             else
                             {
                                 loopOperationEndInstructionIdx = loopEnd; // No increment?
-                                forLoopNode.AddMessage("Could not determine the loop's increment");
+                                forLoopNode.AddMessage("Could not find the increment");
                             }
 
                             AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, condRegister, "Loop condition");
@@ -959,14 +949,23 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             //Log.Info(nameof(PulseGraphViewer), $"Chunk: {chunkIndex} loopJumpOutInstructionId={loopJumpOutInstructionIdx} -> {loopJumpOutInstruction.GetInt32Property("m_nDestInstruction")} | loopOperationEndInstructionId={loopOperationEndInstructionIdx}");
 
                             var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
+
+                            var newRegisterConstValueMap = new Dictionary<int, KVObject>(registerConstValueMap);
+                            var newRegisterOutputSocketMap = new Dictionary<int, SocketOut>(registerOutputSocketMap);
                             TraverseNodesForChunk(
                                 chunkIndex,
                                 socketOutLoopAction,
-                                new Dictionary<int, KVObject>(registerConstValueMap),
-                                new Dictionary<int, SocketOut>(registerOutputSocketMap),
+                                newRegisterConstValueMap,
+                                newRegisterOutputSocketMap,
                                 loopJumpOutInstructionIdx + 1,
                                 loopOperationEndInstructionIdx
                             );
+
+                            if (regIncrementLate != -1)
+                            {
+                                AddNodeRegisterInput(forLoopNode, chunkIndex, newRegisterConstValueMap, newRegisterOutputSocketMap, regIncrementLate, "Increment");
+                            }
+
                             previousActionOutSocket = forLoopNode.CreateSocketOut<Flow>("Finished");
 
                             forLoopNode.Calculate();
