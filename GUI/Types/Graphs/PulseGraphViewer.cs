@@ -1818,7 +1818,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             Data = data;
             BaseColor = NodeColor;
             TextColor = NodeTextColor;
-            HeaderColor = ToSKColor(ControlPaint.Light(Color.FromArgb(NodeColor.Red, NodeColor.Green, NodeColor.Blue)));
+            HeaderColor = FlowColor;
             HeaderTextColor = new SKColor(5, 5, 5);
             HeaderTypeColor = new SKColor(25, 25, 25);
         }
