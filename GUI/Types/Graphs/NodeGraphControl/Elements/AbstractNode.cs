@@ -1,3 +1,5 @@
+using System.Linq;
+using System.Net.Sockets;
 using SkiaSharp;
 
 namespace GUI.Types.Graphs
@@ -74,21 +76,18 @@ namespace GUI.Types.Graphs
                 // Calculate longest input and output socket caption width to make sure that text can fit properly.
                 var longestInputCation = string.Empty;
                 var longestOutputCation = string.Empty;
-                foreach (var sock in Sockets)
+                foreach (var sock in Sockets.OfType<SocketIn>())
                 {
-                    if (sock is SocketIn)
+                    if (sock.SocketName?.Length > longestInputCation.Length)
                     {
-                        if (sock.SocketName?.Length > longestInputCation.Length)
-                        {
-                            longestInputCation = sock.SocketName;
-                        }
+                        longestInputCation = sock.SocketName;
                     }
-                    else if (sock is SocketOut)
+                }
+                foreach (var sock in Sockets.OfType<SocketOut>())
+                {
+                    if (sock.SocketName?.Length > longestOutputCation.Length)
                     {
-                        if (sock.SocketName?.Length > longestOutputCation.Length)
-                        {
-                            longestOutputCation = sock.SocketName;
-                        }
+                        longestOutputCation = sock.SocketName;
                     }
                 }
 

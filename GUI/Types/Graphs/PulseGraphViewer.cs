@@ -1838,14 +1838,11 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 if (longestMessageWidth > NodeWidth)
                 {
                     var longestOutputCation = string.Empty;
-                    foreach (var sock in Sockets)
+                    foreach (var sock in Sockets.OfType<SocketOut>())
                     {
-                        if (sock is SocketOut)
+                        if (sock.SocketName?.Length > longestOutputCation.Length)
                         {
-                            if (sock.SocketName?.Length > longestOutputCation.Length)
-                            {
-                                longestOutputCation = sock.SocketName;
-                            }
+                            longestOutputCation = sock.SocketName;
                         }
                     }
                     SocketCaptionFont.MeasureText(longestOutputCation, out var maxSockOutBounds);
