@@ -11,7 +11,7 @@ namespace GUI.Utils
     /// </summary>
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 14;
+        private const int SettingsFileCurrentVersion = 15;
         private const int RecentFilesLimit = 20;
 
         /// <summary>
@@ -86,6 +86,8 @@ namespace GUI.Utils
             public int Vsync { get; set; }
             /// <summary>Gets or sets whether the FPS counter is shown in the viewport.</summary>
             public int DisplayFps { get; set; }
+            /// <summary>Gets or sets the maximum render frame rate in frames per second. 0 means unlimited (vsync, if enabled, still paces rendering).</summary>
+            public int MaxFps { get; set; }
             /// <summary>Gets or sets the <see cref="QuickPreviewFlags"/> bitmask for quick file preview behavior.</summary>
             public int QuickFilePreview { get; set; }
             /// <summary>Gets or sets whether the file explorer panel is opened automatically on start (suppressed on first startup or when command-line files are provided).</summary>
@@ -216,6 +218,7 @@ namespace GUI.Utils
             }
 
             Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
+            Config.MaxFps = Math.Clamp(Config.MaxFps, 0, 1000);
             Config.Volume = MathUtils.Saturate(Config.Volume);
             Config.TextViewerFontSize = Math.Clamp(Config.TextViewerFontSize, 8, 24);
             Config.PackageGridSize = Math.Clamp(Config.PackageGridSize, 0, Enum.GetValues<Types.PackageViewer.ThumbnailRenderers.ThumbnailSizes>().Length - 1);
@@ -269,6 +272,11 @@ namespace GUI.Utils
             if (currentVersion < 14) // version 14: added mouse sensitivity
             {
                 Config.MouseSensitivity = 4f;
+            }
+
+            if (currentVersion < 15) // version 15: added max fps
+            {
+                Config.MaxFps = 0; // unlimited by default, preserving prior behavior
             }
 
             if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)

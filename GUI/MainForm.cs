@@ -268,6 +268,13 @@ namespace GUI
 
         public void OpenCommandLineArgFiles(string[] args)
         {
+            if (TryExecuteAppCommand(args))
+            {
+                return;
+            }
+
+            args = CoalesceExistingFileArgs(args);
+
             for (var i = 0; i < args.Length; i++)
             {
                 var file = args[i];
@@ -371,16 +378,91 @@ namespace GUI
             OnMainSelectedTabChanged(null, EventArgs.Empty);
         }
 
+        private static string[] CoalesceExistingFileArgs(string[] args)
+        {
+            var files = new List<string>(args.Length);
+            for (var i = 0; i < args.Length; i++)
+            {
+                var file = args[i];
+                if (file.StartsWith("vpk:", StringComparison.InvariantCulture) || File.Exists(file))
+                {
+                    files.Add(file);
+                    continue;
+                }
+
+                var joined = file;
+                for (var j = i + 1; j < args.Length; j++)
+                {
+                    joined += " " + args[j];
+                    if (!File.Exists(joined))
+                    {
+                        continue;
+                    }
+
+                    files.Add(joined);
+                    i = j;
+                    joined = string.Empty;
+                    break;
+                }
+
+                if (joined.Length > 0)
+                {
+                    files.Add(file);
+                }
+            }
+
+            return files.ToArray();
+        }
+
+        private bool TryExecuteAppCommand(string[] args)
+        {
+            if (args.Length == 0 || !args[0].Equals("--demo-command", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var commandArgs = args.Skip(1).ToArray();
+            if (TryGetDemoViewer(mainTabs.SelectedTab, out var selectedDemo) && selectedDemo.TryExecuteCommand(commandArgs))
+            {
+                return true;
+            }
+
+            foreach (TabPage tab in mainTabs.TabPages)
+            {
+                if (TryGetDemoViewer(tab, out var demo) && demo.TryExecuteCommand(commandArgs))
+                {
+                    return true;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool TryGetDemoViewer(TabPage? tab, out Types.Viewers.Demo demo)
+        {
+            if (tab?.Tag is ExportData { DisposableContents: Types.Viewers.Demo viewer })
+            {
+                demo = viewer;
+                return true;
+            }
+
+            demo = null!;
+            return false;
+        }
+
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
 
-            var consoleTab = new ConsoleTab();
-            Log.SetConsoleTab(consoleTab);
-            var consoleTabPage = consoleTab.CreateTab();
-            consoleTabPage.ImageIndex = Icons["Log"];
-            mainTabs.TabPages.Add(consoleTabPage);
-            consoleTab.InitializeFont();
+            if (Environment.GetEnvironmentVariable("VRF_HIDE_CONSOLE_ON_START") != "1")
+            {
+                var consoleTab = new ConsoleTab();
+                Log.SetConsoleTab(consoleTab);
+                var consoleTabPage = consoleTab.CreateTab();
+                consoleTabPage.ImageIndex = Icons["Log"];
+                mainTabs.TabPages.Add(consoleTabPage);
+                consoleTab.InitializeFont();
+            }
 
 #if SCREENSHOT_MODE
             mainFormBottomPanel.Visible = false;
@@ -414,13 +496,18 @@ namespace GUI
             }
 #endif
 
-            if (Settings.IsFirstStartup)
-            {
-                OpenWelcome();
-            }
-            else if (Args.Length > 0)
+            if (Args.Length > 0)
             {
                 OpenCommandLineArgFiles(Args);
+
+                if (Environment.GetEnvironmentVariable("VRF_SELECT_ARG_TAB_ON_START") == "1")
+                {
+                    BeginInvoke(SelectLastNonConsoleTab);
+                }
+            }
+            else if (Settings.IsFirstStartup)
+            {
+                OpenWelcome();
             }
             else if (Settings.Config.OpenExplorerOnStart != 0)
             {
@@ -428,6 +515,18 @@ namespace GUI
             }
 
             ipcWindow = new();
+        }
+
+        private void SelectLastNonConsoleTab()
+        {
+            for (var i = mainTabs.TabPages.Count - 1; i >= 0; i--)
+            {
+                if (!string.Equals(mainTabs.TabPages[i].Text, "Console", StringComparison.Ordinal))
+                {
+                    mainTabs.SelectTab(mainTabs.TabPages[i]);
+                    return;
+                }
+            }
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -928,7 +1027,7 @@ namespace GUI
             await Task.Yield();
 
             Stream? stream = null;
-            Span<byte> magicData = stackalloc byte[6];
+            Span<byte> magicData = stackalloc byte[8];
 
             if (entry != null)
             {
@@ -957,7 +1056,7 @@ namespace GUI
             }
 
             var magic = BitConverter.ToUInt32(magicData[..4]);
-            var magicResourceVersion = BitConverter.ToUInt16(magicData[4..]);
+            var magicResourceVersion = BitConverter.ToUInt16(magicData[4..6]);
 
             if (Types.PackageViewer.PackageViewer.IsAccepted(magic))
             {
@@ -1016,6 +1115,12 @@ namespace GUI
             else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
             {
                 var viewer = new Types.Viewers.Resource(vrfGuiContext, viewMode, verifyFileSize: entry == null || entry.CRC32 > 0);
+                await viewer.LoadAsync(stream).ConfigureAwait(false);
+                return viewer;
+            }
+            else if (Types.Viewers.Demo.IsAccepted(magicData, vrfGuiContext.FileName))
+            {
+                var viewer = new Types.Viewers.Demo(vrfGuiContext);
                 await viewer.LoadAsync(stream).ConfigureAwait(false);
                 return viewer;
             }

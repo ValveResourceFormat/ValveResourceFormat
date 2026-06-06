@@ -111,7 +111,7 @@ public class Renderer
     public Frustum? LockedCullFrustum { get; set; }
 
     /// <summary>
-    /// When not <see langword="null"/>, PVS queries use this position instead of the camera position, freezing the PVS state.
+    /// When not <see langword="null"/>, stores the position used when the cull frustum is locked.
     /// </summary>
     public Vector3? LockedCullPosition { get; set; }
 
@@ -847,16 +847,6 @@ public class Renderer
         if (LockedCullFrustum == null)
         {
             Scene.GetOcclusionTestResults();
-        }
-
-        if (Scene is { EnablePvsCulling: true, VoxelVisibility: not null })
-        {
-            var pvsPosition = LockedCullPosition ?? updateContext.Camera.Location;
-            Scene.CurrentFramePvs = Scene.VoxelVisibility.GetPVSForPoint(pvsPosition);
-        }
-        else
-        {
-            Scene.CurrentFramePvs = null;
         }
 
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);

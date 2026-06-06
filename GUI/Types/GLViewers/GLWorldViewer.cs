@@ -226,9 +226,69 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        protected void SetMapCameraByIndex(int cameraIndex)
+        {
+            if (cameraIndex < 0 || cameraIndex >= CameraMatrices.Count)
+            {
+                return;
+            }
+
+            Input.SaveCameraForTransition();
+            Input.Camera.SetFromTransformMatrix(CameraMatrices[cameraIndex]);
+
+            if (cameraComboBox != null)
+            {
+                cameraComboBox.SelectedIndex = cameraIndex + 1;
+            }
+        }
+
+        protected bool TrySetMapCameraByName(string cameraName, int occurrence = 1)
+        {
+            if (LoadedWorld == null || occurrence < 1)
+            {
+                return false;
+            }
+
+            var matchIndex = 0;
+            for (var i = 0; i < LoadedWorld.CameraNames.Count; i++)
+            {
+                if (!LoadedWorld.CameraNames[i].Equals(cameraName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                matchIndex++;
+                if (matchIndex == occurrence)
+                {
+                    SetMapCameraByIndex(i);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        protected void EnsureDemoPlaybackLayerEnabled()
+        {
+            foreach (var node in Scene.AllNodes)
+            {
+                if (node.LayerName == "Demo Playback")
+                {
+                    node.LayerEnabled = true;
+                }
+            }
+        }
+
+        protected virtual bool SkipIntroCameraNudge => false;
+
         protected override void OnFirstPaint()
         {
             base.OnFirstPaint();
+
+            if (SkipIntroCameraNudge)
+            {
+                return;
+            }
 
             Input.MoveCamera(new Vector3(0, -150f, 0));
             Input.MoveCamera(new Vector3(0, 150f, 0), transition: true);
@@ -352,11 +412,6 @@ namespace GUI.Types.GLViewers
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
                     UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
 
-                    // TODO: PVS culling is not implemented yet
-                    // if (Scene.VoxelVisibility != null)
-                    // {
-                    //     UiControl.AddCheckBox("PVS Culling", Scene.EnablePvsCulling, v => Scene.EnablePvsCulling = v);
-                    // }
                     UiControl.AddCheckBox("Gpu Culling", Scene.EnableIndirectDraws, v =>
                     {
                         Scene.EnableIndirectDraws = v;

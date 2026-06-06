@@ -184,7 +184,6 @@ namespace ValveResourceFormat.Renderer.World
             LoadEntities();
             LoadWorldNodes();
             LoadWorldPhysics();
-            LoadWorldVisibility();
 
             navMeshTask.Wait();
         }
@@ -290,7 +289,6 @@ namespace ValveResourceFormat.Renderer.World
             if (phys != null)
             {
                 Debug.Assert(physResource?.FileName != null);
-
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
                 {
                     physSceneNode.LayerName = "world_layer_base";
@@ -299,31 +297,6 @@ namespace ValveResourceFormat.Renderer.World
 
                 scene.PhysicsWorld = new Rubikon(phys);
             }
-        }
-
-        /// <summary>
-        /// Loads world voxel visibility (<c>.vvis_c</c>) into the scene.
-        /// </summary>
-        public void LoadWorldVisibility()
-        {
-            var visResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_visibility.vvis_c");
-            if (visResource == null)
-            {
-                return;
-            }
-
-            if (visResource.GetBlockByType(BlockType.VXVS) is not VoxelVisibility { BaseClusterCount: > 0 } voxelVisibility)
-            {
-                return;
-            }
-
-            scene.VoxelVisibility = voxelVisibility;
-
-            var visNode = new VisibilitySceneNode(scene, voxelVisibility)
-            {
-                LayerName = "Visibility clusters",
-            };
-            scene.Add(visNode, false);
         }
 
         private readonly Dictionary<string, string> LightmapNameToUniformName = new()

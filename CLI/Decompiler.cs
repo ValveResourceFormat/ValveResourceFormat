@@ -14,6 +14,7 @@ using ConsoleAppFramework;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.DemoPlayback;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
@@ -547,7 +548,7 @@ namespace CLI
                 }
             }
 
-            Span<byte> magicData = stackalloc byte[4];
+            Span<byte> magicData = stackalloc byte[8];
 
             if (stream.Length >= magicData.Length)
             {
@@ -555,7 +556,13 @@ namespace CLI
                 stream.Seek(-magicData.Length, SeekOrigin.Current);
             }
 
-            var magic = BitConverter.ToUInt32(magicData);
+            var magic = BitConverter.ToUInt32(magicData[..4]);
+
+            if (originalPath == null && CsDemoFormat.IsAccepted(magicData, path))
+            {
+                ParseDemo(path);
+                return;
+            }
 
             switch (magic)
             {
@@ -945,6 +952,33 @@ namespace CLI
                 }
 
                 Console.WriteLine(kv3.ToString());
+            }
+            catch (Exception e)
+            {
+                LogException(e, path);
+            }
+        }
+
+        private void ParseDemo(string path)
+        {
+            try
+            {
+                var summary = CsDemoPlayback.ReadSummaryAsync(path).GetAwaiter().GetResult();
+
+                Console.WriteLine("CS2 Demo");
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Map: {0}", summary.MapName));
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Ticks: {0:N0}", summary.TickCount));
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Duration: {0}", summary.Duration));
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Server: {0}", summary.ServerName));
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Client: {0}", summary.ClientName));
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Game directory: {0}", summary.GameDirectory));
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Parse status: {0}", summary.Parsed ? "OK" : "Incomplete"));
+                Console.WriteLine("  Players:");
+
+                foreach (var player in summary.Players)
+                {
+                    Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "    [{0}] {1} ({2})", player.Team, player.Name, player.SteamId));
+                }
             }
             catch (Exception e)
             {

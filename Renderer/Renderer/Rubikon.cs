@@ -199,6 +199,25 @@ public class Rubikon
         return closestHit;
     }
 
+    /// <summary>Traces a ray against all physics meshes and hulls (no interact filter). For editor placement.</summary>
+    public TraceResult TraceRayPlacement(Vector3 from, Vector3 to)
+    {
+        TraceResult closestHit = new();
+        var ray = new RayTraceContext(from, to);
+
+        foreach (var mesh in Meshes)
+        {
+            closestHit.MinimizeWith(RayIntersectsWithMesh(ray, mesh));
+        }
+
+        foreach (var hull in Hulls)
+        {
+            closestHit.MinimizeWith(RayIntersectsWithHull(ray, hull));
+        }
+
+        return closestHit;
+    }
+
     /// <summary>Precomputed sweep data for an axis-aligned box trace.</summary>
     public readonly struct AABBTraceContext
     {

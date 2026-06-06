@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -73,15 +72,6 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Gets or sets the physics simulation world associated with this scene.</summary>
         public Rubikon? PhysicsWorld { get; set; }
-
-        /// <summary>Gets or sets the voxel visibility data.</summary>
-        public VoxelVisibility? VoxelVisibility { get; set; }
-
-        /// <summary>Gets or sets whether PVS culling is enabled for this scene.</summary>
-        public bool EnablePvsCulling { get; set; }
-
-        /// <summary>Gets or sets the PVS bitfield for the cluster at the current camera position.</summary>
-        public byte[]? CurrentFramePvs { get; set; }
 
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
@@ -168,7 +158,7 @@ namespace ValveResourceFormat.Renderer
         internal bool CompactMeshletDraws { get; private set; }
 
         /// <summary>Gets all static and dynamic scene nodes in the order they were added.</summary>
-        public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
+        public IEnumerable<SceneNode> AllNodes => staticNodes.ToArray().Concat(dynamicNodes.ToArray());
 
         private readonly List<SceneNode> staticNodes = [];
         private readonly List<SceneNode> dynamicNodes = [];
@@ -371,8 +361,19 @@ namespace ValveResourceFormat.Renderer
         /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
         public void Update(Scene.UpdateContext updateContext)
         {
-            foreach (var node in staticNodes)
+            var staticNodesSnapshot = staticNodes.ToArray();
+            foreach (var node in staticNodesSnapshot)
             {
+                if (node == null)
+                {
+                    continue;
+                }
+
+                if (!staticNodes.Contains(node))
+                {
+                    continue;
+                }
+
                 node.Update(updateContext);
             }
 
@@ -382,8 +383,19 @@ namespace ValveResourceFormat.Renderer
                 CreateIndirectDrawBuffers(true);
             }
 
-            foreach (var node in dynamicNodes)
+            var dynamicNodesSnapshot = dynamicNodes.ToArray();
+            foreach (var node in dynamicNodesSnapshot)
             {
+                if (node == null)
+                {
+                    continue;
+                }
+
+                if (!dynamicNodes.Contains(node))
+                {
+                    continue;
+                }
+
                 if (node.Parent != null)
                 {
                     continue; // child nodes are updated by their parent
@@ -402,6 +414,8 @@ namespace ValveResourceFormat.Renderer
             {
                 UpdateOctrees();
                 UpdateNodeIndices();
+                CalculateLightProbeBindings();
+                CalculateEnvironmentMaps();
                 CreateInstanceTransformBuffers(deletePrevious: true);
             }
         }
@@ -492,7 +506,7 @@ namespace ValveResourceFormat.Renderer
 
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
         {
-            var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => agg.CanDrawIndirect).ToList();
+            var aggregateSceneNodes = staticNodes.ToArray().OfType<SceneAggregate>().Where(agg => agg.CanDrawIndirect).ToList();
             var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.Fragments.Count);
             var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
 
@@ -1582,7 +1596,8 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                if (renderer.LayerName.StartsWith("Internal -", StringComparison.Ordinal))
+                if (renderer.LayerName.StartsWith("Internal -", StringComparison.Ordinal)
+                    || renderer.LayerName == "Demo Playback")
                 {
                     continue;
                 }
@@ -1619,12 +1634,19 @@ namespace ValveResourceFormat.Renderer
 
             if (StaticOctree.Dirty)
             {
+                var staticNodesSnapshot = staticNodes.ToArray();
+
                 // static octree is tightly wrapped around the scene
                 var maxBounds = new AABB();
                 var hasBounds = false;
 
-                foreach (var node in staticNodes)
+                foreach (var node in staticNodesSnapshot)
                 {
+                    if (node == null || !staticNodes.Contains(node))
+                    {
+                        continue;
+                    }
+
                     if (node.LayerEnabled)
                     {
                         maxBounds = hasBounds ? maxBounds.Union(node.BoundingBox) : node.BoundingBox;
@@ -1634,8 +1656,13 @@ namespace ValveResourceFormat.Renderer
 
                 StaticOctree.Clear(maxBounds);
 
-                foreach (var node in staticNodes)
+                foreach (var node in staticNodesSnapshot)
                 {
+                    if (node == null || !staticNodes.Contains(node))
+                    {
+                        continue;
+                    }
+
                     if (node.LayerEnabled)
                     {
                         StaticOctree.Insert(node);
@@ -1648,10 +1675,16 @@ namespace ValveResourceFormat.Renderer
 
             if (DynamicOctree.Dirty)
             {
+                var dynamicNodesSnapshot = dynamicNodes.ToArray();
                 DynamicOctree.Clear();
 
-                foreach (var node in dynamicNodes)
+                foreach (var node in dynamicNodesSnapshot)
                 {
+                    if (node == null || !dynamicNodes.Contains(node))
+                    {
+                        continue;
+                    }
+
                     if (node.LayerEnabled)
                     {
                         DynamicOctree.Insert(node);
@@ -1666,14 +1699,16 @@ namespace ValveResourceFormat.Renderer
         public void UpdateNodeIndices()
         {
             uint index = 1; // 0 is reserved for invalid index
+            staticNodes.RemoveAll(static node => node == null);
+            dynamicNodes.RemoveAll(static node => node == null);
 
-            foreach (var node in staticNodes)
+            foreach (var node in staticNodes.ToArray())
             {
                 node.Id = index;
                 index++;
             }
 
-            foreach (var node in dynamicNodes)
+            foreach (var node in dynamicNodes.ToArray())
             {
                 node.Id = index;
                 index++;
@@ -1693,6 +1728,11 @@ namespace ValveResourceFormat.Renderer
         public void CalculateLightProbeBindings()
         {
             Debug.Assert(lpvBuffer is not null);
+
+            foreach (var node in AllNodes)
+            {
+                node.LightProbeBinding = null;
+            }
 
             if (LightingInfo.LightProbes.Count == 0)
             {
@@ -1789,6 +1829,11 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void CalculateEnvironmentMaps()
         {
+            foreach (var node in AllNodes)
+            {
+                node.EnvMaps.Clear();
+            }
+
             if (LightingInfo.EnvMaps.Count == 0)
             {
                 return;

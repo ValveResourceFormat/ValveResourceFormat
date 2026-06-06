@@ -50,6 +50,8 @@ namespace GUI.Controls
             antiAliasingComboBox = new ThemedComboBox();
             registerAssociationButton = new ThemedButton();
             displayFpsCheckBox = new System.Windows.Forms.CheckBox();
+            maxFpsLabel = new System.Windows.Forms.Label();
+            maxFpsInput = new ThemedIntNumeric() { MaxValue = 1000, MinValue = 0 };
             groupBox1 = new ThemedGroupBox();
             groupBox2 = new ThemedGroupBox();
             setFovTo4by3Button = new ThemedButton();
@@ -267,9 +269,30 @@ namespace GUI.Controls
             displayFpsCheckBox.Text = "Display FPS";
             displayFpsCheckBox.UseVisualStyleBackColor = true;
             displayFpsCheckBox.CheckedChanged += OnDisplayFpsValueChanged;
-            // 
+            //
+            // maxFpsLabel
+            //
+            maxFpsLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            maxFpsLabel.AutoSize = true;
+            maxFpsLabel.Location = new System.Drawing.Point(15, 316);
+            maxFpsLabel.Name = "maxFpsLabel";
+            maxFpsLabel.Size = new System.Drawing.Size(150, 19);
+            maxFpsLabel.TabIndex = 11;
+            maxFpsLabel.Text = "Max FPS (0 = unlimited):";
+            //
+            // maxFpsInput
+            //
+            maxFpsInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            maxFpsInput.Increment = 10;
+            maxFpsInput.Location = new System.Drawing.Point(200, 314);
+            maxFpsInput.Name = "maxFpsInput";
+            maxFpsInput.Size = new System.Drawing.Size(100, 25);
+            maxFpsInput.TabIndex = 12;
+            maxFpsInput.Value = 0;
+            maxFpsInput.ValueChanged += OnMaxFpsValueChanged;
+            //
             // groupBox1
-            // 
+            //
             groupBox1.AutoSize = true;
             groupBox1.BorderColor = System.Drawing.Color.Black;
             groupBox1.BorderWidth = 2;
@@ -293,6 +316,8 @@ namespace GUI.Controls
             groupBox2.AutoSize = true;
             groupBox2.BorderColor = System.Drawing.Color.Black;
             groupBox2.BorderWidth = 2;
+            groupBox2.Controls.Add(maxFpsInput);
+            groupBox2.Controls.Add(maxFpsLabel);
             groupBox2.Controls.Add(displayFpsCheckBox);
             groupBox2.Controls.Add(setFovTo4by3Button);
             groupBox2.Controls.Add(vsyncCheckBox);
@@ -540,6 +565,8 @@ namespace GUI.Controls
         private System.Windows.Forms.Label antiAliasingLabel;
         private System.Windows.Forms.CheckBox vsyncCheckBox;
         private System.Windows.Forms.CheckBox displayFpsCheckBox;
+        private System.Windows.Forms.Label maxFpsLabel;
+        private ThemedIntNumeric maxFpsInput;
         private System.Windows.Forms.CheckBox quickPreviewCheckbox;
         private System.Windows.Forms.CheckBox quickPreviewSoundsCheckbox;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;

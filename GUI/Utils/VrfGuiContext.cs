@@ -291,6 +291,11 @@ namespace GUI.Utils
 
             resource = base.LoadFile(file);
 
+            if (resource == null && ParentGuiContext != null)
+            {
+                resource = ParentGuiContext.LoadFile(file);
+            }
+
             if (resource != null)
             {
                 CachedResources[file] = resource;

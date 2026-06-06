@@ -32,8 +32,6 @@ namespace GUI.Types.GLViewers
 
         private bool showStaticOctree;
         private bool showDynamicOctree;
-        private bool showVisDebug;
-
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
@@ -109,10 +107,6 @@ namespace GUI.Types.GLViewers
                 {
                     UiControl.AddCheckBox("Show Occluded Bounds", Scene.OcclusionDebugEnabled, (v) => Scene.OcclusionDebugEnabled = v);
 
-                    if (Scene.VoxelVisibility != null)
-                    {
-                        UiControl.AddCheckBox("Show Vis Debug", showVisDebug, v => showVisDebug = v);
-                    }
                 }
 
                 UiControl.AddCheckBox("Show Render Timings", Renderer.Timings.Capture, (v) => Renderer.Timings.Capture = v);
@@ -481,7 +475,7 @@ namespace GUI.Types.GLViewers
 
             GL.EndQuery(QueryTarget.TimeElapsed);
 
-            if (Paused)
+            if (Paused && ShowPausedOverlay)
             {
                 DrawLowerCornerText("Paused", new(255, 100, 0));
             }
@@ -537,37 +531,6 @@ namespace GUI.Types.GLViewers
                 }, Renderer.Camera);
             }
 
-            if (showVisDebug && Scene.VoxelVisibility != null)
-            {
-                var pvsPos = Renderer.LockedCullPosition ?? Renderer.Camera.Location;
-                var cluster = Scene.VoxelVisibility.GetClusterForPosition(pvsPos);
-                var y = 18f;
-
-                void AddLine(string text, Color32 color)
-                {
-                    TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-                    {
-                        X = 4f,
-                        Y = y,
-                        Scale = 14f,
-                        Color = color,
-                        Text = text,
-                    });
-                    y += 16f;
-                }
-
-                AddLine(
-                    cluster <= 1 ? "No PVS at this position" : $"PVS cluster {cluster}",
-                    cluster <= 1 ? new Color32(255, 0, 0) : Color32.White
-                );
-
-                if (Scene.CurrentFramePvs != null)
-                {
-                    var visCount = Scene.CurrentFramePvs.Sum(b => BitOperations.PopCount(b));
-                    AddLine($"PVS visible: {visCount}/{Scene.VoxelVisibility.BaseClusterCount} clusters", Color32.White);
-                }
-            }
-
             if (Renderer.Timings.Capture)
             {
                 Renderer.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
@@ -578,6 +541,8 @@ namespace GUI.Types.GLViewers
 
             Renderer.Timings.MarkFrameEnd();
         }
+
+        protected virtual bool ShowPausedOverlay => true;
 
         protected void AddBaseGridControl()
         {
@@ -666,6 +631,7 @@ namespace GUI.Types.GLViewers
                 {
                     supportedRenderModes.UnionWith(node.GetSupportedRenderModes());
                 }
+                AddCustomRenderModes(supportedRenderModes);
 
                 renderModes.Clear();
 
@@ -717,6 +683,31 @@ namespace GUI.Types.GLViewers
             SkyboxScene?.SetEnabledLayers(layers);
         }
 
+        protected virtual void AddCustomRenderModes(HashSet<string> supportedRenderModes)
+        {
+        }
+
+        protected bool TrySelectRenderMode(string renderMode)
+        {
+            if (renderModeComboBox == null)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < renderModes.Count; i++)
+            {
+                if (renderModes[i].Name != renderMode || renderModes[i].IsHeader)
+                {
+                    continue;
+                }
+
+                renderModeComboBox.SelectedIndex = i;
+                return true;
+            }
+
+            return false;
+        }
+
         private void SetRenderMode(string renderMode)
         {
             Debug.Assert(Picker != null);
@@ -743,6 +734,12 @@ namespace GUI.Types.GLViewers
                     node.SetRenderMode(renderMode);
                 }
             }
+
+            OnRenderModeChanged(renderMode);
+        }
+
+        protected virtual void OnRenderModeChanged(string renderMode)
+        {
         }
 
         protected override void OnKeyDown(object? sender, KeyEventArgs e)

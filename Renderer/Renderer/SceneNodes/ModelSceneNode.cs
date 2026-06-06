@@ -57,6 +57,34 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets whether this model has at least one mesh renderer loaded.</summary>
         public bool HasMeshes => meshRenderers.Count > 0;
 
+        /// <summary>
+        /// Replaces draw calls that use black-unlit shaders (pure black output) with <c>vr_unlit.vfx</c>.
+        /// <c>csgo_weapon.vfx</c> materials are left unchanged so they keep PBR lighting, specular, and shadows.
+        /// </summary>
+        public void UpgradeGrenadeMaterials()
+        {
+            var materialLoader = Scene.RendererContext.MaterialLoader;
+            var fileLoader = Scene.RendererContext.FileLoader;
+
+            foreach (var meshRenderer in meshRenderers)
+            {
+                foreach (var drawCall in meshRenderer.DrawCalls)
+                {
+                    var material = drawCall.Material.Material;
+
+                    if (material.ShaderName is not ("csgo_black_unlit.vfx" or "vr_black_unlit.vfx"))
+                    {
+                        continue;
+                    }
+
+                    var resource = fileLoader.LoadFileCompiled(material.Name);
+                    var upgraded = materialLoader.LoadMaterialWithShader(
+                        resource, "vr_unlit.vfx", material.GetShaderArguments());
+                    drawCall.SetNewMaterial(upgraded);
+                }
+            }
+        }
+
         private readonly List<RenderableMesh> meshRenderers = [];
 
         /// <summary>Gets whether this model has an active GPU bone matrix buffer (i.e., has animations loaded).</summary>

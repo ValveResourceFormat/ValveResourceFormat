@@ -146,10 +146,10 @@ namespace ValveResourceFormat
         WorldNode,
 
         /// <summary>
-        /// World visibility data stored in voxel clusters.
+        /// World visibility data.
         /// </summary>
         [Extension("vvis")]
-        WorldVisibility,
+        VisibilityData,
 
         /// <summary>
         /// Entity lump containing map entities.

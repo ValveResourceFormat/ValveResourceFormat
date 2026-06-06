@@ -334,5 +334,53 @@ namespace ValveResourceFormat.Renderer
         {
             return float.DegreesToRadians(RendererContext.FieldOfView);
         }
+
+        /// <summary>
+        /// Builds a world-space ray from a viewport pixel (top-left origin, framebuffer pixels).
+        /// </summary>
+        public (Vector3 Origin, Vector3 Direction) GetRayFromScreen(int pixelX, int pixelY, int viewportWidth, int viewportHeight)
+        {
+            Matrix4x4.Invert(CameraViewMatrix, out var viewInverse);
+            Matrix4x4.Invert(ProjectionMatrix, out var projectionInverse);
+
+            var uvX = (pixelX + 0.5f) / viewportWidth;
+            var uvY = (pixelY + 0.5f) / viewportHeight;
+            var ndcX = uvX * 2f - 1f;
+            var ndcY = 1f - (uvY * 2f);
+
+            var rayDirView = Vector4.Transform(new Vector4(ndcX, ndcY, 1f, 1f), projectionInverse);
+            var rayDirection = Vector3.Normalize(Vector3.TransformNormal(
+                new Vector3(rayDirView.X, rayDirView.Y, rayDirView.Z),
+                viewInverse));
+
+            return (Location, rayDirection);
+        }
+
+        /// <summary>Unprojects a viewport pixel and depth value (0..1) to world space.</summary>
+        public Vector3? UnprojectScreenDepth(int pixelX, int pixelY, int viewportWidth, int viewportHeight, float depth)
+        {
+            if (depth <= 0.001f || depth >= 0.999f)
+            {
+                return null;
+            }
+
+            Matrix4x4.Invert(CameraViewMatrix, out var viewInverse);
+            Matrix4x4.Invert(ProjectionMatrix, out var projectionInverse);
+
+            var uvX = (pixelX + 0.5f) / viewportWidth;
+            var uvY = (pixelY + 0.5f) / viewportHeight;
+            var ndcX = uvX * 2f - 1f;
+            var ndcY = 1f - (uvY * 2f);
+
+            var clip = Vector4.Transform(new Vector4(ndcX, ndcY, depth, 1f), projectionInverse);
+            if (MathF.Abs(clip.W) < 1e-6f)
+            {
+                return null;
+            }
+
+            var viewPos = new Vector4(clip.X / clip.W, clip.Y / clip.W, clip.Z / clip.W, 1f);
+            var world = Vector4.Transform(viewPos, viewInverse);
+            return new Vector3(world.X, world.Y, world.Z);
+        }
     }
 }

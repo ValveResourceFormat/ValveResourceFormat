@@ -226,3 +226,22 @@ Tests/lcov.info
 /docs/.vitepress/dist/
 /docs/.vitepress/cache/
 /docs/.vitepress/temp/
+
+# Local development — personal files, not for upstream PR
+demos/
+LEARNINGS.md
+learnings.md
+.claude/
+.cursor/
+scripts/
+dev-gui.bat
+run-gui.bat
+2048xtmp
+
+# Agent / debug screenshots and reports (repo root only)
+/agent-*.png
+/verify-*.png
+/app-shot-*.png
+/watchdog-*.png
+/watchdog-report.json
+/debug-*.log

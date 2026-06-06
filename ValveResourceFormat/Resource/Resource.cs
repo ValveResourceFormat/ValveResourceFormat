@@ -507,7 +507,6 @@ namespace ValveResourceFormat
                 BlockType.RERL => new ResourceExtRefList() { Resource = this },
                 BlockType.NTRO => new ResourceIntrospectionManifest() { Resource = this },
                 BlockType.VBIB => new VBIB() { Resource = this },
-                BlockType.VXVS => new VoxelVisibility() { Resource = this },
                 BlockType.SNAP => new ParticleSnapshot() { Resource = this },
                 BlockType.MBUF => new MBUF() { Resource = this },
                 BlockType.TBUF => new TBUF() { Resource = this },
@@ -528,7 +527,7 @@ namespace ValveResourceFormat
                 BlockType.AGRP => new KeyValuesOrNTRO(BlockType.AGRP, "AnimationGroupResourceData_t") { Resource = this },
                 BlockType.PHYS => new PhysAggregateData(BlockType.PHYS) { Resource = this },
                 BlockType.SPRV => new SboxShader(BlockType.SPRV) { Resource = this },
-                _ => throw new ArgumentException($"Unrecognized block type '{Encoding.ASCII.GetString(BitConverter.GetBytes((uint)blockType))}'"),
+                _ => new UnknownBlock(blockType) { Resource = this },
             };
         }
 

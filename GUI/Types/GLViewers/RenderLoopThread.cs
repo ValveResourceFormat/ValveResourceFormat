@@ -31,6 +31,14 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        public static void RequestRender()
+        {
+            if (currentGLControl != null)
+            {
+                renderSignal.Set();
+            }
+        }
+
         public static void RegisterInstance()
         {
             if (Interlocked.Increment(ref instances) == 1)
@@ -143,7 +151,9 @@ namespace GUI.Types.GLViewers
 
                 var isPaused = !renderSignal.IsSet;
 
-                if (!isPaused && Form.ActiveForm == null)
+                if (!isPaused
+                    && Form.ActiveForm == null
+                    && Environment.GetEnvironmentVariable("VRF_KEEP_RENDERING_WHEN_INACTIVE") != "1")
                 {
                     isPaused = true;
                     renderSignal.Reset();

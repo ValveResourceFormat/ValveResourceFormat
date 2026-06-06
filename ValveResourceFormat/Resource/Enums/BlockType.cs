@@ -41,11 +41,6 @@ namespace ValveResourceFormat
         VBIB = 'V' | ('B' << 8) | ('I' << 16) | ('B' << 24),
 
         /// <summary>
-        /// Voxel Visibility. Contains voxel-based visibility data.
-        /// </summary>
-        VXVS = 'V' | ('X' << 8) | ('V' << 16) | ('S' << 24),
-
-        /// <summary>
         /// Particle Snapshot. Contains snapshot data for particle systems.
         /// </summary>
         SNAP = 'S' | ('N' << 8) | ('A' << 16) | ('P' << 24),

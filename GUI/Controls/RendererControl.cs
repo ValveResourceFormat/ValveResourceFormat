@@ -44,6 +44,11 @@ partial class RendererControl : UserControl
         SetControlLocation(control);
     }
 
+    public void SetControlsPanelVisible(bool visible)
+    {
+        splitContainer.Panel1Collapsed = !visible;
+    }
+
     public static GLViewerCheckboxControl CreateCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
     {
         var checkbox = new GLViewerCheckboxControl(name, defaultChecked);

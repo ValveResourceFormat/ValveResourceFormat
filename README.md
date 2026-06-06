@@ -76,7 +76,6 @@ vsurf         | Surface Properties                | No
 vsvg          | Panorama Vector Graphic           | 👍
 vtex          | Compiled Texture                  | 👍
 vts           | Panorama TypeScript               | 👍
-vvis          | World Visibility                  | 👍
 vwnod         | World Node                        | 👍
 vwrld         | World                             | 👍
 vxml          | Panorama Layout                   | 👍

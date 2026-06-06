@@ -34,7 +34,16 @@ namespace GUI
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
-            if (args.Length > 0 && Ipc.TryForwardToExistingInstance(args))
+            var appCommand = args.Length > 0 && args[0].Equals("--demo-command", StringComparison.OrdinalIgnoreCase);
+
+            if (args.Length > 0
+                && Environment.GetEnvironmentVariable("VRF_DISABLE_IPC") != "1"
+                && Ipc.TryForwardToExistingInstance(args))
+            {
+                return;
+            }
+
+            if (appCommand)
             {
                 return;
             }

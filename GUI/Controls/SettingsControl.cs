@@ -46,6 +46,7 @@ namespace GUI.Controls
             shadowQualityComboBox.SelectedIndex = shadowQualityIndex;
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
+            maxFpsInput.Value = Settings.Config.MaxFps;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
             textViewerFontSize.Value = Settings.Config.TextViewerFontSize;
 
@@ -232,6 +233,16 @@ namespace GUI.Controls
             }
 
             Settings.Config.DisplayFps = displayFpsCheckBox.Checked ? 1 : 0;
+        }
+
+        private void OnMaxFpsValueChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.MaxFps = maxFpsInput.Value;
         }
 
         private void OnTextViewerFontSizeValueChanged(object sender, EventArgs e)

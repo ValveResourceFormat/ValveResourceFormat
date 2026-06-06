@@ -39,6 +39,7 @@
     <EmbeddedResource Include="Utils\industrial_sunset_puresky.vtex_c" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DemoPlayback\DemoPlayback.csproj" />
     <ProjectReference Include="..\Renderer\Renderer.csproj" />
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
   </ItemGroup>

@@ -146,6 +146,7 @@ namespace ValveResourceFormat.Renderer
                 forceUpdate = false;
 
                 ApplyInverseKinematics();
+                ApplyProceduralBoneRotationOverlays(timeStep);
                 return true;
             }
 
@@ -189,6 +190,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             ApplyInverseKinematics();
+            ApplyProceduralBoneRotationOverlays(timeStep);
             return true;
         }
 

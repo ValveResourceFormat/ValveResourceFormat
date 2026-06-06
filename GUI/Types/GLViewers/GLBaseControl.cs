@@ -753,10 +753,9 @@ internal abstract class GLBaseControl : IDisposable
         // Clamp frametime so it does not cause issues in things like particle rendering
         var frameTime = MathF.Min(1f, (float)elapsed.TotalSeconds);
         LastUpdate = currentTime;
+
         OnUpdate(frameTime);
-
         OnPaint(frameTime);
-
         GLNativeWindow.Context.SwapBuffers();
 
         GLNativeWindow.Context.MakeNoneCurrent();

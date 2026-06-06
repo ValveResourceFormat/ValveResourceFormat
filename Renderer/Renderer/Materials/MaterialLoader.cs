@@ -32,10 +32,15 @@ namespace ValveResourceFormat.Renderer.Materials
         private readonly Dictionary<string, string[]> TextureAliases = new()
         {
             ["g_tLayer2Color"] = ["g_tColorB", "g_tColor2"],
+            ["g_tColor2"] = ["g_tColor", "g_tColor1", "g_tColorA"],
             ["g_tColor"] = ["g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC", "g_tGlassDust"],
             ["g_tNormal"] = ["g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness", "g_tNormalRoughness1"],
             ["g_tLayer2NormalRoughness"] = ["g_tNormalB", "g_tNormalRoughness2"],
             ["g_tAmbientOcclusion"] = ["g_tLayer1AmbientOcclusion"],
+            ["g_tEyeAlbedo1"] = ["g_tEyeAlbedo", "g_tEyeColor", "g_tIris", "g_tColor", "g_tEyeAlbedo1"],
+            ["g_tEyeMask1"] = ["g_tEyeMask", "g_tMask", "g_tEyeMask1"],
+            ["g_tEyeAlbedo"] = ["g_tEyeAlbedo1", "g_tEyeColor", "g_tIris"],
+            ["g_tEyeMask"] = ["g_tEyeMask1", "g_tMask"],
         };
 
         /// <summary>Initializes a new instance of the <see cref="MaterialLoader"/> class.</summary>
@@ -176,6 +181,28 @@ namespace ValveResourceFormat.Renderer.Materials
             return mat;
         }
 
+        /// <summary>
+        /// Loads a material while temporarily substituting its shader (not cached; restores the original shader name).
+        /// </summary>
+        public RenderMaterial LoadMaterialWithShader(Resource? resource, string shaderName, Dictionary<string, byte>? shaderArguments = null)
+        {
+            if (resource?.DataBlock is not VrfMaterial vrfMaterial)
+            {
+                return GetErrorMaterial();
+            }
+
+            var originalShader = vrfMaterial.ShaderName;
+            vrfMaterial.ShaderName = shaderName;
+
+            try
+            {
+                return LoadMaterial(resource, shaderArguments);
+            }
+            finally
+            {
+                vrfMaterial.ShaderName = originalShader;
+            }
+        }
 
         /// <summary>Returns a cached <see cref="RenderTexture"/> for the given path, loading it on first access.</summary>
         /// <param name="name">The compiled texture resource path.</param>
