@@ -238,24 +238,11 @@ vec4 GetTintColorLinear(vec4 vTint)
 #include "features/csgo_character_eyes_vs.slang"
 
 // Firstperson legs distortion parameters
-uniform float g_flFirstpersonLegsFade = 0.0;
-uniform int g_bDisableFirstpersonLegsDistortion = 0;
 uniform int g_bFirstpersonLegsDistortion = 0;
 
 // Apply firstperson legs distortion effect to clip space position and normal.
 // This creates a fish-eye warping effect on player legs in first-person view,
 // preventing clipping when looking down by scaling outward and pulling back.
-//
-// NOTE: Currently using distance-based activation for debugging (within 100 units of camera).
-//       TODO: Replace with proper uniform checks: g_flFirstpersonLegsFade > 0.0 && g_bDisableFirstpersonLegsDistortion == 0
-//
-// vertexPosOS: Original vertex position in object space
-// vertexPosWS: Vertex position in world space
-// clipSpacePos: Position in clip space (after projection)
-// normal: Surface normal in world space
-// viewDirZ: Camera view direction Z component (from view matrix)
-// outClipSpacePos: Modified clip space position with distortion applied
-// outNormal: Modified normal tilted slightly upward
 void ApplyFirstpersonLegsDistortion(
     in vec3 vertexPosOS,
     in vec3 vertexPosWS,
