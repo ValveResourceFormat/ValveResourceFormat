@@ -33,8 +33,7 @@ namespace GUI.Types.GLViewers
         public CheckedListBox? meshGroupListBox { get; private set; }
         public ComboBox? materialGroupListBox { get; private set; }
         private ComboBox? lodComboBox;
-        private int lastShownAutoLod = -1;
-        private bool suppressLodSelectionHandler;
+        private bool hasSelectableLods;
         private bool modelStatsShown;
         private bool modelStatsDirty;
         private int statsLod = -1;
@@ -321,18 +320,19 @@ namespace GUI.Types.GLViewers
 
                 if (lodInfo.HasDistinctLevels)
                 {
+                    hasSelectableLods = true;
+
                     using var _ = UiControl.BeginGroup("Model");
 
                     lodComboBox = UiControl.AddSelection("Level of Detail", (_, i) =>
                     {
-                        // Ignore the change event raised by our own live relabel of the "Auto" entry.
-                        if (i < 0 || suppressLodSelectionHandler)
+                        if (i < 0)
                         {
                             return;
                         }
 
                         using var lockedGl = MakeCurrent();
-                        // Index 0 is "Auto" (distance-based); index i forces LoD level i - 1.
+                        // Index 0 is Auto; everything below it maps straight to a LoD level.
                         modelSceneNode?.SetActiveLod(i == 0 ? null : i - 1);
                     });
 
@@ -499,6 +499,11 @@ namespace GUI.Types.GLViewers
 
             var sb = new System.Text.StringBuilder();
 
+            if (hasSelectableLods)
+            {
+                sb.AppendLine(GetActiveLodText());
+            }
+
             sb.AppendLine(CultureInfo.InvariantCulture, $"Mesh Count: {modelSceneNode.RenderableMeshes.Count}");
 
             foreach (var mesh in modelSceneNode.RenderableMeshes)
@@ -579,8 +584,9 @@ namespace GUI.Types.GLViewers
         private bool enableRootMotion;
 
         /// <summary>
-        /// Builds a LoD dropdown entry: "LOD n (Empty)" for unpopulated levels, otherwise "LOD n" with the
-        /// metric range it is active over (e.g. "LOD 2 (10-15)", "LOD 4 (20+)"). No range without switch data.
+        /// Builds a dropdown label for one LoD level: "LOD n (Empty)" if the level has no meshes,
+        /// otherwise "LOD n" plus the range it's active over, like "LOD 2 (10-15)" or "LOD 4 (20+)".
+        /// The range is omitted when the model has no switch data.
         /// </summary>
         private static string FormatLodEntry(ModelLodInfo lodInfo, int level)
         {
@@ -617,8 +623,8 @@ namespace GUI.Types.GLViewers
                 LastRootMotionPosition = animationFrame.Movement.Position;
             }
 
-            // The stats overlay is a snapshot of the rendered meshes, which change on LoD switch (manual or
-            // auto) and on mesh/material group changes. Rebuild only when one of those happens, not per frame.
+            // The stats overlay reflects whatever meshes are currently drawn, so it only needs rebuilding
+            // when that set changes (a LoD switch, or a mesh/material group change), not every frame.
             if (modelStatsShown && modelSceneNode != null && SelectedNodeRenderer != null)
             {
                 if (modelSceneNode.ActiveLod != statsLod)
@@ -634,81 +640,24 @@ namespace GUI.Types.GLViewers
                 }
             }
 
+            // Always show the active level in the corner. Skip it while paused, where the corner is
+            // taken over by the "Paused" text.
+            if (hasSelectableLods && modelSceneNode != null && !Paused)
+            {
+                DrawLowerCornerText(GetActiveLodText(), Color32.White, lineFromBottom: 1);
+            }
+
             base.OnPaint(frameTime);
-
-            UpdateAutoLodLabel();
         }
 
-        /// <summary>
-        /// While Auto is selected, annotates the dropdown's "Auto" entry with the level the
-        /// distance-based selector currently resolves to (e.g. "Auto (LOD 2)"). Runs on the render
-        /// thread, so it only reads the scene node's own state and marshals the combobox update to the
-        /// UI thread.
-        /// </summary>
-        private void UpdateAutoLodLabel()
+        /// <summary>Active level as overlay text: "LOD: Auto (2)" while auto-selecting, "LOD: 2" when forced.</summary>
+        private string GetActiveLodText()
         {
-            if (lodComboBox == null || modelSceneNode == null)
-            {
-                return;
-            }
+            Debug.Assert(modelSceneNode != null);
 
-            var activeLod = modelSceneNode.ActiveLod;
-
-            if (activeLod == lastShownAutoLod)
-            {
-                return;
-            }
-
-            if (lodComboBox.IsHandleCreated && lodComboBox.InvokeRequired)
-            {
-                lodComboBox.BeginInvoke(() => ApplyAutoLodLabel(activeLod));
-            }
-            else
-            {
-                ApplyAutoLodLabel(activeLod);
-            }
-        }
-
-        private void ApplyAutoLodLabel(int activeLod)
-        {
-            // Don't touch the control while the list is open. Mutating Items mid-interaction breaks
-            // highlighting and clicking.
-            if (lodComboBox == null || lodComboBox.IsDisposed || lodComboBox.DroppedDown)
-            {
-                return;
-            }
-
-            // Remember it so we don't keep re-marshaling the same value. This only advances once the list is closed.
-            lastShownAutoLod = activeLod;
-
-            // Only the "Auto" entry is annotated; manual entries already show their level.
-            if (lodComboBox.SelectedIndex != 0 || lodComboBox.Items.Count == 0)
-            {
-                return;
-            }
-
-            var text = $"Auto (LOD {activeLod})";
-
-            if ((string?)lodComboBox.Items[0] == text)
-            {
-                return;
-            }
-
-            // Replacing the selected item can reset SelectedIndex and re-fire the handler. Suppress that.
-            suppressLodSelectionHandler = true;
-            try
-            {
-                lodComboBox.Items[0] = text;
-
-                if (lodComboBox.SelectedIndex != 0)
-                {
-                    lodComboBox.SelectedIndex = 0;
-                }
-            }
-            finally
-            {
-                suppressLodSelectionHandler = false;
-            }
+            return modelSceneNode.IsAutoLod
+                ? $"LOD: Auto ({modelSceneNode.ActiveLod})"
+                : $"LOD: {modelSceneNode.ActiveLod}";
         }
 
         protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)

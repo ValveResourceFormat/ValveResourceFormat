@@ -744,7 +744,7 @@ namespace ValveResourceFormat.IO
         /// <returns>A tuple of meshes and their names.</returns>
         private IEnumerable<(VMesh Mesh, int MeshIndex, string Name)> LoadModelMeshes(VModel model, string name)
         {
-            // Export the lowest LoD level that has meshes (normally LoD0, but some models leave it empty).
+            // Export the lowest LoD level that actually has meshes. Usually LoD0, but some models leave it empty.
             var lowestLod = model.LodInfo.LowestLevel;
 
             foreach (var m in model.GetEmbeddedMeshesForLod(lowestLod))

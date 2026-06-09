@@ -377,14 +377,14 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected void DrawLowerCornerText(string text, Color32 color)
+        protected void DrawLowerCornerText(string text, Color32 color, int lineFromBottom = 0)
         {
             Debug.Assert(MainFramebuffer != null);
 
             TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
             {
                 X = 2f,
-                Y = MainFramebuffer.Height - 4f,
+                Y = MainFramebuffer.Height - 4f - lineFromBottom * 16f,
                 Scale = 14f,
                 Color = color,
                 Text = text

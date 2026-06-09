@@ -1,5 +1,4 @@
 using System.Linq;
-using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -39,12 +38,12 @@ namespace ValveResourceFormat.ResourceTypes
         public int LevelCount { get; }
 
         /// <summary>
-        /// Gets whether switching the LOD level actually changes which meshes are rendered. Real LODs need
-        /// some mesh present in one declared level but not another. A mesh present in (or absent from) every
-        /// level — such as a single mesh with mask <c>0xFF</c> and no switch distances — renders the same at
-        /// every level and is the compiler's "always shown" flag, not a LOD. An empty level counts as a
-        /// distinct empty state, so a populated level beside an empty one (e.g. an empty LOD0) is a real LOD.
-        /// Useful for deciding whether to show a selector.
+        /// Gets whether switching LOD level actually changes what's rendered, which is what decides
+        /// whether a selector is worth showing. Real LODs have some mesh in one level but not another.
+        /// A mesh that's in (or out of) every level, like a lone mask-<c>0xFF</c> mesh with no switch
+        /// distances, looks the same everywhere and is just the compiler's "always shown" flag. An empty
+        /// level still counts as a distinct state, so a populated level next to an empty one (such as an
+        /// empty LOD0) is a real LOD.
         /// </summary>
         public bool HasDistinctLevels => Enumerable.Range(1, Math.Max(LevelCount - 1, 0))
             .Any(level => meshLodMasks.Any(mask => (mask & 1L) != ((mask >> level) & 1L)));
@@ -91,10 +90,9 @@ namespace ValveResourceFormat.ResourceTypes
             => meshIndex >= meshLodMasks.Length || (meshLodMasks[meshIndex] & 1L << level) != 0;
 
         /// <summary>
-        /// Determines whether the mesh at <paramref name="meshIndex"/> is present in every populated LOD
-        /// level. Such a mesh renders at all levels, which the compiler stores as a mask covering every
-        /// level and the editor authors as a single <c>LODGroupAll</c> entry rather than a member of each
-        /// group. Only meaningful when more than one level is populated.
+        /// Determines whether the mesh at <paramref name="meshIndex"/> shows up in every populated LOD
+        /// level. Those meshes render at all levels and are authored as a single <c>LODGroupAll</c> entry
+        /// rather than added to each group. Only meaningful when more than one level is populated.
         /// </summary>
         public bool IsMeshInAllLevels(int meshIndex)
             => AvailableLevels.Count > 1 && AvailableLevels.All(level => IsMeshInLevel(meshIndex, level));
@@ -120,10 +118,10 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets the screen-size metric range LOD <paramref name="level"/> is active over: its own switch
-        /// value (inclusive) up to the next populated level's switch value (exclusive). The highest level
-        /// has no upper bound (<see langword="null"/> <c>Max</c>). Skipping to the next populated level
-        /// absorbs any intervening empty level, matching <see cref="SelectLevel"/>.
+        /// Gets the screen-size metric range LOD <paramref name="level"/> is active over: from its own
+        /// switch value (inclusive) up to the next populated level's (exclusive). The top level is
+        /// open-ended (<see langword="null"/> <c>Max</c>). Jumping to the next populated level skips over
+        /// any empty level in between, matching <see cref="SelectLevel"/>.
         /// </summary>
         public (float Min, float? Max) GetMetricRange(int level)
         {

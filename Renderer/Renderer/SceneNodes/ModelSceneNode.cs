@@ -581,7 +581,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
 #pragma warning disable CA1024 // Use properties where appropriate
-        /// <summary>Returns all external reference mesh names and their LoD masks, across every LoD level.</summary>
+        /// <summary>Returns every external reference mesh name and its LoD mask, across all levels.</summary>
         public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshes()
             => referenceMeshes;
 
@@ -606,6 +606,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the LoD level currently being rendered (auto-selected or forced).</summary>
         public int ActiveLod => resolvedLod;
 
+        /// <summary>Gets whether the LoD level is being chosen automatically by distance, rather than forced.</summary>
+        public bool IsAutoLod => lodOverride == null;
+
         /// <summary>
         /// Sets the LoD level to display, rebuilding the renderable mesh list accordingly.
         /// Pass <see langword="null"/> to enable automatic distance-based selection.
@@ -614,15 +617,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             lodOverride = lod;
 
-            // A forced level pins it. Auto starts at the lowest populated level and UpdateAutoLod refines it.
+            // A forced level stays put; Auto starts at the lowest populated level and UpdateAutoLod takes over.
             resolvedLod = lod ?? lodInfo.LowestLevel;
             RebuildRenderableMeshes();
         }
 
         /// <summary>
-        /// In automatic mode, selects the LoD level from the screen-size metric: a model drops to LoD
-        /// <c>n</c> once the metric reaches <c>m_lodGroupSwitchDistances[n]</c>. FOV- and
-        /// resolution-dependent, independent of model size.
+        /// In automatic mode, picks the LoD level from the screen-size metric: the model drops to LoD
+        /// <c>n</c> once the metric passes <c>m_lodGroupSwitchDistances[n]</c>. Depends on FOV and
+        /// resolution, not on how big the model is.
         /// </summary>
         private void UpdateAutoLod(Camera camera)
         {
@@ -641,16 +644,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Computes the LoD metric (<c>100 / on-screen size of a unit-diameter sphere at the model
-        /// origin</c>). Derived from camera distance and FOV/viewport height only, so it ignores where the
-        /// model sits on screen and free-look rotation does not flip LoDs.
+        /// Computes the LoD metric: <c>100 / on-screen size of a unit sphere at the model origin</c>.
+        /// It depends only on camera distance and FOV/viewport height, so where the model sits on
+        /// screen doesn't matter and looking around won't flip LoDs.
         /// </summary>
         private float ComputeLodMetric(Camera camera)
         {
             var distance = MathF.Sqrt(GetCameraDistance(camera));
 
-            // Pixel size of a unit-diameter sphere at this distance: windowHeight * (1/tan(vFov/2)) / distance.
-            // ProjectionMatrix.M22 is exactly that 1/tan(vFov/2) y-scale.
+            // Size on screen of a unit sphere at this distance. M22 is the projection's
+            // 1/tan(vFov/2) y-scale, so the pixel height is windowHeight * M22 / distance.
             var unitSphereSize = distance > 0f
                 ? camera.WindowSize.Y * camera.ProjectionMatrix.M22 / distance
                 : float.MaxValue;

@@ -1,6 +1,5 @@
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -162,8 +161,8 @@ namespace ValveResourceFormat.Renderer
 
             CanDrawIndirect = RenderMesh.DrawCallsOpaque.Count > 0;
 
-            // Keep only fragments at the lowest LoD level present (normally LoD0, but some
-            // aggregates leave it empty). A mask of 0 means the fragment has no LoD and always renders.
+            // Keep only the fragments at the lowest present LoD level (usually LoD0, though some
+            // aggregates leave it empty). A mask of 0 means no LoD, so the fragment always renders.
             var combinedLodMask = 0u;
             foreach (var fragmentData in aggregateMeshes)
             {
