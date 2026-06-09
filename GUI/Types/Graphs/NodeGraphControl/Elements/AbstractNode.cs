@@ -1,12 +1,14 @@
+using System.Linq;
+using System.Net.Sockets;
 using SkiaSharp;
 
 namespace GUI.Types.Graphs
 {
     public abstract class AbstractNode : NodeUIElement, IDisposable
     {
-        private static readonly SKFont HeaderNameFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(14f);
-        private static readonly SKFont HeaderTypeFont = SKTypeface.FromFamilyName("Roboto", SKFontStyle.Bold).ToFont(10f);
-        private static readonly SKFont SocketCaptionFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(13f);
+        protected static readonly SKFont HeaderNameFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(14f);
+        protected static readonly SKFont HeaderTypeFont = SKTypeface.FromFamilyName("Roboto", SKFontStyle.Bold).ToFont(10f);
+        protected static readonly SKFont SocketCaptionFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(13f);
 
         static AbstractNode()
         {
@@ -67,17 +69,40 @@ namespace GUI.Types.Graphs
         public SKRect BoundsBase { get; private set; }
         public SKRect BoundsFooter { get; private set; }
 
-        public void Calculate()
+        protected virtual void CalculateWidth()
         {
             if (remeasureWidth)
             {
-                HeaderNameFont.MeasureText(Name ?? string.Empty, out var nameBounds);
+                // Calculate longest input and output socket caption width to make sure that text can fit properly.
+                var longestInputCation = string.Empty;
+                var longestOutputCation = string.Empty;
+                foreach (var sock in Sockets.OfType<SocketIn>())
+                {
+                    if (sock.SocketName?.Length > longestInputCation.Length)
+                    {
+                        longestInputCation = sock.SocketName;
+                    }
+                }
+                foreach (var sock in Sockets.OfType<SocketOut>())
+                {
+                    if (sock.SocketName?.Length > longestOutputCation.Length)
+                    {
+                        longestOutputCation = sock.SocketName;
+                    }
+                }
 
-                var maxTextWidth = nameBounds.Width;
+                HeaderNameFont.MeasureText(Name ?? string.Empty, out var nameBounds);
+                SocketCaptionFont.MeasureText(longestInputCation, out var maxSockInBounds);
+                SocketCaptionFont.MeasureText(longestOutputCation, out var maxSockOutBounds);
+                var maxTextWidth = Math.Max(nameBounds.Width, maxSockInBounds.Width + maxSockOutBounds.Width + 10f); // (10px for some separation)
                 var minWidth = maxTextWidth + 20f; // Add padding (10px each side)
                 NodeWidth = Math.Max(200f, minWidth); // Minimum 200px
                 remeasureWidth = false;
             }
+        }
+        public void Calculate()
+        {
+            CalculateWidth();
 
             if (MinBaseHeight == 0)
             {
