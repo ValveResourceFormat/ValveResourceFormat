@@ -62,6 +62,11 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public bool ActiveClipFinished => activeClip != null && !activeClip.Looping && activeClip.IsPaused;
 
+        /// <summary>
+        /// Gets the current clips.
+        /// </summary>
+        public Dictionary<string, Clip> Clips => clips;
+
         private Clip? activeClip
         {
             get => CurrentSubController.HasValue ? CurrentSubController.Value.Handler.activeClip : field;

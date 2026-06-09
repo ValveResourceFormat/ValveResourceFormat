@@ -112,7 +112,7 @@ public static class GraphLayout
             options.LayerSpacing, options.NodeSpacing);
     }
 
-    private static (List<List<TNode>> nodeLayers, Dictionary<TNode, int> nodeToLayer) AssignLayers<TNode, TConnection>(
+    internal static (List<List<TNode>> nodeLayers, Dictionary<TNode, int> nodeToLayer) AssignLayers<TNode, TConnection>(
         List<TNode> nodes,
         List<TConnection> connections,
         Func<TConnection, TNode> getSourceNode,
@@ -385,7 +385,7 @@ public static class GraphLayout
             : values[mid];
     }
 
-    private static List<List<TNode>> ReduceCrossings<TNode, TConnection>(
+    internal static List<List<TNode>> ReduceCrossings<TNode, TConnection>(
         List<List<TNode>> nodeLayers,
         Dictionary<TNode, int> nodeToLayer,
         Func<TConnection, TNode> getSourceNode,
@@ -551,7 +551,7 @@ public static class GraphLayout
         return finalPositions;
     }
 
-    private static void AssignCoordinates<TNode, TConnection>(
+    internal static void AssignCoordinates<TNode, TConnection>(
         List<List<TNode>> nodeLayers,
         Func<TNode, Vector2> getPosition,
         Action<TNode, Vector2> setPosition,

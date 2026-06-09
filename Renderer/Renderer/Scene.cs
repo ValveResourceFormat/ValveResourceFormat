@@ -1568,6 +1568,17 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        internal void DeactivateLayer(string layerName)
+        {
+            foreach (var node in AllNodes)
+            {
+                if (node.LayerName == layerName)
+                {
+                    node.LayerEnabled = false;
+                }
+            }
+        }
+
         /// <summary>
         /// Enables or disables scene nodes based on whether their layer name is present in the given set.
         /// </summary>

@@ -64,6 +64,11 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     private Vector2 currentWalkDirection = new(0, 1);
 
+    private bool restartInAirAnim;
+    private float inAirExitTimer;
+    private const float InAirExitFade = 0.1f;
+    private float previousUptime;
+
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
     /// </summary>
@@ -93,6 +98,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         Walking,
         Running,
         Jumping,
+        InAir,
     }
 
     private enum Heading
@@ -136,6 +142,13 @@ public class ViewmodelSceneNode : ModelSceneNode
             return posture == Posture.Standing
                 ? $"animation/anims/world/{item}/_default_{item}/jump_stand_{item}.vnmclip"
                 : $"animation/anims/world/{item}/_default_{item}/jump_crouch_stand_{item}.vnmclip";
+        }
+
+        if (movement == MovementState.InAir)
+        {
+            return posture == Posture.Standing
+                ? $"animation/anims/world/{item}/_default_{item}/inair_stand_{item}.vnmclip"
+                : $"animation/anims/world/{item}/_default_{item}/inair_crouch_stand_{item}.vnmclip";
         }
 
         var movementType = posture == Posture.Crouching
@@ -223,6 +236,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     internal const string WorldLayerName = "Internal - First Person Model";
     private const string BreathingClip = "animation/anims/world/shared/breathing.vnmclip";
+    private const string LandedClip = "animation/anims/world/shared/jump_additive_land.vnmclip";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, null, true)
@@ -277,7 +291,9 @@ public class ViewmodelSceneNode : ModelSceneNode
                 {
                     var clip = GetThirdpersonAnim(posture, movement, heading);
                     Legs.SetAnimationByName(clip, -1);
-                    Legs.AnimationController.SetAnimationProperties(clip, 0f, looping: true); // clips loop by default
+                    Legs.AnimationController.SetAnimationProperties(clip, 0f, looping: movement is not MovementState.Jumping
+                                                                                                and not MovementState.InAir
+                    );
 
                     if (Legs.AnimationController.ActiveAnimation == null)
                     {
@@ -287,6 +303,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             }
         }
 
+        Legs.SetAnimationByName(LandedClip, -1);
         Legs.SetAnimationByName(BreathingClip, -1);
 
         // todo: parse from nmskel?
@@ -300,6 +317,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             {"spine_0", 1f},
         }, "animation/skeletons/characters/worldmodel.vnmskel");
 
+        Legs.AnimationController.SetAnimationProperties(LandedClip, 0f, looping: false);
         Legs.AnimationController.SetAnimationProperties(BreathingClip, 0f, looping: true, boneMask: "Breathing");
         Legs.AnimationController.SetAnimationWeight(BreathingClip, 1f);
     }
@@ -410,6 +428,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         scene.RendererContext.Logger.LogInformation($"Loaded first person model.");
 
         scene.Add(viewmodel, true);
+
+        // don't render player model in noclip mode
+        scene.DeactivateLayer(WorldLayerName);
+
         return viewmodel;
     }
 
@@ -429,7 +451,29 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (!attachViewmodelDistance)
         {
+            // don't render player model in noclip mode
+            if (LayerEnabled)
+            {
+                Scene.DeactivateLayer(WorldLayerName);
+            }
+
             return;
+        }
+
+        var dt = 0f;
+        if (previousUptime > 0f)
+        {
+            dt = uptime - previousUptime;
+            if (dt < 0f)
+            {
+                dt = 0f;
+            }
+        }
+        previousUptime = uptime;
+
+        if (inAirExitTimer > 0f)
+        {
+            inAirExitTimer = MathF.Max(0f, inAirExitTimer - dt);
         }
 
         if (!LayerEnabled)
@@ -500,7 +544,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var playerRotation = Quaternion.Normalize(playerYawRotation);
         PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
 
-        if (Legs?.AnimationController is { } legsController)
+        if (Legs?.AnimationController is { } legsController && legsController.CurrentSubController is { Handler: var legsSubController })
         {
             var crouched = input.PlayerMovement.CrouchBlend;
             var standing = 1f - crouched;
@@ -511,6 +555,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             var walking = MathUtils.Saturate(speed / walkRun.X) * (1f - running);
             var stopped = MathF.Max(0f, 1f - running - walking);
 
+            var inAir = 0f;
             var jumping = 0f;
             var justJumped = false;
 
@@ -522,13 +567,56 @@ public class ViewmodelSceneNode : ModelSceneNode
                 stopped = 0f;
 
                 justJumped = input.PlayerMovement.WasOnGroundLastFrame;
+                restartInAirAnim = restartInAirAnim || justJumped;
+                var restartedInAirAnim = false;
 
-                if (justJumped)
+                foreach (var posture in Enum.GetValues<Posture>())
                 {
-                    legsController.SetAnimationProperties(GetThirdpersonAnim(Posture.Standing, MovementState.Jumping), 0f, looping: false);
-                    legsController.SetAnimationProperties(GetThirdpersonAnim(Posture.Crouching, MovementState.Jumping), 0f, looping: false);
+                    var jumpingAnimName = GetThirdpersonAnim(posture, MovementState.Jumping);
+
+                    if (justJumped)
+                    {
+                        legsController.SetAnimationProperties(jumpingAnimName, 0f, looping: false);
+                    }
+                    else
+                    {
+                        var inAirAnimName = GetThirdpersonAnim(posture, MovementState.InAir);
+
+                        var jumpingActionFinished = legsSubController.Clips.TryGetValue(jumpingAnimName, out var jumpClip) && jumpClip.IsPaused;
+                        var inAirActionFinished = legsSubController.Clips.TryGetValue(inAirAnimName, out var inAirClip) && inAirClip.IsPaused;
+
+                        if (jumpingActionFinished)
+                        {
+                            jumping = 0f;
+                            inAir = 1f;
+
+                            if (inAirActionFinished && restartInAirAnim)
+                            {
+                                legsController.SetAnimationProperties(inAirAnimName, 0f, looping: false);
+                                restartedInAirAnim = true;
+                            }
+                        }
+                    }
+                }
+
+                if (restartedInAirAnim)
+                {
+                    restartInAirAnim = false;
                 }
             }
+            else
+            {
+                if (!input.PlayerMovement.WasOnGroundLastFrame)
+                {
+                    legsController.SetAnimationProperties(LandedClip, 0f, looping: false);
+                    inAirExitTimer = InAirExitFade;
+                }
+            }
+
+            // Compute a smoothed inAir weight: 1 while actually in-air, then fade to 0 over InAirExitFade when landing
+            var inAirWeight = input.PlayerMovement.OnGround
+                ? (inAirExitTimer > 0f ? inAirExitTimer / InAirExitFade : 0f)
+                : inAir;
 
             // Calculate movement direction relative to the camera for directional blending.
             var desiredWalkDir = Vector2.Zero;
@@ -582,6 +670,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
                 legsController.SetAnimationWeight(GetThirdpersonAnim(posture, MovementState.Stopped), stopped * t);
                 legsController.SetAnimationWeight(GetThirdpersonAnim(posture, MovementState.Jumping), jumping * t);
+                legsController.SetAnimationWeight(GetThirdpersonAnim(posture, MovementState.InAir), inAirWeight * t);
             }
 
 
