@@ -201,7 +201,7 @@ namespace ValveResourceFormat.ResourceTypes
                 layers.Add(ccLayer);
             }
 
-            outKV3.Add("layers", layers);
+            outKV3.Add("m_layers", layers);
 
             return outKV3.ToKV3String();
         }
