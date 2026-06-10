@@ -26,6 +26,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the lowest LOD level that actually contains meshes. Normally 0, but models that leave
         /// LOD0 empty return the next populated level. Returns 0 when no LOD bits are set.
         /// </summary>
+        /// <remarks>A lower level represents **higher** mesh detail.</remarks>
         public int LowestLevel { get; }
 
         /// <summary>Gets the sorted distinct LOD levels present across all meshes, e.g. <c>[0, 1, 2]</c>.</summary>

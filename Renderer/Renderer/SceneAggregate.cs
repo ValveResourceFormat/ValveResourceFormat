@@ -181,7 +181,8 @@ namespace ValveResourceFormat.Renderer
                 var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
                 var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
 
-                if (lodGroupMask != 0 && (lodGroupMask & lowestLodBit) == 0)
+                var isHighestDetailMesh = lodGroupMask == 0 || (lodGroupMask & lowestLodBit) != 0;
+                if (!isHighestDetailMesh)
                 {
                     continue;
                 }
