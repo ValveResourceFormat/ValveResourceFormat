@@ -479,64 +479,62 @@ partial class ModelExtract
                 }
             }
 
-            // LOD Groups
             {
-                var lodGroupSwitchDistances = model.Data.GetFloatArray("m_lodGroupSwitchDistances");
-                var refLODGroupMasks = model.Data.GetIntegerArray("m_refLODGroupMasks");
+                // LOD groups. m_refLODGroupMasks says which level each mesh belongs to (bit N => level N) and
+                // m_lodGroupSwitchDistances gives each level's switch value. Emit one LODGroup per populated
+                // level so a recompile rebuilds the original LoD structure, and collect meshes that live in
+                // every level into a single LODGroupAll rather than repeating them in each group.
+                var lodInfo = model.LodInfo;
 
-                // A model has LODs if m_lodGroupSwitchDistances contains items
-                if (lodGroupSwitchDistances.Length > 0)
+                for (var lodLevel = 0; lodLevel < lodInfo.SwitchDistances.Count; lodLevel++)
                 {
-                    // Group meshes by LOD level based on their bitmask
-                    var lodGroups = new Dictionary<int, List<string>>();
+                    var meshReferences = KVObject.Array();
 
-                    for (var lodLevel = 0; lodLevel < lodGroupSwitchDistances.Length; lodLevel++)
-                    {
-                        lodGroups[lodLevel] = [];
-                    }
-
-                    // Iterate through all render meshes and assign them to LOD groups
                     foreach (var renderMesh in RenderMeshesToExtract)
                     {
-                        var meshIndex = renderMesh.Index;
-                        var lodMask = meshIndex < refLODGroupMasks.Length ? refLODGroupMasks[meshIndex] : 0L;
-
-                        // Check which LOD levels this mesh belongs to based on the bitmask
-                        for (var lodLevel = 0; lodLevel < lodGroupSwitchDistances.Length; lodLevel++)
-                        {
-                            // Check if bit for this LOD level is set
-                            if ((lodMask & (1L << lodLevel)) != 0)
-                            {
-                                lodGroups[lodLevel].Add(renderMesh.Name);
-                            }
-                        }
-                    }
-
-                    // Create LODGroup nodes for each LOD level that has meshes
-                    for (var lodLevel = 0; lodLevel < lodGroupSwitchDistances.Length; lodLevel++)
-                    {
-                        var meshesInLod = lodGroups[lodLevel];
-
-                        // Skip empty LOD levels
-                        if (meshesInLod.Count == 0)
+                        if (!lodInfo.IsMeshInLevel(renderMesh.Index, lodLevel) || lodInfo.IsMeshInAllLevels(renderMesh.Index))
                         {
                             continue;
                         }
 
-                        var meshReferences = KVObject.Array();
-                        foreach (var meshName in meshesInLod)
+                        var meshReference = KVObject.Collection();
+                        meshReference.Add("mesh_name", renderMesh.Name);
+                        meshReferences.Add(meshReference);
+                    }
+
+                    // Skip levels with no meshes (e.g. a misconfigured empty LoD0).
+                    if (meshReferences.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    lodGroupList.Value.Add(MakeNode("LODGroup",
+                        ("switch_threshold", lodInfo.SwitchDistances[lodLevel]),
+                        ("mesh_references", meshReferences)
+                    ));
+                }
+
+                if (lodInfo.SwitchDistances.Count > 0)
+                {
+                    var allLevelReferences = KVObject.Array();
+
+                    foreach (var renderMesh in RenderMeshesToExtract)
+                    {
+                        if (!lodInfo.IsMeshInAllLevels(renderMesh.Index))
                         {
-                            var meshRef = KVObject.Collection();
-                            meshRef.Add("mesh_name", meshName);
-                            meshReferences.Add(meshRef);
+                            continue;
                         }
 
-                        var lodGroup = MakeNode("LODGroup",
-                            ("switch_threshold", lodGroupSwitchDistances[lodLevel]),
-                            ("mesh_references", meshReferences)
-                        );
+                        var meshReference = KVObject.Collection();
+                        meshReference.Add("mesh_name", renderMesh.Name);
+                        allLevelReferences.Add(meshReference);
+                    }
 
-                        lodGroupList.Value.Add(lodGroup);
+                    if (allLevelReferences.Count > 0)
+                    {
+                        lodGroupList.Value.Add(MakeNode("LODGroupAll",
+                            ("mesh_references", allLevelReferences)
+                        ));
                     }
                 }
             }

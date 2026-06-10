@@ -68,6 +68,7 @@ namespace ValveResourceFormat.ResourceTypes
         private Skeleton? cachedSkeleton;
         private FlexController[]? cachedFlexControllers;
         private List<(Mesh Mesh, int MeshIndex, string Name)>? cachedEmbeddedMeshes;
+        private ModelLodInfo? cachedLodInfo;
 
         /// <summary>
         /// Gets the hitbox sets for this model.
@@ -199,6 +200,26 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Enumerable of mesh, mesh index, name, and LoD mask tuples.</returns>
         public IEnumerable<(Mesh Mesh, int MeshIndex, string Name, long LoDMask)> GetEmbeddedMeshesAndLoD()
             => GetEmbeddedMeshes().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l.Mesh, l.MeshIndex, l.Name, r));
+
+        /// <summary>
+        /// Gets this model's level-of-detail structure (which meshes belong to which LOD level and the
+        /// per-level switch values). Built once and cached.
+        /// </summary>
+        public ModelLodInfo LodInfo => cachedLodInfo ??= new ModelLodInfo(
+            Data.GetIntegerArray("m_refLODGroupMasks"),
+            Data.GetFloatArray("m_lodGroupSwitchDistances"));
+
+        /// <summary>
+        /// Gets the embedded meshes present in the given LOD <paramref name="level"/>.
+        /// </summary>
+        public IEnumerable<(Mesh Mesh, int MeshIndex, string Name, long LoDMask)> GetEmbeddedMeshesForLod(int level)
+            => GetEmbeddedMeshesAndLoD().Where(m => LodInfo.IsMeshInLevel(m.MeshIndex, level));
+
+        /// <summary>
+        /// Gets the referenced mesh names present in the given LOD <paramref name="level"/>.
+        /// </summary>
+        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesForLod(int level)
+            => GetReferenceMeshNamesAndLoD().Where(m => LodInfo.IsMeshInLevel(m.MeshIndex, level));
 
         /// <summary>
         /// Gets embedded meshes from the model.

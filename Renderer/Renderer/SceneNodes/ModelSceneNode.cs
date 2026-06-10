@@ -72,7 +72,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly (string Name, string[] Materials)[] materialGroups;
         private readonly string[] meshGroups;
         private readonly long[]? meshGroupMasks;
-        private readonly List<(int MeshIndex, string MeshName, long LoDMask)> meshNamesForLod1;
+        private readonly ModelLodInfo lodInfo;
+        private readonly List<(int MeshIndex, string MeshName, long LoDMask)> referenceMeshes;
+        private int? lodOverride;
+        private int resolvedLod;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModelSceneNode"/> class and loads its meshes and animations.
@@ -92,7 +95,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 meshGroupMasks = model.Data.GetIntegerArray("m_refMeshGroupMasks");
             }
 
-            meshNamesForLod1 = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
+            lodInfo = model.LodInfo;
+            referenceMeshes = model.GetReferenceMeshNamesAndLoD().ToList();
+            resolvedLod = lodInfo.LowestLevel;
 
             AnimationController = new(model.Skeleton, model.FlexControllers);
             boneCount = model.Skeleton.Bones.Length;
@@ -227,6 +232,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
+            UpdateAutoLod(context.Camera);
+
             if (!AnimationController.Update(context.Timestep))
             {
                 return;
@@ -445,8 +452,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private void LoadMeshes(Model model)
         {
-            // Get embedded meshes
-            foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD().Where(m => (m.LoDMask & 1) != 0))
+            // All LoD levels are loaded; the active one is picked at render time.
+            foreach (var embeddedMesh in model.GetEmbeddedMeshesAndLoD())
             {
                 embeddedMesh.Mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
@@ -454,8 +461,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
             }
 
-            // Load referred meshes from file (only load meshes with LoD 1)
-            foreach (var refMesh in GetLod1RefMeshes())
+            foreach (var refMesh in referenceMeshes)
             {
                 var newResource = Scene.RendererContext.FileLoader.LoadFileCompiled(refMesh.MeshName);
                 if (newResource?.DataBlock is not Mesh mesh)
@@ -575,9 +581,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
 #pragma warning disable CA1024 // Use properties where appropriate
-        /// <summary>Returns the external reference mesh names and their LoD masks for LoD level 1.</summary>
-        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetLod1RefMeshes()
-            => meshNamesForLod1;
+        /// <summary>Returns every external reference mesh name and its LoD mask, across all levels.</summary>
+        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshes()
+            => referenceMeshes;
 
         /// <summary>Returns all mesh group names defined by this model.</summary>
         public IEnumerable<string> GetMeshGroups()
@@ -588,51 +594,105 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             => activeMeshGroups;
 #pragma warning restore CA1024 // Use properties where appropriate
 
-        private IEnumerable<bool> GetActiveMeshMaskForGroup(string groupName)
-        {
-            if (meshGroupMasks == null)
-            {
-                return [];
-            }
-
-            var groupIndex = Array.IndexOf(meshGroups, groupName);
-            if (groupIndex >= 0)
-            {
-                return meshGroupMasks.Select(mask => (mask & 1L << groupIndex) != 0);
-            }
-            else
-            {
-                return meshGroupMasks.Select(_ => false);
-            }
-        }
-
         /// <summary>
         /// Sets which mesh groups are active, rebuilding the renderable mesh list accordingly.
         /// </summary>
         public void SetActiveMeshGroups(IEnumerable<string> setMeshGroups)
         {
             activeMeshGroups = new HashSet<string>(meshGroups.Intersect(setMeshGroups));
+            RebuildRenderableMeshes();
+        }
 
-            RenderableMeshes.Clear();
+        /// <summary>Gets the LoD level currently being rendered (auto-selected or forced).</summary>
+        public int ActiveLod => resolvedLod;
 
-            if (meshGroups.Length > 1)
+        /// <summary>Gets whether the LoD level is being chosen automatically by distance, rather than forced.</summary>
+        public bool IsAutoLod => lodOverride == null;
+
+        /// <summary>
+        /// Sets the LoD level to display, rebuilding the renderable mesh list accordingly.
+        /// Pass <see langword="null"/> to enable automatic distance-based selection.
+        /// </summary>
+        public void SetActiveLod(int? lod)
+        {
+            lodOverride = lod;
+
+            // A forced level stays put; Auto starts at the lowest populated level and UpdateAutoLod takes over.
+            resolvedLod = lod ?? lodInfo.LowestLevel;
+            RebuildRenderableMeshes();
+        }
+
+        /// <summary>
+        /// In automatic mode, picks the LoD level from the screen-size metric: the model drops to LoD
+        /// <c>n</c> once the metric passes <c>m_lodGroupSwitchDistances[n]</c>. Depends on FOV and
+        /// resolution, not on how big the model is.
+        /// </summary>
+        private void UpdateAutoLod(Camera camera)
+        {
+            if (lodOverride != null || lodInfo.AvailableLevels.Count <= 1 || lodInfo.SwitchDistances.Count <= 1)
             {
-                foreach (var group in activeMeshGroups)
-                {
-                    var meshMask = GetActiveMeshMaskForGroup(group).ToArray();
+                return;
+            }
 
-                    foreach (var meshRenderer in meshRenderers)
-                    {
-                        if (meshMask[meshRenderer.MeshIndex])
-                        {
-                            RenderableMeshes.Add(meshRenderer);
-                        }
-                    }
+            var target = lodInfo.SelectLevel(ComputeLodMetric(camera));
+
+            if (target != resolvedLod)
+            {
+                resolvedLod = target;
+                RebuildRenderableMeshes();
+            }
+        }
+
+        /// <summary>
+        /// Computes the LoD metric: <c>100 / on-screen size of a unit sphere at the model origin</c>.
+        /// It depends only on camera distance and FOV/viewport height, so where the model sits on
+        /// screen doesn't matter and looking around won't flip LoDs.
+        /// </summary>
+        private float ComputeLodMetric(Camera camera)
+        {
+            var distance = MathF.Sqrt(GetCameraDistance(camera));
+
+            // Size on screen of a unit sphere at this distance. M22 is the projection's
+            // 1/tan(vFov/2) y-scale, so the pixel height is windowHeight * M22 / distance.
+            var unitSphereSize = distance > 0f
+                ? camera.WindowSize.Y * camera.ProjectionMatrix.M22 / distance
+                : float.MaxValue;
+
+            return unitSphereSize > 0f ? 100f / unitSphereSize : 0f;
+        }
+
+        private bool IsMeshInActiveLod(int meshIndex)
+            => lodInfo.IsMeshInLevel(meshIndex, resolvedLod);
+
+        private bool IsMeshInActiveGroup(int meshIndex)
+        {
+            if (meshGroups.Length <= 1 || meshGroupMasks == null)
+            {
+                return true;
+            }
+
+            foreach (var group in activeMeshGroups)
+            {
+                var groupIndex = Array.IndexOf(meshGroups, group);
+                if (groupIndex >= 0 && (meshGroupMasks[meshIndex] & 1L << groupIndex) != 0)
+                {
+                    return true;
                 }
             }
-            else
+
+            return false;
+        }
+
+        private void RebuildRenderableMeshes()
+        {
+            RenderableMeshes.Clear();
+
+            foreach (var meshRenderer in meshRenderers)
             {
-                RenderableMeshes.AddRange(meshRenderers);
+                if (IsMeshInActiveLod(meshRenderer.MeshIndex) && IsMeshInActiveGroup(meshRenderer.MeshIndex))
+                {
+                    RenderableMeshes.Add(meshRenderer);
+                }
             }
         }
 

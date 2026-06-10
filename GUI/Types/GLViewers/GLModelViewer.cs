@@ -32,6 +32,11 @@ namespace GUI.Types.GLViewers
         private GLViewerSliderControl? slowmodeTrackBar;
         public CheckedListBox? meshGroupListBox { get; private set; }
         public ComboBox? materialGroupListBox { get; private set; }
+        private ComboBox? lodComboBox;
+        private bool hasSelectableLods;
+        private bool modelStatsShown;
+        private bool modelStatsDirty;
+        private int statsLod = -1;
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
         protected SkeletonSceneNode? skeletonSceneNode;
@@ -65,6 +70,7 @@ namespace GUI.Types.GLViewers
             slowmodeTrackBar?.Dispose();
             meshGroupListBox?.Dispose();
             materialGroupListBox?.Dispose();
+            lodComboBox?.Dispose();
             physicsGroupsComboBox?.Dispose();
             rootMotionCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
@@ -309,6 +315,37 @@ namespace GUI.Types.GLViewers
                     hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
                 }
 
+                var lodInfo = model.LodInfo;
+                var lodCount = lodInfo.LevelCount;
+
+                if (lodInfo.HasDistinctLevels)
+                {
+                    hasSelectableLods = true;
+
+                    using var _ = UiControl.BeginGroup("Model");
+
+                    lodComboBox = UiControl.AddSelection("Level of Detail", (_, i) =>
+                    {
+                        if (i < 0)
+                        {
+                            return;
+                        }
+
+                        using var lockedGl = MakeCurrent();
+                        // Index 0 is Auto; everything below it maps straight to a LoD level.
+                        modelSceneNode?.SetActiveLod(i == 0 ? null : i - 1);
+                    });
+
+                    lodComboBox.Items.Add("Auto");
+
+                    for (var level = 0; level < lodCount; level++)
+                    {
+                        lodComboBox.Items.Add(FormatLodEntry(lodInfo, level));
+                    }
+
+                    lodComboBox.SelectedIndex = 0;
+                }
+
                 var meshGroups = modelSceneNode.GetMeshGroups().ToArray<object>();
 
                 if (meshGroups.Length > 1)
@@ -323,7 +360,11 @@ namespace GUI.Types.GLViewers
                         {
                             listBox.SetItemChecked(listBox.FindStringExact(group), true);
                         }
-                    }, modelSceneNode.SetActiveMeshGroups);
+                    }, groups =>
+                    {
+                        modelSceneNode.SetActiveMeshGroups(groups);
+                        modelStatsDirty = true;
+                    });
                 }
 
                 var materialGroupNames = model.GetMaterialGroups().Select(group => group.Name).ToArray<object>();
@@ -336,6 +377,7 @@ namespace GUI.Types.GLViewers
                     {
                         using var lockedGl = MakeCurrent();
                         modelSceneNode?.SetMaterialGroup(selectedGroup);
+                        modelStatsDirty = true;
                     });
 
                     materialGroupListBox.Items.AddRange(materialGroupNames);
@@ -457,6 +499,11 @@ namespace GUI.Types.GLViewers
 
             var sb = new System.Text.StringBuilder();
 
+            if (hasSelectableLods)
+            {
+                sb.AppendLine(GetActiveLodText());
+            }
+
             sb.AppendLine(CultureInfo.InvariantCulture, $"Mesh Count: {modelSceneNode.RenderableMeshes.Count}");
 
             foreach (var mesh in modelSceneNode.RenderableMeshes)
@@ -536,6 +583,31 @@ namespace GUI.Types.GLViewers
         private Vector3 LastRootMotionPosition;
         private bool enableRootMotion;
 
+        /// <summary>
+        /// Builds a dropdown label for one LoD level: "LOD n (Empty)" if the level has no meshes,
+        /// otherwise "LOD n" plus the range it's active over, like "LOD 2 (10-15)" or "LOD 4 (20+)".
+        /// The range is omitted when the model has no switch data.
+        /// </summary>
+        private static string FormatLodEntry(ModelLodInfo lodInfo, int level)
+        {
+            if (!lodInfo.AvailableLevels.Contains(level))
+            {
+                return $"LOD {level} (Empty)";
+            }
+
+            if (lodInfo.SwitchDistances.Count <= 1 || level >= lodInfo.SwitchDistances.Count)
+            {
+                return $"LOD {level}";
+            }
+
+            var (min, max) = lodInfo.GetMetricRange(level);
+            var minText = min.ToString("0.#", CultureInfo.InvariantCulture);
+
+            return max is float upper
+                ? $"LOD {level} ({minText}-{upper.ToString("0.#", CultureInfo.InvariantCulture)})"
+                : $"LOD {level} ({minText}+)";
+        }
+
         protected override void OnPaint(float frameTime)
         {
             if (enableRootMotion && animationController != null && animationController.AnimationFrame is Frame animationFrame && modelSceneNode != null)
@@ -551,7 +623,41 @@ namespace GUI.Types.GLViewers
                 LastRootMotionPosition = animationFrame.Movement.Position;
             }
 
+            // The stats overlay reflects whatever meshes are currently drawn, so it only needs rebuilding
+            // when that set changes (a LoD switch, or a mesh/material group change), not every frame.
+            if (modelStatsShown && modelSceneNode != null && SelectedNodeRenderer != null)
+            {
+                if (modelSceneNode.ActiveLod != statsLod)
+                {
+                    statsLod = modelSceneNode.ActiveLod;
+                    modelStatsDirty = true;
+                }
+
+                if (modelStatsDirty)
+                {
+                    SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+                    modelStatsDirty = false;
+                }
+            }
+
+            // Always show the active level in the corner. Skip it while paused, where the corner is
+            // taken over by the "Paused" text.
+            if (hasSelectableLods && modelSceneNode != null && !Paused)
+            {
+                DrawLowerCornerText(GetActiveLodText(), Color32.White, lineFromBottom: 1);
+            }
+
             base.OnPaint(frameTime);
+        }
+
+        /// <summary>Active level as overlay text: "LOD: Auto (2)" while auto-selecting, "LOD: 2" when forced.</summary>
+        private string GetActiveLodText()
+        {
+            Debug.Assert(modelSceneNode != null);
+
+            return modelSceneNode.IsAutoLod
+                ? $"LOD: Auto ({modelSceneNode.ActiveLod})"
+                : $"LOD: {modelSceneNode.ActiveLod}";
         }
 
         protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)
@@ -568,6 +674,7 @@ namespace GUI.Types.GLViewers
             {
                 SelectedNodeRenderer.SelectNode(null);
                 SelectedNodeRenderer.ScreenDebugText = string.Empty;
+                modelStatsShown = false;
                 return;
             }
 
@@ -575,13 +682,14 @@ namespace GUI.Types.GLViewers
             {
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 SelectedNodeRenderer.SelectNode(sceneNode);
-                SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+                modelStatsShown = true;
+                modelStatsDirty = true;
                 return;
             }
 
             if (pickingResponse.Intent == PickingTexture.PickingIntent.Open)
             {
-                var refMesh = modelSceneNode.GetLod1RefMeshes().FirstOrDefault(x => x.MeshIndex == pickingResponse.PixelInfo.MeshId);
+                var refMesh = modelSceneNode.GetReferenceMeshes().FirstOrDefault(x => x.MeshIndex == pickingResponse.PixelInfo.MeshId);
                 if (refMesh.MeshName != null)
                 {
                     var foundFile = GuiContext.FindFileWithContext(refMesh.MeshName + GameFileLoader.CompiledFileSuffix);
