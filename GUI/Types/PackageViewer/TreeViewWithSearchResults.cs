@@ -38,6 +38,10 @@ namespace GUI.Types.PackageViewer
 
         private record class IconImageCacheEntry(Bitmap image, int index);
 
+        private readonly record struct SearchRequest(string Text, SearchType Type, string? FilterKey, string? FilterValue);
+
+        private sealed record NavigationEntry(VirtualPackageNode? Node, SearchRequest? Search);
+
         private readonly ConcurrentDictionary<string, IconImageCacheEntry?> BigIconImageCache = new();
 
         private CancellationTokenSource? ThumbnailRenderTokenSource;
@@ -71,6 +75,11 @@ namespace GUI.Types.PackageViewer
         public event EventHandler<PackageContextMenuEventArgs>? OpenContextMenu;
         public event EventHandler<PackageEntry>? PreviewFile;
 
+        private readonly Stack<NavigationEntry> navigationBackStack = new();
+        private readonly Stack<NavigationEntry> navigationForwardStack = new();
+        private NavigationEntry? currentNavigationEntry;
+        private bool suppressHistoryRecording;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Require a default constructor for the designer.
@@ -94,6 +103,9 @@ namespace GUI.Types.PackageViewer
 
             searchTextBox.BackColor = Themer.CurrentThemeColors.AppMiddle;
 
+            backButton.Image = MainForm.ImageList.Images[MainForm.Icons["NavigateBack"]];
+            forwardButton.Image = MainForm.ImageList.Images[MainForm.Icons["NavigateForward"]];
+
             if (SplitterWidth > 0)
             {
                 mainSplitContainer.SplitterDistance = SplitterWidth;
@@ -107,6 +119,7 @@ namespace GUI.Types.PackageViewer
 
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
+            mainListView.MouseUp += MainListView_MouseUp;
             mainListView.MouseWheel += MainListView_MouseWheel;
             mainListView.ColumnClick += MainListView_ColumnClick;
             mainListView.Disposed += MainListView_Disposed;
@@ -325,6 +338,108 @@ namespace GUI.Types.PackageViewer
             {
                 UpdateSearchTextBoxToCurrentPath(pkgNode);
             }
+
+            RecordNavigation(new NavigationEntry(pkgNode, null));
+        }
+
+        private void RecordNavigation(NavigationEntry entry)
+        {
+            // Opening a folder can reach DisplayNodes more than once (e.g. list double click both
+            // selects the tree node and calls DisplayNodes); ignore re-entry and same-node navigation.
+            if (suppressHistoryRecording || entry == currentNavigationEntry)
+            {
+                return;
+            }
+
+            if (currentNavigationEntry != null)
+            {
+                navigationBackStack.Push(currentNavigationEntry);
+            }
+
+            currentNavigationEntry = entry;
+            navigationForwardStack.Clear();
+
+            UpdateNavigationButtons();
+        }
+
+        private void BackButton_Click(object? sender, EventArgs e) => NavigateBack();
+
+        private void ForwardButton_Click(object? sender, EventArgs e) => NavigateForward();
+
+        private void MainListView_MouseUp(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.XButton1)
+            {
+                NavigateBack();
+            }
+            else if (e.Button == MouseButtons.XButton2)
+            {
+                NavigateForward();
+            }
+        }
+
+        public void NavigateBack()
+        {
+            if (navigationBackStack.Count == 0)
+            {
+                return;
+            }
+
+            navigationForwardStack.Push(currentNavigationEntry!);
+            NavigateTo(navigationBackStack.Pop());
+        }
+
+        public void NavigateForward()
+        {
+            if (navigationForwardStack.Count == 0)
+            {
+                return;
+            }
+
+            navigationBackStack.Push(currentNavigationEntry!);
+            NavigateTo(navigationForwardStack.Pop());
+        }
+
+        private void NavigateTo(NavigationEntry entry)
+        {
+            currentNavigationEntry = entry;
+            suppressHistoryRecording = true;
+
+            try
+            {
+                if (entry.Search is { } request)
+                {
+                    PerformSearch(request);
+                }
+                else if (entry.Node is { } node)
+                {
+                    mainTreeView.BeginUpdate();
+                    var treeNode = CreateTreeNodes(node);
+
+                    if (treeNode != null)
+                    {
+                        treeNode.EnsureVisible();
+                        treeNode.Expand();
+                        mainTreeView.SelectedNode = treeNode;
+                    }
+
+                    mainTreeView.EndUpdate();
+
+                    DisplayMainListView();
+                    MainListView_DisplayNodes(node);
+                }
+            }
+            finally
+            {
+                suppressHistoryRecording = false;
+                UpdateNavigationButtons();
+            }
+        }
+
+        private void UpdateNavigationButtons()
+        {
+            backButton.Enabled = navigationBackStack.Count > 0;
+            forwardButton.Enabled = navigationForwardStack.Count > 0;
         }
 
         private void AssignIcons()
@@ -1080,11 +1195,29 @@ namespace GUI.Types.PackageViewer
         /// <param name="selectedSearchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
         internal void SearchAndFillResults(string searchText, SearchType selectedSearchType, string? filterKey = null, string? filterValue = null)
         {
-            var results = mainTreeView.Search(searchText, selectedSearchType);
+            var request = new SearchRequest(searchText, selectedSearchType, filterKey, filterValue);
 
-            if (filterKey != null && AssetSearchData != null)
+            suppressHistoryRecording = true;
+
+            try
             {
-                results.RemoveAll(entry => !MatchesAssetFilter(entry, filterKey, filterValue));
+                PerformSearch(request);
+            }
+            finally
+            {
+                suppressHistoryRecording = false;
+            }
+
+            RecordNavigation(new NavigationEntry(null, request));
+        }
+
+        private void PerformSearch(SearchRequest request)
+        {
+            var results = mainTreeView.Search(request.Text, request.Type);
+
+            if (request.FilterKey != null && AssetSearchData != null)
+            {
+                results.RemoveAll(entry => !MatchesAssetFilter(entry, request.FilterKey, request.FilterValue));
             }
 
             var node = new VirtualPackageNode(string.Empty, 0, null);
@@ -1696,6 +1829,7 @@ namespace GUI.Types.PackageViewer
         {
             mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
             mainListView.MouseDown -= MainListView_MouseDown;
+            mainListView.MouseUp -= MainListView_MouseUp;
             mainListView.MouseWheel -= MainListView_MouseWheel;
             mainListView.ColumnClick -= MainListView_ColumnClick;
             mainListView.Scroll -= MainListView_Scroll;
