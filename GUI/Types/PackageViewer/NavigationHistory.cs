@@ -25,7 +25,6 @@ namespace GUI.Types.PackageViewer
         private readonly List<NavigationEntry> entries = [];
         private int index = -1;
 
-        public NavigationEntry? Current => index >= 0 ? entries[index] : null;
         public bool CanGoBack => index > 0;
         public bool CanGoForward => index >= 0 && index < entries.Count - 1;
 

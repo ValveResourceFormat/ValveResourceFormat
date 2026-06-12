@@ -386,7 +386,7 @@ namespace GUI.Types.PackageViewer
             base.WndProc(ref m);
         }
 
-        public void NavigateBack()
+        private void NavigateBack()
         {
             if (navigationHistory.Back() is { } entry)
             {
@@ -394,7 +394,7 @@ namespace GUI.Types.PackageViewer
             }
         }
 
-        public void NavigateForward()
+        private void NavigateForward()
         {
             if (navigationHistory.Forward() is { } entry)
             {
@@ -454,11 +454,11 @@ namespace GUI.Types.PackageViewer
             UpdateNavigationButtons();
         }
 
-        private static bool IsInSubtree(VirtualPackageNode? node, VirtualPackageNode removedRoot)
+        private static bool IsInSubtree(VirtualPackageNode node, VirtualPackageNode removedRoot)
         {
-            for (; node != null; node = node.Parent)
+            for (var current = (VirtualPackageNode?)node; current != null; current = current.Parent)
             {
-                if (node == removedRoot)
+                if (current == removedRoot)
                 {
                     return true;
                 }
