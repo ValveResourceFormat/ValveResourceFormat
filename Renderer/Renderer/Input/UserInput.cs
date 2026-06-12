@@ -95,6 +95,8 @@ public class UserInput
     private Vector2 MouseDelta2D;
     private Vector2 MouseDeltaPitchYaw;
 
+    /// <summary>Gets or sets whether the viewport camera should have acceleration/deceleration when starting or stopping to move</summary>
+    public bool SmoothCameraEnabled { get; set; } = true;
     /// <summary>
     /// Initializes a new <see cref="UserInput"/> attached to the given renderer.
     /// </summary>
@@ -483,9 +485,16 @@ public class UserInput
         }
 
         // Apply acceleration or deceleration
-        var hasInput = targetVelocity.LengthSquared() > 0.01f;
-        var smoothingFactor = hasInput ? Acceleration : Deceleration;
-        Velocity = Vector3.Lerp(Velocity, targetVelocity, 1f - MathF.Exp(-smoothingFactor * deltaTime));
+        if (SmoothCameraEnabled)
+        {
+            var hasInput = targetVelocity.LengthSquared() > 0.01f;
+            var smoothingFactor = hasInput ? Acceleration : Deceleration;
+            Velocity = Vector3.Lerp(Velocity, targetVelocity, 1f - MathF.Exp(-smoothingFactor * deltaTime));
+        }
+        else
+        {
+            Velocity = targetVelocity;
+        }
 
         // Apply velocity to camera position
         Camera.Location += Velocity * deltaTime;

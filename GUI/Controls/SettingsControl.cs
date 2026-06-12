@@ -29,6 +29,7 @@ namespace GUI.Controls
             fovInput.Value = Settings.Config.FieldOfView;
             mouseSensitivitySlider.Value = (int)(Settings.Config.MouseSensitivity * 10f);
             mouseSensitivityValueLabel.Text = Settings.Config.MouseSensitivity.ToString("0.0");
+            smoothCamCheckbox.Checked = Settings.Config.SmoothCameraEnabled;
 
             shadowQualityComboBox.Items.AddRange(ShadowQualityNames);
             var currentShadowResolution = Settings.Config.ShadowResolution;
@@ -334,6 +335,16 @@ namespace GUI.Controls
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
             );
+        }
+
+        private void OnSmoothCameraChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.SmoothCameraEnabled = smoothCamCheckbox.Checked;
         }
 
         private void SettingsControl_Leave(object sender, EventArgs e)

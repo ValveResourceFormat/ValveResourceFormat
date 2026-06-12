@@ -352,6 +352,7 @@ namespace GUI.Types.GLViewers
             if (MouseOverRenderArea || Input.ForceUpdate)
             {
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
+                Input.SmoothCameraEnabled = Settings.Config.SmoothCameraEnabled;
 
                 var pressedKeys = ConsumeCurrentlyPressedKeysForUpdate();
                 var modifierKeys = Control.ModifierKeys;
