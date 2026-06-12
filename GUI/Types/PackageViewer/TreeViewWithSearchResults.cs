@@ -443,28 +443,10 @@ namespace GUI.Types.PackageViewer
             forwardButton.Enabled = navigationHistory.CanGoForward;
         }
 
-        /// <summary>
-        /// Drops history entries that point at <paramref name="removedRoot"/> or any of its
-        /// descendants, after that subtree was deleted from the tree. Other folder entries and
-        /// searches are kept.
-        /// </summary>
         public void PruneNavigationHistory(VirtualPackageNode removedRoot)
         {
-            navigationHistory.RemoveWhere(e => e is FolderNavigationEntry folder && IsInSubtree(folder.Node, removedRoot));
+            navigationHistory.RemoveSubtree(removedRoot);
             UpdateNavigationButtons();
-        }
-
-        private static bool IsInSubtree(VirtualPackageNode node, VirtualPackageNode removedRoot)
-        {
-            for (var current = (VirtualPackageNode?)node; current != null; current = current.Parent)
-            {
-                if (current == removedRoot)
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private void AssignIcons()

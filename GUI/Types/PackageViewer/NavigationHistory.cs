@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using GUI.Forms;
 
@@ -49,14 +48,15 @@ namespace GUI.Types.PackageViewer
         public NavigationEntry? Forward() => CanGoForward ? entries[++index] : null;
 
         /// <summary>
-        /// Removes every entry matching <paramref name="predicate"/>, keeping the cursor on the
-        /// nearest surviving earlier entry when the current one is removed.
+        /// Removes every folder entry that points at <paramref name="removedRoot"/> or any of its
+        /// descendants, keeping the cursor on the nearest surviving earlier entry when the current
+        /// one is removed. Other folder entries and searches are kept.
         /// </summary>
-        public void RemoveWhere(Func<NavigationEntry, bool> predicate)
+        public void RemoveSubtree(VirtualPackageNode removedRoot)
         {
             for (var i = entries.Count - 1; i >= 0; i--)
             {
-                if (predicate(entries[i]))
+                if (entries[i] is FolderNavigationEntry folder && IsInSubtree(folder.Node, removedRoot))
                 {
                     entries.RemoveAt(i);
 
@@ -66,6 +66,19 @@ namespace GUI.Types.PackageViewer
                     }
                 }
             }
+        }
+
+        private static bool IsInSubtree(VirtualPackageNode node, VirtualPackageNode removedRoot)
+        {
+            for (var current = (VirtualPackageNode?)node; current != null; current = current.Parent)
+            {
+                if (current == removedRoot)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
