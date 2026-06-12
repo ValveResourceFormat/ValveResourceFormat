@@ -14,6 +14,7 @@ using GUI.Types.PackageViewer.ThumbnailRenderers;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
+using Windows.Win32;
 
 namespace GUI.Types.PackageViewer
 {
@@ -37,10 +38,6 @@ namespace GUI.Types.PackageViewer
         private readonly Lock ImageListLock = new();
 
         private record class IconImageCacheEntry(Bitmap image, int index);
-
-        private readonly record struct SearchRequest(string Text, SearchType Type, string? FilterKey, string? FilterValue);
-
-        private sealed record NavigationEntry(VirtualPackageNode? Node, SearchRequest? Search);
 
         private readonly ConcurrentDictionary<string, IconImageCacheEntry?> BigIconImageCache = new();
 
@@ -75,9 +72,7 @@ namespace GUI.Types.PackageViewer
         public event EventHandler<PackageContextMenuEventArgs>? OpenContextMenu;
         public event EventHandler<PackageEntry>? PreviewFile;
 
-        private readonly Stack<NavigationEntry> navigationBackStack = new();
-        private readonly Stack<NavigationEntry> navigationForwardStack = new();
-        private NavigationEntry? currentNavigationEntry;
+        private readonly NavigationHistory navigationHistory = new();
         private bool suppressHistoryRecording;
 
         /// <summary>
@@ -119,7 +114,6 @@ namespace GUI.Types.PackageViewer
 
             mainListView.MouseDoubleClick += MainListView_MouseDoubleClick;
             mainListView.MouseDown += MainListView_MouseDown;
-            mainListView.MouseUp += MainListView_MouseUp;
             mainListView.MouseWheel += MainListView_MouseWheel;
             mainListView.ColumnClick += MainListView_ColumnClick;
             mainListView.Disposed += MainListView_Disposed;
@@ -339,26 +333,19 @@ namespace GUI.Types.PackageViewer
                 UpdateSearchTextBoxToCurrentPath(pkgNode);
             }
 
-            RecordNavigation(new NavigationEntry(pkgNode, null));
+            RecordNavigation(new FolderNavigationEntry(pkgNode));
         }
 
         private void RecordNavigation(NavigationEntry entry)
         {
             // Opening a folder can reach DisplayNodes more than once (e.g. list double click both
-            // selects the tree node and calls DisplayNodes); ignore re-entry and same-node navigation.
-            if (suppressHistoryRecording || entry == currentNavigationEntry)
+            // selects the tree node and calls DisplayNodes), and replaying history must not re-record.
+            if (suppressHistoryRecording)
             {
                 return;
             }
 
-            if (currentNavigationEntry != null)
-            {
-                navigationBackStack.Push(currentNavigationEntry);
-            }
-
-            currentNavigationEntry = entry;
-            navigationForwardStack.Clear();
-
+            navigationHistory.Record(entry);
             UpdateNavigationButtons();
         }
 
@@ -366,52 +353,66 @@ namespace GUI.Types.PackageViewer
 
         private void ForwardButton_Click(object? sender, EventArgs e) => NavigateForward();
 
-        private void MainListView_MouseUp(object? sender, MouseEventArgs e)
+        private const int APPCOMMAND_BROWSER_BACKWARD = 1;
+        private const int APPCOMMAND_BROWSER_FORWARD = 2;
+        private const int FAPPCOMMAND_MASK = 0xF000;
+
+        /// <summary>
+        /// Handles the back/forward mouse buttons and keyboard keys. WM_APPCOMMAND bubbles up from
+        /// whichever child control was clicked or focused, so this works anywhere over the package viewer.
+        /// </summary>
+        protected override void WndProc(ref Message m)
         {
-            if (e.Button == MouseButtons.XButton1)
+            if (m.Msg == PInvoke.WM_APPCOMMAND)
             {
-                NavigateBack();
+                var cmd = (int)((ushort)((long)m.LParam >> 16) & ~FAPPCOMMAND_MASK);
+
+                if (cmd is APPCOMMAND_BROWSER_BACKWARD or APPCOMMAND_BROWSER_FORWARD)
+                {
+                    if (cmd == APPCOMMAND_BROWSER_BACKWARD)
+                    {
+                        NavigateBack();
+                    }
+                    else
+                    {
+                        NavigateForward();
+                    }
+
+                    m.Result = 1;
+                    return;
+                }
             }
-            else if (e.Button == MouseButtons.XButton2)
-            {
-                NavigateForward();
-            }
+
+            base.WndProc(ref m);
         }
 
         public void NavigateBack()
         {
-            if (navigationBackStack.Count == 0)
+            if (navigationHistory.Back() is { } entry)
             {
-                return;
+                NavigateTo(entry);
             }
-
-            navigationForwardStack.Push(currentNavigationEntry!);
-            NavigateTo(navigationBackStack.Pop());
         }
 
         public void NavigateForward()
         {
-            if (navigationForwardStack.Count == 0)
+            if (navigationHistory.Forward() is { } entry)
             {
-                return;
+                NavigateTo(entry);
             }
-
-            navigationBackStack.Push(currentNavigationEntry!);
-            NavigateTo(navigationForwardStack.Pop());
         }
 
         private void NavigateTo(NavigationEntry entry)
         {
-            currentNavigationEntry = entry;
             suppressHistoryRecording = true;
 
             try
             {
-                if (entry.Search is { } request)
+                if (entry is SearchNavigationEntry search)
                 {
-                    PerformSearch(request);
+                    PerformSearch(search.Search);
                 }
-                else if (entry.Node is { } node)
+                else if (entry is FolderNavigationEntry { Node: var node })
                 {
                     mainTreeView.BeginUpdate();
                     var treeNode = CreateTreeNodes(node);
@@ -438,8 +439,32 @@ namespace GUI.Types.PackageViewer
 
         private void UpdateNavigationButtons()
         {
-            backButton.Enabled = navigationBackStack.Count > 0;
-            forwardButton.Enabled = navigationForwardStack.Count > 0;
+            backButton.Enabled = navigationHistory.CanGoBack;
+            forwardButton.Enabled = navigationHistory.CanGoForward;
+        }
+
+        /// <summary>
+        /// Drops history entries that point at <paramref name="removedRoot"/> or any of its
+        /// descendants, after that subtree was deleted from the tree. Other folder entries and
+        /// searches are kept.
+        /// </summary>
+        public void PruneNavigationHistory(VirtualPackageNode removedRoot)
+        {
+            navigationHistory.RemoveWhere(e => e is FolderNavigationEntry folder && IsInSubtree(folder.Node, removedRoot));
+            UpdateNavigationButtons();
+        }
+
+        private static bool IsInSubtree(VirtualPackageNode? node, VirtualPackageNode removedRoot)
+        {
+            for (; node != null; node = node.Parent)
+            {
+                if (node == removedRoot)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void AssignIcons()
@@ -1208,7 +1233,7 @@ namespace GUI.Types.PackageViewer
                 suppressHistoryRecording = false;
             }
 
-            RecordNavigation(new NavigationEntry(null, request));
+            RecordNavigation(new SearchNavigationEntry(request));
         }
 
         private void PerformSearch(SearchRequest request)
@@ -1257,6 +1282,12 @@ namespace GUI.Types.PackageViewer
         /// <param name="e">Event data.</param>
         private void MainListView_MouseDown(object? sender, MouseEventArgs e)
         {
+            // Back/forward mouse buttons navigate history (WM_APPCOMMAND); don't let them change selection here.
+            if (e.Button is MouseButtons.XButton1 or MouseButtons.XButton2)
+            {
+                return;
+            }
+
             var info = mainListView.HitTest(e.X, e.Y);
 
             // if an item was clicked in the list view
@@ -1829,7 +1860,6 @@ namespace GUI.Types.PackageViewer
         {
             mainListView.MouseDoubleClick -= MainListView_MouseDoubleClick;
             mainListView.MouseDown -= MainListView_MouseDown;
-            mainListView.MouseUp -= MainListView_MouseUp;
             mainListView.MouseWheel -= MainListView_MouseWheel;
             mainListView.ColumnClick -= MainListView_ColumnClick;
             mainListView.Scroll -= MainListView_Scroll;

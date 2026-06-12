@@ -19,6 +19,8 @@ namespace GUI.Types.PackageViewer
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
+            toolTip = new System.Windows.Forms.ToolTip(components);
             mainSplitContainer = new System.Windows.Forms.SplitContainer();
             mainTreeView = new BetterTreeView();
             rightPanel = new System.Windows.Forms.Panel();
@@ -107,6 +109,7 @@ namespace GUI.Types.PackageViewer
             backButton.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             backButton.Name = "backButton";
             backButton.TabIndex = 0;
+            toolTip.SetToolTip(backButton, "Back");
             backButton.Click += BackButton_Click;
             // 
             // forwardButton
@@ -116,6 +119,7 @@ namespace GUI.Types.PackageViewer
             forwardButton.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             forwardButton.Name = "forwardButton";
             forwardButton.TabIndex = 1;
+            toolTip.SetToolTip(forwardButton, "Forward");
             forwardButton.Click += ForwardButton_Click;
             // 
             // panel1
@@ -253,6 +257,7 @@ namespace GUI.Types.PackageViewer
         private System.Windows.Forms.Panel rightPanel;
         private ThemedButton backButton;
         private ThemedButton forwardButton;
+        private System.Windows.Forms.ToolTip toolTip;
         private ThemedTextBox searchTextBox;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;

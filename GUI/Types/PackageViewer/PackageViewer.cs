@@ -263,7 +263,13 @@ namespace GUI.Types.PackageViewer
         {
             if (LastContextTreeNode != null)
             {
+                var removedRoot = LastContextTreeNode.PkgNode;
                 RemoveRecursiveFiles(LastContextTreeNode);
+
+                if (removedRoot != null)
+                {
+                    TreeView?.PruneNavigationHistory(removedRoot);
+                }
             }
         }
 
